@@ -445,3 +445,26 @@ def test_catchable_cancellation_closes_nested_registered_groups(
             if marker.exists():
                 with suppress(ProcessLookupError):
                     os.killpg(int(marker.read_text()), signal.SIGKILL)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Darwin process-group semantics")
+@pytest.mark.parametrize("survivor", [False, True])
+def test_exited_group_waits_for_reaping_but_never_ignores_a_survivor(
+    monkeypatch, *, survivor: bool
+) -> None:
+    """Zombies a reaper has yet to collect clear within the bound; a lasting refusal stays loud."""
+    signals: list[int] = []
+
+    def killpg(_pid: int, sent: int) -> None:
+        signals.append(sent)
+        if survivor or len(signals) < 4:
+            raise PermissionError(1, "Operation not permitted")
+        raise ProcessLookupError(3, "No such process")
+
+    monkeypatch.setattr(os, "killpg", killpg)
+    exited = Mock(pid=4242, returncode=0, **{"poll.return_value": 0, "wait.return_value": 0})
+    terminate = vars(process_adapter)["_terminate_command"]
+    with pytest.raises(PermissionError) if survivor else nullcontext():
+        terminate(exited, deadline=process_adapter.monotonic() + 0.2)
+    assert signals[0] == signal.SIGKILL
+    assert set(signals[1:]) == {0}

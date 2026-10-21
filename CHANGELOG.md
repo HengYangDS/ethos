@@ -26,6 +26,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
   another selected gate depends on it. Such a gate runs the product's own Nox session, which
   an adopter does not have. Provider-backed packaged gates, such as the shared floors and
   `external-links`, still run in process.
+- A command timeout's cleanup no longer fails on macOS when the timed-out process group's members
+  have exited but are not yet reaped. `ethos publish` showed a `PermissionError` traceback instead
+  of its unavailable remote observation. A member that stays unsignalable past the cleanup bound
+  still fails the command.
 
 ## [0.2.0-alpha.6] - 2026-10-22
 

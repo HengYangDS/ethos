@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- The hosted release dispatch builds the release wheel on each platform it qualifies. The ETHOS
+  wheel carries its platform's Node and Vale, so the one Linux x64 wheel that the 0.2.0-alpha.5
+  dispatch built cannot install on Linux arm64, macOS or Windows; that version keeps its signed
+  source tag and has no hosted pre-release. Publication also reads a Windows runner's archive
+  path, so a qualified Windows leg is published instead of stopping the release.
+
 ## [0.2.0-alpha.5] - 2026-10-21
 
 ### Added

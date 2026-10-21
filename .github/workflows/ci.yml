@@ -223,46 +223,9 @@ jobs:
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
         run: test "$QUALITY_RESULT" = success
-  release-wheel:
-    name: release wheel
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
-    env:
-      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          ref: refs/tags/${{ inputs.release_tag }}
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
-        with:
-          version: 0.13.4
-          python-version: "3.14"
-      - name: Provision native Python image supply
-        run: uv python install --no-bin 3.14
-      - name: Synchronize build-only Python dependencies
-        run: uv sync --locked --no-install-project --group dev
-      - name: Synchronize locked Python environment
-        run: uv sync --locked --group dev
-      - name: Prepare locked native tool supply
-        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
-      - name: Install locked npm packages
-        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
-      - name: Provision test fixture supply
-        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
-      - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
-      - name: Build the release wheel its signed tag admits
-        run: uv run --frozen --offline --no-sync python -m nox -s build -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: release-wheel
-          path: build/artifacts/release/python/
-          if-no-files-found: error
   release-platforms:
     name: release runtime ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: release-wheel
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     env:
@@ -301,25 +264,22 @@ jobs:
         run: uv sync --locked --group dev
       - name: Bind operator commit trust
         run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: release-wheel
-          path: build/artifacts/release/python
+      - name: Build the release wheel its signed tag admits
+        run: uv run --frozen python -m nox -s build -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
       - name: Qualify the release wheel and retain its runtime archive
         run: uv run --frozen python -m nox -s install_smoke -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-runtime-${{ matrix.os }}
           path: |
+            build/artifacts/release/python/
             build/artifacts/native/
             build/evidence/local-install/release-smoke.json
           if-no-files-found: error
   release-publish:
     name: release publication
     runs-on: ubuntu-latest
-    needs:
-      - release-wheel
-      - release-platforms
+    needs: release-platforms
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
     permissions:
       contents: write

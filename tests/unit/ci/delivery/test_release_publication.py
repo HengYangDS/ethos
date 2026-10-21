@@ -90,40 +90,47 @@ def test_hosted_release_source_refuses_every_other_tag(tmp_path, monkeypatch, ca
         pipeline.prepare_release_candidate(repo, head, tag=tag)
 
 
-def _qualified(inputs: Path, job: str, platform: str, machine: str, wheel: str) -> Path:
+def _qualified(inputs: Path, job: str, platform: str, machine: str, tag: str) -> tuple[Path, ...]:
+    """Lay out one platform job's artifact as its upload roots it: wheel, archive, evidence."""
     runtime = hashlib.sha256(job.encode()).hexdigest()
+    wheel = inputs / job / "artifacts/release/python" / f"ethos-0.2.0a5-py3-none-{tag}.whl"
+    wheel.parent.mkdir(parents=True)
+    wheel.write_bytes(f"wheel {job}".encode())
     archive = inputs / job / "artifacts/native" / runtime / "ethos-0.2.0a5.tar.gz"
     archive.parent.mkdir(parents=True)
     archive.write_bytes(job.encode())
     evidence = inputs / job / "evidence/local-install/release-smoke.json"
     evidence.parent.mkdir(parents=True)
+    # Each runner records the archive in its own path syntax; Windows separates with backslashes.
+    separator = "\\" if platform == "windows" else "/"
+    runner = separator.join(("D:" if platform == "windows" else "", "a", "build/artifacts/native"))
     distribution = {
-        "path": f"/runner/build/artifacts/native/{runtime}/{archive.name}",
+        "path": separator.join((runner, runtime, archive.name)),
         "sha256": hashlib.sha256(job.encode()).hexdigest(),
         "runtime_digest": runtime,
-        "wheel_sha256": wheel,
+        "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
         "platform": platform,
         "architecture": machine,
         "product_version": "0.2.0-alpha.5",
     }
     evidence.write_text(json.dumps({"distribution": distribution}), encoding="utf-8")
-    return archive
+    return wheel, archive
 
 
 def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
-    """Archives take their Mise platform names; Windows remains an optional platform."""
+    """Each platform publishes the wheel it built and the archive its smoke qualified.
+
+    Windows is optional: its qualified leg publishes, and its absence leaves the others.
+    """
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
-    (inputs / "release-wheel").mkdir(parents=True)
-    (inputs / "release-wheel/ethos-0.2.0a5-py3-none-any.whl").write_bytes(b"wheel")
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    wheel = hashlib.sha256(b"wheel").hexdigest()
     jobs = {
-        "ubuntu-latest": ("linux", "x86_64"),
-        "ubuntu-24.04-arm": ("linux", "arm64"),
-        "macos-latest": ("darwin", "arm64"),
-        "windows-latest": ("windows", "x86_64"),
+        "ubuntu-latest": ("linux", "x86_64", "linux_x86_64"),
+        "ubuntu-24.04-arm": ("linux", "arm64", "linux_aarch64"),
+        "macos-latest": ("darwin", "arm64", "macosx_14_0_arm64"),
+        "windows-latest": ("windows", "x86_64", "win_amd64"),
     }
-    archives = {job: _qualified(inputs, job, *platform, wheel) for job, platform in jobs.items()}
+    qualified = {job: _qualified(inputs, job, *platform) for job, platform in jobs.items()}
     options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
     unreleased = tmp_path / "UNRELEASED.md"
     unreleased.write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
@@ -133,11 +140,13 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     ):
         with pytest.raises(ValueError, match=gap):
             release_assets.assemble(inputs, tmp_path / "refused", **(options | change))
-    archives["windows-latest"].write_bytes(b"changed")
-    with pytest.raises(ValueError, match="release_assets_distribution_mismatch:windows-x64"):
-        release_assets.assemble(inputs, tmp_path / "refused", **options)
+    for tampered in qualified["windows-latest"]:
+        original = tampered.read_bytes()
+        tampered.write_bytes(b"changed")
+        with pytest.raises(ValueError, match="release_assets_distribution_mismatch:windows-x64"):
+            release_assets.assemble(inputs, tmp_path / "refused", **options)
+        tampered.write_bytes(original)
     assert not (tmp_path / "refused").exists()
-    shutil.rmtree(inputs / "windows-latest")
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     assets = tmp_path / "out/assets"
     assert sorted(path.name for path in assets.iterdir()) == [
@@ -145,15 +154,27 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
         "ethos-0.2.0-alpha.5-linux-arm64.tar.gz",
         "ethos-0.2.0-alpha.5-linux-x64.tar.gz",
         "ethos-0.2.0-alpha.5-macos-arm64.tar.gz",
+        "ethos-0.2.0-alpha.5-windows-x64.tar.gz",
         "ethos-0.2.0-alpha.5.mise.toml",
-        "ethos-0.2.0a5-py3-none-any.whl",
+        "ethos-0.2.0a5-py3-none-linux_aarch64.whl",
+        "ethos-0.2.0a5-py3-none-linux_x86_64.whl",
+        "ethos-0.2.0a5-py3-none-macosx_14_0_arm64.whl",
+        "ethos-0.2.0a5-py3-none-win_amd64.whl",
     ]
+    wheel = hashlib.sha256(b"wheel ubuntu-latest").hexdigest()
+    assert sums["ethos-0.2.0a5-py3-none-linux_x86_64.whl"] == wheel
     declared = tomllib.loads((assets / "ethos-0.2.0-alpha.5.mise.toml").read_text())
     linux = declared["tools"]["http:ethos"]["platforms"]["linux-x64"]
     assert linux["url"] == "https://example.invalid/v/ethos-0.2.0-alpha.5-linux-x64.tar.gz"
     assert linux["checksum"] == f"sha256:{sums['ethos-0.2.0-alpha.5-linux-x64.tar.gz']}"
     assert linux["bin_path"].endswith("/python/bin")
+    windows = declared["tools"]["http:ethos"]["platforms"]["windows-x64"]
+    assert windows["bin_path"].endswith("/python/Scripts")
     assert (tmp_path / "out/notes.md").read_text() == "### Added\n\n- Hosted release.\n"
+    shutil.rmtree(inputs / "windows-latest")
+    assert "ethos-0.2.0a5-py3-none-win_amd64.whl" not in release_assets.assemble(
+        inputs, tmp_path / "optional", **options
+    )
     shutil.rmtree(inputs / "ubuntu-24.04-arm")
     with pytest.raises(ValueError, match="release_assets_platform_missing:linux-arm64"):
         release_assets.assemble(inputs, tmp_path / "partial", **options)

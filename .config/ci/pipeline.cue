@@ -81,31 +81,26 @@ let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPL
 	tools:     " vale gitleaks scc syft"
 	npm:       " --offline"
 }).out])
+let githubPythonBootstrap = list.Concat([[{
+	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+	with: {
+		"fetch-depth": 0
+		ref:           githubSourceSHA
+	}
+}, {
+	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+	with: {
+		version:          "0.13.4"
+		"python-version": "3.14"
+	}
+}, {
+	name: "Provision native Python image supply"
+	run:  "uv python install --no-bin 3.14"
+}], [for index, command in githubBootstrap {
+	name: githubBootstrapNames[index]
+	run:  command
+}]])
 
-// One checkout and Python image supply ahead of the shared bootstrap; release jobs check out the tag.
-let githubPythonBootstrapAt = {
-	checkout: string
-	out: list.Concat([[{
-		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-		with: {
-			"fetch-depth": 0
-			ref:           checkout
-		}
-	}, {
-		uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
-		with: {
-			version:          "0.13.4"
-			"python-version": "3.14"
-		}
-	}, {
-		name: "Provision native Python image supply"
-		run:  "uv python install --no-bin 3.14"
-	}], [for index, command in githubBootstrap {
-		name: githubBootstrapNames[index]
-		run:  command
-	}]])
-}
-let githubPythonBootstrap = (githubPythonBootstrapAt & {checkout: githubSourceSHA}).out
 let releaseTagRef = "refs/tags/${{ inputs.release_tag }}"
 
 // A release run is an explicit dispatch from accepted main naming one signed tag and its commit.
@@ -361,29 +356,12 @@ github: {
 				run: "test \"$QUALITY_RESULT\" = success"
 			}]
 		}
-		// The signed tag admits the build: a runner holds no repository proof. Linux builds the
-		// one release wheel; every platform qualifies those bytes and retains its archive.
-		"release-wheel": {
-			name:      "release wheel"
-			"runs-on": "ubuntu-latest"
-			if:        "${{ \(releaseRun) }}"
-			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
-			steps: list.Concat([(githubPythonBootstrapAt & {checkout: releaseTagRef}).out, [{
-				name: "Build the release wheel its signed tag admits"
-				run:  "\(offlineRun) python -m nox -s build -- \(releaseArguments)"
-			}, {
-				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
-				with: {
-					name:                "release-wheel"
-					path:                "build/artifacts/release/python/"
-					"if-no-files-found": "error"
-				}
-			}]])
-		}
+		// The signed tag admits each build: a runner holds no repository proof. The wheel carries
+		// its platform's Node and Vale, so every platform builds and qualifies its own wheel and
+		// retains it beside the archive its release smoke built.
 		"release-platforms": {
 			name:      "release runtime ${{ matrix.os }}"
 			"runs-on": "${{ matrix.os }}"
-			needs:     "release-wheel"
 			if:        "${{ \(releaseRun) }}"
 			// Windows remains an optional platform until its delivered artifact qualifies.
 			"continue-on-error": "${{ matrix.os == 'windows-latest' }}"
@@ -399,11 +377,8 @@ github: {
 				name: "Bind operator commit trust"
 				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
 			}, {
-				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
-				with: {
-					name: "release-wheel"
-					path: "build/artifacts/release/python"
-				}
+				name: "Build the release wheel its signed tag admits"
+				run:  "uv run --frozen python -m nox -s build -- \(releaseArguments)"
 			}, {
 				name: "Qualify the release wheel and retain its runtime archive"
 				run:  "uv run --frozen python -m nox -s install_smoke -- \(releaseArguments)"
@@ -412,6 +387,7 @@ github: {
 				with: {
 					name: "release-runtime-${{ matrix.os }}"
 					path: """
+						build/artifacts/release/python/
 						build/artifacts/native/
 						build/evidence/local-install/release-smoke.json
 
@@ -423,8 +399,8 @@ github: {
 		"release-publish": {
 			name:      "release publication"
 			"runs-on": "ubuntu-latest"
-			needs: ["release-wheel", "release-platforms"]
-			if: "${{ !cancelled() && \(releaseRun) }}"
+			needs:     "release-platforms"
+			if:        "${{ !cancelled() && \(releaseRun) }}"
 			permissions: contents: "write"
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"

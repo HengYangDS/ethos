@@ -1,10 +1,11 @@
-"""Assemble one hosted pre-release from the platform archives its release smoke qualified.
+"""Assemble one hosted pre-release from the platform artifacts its release smokes qualified.
 
-Each platform job retains the archive that its release install smoke built and proved,
-with the smoke evidence recording that archive's SHA-256, runtime, wheel and platform.
-This module checks those records against the bytes and the one release wheel, names each
-archive for its Mise platform, and writes the checksums, the Mise declaration and the
-release notes that publication uploads. It uses only the standard library, so the
+The ETHOS wheel carries its platform's Node and Vale, so each platform job builds its own
+release wheel from the signed tag, and its release install smoke qualifies that wheel and
+retains the runtime archive it built. The smoke evidence records the archive's SHA-256,
+runtime, wheel and platform. This module checks those records against each job's bytes,
+names each archive for its Mise platform, and writes the checksums, the Mise declaration
+and the release notes that publication uploads. It uses only the standard library, so the
 publication job runs it with uv's Python and without the project environment.
 """
 
@@ -16,6 +17,7 @@ import json
 import re
 import shutil
 from pathlib import Path
+from pathlib import PureWindowsPath
 
 _SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
@@ -31,36 +33,42 @@ def assemble(
         message = "release_assets_prerelease_required"
         raise ValueError(message)
     version = tag.removeprefix("v")
-    wheel = _single(source.glob("*/ethos-*.whl"), "release_assets_wheel_invalid")
-    wheel_sha256 = _sha256(wheel)
     archives = {}
     for evidence in sorted(source.glob("*/evidence/local-install/release-smoke.json")):
+        job = evidence.parents[2]
         distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
         platform = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
-        name = Path(distribution["path"]).name
+        # Each runner records its own path syntax; Windows rules read both separators.
+        name = PureWindowsPath(distribution["path"]).name
+        wheel = _single(
+            job.glob("artifacts/release/python/ethos-*.whl"),
+            f"release_assets_wheel_invalid:{platform}",
+        )
         archive = _single(
-            evidence.parents[2].glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
+            job.glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
             f"release_assets_archive_invalid:{platform}",
         )
         if (
             platform in archives
+            or any(wheel.name == other.name for _archive, _digest, other in archives.values())
             or _sha256(archive) != distribution["sha256"]
-            or distribution["wheel_sha256"] != wheel_sha256
+            or _sha256(wheel) != distribution["wheel_sha256"]
             or distribution["product_version"] != version
         ):
             message = f"release_assets_distribution_mismatch:{platform}"
             raise ValueError(message)
-        archives[platform] = (archive, distribution["runtime_digest"])
+        archives[platform] = (archive, distribution["runtime_digest"], wheel)
     if missing := sorted(_REQUIRED - set(archives)):
         message = "release_assets_platform_missing:" + ",".join(missing)
         raise ValueError(message)
     notes = _release_notes(changelog, version)
     assets = output / "assets"
     assets.mkdir(parents=True)
-    shutil.copy2(wheel, assets / wheel.name)
-    sums = {wheel.name: wheel_sha256}
+    sums = {}
     declaration = [f'[tools."http:ethos"]\nversion = "{version}"\n\n[tools."http:ethos".platforms]']
-    for platform, (archive, digest) in sorted(archives.items()):
+    for platform, (archive, digest, wheel) in sorted(archives.items()):
+        shutil.copy2(wheel, assets / wheel.name)
+        sums[wheel.name] = _sha256(assets / wheel.name)
         published = f"ethos-{version}-{platform}.tar.gz"
         shutil.copy2(archive, assets / published)
         sums[published] = _sha256(assets / published)

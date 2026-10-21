@@ -36,6 +36,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   source-integrity gate checks the archive's pinned SHA-256 and compares each declared member with
   its exact entry in memory, without extracting it; unselected entries stay unread, and a
   missing, unqualified or different entry leaves its members unproven.
+- The repository paradigm judges each tracked file's line endings by its effective Git `text` and
+  `eol` attributes, which `git check-attr` resolves from every applicable pattern. It checked only
+  the last catch-all `*` pattern, so a later or nested pattern could still check a file out with
+  CRLF or a host-dependent line ending. Such a file is now a `line-ending` gap; a file marked
+  `-text` keeps its exact bytes, and a checkout that Git does not report blocks.
 
 ### Fixed
 

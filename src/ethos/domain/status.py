@@ -12,6 +12,7 @@ from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import tracked_paths
+from ethos.adapters.repo.git_attributes import checkout_line_endings
 from ethos.adapters.repo.git_attributes import received_paths
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ def audit_for_root(
         tracked_paths=tracked,
         retained_origins=observed_document_origins(root),
         received_paths=received_paths(root, tracked),
+        line_endings=checkout_line_endings(root, tracked),
     )
 
 

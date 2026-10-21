@@ -1,5 +1,20 @@
 ## MODIFIED Requirements
 
+### Requirement: Text normalization is declared
+
+Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact. Each tracked file's effective `text` and `eol` attributes, as native Git resolves them from every applicable pattern, SHALL check it out with LF or leave its bytes unconverted, so a later or nested pattern cannot select CRLF or a host-dependent line ending.
+
+#### Scenario: Line endings are undeclared
+
+- **WHEN** a governed repository has no `.gitattributes`
+- **THEN** the paradigm reports missing text normalization.
+
+#### Scenario: A narrower pattern selects another line ending
+
+- **WHEN** a conforming `.gitattributes` is followed by `run.cmd eol=crlf`, or a nested `.gitattributes` gives `docs/*.md` no `eol`
+- **THEN** the paradigm reports each file whose effective attributes select that line ending, with a repair that drops the override or marks the file `-text`
+- **AND** a file marked `-text`, `binary` or byte-exact keeps its bytes without a gap.
+
 ### Requirement: Text formatting uses the common formatters
 
 Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure. The paradigm SHALL NOT add a layout rule of its own, so container structure that the formatter accepts conforms.

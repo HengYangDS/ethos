@@ -31,6 +31,7 @@ from ethos.repository.release.changelog import changelog_errors
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import EcosystemModule
@@ -47,11 +48,17 @@ _NPM_DEPENDENCY_FIELDS = (
 
 
 def repository_paradigm_report(
-    root: Path, *, tracked_paths: tuple[str, ...], received_paths: Iterable[str] = ()
+    root: Path,
+    *,
+    tracked_paths: tuple[str, ...],
+    received_paths: Iterable[str] = (),
+    line_endings: Mapping[str, tuple[str, str]] | None,
 ) -> dict[str, object]:
     """Evaluate the shared repository paradigm over one repository's tracked paths.
 
     Received paths, which Git attributes mark vendored or generated, keep their names.
+    Line endings are each tracked path's effective Git `text` and `eol` attributes; None
+    means Git did not report them.
     """
     paradigm = load_repository_paradigm()
     tracked = frozenset(tracked_paths)
@@ -59,7 +66,7 @@ def repository_paradigm_report(
     gaps = [
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
-        *_normalization_gaps(paradigm, root, tracked),
+        *_normalization_gaps(paradigm, root, tracked, line_endings),
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
@@ -248,9 +255,16 @@ def _embedded_policy_gaps(
 
 
 def _normalization_gaps(
-    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+    paradigm: RepositoryParadigm,
+    root: Path,
+    tracked: frozenset[str],
+    line_endings: Mapping[str, tuple[str, str]] | None,
 ) -> Iterator[ParadigmGap]:
-    """Require UTF-8, LF line endings and a final newline in both declaration carriers."""
+    """Require UTF-8, LF line endings and a final newline in both declaration carriers.
+
+    Under a conforming declaration each tracked file must also check out with LF, or keep
+    its bytes as -text, by the attributes Git resolves, so a later or nested pattern counts.
+    """
     rule = paradigm.normalization.gitattributes
     attributes = tracked_text(root, ".gitattributes", tracked)
     declared = [" ".join(line.split()) for line in (attributes or "").splitlines()]
@@ -261,6 +275,18 @@ def _normalization_gaps(
             ".gitattributes",
             f"declare `{rule}` as the last pattern for every file in .gitattributes",
         )
+    elif line_endings is None:
+        repair = "let Git report the text and eol attributes of every tracked file"
+        yield ParadigmGap("line-ending", ".gitattributes", repair)
+    else:
+        for path in sorted(tracked):
+            text, eol = line_endings.get(path, ("unspecified", "unspecified"))
+            if text != "unset" and (text not in {"set", "auto"} or eol != "lf"):
+                repair = (
+                    f"check out {path} with LF on every host: drop the attribute that overrides"
+                    " its text or eol, or mark it -text to keep its exact bytes"
+                )
+                yield ParadigmGap("line-ending", path, repair)
     expected = paradigm.normalization.editorconfig.model_dump()
     editor = tracked_text(root, ".editorconfig", tracked)
     defaults = editor_defaults(editor) if editor is not None else {}

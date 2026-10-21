@@ -191,48 +191,6 @@ def test_official_openspec_keeps_its_owner_and_is_never_formatted(lane: Path) ->
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
 
 
-def test_captured_source_bundles_share_native_selection(lane: Path) -> None:
-    """Captured bundle bytes have one owner across fix, check and Markdown lint."""
-    integration = "integrations/architecture-publisher/"
-    captured = {
-        integration + "src/edition/authoring/edition.json": '{"captured":true}\n',
-        integration + "src/edition/authoring/source.md": "# Captured\n\nOriginal text   \n",
-        integration + "src/edition/static/authoring/metrics.json": '{"captured":[1,2]}\n',
-        integration + "migration-baseline.json": '{"migration":true}\n',
-        integration + "src/edition/refresh.json": '{"bound-request":true}\n',
-        integration + "src/edition/verification-policy.json": '{"bound-request":true}\n',
-    }
-    source = "integrations/architecture-publisher/src/adapter/source.json"
-    _write(lane, {**captured, source: '{"value":true}\n', "docs/current.md": "# Current\n"})
-    for path in captured:
-        (lane / path).chmod(0o640)
-    head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
-
-    selected = {item.path for item in prepare_source_format(lane)}
-    assert not set(captured) & selected
-    assert source in selected
-    linted = gate_tool.markdown_lint_report(lane)
-    assert linted["verdict"] == "pass", linted
-    assert "docs/current.md" in linted["native"][0]["files"]
-    assert not set(captured) & set(linted["native"][0]["files"])
-
-    code, refused = _command(
-        lane, source, *captured, "--apply", "--authorize", "--expect-head", head
-    )
-    assert (code, refused["verdict"]) == (1, "block"), refused
-    assert (lane / source).read_text() == '{"value":true}\n'
-    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
-    assert (code, applied["verdict"]) == (0, "pass"), applied
-    assert (lane / source).read_text() == '{ "value": true }\n'
-    code, checked = _command(lane, "--check")
-    assert (code, checked["verdict"]) == (0, "pass"), checked
-    code, repeated = _command(lane, "--apply", "--authorize", "--expect-head", head)
-    assert (code, repeated["data"]["changed_paths"]) == (0, []), repeated
-    assert all((lane / path).read_text() == content for path, content in captured.items())
-    assert all((lane / path).stat().st_mode & 0o777 == 0o640 for path in captured)
-    assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
-
-
 _CARRIERS = ".config/checks/format-selection/policy.toml"
 _DECLARATION = "format_selection_increment_invalid:custody-bound-sources"
 _INCREMENT = f"format_selection_increment_invalid:{_CARRIERS}"

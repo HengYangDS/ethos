@@ -12,6 +12,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Removed
+
+- The shipped format-selection policy no longer names the retired
+  `integrations/architecture-publisher` capture paths, removed from this repository on
+  2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
+  stay excluded by path, and a repository's own carriers still bind only its formatters.
+
 ## [0.2.0-alpha.6] - 2026-10-21
 
 ### Added

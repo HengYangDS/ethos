@@ -37,7 +37,7 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
 
 
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
-    """Join authored inputs once, preserving producer, upstream and immutable ownership."""
+    """Join authored inputs once, preserving producer, upstream and archived-record ownership."""
     profile = load_repository_profile(root)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
@@ -70,15 +70,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
         if origins.required_gaps:
             raise ValueError(origins.required_gaps[0])
         selected = [relative for relative in selected if relative not in origins.entries]
-    # Only shipped ownership narrows what read-only checks read; a repository carrier forbids
-    # rewriting its bytes, not checking them, so it enters only the formatter join below.
-    ownership = audit(
-        root, paths=tuple(selected), configuration=canonical_resource(POLICY_PATH.as_posix())
-    )
-    captured = {
-        item["path"] for item in ownership["assignments"] if item["mutation_policy"] == "forbidden"
-    }
-    return [relative for relative in selected if relative not in captured]
+    return selected
 
 
 def format_ownership(root: Path, paths: tuple[str, ...]) -> CarrierAudit:

@@ -57,23 +57,6 @@ semantic_companions = ["official-openspec-history"]
 mutation_policy = "forbidden"
 
 [[ownership]]
-id = "publisher-captured-source-bundles"
-priority = 100
-paths = [
-  "integrations/architecture-publisher/migration-baseline.json",
-  "integrations/architecture-publisher/src/edition/authoring/**",
-  "integrations/architecture-publisher/src/edition/static/authoring/**",
-  "integrations/architecture-publisher/src/edition/refresh.json",
-  "integrations/architecture-publisher/src/edition/verification-policy.json",
-]
-format_owner = "immutable-carrier"
-format_command = "not-applicable:captured-source-bundle"
-format_check = "npm run test:architecture-publisher"
-validation_owner = "architecture-publisher-source-bundle"
-validation_command = "npm run test:architecture-publisher"
-mutation_policy = "forbidden"
-
-[[ownership]]
 id = "ruff"
 extensions = [".py", ".pyi"]
 format_owner = "ruff"

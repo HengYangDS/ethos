@@ -92,6 +92,38 @@ def test_required_common_verifier_cannot_be_replaced_by_same_named_native_comman
         compile_gate_policy(profile=profile, repository_paths=("README.md",), full=True)
 
 
+@pytest.mark.parametrize(
+    ("requested", "refused"),
+    [
+        (("dependency-vulnerabilities",), "dependency-vulnerabilities"),
+        (("native", "ruff"), "ruff"),
+        (("generated-artifacts",), "(ruff|unit-architecture)"),
+    ],
+)
+def test_adopter_selection_refuses_a_product_toolchain_command(
+    tmp_path: Path, requested: tuple[str, ...], refused: str
+) -> None:
+    """An adopter imports provider-backed packaged gates only, never a product command."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="document-repository",
+            proof=ProofPolicy(
+                code_correctness_gates=("native",),
+                gates=(Gate(id="native", kind="test", command=("native-check",)),),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match=f"^proof_gate_not_importable:{refused}$"):
+        compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
+    imported = compile_gate_policy(
+        profile=profile, gate_ids=("external-links",), repository_python="python"
+    )
+    assert imported.registry["external-links"].tool_adapter == "ethos"
+
+
 def test_product_registry_keeps_its_native_floor_declarations() -> None:
     """The product declares the shared floors natively; composition rewrites only adopters."""
     shipped = load_gate_registry_declaration()

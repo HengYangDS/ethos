@@ -69,11 +69,11 @@ def select_gate_declaration(
         if gate is None:
             message = "unknown proof gate"
             raise ValueError(message)
-        extra[gate_id] = (
-            gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
-            if gate.providers or gate.verification_providers
-            else gate
-        )
+        # A packaged command runs the product's own toolchain, which an adopter does not have.
+        if not (gate.providers or gate.verification_providers):
+            message = f"proof_gate_not_importable:{gate_id}"
+            raise ValueError(message)
+        extra[gate_id] = gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
         pending.extend(gate.depends_on)
     proof_sets = GateProofSets(
         default=tuple(dict.fromkeys((*declaration.proof_sets.default, *common))),

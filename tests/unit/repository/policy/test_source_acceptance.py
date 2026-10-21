@@ -9,6 +9,7 @@ import tomli_w
 
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.repository.policy.gates import ResolvedGatePolicy
@@ -116,36 +117,50 @@ def test_release_acceptance_requires_each_selected_audit_attempt(tmp_path: Path,
     ) == ["proof_dependency_acceptance_audit_missing"]
 
 
-def test_imported_native_audit_honors_source_purpose_without_changing_target_floor(
+def test_native_audit_honors_source_purpose_without_changing_target_floor(
     tmp_path: Path,
 ) -> None:
-    """Purpose interpretation follows selected closure, including newly imported commands."""
+    """Purpose interpretation follows the selected closure, including a native audit command."""
+    native = Gate(id="native", kind="check", command=("target-check",))
+    audit = Gate(
+        id="audit",
+        kind="check",
+        command=("{python}", "-m", "nox", "-s", "vulnerabilities"),
+        tool_adapter="vulnerabilities",
+    )
+    registry = load_gate_registry_declaration().model_copy(
+        update={
+            "gates": (native, audit),
+            "proof_sets": GateProofSets(default=("native",), full=("native", "audit")),
+        }
+    )
     profile = RepositoryProfile(
         root=tmp_path,
         exists=True,
         declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-                gates=(Gate(id="native", kind="check", command=("target-check",)),),
-            ),
+            profile_id="target", proof=ProofPolicy(gate_registry="system/gates.toml")
         ),
     )
-    requested = ("native", "dependency-vulnerabilities")
-    strict = compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
-    source = compile_gate_policy(
-        profile=profile,
-        gate_ids=requested,
-        repository_python="python",
-        acceptance_purpose="local-source",
-    )
+
+    def compiled(purpose: AcceptancePurpose) -> ResolvedGatePolicy:
+        return compile_gate_policy(
+            profile=profile,
+            gate_registry_source=tomli_w.dumps(
+                registry.model_dump(mode="json", exclude_none=True)
+            ).encode(),
+            gate_ids=("native", "audit"),
+            repository_python="python",
+            acceptance_purpose=purpose,
+        )
+
+    strict = compiled("repository")
+    source = compiled("local-source")
     assert strict.profile is source.profile is profile
     assert source.declaration.proof_sets == strict.declaration.proof_sets
     assert source.gate_ids == strict.gate_ids
     assert source.registry["native"] == strict.registry["native"]
-    assert source.registry["dependency-vulnerabilities"].command == (
-        *strict.registry["dependency-vulnerabilities"].command,
+    assert source.registry["audit"].command == (
+        *strict.registry["audit"].command,
         "--",
         "--scope",
         "local-development",

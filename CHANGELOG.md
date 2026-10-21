@@ -19,6 +19,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
   2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
   stay excluded by path, and a repository's own carriers still bind only its formatters.
 
+### Fixed
+
+- An adopter's `ethos prove --gate` selection of a packaged gate that has no provider, such as
+  `ruff` or `dependency-vulnerabilities`, returns `proof_gate_not_importable:<id>`, also when
+  another selected gate depends on it. Such a gate runs the product's own Nox session, which
+  an adopter does not have. Provider-backed packaged gates, such as the shared floors and
+  `external-links`, still run in process.
+
 ## [0.2.0-alpha.6] - 2026-10-21
 
 ### Added

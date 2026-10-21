@@ -294,13 +294,14 @@ def test_current_resolution_derives_only_exact_new_change_metadata(tmp_path, mon
 
 @pytest.mark.parametrize("target", ["metadata", "absent-root", "existing-root"])
 def test_new_change_bootstrap_coexists_with_other_active_changes(tmp_path, monkeypatch, target):
-    """An exact new carrier may bootstrap without selecting an unrelated active Change."""
+    """An exact new carrier bootstraps beside unrelated Changes, a dated legacy one included."""
     change = "openspec/changes/fresh"
     if target == "existing-root":
         (tmp_path / change).mkdir(parents=True)
-    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
-    report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
-    report["lifecycle"]["changes"] = [{"name": "first"}, {"name": "second"}]
+    report = official_report(gaps=("openspec_active_change_ambiguous:first,second-20261008",))
+    peers = [{"name": "first"}, {"name": "second-20261008"}]
+    report["commands"]["list"]["json"] = {"changes": peers}
+    report["lifecycle"]["changes"] = peers
 
     resolution = resolve_report(
         monkeypatch,
@@ -317,6 +318,18 @@ def test_new_change_bootstrap_coexists_with_other_active_changes(tmp_path, monke
         assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:fresh",)
     else:
         assert not resolution.scope.material_scope.get("authorized_paths")
+
+
+@pytest.mark.parametrize("peers", [["second change"], ["first", "first"]])
+def test_new_change_bootstrap_refuses_unsafe_peer_identities(tmp_path, monkeypatch, peers):
+    """A malformed or repeated listed name is no safe identity, so no target is selected."""
+    report = official_report(gaps=("openspec_active_change_missing",))
+    report["commands"]["list"]["json"] = {"changes": [{"name": name} for name in peers]}
+    resolution = resolve_report(
+        monkeypatch, report, root=tmp_path, paths=("openspec/changes/fresh/.openspec.yaml",)
+    )
+    assert resolution.verdict == "block"
+    assert not resolution.scope.material_scope.get("authorized_paths")
 
 
 def test_new_change_bootstrap_does_not_override_an_explicit_other_change(

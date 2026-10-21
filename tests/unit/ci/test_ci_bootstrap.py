@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,6 +13,9 @@ import pytest
 
 import tools.ci.toolchain.environment as ci_environment
 import tools.ci.toolchain.fixture_supply as fixture_supply
+from ethos.adapters.process import run_command
+from ethos.adapters.process import windows_powershell
+from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci.toolchain import commit_trust
@@ -97,6 +102,43 @@ def test_commit_trust_binds_only_the_one_supplied_input(
     else:
         selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
         assert selected.read_text() == anchor.read_text().rstrip("\n")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires the Windows ACL authority")
+def test_ci_trust_material_is_protected_under_a_shared_temporary_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A hosted Windows temporary root lets other users write; the bound anchor must not."""
+    repo = init_git_repo(tmp_path / "repo")
+    shared = tmp_path / "shared-temporary-root"
+    shared.mkdir()
+    run_command(
+        shared,
+        (
+            windows_powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            (
+                "$acl=Get-Acl -LiteralPath $env:ETHOS_SHARED_ROOT;"
+                "$sid=[System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-545');"
+                "$rule=New-Object System.Security.AccessControl.FileSystemAccessRule("
+                "$sid,'Write','ContainerInherit,ObjectInherit','None','Allow');"
+                "[void]$acl.AddAccessRule($rule);"
+                "Set-Acl -LiteralPath $env:ETHOS_SHARED_ROOT -AclObject $acl"
+            ),
+        ),
+        check=True,
+        env={"ETHOS_SHARED_ROOT": str(shared)},
+        remove_env=("PSModulePath",),
+    )
+    monkeypatch.setattr(tempfile, "tempdir", str(shared))
+
+    anchor = ci_environment.bind_commit_trust_material(repo, "operator public trust\n")
+
+    assert protected_from_untrusted_write(anchor)
+    assert anchor.read_bytes() == b"operator public trust\n"
 
 
 def test_npm_uses_the_archive_seed_only_for_the_first_install(

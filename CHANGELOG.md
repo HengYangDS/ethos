@@ -12,6 +12,15 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- The hosted release can build its Windows runtime. The Windows leg of the 0.2.0-alpha.6 release
+  stopped at `git_object_trust_anchor_unprotected` while binding the operator's commit trust, so
+  that pre-release has no Windows archive: the CI binder restricted the signer file with POSIX
+  modes, which leave a Windows ACL unchanged, and the hosted temporary root lets other users
+  write. The binder now protects the file and its directory through the host's own protection
+  authority, which the trust check observes, and keeps the signer file's LF line endings.
+
 ## [0.2.0-alpha.6] - 2026-10-22
 
 ### Added

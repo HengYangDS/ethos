@@ -38,6 +38,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The product npm lock overrides `@allurereport/web-commons`'s exact `dompurify` 3.4.16 pin with
+  3.4.17, which fixes GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr and GHSA-c6gr-qvv4-5v3f; the
+  dependency audit blocked every proof on them, and allure 3.22.0 keeps the same pin.
 - Generated CI reference admission and repository closure treat a step that the retention
   record keeps, by Forge file, job and text digest, as owned operating-system glue. They had
   read its words as commands: aigw-cli's recorded PowerShell steps yielded 38 unowned

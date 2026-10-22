@@ -7,6 +7,9 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import StrictStr
 from pydantic import ValidationError
 
 import ethos.repository.policy.references.commands as command_references
@@ -56,6 +59,33 @@ def native_owned_references_from_files(
     _declared_gates(files, npm_scripts, owned)
     _declared_profiles(files, npm_scripts, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
+
+
+class _Runner(BaseModel):
+    """What one Forge's CI runner environment provides to that Forge's own pipelines."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    forge: StrictStr
+    executables: tuple[StrictStr, ...] = ()
+    references: tuple[StrictStr, ...] = ()
+
+
+def ci_runner_owners(files: dict[str, str]) -> dict[str, dict[str, frozenset[str]]]:
+    """Return each Forge's declared runner identities; a malformed record declares nothing."""
+    rows = _toml(_declaration_text(files, "ci-runners")).get("runner", [])
+    try:
+        runners = [_Runner.model_validate(row) for row in rows] if isinstance(rows, list) else []
+    except ValidationError:
+        return {}
+    owners: dict[str, dict[str, set[str]]] = {}
+    for runner in runners:
+        provided = owners.setdefault(runner.forge, {"executable": set(), "reference": set()})
+        provided["executable"].update(runner.executables)
+        provided["reference"].update(runner.references)
+    return {
+        forge: {kind: frozenset(values) for kind, values in provided.items()}
+        for forge, provided in owners.items()
+    }
 
 
 def command_owner_sources_from_files(

@@ -449,3 +449,23 @@ ETHOS SHALL reject retired command names.
     summary = report["summary"]
     assert isinstance(summary, Mapping)
     assert summary["orphan"] == 0
+
+
+@pytest.mark.parametrize("forge", ["gitlab", "github", None])
+def test_repository_reference_closure_admits_declared_runner_commands(
+    tmp_path: Path, forge: str | None
+) -> None:
+    """A Forge's declared runner command closes its own pipeline and no other Forge's."""
+    declare_reference_surface(tmp_path)
+    declare_reference_package(tmp_path)
+    write_reference_source(
+        tmp_path, ".gitlab-ci.yml", "verify:\n  before_script:\n    - tar -xf x\n"
+    )
+    if forge:
+        runners = f'[[runner]]\nforge = "{forge}"\nexecutables = ["tar"]\n'
+        write_reference_source(tmp_path, ".config/ci/runners.toml", runners)
+
+    report = repository_semantic_closure(tmp_path)
+
+    orphan = "semantic_consumer_orphan:executable:tar:.gitlab-ci.yml"
+    assert (orphan in report["required_gaps"]) is (forge != "gitlab"), report["required_gaps"]

@@ -6,9 +6,11 @@ import importlib.metadata
 import inspect
 import json
 import posixpath
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Literal
 
@@ -96,6 +98,8 @@ class ProductReferences:
 
     references: dict[str, set[str]]
     unknown_paths: tuple[str, ...] = ()
+    # Identities that every consuming pipeline's own Forge runner declaration provides.
+    runner_provided: dict[str, set[str]] = field(default_factory=dict)
 
     @property
     def coverage(self) -> Literal["evaluated", "unknown"]:
@@ -352,17 +356,22 @@ def _configuration_reference(
     if key == "uses" and isinstance(item, str):
         if reference := _github_reference(item):
             observed["reference"].add(reference)
-    elif key in {"run", "script"}:
+    elif key in {"run", "script", "before_script", "after_script"}:
         commands = item if isinstance(item, list) else [item]
         for command in commands:
             if isinstance(command, str):
+                # The Forge resolves an expression before the shell runs; it is a value.
+                resolved = _FORGE_EXPRESSION.sub("$EXPRESSION", command)
                 observed["executable"].update(
                     command_references.shell_executables(
-                        command, npm_scripts, module_imports=observed["import"]
+                        resolved, npm_scripts, module_imports=observed["import"]
                     )
                 )
     elif key == "image" and isinstance(item, str) and item:
         observed["reference"].add("docker")
+
+
+_FORGE_EXPRESSION = re.compile(r"\$\{\{.*?\}\}", re.DOTALL)
 
 
 def _github_reference(value: str) -> str:

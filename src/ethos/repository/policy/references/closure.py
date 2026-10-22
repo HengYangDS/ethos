@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import posixpath
 import re
 import subprocess
@@ -15,6 +16,7 @@ from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
+from ethos.repository.policy.references.declarations import ci_runner_owners
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.markdown import markdown_tokens
@@ -88,6 +90,41 @@ def product_reference_gaps(
     return gaps
 
 
+def runner_provided_references(
+    declaration_files: dict[str, str], consumer_files: dict[str, str]
+) -> dict[str, set[str]]:
+    """Return identities that every consuming pipeline's own Forge runner declaration provides."""
+    owners = ci_runner_owners(declaration_files)
+    if not owners:
+        return {}
+    sources = reference_consumer_sources_from_files(consumer_files).sources
+    return {
+        kind: {
+            identity
+            for identity, paths in sources.get(kind, {}).items()
+            if _runner_provides(owners, kind, identity, paths)
+        }
+        for kind in ("executable", "reference")
+    }
+
+
+def _runner_provides(
+    owners: dict[str, dict[str, frozenset[str]]], kind: str, identity: str, paths: frozenset[str]
+) -> bool:
+    return bool(paths) and all(
+        identity in owners.get(_pipeline_forge(path) or "", {}).get(kind, frozenset())
+        for path in paths
+    )
+
+
+def _pipeline_forge(path: str) -> str | None:
+    """Name the Forge whose pipeline file this is, as the paradigm declares them."""
+    for forge in load_repository_paradigm().pipelines.forge:
+        if any(fnmatch.fnmatchcase(path, pattern) for pattern in forge.files):
+            return forge.id
+    return None
+
+
 def repository_semantic_closure(
     root: Path,
     *,
@@ -113,7 +150,7 @@ def repository_semantic_closure(
     findings = [
         *_duplicate_command_owners(command_owners),
         *_missing_command_parents(command_owners),
-        *_orphan_consumers(owners, consumption.sources),
+        *_orphan_consumers(owners, consumption.sources, ci_runner_owners(files)),
         *_retired_reference_consumers(root, files),
         *_superseded_current_carriers(root, files, retained_origins=retained_origins),
         *_declaration_findings(contract_report),
@@ -233,11 +270,14 @@ def _missing_command_parents(
 def _orphan_consumers(
     owners: dict[str, frozenset[str]],
     consumers: dict[str, dict[str, frozenset[str]]],
+    runners: dict[str, dict[str, frozenset[str]]],
 ) -> list[SemanticClosureFinding]:
     findings = []
     for kind in REFERENCE_KINDS:
         for identity, sources in consumers[kind].items():
-            if identity in owners.get(kind, ()):
+            if identity in owners.get(kind, ()) or _runner_provides(
+                runners, kind, identity, sources
+            ):
                 continue
             if kind == "import" and identity in {"ethos", "tests", "tools"}:
                 continue

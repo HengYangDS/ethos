@@ -65,6 +65,12 @@ binding decides why the tool runs for a repository operation. Hosted CI files ar
 provider projections over repository-owned scripts and policies; they do not
 replace local proof or repository evidence.
 
+`.config/ci/runners.toml` names, per Forge, the executables and references that
+Forge's CI runner environment provides beyond the repository's toolchain and the
+product runtime, as `[[runner]]` records with `forge`, `executables` and
+`references`. Reference admission counts them as owned only in that Forge's own
+pipeline files; a malformed record owns nothing.
+
 Status: see front matter.
 
 Purpose: keep configuration placement MECE as ETHOS adoption expands across

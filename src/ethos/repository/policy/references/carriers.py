@@ -83,6 +83,7 @@ REFERENCE_CARRIERS = (
             (".config/checks/deptry/policy.toml", "python-import-policy"),
             (".config/checks/lychee/policy.toml", "tool-supply"),
             (".config/release/release-sbom/policy.toml", "tool-supply"),
+            (".config/ci/runners.toml", "ci-runners"),
             ("system/gates.toml", "gates"),
             (".ethos/profile.toml", "profile"),
             ("system/surfaces.toml", "surfaces"),

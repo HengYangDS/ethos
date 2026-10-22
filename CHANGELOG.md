@@ -14,6 +14,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Added
 
+- A repository can declare in `.config/ci/runners.toml` the executables and references each Forge's
+  CI runner environment provides, as `[[runner]]` records with `forge`, `executables` and
+  `references`. Exact-patch admission and repository closure count them as owned only in that
+  Forge's own pipeline files; a malformed record owns nothing.
 - Publication retires a closed review's proposal that dev never absorbed when an owned Work
   Lane, or the same peer's ref for that closed review, still keeps its exact tip. A candidate
   ref does not retain it, because landing resets the candidate. Without such a retainer the
@@ -29,6 +33,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Generated CI reference admission reads GitLab `before_script` and `after_script`, which it
+  skipped, so an unowned command there is refused like one in `script`. A GitHub `${{ … }}`
+  expression inside a `run` step is a value, so text after it is never taken as a command name.
 - Historical signature-repair records are validated against the release-mirror location their
   source commit declared. Moving the mirror to `.ethos/release.toml` on 2026-10-16 made every
   record whose source declared it in the workspace binding fail

@@ -1,0 +1,5 @@
+# Executables each Forge's CI runner environment provides to that Forge's own pipelines,
+# beyond the repository's toolchain and the product runtime.
+[[runner]]
+forge = "gitlab"
+executables = ["sha256sum"]

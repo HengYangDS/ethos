@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import shlex
 import shutil
 import tempfile
@@ -25,6 +26,7 @@ from ethos.repository.policy.projections import projection_effect_gaps
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.references.carriers import REFERENCE_CARRIERS
 from ethos.repository.policy.references.closure import product_reference_gaps
+from ethos.repository.policy.references.closure import runner_provided_references
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
@@ -100,7 +102,12 @@ def patch_admission(
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
-        gaps = product_reference_gaps(baseline_references, {} if root_repair else references)
+        allowed = {
+            kind: baseline_references.get(kind, frozenset())
+            | frozenset(observation.runner_provided.get(kind, ()) if observation else ())
+            for kind in baseline_references
+        }
+        gaps = product_reference_gaps(allowed, {} if root_repair else references)
         reason = gaps[0] if gaps else ""
     success_reason = (
         "native_reference_relocation_preserved"
@@ -436,11 +443,14 @@ def _patch_references(
         }
         context = {path: text for path, text in context_files.items() if path not in postimages}
         context.update(files)
-        observation = product_references_from_files(
-            files,
-            context_files=context,
-            declared_commands=declared_commands,
-            include_declarations=False,
+        observation = dataclasses.replace(
+            product_references_from_files(
+                files,
+                context_files=context,
+                declared_commands=declared_commands,
+                include_declarations=False,
+            ),
+            runner_provided=runner_provided_references(context_files, files),
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
         unknown.extend(f"reference_carrier_unknown:{path}" for path in observation.unknown_paths)

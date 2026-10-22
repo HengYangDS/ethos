@@ -152,7 +152,15 @@ def test_generated_source_binding_preserves_compiler_inputs_and_complete_outputs
         providers=("ethos.adapters.gates.provenance.observation:integrity_report",),
     )
     dependencies = ["ci.cue", "inputs.json", ".config/mise/config.toml", ".config/mise/mise.lock"]
-    material = {path: path.encode() for path in (*dependencies, *outputs)}
+    product_helpers = (
+        "@ethos/adapters/projections/compiler.py",
+        "@ethos/adapters/projections/cue.py",
+        "@ethos/adapters/toolchain/mise.py",
+        "@ethos/adapters/repo/runtime/materialization/native_supply.py",
+        "@ethos/repository/policy/projections.py",
+        "@ethos/repository/release/resources.py",
+    )
+    material = {path: path.encode() for path in (*dependencies, *outputs, *product_helpers)}
     material.update(
         {
             "@ethos/adapters/gates/provenance/observation.py": b"native entry",
@@ -178,13 +186,20 @@ def test_generated_source_binding_preserves_compiler_inputs_and_complete_outputs
     before, gaps = bind_gate_source_digests((gate,), material, source_contracts=(contract,))
     assert gaps == ()
     paths = dict(dict(before)["integrity"])
-    assert {*dependencies, *outputs, declaration} <= paths.keys()
-    for path in (*dependencies, *outputs):
+    assert {*dependencies, *outputs, *product_helpers, declaration} <= paths.keys()
+    for path in (*dependencies, *outputs, *product_helpers):
         after, gaps = bind_gate_source_digests(
             (gate,), {**material, path: b"changed"}, source_contracts=(contract,)
         )
         assert gaps == ()
         assert before != after
+    for path in product_helpers:
+        _sources, gaps = bind_gate_source_digests(
+            (gate,),
+            {name: raw for name, raw in material.items() if name != path},
+            source_contracts=(contract,),
+        )
+        assert gaps == (f"gate_policy_source_missing:integrity:{path}",)
     partial = SourceContract.model_validate(
         {
             "kind": "generated",

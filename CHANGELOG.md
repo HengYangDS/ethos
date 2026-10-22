@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Changed
+
+- The `bootstrap` task builds the development environment on the Python that
+  `.config/mise/config.toml` pins and `mise.lock` locks for every platform, CPython 3.14.8,
+  instead of whichever interpreter the host offers first. A Homebrew patch upgrade had left the
+  environment on a framework build that no runtime image can copy, so `hook install` and the
+  install smoke failed with `hook_runtime_interpreter_source_unavailable`.
+
 ## [0.2.0-alpha.7] - 2026-10-22
 
 ### Changed

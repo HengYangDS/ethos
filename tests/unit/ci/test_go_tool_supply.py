@@ -66,9 +66,10 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
         )
 
     node = tmp_path / "node-supply/bin"
+    cue = tmp_path / "cue-supply/bin"
     monkeypatch.setattr(native, "prepare_mise", lambda _root: mise)
     monkeypatch.setattr(
-        native, "materialize_tool", lambda _root, tool, **_kwargs: node if tool == "node" else None
+        native, "materialize_tool", lambda _root, tool, **_kwargs: {"node": node, "cue": cue}[tool]
     )
     monkeypatch.setattr(native, "run_mise", locked_mise)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])
@@ -81,7 +82,12 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     else:
         assert any(command[:2] == ("install", "--locked") and "go" in command for command in calls)
     if accepted:
-        assert captured.out.strip().split(os.pathsep) == [str(node), str(binary), str(tmp_path)]
+        assert captured.out.strip().split(os.pathsep) == [
+            str(node),
+            str(binary),
+            str(cue),
+            str(tmp_path),
+        ]
     else:
         assert captured.out == ""
         assert "native_tool_supply_failed" in captured.err

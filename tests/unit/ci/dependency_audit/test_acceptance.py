@@ -16,7 +16,6 @@ import pytest
 import tomli_w
 
 import ethos.repository.release.resources as resource_owner
-import tests
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
@@ -93,11 +92,20 @@ def test_artifact_risk_acceptance_is_portable_without_hiding_native_findings(
 def test_product_policy_accepts_only_its_exact_portable_artifact(repository, monkeypatch):
     """Product-owned release risk is consumed without changing the subject policy."""
     raw = npm_advisories(repository)
-    source = Path(tests.__file__).resolve().parent.parent / AUDIT_POLICY_PATH
-    resource_owner.canonical_resource(AUDIT_POLICY_PATH).write_bytes(
-        product_audit_projection(source.read_bytes())
+    subject = repository / AUDIT_POLICY_PATH
+    subject_before = subject.read_bytes()
+    authorize_fixture(
+        repository,
+        scope="production-release",
+        host=None,
+        expires_at=None,
+        nodes=None,
+        lock_sha256=None,
     )
-    subject_before = (repository / AUDIT_POLICY_PATH).read_bytes()
+    resource_owner.canonical_resource(AUDIT_POLICY_PATH).write_bytes(
+        product_audit_projection(subject.read_bytes())
+    )
+    subject.write_bytes(subject_before)
     npm_transport(monkeypatch, json.dumps(raw))
     payload = invoke_audit(repository)
     assert payload["verdict"] == "block"
@@ -105,8 +113,7 @@ def test_product_policy_accepts_only_its_exact_portable_artifact(repository, mon
     assert payload["product_policy"]["path"] == AUDIT_POLICY_PATH
     assert payload["product_policy"]["build"]["source_commit"]
     assert [record["package"] for record in payload["decision"]["approvals"]] == ["braces"]
-    assert (repository / AUDIT_POLICY_PATH).read_bytes() == subject_before
-    assert source.is_file()
+    assert subject.read_bytes() == subject_before
 
     locked = json.loads((repository / "package-lock.json").read_text())
     locked["packages"]["node_modules/braces"]["integrity"] = "sha512-Y2hhbmdlZA=="

@@ -38,6 +38,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The product npm lock moves npm to 12.2.1, whose bundled dependencies fix the 12 advisories that
+  npm 12.2.0 carried in brace-expansion, http-cache-semantics, ip-address, postcss-selector-parser
+  and undici. The dependency audit policy drops their dispositions, which would have expired on
+  2026-11-13 and then blocked every proof, since a fixed npm exists. It also drops the braces 3.0.3
+  disposition: no stable braces release fixes GHSA-vfj7-8cjw-p6xm, so the audit reports that
+  finding as unfixed upstream and blocks it once a fix ships. The policy accepts no risk.
 - ETHOS's own dependency audit policy can change through a landing. The landing hook required a
   captured audit to match the policy its own build ships, and for ETHOS's source that is the very
   file being changed, so no renewal, cleanup or new disposition could ever land. For the product's

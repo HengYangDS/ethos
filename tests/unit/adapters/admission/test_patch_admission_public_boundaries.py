@@ -223,10 +223,12 @@ def test_native_proof_gate_owner_binds_immutable_document_admission(
         root=repo, requested_paths=(path,), baseline_head=baseline, patch=patch
     )
 
-    assert report["references"] == {"executable": ["mise"]}
+    # `mise exec -- <command>` runs the command after the separator, which the gate owns too.
+    assert report["references"] == {"executable": ["mise", "python"]}
     assert report["verdict"] == ("block" if owner == "undeclared" else "pass"), report
+    # Without a gate, mise is still the product's own runtime executable; python is not.
     assert report["reason"] == (
-        "product_reference_not_admitted_at_baseline:executable:mise"
+        "product_reference_not_admitted_at_baseline:executable:python"
         if owner == "undeclared"
         else "baseline_product_closure_matched"
     )

@@ -10,9 +10,9 @@ import pytest
 import tomli_w
 import yaml
 
+import ethos.adapters.mutation.carrier_edit as carrier_edit
+import ethos.adapters.mutation.projection as projection
 from ethos.adapters.gates.provenance.observation import integrity_report
-from ethos.adapters.mutation import carrier_edit
-from ethos.adapters.mutation import projection
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.projections.cue import compile_projections

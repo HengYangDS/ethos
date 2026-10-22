@@ -42,6 +42,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The Allure report dependency now resolves DOMPurify 3.4.17, fixing the three native audit
+  findings against 3.4.16. A scoped npm override is necessary because the latest stable
+  `@allurereport/web-commons` still pins 3.4.16; the lock retains the published integrity.
 - Pinning a runtime into the host store seals it, and reusing an installation seals it again. The
   copy kept its carrier's directory modes, so a runtime unpacked with writable directories stayed
   writable. A static gate's isolated `python -I -m ruff` then wrote bytecode into the alpha.7

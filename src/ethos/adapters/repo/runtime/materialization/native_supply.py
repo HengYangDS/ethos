@@ -31,6 +31,7 @@ from ethos.repository.release.resources import packaged_resource
 from ethos.repository.release.resources import require_packaged_resource
 
 NATIVE_BACKENDS = {
+    "cue": "cue",
     "scc": "github:boyter/scc",
     "gitleaks": "github:gitleaks/gitleaks",
     "syft": "github:anchore/syft",
@@ -90,7 +91,7 @@ class NativeSupply:
             parsed = urlsplit(url)
             archive = Path(parsed.path).name
             suffix = ".zip" if system == "Windows" else ".tar.gz"
-            publisher = backend.removeprefix("github:")
+            publisher = "cue-lang/cue" if name == "cue" else backend.removeprefix("github:")
             if not (
                 re.fullmatch(r"\d+\.\d+\.\d+", version)
                 and re.fullmatch(r"sha256:[0-9a-f]{64}", checksum)
@@ -109,7 +110,9 @@ class NativeSupply:
             message = f"native_tool_locked_supply_unavailable:{name}:{target}"
             raise ValueError(message) from error
         argument = "--version" if name in {"scc", "vale"} else "version"
-        prefix = {"scc": "scc version ", "vale": "vale version "}.get(name, "")
+        prefix = {"cue": "cue version v", "scc": "scc version ", "vale": "vale version "}.get(
+            name, ""
+        )
         return cls(
             name,
             backend,
@@ -177,6 +180,8 @@ class NativeSupply:
         version = (
             json.loads(observed.stdout).get("version")
             if self.name == "syft"
+            else observed.stdout.splitlines()[0]
+            if self.name == "cue" and observed.stdout
             else observed.stdout.strip()
         )
         if observed.returncode or observed.stderr or version != self.version_output:

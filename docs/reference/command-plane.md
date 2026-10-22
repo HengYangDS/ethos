@@ -64,6 +64,40 @@ not extra lifecycles. Native `--help` owns exact syntax; this page explains sema
 
 Native formatting uses [the installed formatter operation](../guides/quickstart.md#native-source-formatting), preserving preview/check/apply and runtime selection.
 
+## Native CI Projection
+
+`ethos lane project --json` compiles every declared output as one exact patch;
+`--check` refuses drift without writes. Apply the returned patch with
+`--patch <file> --apply --authorize --expect-head <head>`. The existing Work Lane
+authority and exact-patch admission own the effect; compilation grants no permission.
+
+Declare the native group in `.config/checks/ci-projection/policy.toml` with
+`schema = "ethos-ci-template-consistency-v1"`. Select a real repository CUE file
+through `compiler.source`, typed TOML or JSON inputs through `compiler.inputs`,
+and `compiler.common = ".config/ci/verification.cue"` for the installed common
+verification model. The product supplies that model and its locked native CUE
+compiler; neither requires an ETHOS checkout or an adopter-owned compiler copy.
+Repository CI parameters belong under `.config/ci/`, while the projection declaration
+remains the consuming check's `policy.toml`. Declare and commit the runner's provided
+executables and references in `.config/ci/runners.toml` before introducing the generated
+pipeline. For example, these source jobs require `mise`, native directory creation and
+their Forge reference; a compiler preview does not establish those runner prerequisites.
+Repository toolchain and product runtime owners remain separate.
+
+Each projection binds one `provider` (`github` or `gitlab`) and one output path.
+Generated SourceContracts bind the same declaration, complete group and integrity
+gate. Product model, compiler and tool locks stay product inputs, not repository
+source members.
+
+The common model covers source verification through `mise exec --locked -- ethos`
+with repository-selected runners, branches, deadlines and an ignored evidence
+path. Genuine jobs extend the native CUE job maps without replacing common jobs.
+The repository supplies the actual public `http:ethos` Mise configuration and
+per-platform lock; the generator does not acquire a release or invent checksums.
+Bind one source workflow per provider. Separate offline workflows, cold released
+payload acquisition, peer-outage operation and hosted platform qualification are
+not delivered by this source-projection operation; retain their existing owners.
+
 ## Shared SDK Operations
 
 `inspect_repository`, `plan_repository`, `adopt_repository` and `land_repository` in

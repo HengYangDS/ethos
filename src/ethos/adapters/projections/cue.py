@@ -10,10 +10,15 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.content.observation import read_regular_bytes
+from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import projection_input_bindings
+from ethos.repository.release.resources import canonical_resource
+from ethos.repository.release.resources import packaged_resource
+from ethos.repository.release.resources import require_packaged_resource
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -37,10 +42,7 @@ def compile_projections(
         for key, (path, kind) in bindings.items()
     }
     source = files[compiler["source"]]
-    supply = compiler["supply"]
-    tool_files = {MISE_CONFIG: files[supply["config"]], MISE_LOCK: files[supply["lock"]]}
-    version = tomllib.loads(tool_files[MISE_CONFIG])["tools"]["cue"]
-    selected = executable or locked_tool(root, "cue", tool_files)
+    common, selected, version = _compiler_supply(root, declaration, compiler, files, executable)
     observed = run_command(root, (str(selected), "version"), timeout=10, check=True)
     if not observed.stdout.startswith(f"cue version v{version}\n"):
         message = "cue_version_mismatch"
@@ -59,7 +61,10 @@ def compile_projections(
             if formatted.returncode or formatted.stdout != source:
                 message = f"cue_format_required:{compiler['source']}"
                 raise ValueError(message)
-        candidate = _export(selected, isolated, source + "\n_inputs: " + json.dumps(inputs))
+        candidate_source = source + "\n_inputs: " + json.dumps(inputs)
+        if common:
+            candidate_source += "\ncompiled: #Verification & {parameters: _inputs.ci}\n"
+        candidate = _export(selected, isolated, candidate_source, common=common)
         providers = candidate["providers"]
         expected = {entry["provider"] for entry in configuration["projection"]}
         if not isinstance(providers, dict) or set(providers) != expected:
@@ -83,11 +88,54 @@ def compile_projections(
     return result["rendered"]
 
 
-def _export(executable: Path, root: Path, source: str) -> dict:
+def _compiler_supply(
+    root: Path, declaration: str, compiler: dict, files: Mapping[str, str], executable: Path | None
+) -> tuple[str, Path, str]:
+    """Bind product inputs separately from the repository's real source closure."""
+    common = ""
+    if resource := compiler.get("common"):
+        if resource != ".config/ci/verification.cue":
+            message = "projection_common_model_unknown:" + declaration
+            raise ValueError(message)
+        product = canonical_resource("pyproject.toml").parent
+        if product == packaged_resource():
+            require_packaged_resource(resource)
+        common = read_regular_bytes(
+            product,
+            resource,
+            unsafe_gap="product_model_unsafe",
+            unstable_gap="product_model_changed",
+            size_gap="product_model_size_exceeded",
+        ).decode("utf-8")
+    supply = compiler.get("supply")
+    if supply:
+        tool_files = {MISE_CONFIG: files[supply["config"]], MISE_LOCK: files[supply["lock"]]}
+        version = tomllib.loads(tool_files[MISE_CONFIG])["tools"]["cue"]
+        selected = executable or locked_tool(root, "cue", tool_files)
+    elif common:
+        product = canonical_resource("pyproject.toml").parent
+        version = tomllib.loads((product / MISE_CONFIG).read_text(encoding="utf-8"))["tools"]["cue"]
+        selected = executable or (
+            resolve_native_tool("cue")
+            if product == packaged_resource()
+            else locked_tool(product, "cue")
+        )
+    else:
+        message = "projection_compiler_supply_missing:" + declaration
+        raise ValueError(message)
+    return common, selected, version
+
+
+def _export(executable: Path, root: Path, source: str, *, common: str = "") -> dict:
+    sources = ("cue:", "-")
+    if common:
+        (root / "common.cue").write_text(common, encoding="utf-8", newline="")
+        (root / "repository.cue").write_text(source, encoding="utf-8", newline="")
+        sources = ("common.cue", "repository.cue")
     try:
         result = run_command(
             root,
-            (str(executable), "export", "cue:", "-", "-e", "compiled", "--out", "json"),
+            (str(executable), "export", *sources, "-e", "compiled", "--out", "json"),
             stdin=source,
             timeout=30,
             env={"CUE_REGISTRY": "none", "CUE_EXPERIMENT": "", "CUE_DEBUG": ""},

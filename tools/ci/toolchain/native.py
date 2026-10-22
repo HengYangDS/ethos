@@ -230,7 +230,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--mise", action="store_true")
-    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft", "vale", "node"))
+    parser.add_argument(
+        "tools", nargs="*", choices=("scc", "gitleaks", "syft", "vale", "cue", "node")
+    )
     arguments = parser.parse_args()
     try:
         mise = prepare_mise(arguments.root) if arguments.mise else None
@@ -239,7 +241,7 @@ def main() -> int:
             paths.extend(mise_tool_paths(arguments.root, mise))
         paths.extend(
             materialize_tool(arguments.root, tool, mise=mise)
-            for tool in dict.fromkeys(arguments.tools)
+            for tool in dict.fromkeys((*arguments.tools, *(("cue",) if mise is not None else ())))
         )
         if mise is not None:
             paths.append(mise.parent)

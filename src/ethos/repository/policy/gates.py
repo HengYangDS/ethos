@@ -32,6 +32,7 @@ from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
+from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
@@ -328,6 +329,7 @@ def source_paths_for_gate(
                 prefix + "adapters/repo/content/observation.py",
                 prefix + "repository/policy/quality/sources.py",
                 *source_contract_paths(source_contracts, source_materials or {}),
+                *_projection_product_sources(source_contracts, source_materials or {}),
             )
     command = canonical_gate_command(gate.command)
     module = python_module(command)
@@ -360,6 +362,47 @@ def source_paths_for_gate(
             )
         )
     )
+
+
+def _projection_product_sources(
+    contracts: tuple[SourceContract, ...], materials: Mapping[str, bytes | None]
+) -> tuple[str, ...]:
+    """Bind the actual native compiler and product inputs without claiming repository bytes."""
+    references = {
+        reference
+        for contract in contracts
+        if contract.kind == "generated"
+        for reference in contract.input_refs
+    }
+    declarations = {
+        reference: raw for reference in references if (raw := materials.get(reference)) is not None
+    }
+    if len(declarations) != len(references):
+        return ()
+    sources: list[str] = []
+    for relation in generated_relations(contracts, declarations):
+        if relation.kind != "cue":
+            continue
+        sources.extend(
+            PRODUCT_PROVIDER_SOURCE + path
+            for path in (
+                "adapters/projections/compiler.py",
+                "adapters/projections/cue.py",
+                "adapters/toolchain/mise.py",
+                "adapters/repo/runtime/materialization/native_supply.py",
+                "repository/policy/projections.py",
+                "repository/release/resources.py",
+            )
+        )
+        compiler = tomllib.loads(declarations[relation.declaration].decode("utf-8"))["compiler"]
+        if common := compiler.get("common"):
+            sources.append(PRODUCT_PROVIDER_SOURCE + "resources/" + common)
+            if not compiler.get("supply"):
+                sources.extend(
+                    PRODUCT_PROVIDER_SOURCE + "resources/.config/mise/" + name
+                    for name in ("config.toml", "mise.lock")
+                )
+    return tuple(dict.fromkeys(sources))
 
 
 def source_paths_for_gates(

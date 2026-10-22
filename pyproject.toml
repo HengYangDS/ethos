@@ -69,6 +69,7 @@ search-paths = ["src"]
 packages = ["src/ethos"]
 
 [tool.hatch.build.targets.wheel.force-include]
+".config/ci/verification.cue" = "ethos/resources/.config/ci/verification.cue"
 "system/README.md" = "ethos/resources/system/README.md"
 "system/axioms.md" = "ethos/resources/system/axioms.md"
 "system/gates.toml" = "ethos/resources/system/gates.toml"
@@ -111,6 +112,7 @@ path = "tools/ci/openspec_runtime_hook.py"
 
 [tool.hatch.build.targets.sdist]
 only-include = [
+  ".config/ci/verification.cue",
   "src",
   "system",
   "docs/governance/product-design-contract.md",

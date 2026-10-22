@@ -84,7 +84,9 @@ def prepared_native_policy_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     native.mkdir()
     (native / "vale").write_bytes(b"native fixture")
     (native / "LICENSE").write_bytes(b"publisher fixture")
-    monkeypatch.setattr(subject, "_native_tool_projection", lambda _root, _directory: native)
+    monkeypatch.setattr(
+        subject, "_native_tool_projection", lambda _root, _directory, **_options: native
+    )
 
 
 @pytest.mark.usefixtures("prepared_native_policy_tool")
@@ -393,20 +395,21 @@ def test_native_tool_build_projection_uses_locked_product_owner_without_install(
         @staticmethod
         def read(root: Path, name: str):
             assert root == tmp_path
-            assert name == "vale"
-            return Supply()
+            assert name in {"vale", "cue"}
+            supply = Supply()
+            supply.name = name
+            return supply
 
         @staticmethod
         def cache(root: Path):
             assert root == tmp_path
             return cache
 
-        @staticmethod
-        def project(source: Path, destination: Path):
+        def project(self, source: Path, destination: Path):
             assert source == archive
             ensure_native_directory(destination.parent)
             destination.mkdir()
-            (destination / "vale").write_bytes(b"native executable")
+            (destination / self.name).write_bytes(b"native executable")
             (destination / "LICENSE").write_bytes(b"publisher license")
             return destination
 
@@ -442,6 +445,13 @@ def test_native_tool_build_projection_uses_locked_product_owner_without_install(
         )
         assert (projected / "vale").read_bytes() == b"native executable"
         assert (projected / "LICENSE").read_bytes() == b"publisher license"
+        compiler = next(
+            Path(path)
+            for path, destination in data["force_include"].items()
+            if destination == "ethos/resources/native/cue"
+        )
+        assert (compiler / "cue").read_bytes() == b"native executable"
+        assert (compiler / "LICENSE").read_bytes() == b"publisher license"
     finally:
         hook.finalize("standard", data, "artifact")
 

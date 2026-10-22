@@ -67,6 +67,7 @@ def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
         if payload.get("schema") != schema or not isinstance(payload.get("projection", []), list):
             msg = f"projection_declaration_invalid:{path}"
             raise ValueError(msg)
+        providers: set[str] = set()
         for entry in payload.get("projection", []):
             if not isinstance(entry, dict) or entry.get("kind", kind) not in {kind, "cue"}:
                 msg = f"projection_kind_unknown:{path}"
@@ -74,6 +75,10 @@ def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
             selected_kind = entry.get("kind", kind)
             if selected_kind == "cue":
                 source, inputs, provider = _compiler_relation(payload, entry, path)
+                if provider in providers:
+                    msg = f"projection_provider_conflict:{path}:{provider}"
+                    raise ValueError(msg)
+                providers.add(provider)
             else:
                 source, inputs, provider = _local_path(entry.get(source_key), path), (), ""
             output = _local_path(entry.get(output_key), path)
@@ -118,7 +123,8 @@ def _compiler_relation(
     if (
         not isinstance(compiler, dict)
         or not isinstance(compiler.get("inputs"), dict)
-        or not isinstance(compiler.get("supply"), dict)
+        or ("supply" in compiler and not isinstance(compiler["supply"], dict))
+        or ("supply" not in compiler and not compiler.get("common"))
         or not isinstance(entry.get("provider"), str)
         or not entry["provider"]
     ):
@@ -126,10 +132,21 @@ def _compiler_relation(
         raise ValueError(msg)
     source = _local_path(compiler.get("source"), declaration)
     bindings = projection_input_bindings(compiler["inputs"], declaration)
+    common = compiler.get("common")
+    if common is not None and common != ".config/ci/verification.cue":
+        msg = f"projection_common_model_unknown:{declaration}"
+        raise ValueError(msg)
+    supply = compiler.get("supply", {})
     inputs = (
         *(path for path, _kind in bindings.values()),
-        _local_path(compiler["supply"].get("config"), declaration),
-        _local_path(compiler["supply"].get("lock"), declaration),
+        *(
+            (
+                _local_path(supply.get("config"), declaration),
+                _local_path(supply.get("lock"), declaration),
+            )
+            if "supply" in compiler
+            else ()
+        ),
     )
     return source, inputs, entry["provider"]
 

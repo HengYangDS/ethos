@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import tomli_w
 
 from ethos.adapters.process import run_command
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -317,4 +320,165 @@ def prove_first_change(
         raise RuntimeError(message)
     _admitted(lane, executable, selected, f"{_ROOT}/specs/foundation/spec.md")
     _prove_format(lane, executable, selected)
+    _prove_projection(lane, executable, selected)
     return {"first_change": "lane_admitted", "agent_handoff": "passed", "formatting": "passed"}
+
+
+def _prove_projection(lane: Path, executable: Path, environment: Mapping[str, str]) -> None:
+    """Exercise packaged common CUE through actual installed exact-patch admission."""
+    declaration = ".config/checks/ci-projection/policy.toml"
+    model = ".config/ci/pipeline.cue"
+    parameter_path = ".config/ci/parameters.toml"
+    outputs = (".github/workflows/source.yml", ".gitlab-ci.yml")
+    parameters = {
+        "name": "Installed verification",
+        "accepted_branch": "dev",
+        "release_branch": "main",
+        "timeout_minutes": 15,
+        "supply": {"mise_version": "2026.10.14"},
+        "github": {"runners": ["ubuntu-latest"]},
+        "gitlab": {
+            "runners": {
+                "linux": {
+                    "system": "linux",
+                    "review_tags": ["reviewed"],
+                    "protected_tags": ["protected"],
+                }
+            }
+        },
+    }
+    configuration = {
+        "schema": "ethos-ci-template-consistency-v1",
+        "compiler": {
+            "source": model,
+            "common": ".config/ci/verification.cue",
+            "inputs": {"ci": parameter_path},
+        },
+        "projection": [
+            {"kind": "cue", "provider": provider, "projection": output}
+            for provider, output in zip(("github", "gitlab"), outputs, strict=True)
+        ],
+    }
+    inputs = {
+        declaration: tomli_w.dumps(configuration),
+        parameter_path: tomli_w.dumps(parameters),
+        model: "package ci\n\ncompiled: parameters: _inputs.ci\n",
+    }
+    git = shutil.which("git", path=environment["PATH"])
+    if git is None:
+        message = "installed_projection_native_git_missing"
+        raise RuntimeError(message)
+    runner_path = ".config/ci/runners.toml"
+    _admitted(lane, executable, environment, runner_path)
+    (lane / runner_path).parent.mkdir(parents=True, exist_ok=True)
+    (lane / runner_path).write_text(
+        tomli_w.dumps(
+            {
+                "runner": [
+                    {"forge": forge, "executables": ["mise", "mkdir"], "references": [forge]}
+                    for forge in ("github", "gitlab")
+                ]
+            }
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    # Commit prerequisites before introducing a producer whose outputs must exist as one group.
+    run_command(
+        lane,
+        (git, "add", "--", runner_path, *_CONTENT, f"{_ROOT}/.openspec.yaml", *_FORMAT_SOURCES),
+        env=environment,
+        inherit_environment=False,
+        check=True,
+    )
+    run_command(
+        lane,
+        (git, "commit", "-m", "test(ci): declare native projection prerequisites"),
+        env=environment,
+        inherit_environment=False,
+        check=True,
+        timeout=90,
+    )
+    head = run_command(
+        lane, (git, "rev-parse", "HEAD"), env=environment, inherit_environment=False, check=True
+    ).stdout.strip()
+    run_command(
+        lane, (git, "verify-commit", head), env=environment, inherit_environment=False, check=True
+    )
+    _admitted(lane, executable, environment, *inputs, *outputs)
+    for relative, content in inputs.items():
+        target = lane / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8", newline="\n")
+    run_command(
+        lane, (git, "add", "--", *inputs), env=environment, inherit_environment=False, check=True
+    )
+    index = run_command(
+        lane, (git, "write-tree"), env=environment, inherit_environment=False, check=True
+    ).stdout
+    authored = {
+        path: (lane / path).read_bytes()
+        for path in (*inputs, runner_path, *_CONTENT, f"{_ROOT}/.openspec.yaml", *_FORMAT_SOURCES)
+    }
+    command = (
+        str(executable),
+        "lane",
+        "project",
+        "--root",
+        str(lane),
+        "--expect-head",
+        head,
+        "--json",
+    )
+    code, preview, detail = invoke(lane, command, environment=environment)
+    data = preview.get("data")
+    if (
+        code
+        or preview.get("verdict") != "pass"
+        or not isinstance(data, dict)
+        or not data.get("patch")
+        or any((lane / path).read_bytes() != body for path, body in authored.items())
+    ):
+        message = f"installed_projection_preview_unproven:{detail[-512:]}"
+        raise RuntimeError(message)
+    code, drift, detail = invoke(lane, (*command, "--check"), environment=environment)
+    if (
+        not code
+        or drift.get("verdict") != "block"
+        or any((lane / path).exists() for path in outputs)
+        or any((lane / path).read_bytes() != body for path, body in authored.items())
+    ):
+        message = f"installed_projection_drift_unproven:{detail[-512:]}"
+        raise RuntimeError(message)
+    with tempfile.TemporaryDirectory(prefix="ethos-projection-acceptance-") as directory:
+        patch = Path(directory) / "preview.patch"
+        patch.write_text(str(data["patch"]), encoding="utf-8", newline="\n")
+        code, applied, detail = invoke(
+            lane,
+            (*command, "--patch", str(patch), "--apply", "--authorize"),
+            environment=environment,
+        )
+    if (
+        code
+        or applied.get("verdict") != "pass"
+        or not all((lane / path).is_file() for path in outputs)
+        or any((lane / path).read_bytes() != body for path, body in authored.items())
+    ):
+        message = f"installed_projection_apply_unproven:{detail[-512:]}"
+        raise RuntimeError(message)
+    images = authored | {path: (lane / path).read_bytes() for path in outputs}
+    code, fixed, detail = invoke(lane, (*command, "--check"), environment=environment)
+    unchanged = (
+        all((lane / path).read_bytes() == body for path, body in images.items())
+        and run_command(
+            lane, (git, "rev-parse", "HEAD"), env=environment, inherit_environment=False, check=True
+        ).stdout.strip()
+        == head
+        and run_command(
+            lane, (git, "write-tree"), env=environment, inherit_environment=False, check=True
+        ).stdout
+        == index
+    )
+    if code or fixed.get("verdict") != "pass" or not unchanged:
+        message = f"installed_projection_fixed_point_unproven:{detail[-512:]}"
+        raise RuntimeError(message)

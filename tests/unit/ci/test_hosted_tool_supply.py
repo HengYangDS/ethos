@@ -429,7 +429,11 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise", "scc"])
     assert native.main() == (0 if accepted else 1)
     expected = (
-        [call(tmp_path, "node", mise=target), call(tmp_path, "scc", mise=target)]
+        [
+            call(tmp_path, "node", mise=target),
+            call(tmp_path, "scc", mise=target),
+            call(tmp_path, "cue", mise=target),
+        ]
         if accepted
         else []
     )
@@ -437,7 +441,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     assert installed.exists() is accepted
     captured = capsys.readouterr()
     assert captured.out.strip().split(os.pathsep) == (
-        [str(target.parent)] * 3 if accepted else [""]
+        [str(target.parent)] * 4 if accepted else [""]
     )
     assert (captured.err == "") is accepted
     assert target.read_bytes() == (body.encode() if accepted else before)

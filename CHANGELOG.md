@@ -14,6 +14,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Added
 
+- Installed CI projection supplies a common CUE verification model and its locked native
+  compiler. `ethos lane project` previews, checks and applies one exact admitted patch from
+  repository-owned CUE and typed inputs, without an ETHOS checkout or copied `tools.ci`.
+  This increment covers source workflows; offline release-archive execution remains separate.
 - A repository can declare in `.config/ci/runners.toml` the executables and references each Forge's
   CI runner environment provides, as `[[runner]]` records with `forge`, `executables` and
   `references`. Exact-patch admission and repository closure count them as owned only in that

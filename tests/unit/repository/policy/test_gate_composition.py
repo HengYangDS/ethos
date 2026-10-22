@@ -16,6 +16,7 @@ from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.gate_composition import select_gate_declaration
+from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
@@ -427,3 +428,54 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
     else:
         assert "source_integrity_gate_unbound:native" in policy.gaps
         assert owner["source_contracts"]
+
+
+def test_generated_common_policy_binds_product_compiler_and_native_supply_inputs():
+    """A common-model or compiler-input change invalidates the same gate execution identity."""
+    reference = ".config/checks/ci-projection/policy.toml"
+    declaration = {
+        "schema": "ethos-ci-template-consistency-v1",
+        "compiler": {
+            "source": ".config/ci/pipeline.cue",
+            "common": ".config/ci/verification.cue",
+            "inputs": {"ci": "parameters.toml"},
+        },
+        "projection": [
+            {"kind": "cue", "provider": "github", "projection": ".github/workflows/ci.yml"}
+        ],
+    }
+    contract = SourceContract(
+        kind="generated",
+        input_refs=(reference,),
+        members={".github/workflows/ci.yml": (reference, ".github/workflows/ci.yml")},
+        integrity_gate="source-integrity",
+    )
+    gate = Gate(
+        id="source-integrity",
+        kind="policy",
+        profile="repository",
+        tool_adapter="ethos",
+        providers=(INTEGRITY_PROVIDER,),
+    )
+    materials = {reference: tomli_w.dumps(declaration).encode()}
+    paths = source_paths_for_gate(gate, source_contracts=(contract,), source_materials=materials)
+    required = {
+        "@ethos/adapters/projections/cue.py",
+        "@ethos/repository/policy/projections.py",
+        "@ethos/resources/.config/ci/verification.cue",
+        "@ethos/resources/.config/mise/config.toml",
+        "@ethos/resources/.config/mise/mise.lock",
+    }
+    assert required <= set(paths)
+    assert ".config/ci/verification.cue" not in paths
+    materials.update({path: b"original product input" for path in paths if path != reference})
+    original, gaps = bind_gate_source_digests((gate,), materials, source_contracts=(contract,))
+    assert not gaps
+    for path in required:
+        updated, gaps = bind_gate_source_digests(
+            (gate,),
+            {**materials, path: b"changed product input"},
+            source_contracts=(contract,),
+        )
+        assert not gaps
+        assert updated != original

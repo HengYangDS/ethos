@@ -72,10 +72,13 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             if self.target_name == "wheel":
                 native, tag = _node_projection(root, Path(owned.name) / "native")
                 build_data["force_include"][str(native)] = (Path(resource_root) / "node").as_posix()
-                tool = _native_tool_projection(root, Path(owned.name).resolve() / "vale")
-                build_data["force_include"][str(tool)] = (
-                    Path(resource_root) / "native/vale"
-                ).as_posix()
+                for name in ("vale", "cue"):
+                    tool = _native_tool_projection(
+                        root, Path(owned.name).resolve() / name, name=name
+                    )
+                    build_data["force_include"][str(tool)] = (
+                        Path(resource_root) / "native" / name
+                    ).as_posix()
                 build_data.update(pure_python=False, tag=tag)
             for relative in production_roots:
                 target = modules / relative
@@ -129,10 +132,10 @@ def _node_projection(root: Path, directory: Path) -> tuple[Path, str]:
         return native, supply.tag
 
 
-def _native_tool_projection(root: Path, directory: Path) -> Path:
+def _native_tool_projection(root: Path, directory: Path, *, name: str = "vale") -> Path:
     """Project cached native policy tools without downloading or running their installer."""
     with _source_module(root, "ethos.adapters.repo.runtime.materialization.native_supply") as owner:
-        supply = owner.NativeSupply.read(root, "vale")
+        supply = owner.NativeSupply.read(root, name)
         return supply.project(supply.cache(root) / supply.archive, directory)
 
 

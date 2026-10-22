@@ -23,6 +23,9 @@ from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_po
 from ethos.repository.policy.gates import source_paths_for_gates
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.release.resources import canonical_resource
+from ethos.repository.release.resources import packaged_resource
+from ethos.repository.release.resources import require_packaged_resource
 
 if TYPE_CHECKING:
     from ethos.contracts.gates import GateRegistryDeclaration
@@ -353,7 +356,17 @@ def _materials(
 def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
     if relative.startswith(PRODUCT_PROVIDER_SOURCE):
         package = Path(ethos.__file__).resolve().parent
-        path = package / relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
+        name = relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
+        if name.startswith("resources/"):
+            resource = name.removeprefix("resources/")
+            path = canonical_resource(resource)
+            if path == packaged_resource(resource):
+                try:
+                    path = require_packaged_resource(resource)
+                except (OSError, ValueError):
+                    return None
+        else:
+            path = package / name
         return path.read_bytes() if path.is_file() and not path.is_symlink() else None
     if tree_ref is not None:
         observed = run_git(

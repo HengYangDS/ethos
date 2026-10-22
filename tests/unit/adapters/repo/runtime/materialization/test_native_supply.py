@@ -526,3 +526,35 @@ def test_native_projection_rechecks_type_before_read_or_write(
     assert not destination.exists()
     if boundary == "directory":
         assert parent.read_bytes() == b"Preserved foreign file.\n"
+
+
+def test_cue_native_supply_preserves_original_archive_layout_and_license(tmp_path, monkeypatch):
+    """CUE's native locked asset, not a GitHub shorthand, supplies its real nested payload."""
+    root = tmp_path / "product"
+    config = root / ".config/mise"
+    config.mkdir(parents=True)
+    (config / "config.toml").write_text('[tools]\ncue = "0.17.1"\n')
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "arm64")
+    archive = tmp_path / "cue_v0.17.1_darwin_arm64.tar.gz"
+    with tarfile.open(archive, "w:gz") as package:
+        for name, body in (("cue", b"actual native CUE bytes"), ("LICENSE", b"publisher license")):
+            entry = tarfile.TarInfo(name)
+            entry.size = len(body)
+            package.addfile(entry, io.BytesIO(body))
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    (config / "mise.lock").write_text(
+        'lockfile_version = 3\n[[tools.cue]]\nversion = "0.17.1"\nbackend = "aqua:cue-lang/cue"\n'
+        '[tools.cue."platforms.macos-arm64"]\n'
+        f'checksum = "sha256:{digest}"\n'
+        'url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_darwin_arm64.tar.gz"\n'
+    )
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    supply = owner.NativeSupply.read(root, "cue")
+    assert supply.backend == "cue"
+    assert supply.payload_bytes(archive) == {
+        "cue": b"actual native CUE bytes",
+        "LICENSE": b"publisher license",
+    }
+    assert supply.version_argument == "version"
+    assert supply.version_output == "cue version v0.17.1"

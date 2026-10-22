@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,6 +16,7 @@ from ethos.repository.policy.references.observation import installed_distributio
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
+from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import git
 
 if TYPE_CHECKING:
@@ -99,12 +101,13 @@ def test_native_package_manager_alternatives_and_legacy_declaration() -> None:
 
 
 def test_valid_repository_binding_inherits_product_console_ownership() -> None:
-    """Governed content consumes the product's console without a duplicate package."""
+    """Governed content consumes the product's console and runtime without a duplicate package."""
     profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-docs"))
+    surfaces = tomllib.loads(canonical_resource("system/surfaces.toml").read_text(encoding="utf-8"))
 
     owned = native_owned_references_from_files({".ethos/profile.toml": profile})
 
-    assert owned["executable"] == {"ethos"}
+    assert owned["executable"] == {"ethos", *surfaces["runtime"]["executables"]}
     assert owned["distribution"] == set()
     assert owned["import"] == set()
 

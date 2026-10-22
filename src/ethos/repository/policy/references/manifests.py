@@ -22,6 +22,7 @@ class ProjectFields(BaseModel):
 
     model_config = ConfigDict(strict=True, extra="ignore")
     name: str | None = None
+    requires_python: str | None = Field(default=None, alias="requires-python")
     dependencies: list[str] = Field(default_factory=list)
     optional_dependencies: dict[str, list[str]] = Field(
         default_factory=dict, alias="optional-dependencies"
@@ -76,6 +77,9 @@ class PythonManifest(BaseModel):
                 observed["distribution"].add(normalized_distribution(match.group()))
         observed["executable"].update(self.project.scripts)
         observed["executable"].update(self.project.gui_scripts)
+        # As devEngines declares npm, requires-python declares the interpreter the project runs.
+        if self.project.requires_python is not None:
+            observed["executable"].add("python")
 
 
 class NativePackageManager(BaseModel):

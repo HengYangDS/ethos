@@ -73,6 +73,7 @@ packages = ["src/ethos"]
 "system/README.md" = "ethos/resources/system/README.md"
 "system/axioms.md" = "ethos/resources/system/axioms.md"
 "system/gates.toml" = "ethos/resources/system/gates.toml"
+"system/surfaces.toml" = "ethos/resources/system/surfaces.toml"
 "package.json" = "ethos/resources/package.json"
 "package-lock.json" = "ethos/resources/package-lock.json"
 "pyproject.toml" = "ethos/resources/pyproject.toml"

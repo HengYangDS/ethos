@@ -30,6 +30,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
   have exited but are not yet reaped. `ethos publish` showed a `PermissionError` traceback instead
   of its unavailable remote observation. A member that stays unsignalable past the cleanup bound
   still fails the command.
+- An exact `--patch` to a generated CI file admits the references its repository already owns.
+  Release peers own their forge provider and Git remote, `mise exec … --` owns the command it
+  runs, a governed repository may run the product's own runtime executables, such as `git`, and
+  `requires-python` owns the interpreter. A one-line edit to an adopter's GitLab pipeline was
+  refused with `product_reference_not_admitted_at_baseline:executable:git`; an executable that
+  no declaration owns stays refused.
 
 ## [0.2.0-alpha.6] - 2026-10-22
 

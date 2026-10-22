@@ -68,8 +68,9 @@ location, and it admits it only for commits that contain it.
   `signature_repair_source_coordinates_mismatch`.
 - The `retained-attestation-members` task 2.3 records that this blocks the proposal-retirement
   journey before the reader under test runs.
-- The `repository-paradigm` task 2.24 moved the field; the historical validation in `signature.py`
-  does not yet read the location its source commit declared, so the repair belongs to that Change.
+- The `repository-paradigm` task 2.24 moved the field, and that Change archived on 2026-10-18
+  without the historical reader. `publication-history-repair` task 13.4.3.2 implements the rule in
+  the one reader that signature-repair creation and re-validation share.
 
 Revisit if repair records stop binding policy coordinates from their source commit. Retire this
 record when the signature-repair validation itself preserves the per-commit rule and these rejected

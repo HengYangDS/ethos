@@ -271,11 +271,12 @@ unaccepted target; detached CI observes without local Lease or authority.
 Developers use MR/PR review when they cannot update protected refs; maintainers
 may accept the reviewed object by exact CAS. A proposal retires after its object
 is accepted into `dev` and review closes, independently of later `main` release.
-Lease loss preserves Git content. One public reconciler uses fresh facts to
-continue, transfer, reacquire, preserve, absorb or retire owned, foreign,
-expired, missing and unbound lanes. Clean equal or ancestor lanes retire by
-deletion-only CAS only after checking ref, worktree, owner and unique content;
-dirty or ambiguous work remains preserved.
+An unabsorbed closed proposal retires while an owned Work Lane or its review's
+peer ref retains its object. Lease loss preserves Git content. One public
+reconciler uses fresh facts to continue, transfer, reacquire, preserve, absorb
+or retire owned, foreign, expired, missing and unbound lanes. Clean equal or
+ancestor lanes retire by deletion-only CAS only after checking ref, worktree,
+owner and unique content; dirty or ambiguous work remains preserved.
 
 A separate clean topic may retire when another distinct local topic ref retains
 all its commits. An immutable receipt binds source, retained ref/OID, accepted

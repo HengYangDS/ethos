@@ -12,6 +12,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Added
+
+- Publication retires a closed review's proposal that dev never absorbed when an owned Work
+  Lane, or the same peer's ref for that closed review, still keeps its exact tip. A candidate
+  ref does not retain it, because landing resets the candidate. Without such a retainer the
+  proposal is kept, as before.
+
 ### Changed
 
 - The `bootstrap` task builds the development environment on the Python that
@@ -19,6 +26,19 @@ historical bindings are governed by [Release Governance](docs/governance/release
   instead of whichever interpreter the host offers first. A Homebrew patch upgrade had left the
   environment on a framework build that no runtime image can copy, so `hook install` and the
   install smoke failed with `hook_runtime_interpreter_source_unavailable`.
+
+### Fixed
+
+- Historical signature-repair records are validated against the release-mirror location their
+  source commit declared. Moving the mirror to `.ethos/release.toml` on 2026-10-16 made every
+  record whose source declared it in the workspace binding fail
+  `signature_repair_source_coordinates_mismatch`, so proposal and absorbed-lane retirement
+  raised instead of observing conservation (DR-0013).
+- Attestation set updates keep ending members after a ref is deleted. A retirement's deletion
+  publication was counted as a selected tip, and its zero object made lifetime reachability
+  unobservable, so every later update kept every member and reported
+  `attestation_lifetime_reachability_unavailable`. A deletion is now its ref's latest
+  publication but selects no commit.
 
 ## [0.2.0-alpha.7] - 2026-10-22
 

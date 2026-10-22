@@ -57,6 +57,19 @@ def test_tags_of_tags_and_detached_worktrees_keep_their_head_records(tmp_path: P
     assert _removed_by_next_update(repo, proofs) == (proofs[2].id,)
 
 
+def test_a_deletion_publication_selects_no_commit(tmp_path: Path) -> None:
+    """A retired ref's zero object is not a tip to walk, so a superseded head still ends."""
+    repo = init_git_repo(tmp_path / "repo")
+    superseded = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture_file(repo, "second.txt", "second\n", "second")
+    deletion = {"expected": superseded, "desired": "0" * 40, "target_ref": "refs/heads/review"}
+    effect = {"targets": [{"id": "github", "updates": [deletion]}]}
+    retirement = _record("publication:remote-effect", head, {"plan": {"effect": effect}})
+    proof = _record("proof:execution", superseded, {"head": superseded})
+
+    assert _removed_by_next_update(repo, (retirement, proof)) == (proof.id,)
+
+
 def test_repair_lineage_ends_only_for_absent_pre_repair_objects(tmp_path: Path) -> None:
     """A batch object check ends the repair record of a missing commit and keeps a present one."""
     repo = init_git_repo(tmp_path / "repo")

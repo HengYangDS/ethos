@@ -147,6 +147,19 @@ def test_completed_repair_provenance_requires_actual_ref_effect(tmp_path, monkey
     assert mapping[old] == new
 
 
+def test_repair_keeps_the_mirror_where_its_source_commit_declared_it(tmp_path):
+    """DR-0013: a source that declared the mirror in the workspace binding keeps that meaning."""
+    repo, old, _candidate = signature_repository(tmp_path, legacy_mirror=True)
+    result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
+    assert result["verdict"] == "pass", result
+    new = result["head"]
+    assert isinstance(new, str)
+    assert git(repo, "rev-parse", "main") == new
+    observed = completed_signature_repair(repo, new=new)
+    assert observed is not None
+    assert observed["mapping"] == {old: new}
+
+
 def _archive_verification_lane(tmp_path):
     """Prepare native verification at the trusted base before authoring begins."""
     repo, candidate = start_adopted_candidate(tmp_path)

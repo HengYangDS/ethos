@@ -18,7 +18,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 ## Decisions
 
 - **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
-- **Carry no requirement delta, except for a task no accepted requirement covers.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority. Task 11.9.2.9 is the exception: no accepted requirement says that authored text must be content Git classifies as text, so this Change adds that requirement to `repository-paradigm`. The judgement reads Git's classification of the worktree bytes, not the `text` attribute, which only governs line-ending conversion; issue #16 showed that the first version wrongly refused a valid document marked `-text`.
+- **Carry no requirement delta, except for a task no accepted requirement covers.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority. Task 11.9.2.9 is the exception: no accepted requirement requires complete UTF-8 authored text before formatter selection, so this Change adds that requirement to `repository-paradigm`. The judgement combines Git's content classification with complete UTF-8 decoding and NUL refusal, before narrowing inputs to native formatters. The native format declarations select text and canonical carriers; binary, received, generated and immutable owners remain preserved. Checkout attributes do not decide validity; issue #16 showed both a valid `-text` refusal and unobserved plain-text carriers.
 
 ## Risks / Trade-offs
 

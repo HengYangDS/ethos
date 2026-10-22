@@ -115,3 +115,16 @@ def test_path_and_handle_stats_compare_only_the_fields_both_report(tmp_path, mon
     with_creation_time_path_ctime(monkeypatch)
     (tmp_path / "member.md").write_bytes(b"# stable\n")
     assert read_regular_bytes(tmp_path, "member.md", **GAPS) == b"# stable\n"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Backslash is a path separator on Windows.")
+@pytest.mark.parametrize("descriptor_chain", [True, False])
+def test_posix_literal_backslash_keeps_its_native_member_identity(
+    tmp_path, monkeypatch, descriptor_chain
+):
+    """A POSIX filename's backslash is literal, not an escape or a directory separator."""
+    if not descriptor_chain:
+        without_descriptor_chain(monkeypatch)
+    relative = 'native "quote" \\ member.md'
+    (tmp_path / relative).write_bytes(b"# stable\n")
+    assert read_regular_bytes(tmp_path, relative, **GAPS) == b"# stable\n"

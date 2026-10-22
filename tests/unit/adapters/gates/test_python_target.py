@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
-from typing import TYPE_CHECKING
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+import ruff
 
 import ethos.adapters.gates.python_quality as python_quality
 from ethos.adapters.gates.python_target import PythonTarget
@@ -17,9 +24,6 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _TOMLLIB = "import json\nimport tomllib\n\nimport packaging\n\nprint(json, tomllib, packaging)\n"
 _GENERIC = 'from typing import Generic, TypeVar\n\nT = TypeVar("T")\n\n\nclass Box(Generic[T]):\n'
@@ -73,6 +77,62 @@ def test_isolated_ruff_judges_code_against_the_declared_target(
             "basis": "requires-python",
             "files": ["pyproject.toml"],
         }
+
+
+def test_isolated_ruff_preserves_its_installed_supply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real isolated child must not write bytecode into its clean installation."""
+    environment = tmp_path / "checker"
+    subprocess.run(
+        (sys.executable, "-B", "-I", "-m", "venv", "--without-pip", str(environment)),
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    interpreter = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    discovery = subprocess.run(
+        (
+            str(interpreter),
+            "-B",
+            "-I",
+            "-c",
+            "import sysconfig; print(sysconfig.get_path('purelib'))",
+        ),
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    package = Path(discovery.stdout.strip()) / "ruff"
+    shutil.copytree(
+        Path(ruff.__file__).parent, package, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+    )
+    executable = Path(ruff.find_ruff_bin())
+    shutil.copy2(executable, interpreter.parent / executable.name)
+    preimage = {
+        str(path.relative_to(environment)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in environment.rglob("*")
+        if path.is_file()
+    }
+    monkeypatch.setattr(python_quality, "sys", SimpleNamespace(executable=str(interpreter)))
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    repo = committed_source_repo(
+        tmp_path / "adopter",
+        {"src/app.py": "answer = 42\n", "pyproject.toml": _manifest(">=3.12,<3.15")},
+    )
+
+    report = python_quality.static_report(repo)
+
+    assert report["verdict"] == "pass", report
+    native = report["native"]
+    assert isinstance(native, dict)
+    assert native["executable"] == str(interpreter)
+    assert {
+        str(path.relative_to(environment)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in environment.rglob("*")
+        if path.is_file()
+    } == preimage
 
 
 def test_the_repositorys_own_ignores_do_not_weaken_the_judgment(tmp_path: Path) -> None:

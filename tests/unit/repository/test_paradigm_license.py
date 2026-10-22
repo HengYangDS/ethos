@@ -128,3 +128,26 @@ def test_license_grant_is_standard_linked_and_consistently_declared(
     """The repository's own license is judged; its choice of license is its own."""
     report = paradigm_report(tmp_path, {**CONFORMING, **changes})
     assert report["required_gaps"] == [f"repository_paradigm_{gap}" for gap in gaps]
+
+
+@pytest.mark.parametrize(
+    ("holder", "accepted"),
+    [
+        ("", False),
+        ("2026", False),
+        ("2026 <copyright holders>", False),
+        ("2026 Sample Authors", True),
+        ("2020-2026 李明", True),
+        ("Example Foundation", True),
+    ],
+)
+def test_documentation_license_names_a_holder_without_package_metadata(
+    tmp_path: Path, holder: str, *, accepted: bool
+) -> None:
+    """A year or an unresolved template is not a holder; a grant needs no package."""
+    report = paradigm_report(
+        tmp_path,
+        {"LICENSE": _MIT.replace("2026 Sample Authors", holder), "README.md": _LINKED},
+    )
+    grants = [gap for gap in report["required_gaps"] if "license_grant" in gap]
+    assert grants == ([] if accepted else ["repository_paradigm_license_grant:LICENSE"])

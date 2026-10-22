@@ -165,7 +165,7 @@ def _member_path_invalid(root: Path, relative: str) -> bool:
         path.is_absolute()
         or not path.parts
         or ".." in path.parts
-        or "\\" in relative
+        or (os.name == "nt" and "\\" in relative)
         or "\0" in relative
         or root.is_symlink()
     )

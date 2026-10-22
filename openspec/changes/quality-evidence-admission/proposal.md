@@ -7,7 +7,7 @@
 ## What Changes
 
 - Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
-- Add one requirement, for task 11.9.2.9: authored text is content Git classifies as text. Every other task implements a requirement already accepted through `proof-throughput`.
+- Add one requirement, for task 11.9.2.9: authored text is complete UTF-8 without NUL, including declared plain-text and canonical carriers before formatter selection. Every other task implements a requirement already accepted through `proof-throughput`.
 
 ## Capabilities
 

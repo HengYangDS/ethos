@@ -337,7 +337,7 @@ def test_python_behavior_distinguishes_command_failure_from_missing_report(
     assert report["native"]["exit_code"] == exit_code
 
 
-@pytest.mark.parametrize("identity", ["exact", "base-binary"])
+@pytest.mark.parametrize("identity", ["exact", "base-binary", "bytecode-enabled"])
 def test_python_static_reuses_exact_native_ruff_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -350,6 +350,8 @@ def test_python_static_reuses_exact_native_ruff_output(
     native = original["native"]
     command = tuple(native["command"])
     executable = native["executable"]
+    if identity == "bytecode-enabled":
+        command = tuple(argument for argument in command if argument != "-B")
     if identity == "base-binary":
         executable = str(Path(executable).resolve())
         facts = subprocess.run(
@@ -388,7 +390,12 @@ def test_python_static_reuses_exact_native_ruff_output(
     assert retained["stdout"] == native["stdout"]
     assert retained["stderr"] == native["stderr"]
     if identity != "exact":
-        assert report["required_gaps"] == ["quality_static_python_native_toolchain_unbound"]
+        gap = (
+            "quality_static_python_native_selection_invalid"
+            if identity == "bytecode-enabled"
+            else "quality_static_python_native_toolchain_unbound"
+        )
+        assert report["required_gaps"] == [gap]
 
 
 def test_python_static_cannot_waive_product_rules_with_inline_noqa(tmp_path: Path) -> None:

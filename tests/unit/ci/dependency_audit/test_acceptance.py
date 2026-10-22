@@ -518,3 +518,31 @@ def test_captured_product_policy_is_bound_by_content_not_reading_build(
     assert decision["verdict"] == ("pass" if change == "reading-build" else "unknown"), decision
     if change == "policy-bytes":
         assert decision["reason"] == "dependency_audit_product_policy_changed"
+
+
+@pytest.mark.parametrize("subject", ["product-source", "adopter", "tampered"])
+def test_product_source_binds_the_policy_its_head_commits(repository, monkeypatch, subject):
+    """The product's own source may change its policy; elsewhere a drifted product refuses."""
+    native_transport(monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem))
+    committed = repository / AUDIT_POLICY_PATH
+    shipped = Path(resource_owner.files("ethos")) / "resources" / AUDIT_POLICY_PATH
+    predecessor = shipped.read_bytes()
+    committed.write_text(committed.read_text().replace("summary = ", 'summary = "Renewed" #', 1))
+    shipped.write_bytes(product_audit_projection(committed.read_bytes()))
+    payload = invoke_audit(repository)
+    shipped.write_bytes(predecessor)
+    if subject == "tampered":
+        payload["product_policy"] = {**payload["product_policy"], "sha256": "0" * 64}
+
+    decision = captured_dependency_acceptance(
+        json.dumps(payload),
+        head="a" * 40,
+        source=lambda name: (repository / name).read_bytes(),
+        scope="production-release",
+        product_source=subject != "adopter",
+    )
+
+    if subject == "product-source":
+        assert decision["verdict"] == "pass", decision
+    else:
+        assert decision["reason"] == "dependency_audit_product_policy_changed", decision

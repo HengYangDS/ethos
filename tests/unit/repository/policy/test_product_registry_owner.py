@@ -8,6 +8,7 @@ import pytest
 import tomli_w
 
 import ethos.adapters.repo.gate_policy as gate_policy
+from ethos.adapters.repo.gate_policy import committed_product_source
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -160,6 +161,10 @@ def test_product_registry_is_recognized_by_history_shared_with_the_running_build
         unrelated: True,
         moved: True,
     }
+    assert {
+        ref: committed_product_source(repo, ref)
+        for ref in (build, edited, rewritten, unrelated, moved)
+    } == {build: True, edited: True, rewritten: True, unrelated: False, moved: False}
     monkeypatch.setattr(gate_policy, "invoking_source_commit", lambda: "0" * 40)
     assert _floor_owned(repo, build)
     monkeypatch.setattr(gate_policy, "invoking_source_commit", (tmp_path / "absent").read_text)

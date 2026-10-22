@@ -38,6 +38,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- ETHOS's own dependency audit policy can change through a landing. The landing hook required a
+  captured audit to match the policy its own build ships, and for ETHOS's source that is the very
+  file being changed, so no renewal, cleanup or new disposition could ever land. For the product's
+  own source, a captured audit now binds the policy committed at the exact head, and its raw
+  findings are still re-evaluated. Every other repository still refuses a proof captured under a
+  different product policy.
 - Generated CI reference admission reads GitLab `before_script` and `after_script`, which it
   skipped, so an unowned command there is refused like one in `script`. A GitHub `${{ … }}`
   expression inside a `run` step is a value, so text after it is never taken as a command name.

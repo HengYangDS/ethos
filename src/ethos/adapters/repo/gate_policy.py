@@ -175,6 +175,16 @@ def _resolve_policies(
     )
 
 
+def committed_product_source(root: Path, tree_ref: str) -> bool:
+    """Return whether the committed tree is this product's own source, by its shared history."""
+    try:
+        profile = load_committed_repository_profile(root, tree_ref)
+    except (OSError, ValueError):
+        return False
+    registry = profile.declaration.proof.gate_registry if profile.declaration is not None else None
+    return _shares_product_history(root, tree_ref, registry)
+
+
 def _shares_product_history(root: Path, tree_ref: str | None, registry_path: str | None) -> bool:
     """Recognize the product registry by history shared with the running build, not by bytes."""
     if registry_path != DECLARATION_PATH.as_posix():

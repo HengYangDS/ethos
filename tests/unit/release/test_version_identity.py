@@ -74,7 +74,7 @@ def test_wheel_resource_mapping_selects_each_archive_member_once() -> None:
 
 @pytest.fixture
 def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Bind verified Node and Vale archives without embedding or downloading supply."""
+    """Bind verified Node, Vale and CUE archives without downloading supply."""
     root = Path.cwd()
     supply = NodeSupply.read(root)
     cache = tmp_path / "native-supply"
@@ -83,12 +83,13 @@ def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     archive = supply.cache(root) / supply.archive
     supply.verify_archive(archive)
     shutil.copyfile(archive, selected / supply.archive)
-    native = NativeSupply.read(root, "vale")
-    native_archive = native.cache(root) / native.archive
-    native.payload_bytes(native_archive)
-    selected_native = cache / native.name / native.version / native.platform
-    selected_native.mkdir(parents=True)
-    shutil.copyfile(native_archive, selected_native / native.archive)
+    for name in ("vale", "cue"):
+        native = NativeSupply.read(root, name)
+        native_archive = native.cache(root) / native.archive
+        native.payload_bytes(native_archive)
+        selected_native = cache / native.name / native.version / native.platform
+        selected_native.mkdir(parents=True)
+        shutil.copyfile(native_archive, selected_native / native.archive)
     monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(cache))
 
 

@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.7] - 2026-10-22
+
 ### Fixed
 
 - The hosted release can build its Windows runtime. The Windows leg of the 0.2.0-alpha.6 release

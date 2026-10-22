@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.gate_policy import committed_product_source
 from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
@@ -50,7 +51,7 @@ def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict]:
 
 
 def _captured_audit_materials(
-    stdout: str, head: str, source: Callable[[str], bytes]
+    stdout: str, head: str, source: Callable[[str], bytes], *, product_source: bool = False
 ) -> tuple[dict, dict, AuditPolicy]:
     """Resolve every observed source to its exact captured hash before interpretation."""
     payload = json.loads(stdout)
@@ -83,7 +84,13 @@ def _captured_audit_materials(
     if not workspace <= materials.keys():
         message = "dependency_audit_workspace_inputs_missing"
         raise ValueError(message)
-    product, binding = product_audit_snapshot(build=invoking_build_identity())
+    # The product's own source ships the policy its head commits, so a predecessor build that
+    # judges the landing is not its product; every other subject keeps the selected product.
+    product, binding = (
+        _committed_product_policy(materials[AUDIT_POLICY_PATH])
+        if product_source
+        else product_audit_snapshot(build=invoking_build_identity())
+    )
     captured = payload.get("product_policy")
     if not isinstance(captured, dict) or _policy_identity(captured) != _policy_identity(binding):
         message = (
@@ -93,6 +100,15 @@ def _captured_audit_materials(
         )
         raise ValueError(message)
     return payload, materials, product
+
+
+def _committed_product_policy(raw: bytes) -> tuple[AuditPolicy, dict]:
+    """Project the exact committed policy the way the product ships it."""
+    projected = product_audit_projection(raw)
+    return AuditPolicy.model_validate(tomllib.loads(projected.decode("utf-8"))), {
+        "path": AUDIT_POLICY_PATH,
+        "sha256": hashlib.sha256(projected).hexdigest(),
+    }
 
 
 def _policy_identity(binding: Mapping[str, object]) -> tuple[object, object]:
@@ -106,10 +122,13 @@ def captured_dependency_acceptance(
     head: str,
     source: Callable[[str], bytes],
     scope: AuditScope,
+    product_source: bool = False,
 ) -> dict:
     """Read same-attempt native facts, never a build receipt or saved permission."""
     try:
-        payload, materials, product = _captured_audit_materials(stdout, head, source)
+        payload, materials, product = _captured_audit_materials(
+            stdout, head, source, product_source=product_source
+        )
         policy = AuditPolicy.model_validate(tomllib.loads(materials[AUDIT_POLICY_PATH].decode()))
         return evaluate_dependency_acceptance(
             compose_audit_policies(policy, product),
@@ -161,12 +180,14 @@ def dependency_acceptance_gaps(
     if len(selected) != len(audit_ids):
         return ["proof_dependency_acceptance_audit_missing"]
     gaps = []
+    product_source = committed_product_source(root, head)
     for check in selected:
         decision = captured_dependency_acceptance(
             check["stdout"],
             head=head,
             source=lambda name: committed_file_bytes(root, head, name),
             scope=scope,
+            product_source=product_source,
         )
         if decision["verdict"] != "pass":
             gaps.append(f"proof_dependency_acceptance:{decision['reason']}")

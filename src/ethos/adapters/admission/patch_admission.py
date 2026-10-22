@@ -28,6 +28,7 @@ from ethos.repository.policy.references.carriers import REFERENCE_CARRIERS
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.closure import runner_provided_references
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.declarations import retained_ci_steps
 from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import installed_distribution_modules
@@ -449,6 +450,7 @@ def _patch_references(
                 context_files=context,
                 declared_commands=declared_commands,
                 include_declarations=False,
+                retained_steps=retained_ci_steps(context_files),
             ),
             runner_provided=runner_provided_references(context_files, files),
         )

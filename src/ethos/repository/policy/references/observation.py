@@ -19,6 +19,8 @@ import yaml
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.markdown as markdown_observation
 import ethos.repository.policy.references.python_syntax as python_references
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.orchestration import retained_step_texts
 from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
@@ -113,6 +115,7 @@ def product_references_from_files(
     context_files: dict[str, str] | None = None,
     declared_commands: Iterable[str] = (),
     include_declarations: bool = True,
+    retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> ProductReferences:
     """Observe native references and keep malformed consumed carriers explicit."""
     declared_commands = tuple(declared_commands)
@@ -139,6 +142,7 @@ def product_references_from_files(
             observed,
             include_declarations=include_declarations,
             require_complete=True,
+            retained_steps=retained_steps,
         )
         if not parsed:
             unknown_paths.append(path)
@@ -151,6 +155,7 @@ def reference_consumer_sources_from_files(
     *,
     declared_commands: Iterable[str] = (),
     parsed_files: Mapping[str, AST | None] | None = None,
+    retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> ReferenceConsumption:
     """Return consumed identities with current carrier provenance."""
     known_commands = {
@@ -172,6 +177,7 @@ def reference_consumer_sources_from_files(
             include_declarations=False,
             require_complete=True,
             parsed_files=parsed_files,
+            retained_steps=retained_steps,
         )
         if not parsed:
             unknown_paths.append(path)
@@ -202,6 +208,7 @@ def _file_references(
     include_declarations: bool,
     require_complete: bool = False,
     parsed_files: Mapping[str, AST | None] | None = None,
+    retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
@@ -228,6 +235,7 @@ def _file_references(
         known_commands=known_commands,
         npm_scripts=npm_scripts,
         observed=observed,
+        retained_steps=retained_steps,
     )
     if not parsed and require_complete:
         return False
@@ -278,9 +286,12 @@ def _text_carrier_references(
     known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
+    retained_steps: frozenset[tuple[str, str, str]],
 ) -> bool:
     if carrier == "yaml":
-        return _yaml_references(path, text, npm_scripts, observed)
+        # A step that the retention record binds by file, job and text is owned glue.
+        retained = retained_step_texts(load_repository_paradigm(), path, text, retained_steps)
+        return _yaml_references(path, text, npm_scripts, observed, retained=retained)
     if carrier == "shell":
         observed["executable"].update(
             command_references.shell_executables(
@@ -327,6 +338,8 @@ def _yaml_references(
     text: str,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
+    *,
+    retained: frozenset[str] = frozenset(),
 ) -> bool:
     if path.startswith(".github/"):
         observed["reference"].add("github")
@@ -343,7 +356,7 @@ def _yaml_references(
         elif isinstance(value, dict):
             stack.extend(value.values())
             for key, item in value.items():
-                _configuration_reference(str(key), item, npm_scripts, observed)
+                _configuration_reference(str(key), item, npm_scripts, observed, retained)
     return True
 
 
@@ -352,6 +365,7 @@ def _configuration_reference(
     item: object,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
+    retained: frozenset[str],
 ) -> None:
     if key == "uses" and isinstance(item, str):
         if reference := _github_reference(item):
@@ -362,7 +376,7 @@ def _configuration_reference(
             command = commands.pop()
             if isinstance(command, list):
                 commands.extend(command)
-            elif isinstance(command, str):
+            elif isinstance(command, str) and command not in retained:
                 # The Forge resolves an expression before the shell runs; it is a value.
                 resolved = _FORGE_EXPRESSION.sub("$EXPRESSION", command)
                 observed["executable"].update(

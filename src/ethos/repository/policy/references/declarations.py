@@ -16,6 +16,8 @@ import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.orchestration import retained_step_keys
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
@@ -86,6 +88,11 @@ def ci_runner_owners(files: dict[str, str]) -> dict[str, dict[str, frozenset[str
         forge: {kind: frozenset(values) for kind, values in provided.items()}
         for forge, provided in owners.items()
     }
+
+
+def retained_ci_steps(files: dict[str, str]) -> frozenset[tuple[str, str, str]]:
+    """Return the Forge file, job and text digest of every step the retention record keeps."""
+    return retained_step_keys(load_repository_paradigm(), files)
 
 
 def command_owner_sources_from_files(

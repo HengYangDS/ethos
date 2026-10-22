@@ -19,6 +19,7 @@ from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.declarations import ci_runner_owners
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.declarations import retained_ci_steps
 from ethos.repository.policy.references.markdown import markdown_tokens
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
@@ -97,7 +98,9 @@ def runner_provided_references(
     owners = ci_runner_owners(declaration_files)
     if not owners:
         return {}
-    sources = reference_consumer_sources_from_files(consumer_files).sources
+    sources = reference_consumer_sources_from_files(
+        consumer_files, retained_steps=retained_ci_steps(declaration_files)
+    ).sources
     return {
         kind: {
             identity
@@ -145,6 +148,7 @@ def repository_semantic_closure(
         files,
         declared_commands=owners["command"],
         parsed_files=parsed_files,
+        retained_steps=retained_ci_steps(files),
     )
     contract_report = system_contracts or system_contracts_report(root)
     findings = [

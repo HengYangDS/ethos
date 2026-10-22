@@ -99,11 +99,19 @@ def repair_fixture_history(root: Path, backup: Path, *, corrections: Mapping[str
     return head
 
 
-def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path, str, Path]:
+def signature_repository(
+    tmp_path: Path, *, coupled: bool = False, legacy_mirror: bool = False
+) -> tuple[Path, str, Path]:
+    """Commit an unsigned accepted head; `legacy_mirror` couples main the pre-2026-10-16 way."""
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
-    write_release_mirror(repo, "accepted_ff" if coupled else "independent")
+    if legacy_mirror:
+        (repo / ".ethos/workspace.toml").write_text(
+            '[branch_roles]\nrelease_mirror = "accepted_ff"\n'
+        )
+    else:
+        write_release_mirror(repo, "accepted_ff" if coupled else "independent")
     write_paradigm_toolchain(repo)
     git(repo, "add", ".ethos", ".config/mise")
     git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: accept an unsigned head")

@@ -5,7 +5,8 @@ candidate `candidate/dev`, Work Lanes under `work/` and proposals under
 `proposal/`, with each Work Lane in a sibling worktree. The release binding
 declares the one open setting, `[release] mirror`. A `[branch_roles]` table in
 the workspace binding is a retired declaration that the policy readers ignore;
-accepted closeout still renames a legacy role ref it names to the paradigm's name.
+accepted closeout still renames a legacy role ref it names to the paradigm's name,
+and historical repair evidence still reads a mirror an earlier commit declared there.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
 _RELEASE_MIRRORS = frozenset({RELEASE_MIRROR_INDEPENDENT, RELEASE_MIRROR_ACCEPTED_FF})
 _STRICT_RELEASE_TABLE_ERROR = "release must be a table"
 _STRICT_RELEASE_MIRROR_ERROR = "release mirror is invalid"
+_DUPLICATE_RELEASE_MIRROR_ERROR = "release mirror is declared twice"
 _STRICT_BRANCH_ROLE_TABLE_ERROR = "branch_roles must be a table"
 _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical strings"
 _UNKNOWN_BRANCH_ROLE_FIELDS_ERROR = "branch_roles contains unknown fields"
@@ -169,6 +171,27 @@ def strict_branch_role_policy_from_release_text(text: str) -> BranchRolePolicy:
     if type(release) is not dict:
         raise ValueError(_STRICT_RELEASE_TABLE_ERROR)
     mirror = release.get("mirror", RELEASE_MIRROR_INDEPENDENT)
+    if type(mirror) is not str or mirror not in _RELEASE_MIRRORS:
+        raise ValueError(_STRICT_RELEASE_MIRROR_ERROR)
+    return BranchRolePolicy(release_mirror=mirror)
+
+
+def strict_source_branch_role_policy(release_text: str, workspace_text: str) -> BranchRolePolicy:
+    """Read the release mirror where one source commit declared it, for its historical evidence.
+
+    A commit that declared `release_mirror` in the retired `[branch_roles]` table keeps that
+    meaning; one that declares `[release] mirror` uses the current location. A commit that
+    declares both is refused rather than choosing one (DR-0013).
+    """
+    policy = strict_branch_role_policy_from_release_text(release_text)
+    retired = tomllib.loads(workspace_text).get("branch_roles", {})
+    if type(retired) is not dict:
+        raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
+    if RELEASE_MIRROR_FIELD not in retired:
+        return policy
+    if "mirror" in tomllib.loads(release_text).get("release", {}):
+        raise ValueError(_DUPLICATE_RELEASE_MIRROR_ERROR)
+    mirror = retired[RELEASE_MIRROR_FIELD]
     if type(mirror) is not str or mirror not in _RELEASE_MIRRORS:
         raise ValueError(_STRICT_RELEASE_MIRROR_ERROR)
     return BranchRolePolicy(release_mirror=mirror)

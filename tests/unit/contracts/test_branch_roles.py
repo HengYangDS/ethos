@@ -11,6 +11,7 @@ from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import declared_role_names
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.branch.roles import strict_source_branch_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -94,6 +95,39 @@ def test_a_workspace_mirror_is_a_retired_declaration(tmp_path: Path) -> None:
     assert load_branch_role_policy(tmp_path) == BranchRolePolicy()
     (binding / "release.toml").write_text('[release]\nmirror = "accepted_ff"\n', encoding="utf-8")
     assert load_branch_role_policy(tmp_path) == ACCEPTED_FF
+
+
+@pytest.mark.parametrize(
+    ("workspace", "release", "policy"),
+    [
+        ('[branch_roles]\nrelease_mirror = "accepted_ff"\n', "", ACCEPTED_FF),
+        (LEGACY, "", ACCEPTED_FF),
+        ("", '[release]\nmirror = "accepted_ff"\n', ACCEPTED_FF),
+        ('[branch_roles]\naccepted_branch = "dev"\n', "", BranchRolePolicy()),
+        ("", "", BranchRolePolicy()),
+    ],
+    ids=["earlier-location", "earlier-table", "current-location", "names-only", "absent"],
+)
+def test_a_source_commit_keeps_its_own_mirror_location(
+    workspace: str, release: str, policy: BranchRolePolicy
+) -> None:
+    """Historical evidence reads the mirror where its source commit declared it (DR-0013)."""
+    assert strict_source_branch_role_policy(release, workspace) == policy
+
+
+@pytest.mark.parametrize(
+    ("workspace", "release", "error"),
+    [
+        (LEGACY, '[release]\nmirror = "accepted_ff"\n', "declared twice"),
+        ('[branch_roles]\nrelease_mirror = "mirror"\n', "", "mirror is invalid"),
+        ('branch_roles = "main"\n', "", "must be a table"),
+        ("", '[release]\nmirror = "mirror"\n', "mirror is invalid"),
+    ],
+)
+def test_the_source_mirror_reader_fails_closed(workspace: str, release: str, error: str) -> None:
+    """A commit that declares both locations, or an invalid mirror, selects neither."""
+    with pytest.raises(ValueError, match=error):
+        strict_source_branch_role_policy(release, workspace)
 
 
 def test_legacy_role_names_come_from_the_workspace_table() -> None:

@@ -13,6 +13,7 @@ from pathlib import Path
 from ruff import find_ruff_bin
 
 from ethos.adapters.gates.native.inputs import authored_source_files
+from ethos.adapters.gates.native.inputs import authored_text_files
 from ethos.adapters.gates.native.inputs import authored_text_gaps
 from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.gates.native.inputs import native_configurations
@@ -56,8 +57,9 @@ class FormattedFile:
     ignored: bool = False
 
 
-def _selected_files(root: Path, requested: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
-    authored = authored_source_files(root, paths=requested)
+def _selected_files(
+    root: Path, requested: tuple[str, ...], authored: list[str]
+) -> tuple[tuple[str, str], ...]:
     selected_paths = set(authored)
     files = [
         relative
@@ -277,10 +279,11 @@ def render_source_content(
 def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[FormattedFile, ...]:
     """Prepare all selected files first; native refusal leaves every source byte untouched.
 
-    Authored text that Git classifies as binary is refused before any formatter reads it.
+    The complete authored-text selection is validated before any formatter reads it.
     """
-    selected = _selected_files(root, paths)
-    if invalid := authored_text_gaps(root, [relative for relative, _owner in selected]):
+    authored = authored_source_files(root, paths=paths)
+    selected = _selected_files(root, paths, authored)
+    if invalid := authored_text_gaps(root, authored_text_files(root, authored)):
         raise ValueError(invalid[0])
     return _postimages(root, selected)
 
@@ -303,11 +306,12 @@ def _postimages(root: Path, selected: tuple[tuple[str, str], ...]) -> tuple[Form
 def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:
     """Check the same native postimages used by the admitted fix operation.
 
-    Authored text that Git classifies as binary is reported and left unformatted.
+    Malformed authored text is reported before any native postimage is prepared.
     """
     try:
-        selected = _selected_files(root, paths)
-        invalid = authored_text_gaps(root, [relative for relative, _owner in selected])
+        authored = authored_source_files(root, paths=paths)
+        selected = _selected_files(root, paths, authored)
+        invalid = authored_text_gaps(root, authored_text_files(root, authored))
         prepared = () if invalid else _postimages(root, selected)
         changed = [item.path for item in prepared if item.before != item.after]
         gaps = invalid or [f"source_format_drift:{path}" for path in changed]

@@ -357,9 +357,12 @@ def _configuration_reference(
         if reference := _github_reference(item):
             observed["reference"].add(reference)
     elif key in {"run", "script", "before_script", "after_script"}:
-        commands = item if isinstance(item, list) else [item]
-        for command in commands:
-            if isinstance(command, str):
+        commands = [item]
+        while commands:
+            command = commands.pop()
+            if isinstance(command, list):
+                commands.extend(command)
+            elif isinstance(command, str):
                 # The Forge resolves an expression before the shell runs; it is a value.
                 resolved = _FORGE_EXPRESSION.sub("$EXPRESSION", command)
                 observed["executable"].update(

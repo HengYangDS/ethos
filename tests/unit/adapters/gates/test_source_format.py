@@ -14,6 +14,8 @@ import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.source_format as mutation
 from ethos.adapters.gates.configuration import configuration_report
 from ethos.adapters.gates.formatting import prepare_source_format
+from ethos.adapters.gates.native.inputs import authored_text_files
+from ethos.adapters.gates.native.inputs import authored_text_gaps
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -230,9 +232,11 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
         ("", b"# Notes\n", []),
         ("docs/notes.md -text\n", b"# Notes\n", []),
         ("", b"# Notes\0\n", ["authored_text_binary:docs/notes.md"]),
+        ("", b"# Notes\n" + b"text " * 2000 + b"\0\n", ["authored_text_binary:docs/notes.md"]),
+        ("", b"# Notes\xff\n", ["authored_text_encoding:docs/notes.md"]),
         ("docs/notes.md -text\n", b"# Notes\0\n", ["authored_text_binary:docs/notes.md"]),
     ],
-    ids=["text", "byte-exact-text", "nul", "byte-exact-nul"],
+    ids=["text", "byte-exact-text", "nul", "late-nul", "utf8", "byte-exact-nul"],
 )
 def test_authored_text_is_judged_by_git_content_classification(
     lane: Path, attributes: str, content: bytes, gaps: list[str]
@@ -254,7 +258,10 @@ def test_authored_text_is_judged_by_git_content_classification(
     for report in reports:
         judged = ("authored_text", "source_format_not_text")
         assert [gap for gap in report["required_gaps"] if gap.startswith(judged)] == gaps, report
-    assert (code, "authored_text_binary" in json.dumps(applied)) == (int(bool(gaps)), bool(gaps))
+    assert (
+        code,
+        bool([gap for gap in applied["required_gaps"] if gap.startswith("authored_text")]),
+    ) == (int(bool(gaps)), bool(gaps))
     assert (lane / "docs/notes.md").read_bytes() == content
 
 
@@ -411,6 +418,24 @@ def test_escaping_or_linked_input_is_refused_before_any_write(lane: Path, relati
     assert outside.read_text() == "outside=1\n"
 
 
+@pytest.mark.parametrize("relative", ["LICENSE", "linked/notes.txt", "missing.txt"])
+def test_authored_text_refuses_missing_or_linked_inputs(tmp_path: Path, relative: str) -> None:
+    """Broad selection retains unavailable inputs for the native reader to refuse."""
+    root = init_git_repo(tmp_path / "repo")
+    original = root / "original"
+    original.mkdir()
+    content = original / "notes.txt"
+    content.write_bytes(b"Preserved original.\n")
+    if relative == "LICENSE":
+        (root / relative).symlink_to(content)
+    elif relative == "linked/notes.txt":
+        (root / "linked").symlink_to(original, target_is_directory=True)
+    selected = authored_text_files(root, (relative,))
+    assert selected == (relative,)
+    assert authored_text_gaps(root, selected) == [f"authored_text_path_invalid:{relative}"]
+    assert content.read_bytes() == b"Preserved original.\n"
+
+
 def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None:
     sources = {
         "source.json": '{"nested":{"value":"' + "x" * 100 + '"}}\n',
@@ -459,3 +484,41 @@ def test_source_or_index_drift_blocks_the_native_fix(
         "peer=3\n" if changed == "source" else sources["src/first.py"]
     )
     assert (lane / "src/second.py").read_text() == sources["src/second.py"]
+
+
+@pytest.mark.parametrize(
+    ("relative", "content", "gap"),
+    [
+        ("notes.txt", b"plain\xff\n", "authored_text_encoding:notes.txt"),
+        ("VERSION", b"1.0.0\xff\n", "authored_text_encoding:VERSION"),
+        (
+            ".config/checks/native/native.ini",
+            b"name=ok\0\n",
+            "authored_text_binary:.config/checks/native/native.ini",
+        ),
+        (
+            ".config/checks/vale/styles/config/vocabularies/project/accept.txt",
+            b"word\xff\n",
+            "authored_text_encoding:.config/checks/vale/styles/config/vocabularies/project/accept.txt",
+        ),
+    ],
+    ids=["plain-text", "extensionless", "ini-nul", "vocabulary"],
+)
+def test_source_format_judges_authored_bytes_before_formatter_selection(
+    lane: Path, relative: str, content: bytes, gap: str
+) -> None:
+    """Unformatted authored carriers refuse malformed bytes before any source can be changed."""
+    target = lane / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    (lane / "src").mkdir(exist_ok=True)
+    source = lane / "src/product.py"
+    source.write_bytes(b"value=1\n")
+    before = {path: path.read_bytes() for path in (target, source)}
+    head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
+    report = formatting_gate.source_format_report(lane)
+    assert (report["verdict"], report["required_gaps"]) == ("block", [gap]), report
+    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
+    assert (code, applied["verdict"], applied["required_gaps"]) == (1, "block", [gap]), applied
+    assert all(path.read_bytes() == original for path, original in before.items())
+    assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)

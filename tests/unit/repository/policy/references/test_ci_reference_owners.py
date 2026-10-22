@@ -94,13 +94,19 @@ def test_python_project_declares_its_interpreter(requires: str) -> None:
 
 
 @pytest.mark.parametrize("key", ["script", "before_script", "after_script"])
-def test_every_gitlab_shell_list_is_observed(key: str) -> None:
-    """GitLab runs before_script and after_script like script, so their commands are references."""
-    pipeline = f"verify:\n  {key}:\n    - curl -fsS https://example.invalid\n"
+@pytest.mark.parametrize("anchored", [False, True])
+def test_every_gitlab_shell_list_is_observed(key: str, *, anchored: bool) -> None:
+    """GitLab's native script-array anchors are commands, not unobserved list values."""
+    pipeline = (
+        f".setup: &setup [curl -fsS https://example.invalid]\nverify:\n  {key}: [*setup]\n"
+        if anchored
+        else f"verify:\n  {key}:\n    - curl -fsS https://example.invalid\n"
+    )
     observed = product_references_from_files(
         {".gitlab-ci.yml": pipeline}, include_declarations=False
     )
     assert observed.references["executable"] == {"curl"}
+    assert observed.unknown_paths == ()
 
 
 def test_forge_expressions_are_values_not_commands() -> None:

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import tomllib
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.content.observation import observed_document_origins
+from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git_attributes import binary_content_paths
+from ethos.adapters.repo.git_attributes import received_paths
 from ethos.repository.policy.gates import resolve_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
@@ -75,17 +78,49 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
     return selected
 
 
-def authored_text_gaps(root: Path, files: Sequence[str]) -> list[str]:
-    """Report authored text whose content Git itself classifies as binary, such as a NUL byte.
+def authored_text_files(root: Path, files: Sequence[str]) -> tuple[str, ...]:
+    """Select declared text before formatters narrow it, preserving received and binary owners."""
+    policy = tomllib.loads(canonical_resource(POLICY_PATH.as_posix()).read_text(encoding="utf-8"))
+    extensions = {extension for item in policy["format"] for extension in item["extensions"]}
+    ownership = format_ownership(root, tuple(files))
+    preserved = received_paths(root, tuple(files)) | {
+        item["path"]
+        for item in ownership["assignments"]
+        if item["format_owner"] in {"source-binary", "immutable-carrier"}
+    }
+    return tuple(
+        relative
+        for relative in files
+        if relative not in preserved
+        and (not (root / relative).suffix or (root / relative).suffix.lower() in extensions)
+    )
 
-    Git's `text` and `eol` attributes govern only line-ending conversion, so a valid document
-    marked `-text` stays authored text; received and immutable originals are not inputs.
-    """
+
+def authored_text_gaps(root: Path, files: Sequence[str]) -> list[str]:
+    """Require complete UTF-8 text without NUL; checkout attributes do not decide validity."""
     selected = tuple(dict.fromkeys(files))
     binary = binary_content_paths(root, selected)
-    if binary is None:
-        return ["authored_text_unobserved"]
-    return [f"authored_text_binary:{path}" for path in selected if path in binary]
+    gaps = []
+    for path in selected:
+        try:
+            content = read_regular_bytes(
+                root,
+                path,
+                unsafe_gap=f"authored_text_path_invalid:{path}",
+                unstable_gap=f"authored_text_input_changed:{path}",
+                size_gap=f"authored_text_input_too_large:{path}",
+            )
+        except ValueError as error:
+            gaps.append(str(error))
+            continue
+        if path in (binary or ()) or b"\0" in content:
+            gaps.append(f"authored_text_binary:{path}")
+            continue
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            gaps.append(f"authored_text_encoding:{path}")
+    return gaps or (["authored_text_unobserved"] if binary is None else [])
 
 
 def authored_text_report(root: Path, files: Sequence[str]) -> dict[str, object]:

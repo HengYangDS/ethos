@@ -189,5 +189,15 @@ def _named(notice: str | None, placeholder: str) -> bool:
     The notice pattern accepts any text, so a title other than the template's own would
     otherwise pass as part of the notice.
     """
-    lowered = (notice or "").lower()
-    return lowered.startswith("copyright") and placeholder.lower() not in lowered
+    normalized = _normalize(notice or "")
+    matched = re.fullmatch(
+        r"copyright\b\s*(?:\(c\)|©)?\s*(?:\d{4}(?:\s*[-,]\s*\d{4})*\s*)?(?P<holder>.*)",
+        normalized,
+        re.IGNORECASE,
+    )
+    if matched is None or placeholder.lower() in normalized.lower():
+        return False
+    holder = matched.group("holder")
+    return any(character.isalpha() for character in holder) and not re.search(
+        r"<[^>]*>|\[[^]]*\]", holder
+    )

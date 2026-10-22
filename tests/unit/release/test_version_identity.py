@@ -43,7 +43,7 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert product == "0.2.0-alpha.6"
+    assert product == "0.2.0-alpha.7"
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
     assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
@@ -109,8 +109,8 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     assert first.source_commit != second.source_commit
     assert first.source_tree != second.source_tree
     assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.2.0a6")
-    assert Version(second.distribution_version) < Version("0.2.0a6")
+    assert Version(first.distribution_version) < Version("0.2.0a7")
+    assert Version(second.distribution_version) < Version("0.2.0a7")
 
     source_head = second.source_commit
     monkeypatch.setattr(pipeline, "accepted_release_source", lambda _root, head: {"head": head})
@@ -130,7 +130,7 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     )
     sessions.build(BuildSession())
     released = wheel_build_identity(next((repo / "build/artifacts/release/python").glob("*.whl")))
-    assert released.distribution_version == "0.2.0a6"
+    assert released.distribution_version == "0.2.0a7"
     assert released.source_commit == source_head
     assert released.source_tree == second.source_tree
     candidate = pipeline.prepare_release_candidate(repo, source_head)
@@ -225,7 +225,7 @@ def test_environment_cannot_promote_a_source_build_to_release(
 
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a6")
+    assert Version(identity.distribution_version) < Version("0.2.0a7")
 
 
 def test_release_identity_uses_exact_product_projection_only_when_explicit() -> None:
@@ -266,7 +266,7 @@ def test_development_distribution_identity_uses_the_complete_source_coordinates(
 def test_accepted_checkout_remains_a_development_build() -> None:
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a6")
+    assert Version(identity.distribution_version) < Version("0.2.0a7")
 
 
 @pytest.mark.parametrize("raw", ["1", "1.2", "v1.2.3", "1.2.3a1", "1.2.3-alpha"])

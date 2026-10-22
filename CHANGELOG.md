@@ -19,6 +19,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   ref does not retain it, because landing resets the candidate. Without such a retainer the
   proposal is kept, as before.
 
+### Changed
+
+- Reading the Attestation set decodes its members on every read. The set no longer keeps a
+  process-wide cache of decoded members, so a repeated read costs what a first read costs;
+  a fresh process reads the 2,084-member set in 1.56-1.90 s. Selected membership, custody
+  and the file-backed native output capture are unchanged.
+
 ### Fixed
 
 - Historical signature-repair records are validated against the release-mirror location their

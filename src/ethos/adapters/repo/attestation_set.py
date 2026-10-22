@@ -8,14 +8,8 @@ import tempfile
 from contextlib import nullcontext
 from pathlib import Path
 from pathlib import PurePosixPath
-from threading import Condition
 from typing import TYPE_CHECKING
 from typing import Final
-from typing import Protocol
-from typing import cast
-
-from cachetools import LRUCache
-from cachetools import cached
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_lifetime import ended
@@ -36,7 +30,6 @@ from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from collections.abc import Mapping
     from contextlib import AbstractContextManager
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
@@ -46,35 +39,11 @@ _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
 # A member is a claim; file bytes belong to custody evidence bound by digest.
 MEMBER_BYTES_LIMIT: Final = 1024 * 1024
-# Bound pure decoding reuse independently of the current set and individual member size.
-_MEMBER_REUSE_BYTES = 512 * 1024 * 1024
 
 
-class _MemberValidator(Protocol):
-    """The cached validator's native byte-keyed lookup and synchronization contract."""
-
-    cache: Mapping[bytes, tuple[bytes, Attestation]]
-    cache_lock: Condition
-
-    def __call__(self, raw: bytes) -> tuple[bytes, Attestation]: ...
-
-
-def member_validator(capacity: int) -> _MemberValidator:
-    """Bound pure canonical member validation reuse by retained serialized bytes."""
-
-    @cached(
-        cache=LRUCache(maxsize=capacity, getsizeof=lambda value: len(value[0])),
-        key=lambda raw: raw,
-        condition=Condition(),
-    )
-    def validate(raw: bytes) -> tuple[bytes, Attestation]:
-        """Reuse pure canonical validation, never membership or current authority."""
-        return raw, Attestation.model_validate_json(raw)
-
-    return cast("_MemberValidator", validate)
-
-
-_validated_member = member_validator(_MEMBER_REUSE_BYTES)
+def _validated_member(raw: bytes) -> Attestation:
+    """Decode one selected member; its bytes arrive with every read."""
+    return Attestation.model_validate_json(raw)
 
 
 def _attestation_member_path(identity: str) -> str:
@@ -188,18 +157,11 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     )
     tree = tree_bytes.decode("ascii")
     _require_entry(valid=raw_root == _root_payload(tree))
-    # Read retained current bytes before admitting misses can evict them.
-    with _validated_member.cache_lock:
-        retained = {
-            raw: _validated_member.cache[raw]
-            for raw in raw_members
-            if raw in _validated_member.cache
-        }
     members: dict[str, bytes] = {}
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(files, raw_members, strict=True):
         try:
-            _, attestation = retained[raw] if raw in retained else _validated_member(raw)
+            attestation = _validated_member(raw)
         except ValueError as error:
             message = f"attestation_set_member_invalid:{path}"
             raise ValueError(message) from error

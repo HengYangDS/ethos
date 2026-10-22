@@ -22,7 +22,8 @@
 
 ## 4. Reuse Removal
 
-- [ ] 4.1 Remove proof-throughput 2.15's in-process member reuse once a fresh process reads the selected set in under 2 s; keep file-backed native output capture and report the first-read time in the commit that checks this task.
+- [x] 4.1 Remove proof-throughput 2.15's in-process member reuse once a fresh process reads the selected set in under 2 s; keep file-backed native output capture and report the first-read time in the commit that checks this task.
+      Evidence: five fresh processes read the 2,084-member real set in 1.667, 1.556, 1.588, 1.620 and 1.904 s, and three reads in one process took 2.04, 2.11 and 2.15 s under a higher load average, so the bound holds for a fresh read and a repeat read now costs what a first read costs. File-backed native output capture is unchanged, and the adapters spec still allows a reader to reuse validation.
 
 ## Workflow follow-up
 

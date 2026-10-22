@@ -29,7 +29,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Reading the Attestation set decodes its members on every read. The set no longer keeps a
   process-wide cache of decoded members, so a repeated read costs what a first read costs;
   a fresh process reads the 2,084-member set in 1.56-1.90 s. Selected membership, custody
-  and the file-backed native output capture are unchanged.
+  and the file-backed native output capture are unchanged. `cachetools` is no longer declared
+  directly; it remains locked as a dependency of `py-key-value-aio`.
 
 ### Fixed
 

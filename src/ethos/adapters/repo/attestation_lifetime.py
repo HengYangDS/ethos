@@ -163,7 +163,10 @@ def lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
 
 
 def latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
-    """Commits that each declared peer's latest publication of each ref selects."""
+    """Commits that each declared peer's latest publication of each ref selects.
+
+    A deletion stays the latest publication of its ref, but its zero object selects no commit.
+    """
     latest: dict[tuple[str, str], tuple[datetime, str]] = {}
     for member in members:
         if member.predicate != "publication:remote-effect":
@@ -177,7 +180,7 @@ def latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
                 desired = _text(update, "desired")
                 if desired and (key not in latest or latest[key][0] < member.issued_at):
                     latest[key] = (member.issued_at, desired)
-    return frozenset(desired for _issued, desired in latest.values())
+    return frozenset(desired for _issued, desired in latest.values() if desired.strip("0"))
 
 
 def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:

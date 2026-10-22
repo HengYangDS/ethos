@@ -26,6 +26,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   record whose source declared it in the workspace binding fail
   `signature_repair_source_coordinates_mismatch`, so proposal and absorbed-lane retirement
   raised instead of observing conservation (DR-0013).
+- Attestation set updates keep ending members after a ref is deleted. A retirement's deletion
+  publication was counted as a selected tip, and its zero object made lifetime reachability
+  unobservable, so every later update kept every member and reported
+  `attestation_lifetime_reachability_unavailable`. A deletion is now its ref's latest
+  publication but selects no commit.
 
 ## [0.2.0-alpha.7] - 2026-10-22
 

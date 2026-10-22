@@ -64,11 +64,25 @@ def paradigm_report(
     *,
     untracked: tuple[str, ...] = (),
     received: tuple[str, ...] = (),
+    line_endings: dict[str, tuple[str, str]] | None = None,
 ) -> dict:
-    """Write the files under root and evaluate the paradigm over the tracked ones."""
+    """Write the files under root and evaluate the paradigm over the tracked ones.
+
+    Every tracked file checks out with LF unless `line_endings` gives its Git attributes.
+    """
     for relative, content in files.items():
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
     tracked = tuple(path for path in files if path not in untracked)
-    return repository_paradigm_report(root, tracked_paths=tracked, received_paths=received)
+    return repository_paradigm_report(
+        root,
+        tracked_paths=tracked,
+        received_paths=received,
+        line_endings=conforming_checkout(tracked) | (line_endings or {}),
+    )
+
+
+def conforming_checkout(tracked: tuple[str, ...]) -> dict[str, tuple[str, str]]:
+    """Return the Git text and eol attributes the shared rule gives every tracked file."""
+    return dict.fromkeys(tracked, ("auto", "lf"))

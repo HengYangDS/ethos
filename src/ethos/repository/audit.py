@@ -26,6 +26,8 @@ from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRO
 from ethos.repository.release.configuration import release_role_policy_report
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos.repository.registry.docs.registry import DocumentOrigins
 
 
@@ -159,6 +161,7 @@ def governance_audit(
     tracked_paths: tuple[str, ...] = (),
     retained_origins: DocumentOrigins | None = None,
     received_paths: frozenset[str] = frozenset(),
+    line_endings: Mapping[str, tuple[str, str]] | None,
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -170,7 +173,10 @@ def governance_audit(
             root, tracked_documents=tracked_documents, retained_origins=retained_origins
         ),
         "paradigm": repository_paradigm_report(
-            root, tracked_paths=tracked_paths, received_paths=received_paths
+            root,
+            tracked_paths=tracked_paths,
+            received_paths=received_paths,
+            line_endings=line_endings,
         ),
     }
     gaps = list(

@@ -10,6 +10,7 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.paradigm import CONFORMING
+from tests.support.paradigm import conforming_checkout
 from tests.support.paradigm import paradigm_report
 
 if TYPE_CHECKING:
@@ -258,7 +259,30 @@ def _damaged_report(root: Path, files: dict[str, str], path: str, damage: bytes 
         (root / path).unlink()
     else:
         (root / path).write_bytes(damage)
-    return repository_paradigm_report(root, tracked_paths=tuple(files))
+    return repository_paradigm_report(
+        root, tracked_paths=tuple(files), line_endings=conforming_checkout(tuple(files))
+    )
+
+
+def test_every_tracked_file_checks_out_with_lf_under_its_effective_attributes(
+    tmp_path: Path,
+) -> None:
+    """A later or nested override counts as Git resolves it; -text keeps a file's bytes."""
+    overrides = {
+        "README.md": ("auto", "crlf"),
+        "cmd/sample/main.go": ("unspecified", "lf"),
+        "content/intro.md": ("auto", "unspecified"),
+        "docs/decisions/README.md": ("unset", "lf"),
+    }
+    report = paradigm_report(tmp_path, CONFORMING, line_endings=overrides)
+    assert report["required_gaps"] == [
+        f"repository_paradigm_line_ending:{path}" for path in sorted(overrides)[:3]
+    ]
+    assert "drop the attribute that overrides" in report["next_action"]
+    unobserved = repository_paradigm_report(
+        tmp_path, tracked_paths=tuple(CONFORMING), line_endings=None
+    )
+    assert unobserved["required_gaps"] == ["repository_paradigm_line_ending:.gitattributes"]
 
 
 @pytest.mark.parametrize("damage", [b"\xff\xfe", None], ids=["unreadable", "absent"])

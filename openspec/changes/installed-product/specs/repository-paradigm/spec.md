@@ -1,5 +1,20 @@
 ## MODIFIED Requirements
 
+### Requirement: Text normalization is declared
+
+Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact, but SHALL NOT give a tracked file CRLF or host-dependent line endings under the attributes that Git resolves.
+
+#### Scenario: Line endings are undeclared
+
+- **WHEN** a governed repository has no `.gitattributes`
+- **THEN** the paradigm reports missing text normalization.
+
+#### Scenario: A narrower pattern selects another line ending
+
+- **WHEN** a conforming `.gitattributes` is followed by `run.cmd eol=crlf`, or a nested `.gitattributes` gives `docs/*.md` no `eol`
+- **THEN** the paradigm reports each file whose effective attributes select that line ending, with a repair that drops the override or marks the file `-text`
+- **AND** a file marked `-text`, `binary` or byte-exact keeps its bytes without a gap.
+
 ### Requirement: Text formatting uses the common formatters
 
 Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure. The paradigm SHALL NOT add a layout rule of its own, so container structure that the formatter accepts conforms.
@@ -58,6 +73,37 @@ A dot-separated name segment MAY be a BCP 47 language tag in its canonical case.
 - **WHEN** the repository's `.gitattributes` marks `assets/fonts/**` as `linguist-vendored` and the repository tracks `assets/fonts/NotoSansCJKsc-Bold.otf`
 - **THEN** no name is reported, and prewrite admits a new file there under its upstream name
 - **AND** without that attribute the same name is reported, with a repair that names its kebab-case form and the `linguist-vendored` or `linguist-generated` marking.
+
+## ADDED Requirements
+
+### Requirement: A license grant is a recognized standard text
+
+A governed repository that tracks a root `LICENSE` SHALL keep in it the standard text of one license whose SPDX template the paradigm contract pins by digest, matched as the SPDX matching guidelines describe, unless its package metadata names the license by a `LicenseRef-` identifier. A copyright notice that the template requires SHALL name its holder, and only the template's own title MAY precede it. Which license a repository grants remains its own choice.
+
+#### Scenario: A grant departs from its license
+
+- **WHEN** a repository's `LICENSE` edits or retitles the MIT text, or keeps the template placeholder instead of a copyright holder
+- **THEN** the paradigm reports the grant, naming the recognized licenses.
+
+#### Scenario: A license outside the SPDX list is declared
+
+- **WHEN** a repository's `LICENSE` holds its own proprietary terms and its `pyproject.toml` declares `LicenseRef-Proprietary`
+- **THEN** the grant conforms, and a `package.json` that declares `MIT` is reported.
+
+### Requirement: A license grant is linked and consistently declared
+
+A repository that tracks a root `LICENSE` SHALL link it from its `README.md`. Every root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license SHALL declare the same SPDX identifier, and a repository SHALL NOT need a package for these checks.
+
+#### Scenario: Metadata names another license
+
+- **WHEN** a repository grants MIT and its `package.json` declares `Apache-2.0`
+- **THEN** the paradigm reports the manifest, while a `pyproject.toml` that declares `MIT` conforms.
+
+#### Scenario: A grant stands without a package
+
+- **WHEN** a documentation repository tracks the standard MIT text and its `README.md` links it, with no package manifest
+- **THEN** no license gap is reported
+- **AND** removing the link reports the public entry.
 
 ## REMOVED Requirements
 

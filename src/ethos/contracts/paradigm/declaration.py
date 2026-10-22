@@ -5,6 +5,7 @@ governed repository shares and the ecosystem modules that apply exactly when
 their manifest is tracked, without encoding one repository or its product layout.
 """
 
+import hashlib
 import posixpath
 import re
 import tomllib
@@ -71,6 +72,16 @@ class TextNormalization(BaseModel):
 
     gitattributes: str
     editorconfig: EditorDefaults
+
+
+class LicenseConventions(BaseModel):
+    """The license grant carrier, its public entry and the SPDX templates it may match."""
+
+    model_config = _DECLARATION
+
+    carrier: str
+    entry: str
+    templates: FrozenMapping[str]
 
 
 class ConfigurationPlane(BaseModel):
@@ -276,6 +287,7 @@ class RepositoryParadigm(BaseModel):
     root: RootCatalog
     binding: BindingFileSet
     normalization: TextNormalization
+    license: LicenseConventions
     configuration: ConfigurationPlane
     immutable_roots: FrozenTuple[str]
     formatter: FrozenTuple[FormatterBinding]
@@ -346,3 +358,15 @@ def load_repository_paradigm() -> RepositoryParadigm:
     source = resources.files(__package__).joinpath("paradigm.toml")
     payload = tomllib.loads(source.read_text(encoding="utf-8"))
     return RepositoryParadigm.model_validate(payload)
+
+
+@lru_cache
+def license_template(identifier: str) -> str:
+    """Return one recognized license's packaged SPDX template, verified by its declared digest."""
+    expected = load_repository_paradigm().license.templates[identifier]
+    source = resources.files(__package__).joinpath("licenses.toml")
+    template = tomllib.loads(source.read_text(encoding="utf-8"))["templates"][identifier]
+    if hashlib.sha256(template.encode("utf-8")).hexdigest() != expected:
+        message = f"paradigm_license_template_invalid:{identifier}"
+        raise ValueError(message)
+    return template

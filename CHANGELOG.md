@@ -12,20 +12,20 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
-### Removed
-
-- The shipped format-selection policy no longer names the retired
-  `integrations/architecture-publisher` capture paths, removed from this repository on
-  2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
-  stay excluded by path, and a repository's own carriers still bind only its formatters.
-
 ### Fixed
 
-- An adopter's `ethos prove --gate` selection of a packaged gate that has no provider, such as
-  `ruff` or `dependency-vulnerabilities`, returns `proof_gate_not_importable:<id>`, also when
-  another selected gate depends on it. Such a gate runs the product's own Nox session, which
-  an adopter does not have. Provider-backed packaged gates, such as the shared floors and
-  `external-links`, still run in process.
+- The hosted release can build its Windows runtime. The Windows leg of the 0.2.0-alpha.6 release
+  stopped at `git_object_trust_anchor_unprotected` while binding the operator's commit trust, so
+  that pre-release has no Windows archive: the CI binder restricted the signer file with POSIX
+  modes, which leave a Windows ACL unchanged, and the hosted temporary root lets other users
+  write. The binder now protects the file and its directory through the host's own protection
+  authority, which the trust check observes, and keeps the signer file's LF line endings.
+- The source-format gate reports a formatted carrier that Git does not treat as text, as
+  `source_format_not_text:<path>`: content Git classifies as binary, such as Markdown that holds a
+  NUL byte, or a carrier whose attributes unset `text`. Both passed, because the formatters keep
+  such bytes. Git's own classification decides, not a list of characters. A carrier that must keep
+  exact bytes is declared byte-bound in the format-selection increment, and captured documents
+  stay outside the authored inputs.
 - A command timeout's cleanup no longer fails on macOS when the timed-out process group's members
   have exited but are not yet reaped. `ethos publish` showed a `PermissionError` traceback instead
   of its unavailable remote observation. A member that stays unsignalable past the cleanup bound
@@ -40,6 +40,27 @@ historical bindings are governed by [Release Governance](docs/governance/release
   source-integrity gate checks the archive's pinned SHA-256 and compares each declared member with
   its exact entry in memory, without extracting it; unselected entries stay unread, and a
   missing, unqualified or different entry leaves its members unproven.
+- The repository paradigm judges each tracked file's line endings by its effective Git `text` and
+  `eol` attributes, which `git check-attr` resolves from every applicable pattern. It checked only
+  the last catch-all `*` pattern, so a later or nested pattern could still check a file out with
+  CRLF or a host-dependent line ending. Such a file is now a `line-ending` gap; a file marked
+  `-text` keeps its exact bytes, and a checkout that Git does not report blocks.
+- The repository paradigm judges a tracked license grant. A root `LICENSE` must keep the standard
+  text of one license whose SPDX template ETHOS pins by digest (MIT and Apache-2.0, from SPDX
+  license-list-data v3.29.0), matched as the SPDX matching guidelines describe, with any
+  copyright notice the template requires naming its holder and only the template's own title
+  before it. A license outside that list is the repository's own text, which its package
+  metadata names by a `LicenseRef-` identifier. `README.md` must link the grant, and every
+  root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license must name
+  the same identifier. The license is the repository's choice, and a repository without a
+  package needs none. The ETHOS README now links its license.
+
+### Removed
+
+- The shipped format-selection policy no longer names the retired
+  `integrations/architecture-publisher` capture paths, removed from this repository on
+  2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
+  stay excluded by path, and a repository's own carriers still bind only its formatters.
 
 ### Fixed
 
@@ -65,6 +86,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   write bits, which is what a sealed runtime records, so existing runtime digests are unchanged;
   POSIX modes stay bound in full. Installed-command acceptance also allows each command 600
   seconds instead of 180, because a hosted Windows runner timed out while installing a hook.
+- An adopter's `ethos prove --gate` selection of a packaged gate that has no provider, such as
+  `ruff` or `dependency-vulnerabilities`, returns `proof_gate_not_importable:<id>`, also when
+  another selected gate depends on it. Such a gate runs the product's own Nox session, which
+  an adopter does not have. Provider-backed packaged gates, such as the shared floors and
+  `external-links`, still run in process.
 
 ## [0.2.0-alpha.5] - 2026-10-21
 

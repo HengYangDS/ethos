@@ -67,6 +67,7 @@ def _static_execution(
     """
     command = (
         sys.executable,
+        "-B",
         "-I",
         "-m",
         "ruff",

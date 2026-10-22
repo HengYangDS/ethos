@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import stat
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -77,6 +78,49 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
     materialization.remove_generated_tree(package)
     assert require_selected_runtime(expected).digest == selected.digest
     assert _pin(repo, selected.build, installed_runtime=expected) == pinned_python
+
+
+def _writable_entries(root: Path) -> list[str]:
+    """List payload entries that still grant any write permission."""
+    return [
+        path.relative_to(root).as_posix()
+        for path in [root, *root.rglob("*")]
+        if not path.is_symlink() and stat.S_IMODE(path.stat().st_mode) & 0o222
+    ]
+
+
+def test_pinned_installation_is_sealed_whatever_modes_its_carrier_restored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An archive carrier that recreated writable directories still yields sealed supply."""
+    repo, selected, store = _host_case(tmp_path, monkeypatch)
+    package = tmp_path / "package"
+    shutil.copytree(Path(git_common_dir(repo)) / "ethos", package / "ethos", symlinks=True)
+    supplied = package / "ethos/runtime" / selected.digest
+    for path in [supplied, *supplied.rglob("*")]:
+        if path.is_dir() and not path.is_symlink():
+            path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IWUSR)
+    assert _writable_entries(supplied)
+
+    pinned = _pin(repo, selected.build, installed_runtime=supplied).parent
+    assert pinned == store / selected.digest[:16] / "runtime" / selected.digest
+    assert _writable_entries(pinned) == []
+    assert require_selected_runtime(pinned).digest == selected.digest
+
+
+def test_reused_installation_is_resealed_without_changing_its_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reuse restores the seal that an earlier pin or an outside writer left open."""
+    _repo, selected, _store = _host_case(tmp_path, monkeypatch)
+    pinned = materialization.pin_installed_runtime(selected)
+    opened = next(path for path in pinned.rglob("*") if path.is_dir() and not path.is_symlink())
+    for path in (pinned, opened):
+        path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IWUSR)
+
+    assert materialization.pin_installed_runtime(selected) == pinned
+    assert _writable_entries(pinned) == []
+    assert require_selected_runtime(pinned).digest == selected.digest
 
 
 def test_rollback_pins_a_predecessor_whose_entry_an_earlier_launcher_wrote(

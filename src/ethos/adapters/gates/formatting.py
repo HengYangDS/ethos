@@ -13,13 +13,13 @@ from pathlib import Path
 from ruff import find_ruff_bin
 
 from ethos.adapters.gates.native.inputs import authored_source_files
+from ethos.adapters.gates.native.inputs import authored_text_gaps
 from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
-from ethos.adapters.repo.git_attributes import text_paths
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -275,8 +275,18 @@ def render_source_content(
 
 
 def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[FormattedFile, ...]:
-    """Prepare all selected files first; native refusal leaves every source byte untouched."""
-    prepared, selected = [], _selected_files(root, paths)
+    """Prepare all selected files first; native refusal leaves every source byte untouched.
+
+    Authored text that Git classifies as binary is refused before any formatter reads it.
+    """
+    selected = _selected_files(root, paths)
+    if invalid := authored_text_gaps(root, [relative for relative, _owner in selected]):
+        raise ValueError(invalid[0])
+    return _postimages(root, selected)
+
+
+def _postimages(root: Path, selected: tuple[tuple[str, str], ...]) -> tuple[FormattedFile, ...]:
+    prepared = []
     node = (
         str(resolve_node_runtime().executable)
         if any(owner in _NODE_FORMATTERS for _relative, owner in selected)
@@ -293,25 +303,20 @@ def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[F
 def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:
     """Check the same native postimages used by the admitted fix operation.
 
-    Every formatted carrier must also be text as Git classifies it, so a NUL byte or an
-    attribute that unsets `text` is reported; a carrier that keeps exact bytes is byte-bound.
+    Authored text that Git classifies as binary is reported and left unformatted.
     """
     try:
-        prepared = prepare_source_format(root, paths=paths)
+        selected = _selected_files(root, paths)
+        invalid = authored_text_gaps(root, [relative for relative, _owner in selected])
+        prepared = () if invalid else _postimages(root, selected)
         changed = [item.path for item in prepared if item.before != item.after]
-        text = text_paths(root, tuple(item.path for item in prepared))
-        if text is None:
-            return source_format_failure(root, FileNotFoundError("source_format_text_unobserved"))
-        gaps = [
-            *(f"source_format_drift:{path}" for path in changed),
-            *(f"source_format_not_text:{item.path}" for item in prepared if item.path not in text),
-        ]
+        gaps = invalid or [f"source_format_drift:{path}" for path in changed]
         return {
             "id": "source-format",
             "verdict": "block" if gaps else "pass",
             "state": "failed" if gaps else "passed",
-            "files": [item.path for item in prepared],
-            "file_count": len(prepared),
+            "files": [relative for relative, _owner in selected],
+            "file_count": len(selected),
             "changed_paths": changed,
             "ignored_paths": [item.path for item in prepared if item.ignored],
             "required_gaps": gaps,

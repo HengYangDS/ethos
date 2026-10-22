@@ -228,27 +228,34 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
     ("attributes", "content", "gaps"),
     [
         ("", b"# Notes\n", []),
-        ("", b"# Notes\0\n", ["source_format_not_text:docs/notes.md"]),
-        ("docs/notes.md -text\n", b"# Notes\n", ["source_format_not_text:docs/notes.md"]),
-        ("content/notes.md -text\n", b"# Bound\n", []),
+        ("docs/notes.md -text\n", b"# Notes\n", []),
+        ("", b"# Notes\0\n", ["authored_text_binary:docs/notes.md"]),
+        ("docs/notes.md -text\n", b"# Notes\0\n", ["authored_text_binary:docs/notes.md"]),
     ],
-    ids=["text", "nul", "relabeled", "byte-bound"],
+    ids=["text", "byte-exact-text", "nul", "byte-exact-nul"],
 )
-def test_formatted_carriers_are_text_as_git_classifies_them(
+def test_authored_text_is_judged_by_git_content_classification(
     lane: Path, attributes: str, content: bytes, gaps: list[str]
 ) -> None:
-    """Git's own text classification judges each formatted carrier, not a list of characters."""
+    """One judgement of Git's content classification serves every consumer; -text decides none."""
     with (lane / ".gitattributes").open("a", encoding="utf-8") as declared:
         declared.write(attributes)
-    target = "content/notes.md" if attributes.startswith("content/") else "docs/notes.md"
-    _write(lane, {_CARRIERS: _CARRIER})
-    (lane / target).parent.mkdir(parents=True, exist_ok=True)
-    (lane / target).write_bytes(content)
+    (lane / "docs").mkdir(exist_ok=True)
+    (lane / "docs/notes.md").write_bytes(content)
+    head = git(lane, "rev-parse", "HEAD")
 
-    report = formatting_gate.source_format_report(lane)
+    reports = (
+        formatting_gate.source_format_report(lane),
+        gate_tool.markdown_lint_report(lane),
+        gate_tool.prose_report(lane),
+    )
+    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
 
-    assert [gap for gap in report["required_gaps"] if "not_text" in gap] == gaps, report
-    assert report["verdict"] == ("block" if gaps else "pass"), report
+    for report in reports:
+        judged = ("authored_text", "source_format_not_text")
+        assert [gap for gap in report["required_gaps"] if gap.startswith(judged)] == gaps, report
+    assert (code, "authored_text_binary" in json.dumps(applied)) == (int(bool(gaps)), bool(gaps))
+    assert (lane / "docs/notes.md").read_bytes() == content
 
 
 @pytest.mark.parametrize(

@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
-### Requirement: Formatted text carriers are Git text
+### Requirement: Authored text is valid text
 
-A carrier that a native text formatter owns SHALL be text as Git classifies it: Git SHALL classify its index and worktree content as text, and its attributes SHALL NOT unset `text`. A carrier that keeps exact bytes SHALL be declared byte-bound in the repository's format-selection increment or stay outside the authored inputs, and no list of forbidden characters SHALL decide what is text.
+Authored text that the shared formatter, Markdown lint or prose checks read SHALL be content Git classifies as text. One shared judgement SHALL decide this for all three from Git's classification of the worktree bytes, not from a list of characters, and the format fix SHALL refuse such a file without writing. The `text` and `eol` attributes govern only line-ending conversion, so a valid document that they mark `-text` SHALL pass.
 
 #### Scenario: Authored Markdown holds a NUL byte
 
-- **WHEN** a tracked authored Markdown file contains a NUL byte
-- **THEN** the source-format gate reports `source_format_not_text` for that file.
+- **WHEN** an authored Markdown file contains a NUL byte
+- **THEN** source-format, Markdown lint and prose each report `authored_text_binary` for that file, and `lane format --apply` refuses without writing.
 
-#### Scenario: Authored Markdown is relabeled binary
+#### Scenario: A valid document is marked -text
 
-- **WHEN** `.gitattributes` marks an authored Markdown file `-text`
-- **THEN** the source-format gate reports that file, while a byte-bound carrier with the same attribute keeps its bytes and passes.
+- **WHEN** `.gitattributes` marks a valid UTF-8 Markdown document `-text`
+- **THEN** none of the three checks reports it as binary, and it passes.

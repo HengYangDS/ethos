@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 
 
 def _quality_files(monkeypatch: pytest.MonkeyPatch, *files: str) -> None:
+    """Stand in for Git's inventory of these inputs and its classification of them as text."""
     monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: list(files))
+    monkeypatch.setattr(native_inputs, "binary_content_paths", lambda *_args: frozenset())
 
 
 def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_config(

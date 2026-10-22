@@ -318,7 +318,10 @@ def _markdown_files(root: Path) -> list[str]:
 
 
 def prose_report(root: Path) -> dict[str, object]:
-    """Run native spelling and Vale on exact copies without ambient policy or source writes."""
+    """Run native spelling and Vale on exact copies without ambient policy or source writes.
+
+    Authored text that Git classifies as binary is refused before any native tool reads it.
+    """
     try:
         files = _markdown_files(root)
         configs = native_configurations(
@@ -332,6 +335,9 @@ def prose_report(root: Path) -> dict[str, object]:
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
+        authored = native_inputs.authored_text_report(root, files)
+        if authored["required_gaps"]:
+            return _native_report("prose", files, [authored])
         native = []
         for ordinal, config in enumerate(configs):
             with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
@@ -443,11 +449,17 @@ def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
 
 
 def markdown_lint_report(root: Path) -> dict[str, object]:
-    """Check the shared floor and native repository increments on the same authored inputs."""
+    """Check the shared floor and native repository increments on the same authored inputs.
+
+    Authored text that Git classifies as binary is refused before any native tool reads it.
+    """
     try:
         files = _markdown_files(root)
         if not files:
             return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
+        authored = native_inputs.authored_text_report(root, files)
+        if authored["required_gaps"]:
+            return _native_report("markdown-lint", files, [authored])
         node = str(resolve_node_runtime().executable)
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
         lint_configs = native_configurations(

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
+from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.repository.policy.gates import resolve_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
@@ -24,6 +25,7 @@ from ethos.repository.release.resources import require_packaged_resource
 
 if TYPE_CHECKING:
     import subprocess
+    from collections.abc import Sequence
     from pathlib import Path
 
     from ethos.repository.policy.quality.format_selection import CarrierAudit
@@ -71,6 +73,31 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
             raise ValueError(origins.required_gaps[0])
         selected = [relative for relative in selected if relative not in origins.entries]
     return selected
+
+
+def authored_text_gaps(root: Path, files: Sequence[str]) -> list[str]:
+    """Report authored text whose content Git itself classifies as binary, such as a NUL byte.
+
+    Git's `text` and `eol` attributes govern only line-ending conversion, so a valid document
+    marked `-text` stays authored text; received and immutable originals are not inputs.
+    """
+    selected = tuple(dict.fromkeys(files))
+    binary = binary_content_paths(root, selected)
+    if binary is None:
+        return ["authored_text_unobserved"]
+    return [f"authored_text_binary:{path}" for path in selected if path in binary]
+
+
+def authored_text_report(root: Path, files: Sequence[str]) -> dict[str, object]:
+    """Project the one authored-text judgement as the result a native consumer includes."""
+    gaps = authored_text_gaps(root, files)
+    return {
+        "id": "authored-text",
+        "verdict": "block" if gaps else "pass",
+        "state": "failed" if gaps else "passed",
+        "file_count": len(files),
+        "required_gaps": gaps,
+    }
 
 
 def format_ownership(root: Path, paths: tuple[str, ...]) -> CarrierAudit:

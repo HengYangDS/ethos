@@ -22,12 +22,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
   modes, which leave a Windows ACL unchanged, and the hosted temporary root lets other users
   write. The binder now protects the file and its directory through the host's own protection
   authority, which the trust check observes, and keeps the signer file's LF line endings.
-- The source-format gate reports a formatted carrier that Git does not treat as text, as
-  `source_format_not_text:<path>`: content Git classifies as binary, such as Markdown that holds a
-  NUL byte, or a carrier whose attributes unset `text`. Both passed, because the formatters keep
-  such bytes. Git's own classification decides, not a list of characters. A carrier that must keep
-  exact bytes is declared byte-bound in the format-selection increment, and captured documents
-  stay outside the authored inputs.
+- Formatting, Markdown lint and prose share one judgement of authored text. A file whose content
+  Git classifies as binary, such as Markdown that holds a NUL byte, is reported as
+  `authored_text_binary:<path>` before any native tool reads it, and `lane format --apply` refuses
+  it without writing; such a file used to pass, because the formatters keep its bytes. Git's
+  classification of the worktree bytes decides, not a list of characters. The `text` and `eol`
+  attributes only govern line-ending conversion, so a valid document marked `-text` passes.
 
 ## [0.2.0-alpha.6] - 2026-10-22
 

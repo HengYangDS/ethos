@@ -7,7 +7,7 @@
 ## What Changes
 
 - Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
-- Add one requirement, for task 11.9.2.9: a formatted carrier is text as Git classifies it. Every other task implements a requirement already accepted through `proof-throughput`.
+- Add one requirement, for task 11.9.2.9: authored text is content Git classifies as text. Every other task implements a requirement already accepted through `proof-throughput`.
 
 ## Capabilities
 
@@ -17,7 +17,7 @@
 
 ### Modified Capabilities
 
-- `repository-paradigm`: formatted text carriers are Git text (11.9.2.9). The behavior of the other tasks is specified by the accepted specifications.
+- `repository-paradigm`: authored text is valid text (11.9.2.9). The behavior of the other tasks is specified by the accepted specifications.
 
 ## Impact
 

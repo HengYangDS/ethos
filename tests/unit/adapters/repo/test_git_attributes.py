@@ -6,9 +6,9 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git_attributes as git_attributes
+from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
 from ethos.adapters.repo.git_attributes import received_paths
-from ethos.adapters.repo.git_attributes import text_paths
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -57,29 +57,36 @@ def test_checkout_line_endings_follow_later_and_nested_patterns(tmp_path: Path) 
     assert checkout_line_endings(repo, ()) == {}
 
 
-def test_text_paths_follow_native_git_content_and_attribute_classification(
+def test_binary_content_follows_git_content_classification_not_conversion_attributes(
     tmp_path: Path,
 ) -> None:
-    """Git's own classification decides text: a NUL byte or an unset text attribute is not."""
+    """Git classifies the worktree bytes a gate reads; an unset text attribute changes nothing."""
     repo = init_git_repo(tmp_path / "repo")
-    (repo / ".gitattributes").write_text("* text=auto eol=lf\nrelabeled.md -text\n")
+    (repo / ".gitattributes").write_text("* text=auto eol=lf\nbyte-exact*.md -text\n")
     sources = {
         "plain.md": b"# Plain\n",
         "nul.md": b"# Nul\0\n",
-        "relabeled.md": b"# Relabeled\n",
+        "byte-exact.md": b"# Byte exact\n",
+        "byte-exact-nul.md": b"# Byte exact\0\n",
         "crlf.md": b"# Worktree CRLF\r\n",
         "empty.md": b"",
         "[literal]*.md": b"# Literal\n",
+        "repaired.md": b"# Staged\0\n",
+        "corrupted.md": b"# Staged\n",
     }
     for relative, content in sources.items():
         (repo / relative).write_bytes(content)
-    git(repo, "add", "--", ".gitattributes", "plain.md", "nul.md", "relabeled.md", "crlf.md")
+    tracked = ("plain.md", "nul.md", "byte-exact.md", "byte-exact-nul.md", "crlf.md")
+    git(repo, "add", "--", ".gitattributes", *tracked, "repaired.md", "corrupted.md")
+    (repo / "repaired.md").write_bytes(b"# Repaired\n")
+    (repo / "corrupted.md").write_bytes(b"# Corrupted\0\n")
     (repo / "untracked-nul.md").write_bytes(b"# Untracked\0\n")
     paths = (*sources, "untracked-nul.md")
 
-    assert text_paths(repo, paths) == {"plain.md", "crlf.md", "empty.md", "[literal]*.md"}
-    assert text_paths(repo, ()) == frozenset()
-    assert text_paths(repo, ("absent.md",)) is None
+    binary = {"nul.md", "byte-exact-nul.md", "corrupted.md", "untracked-nul.md"}
+    assert binary_content_paths(repo, paths) == binary
+    assert binary_content_paths(repo, ()) == frozenset()
+    assert binary_content_paths(repo, ("absent.md",)) is None
 
 
 def test_attribute_observations_conclude_nothing_when_git_refuses(
@@ -92,4 +99,4 @@ def test_attribute_observations_conclude_nothing_when_git_refuses(
         monkeypatch.setattr(git_attributes, "run_git", lambda *_args, _c=completed, **_o: _c)
         assert received_paths(tmp_path, ("assets/fonts/OFL.txt",)) == frozenset()
         assert checkout_line_endings(tmp_path, ("assets/fonts/OFL.txt",)) is None
-        assert text_paths(tmp_path, ("assets/fonts/OFL.txt",)) is None
+        assert binary_content_paths(tmp_path, ("assets/fonts/OFL.txt",)) is None

@@ -194,6 +194,12 @@ def _without_ambient_toolchain(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PATH", "")
 
 
+def _quality_files(monkeypatch: pytest.MonkeyPatch, files: list[str]) -> None:
+    """Stand in for Git's inventory of these inputs and its classification of them as text."""
+    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    monkeypatch.setattr(native_inputs, "binary_content_paths", lambda *_args: frozenset())
+
+
 def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
     """The installed owner ignores ambient policy and preserves exact authored bytes."""
     gate = load_gate_registry_declaration().registry()["prose"]
@@ -205,7 +211,7 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
     local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
     (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
     files = ["README.md", local.relative_to(tmp_path).as_posix()]
-    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    _quality_files(monkeypatch, files)
     _without_ambient_toolchain(monkeypatch)
     for source, verdict in (
         ("The result is verified.\n", "pass"),
@@ -236,7 +242,7 @@ def test_prose_gate_runs_the_shipped_and_repository_vale_policy(tmp_path, monkey
     document = tmp_path / "README.md"
     local = tmp_path / ".config/checks/vale/vale.ini"
     files = ["README.md"]
-    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    _quality_files(monkeypatch, files)
     _without_ambient_toolchain(monkeypatch)
     refused = ["native_prose_control_refused:README.md:1"]
     for source, gaps in (

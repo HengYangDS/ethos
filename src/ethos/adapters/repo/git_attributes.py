@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 _RECEIVED_ATTRIBUTES = (b"linguist-vendored", b"linguist-generated")
 _CHECKOUT_ATTRIBUTES = (b"text", b"eol")
-_NOT_TEXT = frozenset({b"i/-text", b"w/-text", b"attr/-text"})
+_BINARY_WORKTREE = b"w/-text"
 
 
 def received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
@@ -42,12 +42,14 @@ def checkout_line_endings(root: Path, paths: tuple[str, ...]) -> dict[str, tuple
     }
 
 
-def text_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] | None:
-    """Return the paths whose content and attributes Git itself treats as text.
+def binary_content_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] | None:
+    """Return the paths whose worktree content Git itself classifies as binary.
 
-    `git ls-files --eol` reports Git's classification of the index and worktree content
-    beside the attribute it applies: content Git judges binary, such as a NUL byte, and an
-    attribute that unsets `text` both read `-text`. None means Git did not classify every path.
+    Gates read worktree bytes, so the staged copy does not decide. `git ls-files --eol`
+    reports this classification apart from the `text` and `eol` attributes, which govern
+    line-ending conversion: content such as a NUL byte reads `-text`, while a valid document
+    that an attribute marks `-text` keeps its own reading. None means Git did not classify
+    every path.
     """
     if not paths:
         return frozenset()
@@ -68,7 +70,7 @@ def text_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] | None:
         info, separator, path = record.partition(b"\t")
         if not separator:
             return None
-        classified[_text(path)] = _NOT_TEXT.isdisjoint(info.split())
+        classified[_text(path)] = _BINARY_WORKTREE in info.split()
     if completed.returncode or not set(paths) <= set(classified):
         return None
     return frozenset(path for path in paths if classified[path])

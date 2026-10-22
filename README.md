@@ -155,4 +155,4 @@ uv run ethos prove --json
 
 ## License
 
-ETHOS is released under the [Apache License 2.0](LICENSE).
+ETHOS is released under the [MIT License](LICENSE).

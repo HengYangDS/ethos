@@ -14,6 +14,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [0.2.0-alpha.7] - 2026-10-22
 
+### Changed
+
+- ETHOS is released under the MIT License instead of the Apache License 2.0. The MIT grant
+  applies from 0.2.0-alpha.7; earlier releases keep the Apache-2.0 grant they shipped with.
+
 ### Fixed
 
 - The hosted release can build its Windows runtime. The Windows leg of the 0.2.0-alpha.6 release

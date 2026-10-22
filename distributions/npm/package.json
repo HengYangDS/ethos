@@ -2,7 +2,7 @@
   "name": "@agentic-workflow/ethos",
   "version": "0.2.0-alpha.7",
   "description": "Node launcher for the ETHOS command plane.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "type": "module",
   "private": false,
   "keywords": [

@@ -166,21 +166,7 @@ def pin_installed_runtime(selected: SelectedRuntime) -> Path:
     ):
         _recover_pin_staging(store)
         if installation.exists():
-            owner = installation / "OWNER"
-            if (
-                owner.is_symlink()
-                or not owner.is_file()
-                or owner.read_text() != selected.digest + "\n"
-            ):
-                _fail("hook_runtime_host_store_conflict")
-            try:
-                pinned = require_selected_runtime(target, expected_build=selected.build)
-                complete = _runtime_supply_wheel(pinned) is not None
-            except (OSError, ValueError) as error:
-                _fail("hook_runtime_host_store_conflict", error)
-            if not complete:
-                _fail("hook_runtime_host_store_conflict")
-            return pinned.root
+            return _reuse_installation(installation, selected)
         staging = store / f".pin-{uuid.uuid4().hex}"
         marker = staging.with_name(staging.name + ".owner")
         marker.write_text(selected.digest + "\n", encoding="utf-8")
@@ -190,6 +176,8 @@ def pin_installed_runtime(selected: SelectedRuntime) -> Path:
             staged_runtime = staging / "runtime" / selected.digest
             staged_runtime.parent.mkdir(parents=True)
             shutil.copytree(selected.root, staged_runtime, symlinks=True)
+            # The copy keeps its carrier's directory modes, which an archive installer may not seal.
+            _seal_pinned_payload(staged_runtime)
             wheel = _runtime_supply_wheel(selected)
             if wheel is None:
                 _fail("hook_runtime_installed_supply_invalid")
@@ -209,6 +197,26 @@ def pin_installed_runtime(selected: SelectedRuntime) -> Path:
         finally:
             remove_generated_tree(staging)
             marker.unlink(missing_ok=True)
+
+
+def _reuse_installation(installation: Path, selected: SelectedRuntime) -> Path:
+    """Admit the existing installation of exactly this runtime and restore its seal."""
+    owner = installation / "OWNER"
+    if owner.is_symlink() or not owner.is_file() or owner.read_text() != selected.digest + "\n":
+        _fail("hook_runtime_host_store_conflict")
+    try:
+        pinned = require_selected_runtime(
+            installation / "runtime" / selected.digest, expected_build=selected.build
+        )
+        complete = _runtime_supply_wheel(pinned) is not None
+        if complete:
+            # Reuse restores a seal that an earlier pin or an outside writer left open.
+            _seal_pinned_payload(pinned.root)
+    except (OSError, ValueError) as error:
+        _fail("hook_runtime_host_store_conflict", error)
+    if not complete:
+        _fail("hook_runtime_host_store_conflict")
+    return pinned.root
 
 
 def _recover_pin_staging(store: Path) -> None:
@@ -499,6 +507,12 @@ def _seal_runtime_payload(runtime: Path) -> None:
 
 def _remove_write_permissions(path: Path) -> None:
     path.chmod(stat.S_IMODE(path.stat().st_mode) & ~0o222)
+
+
+def _seal_pinned_payload(runtime: Path) -> None:
+    """Seal a pinned payload and its root exactly as a published generation is sealed."""
+    _seal_runtime_payload(runtime)
+    _remove_write_permissions(runtime)
 
 
 def remove_generated_tree(path: Path, *, ignore_errors: bool = False) -> None:

@@ -42,6 +42,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Pinning a runtime into the host store seals it, and reusing an installation seals it again. The
+  copy kept its carrier's directory modes, so a runtime unpacked with writable directories stayed
+  writable. A static gate's isolated `python -I -m ruff` then wrote bytecode into the alpha.7
+  installation, whose manifest inventory failed, and adopters bound to it reported
+  `runtime_schema_migration_required`.
 - The product npm lock moves npm to 12.2.1, whose bundled dependencies fix the 12 advisories that
   npm 12.2.0 carried in brace-expansion, http-cache-semantics, ip-address, postcss-selector-parser
   and undici. The dependency audit policy drops their dispositions, which would have expired on

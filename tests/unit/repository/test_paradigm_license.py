@@ -3,14 +3,30 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+import re
+from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.contracts.paradigm.declaration import license_template
 from tests.support.paradigm import CONFORMING
 from tests.support.paradigm import paradigm_report
 
-_ROOT = Path(__file__).resolve().parents[3]
+if TYPE_CHECKING:
+    from pathlib import Path
+
+_MARKUP = re.compile(r'<<(?:beginOptional|endOptional|var;(?:[^"]|"[^"]*")*?)>>')
+
+
+def _published(identifier: str) -> str:
+    """Render a recognized SPDX template with each replaceable field in its original text."""
+
+    def original(markup: re.Match[str]) -> str:
+        return dict(re.findall(r'(\w+)="([^"]*)"', markup.group(0))).get("original", "")
+
+    return _MARKUP.sub(original, license_template(identifier))
+
+
 _MIT = (
     "MIT License\n\nCopyright (c) 2026 Sample Authors\n\n"
     "Permission is hereby granted, free of charge, to any person obtaining a copy of this "
@@ -27,7 +43,7 @@ _MIT = (
     "OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER "
     "DEALINGS IN THE SOFTWARE.\n"
 )
-_APACHE = (_ROOT / "LICENSE").read_text(encoding="utf-8")
+_APACHE = _published("Apache-2.0")
 _LINKED = "# Sample\n\nReleased under the [MIT License](LICENSE).\n"
 _PLACEHOLDER = _MIT.replace("2026 Sample Authors", "<year> <copyright holders>")
 _PROPRIETARY = "Sample Proprietary License\n\nCopyright (c) 2026 Sample Authors.\n"
@@ -52,14 +68,17 @@ _CASES = {
         },
         [],
     ),
-    "apache-appendix": ({"LICENSE": _APACHE, "README.md": _LINKED.replace("MIT", "Apache")}, []),
-    "apache-unfilled-appendix": (
+    "apache-appendix": (
         {
             "LICENSE": _APACHE.replace(
-                "2026 ETHOS contributors", "[yyyy] [name of copyright owner]"
-            ).replace("https://", "http://"),
-            "README.md": "[license](./LICENSE#terms)\n",
+                "[yyyy] [name of copyright owner]", "2026 Sample Authors"
+            ).replace("http://", "https://"),
+            "README.md": _LINKED.replace("MIT", "Apache"),
         },
+        [],
+    ),
+    "apache-unfilled-appendix": (
+        {"LICENSE": _APACHE, "README.md": "[license](./LICENSE#terms)\n"},
         [],
     ),
     "no-grant": ({}, []),

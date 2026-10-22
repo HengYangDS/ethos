@@ -224,6 +224,11 @@ def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[s
     if product is not None:
         owned["executable"].update(product.project.scripts)
         owned["executable"].update(product.project.gui_scripts)
+    # A governed repository may invoke what the product itself runs, as it may its scripts.
+    surfaces = canonical_resource("system/surfaces.toml")
+    if surfaces.is_file():
+        product_surfaces = {"system/surfaces.toml": surfaces.read_text(encoding="utf-8")}
+        _declared_surface_references(product_surfaces, owned)
     if profile.openspec is not None:
         owned["executable"].add("openspec")
 
@@ -242,12 +247,10 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
     if isinstance(host, dict) and isinstance(provider := host.get("provider"), str):
         owned["reference"].add(provider)
     publication = release.get("publication", {}) if isinstance(release, dict) else {}
-    if isinstance(publication, dict):
-        owned["reference"].update(
-            key.removesuffix("_remote")
-            for key in publication
-            if isinstance(key, str) and key.endswith("_remote")
-        )
+    # Each publication peer names its forge and the Git remote that reaches it.
+    for peer in _table_items(publication.get("peers") if isinstance(publication, dict) else None):
+        names = {peer.get("provider"), peer.get("git_remote")}
+        owned["reference"].update(name for name in names if isinstance(name, str))
 
 
 def _declared_tool_supply(files: dict[str, str], owned: dict[str, set[str]]) -> None:

@@ -33,6 +33,16 @@ historical bindings are governed by [Release Governance](docs/governance/release
   it without writing; such a file used to pass, because the formatters keep its bytes. Git's
   classification of the worktree bytes decides, not a list of characters. The `text` and `eol`
   attributes only govern line-ending conversion, so a valid document marked `-text` passes.
+- A command timeout's cleanup no longer fails on macOS when the timed-out process group's members
+  have exited but are not yet reaped. `ethos publish` showed a `PermissionError` traceback instead
+  of its unavailable remote observation. A member that stays unsignalable past the cleanup bound
+  still fails the command.
+- An exact `--patch` to a generated CI file admits the references its repository already owns.
+  Release peers own their forge provider and Git remote, `mise exec … --` owns the command it
+  runs, a governed repository may run the product's own runtime executables, such as `git`, and
+  `requires-python` owns the interpreter. A one-line edit to an adopter's GitLab pipeline was
+  refused with `product_reference_not_admitted_at_baseline:executable:git`; an executable that
+  no declaration owns stays refused.
 
 ## [0.2.0-alpha.6] - 2026-10-22
 

@@ -19,6 +19,7 @@ from threading import Lock
 from threading import current_thread
 from threading import main_thread
 from time import monotonic
+from time import sleep
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -33,6 +34,9 @@ if TYPE_CHECKING:
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
+# Darwin needs a moment to reap an exited group's members before it can report the group absent.
+_GROUP_REAPING_SECONDS = 0.5
+_GROUP_REAPING_POLL_SECONDS = 0.01
 
 
 class ProcessExecutionError(ValueError):
@@ -430,7 +434,16 @@ def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None
         except PermissionError:
             if process.poll() is None:
                 raise
-            # An unreaped exited leader can leave an unsignalable group on Darwin.
-            # Reaping is insufficient: surviving members must not be ignored.
-            os.killpg(process.pid, 0)
-            raise
+            # Darwin refuses to signal a group whose members exited but await their reaper.
+            # Only observed absence within the bound resolves it; a lasting refusal or a
+            # signalable member is a survivor, which must not be ignored.
+            bound = max(deadline or 0.0, monotonic() + _GROUP_REAPING_SECONDS)
+            while True:
+                try:
+                    os.killpg(process.pid, 0)
+                except PermissionError:
+                    if monotonic() >= bound:
+                        raise
+                    sleep(_GROUP_REAPING_POLL_SECONDS)
+                    continue
+                raise

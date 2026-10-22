@@ -233,6 +233,9 @@ def python_module(tokens: tuple[str, ...]) -> str:
 
 
 def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[str, ...]:
+    if executable == "mise" and tokens[1:2] in {("exec",), ("x",)}:
+        # `mise exec [tool@version]... -- command` runs the command after the separator.
+        return tokens[tokens.index("--") + 1 :] if "--" in tokens[2:] else ()
     if executable == "uv":
         run_index = next(
             (index for index, argument in enumerate(tokens[1:], 1) if argument == "run"), -1

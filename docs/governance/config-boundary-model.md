@@ -69,7 +69,11 @@ replace local proof or repository evidence.
 Forge's CI runner environment provides beyond the repository's toolchain and the
 product runtime, as `[[runner]]` records with `forge`, `executables` and
 `references`. Reference admission counts them as owned only in that Forge's own
-pipeline files; a malformed record owns nothing.
+pipeline files; a malformed record owns nothing. A step that
+`.config/ci/retained-steps.toml` keeps as shell, by Forge file, job and the SHA-256
+of its text, is owned by that record as a whole, so reference admission and
+repository closure read no command names from it. Once its text changes, the
+record no longer names it and its commands are read again.
 
 Status: see front matter.
 

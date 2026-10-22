@@ -38,6 +38,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Generated CI reference admission and repository closure treat a step that the retention
+  record keeps, by Forge file, job and text digest, as owned operating-system glue. They had
+  read its words as commands: aigw-cli's recorded PowerShell steps yielded 38 unowned
+  executables such as `Join-Path` and `Write-Host`, so any patch to its GitLab pipeline was
+  refused. A step whose text no longer matches its record is read as commands again.
 - Pinning a runtime into the host store seals it, and reusing an installation seals it again. The
   copy kept its carrier's directory modes, so a runtime unpacked with writable directories stayed
   writable. A static gate's isolated `python -I -m ruff` then wrote bytecode into the alpha.7

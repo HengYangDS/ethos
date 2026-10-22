@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+import tomli_w
+import yaml
 
 import ethos.repository.policy.references.closure as reference_closure
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -469,3 +472,33 @@ def test_repository_reference_closure_admits_declared_runner_commands(
 
     orphan = "semantic_consumer_orphan:executable:tar:.gitlab-ci.yml"
     assert (orphan in report["required_gaps"]) is (forge != "gitlab"), report["required_gaps"]
+
+
+@pytest.mark.parametrize("recorded", [True, False])
+def test_repository_reference_closure_owns_recorded_glue(tmp_path: Path, *, recorded: bool) -> None:
+    """Glue that the retention record binds closes without its words becoming commands."""
+    glue = "Write-Host (Join-Path $env:CI_PROJECT_DIR 'mise')\n"
+    declare_reference_surface(tmp_path)
+    declare_reference_package(tmp_path)
+    write_reference_source(
+        tmp_path, ".gitlab-ci.yml", yaml.safe_dump({"native-windows": {"script": [glue]}})
+    )
+    if recorded:
+        record = {
+            "file": ".gitlab-ci.yml",
+            "jobs": ["native-windows"],
+            "sha256": hashlib.sha256(glue.encode()).hexdigest(),
+            "class": "operating-system-glue",
+            "owner": "fixture CI model",
+            "reason": "The step runs before the locked toolchain exists.",
+            "platforms": ["windows"],
+            "evidence": "fixture",
+        }
+        write_reference_source(
+            tmp_path, ".config/ci/retained-steps.toml", tomli_w.dumps({"step": [record]})
+        )
+
+    report = repository_semantic_closure(tmp_path)
+
+    orphan = "semantic_consumer_orphan:executable:Write-Host:.gitlab-ci.yml"
+    assert (orphan in report["required_gaps"]) is not recorded, report["required_gaps"]

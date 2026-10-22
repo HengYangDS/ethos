@@ -32,6 +32,7 @@ from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
@@ -139,13 +140,45 @@ def _text_digest(command: str) -> str:
     return hashlib.sha256(command.encode("utf-8")).hexdigest()
 
 
+def retained_step_keys(
+    paradigm: RepositoryParadigm, files: Mapping[str, str]
+) -> frozenset[tuple[str, str, str]]:
+    """Return the Forge file, job and text digest of each step a complete record entry keeps."""
+    retention = paradigm.pipelines.retention
+    if retention.record not in files:
+        return frozenset()
+    records, _gaps = _record_entries(retention, files[retention.record])
+    return frozenset((entry.file, job, entry.sha256) for entry in records for job in entry.jobs)
+
+
+def retained_step_texts(
+    paradigm: RepositoryParadigm, path: str, text: str, keys: frozenset[tuple[str, str, str]]
+) -> frozenset[str]:
+    """Return the step texts of one pipeline file that retention keeps in every job running them."""
+    forge = next((forge for forge, _path in forge_pipeline_files(paradigm, (path,))), None)
+    if not keys or forge is None:
+        return frozenset()
+    retained: set[str] = set()
+    unretained: set[str] = set()
+    for step in ci_steps(forge, path, text):
+        key = (path, step.job, _text_digest(step.command))
+        (retained if key in keys else unretained).add(step.command)
+    return frozenset(retained - unretained)
+
+
 def _retained_steps(
     retention: StepRetention, root: Path, tracked: frozenset[str]
 ) -> tuple[list[_RetainedStep], list[ParadigmGap]]:
     """Read the complete record entries and report the record or any entry that is not."""
     if retention.record not in tracked:
         return [], []
-    text = tracked_text(root, retention.record, tracked)
+    return _record_entries(retention, tracked_text(root, retention.record, tracked))
+
+
+def _record_entries(
+    retention: StepRetention, text: str | None
+) -> tuple[list[_RetainedStep], list[ParadigmGap]]:
+    """Parse the record's entries, reporting an unreadable record or any incomplete entry."""
     try:
         document = tomllib.loads(text) if text is not None else None
     except tomllib.TOMLDecodeError:

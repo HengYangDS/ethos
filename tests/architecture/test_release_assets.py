@@ -52,6 +52,15 @@ def test_native_node_identity_uses_the_mise_declaration_and_lock() -> None:
     assert supply.installed_root(ROOT) == supply.cache(ROOT) / "runtime"
 
 
+def test_bootstrap_builds_the_environment_on_the_locked_python() -> None:
+    """A host interpreter upgrade cannot change the Python that bootstrap builds on."""
+    mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
+    assert re.fullmatch(r"3\.\d+\.\d+", mise["tools"]["python"])
+    syncs = [step for step in mise["tasks"]["bootstrap"]["run"] if step.startswith("uv sync")]
+    assert syncs
+    assert all(step.endswith(' --python "{{tools.python.path}}"') for step in syncs)
+
+
 def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
     """Native tool identities and archive digests share the Mise lock owner."""
     mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())

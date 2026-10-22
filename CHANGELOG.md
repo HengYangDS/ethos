@@ -21,6 +21,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- The `bootstrap` task builds the development environment on the Python that
+  `.config/mise/config.toml` pins and `mise.lock` locks for every platform, CPython 3.14.8,
+  instead of whichever interpreter the host offers first. A Homebrew patch upgrade had left the
+  environment on a framework build that no runtime image can copy, so `hook install` and the
+  install smoke failed with `hook_runtime_interpreter_source_unavailable`.
 - Reading the Attestation set decodes its members on every read. The set no longer keeps a
   process-wide cache of decoded members, so a repeated read costs what a first read costs;
   a fresh process reads the 2,084-member set in 1.56-1.90 s. Selected membership, custody

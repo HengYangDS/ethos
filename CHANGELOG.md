@@ -41,8 +41,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   Release peers own their forge provider and Git remote, `mise exec … --` owns the command it
   runs, a governed repository may run the product's own runtime executables, such as `git`, and
   `requires-python` owns the interpreter. A one-line edit to an adopter's GitLab pipeline was
-  refused with `product_reference_not_admitted_at_baseline:executable:git`; an executable that
-  no declaration owns stays refused.
+  refused with `product_reference_not_admitted_at_baseline:executable:git`. An executable that no
+  declaration owns stays refused in `run` and `script` steps; commands in GitLab `before_script`
+  and `after_script` are not yet observed.
 
 ## [0.2.0-alpha.6] - 2026-10-22
 

@@ -26,8 +26,8 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
-from ethos.repository.policy.gates import provider_module_sources
+from ethos.repository.policy.quality.sources import PRODUCT_PROVIDER_SOURCE
+from ethos.repository.policy.quality.sources import provider_module_sources
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.javascript.execution import NodeAttempt

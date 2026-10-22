@@ -8,7 +8,6 @@ import tomllib
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path
 
 from pydantic import ValidationError
 
@@ -27,23 +26,19 @@ from ethos.repository.policy.code_subjects import source_binding_gaps
 from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.gate_composition import select_gate_declaration
-from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
-from ethos.repository.policy.quality.sources import generated_relations
-from ethos.repository.policy.quality.sources import source_contract_paths
+from ethos.repository.policy.quality.sources import source_paths_for_gate
+from ethos.repository.policy.quality.sources import source_paths_for_gates
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
-from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import python_module
-from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
-PRODUCT_PROVIDER_SOURCE = "@ethos/"
 _NATIVE_DEPENDENCY_AUDIT_COMMAND = ("python", "-m", "nox", "-s", "vulnerabilities")
 
 
@@ -292,139 +287,6 @@ def resolve_gate_declaration(
         message = f"gate_registry_invalid:{proof.gate_registry}"
         raise ValueError(message) from error
     return declaration, profile
-
-
-def provider_module_sources(gate: Gate) -> tuple[tuple[str, str], ...]:
-    """Pair each invoked provider with its implementation source, not all gate materials."""
-    provider_root = (
-        PRODUCT_PROVIDER_SOURCE
-        if gate.profile == "repository" and gate.tool_adapter == "ethos"
-        else "src/ethos/"
-    )
-    return tuple(
-        (
-            reference,
-            provider_root
-            + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
-            + ".py",
-        )
-        for reference in (*gate.providers, *gate.verification_providers)
-    )
-
-
-def source_paths_for_gate(
-    gate: Gate,
-    *,
-    repository_paths: tuple[str, ...] = (),
-    source_contracts: tuple[SourceContract, ...] = (),
-    source_materials: Mapping[str, bytes | None] | None = None,
-) -> tuple[str, ...]:
-    providers = provider_module_sources(gate)
-    artifacts: tuple[str, ...] = ()
-    for reference, source in providers:
-        if reference == INTEGRITY_PROVIDER:
-            prefix = source.removesuffix("adapters/gates/provenance/observation.py")
-            artifacts = (
-                prefix + "adapters/gates/provenance/archive.mjs",
-                prefix + "adapters/repo/content/observation.py",
-                prefix + "repository/policy/quality/sources.py",
-                *source_contract_paths(source_contracts, source_materials or {}),
-                *_projection_product_sources(source_contracts, source_materials or {}),
-            )
-    command = canonical_gate_command(gate.command)
-    module = python_module(command)
-    noxfile = ("noxfile.py", "pyproject.toml", "uv.lock") if module == "nox" else ()
-    script = (
-        (command[0],)
-        if command
-        and not noxfile
-        and command[0] not in {"python", "ethos"}
-        and "/" in command[0]
-        and not Path(command[0]).is_absolute()
-        and ".." not in Path(command[0]).parts
-        else ()
-    )
-    module_sources = module_source_paths(module, repository_paths) if module and not noxfile else ()
-    return tuple(
-        dict.fromkeys(
-            (
-                *[path for _reference, path in providers],
-                *(
-                    path
-                    for tool in gate.tools
-                    for path in native_tool_configurations(repository_paths, tool)
-                ),
-                *artifacts,
-                *noxfile,
-                *(output.configuration for output in gate.native_outputs if output.configuration),
-                *module_sources,
-                *script,
-            )
-        )
-    )
-
-
-def _projection_product_sources(
-    contracts: tuple[SourceContract, ...], materials: Mapping[str, bytes | None]
-) -> tuple[str, ...]:
-    """Bind the actual native compiler and product inputs without claiming repository bytes."""
-    references = {
-        reference
-        for contract in contracts
-        if contract.kind == "generated"
-        for reference in contract.input_refs
-    }
-    declarations = {
-        reference: raw for reference in references if (raw := materials.get(reference)) is not None
-    }
-    if len(declarations) != len(references):
-        return ()
-    sources: list[str] = []
-    for relation in generated_relations(contracts, declarations):
-        if relation.kind != "cue":
-            continue
-        sources.extend(
-            PRODUCT_PROVIDER_SOURCE + path
-            for path in (
-                "adapters/projections/compiler.py",
-                "adapters/projections/cue.py",
-                "adapters/toolchain/mise.py",
-                "adapters/repo/runtime/materialization/native_supply.py",
-                "repository/policy/projections.py",
-                "repository/release/resources.py",
-            )
-        )
-        compiler = tomllib.loads(declarations[relation.declaration].decode("utf-8"))["compiler"]
-        if common := compiler.get("common"):
-            sources.append(PRODUCT_PROVIDER_SOURCE + "resources/" + common)
-            if not compiler.get("supply"):
-                sources.extend(
-                    PRODUCT_PROVIDER_SOURCE + "resources/.config/mise/" + name
-                    for name in ("config.toml", "mise.lock")
-                )
-    return tuple(dict.fromkeys(sources))
-
-
-def source_paths_for_gates(
-    gates: tuple[Gate, ...],
-    *,
-    repository_paths: tuple[str, ...] = (),
-    source_contracts: tuple[SourceContract, ...] = (),
-    source_materials: Mapping[str, bytes | None] | None = None,
-) -> tuple[str, ...]:
-    """Return the unique repository materials needed by a gate closure."""
-    return tuple(
-        dict.fromkeys(
-            path
-            for gate in gates
-            for path in source_paths_for_gate(
-                gate,
-                repository_paths=repository_paths,
-                source_contracts=source_contracts,
-                source_materials=source_materials,
-            )
-        )
-    )
 
 
 def bind_gate_source_digests(

@@ -9,8 +9,6 @@ relations:
 # Command Plane
 
 Purpose: explain public ETHOS command behavior and ownership boundaries as an active projection.
-The installed CLI command tree owns the exact root inventory.
-
 Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 
 See also: [Quickstart](../guides/quickstart.md),
@@ -62,41 +60,28 @@ record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
 
-Native formatting uses [the installed formatter operation](../guides/quickstart.md#native-source-formatting), preserving preview/check/apply and runtime selection.
-
 ## Native CI Projection
 
-`ethos lane project --json` compiles every declared output as one exact patch;
-`--check` refuses drift without writes. Apply the returned patch with
-`--patch <file> --apply --authorize --expect-head <head>`. The existing Work Lane
-authority and exact-patch admission own the effect; compilation grants no permission.
+`ethos lane project --json` previews every declared output as one exact patch;
+`--check` refuses drift without writes. Apply that patch with `--patch <file>
+--apply --authorize --expect-head <head>` under current Work Lane admission.
 
-Declare the native group in `.config/checks/ci-projection/policy.toml` with
-`schema = "ethos-ci-template-consistency-v1"`. Select a real repository CUE file
-through `compiler.source`, typed TOML or JSON inputs through `compiler.inputs`,
-and `compiler.common = ".config/ci/verification.cue"` for the installed common
-verification model. The product supplies that model and its locked native CUE
-compiler; neither requires an ETHOS checkout or an adopter-owned compiler copy.
-Repository CI parameters belong under `.config/ci/`, while the projection declaration
-remains the consuming check's `policy.toml`. Declare and commit the runner's provided
-executables and references in `.config/ci/runners.toml` before introducing the generated
-pipeline. For example, these source jobs require `mise`, native directory creation and
-their Forge reference; a compiler preview does not establish those runner prerequisites.
-Repository toolchain and product runtime owners remain separate.
+In `.config/checks/ci-projection/policy.toml`, declare
+`schema = "ethos-ci-template-consistency-v1"`, a real CUE `compiler.source`,
+typed TOML/JSON `compiler.inputs` and `compiler.common = ".config/ci/verification.cue"`.
+The installed product supplies the model and locked CUE, without an ETHOS checkout.
+CI parameters belong in `.config/ci/`; first commit `.config/ci/runners.toml`
+with the supplied executables and Forge references (these jobs need `mise` and
+native directory creation). Compilation does not prove runner availability.
 
-Each projection binds one `provider` (`github` or `gitlab`) and one output path.
-Generated SourceContracts bind the same declaration, complete group and integrity
-gate. Product model, compiler and tool locks stay product inputs, not repository
-source members.
-
-The common model covers source verification through `mise exec --locked -- ethos`
-with repository-selected runners, branches, deadlines and an ignored evidence
-path. Genuine jobs extend the native CUE job maps without replacing common jobs.
-The repository supplies the actual public `http:ethos` Mise configuration and
-per-platform lock; the generator does not acquire a release or invent checksums.
-Bind one source workflow per provider. Separate offline workflows, cold released
-payload acquisition, peer-outage operation and hosted platform qualification are
-not delivered by this source-projection operation; retain their existing owners.
+Bind one source workflow per `provider` (`github` or `gitlab`). Generated
+SourceContracts bind its declaration, complete output group and integrity gate;
+product model/compiler/locks are not repository source members. The common jobs
+run `mise exec --locked -- ethos` with selected runners, branches, deadlines and
+ignored reports; additive native CUE job maps retain genuine business jobs.
+The repository supplies public `http:ethos` configuration and per-platform locks.
+No release acquisition/checksum generation, offline workflow, cold payload,
+peer-outage or hosted-platform qualification is delivered here; retain those owners.
 
 ## Shared SDK Operations
 
@@ -182,9 +167,6 @@ explicit selection. Valid supplied bytes may repair it without guessing a
 predecessor location; the result reports unavailable rollback selection, and a
 failed cutover restores the exact damaged selector bytes through compare-and-swap.
 Package-manager upgrade/uninstall qualification is separate.
-
-These are capabilities, not a fixed lifecycle. `status` selects the continuation;
-re-observe after effects. `adopt` uses the same semantics, not a parallel lifecycle.
 
 ## Accepted Release Selection
 
@@ -636,6 +618,5 @@ Do not write a global hook disable, fabricated proof or permanent waiver.
 
 ## Assurance And Evidence Boundary
 
-Command JSON records evidence: readiness is not execution, local publication is
-not remote publication, and a visible Work Lane grants no writes. The canonical
-Product Design Contract alone defines semantic ownership and Model Promotion.
+Readiness, execution, local publication and remote publication remain distinct;
+Work Lane visibility grants no writes. The Product Design Contract owns semantics.

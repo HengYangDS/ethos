@@ -38,6 +38,12 @@ def _format_response(root: Path, request: tuple[str, ...], *, fail_apply: bool):
     return int(refused), {**report, "data": {**report, "changed_paths": changed}}, ""
 
 
+def _projection_protocol(root: Path, _executable: Path, environment):
+    """The installed package journey owns real projection, not this synthetic resource case."""
+    assert environment["ETHOS_ACTOR"].endswith(":successor")
+    assert (root / "openspec/changes/first-change/specs/foundation/spec.md").is_file()
+
+
 def _first_change_protocol(
     monkeypatch, lane_root: Path, status, executable: Path, command: Path, *, fail_format=False
 ):
@@ -97,6 +103,7 @@ def _first_change_protocol(
         report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
         return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
 
+    monkeypatch.setattr(first_change, "_prove_projection", _projection_protocol)
     monkeypatch.setattr(first_change, "invoke", invoke)
     monkeypatch.setattr(first_change, "run_command", run)
     return calls, effects

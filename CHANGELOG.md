@@ -43,6 +43,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- Release Governance defines the prerelease stages by evidence on the journeys a release target
+  declares: beta needs hosted verification on every supported platform, the adopter journey from the
+  published artifacts on macOS and Linux and no known blocking defect; a release candidate and stable
+  follow 72 hours and 7 days of adopter use without one. 0.2.0 declares installation through Mise
+  from the GitHub release through release on macOS, Linux and Windows. GitLab-hosted CI, GitLab
+  publication and the Homebrew channel are not 0.2.0 preconditions.
 - Selecting an installed runtime reuses the payload digests it recorded while each file's exact
   state (device, inode, size, mode, mtime and ctime) is unchanged, instead of hashing every file
   again. A warm selection of the 13,661-file runtime takes 0.17 s instead of 0.67 s; an `ethos`
@@ -70,6 +76,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The source-format check takes a TOML file as formatted only when Taplo's check run reports
+  collecting every file it was given, and renders the file alone otherwise. Taplo exits cleanly when
+  it collects no file, so since the check runs were batched a misformatted TOML file that it did not
+  collect, such as one whose name holds a backslash, passed unformatted. Every Windows leg of hosted
+  conformance failed since then at the installed format journey with
+  `installed_source_format_unproven:preview_or_check`.
 - The host runtime store no longer grows by one installation for every activation. A repository
   records itself in each installation it selects or holds as rollback supply, names its preserved
   predecessor in `ethos/runtime/ROLLBACK`, and `hook install` retires each recorded installation that

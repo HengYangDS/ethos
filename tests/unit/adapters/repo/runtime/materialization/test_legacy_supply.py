@@ -112,6 +112,8 @@ def test_an_approved_plan_retires_the_unused_and_records_the_named(tmp_path: Pat
     )
 
     assert applied["retired"] == [row["installation"] for row in preview["retirable"]]
+    assert applied["retirable"] == preview["retirable"]
+    assert applied["retirable_bytes"] == preview["retirable_bytes"] >= 2 * 1024
     assert not runtimes["unused"].exists()
     assert not runtimes["running"].exists()
     for name in ("selected", "held", "recent", "recorded"):

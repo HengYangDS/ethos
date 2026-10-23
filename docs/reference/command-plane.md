@@ -168,6 +168,21 @@ predecessor location; the result reports unavailable rollback selection, and a
 failed cutover restores the exact damaged selector bytes through compare-and-swap.
 Package-manager upgrade/uninstall qualification is separate.
 
+Each pin records the repository that selects or holds the installation, and a
+successful activation names the preserved predecessor in
+`ethos/runtime/ROLLBACK`. `hook install` ends with `host_store_cleanup`: it
+retires a recorded installation only when no recorded repository still selects
+or holds it and no running process or binding refers into it. Installations
+pinned before consumers were recorded have unknown users and stay.
+`ethos hook retire-supply --scan <root> --root <repository> --json` previews
+them: it reads the selectors of every repository at or directly under each
+scanned root and keeps an installation that one of them names or cannot read,
+that a running process uses, or that changed within `--grace-days` (default 7).
+The preview lists each retirable installation with its size and returns its
+`plan_digest`; only `--expect-plan <digest> --apply --authorize`, a decision for
+the user, records the naming repositories and retires exactly that plan. A
+changed plan changes nothing.
+
 ## Accepted Release Selection
 
 For maintenance from a historical accepted base, select

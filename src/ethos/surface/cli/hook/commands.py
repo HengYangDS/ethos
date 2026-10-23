@@ -9,6 +9,7 @@ from typing import Annotated
 from cyclopts import App
 from cyclopts import Group
 from cyclopts import Parameter
+from filelock import Timeout
 
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
@@ -21,6 +22,10 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.adapters.repo.runtime.materialization.host_retention import legacy_supply
+from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
+from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
@@ -414,6 +419,92 @@ def install(
         data=runtime,
     )
     emit(result, json_output=json_output, enforce=True)
+
+
+_DAY_SECONDS = 24 * 3600
+
+
+@_app.command(name="retire-supply")
+def retire_supply(
+    *,
+    scan: Annotated[tuple[pathlib.Path, ...], Parameter(name="--scan")] = (),
+    expect_plan: Annotated[str, Parameter(name="--expect-plan")] = "",
+    grace_days: Annotated[int, Parameter(name="--grace-days")] = 7,
+    apply: bool = False,
+    authorize: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Preview host installations pinned before consumers were recorded; retire an approved plan."""
+    repo = resolve_root(root)
+    roots = tuple(path.resolve() for path in scan)
+    store = host_store_root()
+    consumers = (
+        repository_common_dirs(roots) if roots and all(map(pathlib.Path.is_dir, roots)) else ()
+    )
+    gaps: list[str] = []
+    if not consumers:
+        gaps.append("host_store_scan_root_invalid")
+    elif store is None:
+        gaps.append("hook_runtime_host_store_invalid")
+    elif apply and not authorize:
+        gaps.append("authorization_required")
+    elif apply and not expect_plan:
+        gaps.append("host_store_plan_required")
+    report: dict[str, object] = {"scanned_repositories": [path.as_posix() for path in consumers]}
+    if not gaps and store is not None:
+        try:
+            report |= legacy_supply(
+                store / "installations",
+                consumers=consumers,
+                in_use=lambda: operational_reference_paths(repo),
+                grace_seconds=grace_days * _DAY_SECONDS,
+                apply=apply,
+                expected_plan=expect_plan or None,
+            )
+        except (OSError, ValueError, Timeout) as error:
+            gaps.append(str(error).strip() or error.__class__.__name__)
+    counts = {
+        key: len(value) if isinstance(value := report.get(key), list) else 0
+        for key in ("retirable", "kept", "retired")
+    }
+    decision = not apply and not gaps and counts["retirable"] > 0
+    scans = [part for path in roots for part in ("--scan", path.as_posix())]
+    approve = (
+        *scans,
+        "--grace-days",
+        str(grace_days),
+        "--expect-plan",
+        str(report.get("plan_digest")),
+    )
+    emit(
+        EthosResult(
+            command="hook retire-supply",
+            verdict="block" if gaps else "pass",
+            state="blocked" if gaps else "retired" if apply else "planned",
+            summary={**counts, "retirable_bytes": report.get("retirable_bytes", 0)},
+            required_gaps=tuple(gaps),
+            user_decision_required=decision,
+            next_action=shlex.join(
+                (
+                    "ethos",
+                    "hook",
+                    "retire-supply",
+                    *approve,
+                    "--apply",
+                    "--authorize",
+                    "--root",
+                    repo.as_posix(),
+                    "--json",
+                )
+            )
+            if decision
+            else "",
+            data=report,
+        ),
+        json_output=json_output,
+        enforce=True,
+    )
 
 
 def _hook_install_recovery_command(repo: pathlib.Path, gap: str) -> str:

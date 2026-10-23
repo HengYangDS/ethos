@@ -14,6 +14,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Added
 
+- `ethos hook retire-supply` previews the host-store installations pinned before consumers were
+  recorded: it keeps each one that a repository under the scanned roots selects, holds as rollback
+  or cannot read, that a running process uses, or that changed within the grace period, and lists
+  the rest with their sizes. `--expect-plan <digest> --apply --authorize` retires exactly the
+  previewed plan and records the repositories that still use the installations it keeps.
 - Installed CI projection supplies a common CUE verification model and its locked native
   compiler. `ethos lane project` previews, checks and applies one exact admitted patch from
   repository-owned CUE and typed inputs, without an ETHOS checkout or copied `tools.ci`.

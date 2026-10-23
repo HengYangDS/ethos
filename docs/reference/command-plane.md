@@ -168,8 +168,8 @@ predecessor location; the result reports unavailable rollback selection, and a
 failed cutover restores the exact damaged selector bytes through compare-and-swap.
 Package-manager upgrade/uninstall qualification is separate.
 
-Host-store retention and the previewed `ethos hook retire-supply` cleanup of
-older, unrecorded installations are described in [Local State](../architecture/local-state.md).
+`ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
+records; only `--expect-plan <digest> --apply --authorize` retires that plan.
 
 ## Accepted Release Selection
 

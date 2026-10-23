@@ -23,6 +23,7 @@ _LEGACY_SCHEMA_VERSION = 6
 _HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
+_PAYLOAD_MISMATCH = "hook_runtime_payload_mismatch"
 
 
 class RuntimeEnvironment(NamedTuple):
@@ -110,9 +111,13 @@ def runtime_digest(
 
 
 def runtime_file_inventory(runtime: Path) -> dict[str, str]:
-    """Hash every runtime file and symlink without following authority outside its root."""
+    """Hash every runtime file and symlink without following authority outside its root.
+
+    A payload that cannot be inventoried exactly, such as one holding bytecode, a junction or
+    an unreadable entry, is a payload mismatch: no manifest can declare it.
+    """
     if runtime.is_symlink() or runtime_filesystem.is_junction(runtime) or not runtime.is_dir():
-        raise ValueError(_MANIFEST_INVALID)
+        raise ValueError(_PAYLOAD_MISMATCH)
     root = runtime.resolve()
     records: dict[str, str] = {}
     pending = [(runtime, "")]
@@ -124,9 +129,9 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
                     path = Path(entry.path)
                     relative = prefix + entry.name
                     if "__pycache__" in path.parts or path.suffix == ".pyc":
-                        _raise_manifest_invalid()
+                        _raise_payload_mismatch()
                     if runtime_filesystem.is_junction(path):
-                        _raise_manifest_invalid()
+                        _raise_payload_mismatch()
                     if relative == "manifest.json":
                         continue
                     mode = entry.stat(follow_symlinks=False).st_mode
@@ -135,7 +140,7 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
                     else:
                         records[relative] = _inventory_entry_digest(path, root=root, mode=mode)
     except (OSError, RuntimeError, UnicodeError, ValueError) as error:
-        raise ValueError(_MANIFEST_INVALID) from error
+        raise ValueError(_PAYLOAD_MISMATCH) from error
     return dict(sorted(records.items()))
 
 
@@ -148,12 +153,12 @@ def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
     if stat.S_ISLNK(mode):
         target = path.readlink()
         if target.is_absolute():
-            _raise_manifest_invalid()
+            _raise_payload_mismatch()
         path.resolve(strict=True).relative_to(root)
         payload = b"symlink\0" + f"{permissions:o}\0".encode() + target.as_posix().encode()
         return hashlib.sha256(payload).hexdigest()
     if not stat.S_ISREG(mode):
-        _raise_manifest_invalid()
+        _raise_payload_mismatch()
     hasher = hashlib.sha256(b"file\0" + f"{permissions:o}\0".encode())
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -284,3 +289,7 @@ def _valid_inventory_path(value: str) -> bool:
 
 def _raise_manifest_invalid() -> NoReturn:
     raise ValueError(_MANIFEST_INVALID)
+
+
+def _raise_payload_mismatch() -> NoReturn:
+    raise ValueError(_PAYLOAD_MISMATCH)

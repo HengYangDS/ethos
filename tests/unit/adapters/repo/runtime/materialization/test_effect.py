@@ -282,7 +282,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
         )
     runtime_root.chmod(mode)
     for name, value, reason in (
-        ("runtime_file_inventory", {}, "hook_runtime_manifest_invalid"),
+        ("runtime_file_inventory", {}, "hook_runtime_payload_mismatch"),
         (
             "observe_python_facts",
             dict.fromkeys(("prefix", "base_prefix"), "wrong"),

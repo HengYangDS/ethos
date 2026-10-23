@@ -103,7 +103,7 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
     package = selected.root / "python/lib/python3.14/site-packages/ethos/module.py"
     package.chmod(0o644)
     package.write_text("tampered\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+    with pytest.raises(ValueError, match="hook_runtime_payload_mismatch"):
         current_runtime(common)
     assert selector.read_bytes() == original
 

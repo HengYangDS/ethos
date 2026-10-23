@@ -393,6 +393,8 @@ def _selected_runtime(common: Path) -> tuple[SelectedRuntime | None, str]:
             return None, "runtime_current"
         if reason == "hook_runtime_manifest_invalid":
             return None, "runtime_schema_migration_required"
+        if reason == "hook_runtime_payload_mismatch":
+            return None, "runtime_payload_mismatch"
         return None, "runtime_manifest"
 
 

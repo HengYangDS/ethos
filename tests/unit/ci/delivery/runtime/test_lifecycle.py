@@ -363,7 +363,7 @@ def test_failed_stage_observation_cannot_skip_owned_cleanup(monkeypatch, tmp_pat
     ("predecessor_state", "expected"),
     [
         ("missing", "hook_runtime_current_target_invalid"),
-        ("corrupt", "hook_runtime_manifest_invalid"),
+        ("corrupt", "hook_runtime_payload_mismatch"),
         ("same-build", "package_upgrade_predecessor_not_distinct"),
     ],
 )

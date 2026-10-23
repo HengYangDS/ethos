@@ -35,6 +35,7 @@ _CURRENT_MISSING = "hook_runtime_current_missing"
 _CURRENT_INVALID = "hook_runtime_current_invalid"
 _CURRENT_TARGET_INVALID = "hook_runtime_current_target_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
+_PAYLOAD_MISMATCH = "hook_runtime_payload_mismatch"
 _CURRENT_STALE = "hook_runtime_current_stale"
 _CURRENT_REPOSITORY_PRIVATE = "hook_runtime_repository_private"
 _UNSPECIFIED = object()
@@ -298,15 +299,16 @@ def require_selected_runtime(
     except (OSError, ValueError) as error:
         raise ValueError(_MANIFEST_INVALID) from error
     python = runtime_python(runtime / "python")
-    expected_files = runtime_file_inventory(runtime)
     if (
         identity.digest != digest
         or identity.environment.platform != platform.system().lower()
         or identity.environment.architecture != canonical_architecture(platform.machine())
         or (expected_build is not None and identity.build != expected_build)
-        or identity.runtime_files != expected_files
     ):
         raise ValueError(_MANIFEST_INVALID)
+    # A readable manifest whose bytes the payload no longer matches names damage, not a schema.
+    if identity.runtime_files != runtime_file_inventory(runtime):
+        raise ValueError(_PAYLOAD_MISMATCH)
     return SelectedRuntime(
         runtime,
         digest,

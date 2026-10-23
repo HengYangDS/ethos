@@ -540,9 +540,10 @@ def require_runtime_identity(
         or manifest.wheel_sha256 != artifact.sha256
         or manifest.build != artifact.build
         or manifest.environment != environment
-        or manifest.runtime_files != runtime_file_inventory(runtime)
     ):
         _fail("hook_runtime_manifest_invalid")
+    if manifest.runtime_files != runtime_file_inventory(runtime):
+        _fail("hook_runtime_payload_mismatch")
 
 
 def require_runtime_execution(text: str, *, smoke: bool = False) -> None:

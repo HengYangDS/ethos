@@ -55,6 +55,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   writable. A static gate's isolated `python -I -m ruff` then wrote bytecode into the alpha.7
   installation, whose manifest inventory failed, and adopters bound to it reported
   `runtime_schema_migration_required`.
+- A selected runtime whose readable manifest no longer matches its payload is reported as
+  `hook_runtime_payload_mismatch`, and `status` reports `runtime_payload_mismatch`. Bytecode, a
+  junction, an unreadable entry or a changed file had been reported as a manifest failure and a
+  schema migration, which pointed recovery away from the damaged installation. A missing,
+  malformed or mismatched manifest still reports `hook_runtime_manifest_invalid`.
 - The product npm lock moves npm to 12.2.1, whose bundled dependencies fix the 12 advisories that
   npm 12.2.0 carried in brace-expansion, http-cache-semantics, ip-address, postcss-selector-parser
   and undici. The dependency audit policy drops their dispositions, which would have expired on

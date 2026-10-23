@@ -170,7 +170,7 @@ def test_repairing_invalid_local_predecessor_preserves_uncertainty_and_bytes(
     assert current_runtime(Path(git_common_dir(repo))).digest == supplied.name
     assert result["rollback_supply"]["state"] == "unavailable"
     assert result["rollback_supply"]["runtime"] == previous.as_posix()
-    assert result["rollback_supply"]["reason"] == "hook_runtime_manifest_invalid"
+    assert result["rollback_supply"]["reason"] == "hook_runtime_payload_mismatch"
     assert str(previous) not in result["generation_cleanup"]["removed"]
     assert damaged.read_bytes() == b"damaged predecessor\n"
 

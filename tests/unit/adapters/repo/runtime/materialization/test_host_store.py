@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import stat
 import sys
@@ -340,6 +341,11 @@ def test_source_wheel_disappearing_after_admission_fails_without_partial_install
     with pytest.raises(ValueError, match="hook_runtime_installed_supply_invalid"):
         _pin(repo, selected.build, installed_runtime=selected.root)
     assert not store.exists() or not any(path.is_dir() for path in store.iterdir())
+
+
+def test_tests_declare_a_host_store_they_own(tmp_path: Path) -> None:
+    """A fixture runtime pinned by any test cannot reach the user's installed supply."""
+    assert Path(os.environ["XDG_DATA_HOME"]).is_relative_to(tmp_path)
 
 
 @pytest.mark.parametrize("mode", ["relative", "native", "symlink"])

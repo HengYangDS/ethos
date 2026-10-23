@@ -91,6 +91,16 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("OPENSPEC_TELEMETRY", "0")
     monkeypatch.setenv("OPENSPEC_NO_UPDATE_CHECK", "1")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    # Runtimes that product code pins during a test stay in that test's own host store, while
+    # Mise keeps the data directory, and so the installed tool supply, it resolved before.
+    if not os.environ.get("MISE_DATA_DIR"):
+        shared = os.environ.get("XDG_DATA_HOME") or (
+            os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData/Local")
+            if os.name == "nt"
+            else str(Path.home() / ".local/share")
+        )
+        monkeypatch.setenv("MISE_DATA_DIR", str(Path(shared) / "mise"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     # Fixture full proofs keep their per-repository slot but never wait on the test host's load.
     monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)

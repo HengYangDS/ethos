@@ -75,6 +75,18 @@ def _head() -> str:
     return run_git(ROOT, "rev-parse", "HEAD", observation=True).stdout.strip()
 
 
+def shared_pytest_cache(root: Path) -> Path | None:
+    """Return the pytest cache every worktree of root's repository shares, outside a checkout.
+
+    A landing proves in a new Work Lane, whose own build tree holds no recorded test durations,
+    so the longest-first order would never apply; the common directory outlives each lane.
+    """
+    common = run_git(root, "rev-parse", "--path-format=absolute", "--git-common-dir", check=False)
+    if common.returncode or not common.stdout.strip():
+        return None
+    return Path(common.stdout.strip()).resolve() / "ethos/tool-cache/pytest"
+
+
 def _absolute_environment_path(name: str) -> Path | None:
     value = os.getenv(name)
     if not value:
@@ -394,6 +406,8 @@ class PythonTestGate:
             "-p",
             "tools.ci.python_test_order",
         ]
+        if cache := shared_pytest_cache(ROOT):
+            args += ["-o", f"cache_dir={cache}"]
         args[:0] = ["-n", str(self.s.workers)] if self.s.workers not in {None, 1} else []
         args += (
             [f"--timeout={self.s.timeout[0]}", f"--timeout-method={self.s.timeout[1]}"]

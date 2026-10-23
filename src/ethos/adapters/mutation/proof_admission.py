@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.openspec.commitment import admissible_openspec_commitments
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.observation import active_change_names_in_ref
@@ -257,9 +257,9 @@ def _admitted_proofs(
     )
 
     @cache
-    def source_intent(change: str) -> Commitment:
+    def source_intent(change: str) -> tuple[Commitment, ...]:
         """Share exact-source interpretation only inside this fresh proof query."""
-        return load_openspec_commitment(
+        return admissible_openspec_commitments(
             root, tree_ref=head, change_id=change, attestations=attestations
         )
 
@@ -310,7 +310,7 @@ def _intent_candidates(
     attestation_id: str,
     *,
     change_id: str | None,
-    source_intent: Callable[[str], Commitment],
+    source_intent: Callable[[str], tuple[Commitment, ...]],
 ) -> tuple[tuple[tuple[Attestation, str, list[str]], ...], list[str]]:
     """Select an intent query without hiding malformed evidence or same-intent conflicts."""
     intent_digest = None
@@ -324,12 +324,15 @@ def _intent_candidates(
     change = change_id if attestation_id else requested_change(change_id)
     if change is not None and openspec_profile_enabled(root, tree_ref=head):
         try:
-            requested_digest = source_intent(change).digest()
+            requested = tuple(commitment.digest() for commitment in source_intent(change))
         except (TypeError, ValueError) as error:
             return (), [f"proof_source_intent_unavailable:{error}"]
-        if intent_digest is not None and intent_digest != requested_digest:
+        if intent_digest is not None and intent_digest not in requested:
             return (), ["proof_attestation_intent_mismatch"]
-        intent_digest = requested_digest
+        carried = {row[0].commitment_digest for row in evaluated}
+        intent_digest = intent_digest or next(
+            (digest for digest in requested if digest in carried), requested[0]
+        )
     if intent_digest is None:
         return evaluated, []
     selected_rows = tuple(row for row in evaluated if row[0].commitment_digest == intent_digest)
@@ -411,7 +414,7 @@ def _source_intent_gaps(
     plan: TransitionPlan,
     attestations: tuple[Attestation, ...],
     *,
-    source_intent: Callable[[str], Commitment],
+    source_intent: Callable[[str], tuple[Commitment, ...]],
 ) -> list[str]:
     """Match carried acceptance to official meaning at the exact source object."""
     try:
@@ -427,10 +430,10 @@ def _source_intent_gaps(
             )
             return ["proof_source_intent_mismatch"] if intent_present else []
         carried = Commitment.model_validate(mutable_json(plan.commitment))
-        source = source_intent(carried.id.removeprefix("change:"))
+        sources = source_intent(carried.id.removeprefix("change:"))
     except (TypeError, ValueError) as error:
         return [f"proof_source_intent_unavailable:{error}"]
-    return [] if source == carried else ["proof_source_intent_mismatch"]
+    return [] if carried in sources else ["proof_source_intent_mismatch"]
 
 
 def _assertion_digest(attestation: Attestation) -> str:
@@ -475,7 +478,7 @@ def _candidate_evaluation(
     canonical_policies: tuple[tuple[str, ResolvedGatePolicy], ...],
     repository_transition: bool,
     attestations: tuple[Attestation, ...],
-    source_intent: Callable[[str], Commitment],
+    source_intent: Callable[[str], tuple[Commitment, ...]],
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]

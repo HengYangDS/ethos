@@ -29,6 +29,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- Landing hooks and `ethos land` admit a proof whose Commitment carries either the legacy or the
+  named acceptance encoding of its exact source. Named encoding keeps two requirements or
+  scenarios with equal bodies distinct, which the legacy encoding collapses. Proofs still carry the
+  legacy encoding, so every installed predecessor admits this landing; they switch once this
+  runtime is installed.
 - The source-format gate checks the files of each formatter in native check runs, once per
   configuration, instead of rendering every file in its own process; only a file a run reports or
   cannot vouch for is rendered alone, so postimages and diagnostics are unchanged. ETHOS's 1,020

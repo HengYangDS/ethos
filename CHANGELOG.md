@@ -29,6 +29,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- The source-format gate checks the files of each formatter in native check runs, once per
+  configuration, instead of rendering every file in its own process; only a file a run reports or
+  cannot vouch for is rendered alone, so postimages and diagnostics are unchanged. ETHOS's 1,020
+  formatted files take 8.7 s instead of 99.5 s, which also shortens every fixture proof.
 - The `bootstrap` task builds the development environment on the Python that
   `.config/mise/config.toml` pins and `mise.lock` locks for every platform, CPython 3.14.8,
   instead of whichever interpreter the host offers first. A Homebrew patch upgrade had left the

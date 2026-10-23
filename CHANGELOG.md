@@ -29,6 +29,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- The source-format gate checks the files of each formatter in native check runs, once per
+  configuration, instead of rendering every file in its own process; only a file a run reports or
+  cannot vouch for is rendered alone, so postimages and diagnostics are unchanged. ETHOS's 1,020
+  formatted files take 8.7 s instead of 99.5 s, which also shortens every fixture proof.
 - The `bootstrap` task builds the development environment on the Python that
   `.config/mise/config.toml` pins and `mise.lock` locks for every platform, CPython 3.14.8,
   instead of whichever interpreter the host offers first. A Homebrew patch upgrade had left the
@@ -52,9 +56,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   refused. A step whose text no longer matches its record is read as commands again.
 - Pinning a runtime into the host store seals it, and reusing an installation seals it again. The
   copy kept its carrier's directory modes, so a runtime unpacked with writable directories stayed
-  writable. A static gate's isolated `python -I -m ruff` then wrote bytecode into the alpha.7
-  installation, whose manifest inventory failed, and adopters bound to it reported
-  `runtime_schema_migration_required`.
+  writable. Python runs inside it, among them a static gate's isolated `python -I -m ruff`,
+  then wrote bytecode into the alpha.7 installation, whose manifest inventory failed, and
+  adopters bound to it reported `runtime_schema_migration_required`.
 - A selected runtime whose readable manifest no longer matches its payload is reported as
   `hook_runtime_payload_mismatch`, and `status` reports `runtime_payload_mismatch`. Bytecode, a
   junction, an unreadable entry or a changed file had been reported as a manifest failure and a

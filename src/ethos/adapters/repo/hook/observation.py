@@ -64,6 +64,7 @@ class HookRuntimeBinding(TypedDict):
     linked_worktrees: NotRequired[list[dict[str, str]]]
     state_transition: NotRequired[dict[str, object]]
     rollback_supply: NotRequired[dict[str, str]]
+    host_store_cleanup: NotRequired[dict[str, object]]
     contract_observation: NotRequired[dict[str, object]]
 
 
@@ -393,6 +394,8 @@ def _selected_runtime(common: Path) -> tuple[SelectedRuntime | None, str]:
             return None, "runtime_current"
         if reason == "hook_runtime_manifest_invalid":
             return None, "runtime_schema_migration_required"
+        if reason == "hook_runtime_payload_mismatch":
+            return None, "runtime_payload_mismatch"
         return None, "runtime_manifest"
 
 

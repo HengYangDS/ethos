@@ -1,8 +1,11 @@
 ## 1. Legacy Custody Evidence
 
-- [ ] 1.1 Obtain each custody owner's release or migration decision through its own thread.
-- [ ] 1.2 With each migrating owner, move its member's files byte-exact into custody and record a bounded successor; verify every embedded digest and obtain the owner's acceptance of the preserved copy.
-- [ ] 1.3 Release each original only after its owner accepts the preserved copy; verify the selected set no longer carries its bytes.
+- [x] 1.1 Obtain each custody owner's release or migration decision through its own thread; for an owner still undecided at the 2026-10-23 review, the user decides.
+      Evidence: no owner chose release or migration through its thread; 019f3a1b, 019fa96d and 01a00063 reported no member releasable (Workflow follow-up). At the review the user decided that every remaining member stays with its owner, neither migrated nor released. The selected set then held 2,260 members, 709 of them open-predicate; the largest are the `ethos:native-handoff-and-caller-byte-readback` member (30.6 MiB) and 28 `agent:codex:ethos:semantic-observation` members (9.4 MiB). a225c731's own ten members (0.11 MiB) stay as well.
+- [x] 1.2 With each migrating owner, move its member's files byte-exact into custody and record a bounded successor; verify every embedded digest and obtain the owner's acceptance of the preserved copy.
+      Evidence: no owner migrates (1.1).
+- [x] 1.3 Release each original only after its owner accepts the preserved copy; verify the selected set no longer carries its bytes.
+      Evidence: no original is released (1.1); a fresh read stays under 2 s without that (4.1).
 
 ## 2. Lane Records
 
@@ -29,4 +32,4 @@
 
 - Each landing needs its own exact-head full proof, closeout and publication to both peers.
 - Custody owners: `agent:codex:ethos:semantic-observation`, Codex threads 019f3a1b, 019fa96d, 01a00063 and 01a11a05, and the verifier of `evidence:historical-lane-preservation`. Pause notices were queued on 2026-10-15 with the user's authorization; 019f3a1b, 019fa96d and 01a00063 paused new embedding and reported no member releasable yet. Release-availability notices were queued to all four threads on 2026-10-16 after bounded-attestation-set landed. Owner status that evening: the semantic-observation verifier and 01a11a05 moved eleven members into custody; members over 1 MiB remain with 019f3a1b, `ethos:native-handoff-and-caller-byte-readback`, semantic-observation, 019fa96d and the 01a00063 desktop thread.
-- Owner a225c731, review 2026-10-23: if an owner has not decided by then, ask the user how to proceed with its members.
+- Owner a225c731 reviewed the undecided members with the user on 2026-10-23 (1.1).

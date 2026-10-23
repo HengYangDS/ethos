@@ -12,7 +12,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
-from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.openspec.commitment import admissible_openspec_commitments
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
@@ -276,8 +276,18 @@ def _candidate_plan(
         return _blocked(policy, current_head, gaps, path=candidate_path.as_posix()), None
     branch = current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
-    authority = load_openspec_commitment(root, tree_ref=current_head)
-    if proof.commitment_digest != authority.digest():
+    # The authority is the encoding of the exact source that the admitted proof carries.
+    authority = next(
+        (
+            commitment
+            for commitment in admissible_openspec_commitments(
+                root, change_id=None, tree_ref=current_head
+            )
+            if commitment.digest() == proof.commitment_digest
+        ),
+        None,
+    )
+    if authority is None:
         message = "proof_attestation_authority_binding_mismatch"
         raise ValueError(message)
     recovering = base_report.get("state") == "candidate_materialization_pending"

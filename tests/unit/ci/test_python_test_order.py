@@ -9,6 +9,8 @@ from unittest.mock import Mock
 
 import tools.ci.python_test_gate as python_test_gate
 from ethos.adapters.process import run_command
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tools.ci import python_test_order
 
 if TYPE_CHECKING:
@@ -103,3 +105,19 @@ def test_workers_order_by_the_controller_snapshot_and_never_write_it() -> None:
     uncached.pytest_runtest_logreport(SimpleNamespace(nodeid="x", duration=0.5))
     uncached.pytest_sessionfinish()
     assert [item.nodeid for item in items] == ["y", "x"]
+
+
+def test_every_worktree_of_a_repository_shares_one_duration_record(tmp_path: Path) -> None:
+    """A landing proves in a new Work Lane, which inherits the record its repository kept."""
+    repository = init_git_repo(tmp_path / "repository")
+    lane = tmp_path / "lane"
+    git(repository, "worktree", "add", "-q", "-b", "work/lane", str(lane))
+    common = repository / ".git"
+
+    shared = python_test_gate.shared_pytest_cache(lane)
+
+    assert shared == common.resolve() / "ethos/tool-cache/pytest"
+    assert python_test_gate.shared_pytest_cache(repository) == shared
+    unversioned = tmp_path / "unversioned"
+    unversioned.mkdir()
+    assert python_test_gate.shared_pytest_cache(unversioned) is None

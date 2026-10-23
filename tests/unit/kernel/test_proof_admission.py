@@ -19,12 +19,14 @@ import ethos.adapters.openspec.lifecycle.archive_transition as archive
 import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -236,6 +238,44 @@ def test_repository_transition_rejects_acceptance_not_bound_to_source(tmp_path, 
     assert observed == (None, ["proof_source_intent_mismatch"])
 
 
+@pytest.mark.parametrize("named", [False, True])
+def test_repository_transition_admits_either_acceptance_encoding_of_its_source(
+    tmp_path, monkeypatch, named
+):
+    """While hooks move to named acceptance identity, either encoding of the exact source lands."""
+    fixture = prepared_work_lane(tmp_path)
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    source = current_proof_plan(fixture.worktree, expected_head=head)
+    carried = load_openspec_commitment(
+        fixture.worktree, tree_ref=head, change_id="fixture-change", named=named
+    )
+    plan = compile_plan(
+        carried,
+        Facts.model_validate(dict(source.facts) | {"observed_at": datetime.now(UTC)}),
+        source.nodes,
+        policy=dict(source.policy),
+    )
+    proof = _issue(fixture.worktree, head, plan=plan)
+    persist_proof_attestation(fixture.worktree, proof)
+    assert proof_module.proof_for_repository_transition(fixture.worktree, head) == (proof, [])
+    assert proof_gaps(fixture.worktree, head) == []
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    land = ("land", "--apply", "--authorize", "--expect-head", head, "--json")
+    assert run_ethos(*land, cwd=fixture.worktree)["verdict"] == "pass"
+    assert git(fixture.candidate, "rev-parse", "HEAD") == head
+
+
+def test_proof_compiles_named_acceptance_identity(tmp_path):
+    """Proofs carry requirement and scenario names once every landing hook admits them."""
+    fixture = prepared_work_lane(tmp_path)
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    named = load_openspec_commitment(
+        fixture.worktree, tree_ref=head, change_id="fixture-change", named=True
+    )
+    plan = current_proof_plan(fixture.worktree, expected_head=head)
+    assert plan.inputs.commitment == named.digest()
+
+
 @pytest.mark.parametrize("archived", [False, True])
 def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path, monkeypatch, archived):
     """Repository evidence remains reusable without becoming authoring authority."""
@@ -365,8 +405,8 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
     persist_proof_attestation(repo, first)
     later = reissue_attestation(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
-    compiled = Mock(wraps=proof_admission.load_openspec_commitment)
-    monkeypatch.setattr(proof_admission, "load_openspec_commitment", compiled)
+    compiled = Mock(wraps=proof_admission.admissible_openspec_commitments)
+    monkeypatch.setattr(proof_admission, "admissible_openspec_commitments", compiled)
     assert query() == (min((first, later), key=lambda record: record.id), [])
     assert compiled.call_count == 1
     assert query() == (min((first, later), key=lambda record: record.id), [])

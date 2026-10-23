@@ -31,41 +31,88 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
-- Development bootstrap uses the CPython 3.14.8 selected and locked by Mise instead of
-  the host's first interpreter, keeping the interpreter suitable for immutable runtime
-  materialization. Python 3.12 remains the compatibility floor; supported versions end at 3.14.
-- Attestation reads no longer retain a process-wide decoded-member cache. Selected
-  membership, evidence custody and native output capture are unchanged; `cachetools`
-  remains only a transitive dependency.
+- Selecting an installed runtime reuses the payload digests it recorded while each file's exact
+  state (device, inode, size, mode, mtime and ctime) is unchanged, instead of hashing every file
+  again. A warm selection of the 13,661-file runtime takes 0.17 s instead of 0.67 s; an `ethos`
+  command selects its runtime twice and every hook once. Changed bytes or modes and added entries
+  are still reported as payload damage, and Windows and small payloads keep hashing every file.
+- Proofs compile requirement and scenario names into their Commitment's acceptance identity, so two
+  requirements or scenarios with equal bodies stay distinct instead of collapsing into one item.
+  Landing hooks and `ethos land` admit a proof carrying either this or the earlier encoding of its
+  exact source, so a head proved before the switch still lands, closes out and releases.
+- The source-format gate checks the files of each formatter in native check runs, once per
+  configuration, instead of rendering every file in its own process; only a file a run reports or
+  cannot vouch for is rendered alone, so postimages and diagnostics are unchanged. ETHOS's 1,020
+  formatted files take 8.7 s instead of 99.5 s, which also shortens every fixture proof.
+- The `bootstrap` task builds the development environment on the Python that
+  `.config/mise/config.toml` pins and `mise.lock` locks for every platform, CPython 3.14.8,
+  instead of whichever interpreter the host offers first. Python 3.12 remains the compatibility
+  floor, and supported versions end at 3.14. A Homebrew patch upgrade had left the
+  environment on a framework build that no runtime image can copy, so `hook install` and the
+  install smoke failed with `hook_runtime_interpreter_source_unavailable`.
+- Reading the Attestation set decodes its members on every read. The set no longer keeps a
+  process-wide cache of decoded members, so a repeated read costs what a first read costs;
+  a fresh process reads the 2,084-member set in 1.56-1.90 s. Selected membership, custody
+  and the file-backed native output capture are unchanged. `cachetools` is no longer declared
+  directly; it remains locked as a dependency of `py-key-value-aio`.
 
 ### Fixed
 
+- The host runtime store no longer grows by one installation for every activation. A repository
+  records itself in each installation it selects or holds as rollback supply, names its preserved
+  predecessor in `ethos/runtime/ROLLBACK`, and `hook install` retires each recorded installation that
+  no consumer selects or holds and no running process uses. Installations pinned before this release
+  have unknown consumers and stay until an explicit, user-approved retirement. Resealing an
+  installation no longer rewrites the modes of entries that already hold their seal.
+- Generated CI reference admission and repository closure treat a step that the retention
+  record keeps, by Forge file, job and text digest, as owned operating-system glue. They had
+  read its words as commands: aigw-cli's recorded PowerShell steps yielded 38 unowned
+  executables such as `Join-Path` and `Write-Host`, so any patch to its GitLab pipeline was
+  refused. A step whose text no longer matches its record is read as commands again.
 - Isolated Ruff execution explicitly disables Python bytecode writes. Same-attempt
   evidence with bytecode enabled is refused, and host-store installation pinning and reuse
   reseal runtime directories. Existing damaged installations and failure evidence are
   preserved; these protections do not establish who wrote earlier unexpected files.
+- A selected runtime whose readable manifest no longer matches its payload is reported as
+  `hook_runtime_payload_mismatch`, and `status` reports `runtime_payload_mismatch`. Bytecode, a
+  junction, an unreadable entry or a changed file had been reported as a manifest failure and a
+  schema migration, which pointed recovery away from the damaged installation. A missing,
+  malformed or mismatched manifest still reports `hook_runtime_manifest_invalid`.
+- ETHOS's own dependency audit policy can change through a landing. The landing hook required a
+  captured audit to match the policy its own build ships, and for ETHOS's source that is the very
+  file being changed, so no renewal, cleanup or new disposition could ever land. For the product's
+  own source, a captured audit now binds the policy committed at the exact head, and its raw
+  findings are still re-evaluated. Every other repository still refuses a proof captured under a
+  different product policy.
+- Generated CI reference admission reads GitLab `before_script` and `after_script`, which it
+  skipped, including nested script arrays and native array anchors, so an unowned command
+  there is refused like one in `script`. A GitHub `${{ … }}`
+  expression inside a `run` step is a value, so text after it is never taken as a command name.
+- Historical signature-repair records are validated against the release-mirror location their
+  source commit declared. Moving the mirror to `.ethos/release.toml` on 2026-10-16 made every
+  record whose source declared it in the workspace binding fail
+  `signature_repair_source_coordinates_mismatch`, so proposal and absorbed-lane retirement
+  raised instead of observing conservation (DR-0013).
+- Attestation set updates keep ending members after a ref is deleted. A retirement's deletion
+  publication was counted as a selected tip, and its zero object made lifetime reachability
+  unobservable, so every later update kept every member and reported
+  `attestation_lifetime_reachability_unavailable`. A deletion is now its ref's latest
+  publication but selects no commit.
 - Authored-text validation runs before formatter selection, covering declared plain-text,
   INI, vocabulary and extensionless carriers as well as formatter inputs. Invalid UTF-8,
   NUL bytes and missing inputs are refused without writes; generated, upstream, archived
   and binary inputs keep their declared boundaries.
 - The MIT license floor requires an actual named copyright holder even when a repository
   has no package metadata. A placeholder or empty holder does not establish a valid grant.
-- Generated CI reference admission observes GitLab `before_script` and `after_script`,
-  including nested script arrays and native array anchors. GitHub expressions remain values,
-  and retained operating-system glue is owned only while its Forge, job and text digest match.
-- Historical signature-repair evidence resolves the release mirror declared by its source
-  commit, so later configuration moves do not invalidate conservation checks.
-- Deletion publications select no commit. They no longer make Attestation lifetime
-  reachability unknown and prevent ending members from leaving the selected set.
-- ETHOS can land a change to its own dependency audit policy using the policy committed at
-  the exact proved head; other repositories still reject captured-policy drift.
 
 ### Security
 
 - The npm lock selects npm 12.2.1 and overrides Allure's `dompurify` 3.4.16 with 3.4.17,
   fixing the advisories in those replaced versions. Superseded audit dispositions are
   removed; findings without an official stable fix remain explicitly reported, and
-  fixable findings still block. The product lock remains the sole npm package owner.
+  fixable findings still block. This retires the superseded npm dispositions and reports
+  the unfixed braces advisory without accepting risk. The product lock remains the sole
+  npm package owner.
 
 ## [0.2.0-alpha.7] - 2026-10-22
 

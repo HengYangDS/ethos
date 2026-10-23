@@ -709,3 +709,15 @@ member binds their digest.
 - **WHEN** a record binds bytes that a concurrent update is deleting
 - **THEN** the record waits for the deletion and stores its bytes again
 - **AND** a cleanup failure after a swap is reported without failing the update
+
+#### Scenario: A failed cleanup left unbound bytes
+
+- **WHEN** a cleanup failure after a swap left bytes that no selected member binds
+- **THEN** the next set update that holds the custody lock deletes them
+- **AND** no caller action is needed to recover from the reported gap
+
+#### Scenario: An update fails after storing evidence
+
+- **WHEN** an update stores custody bytes and then exhausts its exact-CAS retries
+- **THEN** the stored bytes that no selected member binds are deleted
+- **AND** the update still fails with `attestation_set_cas_retry_exhausted`

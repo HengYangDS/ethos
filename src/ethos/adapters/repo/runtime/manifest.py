@@ -7,15 +7,18 @@ import json
 import os
 import platform
 import stat
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import NoReturn
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
+from ethos.adapters.repo.runtime.inventory_memo import open_inventory_memo
 from ethos.repository.release.identity import build_identity_from_projection
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.inventory_memo import InventoryMemo
     from ethos.repository.release.identity import BuildIdentity
 
 _SCHEMA_VERSION = 7
@@ -23,6 +26,7 @@ _LEGACY_SCHEMA_VERSION = 6
 _HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
+_PAYLOAD_MISMATCH = "hook_runtime_payload_mismatch"
 
 
 class RuntimeEnvironment(NamedTuple):
@@ -110,10 +114,15 @@ def runtime_digest(
 
 
 def runtime_file_inventory(runtime: Path) -> dict[str, str]:
-    """Hash every runtime file and symlink without following authority outside its root."""
+    """Hash every runtime file and symlink without following authority outside its root.
+
+    A payload that cannot be inventoried exactly, such as one holding bytecode, a junction or
+    an unreadable entry, is a payload mismatch: no manifest can declare it.
+    """
     if runtime.is_symlink() or runtime_filesystem.is_junction(runtime) or not runtime.is_dir():
-        raise ValueError(_MANIFEST_INVALID)
+        raise ValueError(_PAYLOAD_MISMATCH)
     root = runtime.resolve()
+    memo = open_inventory_memo(root)
     records: dict[str, str] = {}
     pending = [(runtime, "")]
     try:
@@ -124,19 +133,32 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
                     path = Path(entry.path)
                     relative = prefix + entry.name
                     if "__pycache__" in path.parts or path.suffix == ".pyc":
-                        _raise_manifest_invalid()
+                        _raise_payload_mismatch()
                     if runtime_filesystem.is_junction(path):
-                        _raise_manifest_invalid()
+                        _raise_payload_mismatch()
                     if relative == "manifest.json":
                         continue
-                    mode = entry.stat(follow_symlinks=False).st_mode
-                    if stat.S_ISDIR(mode):
+                    state = entry.stat(follow_symlinks=False)
+                    if stat.S_ISDIR(state.st_mode):
                         pending.append((path, relative + "/"))
                     else:
-                        records[relative] = _inventory_entry_digest(path, root=root, mode=mode)
+                        records[relative] = _entry_record(memo, path, relative, state, root=root)
     except (OSError, RuntimeError, UnicodeError, ValueError) as error:
-        raise ValueError(_MANIFEST_INVALID) from error
+        raise ValueError(_PAYLOAD_MISMATCH) from error
+    if memo is not None:
+        memo.save()
     return dict(sorted(records.items()))
+
+
+def _entry_record(
+    memo: InventoryMemo | None, path: Path, relative: str, state: os.stat_result, *, root: Path
+) -> str:
+    mode = state.st_mode
+    if memo is None or not stat.S_ISREG(mode):
+        return _inventory_entry_digest(path, root=root, mode=mode)
+    return memo.digest(
+        relative, state, partial(_inventory_entry_digest, path, root=root, mode=mode)
+    )
 
 
 def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
@@ -148,12 +170,12 @@ def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
     if stat.S_ISLNK(mode):
         target = path.readlink()
         if target.is_absolute():
-            _raise_manifest_invalid()
+            _raise_payload_mismatch()
         path.resolve(strict=True).relative_to(root)
         payload = b"symlink\0" + f"{permissions:o}\0".encode() + target.as_posix().encode()
         return hashlib.sha256(payload).hexdigest()
     if not stat.S_ISREG(mode):
-        _raise_manifest_invalid()
+        _raise_payload_mismatch()
     hasher = hashlib.sha256(b"file\0" + f"{permissions:o}\0".encode())
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -284,3 +306,7 @@ def _valid_inventory_path(value: str) -> bool:
 
 def _raise_manifest_invalid() -> NoReturn:
     raise ValueError(_MANIFEST_INVALID)
+
+
+def _raise_payload_mismatch() -> NoReturn:
+    raise ValueError(_PAYLOAD_MISMATCH)

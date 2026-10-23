@@ -39,8 +39,11 @@ def _requirement_projection(*requirements: object, spec: str = "authority") -> d
     """Share native carrier structure while leaving expected observations independent."""
     values = requirements or (
         {
+            "name": "Sole intent carrier",
             "text": "Official OpenSpec is the sole tracked intent carrier.",
-            "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
+            "scenarios": [
+                {"name": "Selected", "rawText": "- **WHEN** selected\n- **THEN** compile"}
+            ],
         },
     )
     return {"id": "minimal-authority", "deltas": [{"spec": spec, "requirements": list(values)}]}
@@ -305,7 +308,7 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
     compilation_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     projection = _requirement_projection()
-    expected = commitment_from_projection("minimal-authority", projection)
+    expected = commitment_from_projection("minimal-authority", projection, named=True)
 
     def run_json(_root: Path, _command: tuple[str, ...], args: tuple[str, ...]):
         return (
@@ -455,3 +458,57 @@ def test_attested_archive_reuses_accepted_intent_without_current_cli_probe(
     assert show.call_count == (tree_ref != "HEAD")
     if tree_ref == "HEAD":
         resolver.assert_not_called()
+
+
+def _named(name: str, text: str, *scenarios: tuple[str, str]) -> dict[str, object]:
+    return {
+        "name": name,
+        "text": text,
+        "scenarios": [{"name": title, "rawText": raw} for title, raw in scenarios],
+    }
+
+
+def test_named_encoding_keeps_requirements_with_equal_bodies_distinct() -> None:
+    """Names carry acceptance identity, so equal bodies under two names stay two items."""
+    when = "- **WHEN** selected\n- **THEN** compile"
+    projection = _requirement_projection(
+        _named("One native intent", "Official OpenSpec is the sole intent.", ("Selected", when)),
+        _named("Profile routing", "Official OpenSpec is the sole intent.", ("Routed", when)),
+    )
+
+    commitment = commitment_from_projection("minimal-authority", projection, named=True)
+
+    assert commitment.acceptance == (
+        'authority:requirement:["One native intent","Official OpenSpec is the sole intent."]',
+        'authority:requirement:["Profile routing","Official OpenSpec is the sole intent."]',
+        (
+            'authority:scenario:["One native intent","Selected",'
+            '"- **WHEN** selected\\n- **THEN** compile"]'
+        ),
+        (
+            'authority:scenario:["Profile routing","Routed",'
+            '"- **WHEN** selected\\n- **THEN** compile"]'
+        ),
+    )
+    with pytest.raises(ValidationError):
+        commitment_from_projection("minimal-authority", projection)
+    requirements = projection["deltas"][0]["requirements"]
+    requirements.reverse()
+    named = partial(commitment_from_projection, "minimal-authority", named=True)
+    assert named(projection).digest() == commitment.digest()
+    requirements[0]["scenarios"][0]["rawText"] += "\n- **AND** keep the profile"
+    assert named(projection).digest() != commitment.digest()
+
+
+@pytest.mark.parametrize("missing", ["requirement", "scenario"])
+def test_named_encoding_refuses_an_unnamed_requirement_or_scenario(missing: str) -> None:
+    """A projection that lacks a name cannot be compiled into named acceptance identity."""
+    requirement = _named("Native validation", "Native validation SHALL run first.", ("Ready", "x"))
+    if missing == "requirement":
+        del requirement["name"]
+    else:
+        del requirement["scenarios"][0]["name"]
+    projection = _requirement_projection(requirement)
+    with pytest.raises(ValueError, match="openspec_acceptance_missing"):
+        commitment_from_projection("minimal-authority", projection, named=True)
+    assert commitment_from_projection("minimal-authority", projection).acceptance

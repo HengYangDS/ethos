@@ -47,6 +47,7 @@ def commitment_from_projection(
     *,
     status: object = None,
     artifact_digests: dict[str, str] | None = None,
+    named: bool = False,
 ) -> Commitment:
     """Compile acceptance propositions from official OpenSpec JSON projections."""
     if not isinstance(projection, dict) or projection.get("id") != change:
@@ -63,7 +64,9 @@ def commitment_from_projection(
             artifact_digests=artifact_digests,
         )
     else:
-        acceptance = tuple(item for delta in deltas for item in _acceptance_items(change, delta))
+        acceptance = tuple(
+            item for delta in deltas for item in _acceptance_items(change, delta, named=named)
+        )
     if not acceptance:
         msg = f"openspec_acceptance_missing:{change}"
         raise ValueError(msg)
@@ -143,7 +146,7 @@ def _spec_free_artifact_digest(name: str, path: Path) -> str:
     return hashlib.sha256(identity).hexdigest()
 
 
-def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
+def _acceptance_items(change: str, delta: object, *, named: bool) -> tuple[str, ...]:
     if not isinstance(delta, dict):
         msg = f"openspec_show_invalid:{change}"
         raise TypeError(msg)
@@ -186,11 +189,13 @@ def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
     return tuple(
         item
         for requirement in requirements
-        for item in _requirement_acceptance(change, spec, requirement)
+        for item in _requirement_acceptance(change, spec, requirement, named=named)
     )
 
 
-def _requirement_acceptance(change: str, spec: str, requirement: object) -> tuple[str, ...]:
+def _requirement_acceptance(
+    change: str, spec: str, requirement: object, *, named: bool
+) -> tuple[str, ...]:
     if not isinstance(requirement, dict):
         msg = f"openspec_show_invalid:{change}"
         raise TypeError(msg)
@@ -206,10 +211,28 @@ def _requirement_acceptance(change: str, spec: str, requirement: object) -> tupl
     if not all(raw_scenarios):
         msg = f"openspec_acceptance_missing:{change}"
         raise ValueError(msg)
+    if not named:
+        return (
+            f"{spec}:requirement:{text}",
+            *(f"{spec}:scenario:{raw}" for raw in raw_scenarios),
+        )
+    # Names carry identity, so requirements or scenarios with equal bodies stay distinct.
+    names = (requirement.get("name"), *(scenario.get("name") for scenario in scenarios))
+    if not all(isinstance(name, str) and name.strip() for name in names):
+        msg = f"openspec_acceptance_missing:{change}"
+        raise ValueError(msg)
+    title, *titles = (str(name).strip() for name in names)
     return (
-        f"{spec}:requirement:{text}",
-        *(f"{spec}:scenario:{raw}" for raw in raw_scenarios),
+        f"{spec}:requirement:{_identity(title, text)}",
+        *(
+            f"{spec}:scenario:{_identity(title, scenario, raw)}"
+            for scenario, raw in zip(titles, raw_scenarios, strict=True)
+        ),
     )
+
+
+def _identity(*parts: str) -> str:
+    return json.dumps(list(parts), ensure_ascii=False, separators=(",", ":"))
 
 
 def _accepted_commitment(
@@ -260,8 +283,58 @@ def load_openspec_commitment(
     official_command: tuple[str, ...] | None = None,
     official_status: object = None,
     official_projection: dict[str, object] | None = None,
+    named: bool = True,
 ) -> Commitment:
     """Compile exact official intent, sharing only a caller's current evidence observation."""
+    (commitment,) = _load_commitments(
+        repo,
+        change_id=change_id,
+        tree_ref=tree_ref,
+        expected_digest=expected_digest,
+        attestations=attestations,
+        official_command=official_command,
+        official_status=official_status,
+        official_projection=official_projection,
+        encodings=(named,),
+    )
+    return commitment
+
+
+def admissible_openspec_commitments(
+    repo: Path,
+    *,
+    change_id: str | None,
+    tree_ref: str | None,
+    attestations: tuple[Attestation, ...] | None = None,
+) -> tuple[Commitment, ...]:
+    """Return each encoding of the exact source that a proof may carry, named first.
+
+    Proofs carry the named acceptance identity; until legacy admission is dropped, a proof made
+    before that may carry the legacy encoding of the same source. A source whose requirements or
+    scenarios lack names is refused, as no proof of it can be compiled either.
+    """
+    return _load_commitments(
+        repo,
+        change_id=change_id,
+        tree_ref=tree_ref,
+        attestations=attestations,
+        encodings=(True, False),
+    )
+
+
+def _load_commitments(
+    repo: Path,
+    *,
+    change_id: str | None = None,
+    tree_ref: str | None = None,
+    expected_digest: str | None = None,
+    attestations: tuple[Attestation, ...] | None = None,
+    official_command: tuple[str, ...] | None = None,
+    official_status: object = None,
+    official_projection: dict[str, object] | None = None,
+    encodings: tuple[bool, ...],
+) -> tuple[Commitment, ...]:
+    """Compile one official projection in each requested encoding; the first must compile."""
     if not openspec_profile_enabled(repo, tree_ref=tree_ref):
         msg = "openspec_profile_not_enabled"
         raise ValueError(msg)
@@ -276,7 +349,7 @@ def load_openspec_commitment(
         attestations=attestations,
     )
     if archived is not None:
-        return archived
+        return (archived,)
     if (
         official_projection is not None
         and (command := command or openspec_cli.openspec_base_command()) is None
@@ -302,7 +375,7 @@ def load_openspec_commitment(
                 )
                 is not None
             ):
-                return archived
+                return (archived,)
             if selected is None:
                 raise ValueError(gaps[0])
             change_id = selected
@@ -325,17 +398,45 @@ def load_openspec_commitment(
                 attestations=attestations,
             )
             if archived is not None:
-                return archived
+                return (archived,)
             msg = f"openspec_show_failed:{change_id}"
             raise ValueError(msg)
-        commitment = _projected_commitment(
+        commitments = _projected_commitments(
             projection,
             command,
             change_id,
             result.get("json"),
             status=official_status if tree_ref is None else None,
+            encodings=encodings,
         )
-    return _accepted_commitment(commitment, expected_digest=expected_digest)
+    return tuple(
+        _accepted_commitment(commitment, expected_digest=expected_digest)
+        for commitment in commitments
+    )
+
+
+def _projected_commitments(
+    projection: Path,
+    command: tuple[str, ...] | None,
+    change: str,
+    payload: object,
+    *,
+    status: object,
+    encodings: tuple[bool, ...],
+) -> tuple[Commitment, ...]:
+    """Compile each requested encoding; only the first one is required to compile."""
+    commitments: list[Commitment] = []
+    for index, named in enumerate(encodings):
+        try:
+            commitments.append(
+                _projected_commitment(
+                    projection, command, change, payload, status=status, named=named
+                )
+            )
+        except ValueError:
+            if not index:
+                raise
+    return tuple(commitments)
 
 
 def _projected_commitment(
@@ -345,11 +446,12 @@ def _projected_commitment(
     payload: object,
     *,
     status: object = None,
+    named: bool = False,
 ) -> Commitment:
     """Read additional official artifact inputs only for a spec-free Change."""
     deltas = payload.get("deltas") if isinstance(payload, dict) else None
     if not _spec_free_deltas(deltas):
-        return commitment_from_projection(change, payload)
+        return commitment_from_projection(change, payload, named=named)
     if status is None:
         status = openspec_cli.run_json_batch(
             projection, command, (("status", "--change", change, "--json"),)

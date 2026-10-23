@@ -217,10 +217,7 @@ def test_self_console_validates_runtime_once_and_rereads_on_the_next_command(
     declaration.write_bytes(declaration.read_bytes() + b"\n")
     independent = hook_runtime_binding(repo)
     assert independent["current"] is False
-    assert (
-        "write_admission_not_armed:runtime_schema_migration_required"
-        in independent["required_gaps"]
-    )
+    assert "write_admission_not_armed:runtime_payload_mismatch" in independent["required_gaps"]
 
     with pytest.raises(SystemExit) as refused:
         cli.console_main()
@@ -228,7 +225,7 @@ def test_self_console_validates_runtime_once_and_rereads_on_the_next_command(
     assert refused.value.code == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["verdict"] == "block"
-    assert payload["required_gaps"] == ["hook_runtime_manifest_invalid"]
+    assert payload["required_gaps"] == ["hook_runtime_payload_mismatch"]
     assert reads == [selected.root, selected.root, selected.root]
 
 

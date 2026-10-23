@@ -253,8 +253,10 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
         payload[key] = {} if drift == "files" else "drift"
         manifest.chmod(0o644)
         manifest.write_text(json.dumps(payload), encoding="utf-8")
+    payload_drift = drift in {"python", "hash"}
+    reason = "hook_runtime_payload_mismatch" if payload_drift else "hook_runtime_manifest_invalid"
 
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+    with pytest.raises(ValueError, match=reason):
         runtime_materialization.materialize_runtime(
             repo,
             Path(sys.executable),
@@ -281,7 +283,7 @@ def test_runtime_inventory_rejects_non_closed_symlinks(tmp_path: Path, kind: str
         link.symlink_to(Path("cycle"))
         (runtime / "cycle").symlink_to(Path("link"))
 
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+    with pytest.raises(ValueError, match="hook_runtime_payload_mismatch"):
         runtime_file_inventory(runtime)
 
 
@@ -307,6 +309,6 @@ def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_conten
             lambda path: kind == "junction" and path == subtree,
         )
         patch.setattr(os, "scandir", readable)
-        with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        with pytest.raises(ValueError, match="hook_runtime_payload_mismatch"):
             runtime_file_inventory(tmp_path)
     assert sentinel.read_bytes() == b"retained content"

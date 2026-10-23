@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NoReturn
 
+from filelock import Timeout
+
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 from ethos.adapters.repo.git import git_common_dir
@@ -20,6 +22,9 @@ from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
+from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
@@ -94,6 +99,8 @@ def install_hook_launchers(
     binding["state_transition"] = state_transition
     if rollback_supply:
         binding["rollback_supply"] = rollback_supply
+    if rollback_supply.get("state") == "preserved":
+        _hold_rollback(common, Path(rollback_supply["runtime"]))
     binding["legacy_runtime_locator"] = _retire_legacy_locator(common)
     binding["linked_worktrees"] = [
         {
@@ -116,6 +123,7 @@ def install_hook_launchers(
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
         binding["next_action"] = "ethos hook install --json"
     binding["generation_cleanup"] = cleanup
+    binding["host_store_cleanup"] = _retire_host_store(repo)
     return binding
 
 
@@ -174,6 +182,28 @@ def _activate_with_state(
     if not database_existed:
         _remove_state_sidecars(database)
     return binding, state_transition, worktrees_before
+
+
+def _hold_rollback(common: Path, runtime: Path) -> None:
+    """Name the preserved predecessor as this repository's rollback supply."""
+    selector = common.resolve() / "ethos/runtime/ROLLBACK"
+    staged = selector.with_name(f".ROLLBACK-{uuid.uuid4().hex}")
+    staged.write_bytes(runtime_selection_bytes(common.resolve(), runtime))
+    staged.replace(selector)
+
+
+def _retire_host_store(repo: Path) -> dict[str, object]:
+    """Retire host installations no recorded consumer needs; a failure only defers it."""
+    root = host_store_root()
+    if root is None:
+        return {"state": "unavailable"}
+    try:
+        report = retire_unused_installations(
+            root / "installations", in_use=lambda: operational_reference_paths(repo)
+        )
+    except (OSError, ValueError, Timeout) as error:
+        return {"state": "deferred", "error": str(error) or type(error).__name__}
+    return {"state": "complete", **report}
 
 
 def _retire_legacy_locator(common: Path) -> dict[str, object]:
@@ -318,7 +348,7 @@ def _rollback_supply(common: Path, successor: Path) -> dict[str, str]:
         return {"state": "unavailable", **located, "reason": str(error) or type(error).__name__}
     if previous.root == successor:
         return {}
-    preserved = runtime_materialization.pin_installed_runtime(previous)
+    preserved = runtime_materialization.pin_installed_runtime(previous, consumer=common)
     return {
         "state": "preserved",
         "runtime": preserved.as_posix(),

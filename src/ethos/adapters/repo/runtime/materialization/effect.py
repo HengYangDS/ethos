@@ -13,13 +13,14 @@ from typing import TYPE_CHECKING
 from typing import NoReturn
 
 from filelock import FileLock
-from platformdirs import user_data_path
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
 from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -81,7 +82,7 @@ def materialize_runtime(
         require_runtime_selection_scope(common, selected)
         if not _runtime_supply_current(selected, project):
             _fail("hook_runtime_installed_supply_invalid")
-        return pin_installed_runtime(selected) / "python"
+        return pin_installed_runtime(selected, consumer=common) / "python"
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
@@ -142,16 +143,14 @@ def materialize_runtime(
 
 def _host_runtime_store() -> Path:
     """Choose user-owned installed supply independently of package-manager files."""
-    if declared := os.environ.get("XDG_DATA_HOME"):
-        root = Path(declared)
-        if not root.is_absolute():
-            _fail("hook_runtime_host_store_invalid")
-        return root.resolve() / "ethos/installations"
-    return user_data_path("ethos", appauthor=False).resolve() / "installations"
+    root = host_store_root()
+    if root is None:
+        _fail("hook_runtime_host_store_invalid")
+    return root / "installations"
 
 
-def pin_installed_runtime(selected: SelectedRuntime) -> Path:
-    """Pin the runtime and its exact wheel as one reusable installation."""
+def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
+    """Pin the runtime and its exact wheel as one installation that records ``consumer``."""
     store = _host_runtime_store()
     # Abbreviate only the directory index; OWNER and the runtime retain full identity.
     installation = store / selected.digest[:16]
@@ -166,7 +165,9 @@ def pin_installed_runtime(selected: SelectedRuntime) -> Path:
     ):
         _recover_pin_staging(store)
         if installation.exists():
-            return _reuse_installation(installation, selected)
+            pinned_root = _reuse_installation(installation, selected)
+            record_consumer(installation, consumer)
+            return pinned_root
         staging = store / f".pin-{uuid.uuid4().hex}"
         marker = staging.with_name(staging.name + ".owner")
         marker.write_text(selected.digest + "\n", encoding="utf-8")
@@ -193,6 +194,7 @@ def pin_installed_runtime(selected: SelectedRuntime) -> Path:
             if _runtime_supply_wheel(pinned) is None:
                 _fail("hook_runtime_host_store_copy_invalid")
             staging.rename(installation)
+            record_consumer(installation, consumer)
             return require_selected_runtime(target, expected_build=selected.build).root
         finally:
             remove_generated_tree(staging)
@@ -335,7 +337,7 @@ def _bootstrap_runtime_from_invoker(
         return None
     if invoking.root.parent == common / "ethos/runtime":
         return invoking.root
-    return pin_installed_runtime(invoking)
+    return pin_installed_runtime(invoking, consumer=common)
 
 
 def _compatible_invoking_runtime(
@@ -506,7 +508,9 @@ def _seal_runtime_payload(runtime: Path) -> None:
 
 
 def _remove_write_permissions(path: Path) -> None:
-    path.chmod(stat.S_IMODE(path.stat().st_mode) & ~0o222)
+    # A held seal needs no chmod, which would move ctime and void the inventory memo.
+    if (mode := stat.S_IMODE(path.stat().st_mode)) & 0o222:
+        path.chmod(mode & ~0o222)
 
 
 def _seal_pinned_payload(runtime: Path) -> None:
@@ -540,9 +544,10 @@ def require_runtime_identity(
         or manifest.wheel_sha256 != artifact.sha256
         or manifest.build != artifact.build
         or manifest.environment != environment
-        or manifest.runtime_files != runtime_file_inventory(runtime)
     ):
         _fail("hook_runtime_manifest_invalid")
+    if manifest.runtime_files != runtime_file_inventory(runtime):
+        _fail("hook_runtime_payload_mismatch")
 
 
 def require_runtime_execution(text: str, *, smoke: bool = False) -> None:

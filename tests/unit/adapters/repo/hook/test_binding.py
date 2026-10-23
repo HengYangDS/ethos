@@ -512,7 +512,7 @@ def test_selected_declaration_drift_cannot_borrow_the_invoking_contract(tmp_path
         declaration.write_bytes(changed)
         observed = _capability(repo)[0]["data"]["hook_runtime"]
         assert observed["current"] is False
-        gap = "write_admission_not_armed:runtime_schema_migration_required"
+        gap = "write_admission_not_armed:runtime_payload_mismatch"
         assert gap in observed["required_gaps"]
         declaration.write_bytes(original)
         assert _capability(repo)[0]["data"]["hook_runtime"] == before

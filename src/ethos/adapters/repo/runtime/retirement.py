@@ -123,6 +123,11 @@ def _operational_references(root: Path) -> str:
     return "\n".join(references).replace("\\", "/")
 
 
+def operational_reference_paths(root: Path) -> frozenset[Path]:
+    """Return the paths that running commands and this repository's bindings refer to."""
+    return _reference_paths(_operational_references(root))
+
+
 def _reference_paths(references: str) -> frozenset[Path]:
     """Resolve observable absolute paths before comparing resource ancestry.
 

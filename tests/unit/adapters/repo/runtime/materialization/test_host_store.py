@@ -76,7 +76,12 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
     installation = store / selected.digest[:16]
     expected = installation / "runtime" / selected.digest
     assert pinned_python == expected / "python"
-    assert {item.name for item in installation.iterdir()} == {"OWNER", "runtime", "packages"}
+    assert {item.name for item in installation.iterdir()} == {
+        "OWNER",
+        "consumers",
+        "runtime",
+        "packages",
+    }
     materialization.remove_generated_tree(package)
     assert require_selected_runtime(expected).digest == selected.digest
     assert _pin(repo, selected.build, installed_runtime=expected) == pinned_python
@@ -114,13 +119,14 @@ def test_reused_installation_is_resealed_without_changing_its_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reuse restores the seal that an earlier pin or an outside writer left open."""
-    _repo, selected, _store = _host_case(tmp_path, monkeypatch)
-    pinned = materialization.pin_installed_runtime(selected)
+    repo, selected, _store = _host_case(tmp_path, monkeypatch)
+    consumer = Path(git_common_dir(repo))
+    pinned = materialization.pin_installed_runtime(selected, consumer=consumer)
     opened = next(path for path in pinned.rglob("*") if path.is_dir() and not path.is_symlink())
     for path in (pinned, opened):
         path.chmod(stat.S_IMODE(path.stat().st_mode) | stat.S_IWUSR)
 
-    assert materialization.pin_installed_runtime(selected) == pinned
+    assert materialization.pin_installed_runtime(selected, consumer=consumer) == pinned
     assert _writable_entries(pinned) == []
     assert require_selected_runtime(pinned).digest == selected.digest
 
@@ -131,8 +137,8 @@ def test_rollback_pins_a_predecessor_whose_entry_an_earlier_launcher_wrote(
     """The manifest binds an earlier ETHOS's launcher as exactly as the current one."""
     with monkeypatch.context() as earlier:
         earlier.setattr(materialization, "render_console_script", lambda _name: "#!/bin/sh\n")
-        _repo, selected, store = _host_case(tmp_path, monkeypatch)
-    pinned = materialization.pin_installed_runtime(selected)
+        repo, selected, store = _host_case(tmp_path, monkeypatch)
+    pinned = materialization.pin_installed_runtime(selected, consumer=Path(git_common_dir(repo)))
     assert pinned == store / selected.digest[:16] / "runtime" / selected.digest
     assert (pinned / "python/bin/ethos").read_text() == "#!/bin/sh\n"
 
@@ -451,3 +457,17 @@ def test_orphaned_valid_marker_is_recovered_without_touching_other_content(
     assert not marker.exists()
     assert foreign.read_text(encoding="utf-8") == "preserve"
     assert require_selected_runtime(pinned.parent).digest == selected.digest
+
+
+def test_reusing_a_sealed_installation_keeps_every_file_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A seal that holds needs no change, so reuse keeps file states and inventory memos valid."""
+    repo, selected, _store = _host_case(tmp_path, monkeypatch)
+    consumer = Path(git_common_dir(repo))
+    pinned = materialization.pin_installed_runtime(selected, consumer=consumer)
+    before = {path: path.lstat().st_ctime_ns for path in pinned.rglob("*")}
+
+    materialization.pin_installed_runtime(selected, consumer=consumer)
+
+    assert {path: path.lstat().st_ctime_ns for path in pinned.rglob("*")} == before

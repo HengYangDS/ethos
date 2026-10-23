@@ -140,8 +140,8 @@ def test_concurrent_selection_cannot_be_overwritten_by_cutover(
     peer = external / "runtime" / previous.name
     pin = materialization.pin_installed_runtime
 
-    def select_peer(selected: SelectedRuntime) -> Path:
-        result = pin(selected)
+    def select_peer(selected: SelectedRuntime, **kwargs: Path) -> Path:
+        result = pin(selected, **kwargs)
         if selected.root == previous:
             activate_runtime(common, peer)
         return result
@@ -231,3 +231,34 @@ def test_admitted_successor_repairs_malformed_selection_without_reading_it(
     assert previous.name in {Path(path).name for path in cleanup["unproven_removals"]}
     assert previous.name not in {Path(path).name for path in cleanup["removed"]}
     assert previous.is_dir()
+
+
+def test_a_superseded_rollback_installation_is_retired_by_the_next_cutover(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each cutover holds one rollback supply; the one it supersedes leaves the host store."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    activation.install_hook_launchers(repo, installed_runtime=supplied)
+    store = (tmp_path / "user-data/ethos/installations").resolve()
+    first = store / previous.name[:16]
+    assert first.is_dir()
+    (tmp_path / "third").mkdir()
+    third_repo, third_python = materialize_runtime_case(
+        tmp_path / "third", monkeypatch, package_identity=runtime_build("e" * 40, "f" * 40)
+    )
+    package = tmp_path / "third-package"
+    shutil.copytree(Path(git_common_dir(third_repo)) / "ethos", package / "ethos")
+    third = package / "ethos/runtime" / third_python.parent.name
+    selected = require_selected_runtime(third)
+    monkeypatch.setattr(
+        activation, "expected_runtime_build", lambda _root: RuntimeBuild(selected.build, None)
+    )
+
+    result = activation.install_hook_launchers(repo, installed_runtime=third)
+
+    common = Path(git_common_dir(repo)).resolve()
+    held = store / supplied.name[:16] / "runtime" / supplied.name
+    assert current_runtime(common).digest == third.name
+    assert (common / "ethos/runtime/ROLLBACK").read_bytes() == runtime_selection_bytes(common, held)
+    assert not first.exists()
+    assert result["host_store_cleanup"]["retired"] == [first.as_posix()]

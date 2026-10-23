@@ -55,6 +55,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The host runtime store no longer grows by one installation for every activation. A repository
+  records itself in each installation it selects or holds as rollback supply, names its preserved
+  predecessor in `ethos/runtime/ROLLBACK`, and `hook install` retires each recorded installation that
+  no consumer selects or holds and no running process uses. Installations pinned before this release
+  have unknown consumers and stay until an explicit, user-approved retirement. Resealing an
+  installation no longer rewrites the modes of entries that already hold their seal.
 - The product npm lock overrides `@allurereport/web-commons`'s exact `dompurify` 3.4.16 pin with
   3.4.17, which fixes GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr and GHSA-c6gr-qvv4-5v3f; the
   dependency audit blocked every proof on them, and allure 3.22.0 keeps the same pin.

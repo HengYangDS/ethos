@@ -289,15 +289,36 @@ def test_installed_observation_runs_shared_isolated_conformance(
     assert probe[5] == str(effect.WORK)
 
 
+@pytest.mark.parametrize("ambient_identity", [False, True])
 def test_formation_first_change_binds_the_selected_runtime_origin(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, ambient_identity: bool
 ) -> None:
-    """Formation selects immutable supply before the first Change consumes guidance."""
+    """The first Change signs with its fixture identity and selected immutable supply."""
     bootstrap = tmp_path / "bootstrap/ethos"
     _guide, origin, _status = installed_guidance(bootstrap)
     selected_origin = tmp_path / "immutable/site-packages/ethos/__init__.py"
     build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
     observed: list[str] = []
+    home = tmp_path / "home"
+    home.mkdir()
+    global_config = home / "gitconfig"
+    global_identity = "[user]\nuseConfigOnly = true\n" + (
+        "[user]\nname = Unrelated Host\nemail = unrelated@example.invalid\n"
+        if ambient_identity
+        else ""
+    )
+    global_config.write_text(global_identity, encoding="utf-8")
+    environment, git = effect.independent_host_environment()
+    environment.update(
+        HOME=str(home),
+        USERPROFILE=str(home),
+        XDG_CONFIG_HOME=str(home),
+        GIT_CONFIG_GLOBAL=str(global_config),
+        GIT_CONFIG_NOSYSTEM="1",
+    )
+
+    def run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
+        return _run(*command, cwd=cwd, env=dict(environment) if env is None else env)
 
     def invoke(_root: Path, command: tuple[str, ...], **_kwargs: object) -> tuple:
         target = Path(command[command.index("--root") + 1])
@@ -305,7 +326,15 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
             if "--apply" in command:
                 if target.exists():
                     return 1, {"required_gaps": ["formation_target_exists"]}, ""
-                target.mkdir()
+                run(git, "init", "--quiet", "--initial-branch=dev", str(target))
+                for name, value in (
+                    ("gpg.format", "ssh"),
+                    ("gpg.ssh.program", command[command.index("--signing-program") + 1]),
+                    ("gpg.ssh.allowedSignersFile", command[command.index("--trust-anchor") + 1]),
+                    ("user.signingkey", command[command.index("--signing-key") + 1]),
+                    ("commit.gpgsign", "true"),
+                ):
+                    run(git, "config", "--local", name, value, cwd=target)
                 data = {"applied": True}
             else:
                 data = {
@@ -318,6 +347,19 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
 
     def first(_executable: Path, _target: Path, **kwargs: object) -> dict[str, str]:
         observed.append(str(kwargs["origin"]))
+        (_target / "README.md").write_text("# First change\n", encoding="utf-8")
+        run(git, "add", "README.md", cwd=_target)
+        run(git, "commit", "--quiet", "-m", "test(ci): declare prerequisites", cwd=_target)
+        run(git, "verify-commit", "HEAD", cwd=_target)
+        assert run(git, "config", "--local", "user.name", cwd=_target) == "ETHOS Install Smoke"
+        assert (
+            run(git, "config", "--local", "user.email", cwd=_target)
+            == "ethos-install-smoke@example.invalid"
+        )
+        assert run(git, "show", "-s", "--format=%an|%ae|%cn|%ce", "HEAD", cwd=_target) == (
+            "ETHOS Install Smoke|ethos-install-smoke@example.invalid|"
+            "ETHOS Install Smoke|ethos-install-smoke@example.invalid"
+        )
         return {"first_change": "lane_admitted", "agent_handoff": "passed", "formatting": "passed"}
 
     monkeypatch.setattr(fixture, "invoke", invoke)
@@ -341,11 +383,12 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
         origin=str(origin),
         build=build,
         wheel_sha256="f" * 64,
-        environment={"PATH": ""},
-        run=_run,
+        environment=environment,
+        run=run,
     )
 
     assert observed == [str(selected_origin)]
+    assert global_config.read_text(encoding="utf-8") == global_identity
 
 
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:

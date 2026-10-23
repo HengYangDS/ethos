@@ -139,6 +139,27 @@ def materialize_bootstrap_repository(root: Path, *, run: CommandRunner) -> None:
     run(_required_executable("git"), "init", "--quiet", "--initial-branch=dev", str(root))
 
 
+def _configure_fixture_identity(
+    root: Path,
+    *,
+    git: str,
+    run: CommandRunner,
+    environment: Mapping[str, str] | None = None,
+) -> None:
+    """Bind later fixture commits locally without replacing the formed SSH signer."""
+    env = dict(environment) if environment is not None else None
+    run(git, "config", "--local", "user.name", "ETHOS Install Smoke", cwd=root, env=env)
+    run(
+        git,
+        "config",
+        "--local",
+        "user.email",
+        "ethos-install-smoke@example.invalid",
+        cwd=root,
+        env=env,
+    )
+
+
 def materialize_adopter(
     root: Path,
     *,
@@ -148,8 +169,7 @@ def materialize_adopter(
     """Materialize and commit one signed repository adopted by the installed wheel."""
     git = _required_executable("git")
     run(git, "init", "--quiet", "--initial-branch=dev", str(root))
-    run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
-    run(git, "config", "user.email", "ethos-install-smoke@example.invalid", cwd=root)
+    _configure_fixture_identity(root, git=git, run=run)
     _configure_product_signer(root, git=git, run=run)
     for relative, content in _ADOPTER_FILES.items():
         carrier = root / relative
@@ -265,10 +285,9 @@ def prove_formation(
     run: CommandRunner,
 ) -> dict[str, object]:
     """Form both starters from the installed CLI without a source checkout."""
-    package_guidance = packaged_resource(
-        GUIDANCE_RESOURCE, package=Path(origin).parent
-    ).read_bytes()
-    expected_guidance = hashlib.sha256(package_guidance).hexdigest()
+    expected_guidance = hashlib.sha256(
+        packaged_resource(GUIDANCE_RESOURCE, package=Path(origin).parent).read_bytes()
+    ).hexdigest()
     formed: list[dict[str, object]] = []
     journey = dict.fromkeys(("first_change", "agent_handoff", "formatting"), "not_attempted")
     for starter in ("foundation", "python-library"):
@@ -363,6 +382,9 @@ def prove_formation(
             applied_data,
             preserved,
             expected_guidance,
+        )
+        _configure_fixture_identity(
+            target, git=_required_executable("git"), run=run, environment=environment
         )
         if starter == "foundation":
             data = preserved[1].get("data")

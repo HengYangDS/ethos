@@ -283,7 +283,7 @@ def load_openspec_commitment(
     official_command: tuple[str, ...] | None = None,
     official_status: object = None,
     official_projection: dict[str, object] | None = None,
-    named: bool = False,
+    named: bool = True,
 ) -> Commitment:
     """Compile exact official intent, sharing only a caller's current evidence observation."""
     (commitment,) = _load_commitments(
@@ -307,17 +307,18 @@ def admissible_openspec_commitments(
     tree_ref: str | None,
     attestations: tuple[Attestation, ...] | None = None,
 ) -> tuple[Commitment, ...]:
-    """Return each encoding of the exact source that a proof may carry, legacy first.
+    """Return each encoding of the exact source that a proof may carry, named first.
 
-    While landing hooks move to named acceptance identity, a proof may carry either encoding of
-    the same source; a source whose requirements or scenarios lack names admits only the legacy one.
+    Proofs carry the named acceptance identity; until legacy admission is dropped, a proof made
+    before that may carry the legacy encoding of the same source. A source whose requirements or
+    scenarios lack names is refused, as no proof of it can be compiled either.
     """
     return _load_commitments(
         repo,
         change_id=change_id,
         tree_ref=tree_ref,
         attestations=attestations,
-        encodings=(False, True),
+        encodings=(True, False),
     )
 
 

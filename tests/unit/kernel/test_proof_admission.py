@@ -265,6 +265,17 @@ def test_repository_transition_admits_either_acceptance_encoding_of_its_source(
     assert git(fixture.candidate, "rev-parse", "HEAD") == head
 
 
+def test_proof_compiles_named_acceptance_identity(tmp_path):
+    """Proofs carry requirement and scenario names once every landing hook admits them."""
+    fixture = prepared_work_lane(tmp_path)
+    head = git(fixture.worktree, "rev-parse", "HEAD")
+    named = load_openspec_commitment(
+        fixture.worktree, tree_ref=head, change_id="fixture-change", named=True
+    )
+    plan = current_proof_plan(fixture.worktree, expected_head=head)
+    assert plan.inputs.commitment == named.digest()
+
+
 @pytest.mark.parametrize("archived", [False, True])
 def test_repository_proof_cannot_replace_lane_generation_proof(tmp_path, monkeypatch, archived):
     """Repository evidence remains reusable without becoming authoring authority."""

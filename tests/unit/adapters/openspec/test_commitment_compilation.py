@@ -39,8 +39,11 @@ def _requirement_projection(*requirements: object, spec: str = "authority") -> d
     """Share native carrier structure while leaving expected observations independent."""
     values = requirements or (
         {
+            "name": "Sole intent carrier",
             "text": "Official OpenSpec is the sole tracked intent carrier.",
-            "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
+            "scenarios": [
+                {"name": "Selected", "rawText": "- **WHEN** selected\n- **THEN** compile"}
+            ],
         },
     )
     return {"id": "minimal-authority", "deltas": [{"spec": spec, "requirements": list(values)}]}
@@ -305,7 +308,7 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
     compilation_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     projection = _requirement_projection()
-    expected = commitment_from_projection("minimal-authority", projection)
+    expected = commitment_from_projection("minimal-authority", projection, named=True)
 
     def run_json(_root: Path, _command: tuple[str, ...], args: tuple[str, ...]):
         return (

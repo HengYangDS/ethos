@@ -22,6 +22,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   This increment covers source workflows, not offline release acquisition. Local installed
   consumption is qualified; public-archive and hosted adopter execution remain separate
   acceptance boundaries.
+- The common verification model composes declared per-runner preparation before locked
+  installation, provider-specific native supply checks before proof, and additional evidence
+  beside the required report. Runner variables retain full history; platform, trust and
+  time bounds remain product-owned. GitLab binds an existing offline-candidate variable and
+  retains additive offline jobs without replacing protected request admission; Windows evidence
+  preparation uses one native command. Source generation does not replace retained release/offline
+  acquisition or establish hosted Windows qualification.
 - Repositories can declare runner-provided executables and references in
   `.config/ci/runners.toml`. Ownership applies only to the declared Forge's pipeline files;
   malformed declarations grant no ownership.

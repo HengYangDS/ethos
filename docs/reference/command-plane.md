@@ -80,8 +80,20 @@ product model/compiler/locks are not repository source members. The common jobs
 run `mise exec --locked -- ethos` with selected runners, branches, deadlines and
 ignored reports; additive native CUE job maps retain genuine business jobs.
 The repository supplies public `http:ethos` configuration and per-platform locks.
-No release acquisition/checksum generation, offline workflow, cold payload,
-peer-outage or hosted-platform qualification is delivered here; retain those owners.
+
+Typed parameters compose GitLab `runners.<name>.preparation` before locked installation,
+`supply.checks.github` and `supply.checks.gitlab` after installation, and
+`evidence_paths` under `build/evidence/` beside the required report. GitLab common
+`variables` and runner `variables` cannot override `GIT_DEPTH = "0"`; preparation
+does not replace the shared proof, trust partitions or source timeout.
+
+GitLab `offline_candidate_variable` defaults to `ETHOS_OFFLINE_CANDIDATE`; bind an
+existing repository variable name without renaming its consumers. A selected candidate
+admits only protected accepted/release branches through API or web pipelines and excludes
+the source jobs. Add retained offline jobs in the repository CUE instance, with their own
+deadlines and release validation. Keep an independent GitHub offline workflow separate.
+No release acquisition/checksum generation, cold payload, peer-outage or hosted-platform
+qualification is delivered here; retain those owners.
 
 ## Shared SDK Operations
 

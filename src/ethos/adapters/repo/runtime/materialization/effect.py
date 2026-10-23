@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 from typing import NoReturn
 
 from filelock import FileLock
-from platformdirs import user_data_path
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
 from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -142,12 +142,10 @@ def materialize_runtime(
 
 def _host_runtime_store() -> Path:
     """Choose user-owned installed supply independently of package-manager files."""
-    if declared := os.environ.get("XDG_DATA_HOME"):
-        root = Path(declared)
-        if not root.is_absolute():
-            _fail("hook_runtime_host_store_invalid")
-        return root.resolve() / "ethos/installations"
-    return user_data_path("ethos", appauthor=False).resolve() / "installations"
+    root = host_store_root()
+    if root is None:
+        _fail("hook_runtime_host_store_invalid")
+    return root / "installations"
 
 
 def pin_installed_runtime(selected: SelectedRuntime) -> Path:

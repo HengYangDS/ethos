@@ -12,6 +12,7 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.repo.runtime.host_store as host_store
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import activate_runtime
@@ -357,7 +358,7 @@ def test_host_store_location_is_explicit_and_does_not_follow_an_unsafe_root(
     if mode == "native":
         monkeypatch.delenv("XDG_DATA_HOME", raising=False)
         monkeypatch.setattr(
-            materialization, "user_data_path", lambda *_args, **_kwargs: tmp_path / "native-data"
+            host_store, "user_data_path", lambda *_args, **_kwargs: tmp_path / "native-data"
         )
         pinned = _pin(repo, selected.build, installed_runtime=selected.root)
         assert pinned.parent.is_relative_to(tmp_path / "native-data/installations")

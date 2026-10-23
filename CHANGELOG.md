@@ -29,6 +29,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- Selecting an installed runtime reuses the payload digests it recorded while each file's exact
+  state (device, inode, size, mode, mtime and ctime) is unchanged, instead of hashing every file
+  again. A warm selection of the 13,661-file runtime takes 0.17 s instead of 0.67 s; an `ethos`
+  command selects its runtime twice and every hook once. Changed bytes or modes and added entries
+  are still reported as payload damage, and Windows and small payloads keep hashing every file.
 - Proofs compile requirement and scenario names into their Commitment's acceptance identity, so two
   requirements or scenarios with equal bodies stay distinct instead of collapsing into one item.
   Landing hooks and `ethos land` admit a proof carrying either this or the earlier encoding of its

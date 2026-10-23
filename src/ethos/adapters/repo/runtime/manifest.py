@@ -7,15 +7,18 @@ import json
 import os
 import platform
 import stat
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import NoReturn
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
+from ethos.adapters.repo.runtime.inventory_memo import open_inventory_memo
 from ethos.repository.release.identity import build_identity_from_projection
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.inventory_memo import InventoryMemo
     from ethos.repository.release.identity import BuildIdentity
 
 _SCHEMA_VERSION = 7
@@ -119,6 +122,7 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
     if runtime.is_symlink() or runtime_filesystem.is_junction(runtime) or not runtime.is_dir():
         raise ValueError(_PAYLOAD_MISMATCH)
     root = runtime.resolve()
+    memo = open_inventory_memo(root)
     records: dict[str, str] = {}
     pending = [(runtime, "")]
     try:
@@ -134,14 +138,27 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
                         _raise_payload_mismatch()
                     if relative == "manifest.json":
                         continue
-                    mode = entry.stat(follow_symlinks=False).st_mode
-                    if stat.S_ISDIR(mode):
+                    state = entry.stat(follow_symlinks=False)
+                    if stat.S_ISDIR(state.st_mode):
                         pending.append((path, relative + "/"))
                     else:
-                        records[relative] = _inventory_entry_digest(path, root=root, mode=mode)
+                        records[relative] = _entry_record(memo, path, relative, state, root=root)
     except (OSError, RuntimeError, UnicodeError, ValueError) as error:
         raise ValueError(_PAYLOAD_MISMATCH) from error
+    if memo is not None:
+        memo.save()
     return dict(sorted(records.items()))
+
+
+def _entry_record(
+    memo: InventoryMemo | None, path: Path, relative: str, state: os.stat_result, *, root: Path
+) -> str:
+    mode = state.st_mode
+    if memo is None or not stat.S_ISREG(mode):
+        return _inventory_entry_digest(path, root=root, mode=mode)
+    return memo.digest(
+        relative, state, partial(_inventory_entry_digest, path, root=root, mode=mode)
+    )
 
 
 def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:

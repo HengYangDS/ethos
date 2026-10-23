@@ -66,34 +66,25 @@ not extra lifecycles. Native `--help` owns exact syntax; this page explains sema
 `--check` refuses drift without writes. Apply that patch with `--patch <file>
 --apply --authorize --expect-head <head>` under current Work Lane admission.
 
-In `.config/checks/ci-projection/policy.toml`, declare
-`schema = "ethos-ci-template-consistency-v1"`, a real CUE `compiler.source`,
+Declare `schema = "ethos-ci-template-consistency-v1"` in
+`.config/checks/ci-projection/policy.toml`, with a real CUE `compiler.source`,
 typed TOML/JSON `compiler.inputs` and `compiler.common = ".config/ci/verification.cue"`.
-The installed product supplies the model and locked CUE, without an ETHOS checkout.
-CI parameters belong in `.config/ci/`; first commit `.config/ci/runners.toml`
-with the supplied executables and Forge references (these jobs need `mise` and
-native directory creation). Compilation does not prove runner availability.
+The installed product supplies the model and locked compiler; its resources are not
+repository SourceTree members. Keep parameters in `.config/ci/`, declare supplied executables
+and Forge references in `.config/ci/runners.toml`, and bind one source workflow per provider.
+SourceContracts bind the declaration, complete output group and integrity gate.
+Common jobs invoke `mise exec --locked -- ethos`; the repository binds public
+`http:ethos` supply and per-platform locks. Additive CUE jobs retain genuine local duties.
 
-Bind one source workflow per `provider` (`github` or `gitlab`). Generated
-SourceContracts bind its declaration, complete output group and integrity gate;
-product model/compiler/locks are not repository source members. The common jobs
-run `mise exec --locked -- ethos` with selected runners, branches, deadlines and
-ignored reports; additive native CUE job maps retain genuine business jobs.
-The repository supplies public `http:ethos` configuration and per-platform locks.
-
-Typed parameters compose GitLab `runners.<name>.preparation` before locked installation,
-`supply.checks.github` and `supply.checks.gitlab` after installation, and
-`evidence_paths` under `build/evidence/` beside the required report. GitLab common
-`variables` and runner `variables` cannot override `GIT_DEPTH = "0"`; preparation
-does not replace the shared proof, trust partitions or source timeout.
-
-GitLab `offline_candidate_variable` defaults to `ETHOS_OFFLINE_CANDIDATE`; bind an
-existing repository variable name without renaming its consumers. A selected candidate
-admits only protected accepted/release branches through API or web pipelines and excludes
-the source jobs. Add retained offline jobs in the repository CUE instance, with their own
-deadlines and release validation. Keep an independent GitHub offline workflow separate.
-No release acquisition/checksum generation, cold payload, peer-outage or hosted-platform
-qualification is delivered here; retain those owners.
+GitLab `runners.<name>.preparation` precedes locked installation; `supply.checks.github`
+and `supply.checks.gitlab` follow it. `evidence_paths` under `build/evidence/` retain additional
+reports. Common and runner `variables` cannot replace `GIT_DEPTH = "0"`; preparation cannot
+replace shared proof, trust partitions or source timeout. GitLab `offline_candidate_variable`
+defaults to `ETHOS_OFFLINE_CANDIDATE`, accepting an existing repository name. Selected candidates
+admit only protected accepted/release API/web requests and exclude source jobs. Retain additive
+GitLab offline jobs with their own deadlines and validation, and a separate GitHub offline
+workflow. Release acquisition/checksums, cold payload, peer-outage, runner availability and
+hosted-platform qualification remain with their existing owners.
 
 ## Shared SDK Operations
 

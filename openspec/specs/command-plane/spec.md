@@ -284,9 +284,15 @@ SHALL remove one open-predicate member by exact CAS.
 
 #### Scenario: An oversized input is recorded
 
-- **WHEN** the canonical input exceeds the member size bound
+- **WHEN** the canonical input exceeds the member size bound and the selected set does not hold it
 - **THEN** record refuses it with `attestation_member_too_large`
 - **AND** names custody evidence as the carrier for its bytes
+
+#### Scenario: An existing oversized member is replayed
+
+- **WHEN** the canonical input exceeds the member size bound and the selected set already holds it
+- **THEN** record reports the member unchanged
+- **AND** the set root is unchanged
 
 #### Scenario: An open-predicate member is released
 
@@ -298,6 +304,7 @@ SHALL remove one open-predicate member by exact CAS.
 
 - **WHEN** another actor omits reviewed content or a reason, or the member has a product lifetime
 - **THEN** release refuses without changing the set or custody
+- **AND** a writer that loses the CAS race recomputes both the removal and the union
 
 ### Requirement: Publish is the sole remote Git object projection command
 

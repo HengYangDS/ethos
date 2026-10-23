@@ -5200,15 +5200,33 @@ that the set update observes, never on the absence of a branch or ref alone.
 #### Scenario: A Work Lane is retired or its branch is absent
 
 - **WHEN** a lane's retirement effect is selected or its branch is missing
-- **THEN** its operation members remain
-- **AND** proof admission still resolves archived intent through them
+- **THEN** its operation members remain while proof admission can resolve archived intent or
+  proposal retirement can resolve refresh provenance through them
+- **AND** they end together at the first set update that observes that the lane's branch is absent
+  and no commit its ref updates name is reachable from a selected commit or a present pre-repair
+  object
+
+#### Scenario: A reader of a retired lane's records cannot be observed
+
+- **WHEN** an update cannot observe whether proof admission or proposal retirement still selects a
+  retired lane's records
+- **THEN** those records remain and the update reports the gap
 
 #### Scenario: An accepted head is superseded
 
 - **WHEN** closeout advances the accepted ref from one commit to a later one
-- **THEN** the proof, integration, acceptance and publication records of the earlier commit end once
-  no local ref, fully peeled tag, worktree HEAD or declared peer's last publication selects it
+- **THEN** the proof, integration and publication records of the earlier commit end once no local
+  ref, fully peeled tag, worktree HEAD or declared peer's last publication selects it
+- **AND** its acceptance record remains as provenance for historical maintenance bases
 - **AND** the current head's proof, acceptance and publication records remain
+
+#### Scenario: Maintenance starts from a historical accepted base
+
+- **WHEN** a native maintenance lane selects an earlier accepted base after the current train
+  advances
+- **THEN** its original accepted-effect record remains selectable and fully validated
+- **AND** the new source still requires current proof, signatures, actor and Lease admission
+- **AND** retaining provenance does not restore an expired proof or authorize an effect
 
 #### Scenario: A release tag or repair lineage still exists
 

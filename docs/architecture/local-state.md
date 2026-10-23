@@ -49,6 +49,22 @@ results preserve actual removed, retained and deferred paths; the public install
 command can derive a fresh retry. This observation boundary does not claim
 complete fd/mmap coverage, same-UID isolation or strong-kill orphan scavenging.
 
+Installed supply pinned outside a repository lives in the host store,
+`<host data>/ethos/installations/<index>/`. Each pin records the common directory
+of the repository that selects it or holds it as rollback supply under
+`consumers/`, and a successful activation names the preserved predecessor in
+`<git-common-dir>/ethos/runtime/ROLLBACK`. `ethos hook install` ends with
+`host_store_cleanup`: it retires a recorded installation only when no recorded
+repository still selects or holds it and no running process or binding refers
+into it. An installation pinned before consumers were recorded has unknown users
+and stays. `ethos hook retire-supply --scan <root> --root <repository> --json`
+previews those: it reads the selectors of every repository at or directly under
+each scanned root and keeps an installation that one of them names or cannot
+read, that a running process uses, or that changed within `--grace-days`
+(default 7). It lists each retirable installation with its size and returns the
+plan's digest; only `--expect-plan <digest> --apply --authorize`, a user
+decision, records the naming repositories and retires exactly that plan.
+
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a
 linked worktree cannot introduce a parallel state authority.

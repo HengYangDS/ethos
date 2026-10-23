@@ -180,6 +180,9 @@ predecessor location; the result reports unavailable rollback selection, and a
 failed cutover restores the exact damaged selector bytes through compare-and-swap.
 Package-manager upgrade/uninstall qualification is separate.
 
+`ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
+records; only `--expect-plan <digest> --apply --authorize` retires that plan.
+
 ## Accepted Release Selection
 
 For maintenance from a historical accepted base, select

@@ -156,3 +156,30 @@ def test_runtime_fixture_rejects_failed_module_before_activation(
 
     runtime_root = tmp_path / "repo/.git/ethos/runtime"
     assert not any(path.is_dir() for path in runtime_root.iterdir())
+
+
+@pytest.mark.parametrize("gate_prefix", [True, False])
+def test_isolated_fixture_python_reads_the_test_gate_bytecode_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, gate_prefix: bool
+) -> None:
+    """Fixture hooks run isolated, so the gate's shared bytecode reaches them through the image."""
+    prefix = str(tmp_path / "python-bytecode") if gate_prefix else None
+    monkeypatch.setattr(sys, "pycache_prefix", prefix)
+    image = tmp_path / "image"
+    runtime_scenarios.create_fixture_python(image)
+
+    completed = subprocess.run(
+        (
+            str(runtime_scenarios.runtime_executable(image, "python")),
+            "-B",
+            "-I",
+            "-c",
+            "import sys; print(sys.pycache_prefix)",
+        ),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+
+    assert (completed.stdout.strip(), completed.stderr) == (str(prefix), "")

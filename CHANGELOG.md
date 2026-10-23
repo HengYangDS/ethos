@@ -12,6 +12,48 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.10] - 2026-10-24
+
+### Changed
+
+- 0.2.0-alpha.9 was tagged but not released: advisories published after its hosted verification
+  blocked its release build. This release is the first to publish the changes listed under
+  0.2.0-alpha.9 and 0.2.0-alpha.8.
+
+### Security
+
+- The Python lock selects fastmcp and fastmcp-slim 4.1.3, fixing GHSA-7xgj-8392-5q4r and
+  GHSA-vqqp-x5qm-5qp4 in 4.1.1, and virtualenv 21.14.13, fixing GHSA-cx6f-vjhg-g3cc in 21.14.11.
+  ETHOS requires fastmcp 4.1.3 or later, and fastmcp-slim 4.1.3 adds certifi 2026.10.23 to the
+  runtime.
+
+## [0.2.0-alpha.9] - 2026-10-23
+
+### Changed
+
+- 0.2.0-alpha.8 was selected but not published: its source fails every Windows leg of hosted
+  conformance on the Taplo false clean fixed below. This release is the first to publish the
+  changes listed under 0.2.0-alpha.8.
+- Release Governance defines the prerelease stages by evidence on the journeys a release target
+  declares: beta needs hosted verification on every supported platform, the adopter journey from the
+  published artifacts on macOS and Linux and no known blocking defect; a release candidate and stable
+  follow 72 hours and 7 days of adopter use without one. 0.2.0 declares installation through Mise
+  from the GitHub release through release on macOS, Linux and Windows. GitLab-hosted CI, GitLab
+  publication and the Homebrew channel are not 0.2.0 preconditions.
+
+### Fixed
+
+- The source-format check takes a TOML file as formatted only when Taplo's check run reports
+  collecting every file it was given, and renders the file alone otherwise. Taplo exits cleanly when
+  it collects no file, so since the check runs were batched a misformatted TOML file that it did not
+  collect, such as one whose name holds a backslash, passed unformatted. Every Windows leg of hosted
+  conformance failed since then at the installed format journey with
+  `installed_source_format_unproven:preview_or_check`.
+- `ethos hook retire-supply --apply` measured each planned installation after removing it, so its
+  report listed every retired installation with 0 bytes and a retirable total of 0. It now
+  measures the plan before removing anything, and the apply reports what the preview showed and
+  what it reclaimed.
+
 ## [0.2.0-alpha.8] - 2026-10-23
 
 ### Added

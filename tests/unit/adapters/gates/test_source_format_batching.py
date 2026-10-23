@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -100,3 +101,16 @@ def test_listed_markdown_drift_renders_only_the_listed_file(
     report = formatting_gate.source_format_report(lane, paths=tuple(sources))
     assert report["changed_paths"] == ["docs/drift.md"], report
     assert rendered == ["docs/drift.md"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a backslash separates Windows paths")
+def test_a_toml_path_taplo_does_not_collect_still_renders_alone(lane: Path) -> None:
+    """Taplo's clean exit vouches only for the files it reports collecting.
+
+    Taplo globs each named path, so it collects no file whose name holds a backslash, as it
+    collects none on Windows, where it joins every name onto the backslash working directory.
+    """
+    sources = {"settings/plain.toml": "value = 1\n", "settings/back\\slash.toml": "value   =   2\n"}
+    _write(lane, sources)
+    report = formatting_gate.source_format_report(lane, paths=tuple(sources))
+    assert report["changed_paths"] == ["settings/back\\slash.toml"], report

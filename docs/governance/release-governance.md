@@ -67,6 +67,32 @@ released packages, tags and recorded evidence remain immutable.
 [semver]: https://semver.org/spec/v2.0.0.html
 [keep-a-changelog]: https://keepachangelog.com/en/1.1.0/
 
+## Prerelease Stages
+
+A product-release target declares the journeys it supports, and its prereleases advance by evidence
+on those journeys, not by age or landing count:
+
+- **alpha:** any accepted increment toward the target.
+- **beta:** hosted verification passes on every supported platform for the release head; the
+  published artifacts pass the declared adopter journey on macOS and Linux, from a cold install
+  through host-store pinning, hook binding, a full proof and status to an upgrade from the previous
+  release with its rollback, and uninstall; and no known defect corrupts an installation, blocks a
+  landing or admits a wrong proof.
+- **rc:** a beta that adopters used for 72 hours without a new blocking defect. From the first rc
+  on, only fixes land toward the target.
+- **stable:** an rc that adopters used for 7 days without a blocking defect.
+
+The release entry names each journey that the target does not declare, or whose environment was
+unavailable, as not qualified; such a journey is not a release precondition. An adopter's own
+adoption of a release is that adopter's acceptance, not a gate on the ETHOS release.
+
+For 0.2.0 the declared journeys are installation through Mise from the GitHub release, hook
+binding, status, Work Lanes, proof, landing, publication to GitHub and release, on macOS arm64,
+Linux x64 and arm64, and Windows x64. GitLab-hosted CI, GitLab publication and the Homebrew channel
+are not declared for 0.2.0.
+[ETHOS source DR-0015: Release stages follow a declared journey scope](../decisions/dr-0015-release-stage-scope.md "source-only")
+records why.
+
 ## Release Surfaces and Evidence
 
 Required product release surfaces are `README.md`, `LICENSE`,

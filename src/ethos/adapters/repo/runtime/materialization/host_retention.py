@@ -139,8 +139,10 @@ def legacy_supply(
             for installation, reason, named in rows
             if reason
         ]
+        # Sizes are measured before anything is removed, so an apply reports what it reclaimed.
+        report = _legacy_report(retirable, kept, retired)
         if apply:
-            if expected_plan != _plan_digest(retirable):
+            if expected_plan != report["plan_digest"]:
                 message = "host_store_plan_changed"
                 raise ValueError(message)
             for installation, _reason, named in rows:
@@ -149,7 +151,7 @@ def legacy_supply(
             for installation in retirable:
                 remove_generated_tree(installation)
                 retired.append(installation.as_posix())
-    return _legacy_report(retirable, kept, retired)
+    return report
 
 
 def _legacy_rows(

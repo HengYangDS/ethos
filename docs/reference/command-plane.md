@@ -8,12 +8,8 @@ relations:
 
 # Command Plane
 
-Purpose: explain public ETHOS command behavior and ownership boundaries as an active projection.
-Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
-
-See also: [Quickstart](../guides/quickstart.md),
-[Product Design Contract](../governance/product-design-contract.md#semantic-kernel), and
-[OpenSpec Governance](../governance/openspec-governance.md).
+This reference projects public commands from the [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
+See [Quickstart](../guides/quickstart.md) for first use and [OpenSpec Governance](../governance/openspec-governance.md) for intent.
 
 ## Workflow And Transport Roots
 
@@ -39,20 +35,16 @@ Repeat `--peer <declared-id>` to select only named peers. For example:
 ethos publish --ref refs/heads/main --peer github --probe-remote --expect-head <head> --json
 ```
 
-ETHOS still validates the complete declaration but observes and updates only
-the selected peer set. The request receipt binds that set; `--receipt` cannot
-take a new `--peer` choice. Results distinguish declared, selected, and
-unselected peers. A successful selected-peer result does not claim that
-another declared peer received the object, and an unavailable peer is never
-skipped automatically.
+ETHOS validates all declarations but observes and updates only selected peers.
+The receipt fixes that selection; `--receipt` cannot take another `--peer` choice.
+Results distinguish declared, selected and unselected peers without silently skipping
+unavailable peers or claiming delivery to unselected peers.
 
-`status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is not.
-MCP tools project status, planning, adoption and integration over the same typed owners;
-it does not yet project every operation. Root and process actor bind at startup.
-Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
-stdout is reserved for the protocol. Cancellation and deadline expiry do not
-mean rollback: reobserve before retrying an effect. Synchronous work drains
-before a queued successor executes; this is not a hard filesystem timeout.
+`status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is transport.
+MCP projects status, planning, adoption and integration, not every operation.
+Root and actor bind at startup and cannot be replaced by tool inputs.
+Diagnostics use stderr; stdout carries the protocol. Cancellation or expiry is not rollback:
+reobserve before retrying. Synchronous work drains before queued work; filesystem time is not bounded.
 
 `ethos attestation query` reads exact matches from the sole Attestation set.
 `ethos attestation record --input <file>` validates or previews one canonical
@@ -112,24 +104,18 @@ effect admission. Proof and publication do not yet have equivalent SDK and MCP s
 
 ### Retained topic role migration
 
-Accepted-root `ethos land --closeout --authorize --expect-head <head> --json`
-previews legacy roles and topics selected by the committed workspace declaration.
-For retained work or proposal topics, apply the returned command with its exact
-`--expect-state <digest>`. The digest binds selected refs, worktree bindings, raw
-index, staged objects, dirty and untracked bytes, modes and Lease coordinates.
-The transition keeps history, holder and expiry and advances each Lease once;
-it does not checkout, reset, clean, stash or stage retained state.
+Accepted-root `ethos land --closeout --authorize --expect-head <head> --json` previews
+legacy roles and topics from committed workspace declarations. Apply retained work/proposal
+migration with the returned `--expect-state`: it binds refs, worktrees, raw index, staged objects,
+dirty/untracked bytes, modes and Leases. History, holder and expiry remain; Lease generation
+advances once. Migration never checks out, resets, cleans, stashes or stages retained state.
 
-After interruption, use the same exact head and state to preview before applying.
-Recovery validates the original ref result and resumes only unfinished binding
-and Lease materialization. A completed replay requires the complete poststate.
-Changed inputs, occupied destinations, changed holders or missing original
-evidence refuse recovery. Preview is read-only; no record grants fresh authority.
-Unresolved and completed migration records remain owner-held recovery evidence;
-release them only after their consumers no longer need recovery or exact replay.
-Unsupported file kinds and inputs exceeding the safe reader's bounds remain
-blocked. Lease writers are serialized; this is not a lock over arbitrary external
-filesystem or index writers, which must remain quiescent during migration.
+After interruption, preview with the original head/state. Recovery validates the original ref
+result and finishes only pending bindings/Leases; replay requires their complete poststate.
+Changed inputs/holders, occupied destinations, missing original evidence, unsupported file kinds
+or safe-reader bounds refuse. Preview and records grant no new authority. Keep migration records
+until their consumers release recovery/replay needs. Lease serialization does not lock arbitrary
+filesystem/index writers: they must stay quiescent.
 
 When a candidate ref has advanced but its index and worktree still exactly match
 a trusted, retained ancestor, inspect the existing candidate command:
@@ -407,9 +393,8 @@ pragmas preserve bytes but do not waive independent semantic gates. Nox `format`
 and `format_check` project this operation; they do not own another formatter or
 replace the complete proof closure.
 
-`ethos lane` and `ethos hook` are hidden operational roots. They support Work
-Lane admission and guard reporting; they do not expand the public lifecycle.
-For a tracked write, bind the exact checkout and paths before editing:
+The hidden operational roots `ethos lane` and `ethos hook` provide admission and guards, not another lifecycle.
+Bind the exact checkout and paths before tracked edits:
 
 ```bash
 ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json
@@ -552,11 +537,9 @@ copying a parser. For publication effects use the guarded `publish` surface.
 
 ## Standard And Fast Verification
 
-Use standard acceptance and scoped iteration; affected contracts and consumers,
-not edit size, determine risk. The
-[ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only")
-is the workflow entry point. The installed CLI and current admission own the
-exact required gates; this reference does not create another policy.
+Affected contracts and consumers determine verification, not edit size.
+The [ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only") is the workflow entry point;
+the installed CLI and current admission select required gates.
 
 ### Standard Exact-Source Proof
 
@@ -639,8 +622,3 @@ failed evidence and state which proof, installation or publication obligations
 remain unproved. A timeout is not rollback: reobserve before retrying. Retire an
 owned temporary directory only after checking it is unused and still empty.
 Do not write a global hook disable, fabricated proof or permanent waiver.
-
-## Assurance And Evidence Boundary
-
-Readiness, execution, local publication and remote publication remain distinct;
-Work Lane visibility grants no writes. The Product Design Contract owns semantics.

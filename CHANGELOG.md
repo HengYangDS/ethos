@@ -19,6 +19,21 @@ historical bindings are governed by [Release Governance](docs/governance/release
   from exact committed proof; native input ownership, bounded reads and change detection remain
   enforced.
 
+## [0.2.0-alpha.12] - 2026-10-24
+
+### Fixed
+
+- `ethos hook install` run by a newer package no longer selects that package manager's
+  installation in place when it upgrades a repository or replaces a removed one. Like a first bind,
+  it pins the runtime into the sealed host store. A Mise installation stays writable so that
+  `mise uninstall` can remove it, and after an upgrade one Python run from it could damage the
+  selected runtime, which status then reported as `runtime_payload_mismatch`.
+- The published Mise declaration puts only the `ethos` console on `PATH`. Its `bin_path` named the
+  runtime's script directory, so `mise exec` and activated shells of an adopter ran ETHOS's own
+  `python`, `uv`, `ruff` and other bundled tools ahead of the adopter's, and Python runs from there
+  wrote bytecode into the installation. Each runtime archive now carries `ethos/bin`, which holds
+  only the console.
+
 ## [0.2.0-alpha.11] - 2026-10-24
 
 ### Fixed

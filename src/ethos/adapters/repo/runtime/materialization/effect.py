@@ -281,37 +281,32 @@ def _reusable_runtime(
     except ValueError as error:
         if str(error) == "hook_runtime_current_missing":
             return (
-                _bootstrap_runtime_from_invoker(
-                    invoking_source, expected_build, project, common=common
-                )
+                _invoker_supply(invoking_source, expected_build, project, common=common)
                 if package_only
                 else None
             )
         raise
     external = candidate.parent != common / "ethos/runtime"
+    upgrade = False
     try:
         selected = require_selected_runtime(candidate)
         require_runtime_selection_scope(common, selected)
         if selected.build == expected_build and _runtime_supply_current(selected, project):
             return selected.root
-        if selected.build != expected_build and _runtime_supply_wheel(selected) is not None:
-            invoking = _compatible_invoking_runtime(
-                invoking_source, expected_build, project, common=common
-            )
-            return invoking.root if invoking is not None else None
+        upgrade = selected.build != expected_build and _runtime_supply_wheel(selected) is not None
     except (OSError, ValueError) as error:
         if external:
             if str(error) == "hook_runtime_repository_private":
                 raise
             absent = _target_absent(candidate)
             if absent and (
-                invoking := _compatible_invoking_runtime(
-                    invoking_source, expected_build, project, common=common
-                )
+                supplied := _invoker_supply(invoking_source, expected_build, project, common=common)
             ):
-                return invoking.root
+                return supplied
             condition = "unavailable" if absent else "invalid"
             _fail(f"hook_runtime_installed_supply_{condition}:{candidate}", error)
+    if upgrade:
+        return _invoker_supply(invoking_source, expected_build, project, common=common)
     if external:
         _fail(f"hook_runtime_installed_supply_invalid:{candidate}")
     return None
@@ -328,10 +323,14 @@ def _target_absent(path: Path) -> bool:
     return False
 
 
-def _bootstrap_runtime_from_invoker(
+def _invoker_supply(
     source: Path, expected_build: BuildIdentity, project: Path, *, common: Path
 ) -> Path | None:
-    """Reuse a local private runtime or pin an external immutable package once."""
+    """Reuse a local private runtime or pin an external immutable package.
+
+    A package manager may leave its installation writable, so a repository selects the pinned
+    copy, whether it binds for the first time, upgrades or replaces a removed carrier.
+    """
     invoking = _compatible_invoking_runtime(source, expected_build, project, common=common)
     if invoking is None:
         return None

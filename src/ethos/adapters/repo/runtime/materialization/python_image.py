@@ -72,13 +72,16 @@ def materialize_python_image(
     _rewrite_console_scripts(target)
 
 
-def render_console_script(name: str) -> str:
-    """Render a location-independent console-script launcher."""
+def render_console_script(name: str, interpreter: str = "python") -> str:
+    """Render a location-independent console-script launcher.
+
+    ``interpreter`` locates the runtime's Python relative to the launcher's own directory.
+    """
     return (
         "#!/bin/sh\n"
         'SCRIPT_DIR=${0%/*}; [ "$SCRIPT_DIR" = "$0" ] && SCRIPT_DIR=.\n'
         'SCRIPT_DIR=$(CDPATH= cd "$SCRIPT_DIR" && pwd)\n'
-        'exec "$SCRIPT_DIR/python" -B -I -c '
+        f'exec "$SCRIPT_DIR/{interpreter}" -B -I -c '
         "'import sys;from importlib.metadata import entry_points;"
         'name=sys.argv.pop(1);matches=tuple(entry_points(group="console_scripts",name=name));'
         'len(matches)==1 or (sys.stderr.write(f"{name}: {len(matches)} console entry points\\n"),'
@@ -87,10 +90,13 @@ def render_console_script(name: str) -> str:
     )
 
 
-def render_windows_console_script(name: str) -> str:
-    """Render the same launcher for `cmd`, beside the interpreter root's `Scripts` directory."""
+def render_windows_console_script(name: str, interpreter: str = "..\\python.exe") -> str:
+    """Render the same launcher for `cmd`, beside the interpreter root's `Scripts` directory.
+
+    ``interpreter`` locates the runtime's Python relative to the launcher's own directory.
+    """
     return (
-        '@"%~dp0..\\python.exe" -B -I -c "import sys;from importlib.metadata import entry_points;'
+        f'@"%~dp0{interpreter}" -B -I -c "import sys;from importlib.metadata import entry_points;'
         "name=sys.argv.pop(1);matches=tuple(entry_points(group='console_scripts',name=name));"
         "len(matches)==1 or (sys.stderr.write(f'{name}: {len(matches)} console entry points\\n'),"
         'sys.exit(127));sys.argv[0]=name;sys.exit(matches[0].load()())" '

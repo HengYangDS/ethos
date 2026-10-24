@@ -167,9 +167,8 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     linux = declared["tools"]["http:ethos"]["platforms"]["linux-x64"]
     assert linux["url"] == "https://example.invalid/v/ethos-0.2.0-alpha.5-linux-x64.tar.gz"
     assert linux["checksum"] == f"sha256:{sums['ethos-0.2.0-alpha.5-linux-x64.tar.gz']}"
-    assert linux["bin_path"].endswith("/python/bin")
-    windows = declared["tools"]["http:ethos"]["platforms"]["windows-x64"]
-    assert windows["bin_path"].endswith("/python/Scripts")
+    platforms = declared["tools"]["http:ethos"]["platforms"].values()
+    assert {platform["bin_path"] for platform in platforms} == {"ethos/bin"}
     assert (tmp_path / "out/notes.md").read_text() == "### Added\n\n- Hosted release.\n"
     shutil.rmtree(inputs / "windows-latest")
     assert "ethos-0.2.0a5-py3-none-win_amd64.whl" not in release_assets.assemble(

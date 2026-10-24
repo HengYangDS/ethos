@@ -165,6 +165,36 @@ def test_external_package_invoker_pins_shared_supply_without_an_explicit_runtime
     assert require_selected_runtime(pinned[0].parent).digest == supplied.digest
 
 
+@pytest.mark.parametrize("carrier", ["retained", "removed"])
+def test_package_upgrade_selects_pinned_supply_instead_of_its_carrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, carrier: str
+) -> None:
+    """An upgrade selects sealed host supply, as a first bind does, never the carrier in place.
+
+    A package manager may leave its installation writable, so an ordinary interpreter run
+    could change the selected runtime; the predecessor's carrier may also have been removed.
+    """
+    old = runtime_build("a" * 40, "b" * 40)
+    repo, previous = _materialized(tmp_path / "old", monkeypatch, package_identity=old)
+    common = Path(git_common_dir(repo))
+    shutil.copytree(common / "ethos", tmp_path / "carrier", symlinks=True)
+    activate_runtime(common, tmp_path / "carrier/runtime" / previous.digest)
+    if carrier == "removed":
+        (tmp_path / "carrier").rename(tmp_path / "carrier-removed")
+    supplied = _package_supply(tmp_path, monkeypatch)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
+    monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: supplied)
+    private_build = Mock(side_effect=AssertionError("private runtime build reached"))
+    monkeypatch.setattr(materialization, "resolve_runtime_wheel", private_build)
+
+    selected = _pin(repo, supplied.build).parent
+
+    pinned = tmp_path / "user-data/ethos/installations" / supplied.digest[:16]
+    assert selected == pinned / "runtime" / supplied.digest
+    assert require_selected_runtime(selected).digest == supplied.digest
+    assert _writable_entries(selected) == []
+
+
 def test_missing_selector_does_not_pin_another_repository_private_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

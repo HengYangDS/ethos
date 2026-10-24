@@ -20,6 +20,7 @@ import ethos.adapters.repo.runtime.materialization.effect as materialization
 import ethos.adapters.repo.runtime.materialization.python_environment as runtime_python_environment
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -58,10 +59,13 @@ def _write(path: Path, payload: bytes = b"payload") -> Path:
     return path
 
 
-def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
+def test_missing_external_selection_pins_only_the_valid_invoking_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An absent external CURRENT target must not strand a compatible installed caller."""
+    """An absent external CURRENT target must not strand a compatible installed caller.
+
+    The caller's package is pinned into the host store; its carrier is never selected in place.
+    """
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
     common = Path(git_common_dir(repo))
     available = tmp_path / "available"
@@ -74,16 +78,16 @@ def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
     invoking_source = Path(materialization.__file__).resolve().parents[6]
     invoking = Mock(side_effect=lambda source: current if source == invoking_source else None)
     monkeypatch.setattr(materialization, "selected_runtime_source", invoking, raising=False)
-    validated = Mock(wraps=materialization.require_selected_runtime)
-    monkeypatch.setattr(materialization, "require_selected_runtime", validated)
+    store = host_store_root()
+    assert store is not None
+    pinned = store / "installations" / current.digest[:16] / "runtime" / current.digest
 
     recovered = materialization.materialize_runtime(
         repo, Path(sys.executable), expected_build=current.build
     )
-    assert recovered == current.root / "python"
+    assert recovered == pinned / "python"
     assert selector.read_bytes() == before
     invoking.assert_called_once_with(invoking_source)
-    assert validated.call_count == 1
     requested = tmp_path / "requested-source"
     requested.mkdir()
     shutil.copy2(REPOSITORY_ROOT / "uv.lock", requested / "uv.lock")
@@ -91,7 +95,7 @@ def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
         materialization.materialize_runtime(
             repo, Path(sys.executable), expected_build=current.build, build_source=requested
         )
-        == current.root / "python"
+        == pinned / "python"
     )
     assert invoking.call_count == 2
     assert invoking.call_args.args == (invoking_source,)
@@ -103,7 +107,7 @@ def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
     installed = run_ethos("hook", "install", "--root", str(repo), "--json", cwd=repo)
     assert installed["verdict"] == "pass"
     assert installed["data"]["runtime_digest"] == current.digest
-    assert selected_runtime_path(common) == current.root
+    assert selected_runtime_path(common) == pinned
 
 
 @pytest.mark.parametrize("selection", ["current", "explicit"])

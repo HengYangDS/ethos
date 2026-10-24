@@ -2,7 +2,7 @@
 
 ## 13. Feedback-Driven Improvement Closure
 
-- 13.2 Withdrawn by DR-0016 (environment). Enforce feedback closure through existing acceptance owners; verify note-only/stale refusal, recursive carrier allocation and actual domain outcomes. See [Learning And Change Relations](../../../docs/governance/evolution-campaign.md); explanatory notes do not close behavior.
+- 13.2 Withdrawn by DR-0016 (environment). Enforce feedback closure through existing acceptance owners; verify note-only/stale refusal, recursive carrier allocation and actual domain outcomes. See [Learning And Change Relations](../../../../docs/governance/evolution-campaign.md); explanatory notes do not close behavior.
   - 13.2.1 Withdrawn by DR-0016 (in-repo). Reject note-only, missing, stale and contradictory closure evidence while preserving independently admissible source work.
   - 13.2.2 Withdrawn by DR-0016 (in-repo). Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
   - 13.2.3 Withdrawn by DR-0016 (environment). Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority; bind actual-use observation and revised intent to the same complete acceptance trace used by greenfield-formation 2.3 and the canonical terminal plan.
@@ -12,4 +12,4 @@
 ## Workflow follow-up
 
 - Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.
-- On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.
+- On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.

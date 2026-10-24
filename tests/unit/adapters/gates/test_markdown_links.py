@@ -443,7 +443,7 @@ def test_host_links_check_current_authored_candidates(
     assert git(repo, "write-tree") == index
 
 
-@pytest.mark.parametrize("change", ["bytes", "membership", "alias", "head"])
+@pytest.mark.parametrize("change", ["bytes", "membership", "alias", "head", "vanish", "restore"])
 def test_candidate_link_observation_refuses_inflight_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str
 ) -> None:
@@ -453,6 +453,8 @@ def test_candidate_link_observation_refuses_inflight_changes(
     (repo / "other.txt").write_text("Another member.\n")
     (repo / "alias.txt").symlink_to("member.txt")
     commit_fixture(repo, "bind candidate freshness")
+    if change == "restore":
+        (repo / "other.txt").unlink()
     native = gate_tool.run_command
     mutated = False
 
@@ -468,6 +470,10 @@ def test_candidate_link_observation_refuses_inflight_changes(
             elif change == "alias":
                 (repo / "alias.txt").unlink()
                 (repo / "alias.txt").symlink_to("other.txt")
+            elif change == "vanish":
+                (repo / "other.txt").unlink()
+            elif change == "restore":
+                (repo / "other.txt").write_text("Another member.\n")
             else:
                 (repo / "head-marker.txt").write_text("Changed head.\n")
                 commit_fixture(repo, "move the candidate head")
@@ -480,9 +486,32 @@ def test_candidate_link_observation_refuses_inflight_changes(
         "membership": "source_candidate_membership_changed",
         "alias": "source_member_changed:alias.txt",
         "head": "source_tree_changed",
+        "vanish": "source_candidate_membership_changed",
+        "restore": "source_candidate_membership_changed",
     }
     assert report["verdict"] == "unknown", report
     assert report["required_gaps"] == [expected[change]]
+
+
+@pytest.mark.parametrize("deleted", ["unrelated.py", "member.txt"])
+def test_candidate_links_exclude_initially_deleted_tracked_members(
+    tmp_path: Path, deleted: str
+) -> None:
+    """An unstaged deletion leaves the candidate: other members pass, a deleted target blocks."""
+    repo = _repository(tmp_path, "# Guide\n\n[Member](member.txt)\n")
+    (repo / "member.txt").write_text("Member.\n")
+    (repo / "unrelated.py").write_text("VALUE = 1\n")
+    commit_fixture(repo, "bind candidate deletions")
+    (repo / deleted).unlink()
+    before = git(repo, "rev-parse", "HEAD", "HEAD^{tree}")
+    index = git(repo, "write-tree")
+    report = markdown_links_report(repo, candidate=True)
+    gaps = [] if deleted == "unrelated.py" else [f"source_target_not_delivered:{deleted}"]
+    verdict = "pass" if deleted == "unrelated.py" else "block"
+    assert (report["verdict"], report["required_gaps"]) == (verdict, gaps), report
+    assert git(repo, "rev-parse", "HEAD", "HEAD^{tree}") == before
+    assert git(repo, "write-tree") == index
+    assert not (repo / deleted).exists()
 
 
 @pytest.mark.parametrize("ignored", [False, True])

@@ -31,6 +31,19 @@ class SourceTargetUnavailableError(ValueError):
     """A resolved target has no member in the selected delivery."""
 
 
+def _candidate_members(root: Path) -> dict[str, tuple[str, int]]:
+    """Return present candidate members; a tracked path deleted from the worktree is none."""
+    entries = {}
+    for relative in git_files(root, "--cached", "--others", "--exclude-standard", check=True):
+        try:
+            member = (root / relative).lstat()
+        except FileNotFoundError:
+            continue
+        mode = "120000" if stat.S_ISLNK(member.st_mode) else "100644"
+        entries[relative] = (mode, member.st_size)
+    return entries
+
+
 @dataclass(frozen=True, slots=True)
 class SourceTree:
     """Share exact membership, bounded reads, aliases, and freshness across consumers."""
@@ -51,14 +64,7 @@ class SourceTree:
             message = "source_head_missing"
             raise ValueError(message)
         if candidate:
-            entries = {}
-            for relative in git_files(
-                root, "--cached", "--others", "--exclude-standard", check=True
-            ):
-                member = (root / relative).lstat()
-                mode = "120000" if stat.S_ISLNK(member.st_mode) else "100644"
-                entries[relative] = (mode, member.st_size)
-            return cls(root.resolve(), head, "", entries, candidate=True)
+            return cls(root.resolve(), head, "", _candidate_members(root), candidate=True)
         raw = run_git(root, "ls-tree", "-rlz", head, text=False, check=True).stdout
         entries = {}
         for record in raw.split(b"\0"):
@@ -188,9 +194,7 @@ class SourceTree:
         if current_tracked_head(self.root) != self.head:
             message = "source_tree_changed"
             raise ValueError(message)
-        if self.candidate and set(
-            git_files(self.root, "--cached", "--others", "--exclude-standard", check=True)
-        ) != set(self.entries):
+        if self.candidate and set(_candidate_members(self.root)) != set(self.entries):
             message = "source_candidate_membership_changed"
             raise ValueError(message)
         for relative in tuple(self.observed):

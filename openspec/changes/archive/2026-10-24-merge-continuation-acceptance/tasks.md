@@ -14,4 +14,4 @@
 
 - After 4.16 installed acceptance and the original merge finish, retire its temporary delivery lane through current native admission; preserve unique evidence first.
 - Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.
-- On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.
+- On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.

@@ -441,6 +441,7 @@ def land_repository(
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
+    expect_state: str | None = None,
     candidate_head: str | None = None,
     closeout: bool = False,
     identity_transition: bool = False,
@@ -493,35 +494,36 @@ def land_repository(
             next_action=str(report["next_action"]),
             data=cast("dict[str, object]", report["data"]),
         )
-    renamed = (
-        legacy_role_rename_result(repo, apply=apply, authorize=authorize, expect_head=expect_head)
-        if closeout
-        else None
-    )
-    if renamed is not None:
+    if closeout and (
+        renamed := legacy_role_rename_result(
+            repo,
+            apply=apply,
+            authorize=authorize,
+            expect_head=expect_head,
+            expect_state=expect_state,
+        )
+    ):
         return renamed
-    current_head = git.current_head(repo)
-    command = "closeout" if closeout else "land"
     return (
         _closeout_land_result(
             repo=repo,
-            command=command,
+            command="closeout",
             apply=apply,
             authorize=authorize,
             expect_head=expect_head,
             candidate_head=candidate_head,
-            current_head=current_head,
+            current_head=git.current_head(repo),
             independent_verification_receipt=independent_verification_receipt,
             identity_transition=identity_transition,
         )
         if closeout
         else _candidate_land_result(
             repo=repo,
-            command=command,
+            command="land",
             apply=apply,
             authorize=authorize,
             expect_head=expect_head,
-            current_head=current_head,
+            current_head=git.current_head(repo),
             identity_transition=identity_transition,
             candidate_head=candidate_head,
             acceptance_purpose=acceptance_purpose,

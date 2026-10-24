@@ -23,6 +23,7 @@ class _LandOptions:
     apply: bool = False
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    expect_state: Annotated[str | None, Parameter(name="--expect-state")] = None
     candidate_head: Annotated[str | None, Parameter(name="--candidate-head")] = None
     closeout: bool = False
     identity_transition: bool = False

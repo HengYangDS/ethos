@@ -20,7 +20,9 @@ from ethos.contracts.coordination import LeaseTakeoverRequest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Mapping
     from pathlib import Path
+    from typing import Any
 
 
 def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
@@ -33,6 +35,59 @@ def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
         result = acquire_lease_from_connection(connection, lease=lease)
         connection.commit()
     return result
+
+
+def rename_exact_leases[T](
+    db_path: Path,
+    *,
+    renames: Mapping[str, tuple[str, dict[str, Any]]],
+    transition: Callable[[], T | None],
+) -> T | None:
+    """Exclude Lease writers across an exact ref/binding transition and its Lease moves."""
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        pending = {}
+        for source, (target, expected) in renames.items():
+            old = observe_lease_from_connection(connection, source)
+            new = observe_lease_from_connection(connection, target)
+            if "lane_ref" not in expected:
+                if old.record() != expected or new.state != "missing":
+                    message = f"lease_generation_stale:{source}"
+                    raise ValueError(message)
+                continue
+            replacement = {
+                "lane_ref": target,
+                "holder_ref": expected["holder_ref"],
+                "generation": int(expected["generation"]) + 1,
+                "expires_at": expected["expires_at"],
+            }
+            if (
+                old.state == "missing"
+                and new.state == "valid"
+                and new.lease is not None
+                and new.lease.to_payload() == replacement
+            ):
+                continue
+            if old.record() != expected or new.state != "missing" or old.lease is None:
+                message = f"lease_generation_stale:{source}"
+                raise ValueError(message)
+            pending[source] = (expected, LaneLease.from_payload(replacement))
+        result = transition()
+        if result is None:
+            return None
+        for source, (expected, replacement) in pending.items():
+            acquire_lease_from_connection(connection, lease=replacement)
+            cursor = connection.execute(
+                "delete from leases where lane_ref = ? and holder_ref = ? "
+                "and generation = ? and expires_at = ?",
+                (source, expected["holder_ref"], expected["generation"], expected["expires_at"]),
+            )
+            if cursor.rowcount != 1:
+                message = f"lease_generation_stale:{source}"
+                raise ValueError(message)
+        connection.commit()
+        return result
 
 
 def acquire_lease_from_connection(

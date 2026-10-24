@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import plan_ref_intents
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import declared_role_names
@@ -44,14 +45,28 @@ def legacy_proposal_prefix(text: str) -> str:
 
 
 def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
-    """Map each legacy role ref the committed table at head declares to its standard ref."""
-    names = legacy_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
+    """Map committed legacy roles and retained topics to unchanged standard destinations."""
+    text = committed_file_text(root, head, ".ethos/workspace.toml")
+    names = legacy_role_names(text)
     standard = BranchRolePolicy()
-    return {
+    renames = {
         f"refs/heads/{legacy}": (f"refs/heads/{getattr(standard, role)}", value)
         for role, legacy in names.items()
         if (value := ref_head(root, f"refs/heads/{legacy}"))
     }
+    for field in ("work_branch_prefix", "proposal_branch_prefix"):
+        prefix = declared_role_names(text).get(field, "")
+        if not prefix or prefix == getattr(standard, field):
+            continue
+        for line in git_stdout(
+            root, "for-each-ref", "--format=%(refname) %(objectname)", f"refs/heads/{prefix}"
+        ).splitlines():
+            ref, value = line.split(" ", 1)
+            legacy = f"refs/heads/{prefix}"
+            target = f"refs/heads/{getattr(standard, field)}{ref.removeprefix(legacy)}"
+            if ref.startswith(legacy):
+                renames[ref] = (target, value)
+    return renames
 
 
 def role_rename_ref_report(

@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- Accepted closeout migrates declared legacy work and proposal topics without losing history,
+  partial staging, dirty or untracked bytes, file modes, or the current Lease holder and expiry.
+  The exact preview digest is required for topic migration. Interrupted recovery validates the
+  original ref result and resumes only unfinished bindings and Lease moves; completed replay
+  refuses rolled-back state and does not advance the Lease again.
+
 ## [0.2.0-alpha.10] - 2026-10-24
 
 ### Changed

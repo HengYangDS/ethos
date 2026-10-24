@@ -110,6 +110,27 @@ effect admission. Proof and publication do not yet have equivalent SDK and MCP s
 
 ## Retained Candidate Materialization
 
+### Retained topic role migration
+
+Accepted-root `ethos land --closeout --authorize --expect-head <head> --json`
+previews legacy roles and topics selected by the committed workspace declaration.
+For retained work or proposal topics, apply the returned command with its exact
+`--expect-state <digest>`. The digest binds selected refs, worktree bindings, raw
+index, staged objects, dirty and untracked bytes, modes and Lease coordinates.
+The transition keeps history, holder and expiry and advances each Lease once;
+it does not checkout, reset, clean, stash or stage retained state.
+
+After interruption, use the same exact head and state to preview before applying.
+Recovery validates the original ref result and resumes only unfinished binding
+and Lease materialization. A completed replay requires the complete poststate.
+Changed inputs, occupied destinations, changed holders or missing original
+evidence refuse recovery. Preview is read-only; no record grants fresh authority.
+Unresolved and completed migration records remain owner-held recovery evidence;
+release them only after their consumers no longer need recovery or exact replay.
+Unsupported file kinds and inputs exceeding the safe reader's bounds remain
+blocked. Lease writers are serialized; this is not a lock over arbitrary external
+filesystem or index writers, which must remain quiescent during migration.
+
 When a candidate ref has advanced but its index and worktree still exactly match
 a trusted, retained ancestor, inspect the existing candidate command:
 

@@ -1,5 +1,38 @@
 ## ADDED Requirements
 
+### Requirement: Retained topic migration preserves native authoring state
+
+Accepted closeout SHALL migrate declared retained topics through the exact ref,
+worktree and Lease owners using a reviewed state digest. It SHALL preserve
+history and authoring state, retain each holder and expiry, and advance the
+Lease generation exactly once.
+
+#### Scenario: A retained dirty topic changes its declared prefix
+
+- **WHEN** authorized closeout applies the exact current preview from the accepted root
+- **THEN** the same topic commit is selected by its new ref and worktree binding
+- **AND** raw index bytes, staged objects, dirty bytes and modes remain unchanged
+- **AND** the reviewed digest binds selected HEADs, bindings, content, modes and Lease coordinates
+- **AND** migration does not checkout, reset, clean, stash or stage retained state
+- **AND** the old Lease is removed only as its exact successor preserves holder and expiry
+- **AND** source-free successor qualification retains the Python 3.12 compatibility floor
+
+#### Scenario: The preview becomes stale or a destination is occupied
+
+- **WHEN** a selected ref, binding, byte, mode, index or Lease changes after preview
+- **THEN** migration refuses the stale request without overwriting the new state
+- **AND** an occupied destination, unavailable Lease or ambiguous mapping remains blocked
+- **AND** tracked bytes hidden by Git index flags still participate in the preimage
+
+#### Scenario: Ref completion leaves binding or Lease materialization interrupted
+
+- **WHEN** the original ref transaction completed but later materialization was interrupted
+- **THEN** preview validates the carried ref result without modifying bindings or Leases
+- **AND** authorized recovery applies only the remaining exact materialization
+- **AND** a concurrent Lease writer is excluded across that transition
+- **AND** replay recognizes the original completion without repeating refs or advancing the Lease again
+- **AND** unrelated content changes or a moved target keep recovery blocked
+
 ### Requirement: Active Change identity repair preserves complete source
 
 ETHOS SHALL admit an exact relocation of one legacy temporally suffixed active

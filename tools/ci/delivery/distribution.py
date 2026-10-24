@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import json
 import re
 import shlex
@@ -17,7 +18,8 @@ from urllib.parse import urlsplit
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
+from ethos.adapters.repo.runtime.materialization.python_image import render_windows_console_script
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -28,6 +30,9 @@ from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+# The only archive directory a package manager puts on PATH; it holds the ETHOS console alone.
+CONSOLE_DIRECTORY = "ethos/bin"
 
 
 def package_runtime(
@@ -87,6 +92,7 @@ def package_runtime(
                     arcname=f"ethos/packages/{selected.wheel_sha256}/{wheel.name}",
                     filter=_metadata,
                 )
+                _add_console(archive, selected)
         if require_selected_runtime(runtime) != selected or wheel.read_bytes() != payload:
             message = "distribution_inputs_changed"
             raise ValueError(message)
@@ -187,6 +193,28 @@ def _metadata(info: tarfile.TarInfo) -> tarfile.TarInfo:
     if info.isdir():
         info.mode |= 0o700
     return info
+
+
+def _add_console(archive: tarfile.TarFile, selected: SelectedRuntime) -> None:
+    """Add the runtime's ETHOS console as the archive's only `PATH` entry.
+
+    The runtime's own script directory also holds its interpreter and every bundled tool,
+    which would otherwise resolve ahead of an adopter's own.
+    """
+    directory = tarfile.TarInfo(CONSOLE_DIRECTORY)
+    directory.type, directory.mode = tarfile.DIRTYPE, 0o555
+    archive.addfile(_metadata(directory))
+    runtime = f"../runtime/{selected.digest}/python"
+    if selected.platform == "windows":
+        interpreter = runtime.replace("/", "\\") + "\\python.exe"
+        name = "ethos.cmd"
+        text = render_windows_console_script("ethos", interpreter).replace("\n", "\r\n")
+    else:
+        name, text = "ethos", render_console_script("ethos", f"{runtime}/bin/python")
+    payload = text.encode()
+    console = tarfile.TarInfo(f"{CONSOLE_DIRECTORY}/{name}")
+    console.size, console.mode = len(payload), 0o555
+    archive.addfile(_metadata(console), io.BytesIO(payload))
 
 
 def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
@@ -359,8 +387,7 @@ def _install_with_mise(
     declaration = project / "mise.toml"
     declaration.write_text(
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'
-        f'checksum = "sha256:{digest}"\nbin_path = '
-        f'"{Path(manifests[0]).parent.as_posix()}/{runtime_scripts(Path("python")).as_posix()}"\n',
+        f'checksum = "sha256:{digest}"\nbin_path = "{CONSOLE_DIRECTORY}"\n',
         encoding="utf-8",
     )
     scoped = {
@@ -378,6 +405,10 @@ def _install_with_mise(
     for arguments in (("lock",), ("install", "--locked")):
         _mise(mise, project, arguments, scoped)
     installed = Path(_mise(mise, project, ("where", "http:ethos"), scoped).strip())
+    entries = sorted(path.name for path in (installed / CONSOLE_DIRECTORY).iterdir())
+    if entries not in (["ethos"], ["ethos.cmd"]):
+        message = f"shared_supply_path_entries_invalid:{','.join(entries)}"
+        raise RuntimeError(message)
     console = _mise(mise, project, ("exec", "--locked", "--", "ethos", "--version"), scoped)
     if not distribution or distribution not in console:
         message = f"shared_supply_console_failed:{console.strip()}"

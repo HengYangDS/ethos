@@ -50,14 +50,14 @@ def assemble(
         )
         if (
             platform in archives
-            or any(wheel.name == other.name for _archive, _digest, other in archives.values())
+            or any(wheel.name == other.name for _archive, other in archives.values())
             or _sha256(archive) != distribution["sha256"]
             or _sha256(wheel) != distribution["wheel_sha256"]
             or distribution["product_version"] != version
         ):
             message = f"release_assets_distribution_mismatch:{platform}"
             raise ValueError(message)
-        archives[platform] = (archive, distribution["runtime_digest"], wheel)
+        archives[platform] = (archive, wheel)
     if missing := sorted(_REQUIRED - set(archives)):
         message = "release_assets_platform_missing:" + ",".join(missing)
         raise ValueError(message)
@@ -66,16 +66,16 @@ def assemble(
     assets.mkdir(parents=True)
     sums = {}
     declaration = [f'[tools."http:ethos"]\nversion = "{version}"\n\n[tools."http:ethos".platforms]']
-    for platform, (archive, digest, wheel) in sorted(archives.items()):
+    for platform, (archive, wheel) in sorted(archives.items()):
         shutil.copy2(wheel, assets / wheel.name)
         sums[wheel.name] = _sha256(assets / wheel.name)
         published = f"ethos-{version}-{platform}.tar.gz"
         shutil.copy2(archive, assets / published)
         sums[published] = _sha256(assets / published)
-        scripts = "Scripts" if platform.startswith("windows") else "bin"
+        # The archive's console directory, not the runtime's scripts: adopters get `ethos` alone.
         declaration.append(
             f'{platform} = {{ url = "{base_url}/{published}", checksum = "sha256:'
-            f'{sums[published]}", bin_path = "ethos/runtime/{digest}/python/{scripts}" }}'
+            f'{sums[published]}", bin_path = "ethos/bin" }}'
         )
     (assets / f"ethos-{version}.mise.toml").write_text(
         "\n".join(declaration) + "\n", encoding="utf-8"

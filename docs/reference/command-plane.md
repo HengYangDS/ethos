@@ -73,6 +73,7 @@ The installed model/compiler are not repository source members. Keep parameters 
 and supplied executables/Forge references in `.config/ci/runners.toml`. Each provider workflow
 has SourceContracts binding its declaration, output group and integrity gate; common jobs invoke
 `mise exec --locked -- ethos`. The repository binds public `http:ethos` supply and platform locks.
+That declaration puts only the `ethos` console on `PATH`.
 
 GitLab `runners.<name>.preparation` precedes locked installation; `supply.checks.github`
 and `supply.checks.gitlab` follow it. `evidence_paths` under `build/evidence/` retain additional
@@ -150,25 +151,22 @@ successful activation or delete historical receipts to free their old runtimes.
 
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
-The selected runtime must match the invoking product and its exact wheel/lock.
-Without `--runtime`, a validated immutable package runtime outside another repository's private Git
-store is pinned once into the host store and reused, whether it binds a new repository, upgrades a
-selection or replaces a removed package. A repository never selects a package manager's installation
-in place, which that manager may leave writable. Source checkouts and foreign private runtimes do
-not gain this shortcut.
-Multiple repositories can reference those same bytes while retaining independent
-selectors, hooks and mutable state. The command copies external runtime bytes only into the host
-store and does not grant permission to delete the installation. Ordinary repair reuses a
-build-matching complete selection. A complete predecessor remains valid even
-when accepted source or its lock advances: installation validates its bytes,
-then pins a compatible invoking package or builds a new source-bound generation
-before changing the selector. An explicit `--runtime` must match the requested
-build. Missing or damaged external supply never triggers an implicit rebuild;
-restore the installation or explicitly rebind. A damaged selector also requires
-explicit selection. Valid supplied bytes may repair it without guessing a
-predecessor location; the result reports unavailable rollback selection, and a
-failed cutover restores the exact damaged selector bytes through compare-and-swap.
-Package-manager upgrade/uninstall qualification is separate.
+The selected runtime must match the invoking product and its exact wheel/lock. Without `--runtime`,
+a validated immutable package runtime outside another repository's private Git store is pinned once
+into the host store and reused, whether it binds a new repository, upgrades a selection or replaces
+a removed package. A repository never selects a package manager's installation in place, which that
+manager may leave writable. Source checkouts and foreign private runtimes do not gain this shortcut.
+Multiple repositories can reference those same bytes while retaining independent selectors, hooks
+and mutable state. The command copies external runtime bytes only into the host store and does not
+grant permission to delete the installation. Ordinary repair reuses a build-matching complete
+selection. A complete predecessor remains valid even when accepted source or its lock advances:
+installation validates its bytes, then pins a compatible invoking package or builds a new
+source-bound generation before changing the selector. An explicit `--runtime` must match the
+requested build. Missing or damaged external supply never triggers an implicit rebuild; restore the
+installation or explicitly rebind. A damaged selector also requires explicit selection. Valid
+supplied bytes may repair it without guessing a predecessor location; the result reports unavailable
+rollback selection, and a failed cutover restores the exact damaged selector bytes through
+compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
 
 `ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
 records; only `--expect-plan <digest> --apply --authorize` retires that plan.

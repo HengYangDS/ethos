@@ -9,4 +9,4 @@
 ## Workflow follow-up
 
 - Moved verbatim from `repository-paradigm` on 2026-10-18. Task 2.16 waits on data-department-work-guidelines; task 2.19 waits on di-effect's own later migration.
-- On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.
+- On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.

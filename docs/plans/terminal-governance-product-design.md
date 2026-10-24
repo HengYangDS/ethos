@@ -101,7 +101,10 @@ cites it. Completed incidents remain regression boundaries, not a queue to repla
   startup and fixture preparation at their owner. Share immutable preparation,
   not mutable case state. Cache pure computations under complete inputs; reread
   membership and corruption-sensitive bytes, and recheck every effect's refs,
-  Lease, trust and authorization.
+  Lease, trust and authorization. Within one command, reuse the first successful
+  read of a Git object named by its full ID and observe the running build once;
+  refs, abbreviated names, the index, the worktree, configuration-dependent output
+  and failed reads stay fresh, and no reuse outlives the command.
 - Measure cold, warm and cache-cleared equivalence, time to first actionable
   failure, change-to-accepted-runtime duration, calls/bytes, critical-path time,
   recovery effort and resource bounds. Do not add overlapping intervals. Include

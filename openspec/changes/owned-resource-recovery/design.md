@@ -23,6 +23,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
   `3291b23d73bf` preserves the original refinement.
 - **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
+- **Close on the delivered scope.** On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
 
 ## Risks / Trade-offs
 

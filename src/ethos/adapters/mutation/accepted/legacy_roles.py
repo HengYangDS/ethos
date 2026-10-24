@@ -18,11 +18,9 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.role_rename import ROLE_RENAME_OPERATION
 from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.admission.role_rename import legacy_role_renames
-from ethos.adapters.mutation.accepted.legacy_role_observation import LeaseSnapshot
 from ethos.adapters.mutation.accepted.legacy_role_observation import RenameSnapshot
-from ethos.adapters.mutation.accepted.legacy_role_observation import WorktreeSnapshot
+from ethos.adapters.mutation.accepted.legacy_role_observation import observe_snapshot
 from ethos.adapters.mutation.accepted.legacy_role_observation import prepared_snapshot
-from ethos.adapters.mutation.accepted.legacy_role_observation import preserved_content
 from ethos.adapters.mutation.accepted.legacy_role_observation import worktree_fields
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -30,13 +28,11 @@ from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effect_attestation import records as ref_effect_records
-from ethos.adapters.repo.git_effect_attestation import validate as validate_ref_effect
+from ethos.adapters.repo.git_effect_attestation import validated_plan_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.store.state.lease.lifecycle.transitions import rename_exact_leases
-from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.plan import GitEffect
@@ -67,12 +63,7 @@ def rename_legacy_roles(
     The accepted root runs the rename under whichever name the committed table gives it, so a
     table that names only its release branch under a legacy name renames it from `dev`.
     """
-    bound = run_git(root, "symbolic-ref", "--quiet", "HEAD", check=False).stdout.strip()
-    pending = (
-        _pending_rename(root, expect_head, expect_state)
-        if expect_state or (bound and not ref_head(root, bound))
-        else None
-    )
+    pending = _pending_rename(root, expect_head, expect_state)
     if pending:
         prepared, completed = pending
         return _finish_rename(
@@ -94,17 +85,10 @@ def rename_legacy_roles(
         return None
     targets = {legacy: target for legacy, (target, _head) in renames.items()}
     gaps = _rename_gaps(root, current_head, renames, authorized=authorized, expect_head=expect_head)
-    report: dict[str, object] = {
-        "verdict": "block",
-        "state": "blocked",
-        "head": current_head,
-        "renames": targets,
-        "required_gaps": gaps,
-        "next_action": _closeout_command(root, current_head),
-    }
+    report = _rename_report(root, current_head, targets)
     if gaps:
-        return report
-    snapshot = _rename_snapshot(root, targets)
+        return {**report, "required_gaps": gaps}
+    snapshot = observe_snapshot(root, targets)
     state = canonical_json_digest({"head": current_head, "renames": renames, "snapshot": snapshot})
     report.update(state_digest=state, next_action=_closeout_command(root, current_head, state))
     topics = any(
@@ -230,15 +214,7 @@ def _finish_rename(
     plan, snapshot, targets = prepared_snapshot(prepared)
     effect = git_effect_from_plan(plan)
     state = str(body["state_digest"])
-    report = {
-        "head": body["head"],
-        "renames": targets,
-        "state_digest": state,
-        "verdict": "block",
-        "state": "blocked",
-        "required_gaps": [],
-        "next_action": _closeout_command(root, str(body["head"]), state),
-    }
+    report = _rename_report(root, str(body["head"]), targets, state)
     gaps = ["authorization_required"] if not authorized else []
     if expect_head != body["head"] or prepared.verifier != _actor():
         gaps.append("legacy_role_rename_authority_stale")
@@ -252,32 +228,29 @@ def _finish_rename(
         return {**report, "required_gaps": gaps}
     try:
         completed_refs = _require_ref_state(root, effect, completed=completed)
-        _require_snapshot(root, snapshot, targets, completed=completed)
+        observe_snapshot(root, targets, original=snapshot, completed=completed)
         if completed_refs:
             _require_ref_result(root, plan, effect)
     except ValueError as error:
         return {**report, "required_gaps": [str(error)]}
-    if completed:
-        return {
-            **report,
-            "verdict": "pass",
-            "state": "branch_roles_renamed",
-            "next_action": "ethos status --json",
-        }
-    if not apply:
-        return {**report, "verdict": "pass", "state": "ready_to_resume_rename"}
-    leases = {
-        source: (str(record["target"]), record["lease"])
-        for source, record in snapshot["leases"].items()
-    }
+    if completed or not apply:
+        report.update(
+            verdict="pass", state="branch_roles_renamed" if completed else "ready_to_resume_rename"
+        )
+        if completed:
+            report["next_action"] = "ethos status --json"
+        return report
     attestation = rename_exact_leases(
         state_database(root),
-        renames=leases,
+        renames={
+            source: (record["target"], record["lease"])
+            for source, record in snapshot["leases"].items()
+        },
         transition=lambda: _materialize_rename(root, plan, snapshot, targets),
     )
     if attestation is None:
         return {**report, "verdict": "pass", "state": "branch_roles_materialization_pending"}
-    _require_snapshot(root, snapshot, targets)
+    observe_snapshot(root, targets, original=snapshot)
     terminal = _record(
         "effect:branch-roles-rename",
         {
@@ -289,14 +262,13 @@ def _finish_rename(
         state,
     )
     record_attestations(root, (terminal,))
-    return {
-        **report,
-        "verdict": "pass",
-        "state": "branch_roles_renamed",
-        "required_gaps": [],
-        "attestation": attestation.model_dump(mode="json"),
-        "next_action": "ethos status --json",
-    }
+    report.update(
+        verdict="pass",
+        state="branch_roles_renamed",
+        attestation=attestation.model_dump(mode="json"),
+        next_action="ethos status --json",
+    )
+    return report
 
 
 def _materialize_rename(
@@ -305,16 +277,16 @@ def _materialize_rename(
     """Recheck and bind the carried ref effect while the Lease writer transaction is held."""
     effect = git_effect_from_plan(plan)
     completed = _require_ref_state(root, effect)
-    _require_snapshot(root, snapshot, targets)
+    observe_snapshot(root, targets, original=snapshot)
     if completed:
         _require_ref_result(root, plan, effect)
         bind_renamed_worktrees(root, targets)
     result = execute_git_effect(root, plan, issuer=_actor())
     if not _require_ref_state(root, effect):
         raise ValueError(_STATE_STALE)
-    _require_snapshot(root, snapshot, targets)
+    observe_snapshot(root, targets, original=snapshot)
     bind_renamed_worktrees(root, targets)
-    _require_snapshot(root, snapshot, targets)
+    observe_snapshot(root, targets, original=snapshot)
     return (
         result
         if all(
@@ -326,16 +298,14 @@ def _materialize_rename(
     )
 
 
-def _require_ref_result(root: Path, plan: TransitionPlan, effect: GitEffect) -> None:
-    """Require the original completed ref evidence before restoring a missing binding."""
-    records = ref_effect_records(root, plan)
-    if not records:
+def _require_ref_result(root: Path, plan: TransitionPlan, _effect: GitEffect) -> None:
+    """Select original exact ref evidence through its native historical verifier."""
+    if (
+        not (selected := validated_plan_attestation(root, plan.digest, issuer=_actor()))
+        or selected[0] != plan
+    ):
         message = "legacy_role_rename_outcome_unproven"
         raise ValueError(message)
-    for recorded in records:
-        validate_ref_effect(
-            root, effect, recorded, issuer=_actor(), plan=plan, current_postconditions=False
-        )
 
 
 def _require_ref_state(root: Path, effect: GitEffect, *, completed: bool = False) -> bool:
@@ -349,90 +319,6 @@ def _require_ref_state(root: Path, effect: GitEffect, *, completed: bool = False
     if observed not in (before, after) or (completed and observed != after):
         raise ValueError(_STATE_STALE)
     return observed == after
-
-
-def _rename_snapshot(root: Path, targets: Mapping[str, str]) -> RenameSnapshot:
-    """Observe only selected worktree bindings and exact coordination, without writes."""
-    worktrees: dict[str, WorktreeSnapshot] = {}
-    leases: dict[str, LeaseSnapshot] = {}
-    for record in worktree_fields(root):
-        bound = record.get("branch", "")
-        if bound in targets:
-            path = Path(record["worktree"])
-            if path.is_symlink() or "locked" in record or "prunable" in record:
-                raise ValueError(_WORKTREE_UNSAFE)
-            worktrees[path.resolve().as_posix()] = {
-                "source": bound,
-                "target": targets[bound],
-                "head": ref_head(root, bound),
-                "content": preserved_content(path),
-            }
-    for source, target in targets.items():
-        source_lane, target_lane = (
-            source.removeprefix("refs/heads/"),
-            target.removeprefix("refs/heads/"),
-        )
-        old = observe_lease(state_database(root), source_lane)
-        new = observe_lease(state_database(root), target_lane)
-        if new.state != "missing" or old.state == "unknown":
-            message = f"legacy_role_rename_lease_conflict:{source_lane}"
-            raise ValueError(message)
-        if target_lane.startswith("work/") and old.state != "valid":
-            message = f"work_lane_lease_{old.state}:{source_lane}"
-            raise ValueError(message)
-        leases[source_lane] = {"target": target_lane, "lease": old.record()}
-    return {"worktrees": worktrees, "leases": leases}
-
-
-def _require_snapshot(
-    root: Path, snapshot: RenameSnapshot, targets: Mapping[str, str], *, completed: bool = False
-) -> None:
-    """Accept only the original bytes and an old or exact new binding/Lease, never drift."""
-    records = worktree_fields(root)
-    selected = {
-        record["worktree"]: record
-        for record in records
-        if record.get("branch") in {*targets, *targets.values()}
-    }
-    worktrees = snapshot["worktrees"]
-    if set(selected) != set(worktrees):
-        raise ValueError(_STATE_STALE)
-    for path, before in worktrees.items():
-        record = selected[path]
-        if (
-            record.get("branch") not in {before["source"], before["target"]}
-            or (completed and record.get("branch") != before["target"])
-            or ref_head(root, record["branch"]) not in {"", before["head"]}
-            or Path(path).is_symlink()
-            or "locked" in record
-            or "prunable" in record
-            or preserved_content(Path(path)) != before["content"]
-        ):
-            raise ValueError(_STATE_STALE)
-    for source, before in snapshot["leases"].items():
-        old = observe_lease(state_database(root), source)
-        new = observe_lease(state_database(root), before["target"])
-        expected = before["lease"]
-        if "lane_ref" not in expected:
-            if old.record() != expected or new.state != "missing":
-                raise ValueError(_STATE_STALE)
-            continue
-        post = {
-            "lane_ref": before["target"],
-            "holder_ref": expected["holder_ref"],
-            "generation": int(expected["generation"]) + 1,
-            "expires_at": expected["expires_at"],
-        }
-        if not (
-            (not completed and old.record() == expected and new.state == "missing")
-            or (
-                old.state == "missing"
-                and new.state == "valid"
-                and new.lease is not None
-                and new.lease.to_payload() == post
-            )
-        ):
-            raise ValueError(_STATE_STALE)
 
 
 def bind_renamed_worktrees(root: Path, renames: Mapping[str, str]) -> None:
@@ -467,6 +353,21 @@ def _rename_gaps(
             else []
         ),
     ]
+
+
+def _rename_report(
+    root: Path, head: str, targets: Mapping[str, str], state: str = ""
+) -> dict[str, object]:
+    """Project one unchanged envelope for initial admission and exact recovery."""
+    return {
+        "verdict": "block",
+        "state": "blocked",
+        "head": head,
+        "renames": targets,
+        "required_gaps": [],
+        "next_action": _closeout_command(root, head, state),
+        **({"state_digest": state} if state else {}),
+    }
 
 
 def _closeout_command(root: Path, head: str, state: str = "") -> str:

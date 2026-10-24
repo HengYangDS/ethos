@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
+    from ethos.adapters.store.state.lease.projection import LeaseObservation
+
 
 def acquire_lease(db_path: Path, *, lease: LaneLease) -> dict[str, object]:
     """Persist one minimal lane-to-holder relation."""
@@ -51,28 +53,8 @@ def rename_exact_leases[T](
         for source, (target, expected) in renames.items():
             old = observe_lease_from_connection(connection, source)
             new = observe_lease_from_connection(connection, target)
-            if "lane_ref" not in expected:
-                if old.record() != expected or new.state != "missing":
-                    message = f"lease_generation_stale:{source}"
-                    raise ValueError(message)
-                continue
-            replacement = {
-                "lane_ref": target,
-                "holder_ref": expected["holder_ref"],
-                "generation": int(expected["generation"]) + 1,
-                "expires_at": expected["expires_at"],
-            }
-            if (
-                old.state == "missing"
-                and new.state == "valid"
-                and new.lease is not None
-                and new.lease.to_payload() == replacement
-            ):
-                continue
-            if old.record() != expected or new.state != "missing" or old.lease is None:
-                message = f"lease_generation_stale:{source}"
-                raise ValueError(message)
-            pending[source] = (expected, LaneLease.from_payload(replacement))
+            if replacement := renamed_lease_state(old, new, expected=expected):
+                pending[source] = (expected, replacement)
         result = transition()
         if result is None:
             return None
@@ -88,6 +70,42 @@ def rename_exact_leases[T](
                 raise ValueError(message)
         connection.commit()
         return result
+
+
+def renamed_lease_state(
+    old: LeaseObservation,
+    new: LeaseObservation,
+    *,
+    expected: dict[str, Any],
+    completed: bool = False,
+) -> LaneLease | None:
+    """Judge the exact rename once for read-only admission and the locked writer."""
+    if not completed and old.record() == expected and new.state == "missing":
+        if old.lease is None:
+            return None
+        return LaneLease.from_payload(
+            {
+                **old.lease.to_payload(),
+                "lane_ref": new.subject,
+                "generation": old.lease.generation + 1,
+            }
+        )
+    if "lane_ref" not in expected and old.record() == expected and new.state == "missing":
+        return None
+    if (
+        old.state == "missing"
+        and new.state == "valid"
+        and new.record()
+        == {
+            **expected,
+            "subject": new.subject,
+            "lane_ref": new.subject,
+            "generation": int(expected["generation"]) + 1,
+        }
+    ):
+        return None
+    message = f"lease_generation_stale:{old.subject}"
+    raise ValueError(message)
 
 
 def acquire_lease_from_connection(

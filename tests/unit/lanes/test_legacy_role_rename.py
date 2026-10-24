@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -353,7 +354,7 @@ def test_completed_topic_migration_replay_requires_complete_poststate(
     elif changed == "binding":
         git(topic, "symbolic-ref", "HEAD", "refs/heads/task/retained")
     else:
-        with sqlite3.connect(state_database(repo)) as connection:
+        with closing(sqlite3.connect(state_database(repo))) as connection, connection:
             connection.execute(
                 "update leases set lane_ref = 'task/retained', generation = 7 "
                 "where lane_ref = 'work/retained'"
@@ -387,7 +388,7 @@ def test_retained_topic_preview_refuses_changed_preimage(tmp_path: Path, changed
         git(repo, "branch", "proposal/retained", head)
         git(repo, "branch", "work/retained", head)
     else:
-        with sqlite3.connect(state_database(repo)) as connection:
+        with closing(sqlite3.connect(state_database(repo))) as connection, connection:
             connection.execute(
                 "update leases set holder_ref = 'agent:test:case:other' "
                 "where lane_ref = 'task/retained'"

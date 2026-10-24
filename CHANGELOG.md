@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- `ethos hook install` run by a newer package no longer selects that package manager's
+  installation in place when it upgrades a repository or replaces a removed one. Like a first bind,
+  it pins the runtime into the sealed host store. A Mise installation stays writable so that
+  `mise uninstall` can remove it, and after an upgrade one Python run from it could damage the
+  selected runtime, which status then reported as `runtime_payload_mismatch`.
+
 ## [0.2.0-alpha.11] - 2026-10-24
 
 ### Fixed

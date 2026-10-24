@@ -151,15 +151,17 @@ successful activation or delete historical receipts to free their old runtimes.
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
 The selected runtime must match the invoking product and its exact wheel/lock.
-Without `--runtime`, a validated immutable package runtime outside another
-repository's private Git store is pinned once for a new repository and reused;
-source checkouts and foreign private runtimes do not gain this shortcut.
+Without `--runtime`, a validated immutable package runtime outside another repository's private Git
+store is pinned once into the host store and reused, whether it binds a new repository, upgrades a
+selection or replaces a removed package. A repository never selects a package manager's installation
+in place, which that manager may leave writable. Source checkouts and foreign private runtimes do
+not gain this shortcut.
 Multiple repositories can reference those same bytes while retaining independent
-selectors, hooks and mutable state. The command does not copy external runtime
-bytes or grant permission to delete the installation. Ordinary repair reuses a
+selectors, hooks and mutable state. The command copies external runtime bytes only into the host
+store and does not grant permission to delete the installation. Ordinary repair reuses a
 build-matching complete selection. A complete predecessor remains valid even
 when accepted source or its lock advances: installation validates its bytes,
-then uses a compatible invoking package or builds a new source-bound generation
+then pins a compatible invoking package or builds a new source-bound generation
 before changing the selector. An explicit `--runtime` must match the requested
 build. Missing or damaged external supply never triggers an implicit rebuild;
 restore the installation or explicitly rebind. A damaged selector also requires

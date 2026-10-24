@@ -174,6 +174,9 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     base_run = gate_execution.run_gate_graph
 
     class Runner:
+        def __init__(self, *, candidate: bool = False):
+            assert candidate is False
+
         def run(self, node, _gate, **_context):
             observed.append(node.id)
             verdict = "block" if case == "coverage" and node.id == "coverage-floor" else "pass"

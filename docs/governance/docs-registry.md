@@ -320,9 +320,10 @@ retain the common metadata floor without DR-specific fields or sections.
 
 ## Markdown list structure
 
-List spacing expresses block structure, not editing chronology. A list whose
-items each contain one paragraph is compact; wrapping that paragraph across
-source lines does not make it multiple paragraphs. Preserve necessary blank
+List spacing expresses block structure, not editing chronology. The shared
+Prettier formatter's output defines spacing for its declared inputs, so a loose
+list that it keeps stays loose; wrapping a paragraph across source lines does not
+make it multiple paragraphs. Preserve necessary blank
 lines between paragraphs and other blocks inside compound items. Keep sibling
 spacing consistent within a list, and evaluate nested lists independently.
 Literal examples in code blocks are content, not formatting targets.

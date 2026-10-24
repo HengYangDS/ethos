@@ -19,12 +19,21 @@ implement governance logic, mutate repository truth, or define separate public
 commands.
 
 The terminal boundary separates installed product identity, exact repository
-selection and the repository's own build toolchain. Homebrew is a required
-delivery channel; a native formula does not imply a frozen binary. CLI, MCP, SDK
-and version-matched Skills share application meaning. An adopter needs neither
-ETHOS source nor its development environment. Implementation and acceptance are
-tracked in the existing installed-product Change; these are not claims that
-Homebrew, portable Skills or installed MCP have shipped.
+selection and the repository's own build toolchain. CLI, MCP, SDK and
+version-matched Skills share application meaning, and an adopter needs neither
+ETHOS source nor its development environment. For 0.2.0, ETHOS ships
+per-platform archives on the GitHub release through Mise's HTTP backend; only
+`ethos/bin` enters `PATH`, and installation pins a sealed host-store copy instead
+of running from the carrier.
+
+Portable supply is a copied, sealed native CPython image plus the exact locked
+wheel. A native Homebrew Python and a frozen bundle remain unselected builder
+alternatives, because hook installation needs a real interpreter and a frozen
+entry is not one. A generation whose identity matches but lacks its console entry
+is rebuilt as a new immutable generation, never patched. The generated Homebrew
+Cask, a Cask because Formula bottle relocation rewrites the dylib identities that
+sealed payload validation checks, stays unpublished until a release declares that
+channel. Portable Skills and real-client MCP conformance are not yet qualified.
 
 The present distribution boundary is:
 

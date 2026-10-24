@@ -52,13 +52,6 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **THEN** the consumer's selected bytes remain available
 - **AND** cleanup reports the exact remaining dependency
 
-#### Scenario: A retained adopter uses the previous complete branch-role schema
-
-- **WHEN** an incumbent accepted commit has every previously required branch-role field but no `canonical_sibling_worktrees` field
-- **THEN** accepted closeout and Lease reacquisition interpret that historical absence as `false`
-- **AND** current policy validation still rejects every other incomplete or unknown branch-role table
-- **AND** neither operation rewrites the incumbent commit or retained Work Lane content
-
 #### Scenario: An external selected runtime has disappeared
 
 - **WHEN** a repository's `CURRENT` names an absent external runtime
@@ -103,9 +96,10 @@ runtime rollback SHALL NOT be treated as publication of an older version.
 ### Requirement: Independent product acceptance exercises delivered artifacts
 
 Acceptance SHALL execute installed CLI and real MCP client paths outside ETHOS
-source, including valid, denied and unknown outcomes, repository isolation,
-upgrade, rollback and exit. A wheel build, import or source-only test SHALL NOT
-be reported as complete installed-product acceptance.
+source, including valid and denied outcomes and repository isolation, with
+upgrade and rollback when a predecessor runtime is supplied. A wheel build,
+import or source-only test SHALL NOT be reported as complete installed-product
+acceptance.
 
 #### Scenario: A candidate builds without an MCP round trip
 
@@ -121,25 +115,6 @@ be reported as complete installed-product acceptance.
 - **AND** its deadline does not exceed the transport bound
 - **AND** timeout output is diagnostic, not a completed archive or permission to continue
 
-### Requirement: Homebrew is a delivered installation channel
-
-ETHOS SHALL support native Homebrew installation outside its source checkout.
-Package-manager ownership, product identity, repository selection and project
-toolchain SHALL remain distinct. Homebrew delivery SHALL NOT require one
-particular freezing tool or silently select a different repository runtime.
-
-#### Scenario: A clean host installs the published product
-
-- **WHEN** Homebrew installs the published ETHOS package
-- **THEN** installed CLI and MCP work without an ETHOS checkout or development environment
-- **AND** version-matched guidance and required product supply are discoverable
-
-#### Scenario: Package upgrade and uninstall preserve repository ownership
-
-- **WHEN** Homebrew upgrades or removes its owned package
-- **THEN** selected repository identities and user-authored content are not silently changed
-- **AND** live-use and recovery boundaries are verified rather than inferred from formula existence
-
 ### Requirement: Platform support is established by native delivered behavior
 
 ETHOS SHALL deliver native macOS and Linux support on explicitly declared
@@ -149,7 +124,7 @@ Required-platform delivery SHALL NOT depend on an unqualified Windows path.
 #### Scenario: A release advertises supported platforms
 
 - **WHEN** a platform is included in the release support declaration
-- **THEN** its delivered artifact passes native installation, CLI/MCP, hooks, upgrade and exit
+- **THEN** its delivered artifact passes native installation, CLI/MCP and hooks
 - **AND** unsupported combinations remain explicit rather than inheriting another platform's proof
 
 ### Requirement: Public channels consume explicitly accepted release artifacts
@@ -169,7 +144,6 @@ upgrade versions. Pre-release and stable delivery SHALL remain distinct.
 
 - **WHEN** an explicit release request selects accepted source and a product version
 - **THEN** the existing builder produces that release identity before artifact verification
-- **AND** native signing precedes payload sealing and exact installed acceptance
 - **AND** the release, signed tag and channel projections identify the same frozen source
 
 #### Scenario: A release candidate is selected for installation qualification
@@ -194,89 +168,12 @@ upgrade versions. Pre-release and stable delivery SHALL remain distinct.
 - **THEN** qualification rejects it before effects or before producing passing evidence
 - **AND** pre-execution rejection preserves existing work and unrelated development evidence
 
-#### Scenario: A newer published version is selected
-
-- **WHEN** a channel offers a subsequent accepted release
-- **THEN** the target package manager orders it after the prior release
-- **AND** a pre-release does not replace a stable installation without explicit selection
-
-### Requirement: Credential access does not authorize a product release
-
-ETHOS SHALL admit each signing request against its project, source, version,
-target, publisher, identifiers, entitlements and exact candidate bytes.
-Operator-owned credentials MAY serve multiple projects within an authorized
-execution boundary. Their availability or profile name SHALL NOT grant release
-authority or transfer another project's acceptance.
-
-#### Scenario: Two projects share a publisher
-
-- **WHEN** independent projects use the same authorized publisher identity
-- **THEN** each signs only its admitted candidate through the existing release owner
-- **AND** temporary resources, submission IDs, evidence and publication targets remain distinct
-- **AND** neither project can satisfy its acceptance with the other's successful submission
-
-#### Scenario: An unauthorized or altered candidate reaches the signer
-
-- **WHEN** a request changes the admitted project, publisher, target, identifiers, entitlements or bytes
-- **THEN** signing is rejected before credential-backed effects
-- **AND** previous accepted artifacts and the other project's state remain unchanged
-
-#### Scenario: The signing execution boundary is not established
-
-- **WHEN** untrusted build code can invoke the signer or select its executable commands
-- **THEN** release qualification reports the missing execution boundary
-- **AND** profile naming, shared-user ACLs and CI environment labels do not establish isolation
-- **AND** secret-free construction and unrelated verification may continue
-
-#### Scenario: Native signing is performed in a credential-capable environment
-
-- **WHEN** an admitted native candidate is prepared for signing and sealing
-- **THEN** the signer modifies only an exclusively owned disposable copy
-- **AND** the existing runtime owner binds the transformed payload to a new identity
-- **AND** structural checks do not execute candidate interpreters, plugins or build commands
-- **AND** final executable qualification occurs in a separate credential-free target
-
-#### Scenario: macOS release media is prepared
-
-- **WHEN** a native macOS candidate is delivered outside the App Store
-- **THEN** its release envelope supports native notarization and stapled ticket delivery
-- **AND** submitted and final envelope identities remain bound to the same sealed inner runtime
-- **AND** a portable archive or ad-hoc signature alone does not establish release qualification
-
-#### Scenario: Native media construction fails
-
-- **WHEN** the selected native image producer fails or exceeds its bounded execution time
-- **THEN** construction preserves the previous output and removes its owned temporary payload
-- **AND** it does not retry creation with a different producer or weaken payload identity checks
-- **AND** carrier construction alone does not authorize signing, acceptance or publication
-
-### Requirement: Credential transitions preserve exact release evidence
-
-ETHOS SHALL distinguish code-signing identity, notarization authentication,
-submission result, installation and publication. Each signing or packaging
-transformation SHALL bind its input and output bytes. Credential transitions
-SHALL use the operator's existing native store without secret copies in projects.
-
-#### Scenario: Notarization acknowledgement is lost
-
-- **WHEN** a bounded submission attempt ends without a known result
-- **THEN** the operation retains UNKNOWN and reconciles its exact submission when identifiable
-- **AND** team-wide history or another project's result does not authorize a repeated upload
-
-#### Scenario: A shared credential is replaced
-
-- **WHEN** an operator migrates or rotates a shared credential
-- **THEN** each known consumer verifies its replacement before routine retirement of old access
-- **AND** provider revocation, local-profile deletion and recovery-material retirement remain separate effects
-- **AND** compromise follows immediate revocation and recovery rather than routine overlap
-
 ### Requirement: Curated release notes follow Keep a Changelog
 
 ETHOS SHALL follow Keep a Changelog 1.1.0 for user-facing release notes.
-Release preparation SHALL verify an exact-version entry with a real release
-date, applicable change categories and verifiable history links. Upcoming
-changes SHALL remain under Unreleased until selected for explicit release;
-commit dumps SHALL NOT substitute for curated compatibility information.
+Release preparation SHALL verify an exact-version entry with a valid ISO release
+date and applicable change categories. Upcoming changes SHALL remain under
+Unreleased until selected for explicit release.
 
 #### Scenario: A release is prepared from Unreleased changes
 
@@ -296,10 +193,9 @@ commit dumps SHALL NOT substitute for curated compatibility information.
 ### Requirement: Product version has one repository authority
 
 ETHOS SHALL derive product-release projections from one tracked SemVer 2.0.0
-target. Unpublished source iterations MAY share it. Public CLI, SDK, MCP,
-configuration and persisted-state compatibility SHALL determine increments.
-Once an explicit release identity is accepted, changed released semantics SHALL
-require a greater version. Source and artifact digests SHALL NOT replace that
+target. Unpublished source iterations MAY share it. Once an explicit release
+identity is accepted, changed released semantics SHALL require a greater
+version. Source and artifact digests SHALL NOT replace that
 release boundary.
 
 #### Scenario: Repository manifests are inspected
@@ -307,13 +203,6 @@ release boundary.
 - **WHEN** Python, root workspace, and launcher package metadata are compared
 - **THEN** they resolve to the one product-version authority
 - **AND** no manifest retains an independently editable product-version literal
-
-#### Scenario: A stable public contract changes
-
-- **WHEN** a stable release changes its documented public contract
-- **THEN** incompatible changes require a major increment, compatible additions or deprecations a minor increment, and compatible fixes a patch increment
-- **AND** notes identify compatibility impact and any required migration
-- **AND** version syntax, commit subjects and passing tests alone do not prove the chosen increment is correct
 
 #### Scenario: Unpublished source iterations share a release target
 

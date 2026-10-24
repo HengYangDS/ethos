@@ -41,7 +41,7 @@ Results distinguish declared, selected and unselected peers without silently ski
 unavailable peers or claiming delivery to unselected peers.
 
 `status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is transport.
-MCP projects status, planning, adoption and integration, not every operation.
+MCP projects status, planning, adoption, integration and publication; proof stays a CLI root.
 Root and actor bind at startup and cannot be replaced by tool inputs.
 Diagnostics use stderr; stdout carries the protocol. Cancellation or expiry is not rollback:
 reobserve before retrying. Synchronous work drains before queued work; filesystem time is not bounded.
@@ -78,9 +78,9 @@ acquisition/checksums, cold payload, peer-outage and hosted qualification retain
 
 ## Shared SDK Operations
 
-`inspect_repository`, `plan_repository`, `adopt_repository` and `land_repository` in
-`ethos.domain.inspection`, `ethos.domain.plan`, `ethos.domain.adoption` and
-`ethos.domain.land.operation`
+`inspect_repository`, `plan_repository`, `adopt_repository`, `land_repository` and
+`publish_repository` in `ethos.domain.inspection`, `ethos.domain.plan`, `ethos.domain.adoption`,
+`ethos.domain.land.operation` and `ethos.domain.publication.operation`
 return typed `EthosResult` values without CLI rendering or changing the caller's
 working directory. Pass an explicit repository path:
 
@@ -99,7 +99,7 @@ structured results across transports. Operation-specific refusals remain distinc
 an invalid profile blocks observation, while adoption preserves conflicting
 authored content rather than overwriting it. Integration keeps candidate, accepted
 and release transitions distinct, including preview, exact coordinates and fresh
-effect admission. Proof and publication do not yet have equivalent SDK and MCP surfaces.
+effect admission. Publication shares one operation across CLI, SDK and MCP; proof is CLI-only.
 
 ## Retained Candidate Materialization
 

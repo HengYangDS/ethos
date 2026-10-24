@@ -30,8 +30,11 @@ structured failures and resumable operation identities. Client-supplied actor
 labels or an earlier successful check never grant mutation authority. Each effect
 rechecks current authorization and exact repository facts at the existing owner.
 
-Implementation status remains incomplete: no MCP server or real-client conformance
-has been delivered at this checkpoint. Acceptance requires initialization and
-capability discovery, read-only and admitted mutation journeys, denied and unknown
-outcomes, cancellation/recovery, repository isolation, upgrade and uninstall. The
-kernel being callable without MCP does not make the full product complete.
+The installed stdio server uses locked standalone FastMCP over the official SDK
+with strict input validation and framework tasks disabled. It registers the
+existing typed status, plan, adopt, land and publish operations without its own
+parser or task store. Real-client conformance remains unqualified: it requires
+initialization and capability discovery, read-only and admitted mutation
+journeys, denied and unknown outcomes, cancellation and recovery, repository
+isolation, upgrade and uninstall. The kernel being callable without MCP does not
+make the full product complete.

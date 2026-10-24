@@ -230,3 +230,17 @@ peer, and ETHOS never claims cross-peer atomicity. With zero peers it reports
 local-only readiness and performs no remote observation. Local proof, candidate
 landing, accepted closeout, exact object publication, and hosted CI remain
 separate evidence states.
+
+Each platform builds its release wheel and runtime archive from a clean disposable
+export of the exact signed-tag source, and publication carries only the artifacts
+whose release smoke qualified those exact bytes; neither construction nor smoke is
+release acceptance. Selecting a released runtime validates its package, manifest
+and platform without creating a release claim in the adopter, and rolling back a
+selection neither publishes nor retracts a release.
+
+Publisher identity, operator credentials, release admission and artifact evidence
+are separate authorities. Credentials stay in the operator's native store and a
+project holds only references; a credential's availability never admits a
+release. A signing adapter, once added, runs only fixed native operations on a
+disposable copy of secret-free candidate bytes and binds its output to a new
+sealed identity. 0.2.0 release archives are neither signed nor notarized.

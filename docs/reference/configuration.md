@@ -79,6 +79,10 @@ configuration plane, not a truth center.
   projects the shared product gate and its shipped, lock-bound native tools.
   Both checks consume the same current authored files. Immutable records are
   retained without rewrite; generated and local outputs are not source inputs.
+  The shared gate passes exact named documents and the explicit policy to the
+  unchanged official Markdownlint API with globs, imports, inline configuration
+  and fixing disabled, so local configuration cannot drop inputs, suppress rules
+  or write source.
 - `.config/checks/codespell/codespell.toml` supplies the mandatory native spelling
   policy in both wheel and source distributions. The shared `prose` Gate and
   source Nox projection use one installed owner over exact authored copies,

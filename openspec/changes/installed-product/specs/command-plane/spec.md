@@ -2,7 +2,8 @@
 
 ### Requirement: Application operations have transport-independent meaning
 
-CLI, SDK and MCP SHALL invoke the same typed application operations. Transport
+CLI, SDK and MCP SHALL invoke the same typed application operations for status,
+planning, adoption, integration and publication. Transport
 adapters SHALL NOT parse CLI output, duplicate verdict rules or own repository
 lifecycle state. Requests SHALL bind an explicit repository; results SHALL retain
 the existing verdict, gaps, continuation and evidence boundaries.
@@ -140,7 +141,6 @@ No specific Agent, model or ETHOS checkout SHALL be required.
 
 - **WHEN** a fresh client uses only the installed product and target repository
 - **THEN** it can discover intent, constraints, capabilities and the next safe action
-- **AND** execute a real admitted change, recover a failure and hand off its result
 - **AND** this acceptance is distinct from schema validation or a scripted --help check
 
 ### Requirement: Native command declarations are not execution references

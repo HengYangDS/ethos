@@ -79,3 +79,7 @@ and the Homebrew channel are not declared for 0.2.0.
 
 Revisit when an undeclared journey's environment becomes available, such as GitLab-hosted CI, or
 when a stage's observation period proves too short or too long for the defects adopters report.
+
+The same day, [DR-0016](dr-0016-change-closure-scope.md) withdrew the tasks that waited on such
+environments, or on in-repo work that 0.2.0 does not need, from their Changes; a task that stays in
+a Change keeps its done condition.

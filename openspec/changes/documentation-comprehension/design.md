@@ -21,6 +21,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 - **Keep accepted history unchanged.** Restore the archived governance artifact exactly from the incoming accepted source. The three local, unaccepted scenarios belong in this active Change, not the historical archive.
 - **Use complete MODIFIED blocks.** Preserve every accepted scenario in `Native Documentation Topology` and `Minimal Decision Rationale Preservation`; the delta adds only the declared reader-route and decision-carrier increments.
 - **Reuse the shared documentation owner.** The Docs Registry validates selected-source membership, readable confined inputs, reader routes and decision carriers. Native consumers exercise the same implementation; no adopter-local tool or second registry is introduced.
+- **Close on the delivered scope.** On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
 
 ## Risks / Trade-offs
 

@@ -165,8 +165,9 @@ and explicit unresolved references. Derived graphs can check reachability and
 relation-specific cycles; ordinary reciprocal navigation is not an error.
 The graph is rebuildable, not a second editable catalog.
 
-The existing [official Change](../../../openspec/changes/documentation-comprehension/tasks.md#12-documentation-comprehension-and-research-delivery)
-owns progress. Repair the reproduced owner defects, then compare retrieval
+The [official Change](../../../openspec/changes/documentation-comprehension/tasks.md#12-documentation-comprehension-and-research-delivery)
+that owned this progress withdrew its open tasks from 0.2.0 on 2026-10-24
+(DR-0016); a new Change restores them. Repair the reproduced owner defects, then compare retrieval
 before/after reorganization and execute the bounded consumer trial. No reader
 study, interchange conformance or whole-corpus migration is claimed here.
 

@@ -46,11 +46,10 @@ Deliver a usable independent product with complete assurance. Current source,
 runtime, ownership and hosted state come from fresh ETHOS observations, not
 coordinates or success claims copied into this plan.
 
-This entry owns dependency order. Progress belongs to the existing
-[proof critical-path tasks](../../openspec/changes/proof-critical-path/tasks.md)
-and [installed-product tasks](../../openspec/changes/installed-product/tasks.md),
-with formation in [greenfield tasks](../../openspec/changes/greenfield-formation/tasks.md).
-Completed incidents remain regression boundaries, not a queue to replay.
+This entry owns dependency order. Progress belongs to active OpenSpec Changes.
+[DR-0016](../decisions/dr-0016-change-closure-scope.md) closed the 0.2.0 Changes
+on 2026-10-24, and each task they withdrew returns through a new Change that
+cites it. Completed incidents remain regression boundaries, not a queue to replay.
 
 ### Immediate Dependencies
 
@@ -137,11 +136,9 @@ Completed incidents remain regression boundaries, not a queue to replay.
 
 ### Remaining Dependencies And Delivery Order
 
-This is one dependency route, not a progress ledger. The official
-[quality evidence admission](../../openspec/changes/quality-evidence-admission/tasks.md),
-[installed product](../../openspec/changes/installed-product/tasks.md), and
-[greenfield formation](../../openspec/changes/greenfield-formation/tasks.md)
-Changes own their bounded progress. A checked task, source commit, package,
+This is one dependency route, not a progress ledger. Active OpenSpec Changes own
+their bounded progress; the archived 0.2.0 Changes keep the tasks they withdrew
+until a new Change restores them. A checked task, source commit, package,
 installed runtime, hosted result and actual-use outcome are distinct claims.
 
 P0 closes current facts, quality and feedback; P1 preserves interpretation;
@@ -176,7 +173,7 @@ The current ownership disposition is:
 | -------------------------------------- | ------------------------------------------------------------------- |
 | Product mission and invariants         | [Product Design Contract](../governance/product-design-contract.md) |
 | Accepted capability behavior           | [OpenSpec specs](../../openspec/specs/)                             |
-| Bounded progress and proof duties      | The three active Change task/spec artifacts linked above            |
+| Bounded progress and proof duties      | Active OpenSpec Change task and spec artifacts                      |
 | Stable mechanism explanation           | [Architecture](../architecture/README.md) and native contracts      |
 | Tool comparisons and source findings   | [Research](../research/README.md)                                   |
 | Dated executions and retired schedules | Git revision linked from History; not a current queue               |

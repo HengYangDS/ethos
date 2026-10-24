@@ -59,6 +59,14 @@ dependency hierarchy. A task group includes the tests and documentation its
 work requires. Archive and other post-archive actions use the official untracked
 Workflow follow-up bullets, not circular conditions on completed checkboxes.
 
+A task that its Change will not deliver leaves progress through a decision
+record, not a checkbox. Its line keeps its place, identity and hierarchy without
+a checkbox and names the record and the reason, as in
+`Withdrawn by DR-<id> (environment).`; the record states when the task returns.
+Withdrawal is not completion. A later Change restores the task with fresh
+acceptance, and a requirement whose implementation was withdrawn leaves the
+Change's delta before archive.
+
 Official validation is necessary, not evidence of semantic completeness. Review
 requirement/scenario conservation, capability cohesion, cross-artifact alignment
 and actionable prose separately. Preserve exact originals through Git and native

@@ -335,7 +335,7 @@ A repository that keeps decision records SHALL name each `dr-NNNN-<topic>.md`, w
 
 ### Requirement: Text formatting uses the common formatters
 
-Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure.
+Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure. The paradigm SHALL NOT add a layout rule of its own, so container structure that the formatter accepts conforms.
 
 #### Scenario: Markdown is only linted
 
@@ -352,6 +352,11 @@ Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ru
 - **WHEN** a Markdown document separates two paragraphs with two blank lines
 - **THEN** the `check` verb fails, and `fix` leaves one blank line.
 
+#### Scenario: The formatter keeps a loose list
+
+- **WHEN** a Markdown list separates its one-paragraph items with blank lines
+- **THEN** `check` passes, two `fix` passes leave the document unchanged, its items still render as paragraphs, and the paradigm reports no gap.
+
 #### Scenario: A formatter setting differs
 
 - **WHEN** a repository's Prettier configuration sets `proseWrap` to `always`
@@ -364,21 +369,27 @@ Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ru
 
 ### Requirement: Formatter inputs respect declared carrier ownership
 
-A formatter's declared inputs SHALL exclude carriers that already have another declared owner, such as official OpenSpec artifacts. Those carriers SHALL keep their own owner and checks, and their Markdown layout SHALL still follow parsed structure.
+A formatter's declared inputs SHALL exclude carriers that already have another declared owner, such as official OpenSpec artifacts. Those carriers SHALL keep their own owner and checks, layout included.
 
 #### Scenario: A carrier has an official owner
 
 - **WHEN** a repository declares its OpenSpec artifacts official-owner-only
-- **THEN** the Markdown formatter's inputs exclude them, their own checks still run, and the paradigm still reports their Markdown layout.
+- **THEN** the Markdown formatter's inputs exclude them, their own checks still run, and no other rule lays them out.
 
 ### Requirement: Text normalization is declared
 
-Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact.
+Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact, but SHALL NOT give a tracked file CRLF or host-dependent line endings under the attributes that Git resolves.
 
 #### Scenario: Line endings are undeclared
 
 - **WHEN** a governed repository has no `.gitattributes`
 - **THEN** the paradigm reports missing text normalization.
+
+#### Scenario: A narrower pattern selects another line ending
+
+- **WHEN** a conforming `.gitattributes` is followed by `run.cmd eol=crlf`, or a nested `.gitattributes` gives `docs/*.md` no `eol`
+- **THEN** the paradigm reports each file whose effective attributes select that line ending, with a repair that drops the override or marks the file `-text`
+- **AND** a file marked `-text`, `binary` or byte-exact keeps its bytes without a gap.
 
 ### Requirement: Configured formatters share one width
 
@@ -537,7 +548,7 @@ Repository-authored file and directory names SHALL use lowercase kebab-case, exc
 
 ### Requirement: Language tags and received names keep their form
 
-A dot-separated name segment MAY be a BCP 47 language tag in its canonical case. A path that the repository's Git attributes mark `linguist-vendored` or `linguist-generated` is received rather than authored and SHALL keep its name, and so SHALL a directory that holds only such paths.
+A dot-separated name segment MAY be a BCP 47 language tag in its canonical case. A path that the repository's Git attributes mark `linguist-vendored` or `linguist-generated` is received rather than authored and SHALL keep its name, and so SHALL a directory that holds only such paths. The repair for a name outside kebab-case SHALL name both ways out: renaming it to its kebab-case form, and marking it received when a third party or a generator authored it.
 
 #### Scenario: A localized carrier names its language
 
@@ -549,7 +560,7 @@ A dot-separated name segment MAY be a BCP 47 language tag in its canonical case.
 
 - **WHEN** the repository's `.gitattributes` marks `assets/fonts/**` as `linguist-vendored` and the repository tracks `assets/fonts/NotoSansCJKsc-Bold.otf`
 - **THEN** no name is reported, and prewrite admits a new file there under its upstream name
-- **AND** without that attribute the same name is reported.
+- **AND** without that attribute the same name is reported, with a repair that names its kebab-case form and the `linguist-vendored` or `linguist-generated` marking.
 
 ### Requirement: Paradigm conformance is a blocking verdict
 
@@ -604,36 +615,47 @@ ETHOS SHALL derive a repair for every paradigm gap whose fix follows from the ga
 - **WHEN** a workspace binding declares a standard branch-role name at the name the paradigm fixes, or a commit subject pattern equal to the shared grammar
 - **THEN** the repair deletes that field and keeps every comment and other key, while a legacy role name or a repository's own grammar stays report-only.
 
-### Requirement: Markdown layout follows parsed structure
+### Requirement: A license grant is a recognized standard text
 
-Every authored Markdown document SHALL separate adjacent blocks and leading front matter with one blank line, keep reference definitions together, keep a one-block list item tight with the next item and separate any other item's blocks and its next item with one blank line, without repeated blank lines or edge padding. Quotes, tables, literal blocks and the node after a formatter-ignore comment keep their bytes; received documents and immutable roots are exempt.
+A governed repository that tracks a root `LICENSE` SHALL keep in it the standard text of one license whose SPDX template the paradigm contract pins by digest, matched as the SPDX matching guidelines describe, unless its package metadata names the license by a `LicenseRef-` identifier. A copyright notice that the template requires SHALL name its holder, and only the template's own title MAY precede it. Which license a repository grants remains its own choice.
 
-#### Scenario: A blank line follows a one-block list item
+#### Scenario: A grant departs from its license
 
-- **WHEN** a Changelog list leaves a blank line after a one-paragraph item
-- **THEN** the paradigm reports the document's Markdown layout, and `ethos lane repair-paradigm --apply` removes only that blank line.
+- **WHEN** a repository's `LICENSE` edits or retitles the MIT text, or keeps the template placeholder instead of a copyright holder
+- **THEN** the paradigm reports the grant, naming the recognized licenses.
 
-#### Scenario: A heading touches its text
+#### Scenario: A license outside the SPDX list is declared
 
-- **WHEN** a main spec carries `## Purpose` directly followed by its paragraph
-- **THEN** the paradigm reports the document, and the repair inserts one blank line.
+- **WHEN** a repository's `LICENSE` holds its own proprietary terms and its `pyproject.toml` declares `LicenseRef-Proprietary`
+- **THEN** the grant conforms, and a `package.json` that declares `MIT` is reported.
 
-#### Scenario: A multi-block item touches the next item
+### Requirement: A license grant is linked and consistently declared
 
-- **WHEN** a list item's two paragraphs are separated but the next item follows without a blank line
-- **THEN** the repair separates them with one blank line.
+A repository that tracks a root `LICENSE` SHALL link it from its `README.md`. Every root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license SHALL declare the same SPDX identifier, and a repository SHALL NOT need a package for these checks.
 
-#### Scenario: A code block holds blank lines
+#### Scenario: Metadata names another license
 
-- **WHEN** a fenced code block holds two consecutive blank lines
-- **THEN** the paradigm reports no Markdown layout gap.
+- **WHEN** a repository grants MIT and its `package.json` declares `Apache-2.0`
+- **THEN** the paradigm reports the manifest, while a `pyproject.toml` that declares `MIT` conforms.
 
-#### Scenario: A received transcript keeps its bytes
+#### Scenario: A grant stands without a package
 
-- **WHEN** Git attributes mark a verbatim transcript `linguist-vendored`
-- **THEN** the paradigm does not lay it out.
+- **WHEN** a documentation repository tracks the standard MIT text and its `README.md` links it, with no package manifest
+- **THEN** no license gap is reported
+- **AND** removing the link reports the public entry.
 
-#### Scenario: A repair would change the structure
+### Requirement: Link observation distinguishes authored candidates from committed proof
 
-- **WHEN** dropping blank lines before a document's YAML-like block would turn it into front matter
-- **THEN** the gap stays report-only.
+Shared host link observation SHALL check current authored Markdown, including tracked edits and nonignored new files, without changing source, index or HEAD. The shared source owner SHALL preserve bounded regular reads, internal alias safety, ownership exclusions and freshness. Committed proof and provenance SHALL keep exact committed membership and bytes; candidate results SHALL NOT claim committed source-tree coverage.
+
+#### Scenario: Pending authored Markdown has a local link
+
+- **WHEN** a tracked edit or nonignored new Markdown file links to a present candidate member or a missing target
+- **THEN** ordinary host observation checks that input and reports its actual link outcome
+- **AND** exact-HEAD execution refuses the dirty source instead of issuing proof.
+
+#### Scenario: Candidate inputs change during native execution
+
+- **WHEN** observed source bytes, aliases, input membership or HEAD change while the checker runs
+- **THEN** the observation is unproved rather than a passing check of the final input
+- **AND** ignored incidental files never qualify as candidate delivery targets.

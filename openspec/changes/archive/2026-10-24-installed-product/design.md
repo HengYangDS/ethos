@@ -6,8 +6,8 @@ ETHOS needs usable installed operations without a source checkout. Its existing
 domain, admission, Git, runtime and evidence owners supply the foundation; this
 Change connects their product delivery surfaces. The [proposal](proposal.md)
 owns motivation and scope, and the capability deltas own observable requirements.
-The [product contract](../../../docs/governance/product-design-contract.md) and
-[terminal plan](../../../docs/plans/terminal-governance-product-design.md) retain
+The [product contract](../../../../docs/governance/product-design-contract.md) and
+[terminal plan](../../../../docs/plans/terminal-governance-product-design.md) retain
 their broader authority.
 
 Product delivery follows one chain: installed capability discovery and repository
@@ -276,7 +276,7 @@ inline overrides or fixing. Native parsing and diagnostics remain upstream.
 Local policy cannot omit inputs, suppress the mandatory pass or mutate through
 a fix setting. Native nested parameters need actual-consumer acceptance.
 
-The [Docs Registry](../../../docs/governance/docs-registry.md) owns the shared DR
+The [Docs Registry](../../../../docs/governance/docs-registry.md) owns the shared DR
 identity, metadata, five-section rationale and execution-content contract.
 Distinct visible authored rationale supplies each role; quotations, literals and
 metadata alone do not. One registry serves profile-selected documentation roots
@@ -356,7 +356,7 @@ evidence boundaries.
 
 ### Close on the delivered scope
 
-On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
+On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
 
 ## Risks / Trade-offs
 

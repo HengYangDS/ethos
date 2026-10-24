@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.quality_reports import quality_evidence_paths
 from ethos.repository.profile import ProofPolicy
@@ -228,8 +229,9 @@ def _quality_provider_payload(
 
 def _source_contracts(owner: Mapping[str, object]) -> tuple[SourceContract, ...]:
     """Decode serialized source obligations through their original native owner."""
+    # A transition plan freezes its policy into read-only mappings, which the model rejects.
     return ProofPolicy.model_validate(
-        {"source_contracts": owner.get("source_contracts", ())}
+        {"source_contracts": mutable_json(owner.get("source_contracts", ()))}
     ).source_contracts
 
 

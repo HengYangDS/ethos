@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- A full proof of a repository that declares `[[proof.source_contracts]]` no longer ends with
+  `source_contract_invalid` after every gate passed. The proof's transition plan freezes its
+  policy, and source-contract decoding rejected the frozen form, which also hid the declared
+  artifact classification from the quality floor. The defect was observed on 0.2.0-alpha.7 and was
+  still present in 0.2.0-alpha.10.
+
 ## [0.2.0-alpha.10] - 2026-10-24
 
 ### Changed

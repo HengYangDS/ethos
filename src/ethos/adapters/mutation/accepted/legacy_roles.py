@@ -179,20 +179,19 @@ def _pending_rename(
 ) -> tuple[Attestation, bool] | None:
     """Select an unresolved original operation, never a fresh permission."""
     members = read_attestation_set(root)[1]
-    matches = []
-    for item in members:
-        if item.predicate != "observation:branch-roles-rename":
-            continue
-        body = item.payload.body
-        if body.get("root") != root.resolve().as_posix() or body.get("head") != head:
-            continue
-        completed = any(
-            record.predicate == "effect:branch-roles-rename"
-            and record.payload.body.get("prepared") == item.id
-            for record in members
-        )
-        if not completed or body.get("state_digest") == state:
-            matches.append((item, completed))
+    completed = {
+        record.payload.body.get("prepared")
+        for record in members
+        if record.predicate == "effect:branch-roles-rename"
+    }
+    matches = [
+        (item, item.id in completed)
+        for item in members
+        if item.predicate == "observation:branch-roles-rename"
+        and item.payload.body.get("root") == root.resolve().as_posix()
+        and item.payload.body.get("head") == head
+        and (item.id not in completed or item.payload.body.get("state_digest") == state)
+    ]
     if len(matches) > 1:
         message = "legacy_role_rename_recovery_ambiguous"
         raise ValueError(message)
@@ -230,7 +229,7 @@ def _finish_rename(
         completed_refs = _require_ref_state(root, effect, completed=completed)
         observe_snapshot(root, targets, original=snapshot, completed=completed)
         if completed_refs:
-            _require_ref_result(root, plan, effect)
+            _require_ref_result(root, plan)
     except ValueError as error:
         return {**report, "required_gaps": [str(error)]}
     if completed or not apply:
@@ -279,7 +278,7 @@ def _materialize_rename(
     completed = _require_ref_state(root, effect)
     observe_snapshot(root, targets, original=snapshot)
     if completed:
-        _require_ref_result(root, plan, effect)
+        _require_ref_result(root, plan)
         bind_renamed_worktrees(root, targets)
     result = execute_git_effect(root, plan, issuer=_actor())
     if not _require_ref_state(root, effect):
@@ -298,7 +297,7 @@ def _materialize_rename(
     )
 
 
-def _require_ref_result(root: Path, plan: TransitionPlan, _effect: GitEffect) -> None:
+def _require_ref_result(root: Path, plan: TransitionPlan) -> None:
     """Select original exact ref evidence through its native historical verifier."""
     if (
         not (selected := validated_plan_attestation(root, plan.digest, issuer=_actor()))

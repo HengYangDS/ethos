@@ -58,23 +58,24 @@ def quality_tool_report(
     cwd: Path | None = None,
 ) -> dict[str, object]:
     """Run an external quality tool over files and structure its pass/fail result."""
+    report: dict[str, object] = {
+        "id": gate_id,
+        "tool": tool,
+        "file_count": len(files),
+    }
     if not files:
         return {
+            **report,
             "verdict": "pass",
-            "id": gate_id,
-            "tool": tool,
             "state": "skipped",
-            "file_count": 0,
             "required_gaps": [],
         }
+    report["command"] = command
     if tool != sys.executable and shutil.which(tool) is None:
         return {
+            **report,
             "verdict": "unknown",
-            "id": gate_id,
-            "tool": tool,
             "state": "missing_tool",
-            "file_count": len(files),
-            "command": command,
             "required_gaps": [f"quality_tool_missing:{tool}"],
         }
     # Fixed gate command (list form, no shell, no external input).
@@ -87,12 +88,9 @@ def quality_tool_report(
         )
     except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
         return {
+            **report,
             "verdict": "unknown",
-            "id": gate_id,
-            "tool": tool,
             "state": "tool_error",
-            "file_count": len(files),
-            "command": command,
             "error": f"{type(error).__name__}: {error}",
             "exit_code": None,
             "stdout": _observed_output(error.stdout)
@@ -105,15 +103,12 @@ def quality_tool_report(
         }
     gaps = [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"]
     return {
+        **report,
         "verdict": close_verdict(
             "pass" if completed.returncode == 0 else "block",
             required_gaps=tuple(gaps),
         ),
-        "id": gate_id,
-        "tool": tool,
         "state": "passed" if completed.returncode == 0 else "failed",
-        "file_count": len(files),
-        "command": command,
         "exit_code": completed.returncode,
         "stdout": completed.stdout,
         "stderr": completed.stderr,
@@ -348,15 +343,14 @@ def prose_report(root: Path) -> dict[str, object]:
         authored = native_inputs.authored_text_report(root, files)
         if authored["required_gaps"]:
             return _native_report("prose", files, [authored])
-        native = []
-        for ordinal, config in enumerate(configs):
-            with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
-                work = Path(temporary)
-                for relative, content in sources.items():
-                    target = work / relative
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(content)
-                command = [
+        native = [
+            _copied_prose_report(
+                root,
+                files,
+                sources,
+                gate_id="prose" if ordinal == 0 else "prose-increment",
+                tool=sys.executable,
+                command=[
                     sys.executable,
                     "-B",
                     "-I",
@@ -367,28 +361,11 @@ def prose_report(root: Path) -> dict[str, object]:
                     "--count",
                     "--quiet-level=2",
                     *files,
-                ]
-                result = quality_tool_report(
-                    root=root,
-                    gate_id="prose" if ordinal == 0 else "prose-increment",
-                    tool=sys.executable,
-                    command=command,
-                    files=files,
-                    cwd=work,
-                )
-                if files and (
-                    not str(result.get("stderr", "")).strip().isdecimal()
-                    or any(
-                        (work / relative).read_bytes() != content
-                        for relative, content in sources.items()
-                    )
-                ):
-                    result.update(verdict="block", state="unproven")
-                    result["required_gaps"] = [
-                        *string_sequence(result["required_gaps"]),
-                        "native_prose_not_read_only_clean",
-                    ]
-                native.append(result)
+                ],
+                spelling=True,
+            )
+            for ordinal, config in enumerate(configs)
+        ]
         native.extend(_vale_reports(root, files, sources))
         return _native_report("prose", files, native)
     except (GitExecutionError, subprocess.CalledProcessError) as error:
@@ -408,6 +385,40 @@ def _vale_controls(sources: dict[str, bytes]) -> list[str]:
     ]
 
 
+def _copied_prose_report(
+    root: Path,
+    files: list[str],
+    sources: dict[str, bytes],
+    *,
+    gate_id: str,
+    tool: str,
+    command: list[str],
+    spelling: bool = False,
+) -> dict[str, object]:
+    """Run a prose consumer on exact copies and enforce its output and no-write contract."""
+    with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
+        work = Path(temporary)
+        for relative, content in sources.items():
+            target = work / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        result = quality_tool_report(
+            root=root, gate_id=gate_id, tool=tool, command=command, files=files, cwd=work
+        )
+        stderr = str(result.get("stderr", "")).strip()
+        diagnostics = not stderr.isdecimal() if spelling else bool(stderr)
+        if files and (
+            diagnostics
+            or any((work / name).read_bytes() != content for name, content in sources.items())
+        ):
+            result.update(verdict="block", state="unproven")
+            result["required_gaps"] = [
+                *string_sequence(result["required_gaps"]),
+                "native_prose_not_read_only_clean",
+            ]
+        return result
+
+
 def _vale_reports(
     root: Path, files: list[str], sources: dict[str, bytes]
 ) -> list[dict[str, object]]:
@@ -416,36 +427,18 @@ def _vale_reports(
     executable = str(resolve_native_tool("vale"))
     controls, reports = _vale_controls(sources), []
     for ordinal, config in enumerate(configs):
-        with TemporaryDirectory(prefix="ethos-native-vale-") as temporary:
-            work = Path(temporary)
-            for relative, content in sources.items():
-                target = work / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(content)
-            result = quality_tool_report(
-                root=root,
-                gate_id="prose-vale" if ordinal == 0 else "prose-vale-increment",
-                tool=executable,
-                command=[executable, "--no-global", f"--config={config}", "--output=line", *files],
-                files=files,
-                cwd=work,
-            )
-            if files and (
-                str(result.get("stderr", "")).strip()
-                or any(
-                    (work / relative).read_bytes() != content
-                    for relative, content in sources.items()
-                )
-            ):
-                result.update(verdict="block", state="unproven")
-                result["required_gaps"] = [
-                    *string_sequence(result["required_gaps"]),
-                    "native_prose_not_read_only_clean",
-                ]
-            if ordinal == 0 and controls:
-                result.update(verdict="block", state="unproven")
-                result["required_gaps"] = [*string_sequence(result["required_gaps"]), *controls]
-            reports.append(result)
+        result = _copied_prose_report(
+            root,
+            files,
+            sources,
+            gate_id="prose-vale" if ordinal == 0 else "prose-vale-increment",
+            tool=executable,
+            command=[executable, "--no-global", f"--config={config}", "--output=line", *files],
+        )
+        if ordinal == 0 and controls:
+            result.update(verdict="block", state="unproven")
+            result["required_gaps"] = [*string_sequence(result["required_gaps"]), *controls]
+        reports.append(result)
     return reports
 
 

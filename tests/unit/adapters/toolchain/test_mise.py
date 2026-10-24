@@ -26,23 +26,6 @@ if TYPE_CHECKING:
 POSIX_INSTALLS = pytest.mark.skipif(os.name != "posix", reason="POSIX executable installs")
 
 
-@pytest.fixture
-def mise_installs(
-    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
-) -> Callable[[str, str, str], None]:
-    """Own native Mise storage; each install reports its version, so no host install is used."""
-    data = tmp_path_factory.mktemp("mise-data")
-    monkeypatch.setenv("MISE_DATA_DIR", str(data))
-
-    def install(tool: str, version: str, report: str) -> None:
-        executable = data / "installs" / tool / version / "bin" / tool
-        executable.parent.mkdir(parents=True)
-        executable.write_text(f"#!/bin/sh\necho {report}\n", encoding="utf-8", newline="\n")
-        executable.chmod(0o755)
-
-    return install
-
-
 @pytest.mark.parametrize("interrupt", [False, True])
 @pytest.mark.parametrize("link_mode", ["symlink", "hardlink", "copy"])
 def test_locked_environment_exposes_only_selected_mise_during_native_execution(
@@ -89,6 +72,8 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         if link_mode == "copy":
             monkeypatch.setattr(os, "link", deny_link)
 
+    monkeypatch.delenv("MISE_SAFE", raising=False)
+    monkeypatch.delenv("MISE_STATE_DIR", raising=False)
     expected = pytest.raises(RuntimeError) if interrupt else nullcontext()
     with expected, mise.locked_environment(tmp_path, files) as environment:
         alias = shutil.which("mise", path=environment["PATH"])
@@ -98,7 +83,8 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         assert shutil.which("unrelated", path=environment["PATH"]) is None
         assert str(operator) not in environment["PATH"].split(os.pathsep)
         alias_root = Path(alias).parent
-        assert environment["MISE_SAFE"] == "1"
+        assert "MISE_SAFE" not in environment
+        assert "MISE_STATE_DIR" not in environment
         assert environment["MISE_LOCKED"] == "1"
         assert environment["MISE_OFFLINE"] == "1"
         assert environment["MISE_AUTO_INSTALL"] == "0"
@@ -337,6 +323,8 @@ def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_i
         assert options["remove_env_prefixes"] == ("MISE_",)
         environment = options["env"]
         assert environment["MISE_SAFE"] == environment["MISE_OFFLINE"] == "1"
+        state = Path(environment["MISE_STATE_DIR"]).parent
+        assert state == Path(environment["MISE_GLOBAL_CONFIG_FILE"]).parent
         assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node"
         assert not Path(environment["MISE_GLOBAL_CONFIG_FILE"]).is_relative_to(tmp_path)
         assert not Path(environment["MISE_SYSTEM_CONFIG_DIR"]).is_relative_to(tmp_path)
@@ -484,6 +472,7 @@ def test_native_version_carriers_preserve_locked_selection_without_hooks(
         path: (tmp_path / path).read_bytes() for path in (mise.MISE_CONFIG, mise.MISE_LOCK, carrier)
     }
     monkeypatch.setenv("MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS", "python")
+    monkeypatch.delenv("MISE_SAFE", raising=False)
     files = mise.repository_mise_files(tmp_path)
     assert files is not None
     assert files[carrier].encode() == original[carrier]
@@ -494,7 +483,7 @@ def test_native_version_carriers_preserve_locked_selection_without_hooks(
             (node, "--version"), capture_output=True, text=True, check=True, timeout=15
         )
         assert observed.stdout.strip() == f"v{declared}"
-        assert environment["MISE_SAFE"] == "1"
+        assert "MISE_SAFE" not in environment
         assert environment["MISE_LOCKED"] == "1"
         assert environment["MISE_OFFLINE"] == "1"
     assert not (tmp_path / "forbidden-hook").exists()

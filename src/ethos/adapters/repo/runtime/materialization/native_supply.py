@@ -281,6 +281,7 @@ def download_tool(command: tuple[str, ...], *, root: Path, timeout: float = 180)
             "MISE_ALWAYS_KEEP_DOWNLOAD": "1",
             "MISE_DATA_DIR": str(root / "data"),
             "MISE_CACHE_DIR": str(root / "cache"),
+            "MISE_STATE_DIR": str(root / "state"),
             "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
             "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
         },

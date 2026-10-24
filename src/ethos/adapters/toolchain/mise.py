@@ -24,6 +24,10 @@ if TYPE_CHECKING:
 
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
+# The caller's own mise storage and safe-mode choice; resolution overrides the last two.
+_CALLER_INPUTS = frozenset(
+    ("MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR", "MISE_STATE_DIR", "MISE_SAFE")
+)
 
 
 def native_tool_cache(root: Path) -> Path:
@@ -43,15 +47,14 @@ def native_tool_cache(root: Path) -> Path:
 
 
 def _mise_environment(
-    isolated: Path, *, offline: bool, files: Mapping[str, str] | None = None
+    isolated: Path,
+    *,
+    offline: bool,
+    files: Mapping[str, str] | None = None,
+    execution: bool = False,
 ) -> dict[str, str]:
-    """Bind native safe-mode and storage inputs without ambient Mise policy."""
-    environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key in {"MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR"}
-    } | {
-        "MISE_SAFE": "1",
+    """Bind native storage and safety inputs; execution keeps only the caller's explicit policy."""
+    environment = {key: value for key, value in os.environ.items() if key in _CALLER_INPUTS} | {
         "MISE_DISABLE_UPDATE_WARNING": "1",
         "MISE_LOCKED": "1",
         "MISE_NOT_FOUND_SYSTEM_FALLBACK": "0",
@@ -60,6 +63,9 @@ def _mise_environment(
         "MISE_SYSTEM_CONFIG_DIR": str(isolated / "absent-system"),
         "MISE_CEILING_PATHS": str(isolated.parent),
     }
+    if not execution:
+        # Resolution runs no repository task, and mise's record of what it loaded stays disposable.
+        environment |= {"MISE_SAFE": "1", "MISE_STATE_DIR": str(isolated / "state")}
     settings = tomllib.loads(files[MISE_CONFIG]).get("settings", {}) if files else {}
     if type(settings) is not dict:
         message = "mise_idiomatic_settings_invalid"
@@ -306,6 +312,6 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
             raise ValueError(message)
         yield {
             **environment,
-            **_mise_environment(Path(directory), offline=True, files=files),
+            **_mise_environment(Path(directory), offline=True, files=files, execution=True),
             "PATH": os.pathsep.join((directory, *(str(path) for path in paths), os.defpath)),
         }

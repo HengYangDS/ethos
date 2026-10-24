@@ -90,6 +90,8 @@ def _native_supply(
         f'assert sys.argv[1:] == ["install", "--locked", {backend!r}]\n'
         'assert os.environ["MISE_SAFE"] == os.environ["MISE_LOCKED"] == "1"\n'
         'assert os.environ["MISE_DISABLE_UPDATE_WARNING"] == "1"\n'
+        'state = pathlib.Path(os.environ["MISE_STATE_DIR"]).resolve()\n'
+        'assert state == pathlib.Path.cwd().resolve() / "state"\n'
         'assert os.environ["MISE_ALWAYS_KEEP_DOWNLOAD"] == "1"\n'
         'assert all((pathlib.Path(".config/mise")/p).is_file() '
         'for p in ("config.toml", "mise.lock"))\n'

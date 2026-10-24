@@ -25,8 +25,10 @@ Subject, Role, State, and Relation metadata in front matter. Skills, OpenSpec,
 system contracts, and distribution files retain their own consumers; registry
 metadata outside the selected root grants no authority.
 
-A selected page may enclose that same YAML payload in a leading HTML comment
-when its title must render first on a Forge. Both carriers enter the same parser;
+Plain front matter is the accepted carrier. Until no adopter tracks a page that
+encloses the same YAML payload in a leading HTML comment, the registry still reads
+that wrapper for compatibility, and the repository paradigm reports it with its
+repair. Both carriers enter the same parser;
 the commented form requires an H1 as its first visible block. An incomplete
 wrapper, invalid YAML, or premature HTML comment terminator blocks rather than
 becoming an empty declaration. This does not change OpenSpec, Skills, or

@@ -72,6 +72,7 @@ It never requires an empty carrier. Product and domain structure, test organizat
 - A CI step keeps a shell program only as an official installer or operating-system glue. The retention record binds it to the step's exact text, with owner, reason, platforms and target-platform evidence. Such a record admits bytes under evidence the obligation names, not a repository, so it is not an exception; review judges the evidence.
 - Markdown blank lines are what the shared Prettier formatter writes for its declared inputs. The paradigm adds no layout rule of its own: an earlier rule that tightened one-block list items and laid out carriers outside those inputs was retired, because it rejected formatter-accepted layout and changed rendered list meaning.
 - Bare tool invocations at a repository root no longer discover project policy. The verbs and documented editor settings carry the explicit paths.
+- Compatibility readers for superseded carriers, comment-wrapped document metadata and legacy branch role names, stay until the last adopter that uses them migrates through its own Change; retiring one earlier would turn that adopter's accepted documents or refs into gaps.
 - DR-0011 remains valid for documentation subject layout. This record only adds the metadata syntax and the decision-record name grammar.
 
 ## Evidence and Revisit

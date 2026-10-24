@@ -12,12 +12,23 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.13] - 2026-10-25
+
 ### Fixed
 
 - Host link checks now include tracked edits and nonignored new authored Markdown instead of
-  rejecting changed inputs or silently omitting new ones. Candidate results remain separate
-  from exact committed proof; native input ownership, bounded reads and change detection remain
-  enforced.
+  rejecting changed inputs or silently omitting new ones. A tracked file deleted from the working
+  tree without staging the deletion is no longer a candidate member: the other links still pass,
+  and a link to that file fails as undelivered. A member that appears or disappears while the check
+  runs is refused. Candidate results remain separate from exact committed proof; native input
+  ownership, bounded reads and change detection remain enforced.
+- Native tool resolution and disposable provisioning keep mise's state in their disposable
+  directories. Earlier runtimes left a record in the host's mise state for every resolution, each
+  pointing at a deleted temporary configuration; `mise prune --configs` removes those records.
+- Repository commands that ETHOS admits can run their own mise tasks again. Their environment no
+  longer carries the safe mode that resolution uses, which made `mise run` refuse with "running
+  tasks is disabled in safe mode". A caller's explicit `MISE_SAFE` and state directory still apply,
+  and trust remains mise's own decision.
 
 ## [0.2.0-alpha.12] - 2026-10-24
 

@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.11] - 2026-10-24
+
 ### Fixed
 
 - A full proof of a repository that declares `[[proof.source_contracts]]` no longer ends with

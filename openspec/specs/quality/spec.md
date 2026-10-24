@@ -2386,10 +2386,22 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 
 #### Scenario: External availability cannot starve repository proof
 
-- **WHEN** an upstream link returns an unavailable or adverse HTTP response
+- **WHEN** an upstream link returns an adverse HTTP response other than temporary unavailability
 - **THEN** the external-health observation remains nonpassing and retains its exact report
 - **AND** the required repository proof and its JUnit, coverage, wheel and SBOM artifacts execute independently
 - **AND** a failing upstream site is not presented as a valid link or a repository proof failure
+
+#### Scenario: Temporary upstream unavailability is not a broken link
+
+- **WHEN** an upstream link answers 503 Service Unavailable
+- **THEN** the external-health observation accepts it as temporary unavailability
+- **AND** a rate-limited or timed-out request is retried rather than accepted
+
+#### Scenario: A link-checker diagnostic fails the link observation
+
+- **WHEN** Lychee exits zero but writes a diagnostic to stderr, such as its hint that it followed a redirect
+- **THEN** the link observation fails and retains the diagnostic
+- **AND** the document links to the resolved target of the redirect instead
 
 #### Scenario: Offline supply does not disable online assurance
 

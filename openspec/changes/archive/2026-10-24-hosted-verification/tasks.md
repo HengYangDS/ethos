@@ -27,4 +27,4 @@
 
 - Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.
 - Task 3.8 moved verbatim from `repository-paradigm` on 2026-10-18, so that Change could archive while its GitLab acceptance continues here.
-- On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.
+- On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0; their lines stay in this file without checkboxes.

@@ -19,7 +19,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 - **Preserve task identity and acceptance.** Keep stable identities cited by commits, Attestations and peers; recover the remaining obligations from both parents and keep execution evidence by reference rather than in the checklist.
 - **Preserve the removed Publisher duty.** Task 9.9.4 retains its completed removal; ETHOS does not acquire architecture rendering or external Publisher Provider acceptance.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
-- **Close on the delivered scope.** On 2026-10-24 [DR-0016](../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
+- **Close on the delivered scope.** On 2026-10-24 [DR-0016](../../../../docs/decisions/dr-0016-change-closure-scope.md) withdrew the tasks that this Change did not deliver from 0.2.0. Each withdrawn task keeps its line in `tasks.md` without a checkbox and returns through a new Change; the goals above describe the original scope.
 
 ## Risks / Trade-offs
 

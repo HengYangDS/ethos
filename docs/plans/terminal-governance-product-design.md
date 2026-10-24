@@ -211,7 +211,7 @@ through existing consumers, not another rule declaration in this plan.
    at their existing owners. Configuration deduplication alone cannot close
    those behavioral gaps. The current Python reference observer still confuses
    spelling with binding and file-global constants with call-site values;
-   [the public-gate repair](../../openspec/changes/quality-evidence-admission/tasks.md#10-native-quality-rules-and-early-failure)
+   [the public-gate repair](../../openspec/changes/archive/2026-10-24-quality-evidence-admission/tasks.md#10-native-quality-rules-and-early-failure)
    must close alias, shadow, scope, program-point and relevant dynamic UNKNOWN
    without a second parser or repository-wide permanent block. The same
    reference owner must also consume trusted native profile and release

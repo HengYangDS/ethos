@@ -2,8 +2,8 @@
 
 ### Requirement: Publication peer names default from their declaration
 
-The peer ID and Git remote name SHALL be independently configurable. Within an explicit peer
-declaration only, an omitted ID SHALL default to the declared provider and an omitted Git remote
+The peer ID and Git remote name SHALL be configurable; the paradigm keeps a governed
+repository's remote equal to its peer ID. Within an explicit peer declaration only, an omitted ID SHALL default to the declared provider and an omitted Git remote
 SHALL default to the resolved ID. Defaults SHALL NOT create undeclared peers, infer a provider or
 rename existing remotes. Explicit empty or invalid names and duplicate resolved identities SHALL
 fail closed before observation or mutation.
@@ -88,3 +88,19 @@ convergence, active Change presence, or a historical authoring Lease.
 - **AND** current closed-review, exact peer identity and fresh CAS checks still apply
 - **AND** missing, invalid, ambiguous or nonconserving evidence does not authorize
   deletion, while unavailable required observations remain explicit
+
+#### Scenario: Remote retirement exposes separately admitted local closure
+
+- **WHEN** selected peer retirement has completed but a same-named local proposal remains
+- **THEN** the result preserves confirmed remote effects and reports `retirement_pending`
+- **AND** its continuation invokes the native local retirement owner with exact root and OIDs
+- **AND** the publication receipt does not authorize that local mutation
+- **AND** replay reports full retirement only after the requested local projections are absent
+
+#### Scenario: Local retirement shares verified accepted-contribution meaning
+
+- **WHEN** a local proposal is accepted by ancestry, verified signature repair or conserved native refresh
+- **THEN** its native retirement and compensation consume the same contribution observer as publication
+- **AND** topic role, current accepted OID, no linked worktree, no Lease and exact CAS still apply
+- **AND** missing, invalid or nonconserving evidence blocks deletion; unavailable conservation remains UNKNOWN
+- **AND** failed local effect evidence preserves or compensates the exact original ref

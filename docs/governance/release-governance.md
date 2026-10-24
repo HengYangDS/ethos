@@ -114,7 +114,9 @@ Peer IDs and Git remote names are configurable. For each explicitly declared
 peer, an omitted ID defaults to its declared provider; an omitted `git_remote`
 defaults to the resolved ID. Thus GitLab and GitHub normally use `gitlab` and
 `github`, never an implicit `origin`. Multiple peers from the same provider use
-unique names such as `gitlab_a` and `gitlab_b`; explicit IDs and remotes may differ.
+unique names such as `gitlab_a` and `gitlab_b`. Explicit IDs and remotes may
+differ in the topology, but the repository paradigm requires a governed
+repository's remote to equal its peer ID.
 Defaults create no peers, select no provider and rename no existing Git remote.
 Empty, invalid or duplicate names fail closed. The provider is always declared;
 its adapter is never inferred from a name. Adding a Git remote alone declares no
@@ -142,7 +144,11 @@ refs/heads/proposal/<name> --probe-remote --expect-head <HEAD> --json`, then use
 its exact request-receipt action. The same publication owner and pre-push hook
 require local and peer accepted absorption plus no open source-branch review.
 Valid native history-repair evidence can establish exact old-to-replacement
-absorption; patch equivalence cannot. Main release convergence is independent.
+absorption; patch equivalence cannot. An unabsorbed proposal may also retire
+after its review closes while an owned Work Lane, or the same peer's ref for that
+closed review (`refs/pull/<n>/head`, `refs/merge-requests/<iid>/head`), still
+holds its exact tip; a candidate ref never retains it, because landing resets it.
+Main release convergence is independent.
 GitHub and GitLab use bounded noninteractive native clients; declared plain Git
 peers have no Forge review system. Failed or unavailable queries remain unknown.
 Each peer is reobserved before exact-old deletion, with partial outcomes and

@@ -25,7 +25,7 @@ the [Terminal Governance Product Design](../plans/terminal-governance-product-de
 
 On 2026-10-24, 13 Changes held 100 open tasks. DR-0015 had already made a journey that the release
 target does not declare, or whose environment is unavailable, "not qualified" instead of a release
-blocker, but it kept every open task's done condition. No Change could therefore archive: 52 tasks
+blocker, but it kept every open task's done condition. No Change could therefore archive: 51 tasks
 waited on an environment that this repository cannot provide, such as the intranet GitLab, an
 adopter's own runtime or hosted jobs, the deferred di-effect family, an upstream Mise release, a
 soak period, signing credentials or a user decision, and 41 needed in-repo work that 0.2.0 does not
@@ -84,13 +84,17 @@ Work Lane archive with its own proof.
   macOS disk image, the Homebrew Python and frozen-bundle builder alternatives, real-client MCP
   qualification before wider mutation exposure, and recovery of formation staging that a crash
   leaves behind.
+- A Change that restores a task withdrawn for the intranet GitLab gives the GitLab acceptance its
+  own subtask that waits only for the intranet: publish the same objects with `--peer gitlab` and
+  read back its hosted CI. The GitHub work completes on its own, as the scenario for one
+  unavailable declared peer in the repository-governance specification allows.
 - Release entries keep naming unqualified journeys, as DR-0015 requires.
 - This record adds no checker, registry or ledger. Official OpenSpec progress, its archive and Git
   keep owning task state and history.
 
 ## Evidence and Revisit
 
-On 2026-10-24 the 100 open tasks were judged as 5 delivered, 52 environment, 41 in-repo and 2
+On 2026-10-24 the 100 open tasks were judged as 6 delivered, 51 environment, 41 in-repo and 2
 superseded. The supply refreshes of 11.3.5, 11.3.6 and the uv 0.13.4 lock superseded
 `native-supply-and-configuration` 11.3.2. `dfc17351c`, the rework of the conserved candidate that
 `b18465bb0` withdrew, superseded `publication-history-repair` 13.4.6.
@@ -107,7 +111,7 @@ superseded. The supply refreshes of 11.3.5, 11.3.6 and the uv 0.13.4 lock supers
 | `native-supply-and-configuration` | 11.8       | 11.3, 11.3.7, 11.4, 11.4.2                                                              | 11.3.1                                                                               | 11.3.2     |
 | `owned-resource-recovery`         |            | 5.11, 5.12, 5.12.1, 5.13                                                                | 5.6                                                                                  |            |
 | `proof-critical-path`             |            |                                                                                         | 1.11, 2.12, 2.13, 2.14, 9.1, 9.2, 9.3, 9.5                                           |            |
-| `publication-history-repair`      |            | 13.4, 13.4.2, 13.4.2.2, 13.4.3, 13.4.5, 13.4.9                                          | 13.4.10                                                                              | 13.4.6     |
+| `publication-history-repair`      | 13.4.5     | 13.4, 13.4.2, 13.4.2.2, 13.4.3, 13.4.9                                                  | 13.4.10                                                                              | 13.4.6     |
 | `quality-evidence-admission`      | 10.13      | 11.9, 11.9.1, 11.9.2, 11.9.2.1, 11.9.2.8, 11.9.2.9, 11.9.2.10                           | 8.9, 8.10, 8.11, 8.12, 8.13, 10.4, 10.6, 10.6.1, 10.7, 10.11, 10.12, 10.14, 11.9.2.7 |            |
 | `structural-simplification`       |            |                                                                                         | 9.9                                                                                  |            |
 

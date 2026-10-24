@@ -10,10 +10,12 @@ import tomli_w
 
 if TYPE_CHECKING:
     from pathlib import Path
+from pydantic import TypeAdapter
 from pydantic import ValidationError
 
 from ethos.adapters.gates.python_quality import static_report
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.contracts.value import JsonObject
 from ethos.repository.policy.quality.obligations import source_integrity_gaps
 from ethos.repository.policy.quality.obligations import source_kinds
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
@@ -151,4 +153,23 @@ def test_source_member_type_is_rejected_by_native_validation() -> None:
     assert source_verifier_gaps(policy, ()) == ("source_contract_invalid",)
     assert source_integrity_gaps({"owner": policy}, (), source_tree="a" * 40) == (
         "source_contract_invalid",
+    )
+
+
+def test_source_contracts_keep_their_meaning_in_a_frozen_plan_policy() -> None:
+    """A transition plan freezes its policy; its source contracts decode as the plain ones do."""
+    owner = ".config/checks/ci-projection/policy.toml"
+    relation = {
+        "kind": "generated",
+        "input_refs": [owner],
+        "members": {"generated.py": [owner, "generated.py"]},
+        "integrity_gate": "source-integrity",
+    }
+    plain = {"owner": {"source_contracts": [relation]}}
+    frozen = TypeAdapter(JsonObject).validate_python(plain)
+
+    assert source_kinds(frozen["owner"]) == {"generated.py": "generated"}
+    assert source_verifier_gaps(frozen["owner"], ()) == source_verifier_gaps(plain["owner"], ())
+    assert source_integrity_gaps(frozen, (), source_tree="a" * 40) == source_integrity_gaps(
+        plain, (), source_tree="a" * 40
     )

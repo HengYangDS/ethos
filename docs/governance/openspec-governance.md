@@ -65,7 +65,8 @@ a checkbox and names the record and the reason, as in
 `Withdrawn by DR-<id> (environment).`; the record states when the task returns.
 Withdrawal is not completion. A later Change restores the task with fresh
 acceptance, and a requirement whose implementation was withdrawn leaves the
-Change's delta before archive.
+Change's delta before archive. A Change whose tasks were all withdrawn records
+the closing decision as its one checked task.
 
 Official validation is necessary, not evidence of semantic completeness. Review
 requirement/scenario conservation, capability cohesion, cross-artifact alignment

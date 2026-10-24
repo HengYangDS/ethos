@@ -50,7 +50,8 @@ evidence and takes one of four outcomes:
 
 A withdrawn task keeps its line, identity and hierarchy in `tasks.md` without a checkbox, marked
 `Withdrawn by DR-0016 (environment).`, `(in-repo)` or `(superseded)`, so the archived Change still
-shows its whole plan while official progress counts only the tasks it kept. A spec delta merges
+shows its whole plan while official progress counts only the tasks it kept. A Change whose open
+tasks were all withdrawn records this closing decision as its one checked task. A spec delta merges
 only requirements that the product implements; a requirement whose implementation was withdrawn
 leaves the delta and returns with its new Change. Each Change then archives through the native
 Work Lane archive with its own proof.
@@ -78,6 +79,11 @@ Work Lane archive with its own proof.
   seals Mise installations once a Mise release carries jdx/mise#14883 (owner a225c731, review
   2026-10-30), and `installed-product` 3.3.2 previews the host-store retirement again after
   2026-10-31 and applies it only on the user's approval.
+- Design that only withdrawn tasks would have delivered leaves with them, and the archived designs
+  keep its rationale: the Homebrew Cask channel, release signing and notarization, the notarized
+  macOS disk image, the Homebrew Python and frozen-bundle builder alternatives, real-client MCP
+  qualification before wider mutation exposure, and recovery of formation staging that a crash
+  leaves behind.
 - Release entries keep naming unqualified journeys, as DR-0015 requires.
 - This record adds no checker, registry or ledger. Official OpenSpec progress, its archive and Git
   keep owning task state and history.

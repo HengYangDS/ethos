@@ -2,7 +2,7 @@
 
 ### Requirement: Authored text is valid text
 
-Authored text SHALL be complete UTF-8 without NUL. One shared judgement SHALL validate the complete authored-text selection before formatter narrowing. Source-format, Markdown lint and prose SHALL use it; the format fix SHALL refuse malformed bytes without writing. Native checkout attributes SHALL NOT decide text validity. Non-authored bytes SHALL retain their existing verification owner.
+Authored text SHALL be complete UTF-8 without NUL. One shared judgement SHALL validate the complete authored-text selection before formatter narrowing. Source-format, Markdown lint and prose SHALL use it; the format fix SHALL refuse malformed bytes without writing. Native checkout attributes SHALL NOT decide text validity. Binary, generated-projection, dependency and archived evidence bytes SHALL retain their existing verification owner.
 
 #### Scenario: Authored Markdown holds a NUL byte
 
@@ -21,5 +21,5 @@ Authored text SHALL be complete UTF-8 without NUL. One shared judgement SHALL va
 
 #### Scenario: Non-authored bytes retain their owner
 
-- **WHEN** binary, received, generated, dependency or immutable evidence bytes are present
+- **WHEN** binary, generated-projection, dependency or archived evidence bytes are present
 - **THEN** their existing owner controls verification and the authored-text judgement does not reinterpret or rewrite them.

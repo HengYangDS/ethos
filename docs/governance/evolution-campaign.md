@@ -115,7 +115,7 @@ to reconstruct an answer.
 Fresh-Agent retrieval and actual-use acceptance remain open. On 2026-10-24
 [DR-0016](../decisions/dr-0016-change-closure-scope.md) withdrew them from 0.2.0
 with the [feedback closure tasks](../../openspec/changes/archive/2026-10-24-feedback-and-skill-closure/tasks.md#13-feedback-driven-improvement-closure)
-and [greenfield-formation tasks](../../openspec/changes/greenfield-formation/tasks.md)
+and [greenfield-formation tasks](../../openspec/changes/archive/2026-10-24-greenfield-formation/tasks.md)
 that held them, and a new Change restores them.
 A file, hash, route or structural test establishes access or integrity, not
 understanding, changed behavior or the complete product journey.

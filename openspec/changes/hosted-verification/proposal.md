@@ -8,6 +8,7 @@
 
 - Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
 - Add no requirement. Each task implements a requirement already accepted through `proof-throughput`, or through `repository-paradigm` for 3.8.
+- Modify the accepted requirement that one test attempt provides reconstructable reports where task 7.4.1 changed the link observation: a 503 from an upstream link is temporary unavailability rather than a broken link, and a Lychee diagnostic on stderr fails the observation.
 
 ## Capabilities
 
@@ -17,7 +18,7 @@
 
 ### Modified Capabilities
 
-- None. The behavior these tasks implement is specified by the accepted specifications.
+- `quality`: the external-link observation accepts a 503 as temporary unavailability and fails on any Lychee diagnostic.
 
 ## Impact
 

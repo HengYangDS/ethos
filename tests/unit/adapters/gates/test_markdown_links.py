@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import csv
 import hashlib
+import json
 import locale
 import os
 import shutil
@@ -17,6 +18,7 @@ import pytest
 
 import ethos.adapters.gates.tool as gate_tool
 import ethos.repository.release.resources as product_resources
+from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
@@ -404,3 +406,94 @@ def test_installed_link_policy_retains_its_package_owner_inside_git_common(
     )
     assert {path: path.read_bytes() for path in original} == original
     assert git(repo, "status", "--porcelain") == ""
+
+
+@pytest.mark.parametrize("membership", ["tracked", "untracked"])
+@pytest.mark.parametrize("target", ["member.txt", "missing.txt"])
+def test_host_links_check_current_authored_candidates(
+    tmp_path: Path, membership: str, target: str
+) -> None:
+    """Host observation checks pending bytes; exact proof still refuses the dirty tree."""
+    repo = _repository(tmp_path, "# Guide\n")
+    (repo / "member.txt").write_text("Candidate target.\n")
+    commit_fixture(repo, "bind the committed link baseline")
+    before = git(repo, "rev-parse", "HEAD", "HEAD^{tree}")
+    index = git(repo, "write-tree")
+    path = repo / ("README.md" if membership == "tracked" else "pending-[literal].md")
+    content = f"# Candidate\n\n[Member]({target})\n"
+    path.write_text(content)
+    expected_count = sum(name.endswith(".md") for name in SourceTree.observe(repo).entries)
+
+    observed = observe_gate_execution(repo, gate_ids=("markdown-links",))
+
+    assert observed["verdict"] == ("pass" if target == "member.txt" else "block"), observed
+    native = json.loads(observed["checks"][0]["stdout"])["providers"][0]["report"]
+    assert native["file_count"] == expected_count + (membership == "untracked")
+    assert native["source_kind"] == "candidate"
+    if native["verdict"] == "pass":
+        assert native["source_head"] == before.splitlines()[0]
+        assert native["source_tree"] == ""
+    exact = observe_gate_execution(
+        repo, gate_ids=("markdown-links",), expect_head=before.splitlines()[0]
+    )
+    assert exact["required_gaps"] == ["proof_execution_source_mismatch"], exact
+    assert not exact["checks"]
+    assert path.read_text() == content
+    assert git(repo, "rev-parse", "HEAD", "HEAD^{tree}") == before
+    assert git(repo, "write-tree") == index
+
+
+@pytest.mark.parametrize("change", ["bytes", "membership", "alias", "head"])
+def test_candidate_link_observation_refuses_inflight_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    """The native checker cannot certify a candidate that changes after observation."""
+    repo = _repository(tmp_path, "# Guide\n\n[Member](alias.txt)\n")
+    (repo / "member.txt").write_text("Initial member.\n")
+    (repo / "other.txt").write_text("Another member.\n")
+    (repo / "alias.txt").symlink_to("member.txt")
+    commit_fixture(repo, "bind candidate freshness")
+    native = gate_tool.run_command
+    mutated = False
+
+    def mutate_after_check(root, command, **kwargs):
+        nonlocal mutated
+        result = native(root, command, **kwargs)
+        if not mutated and "--dump" not in command and "--dump-inputs" not in command:
+            mutated = True
+            if change == "bytes":
+                (repo / "member.txt").write_text("Changed member.\n")
+            elif change == "membership":
+                (repo / "pending.md").write_text("# New candidate\n")
+            elif change == "alias":
+                (repo / "alias.txt").unlink()
+                (repo / "alias.txt").symlink_to("other.txt")
+            else:
+                (repo / "head-marker.txt").write_text("Changed head.\n")
+                commit_fixture(repo, "move the candidate head")
+        return result
+
+    monkeypatch.setattr(gate_tool, "run_command", mutate_after_check)
+    report = markdown_links_report(repo, candidate=True)
+    expected = {
+        "bytes": "source_member_changed:member.txt",
+        "membership": "source_candidate_membership_changed",
+        "alias": "source_member_changed:alias.txt",
+        "head": "source_tree_changed",
+    }
+    assert report["verdict"] == "unknown", report
+    assert report["required_gaps"] == [expected[change]]
+
+
+@pytest.mark.parametrize("ignored", [False, True])
+def test_candidate_links_qualify_only_native_candidate_targets(
+    tmp_path: Path, *, ignored: bool
+) -> None:
+    """Untracked targets are candidate members, but ignored host bytes never become delivery."""
+    repo = _repository(tmp_path, "# Guide\n\n[Member](pending.txt)\n")
+    if ignored:
+        (repo / ".gitignore").write_text("pending.txt\n")
+    commit_fixture(repo, "bind candidate target selection")
+    (repo / "pending.txt").write_text("Pending member.\n")
+    report = markdown_links_report(repo, candidate=True)
+    assert report["verdict"] == ("block" if ignored else "pass"), report

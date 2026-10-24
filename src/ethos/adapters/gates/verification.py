@@ -124,6 +124,7 @@ def provider_reports(
     *,
     execution: NativeExecution | None = None,
     timeout_seconds: float | None = None,
+    candidate: bool = False,
 ) -> tuple[list[dict[str, object]], Verdict, tuple[dict[str, Any], ...]]:
     """Execute the same product-owned provider contract for either gate form."""
     reports: list[dict[str, object]] = []
@@ -137,7 +138,11 @@ def provider_reports(
                 raise subprocess.TimeoutExpired(reference, remaining)
             with command_scope(timeout_seconds=remaining):
                 report = _provider_report(
-                    reference, root, execution=execution, timeout_seconds=remaining
+                    reference,
+                    root,
+                    execution=execution,
+                    timeout_seconds=remaining,
+                    candidate=candidate,
                 )
             if deadline is not None and monotonic() >= deadline:
                 raise subprocess.TimeoutExpired(reference, timeout_seconds or 0)
@@ -214,11 +219,14 @@ def _provider_report(
     *,
     execution: NativeExecution | None = None,
     timeout_seconds: float | None = None,
+    candidate: bool = False,
 ) -> Mapping[str, object]:
     module_name, _, attribute = reference.partition(":")
     provider = getattr(importlib.import_module(module_name), attribute)
     parameters = inspect.signature(provider).parameters
     kwargs: dict[str, object] = {}
+    if "candidate" in parameters:
+        kwargs["candidate"] = candidate
     if "current_head" in parameters:
         kwargs["current_head"] = current_head(root)
     if "retained_origins" in parameters:

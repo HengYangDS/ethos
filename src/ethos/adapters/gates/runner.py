@@ -78,6 +78,9 @@ class DryRunRunner:
 class LocalGateRunner:
     """Execute a declared provider directly or an external adapter command."""
 
+    def __init__(self, *, candidate: bool = False) -> None:
+        self.candidate = candidate
+
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         result = None
         try:
@@ -120,7 +123,7 @@ class LocalGateRunner:
                 ),
             )
         if gate.providers:
-            return _run_providers(node, gate, root)
+            return _run_providers(node, gate, root, candidate=self.candidate)
         command = gate.command
         invoked = Path(command[0])
         executable = (
@@ -329,7 +332,7 @@ def observe_gate_execution(
             )
         if not gaps and policy is not None:
             results = run_gate_graph(
-                LocalGateRunner(),
+                LocalGateRunner(candidate=not exact),
                 policy.nodes,
                 policy.registry,
                 root=root,
@@ -507,9 +510,9 @@ def _run_ready_gate(
     )
 
 
-def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
+def _run_providers(node: PlanNode, gate: Gate, root: Path, *, candidate: bool) -> ActionRunResult:
     reports, verdict, diagnostics = provider_reports(
-        gate.id, gate.providers, root, timeout_seconds=gate.timeout_seconds
+        gate.id, gate.providers, root, timeout_seconds=gate.timeout_seconds, candidate=candidate
     )
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(

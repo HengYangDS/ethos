@@ -121,21 +121,27 @@ def quality_tool_report(
     }
 
 
-def markdown_links_report(root: Path) -> dict[str, object]:
+def markdown_links_report(root: Path, *, candidate: bool = False) -> dict[str, object]:
     """Check repository-local links and anchors without network access."""
-    return _lychee_report(root, gate_id="markdown-links", online=False)
+    return {
+        **_lychee_report(root, gate_id="markdown-links", online=False, candidate=candidate),
+        "source_kind": "candidate" if candidate else "committed",
+    }
 
 
-def external_links_report(root: Path) -> dict[str, object]:
+def external_links_report(root: Path, *, candidate: bool = False) -> dict[str, object]:
     """Check HTTP and HTTPS links from a network-capable proof host."""
-    return _lychee_report(root, gate_id="external-links", online=True)
+    return {
+        **_lychee_report(root, gate_id="external-links", online=True, candidate=candidate),
+        "source_kind": "candidate" if candidate else "committed",
+    }
 
 
-def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
+def _lychee_report(root: Path, *, gate_id: str, online: bool, candidate: bool) -> dict[str, object]:
     """Check delivered members with mandatory installed policy and native increments."""
     files: list[str] = []
     try:
-        source = SourceTree.observe(root)
+        source = SourceTree.observe(root, candidate=candidate)
         files = sorted(
             native_inputs.authored_source_files(
                 root,
@@ -218,7 +224,11 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                 }
             )
         source.recheck()
-        return {**_native_report(gate_id, files, native), "source_tree": source.tree}
+        return {
+            **_native_report(gate_id, files, native),
+            "source_tree": source.tree,
+            "source_head": source.head,
+        }
     except SourceTargetUnavailableError as error:
         return _link_observation_failure(gate_id, files, "block", str(error))
     except (GitExecutionError, subprocess.CalledProcessError) as error:

@@ -12,6 +12,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- Host link checks now include tracked edits and nonignored new authored Markdown instead of
+  rejecting changed inputs or silently omitting new ones. Candidate results remain separate
+  from exact committed proof; native input ownership, bounded reads and change detection remain
+  enforced.
+
 ## [0.2.0-alpha.11] - 2026-10-24
 
 ### Fixed

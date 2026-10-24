@@ -462,3 +462,21 @@ def test_canonical_dependency_audit_uses_fresh_release_acceptance(
     result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
     assert result.verdict == "pass"
     assert observed == [('{"command":"dependency-audit","verdict":"block"}', "production-release")]
+
+
+@pytest.mark.parametrize("candidate", [False, True])
+def test_provider_only_runner_transports_explicit_candidate_context(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, candidate: bool
+) -> None:
+    """Candidate selection is request-bound, not inferred from absent native execution."""
+    observed = []
+
+    def report(root, *, candidate=False):
+        observed.append((root, candidate))
+        return {"verdict": "pass"}
+
+    _runner(monkeypatch, report=report)
+    gate = _gate("ethos.test:report")
+    runner = gate_runner.LocalGateRunner(candidate=candidate)
+    assert runner.run(_node(gate), gate, root=tmp_path).verdict == "pass"
+    assert observed == [(tmp_path, candidate)]

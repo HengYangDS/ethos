@@ -105,6 +105,22 @@ A repository that tracks a root `LICENSE` SHALL link it from its `README.md`. Ev
 - **THEN** no license gap is reported
 - **AND** removing the link reports the public entry.
 
+### Requirement: Link observation distinguishes authored candidates from committed proof
+
+Shared host link observation SHALL check current authored Markdown, including tracked edits and nonignored new files, without changing source, index or HEAD. The shared source owner SHALL preserve bounded regular reads, internal alias safety, ownership exclusions and freshness. Committed proof and provenance SHALL keep exact committed membership and bytes; candidate results SHALL NOT claim committed source-tree coverage.
+
+#### Scenario: Pending authored Markdown has a local link
+
+- **WHEN** a tracked edit or nonignored new Markdown file links to a present candidate member or a missing target
+- **THEN** ordinary host observation checks that input and reports its actual link outcome
+- **AND** exact-HEAD execution refuses the dirty source instead of issuing proof.
+
+#### Scenario: Candidate inputs change during native execution
+
+- **WHEN** observed source bytes, aliases, input membership or HEAD change while the checker runs
+- **THEN** the observation is unproved rather than a passing check of the final input
+- **AND** ignored incidental files never qualify as candidate delivery targets.
+
 ## REMOVED Requirements
 
 ### Requirement: Markdown layout follows parsed structure

@@ -103,21 +103,6 @@ effect admission. Proof and publication do not yet have equivalent SDK and MCP s
 
 ## Retained Candidate Materialization
 
-### Retained topic role migration
-
-Accepted-root `ethos land --closeout --authorize --expect-head <head> --json` previews
-legacy roles and topics from committed workspace declarations. Apply retained work/proposal
-migration with the returned `--expect-state`: it binds refs, worktrees, raw index, staged objects,
-dirty/untracked bytes, modes and Leases. History, holder and expiry remain; Lease generation
-advances once. Migration never checks out, resets, cleans, stashes or stages retained state.
-
-After interruption, preview with the original head/state. Recovery validates the original ref
-result and finishes only pending bindings/Leases; replay requires their complete poststate.
-Changed inputs/holders, occupied destinations, missing original evidence, unsupported file kinds
-or safe-reader bounds refuse. Preview and records grant no new authority. Keep migration records
-until their consumers release recovery/replay needs. Lease serialization does not lock arbitrary
-filesystem/index writers: they must stay quiescent.
-
 When a candidate ref has advanced but its index and worktree still exactly match
 a trusted, retained ancestor, inspect the existing candidate command:
 
@@ -622,3 +607,8 @@ failed evidence and state which proof, installation or publication obligations
 remain unproved. A timeout is not rollback: reobserve before retrying. Retire an
 owned temporary directory only after checking it is unused and still empty.
 Do not write a global hook disable, fabricated proof or permanent waiver.
+
+## Assurance And Evidence Boundary
+
+Readiness, execution, local publication and remote publication remain distinct;
+Work Lane visibility grants no writes. The Product Design Contract owns semantics.

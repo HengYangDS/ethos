@@ -38,11 +38,6 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
-- Accepted closeout migrates declared legacy work and proposal topics without losing history,
-  partial staging, dirty or untracked bytes, file modes, or the current Lease holder and expiry.
-  The exact preview digest is required for topic migration. Interrupted recovery validates the
-  original ref result and resumes only unfinished bindings and Lease moves; completed replay
-  refuses rolled-back state and does not advance the Lease again.
 - A full proof of a repository that declares `[[proof.source_contracts]]` no longer ends with
   `source_contract_invalid` after every gate passed. The proof's transition plan freezes its
   policy, and source-contract decoding rejected the frozen form, which also hid the declared

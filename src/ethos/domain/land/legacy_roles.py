@@ -7,6 +7,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.accepted.legacy_roles import rename_legacy_roles
+from ethos.adapters.mutation.accepted.legacy_roles import resume_renamed_bindings
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 
@@ -17,31 +18,17 @@ if TYPE_CHECKING:
 
 
 def legacy_role_rename_result(
-    repo: Path,
-    *,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    expect_state: str | None = None,
+    repo: Path, *, apply: bool, authorize: bool, expect_head: str | None
 ) -> EthosResult | None:
     """Finish an interrupted binding, then rename legacy role refs before any acceptance."""
-    try:
-        renamed = rename_legacy_roles(
-            repo,
-            current_head=git.current_head(repo),
-            apply=apply,
-            authorized=authorize,
-            expect_head=expect_head,
-            expect_state=expect_state,
-        )
-    except ValueError as error:
-        return EthosResult(
-            command="land",
-            verdict="block",
-            state="blocked",
-            required_gaps=(str(error),),
-            next_action="ethos status --json",
-        )
+    resume_renamed_bindings(repo)
+    renamed = rename_legacy_roles(
+        repo,
+        current_head=git.current_head(repo),
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
+    )
     if renamed is None:
         return None
     return EthosResult(

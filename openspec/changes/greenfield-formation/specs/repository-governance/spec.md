@@ -10,8 +10,7 @@ starter MAY add its own layout without making that layout ETHOS policy.
 
 - **WHEN** an authorized exact formation plan targets an absent destination
 - **THEN** the project has a real author-attributed initial commit, an accepted development ref, and a usable integration candidate ref with its own worktree
-- **AND** it has an authored purpose, the one ETHOS profile, official OpenSpec configuration, and discoverable installed guidance
-- **AND** a fresh Agent can reach the first governed Change through the installed product without an ETHOS source checkout.
+- **AND** it has an authored purpose, the one ETHOS profile, official OpenSpec configuration, and discoverable installed guidance.
 
 #### Scenario: The first Change adds a capability
 
@@ -89,8 +88,8 @@ identity. The preview SHALL change no repository bytes.
 #### Scenario: Missing coordination precedes a profile repair
 
 - **WHEN** an authorized holder requests missing Lease restoration for one exact linked Work Lane whose accepted control root has an invalid historical profile
-- **THEN** restoration binds the committed stable repository identity and the committed native branch-role policy, including native defaults when no branch-role table is declared
-- **AND** a declared invalid branch-role table or uncertain control root still blocks; preview and apply preserve refs, index, dirty bytes and the invalid profile
+- **THEN** restoration binds the committed stable repository identity and the committed release-binding mirror policy, with paradigm defaults when none is declared
+- **AND** an invalid declared release mirror or uncertain control root still blocks; preview and apply preserve refs, index, dirty bytes and the invalid profile
 - **AND** the Lease does not make that profile runtime authority or authorize ordinary adoption, integration or publication.
 
 #### Scenario: A profile repair lacks a trustworthy boundary

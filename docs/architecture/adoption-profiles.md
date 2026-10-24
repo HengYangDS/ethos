@@ -56,6 +56,33 @@ provider state, and tool-native configuration remain adopter facts; adoption
 does not generate or normalize them. The repository paradigm fixes the
 branch-role names.
 
+## Formation and Starter Evolution
+
+`ethos adopt --create --root <absent-path>` previews forming a new repository at
+an absent destination, and apply runs only an authorized plan bound by
+`--expect-plan-digest`. Without `--create`, `adopt` keeps binding an existing
+repository at its exact HEAD and writes no scaffold. Formation stages its
+candidate in a disposable directory named for the project, binds the requested
+path and its parent's device and inode into the plan digest, and on apply
+refuses a changed parent, an existing target or a link before it creates the
+target exclusively. `ethos mcp --create-target --root <absent-path>` binds one
+absent target for formation only; every call refuses retargeting, and creation
+still requires an authorized `adopt` plan digest.
+
+Starter evolution merges the recorded starter output, the authored HEAD and the
+installed generator's new output with native `git merge-tree`.
+`ethos adopt --evolve-starter` previews that patch from the formation
+Attestation and refuses `--apply`: a clean result is only a reviewable candidate
+that lands through exact-path prewrite in an owned Work Lane, and a conflict
+leaves authored bytes untouched. Package-owned starters keep their upgrade
+provenance in the formation Attestation, so a template engine such as Copier is
+not their update owner; a project formed by Copier may keep it as an optional
+adapter without intent or effect authority.
+
+`ethos adopt --select-runtime` selects the exact package runtime without
+replacing a repository's incumbent hooks; runtime provenance never substitutes
+for their enforcement or for full proof.
+
 An adopted repository uses the same result and continuation semantics as the
 product. The profile selects repository-owned facts and gates; it does not
 create a second command plane or copy adopter semantics into the ETHOS product

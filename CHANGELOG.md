@@ -12,6 +12,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Removed
+
+- The docs registry, decision records and docs health no longer read metadata wrapped in a
+  leading HTML comment; plain front matter is the only carrier. A wrapped document declares no
+  metadata, and the repository paradigm reports the wrapper, which
+  `ethos lane repair-paradigm --apply` removes. The `docs_title_not_first` gap retires with the
+  carrier.
+
 ## [0.2.0-alpha.13] - 2026-10-25
 
 ### Fixed

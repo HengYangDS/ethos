@@ -55,12 +55,10 @@ def decision_record_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str
 
 def _rationale_gaps(path: Path, relative: str, identity: str) -> list[str]:
     source = path.read_text(encoding="utf-8")
-    commented = source.startswith("<!--\n---\n")
     body = source.split("\n---\n", 1)[1] if source.startswith("---\n") else source
-    parsed = markdown_tokens(body)
-    if parsed is None:
+    tokens = markdown_tokens(body)
+    if tokens is None:
         return [f"docs_decision_source_unavailable:{relative}"]
-    tokens = parsed[1:] if commented and parsed and parsed[0].type == "html_block" else parsed
     headings = [(i, t) for i, t in enumerate(tokens) if t.type == "heading_open"]
     titles = [(i, t) for i, t in headings if t.tag == "h1"]
     gaps: list[str] = []

@@ -6,7 +6,6 @@ import errno
 from typing import TYPE_CHECKING
 
 import pytest
-from markdown_it import MarkdownIt
 
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
@@ -252,65 +251,21 @@ def _comment_wrapped_document(text: str) -> str:
     return f"<!--\n{metadata}\n---\n-->{body}"
 
 
-def test_docs_registry_accepts_title_first_commented_metadata(tmp_path: Path) -> None:
-    """A Forge-friendly wrapper keeps the same typed docs meaning."""
+def test_docs_registry_reads_no_metadata_from_a_comment_wrapper(tmp_path: Path) -> None:
+    """Plain front matter is the only carrier; a comment-wrapped declaration reads as missing."""
     write_active_doc(tmp_path, "ethos status --json")
     path = tmp_path / "docs/reference/example.md"
-    source = path.read_text().replace(
-        "relations: {}", 'relations:\n  canonical_for: "reader guidance"'
-    )
-    wrapped = _comment_wrapped_document(source)
-    path.write_text(wrapped)
-    rendered = MarkdownIt("commonmark").render(wrapped)
-    assert rendered.partition("-->")[2].lstrip().startswith("<h1>Example</h1>")
+    path.write_text(_comment_wrapped_document(path.read_text()))
 
     report = docs_registry_report(tmp_path)
 
-    assert report["verdict"] == "pass", report
-    assert report["registry"][0]["state"] == "canonical"
-    assert report["registry"][0]["relations"] == {"canonical_for": "reader guidance"}
-    assert report["missing_visible_sections"] == []
-    assert front_matter_ok(path, allow_html_comment=True)
+    assert report["verdict"] == "block"
+    assert report["missing_metadata"] == ["docs/reference/example.md"]
     assert not front_matter_ok(path)
     assert front_matter(path) == {}
 
 
-@pytest.mark.parametrize("prefix", ["A preface.\n\n", "## A smaller heading\n\n"])
-def test_docs_registry_requires_the_title_first_for_commented_metadata(
-    tmp_path: Path, prefix: str
-) -> None:
-    """A hidden declaration cannot greenlight a visibly misleading entry."""
-    write_active_doc(tmp_path, "ethos status --json")
-    path = tmp_path / "docs/reference/example.md"
-    wrapped = _comment_wrapped_document(path.read_text())
-    path.write_text(wrapped.replace("# Example", prefix + "# Example", 1))
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert "docs_title_not_first:docs/reference/example.md" in report["required_gaps"]
-
-
-@pytest.mark.parametrize("role", ["history", "evidence"])
-def test_commented_observations_still_require_a_title_first(tmp_path: Path, role: str) -> None:
-    """Observational roles waive prose labels, not the carrier's visible order."""
-    path = tmp_path / "docs/record.md"
-    path.parent.mkdir()
-    content = _comment_wrapped_document(
-        documentation_fixture("demo:record", role, "active", "Record")
-    )
-    path.write_text(content.replace("# Record", "A visible preface.\n\n# Record", 1))
-
-    report = docs_registry_report(tmp_path)
-
-    assert report["verdict"] == "block"
-    assert report["missing_visible_sections"] == ["docs_title_not_first:docs/record.md"]
-
-
-@pytest.mark.parametrize("commented", [False, True])
-def test_docs_registry_accepts_adopter_native_reader_guidance(
-    tmp_path: Path, *, commented: bool
-) -> None:
+def test_docs_registry_accepts_adopter_native_reader_guidance(tmp_path: Path) -> None:
     """Portable quality does not require ETHOS-specific prose labels."""
     path = tmp_path / "docs/guide.md"
     path.parent.mkdir()
@@ -318,7 +273,7 @@ def test_docs_registry_accepts_adopter_native_reader_guidance(
         "---\nsubject: demo:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n"
         "# Delivery guide\n\n## When to use\n\nUse this route for a governed delivery.\n"
     )
-    path.write_text(_comment_wrapped_document(content) if commented else content)
+    path.write_text(content)
 
     report = docs_registry_report(tmp_path)
 
@@ -338,26 +293,11 @@ def test_docs_registry_rejects_visible_guidance_without_a_title(tmp_path: Path) 
     assert "docs_visible_title_missing:docs/reference/example.md" in report["required_gaps"]
 
 
-@pytest.mark.parametrize(
-    ("before", "after"),
-    [
-        ("state: canonical", "state: active\nstate: canonical"),
-        ("<!--\n---\n", "<!--\n"),
-        ("\n---\n-->", "\n---\n"),
-        ("\n---\n-->", "\n-->"),
-        ("\n---\n-->", "\n---\nnot metadata\n-->"),
-        ("relations: {}", 'relations:\n  canonical_for: "safe --> exposed"'),
-        ("relations: {}", 'relations:\n  canonical_for: "safe --!> exposed"'),
-    ],
-)
-def test_docs_registry_rejects_ambiguous_commented_metadata(
-    tmp_path: Path, before: str, after: str
-) -> None:
-    """The alternate display carrier cannot weaken YAML or delimiter checks."""
+def test_docs_registry_rejects_a_duplicate_metadata_key(tmp_path: Path) -> None:
+    """A repeated YAML key cannot select one of two declared states."""
     write_active_doc(tmp_path, "ethos status --json")
     path = tmp_path / "docs/reference/example.md"
-    wrapped = _comment_wrapped_document(path.read_text())
-    path.write_text(wrapped.replace(before, after, 1))
+    path.write_text(path.read_text().replace("state: canonical", "state: active\nstate: canonical"))
 
     report = docs_registry_report(tmp_path)
 
@@ -366,10 +306,7 @@ def test_docs_registry_rejects_ambiguous_commented_metadata(
 
 
 @pytest.mark.parametrize("docs", ["docs/native", "handbook"])
-@pytest.mark.parametrize("commented", [False, True])
-def test_docs_health_uses_only_the_declared_portable_documentation_root(
-    tmp_path, docs, commented
-) -> None:
+def test_docs_health_uses_only_the_declared_portable_documentation_root(tmp_path, docs) -> None:
     """Native layout is retained; unrelated product carriers are never absorbed."""
     if docs == "handbook":
         profile = tmp_path / ".ethos/profile.toml"
@@ -378,7 +315,7 @@ def test_docs_health_uses_only_the_declared_portable_documentation_root(
     guide = tmp_path / docs / "guide.md"
     guide.parent.mkdir(parents=True)
     content = documentation_fixture("adopter:guide", "how-to", "active", "Guide")
-    guide.write_text(_comment_wrapped_document(content) if commented else content)
+    guide.write_text(content)
     distribution = tmp_path / "distributions/python/README.md"
     distribution.parent.mkdir(parents=True)
     distribution.write_text("# Product-only carrier\n")

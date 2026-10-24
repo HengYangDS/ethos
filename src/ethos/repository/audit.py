@@ -215,9 +215,7 @@ def repository_audit(
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
-        doc
-        for doc in REQUIRED_DOCS
-        if (root / doc).exists() and not front_matter_ok(root / doc, allow_html_comment=True)
+        doc for doc in REQUIRED_DOCS if (root / doc).exists() and not front_matter_ok(root / doc)
     ]
     schemas_missing = [
         schema

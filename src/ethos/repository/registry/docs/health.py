@@ -314,22 +314,11 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]
     gaps: list[str] = []
     for entry in registry:
         path = root / entry["path"]
-        text = path.read_text(encoding="utf-8")
-        commented = text.startswith("<!--\n")
-        reader_guidance = requires_reader_guidance(entry)
-        if not commented and not reader_guidance:
+        if not requires_reader_guidance(entry):
             continue
+        text = path.read_text(encoding="utf-8")
         body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
         tokens = MarkdownIt("commonmark").parse(body)
-        if commented and (
-            len(tokens) < 2
-            or tokens[0].type != "html_block"
-            or tokens[1].type != "heading_open"
-            or tokens[1].tag != "h1"
-        ):
-            gaps.append(f"docs_title_not_first:{entry['path']}")
-        if not reader_guidance:
-            continue
         if not any(token.type == "heading_open" and token.tag == "h1" for token in tokens):
             gaps.append(f"docs_visible_title_missing:{entry['path']}")
         paragraphs = [

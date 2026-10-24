@@ -115,9 +115,8 @@ def test_public_docs_gate_blocks_invalid_decision_record(
     assert decision.read_text() == source
 
 
-@pytest.mark.parametrize("commented", [False, True])
 def test_shared_decision_contract_preserves_metadata_and_readable_rationale(
-    tmp_path: Path, *, commented: bool
+    tmp_path: Path,
 ) -> None:
     """A native root keeps the same decision contract and ordinary evidence prose."""
     profile = tmp_path / ".ethos/profile.toml"
@@ -137,9 +136,6 @@ def test_shared_decision_contract_preserves_metadata_and_readable_rationale(
         "The evidence [source `git status`](https://example.test/decision) "
         "is not a procedure.",
     )
-    if commented:
-        metadata, body = source.split("\n---\n", 1)
-        source = f"<!--\n{metadata}\n---\n-->\n{body}"
     path.write_text(source)
 
     registry = build_docs_registry(tmp_path)

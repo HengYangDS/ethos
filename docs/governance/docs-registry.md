@@ -25,27 +25,10 @@ Subject, Role, State, and Relation metadata in front matter. Skills, OpenSpec,
 system contracts, and distribution files retain their own consumers; registry
 metadata outside the selected root grants no authority.
 
-Plain front matter is the accepted carrier. Until no adopter tracks a page that
-encloses the same YAML payload in a leading HTML comment, the registry still reads
-that wrapper for compatibility, and the repository paradigm reports it with its
-repair. Both carriers enter the same parser;
-the commented form requires an H1 as its first visible block. An incomplete
-wrapper, invalid YAML, or premature HTML comment terminator blocks rather than
-becoming an empty declaration. This does not change OpenSpec, Skills, or
-system-axiom syntax:
-
-```markdown
-<!--
----
-subject: example:guide
-role: how-to
-state: active
-relations: {}
----
--->
-
-# Guide
-```
+Plain front matter is the only metadata carrier. A selected page whose YAML
+payload sits inside a leading HTML comment declares no metadata; the repository
+paradigm reports the wrapper, and `ethos lane repair-paradigm --apply` removes it.
+This does not change OpenSpec, Skills, or system-axiom syntax.
 
 For active/canonical non-observational pages, the portable reader floor is a
 visible H1 and non-empty text outside headings and code fences, not fixed

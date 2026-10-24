@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.11] - 2026-10-24
+
 ### Fixed
 
 - Accepted closeout migrates declared legacy work and proposal topics without losing history,

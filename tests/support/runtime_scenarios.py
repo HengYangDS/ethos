@@ -150,10 +150,14 @@ def create_fixture_python(
     source_site = Path(sys.prefix) / relative_site
     site_packages.mkdir(parents=True, exist_ok=True)
     candidate = Path(ethos.__file__).resolve().parent
-    (site_packages / "ethos-fixture.pth").write_text(
-        f"{candidate.parent.as_posix()}\n{source_site.resolve().as_posix()}\n",
-        encoding="utf-8",
-    )
+    entries = [candidate.parent.as_posix(), source_site.resolve().as_posix()]
+    # Fixture hooks run isolated (-B -I), which ignores the gate's PYTHONPYCACHEPREFIX; reading its
+    # hash-checked bytecode spares every hook compiling its imports again.
+    if sys.pycache_prefix:
+        entries.append(
+            f"import sys; sys.pycache_prefix = sys.pycache_prefix or {sys.pycache_prefix!r}"
+        )
+    (site_packages / "ethos-fixture.pth").write_text("\n".join(entries) + "\n", encoding="utf-8")
     declaration = candidate / "adapters/repo/hook/binding.toml"
     if declaration.is_file():
         destination = site_packages / "ethos/adapters/repo/hook/binding.toml"

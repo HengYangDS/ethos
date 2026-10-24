@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.12] - 2026-10-24
+
 ### Fixed
 
 - `ethos hook install` run by a newer package no longer selects that package manager's

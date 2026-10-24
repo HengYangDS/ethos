@@ -4726,9 +4726,11 @@ boundary without extending Lease or introducing another intent carrier.
 ### Requirement: Exact accepted proposal retirement
 
 ETHOS SHALL retire a proposal through its existing publication effect only after
-fresh observations establish accepted absorption, closed review, and exact
-peer ref identity. Retirement SHALL NOT depend on main release convergence,
-active Change presence, or a historical authoring Lease.
+fresh observations establish closed review, exact peer ref identity, and that its
+exact tip stays preserved: by accepted absorption, by an owned Work Lane that
+reaches it, or by the same peer's ref for its closed review. A candidate ref
+SHALL NOT retain a proposal. Retirement SHALL NOT depend on main release
+convergence, active Change presence, or a historical authoring Lease.
 
 #### Scenario: Accepted contribution no longer needs its review projection
 
@@ -4737,13 +4739,22 @@ active Change presence, or a historical authoring Lease.
 - **THEN** public publication can delete that exact proposal by peer-local CAS
 - **AND** a delayed main release does not block retirement
 
+#### Scenario: A retained projection is redundant
+
+- **WHEN** an unabsorbed proposal tip is reachable from an owned Work Lane, or
+  the same peer names it at the ref of a closed review of that branch, and no
+  matching review remains open
+- **THEN** public publication can delete that exact proposal by peer-local CAS
+- **AND** the report names the retainer that keeps the tip retrievable
+
 #### Scenario: Incomplete or unrelated evidence cannot authorize deletion
 
-- **WHEN** absorption is absent, a review is open, the peer tip changed, or a
-  required observation is unavailable
+- **WHEN** neither absorption nor a retainer is observed, a review is open, the
+  peer tip changed, or a required observation is unavailable
 - **THEN** retirement preserves the proposal and reports the owning boundary
-- **AND** patch equivalence, a user-supplied closed flag, and unrelated review
-  results cannot substitute for the required observations
+- **AND** patch equivalence, a user-supplied closed flag, unrelated review
+  results, and a candidate ref that landing resets cannot substitute for the
+  required observations
 
 #### Scenario: Replayed deletion converges without repeated effects
 
@@ -4777,6 +4788,22 @@ active Change presence, or a historical authoring Lease.
 - **AND** current closed-review, exact peer identity and fresh CAS checks still apply
 - **AND** missing, invalid, ambiguous or nonconserving evidence does not authorize
   deletion, while unavailable required observations remain explicit
+
+#### Scenario: Remote retirement exposes separately admitted local closure
+
+- **WHEN** selected peer retirement has completed but a same-named local proposal remains
+- **THEN** the result preserves confirmed remote effects and reports `retirement_pending`
+- **AND** its continuation invokes the native local retirement owner with exact root and OIDs
+- **AND** the publication receipt does not authorize that local mutation
+- **AND** replay reports full retirement only after the requested local projections are absent
+
+#### Scenario: Local retirement shares verified accepted-contribution meaning
+
+- **WHEN** a local proposal is accepted by ancestry, verified signature repair or conserved native refresh
+- **THEN** its native retirement and compensation consume the same contribution observer as publication
+- **AND** topic role, current accepted OID, no linked worktree, no Lease and exact CAS still apply
+- **AND** missing, invalid or nonconserving evidence blocks deletion; unavailable conservation remains UNKNOWN
+- **AND** failed local effect evidence preserves or compensates the exact original ref
 
 ### Requirement: Independent release selection preserves accepted source
 
@@ -6276,3 +6303,24 @@ When accepted closeout advances a root whose hook runtime it built from the repl
 
 - **WHEN** closeout advances an adopter whose hook runtime was built from an ETHOS source
 - **THEN** the next action stays `ethos publish`
+
+### Requirement: Publication peer names default from their declaration
+
+The peer ID and Git remote name SHALL be configurable; the paradigm keeps a governed
+repository's remote equal to its peer ID. Within an explicit peer declaration only, an omitted ID SHALL default to the declared provider and an omitted Git remote
+SHALL default to the resolved ID. Defaults SHALL NOT create undeclared peers, infer a provider or
+rename existing remotes. Explicit empty or invalid names and duplicate resolved identities SHALL
+fail closed before observation or mutation.
+
+#### Scenario: Selected providers use conventional configurable defaults
+
+- **WHEN** GitLab or GitHub is explicitly declared without an ID or Git remote name
+- **THEN** the resolved names SHALL be `gitlab` or `github` respectively
+- **AND** an explicit ID or remote SHALL replace only its corresponding default
+- **AND** no `origin` remote or undeclared provider SHALL be introduced
+
+#### Scenario: Several independently named instances share one provider
+
+- **WHEN** peers `gitlab_a`, `gitlab_b` and `github` are explicitly declared
+- **THEN** both GitLab peers SHALL use the GitLab adapter without sharing identity
+- **AND** publication SHALL support selecting any declared subset independently

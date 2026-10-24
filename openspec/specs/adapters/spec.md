@@ -79,10 +79,12 @@ ETHOS SHALL admit tracked authoring only from an owned `work/*` lane.
 
 ### Requirement: Lease-backed Lane Start
 
-ETHOS SHALL create a Work Lane from the exact candidate object, acquire one
-Git-common Lease generation, and then require official OpenSpec intent before
-tracked authoring. Raw Git worktree creation is not governed Work Lane state
-because it lacks the Lease relation.
+ETHOS SHALL create a Work Lane from the exact candidate object by default, or from an
+explicitly selected full trusted commit OID, under current repository identity, commit
+policy, trust and runtime authority. It SHALL acquire one Git-common Lease generation and
+require official OpenSpec intent before tracked authoring; raw Git worktree creation lacks
+the Lease relation and is not governed Work Lane state. An explicit base SHALL NOT rewrite
+candidate, accepted, release or another lane.
 
 #### Scenario: Work Lane start is applied
 
@@ -106,6 +108,26 @@ because it lacks the Lease relation.
 
 - **WHEN** lane start runs from an existing Work Lane or dirty accepted root
 - **THEN** ETHOS blocks before mutation
+
+#### Scenario: An explicit immutable base is selected
+
+- **WHEN** the caller selects a full trusted commit OID different from the current candidate
+- **THEN** preview, apply and recovery retain that exact base
+- **AND** the native effect creates only the selected lane ref while asserting the observed candidate
+- **AND** the native birth reader derives the lane boundary from that same validated effect
+- **AND** the current runtime, candidate ref, foreign indexes and leases remain unchanged
+
+#### Scenario: Explicit base trust or identity is invalid
+
+- **WHEN** the base is absent, abbreviated, unsigned, untrusted or violates current explicit attribution
+- **THEN** no lane ref, worktree or Lease is created
+- **AND** apply rechecks current trust after preparation, without consuming the base's historical policy
+
+#### Scenario: Historical lane startup fails after creation
+
+- **WHEN** native startup fails after this invocation creates owned resources
+- **THEN** compensation removes only those exact created resources
+- **AND** it retains the original base in recovery and preserves candidate and foreign work
 
 ### Requirement: Admission Before Product Audit
 

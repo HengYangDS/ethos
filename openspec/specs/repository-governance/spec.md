@@ -5874,3 +5874,106 @@ Before the gates of a proof run, ETHOS SHALL archive the active Change that the 
 
 - **WHEN** the simulated archive and its strict validation pass
 - **THEN** the proof continues to its gates, and no file outside the disposable projection has changed
+
+### Requirement: Greenfield formation produces a governed project
+
+ETHOS SHALL form a usable Git repository only at an explicitly selected absent
+destination. A foundation starter SHALL be domain-neutral; a selected domain
+starter MAY add its own layout without making that layout ETHOS policy.
+
+#### Scenario: A foundation project is formed
+
+- **WHEN** an authorized exact formation plan targets an absent destination
+- **THEN** the project has a real author-attributed initial commit, an accepted development ref, and a usable integration candidate ref with its own worktree
+- **AND** it has an authored purpose, the one ETHOS profile, official OpenSpec configuration, and discoverable installed guidance.
+
+#### Scenario: The first Change adds a capability
+
+- **WHEN** a formed repository has official OpenSpec configuration but no accepted specs yet
+- **THEN** a valid first ADDED Change can pass write admission without a placeholder `openspec/specs` directory or invented requirement
+- **AND** an existing malformed or linked specs root remains invalid.
+
+#### Scenario: A selected domain starter is composed
+
+- **WHEN** the optional Python library starter is explicitly selected
+- **THEN** the locked native generator's identity, version, inputs and outputs are bound to the reviewed plan
+- **AND** ETHOS does not impose that starter's language, build tool or directory shape on other repositories.
+
+#### Scenario: Formation records starter provenance
+
+- **WHEN** the initial commit is created from a selected starter
+- **THEN** a result Attestation binds that commit, generator version and exact generated path/digest subset
+- **AND** the Attestation grants no permission to replace later authored bytes.
+
+#### Scenario: A starter attempts unsafe output
+
+- **WHEN** a generator fails, omits the selected library output, produces a link or special file, or a caller supplies an unknown starter or task spelling
+- **THEN** formation rejects before publishing a target and reports the responsible generator or output boundary.
+
+#### Scenario: The destination or prerequisite is not safe
+
+- **WHEN** the destination or its planned candidate worktree exists, its parent cannot be trusted, or Git identity, official intent supply or product installation is unavailable
+- **THEN** creation refuses before publishing a target and names the owning conflict or missing fact
+- **AND** an existing project, foreign file or symlink target is not overwritten.
+
+#### Scenario: An effect outcome is uncertain
+
+- **WHEN** generation, Git creation, runtime activation or response delivery fails after an effect may have occurred
+- **THEN** the result identifies confirmed effects and reports the unresolved remainder as UNKNOWN
+- **AND** recovery reobserves before any retry; it does not repeat a possibly completed effect blindly.
+
+#### Scenario: Candidate bootstrap is interrupted after its ref
+
+- **WHEN** the candidate ref exists but its worktree or runtime activation is missing
+- **THEN** status selects the candidate bootstrap's reviewed continuation before a hook-only repair when the worktree is missing
+- **AND** status and bootstrap preview produce no effect; recovery preserves the initial commit.
+
+### Requirement: Scaffold evolution preserves project authorship
+
+Generated starter files SHALL become project-owned content after acceptance.
+An upgrade SHALL compare the previous starter output, current customization and
+new starter output; ETHOS SHALL not treat generator provenance as permission to
+replace authored bytes.
+
+#### Scenario: A starter evolves without conflict
+
+- **WHEN** an explicitly selected versioned starter changes independently of project customization
+- **THEN** a reviewed candidate preserves the customization and records the exact old and new inputs
+- **AND** applying that candidate uses current repository admission rather than generator authority.
+
+#### Scenario: A starter conflicts with customization
+
+- **WHEN** a generated update and an authored edit compete for the same meaning or bytes
+- **THEN** the conflict remains visible and unapplied until an authorized decision
+- **AND** no update, uninstall or withdrawal silently deletes the authored result.
+
+### Requirement: A legacy profile has one bounded repair path
+
+An invalid existing profile SHALL NOT become runtime authority. A current owned
+Work Lane MAY admit an exact patch touching only `.ethos/profile.toml` when its
+postimage passes the strict profile model and preserves the committed repository
+identity. The preview SHALL change no repository bytes.
+
+#### Scenario: A reviewed profile repair is admitted
+
+- **WHEN** a Work Lane holder supplies an exact single-profile patch from invalid bytes to a valid current binding with the same committed `profile_id`
+- **THEN** prewrite admits that patch without accepting the old envelope as policy
+- **AND** status, ordinary adoption and later repository effects retain their separate current checks.
+
+#### Scenario: Missing coordination precedes a profile repair
+
+- **WHEN** an authorized holder requests missing Lease restoration for one exact linked Work Lane whose accepted control root has an invalid historical profile
+- **THEN** restoration binds the committed stable repository identity and the committed release-binding mirror policy, with paradigm defaults when none is declared
+- **AND** an invalid declared release mirror or uncertain control root still blocks; preview and apply preserve refs, index, dirty bytes and the invalid profile
+- **AND** the Lease does not make that profile runtime authority or authorize ordinary adoption, integration or publication.
+
+#### Scenario: A profile repair lacks a trustworthy boundary
+
+- **WHEN** the patch is absent, changes another path or identity, has an invalid postimage, or lacks Work Lane authority
+- **THEN** prewrite blocks with the invalid-profile gap and a precise repair reason
+- **AND** ETHOS does not automatically normalize or discard old fields; their meaning requires a reviewed disposition before integration.
+
+#### Scenario: Staged bytes differ from working bytes
+
+- **WHEN** the index contains an invalid profile but the working file is valid
+- **THEN** staged admission rejects the index postimage before accepting a commit.

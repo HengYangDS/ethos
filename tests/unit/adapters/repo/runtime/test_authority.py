@@ -7,9 +7,11 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.runtime.authority as authority
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
 
 
@@ -103,3 +105,28 @@ def test_invoking_source_commit_is_the_commit_the_running_checkout_holds() -> No
     source = Path(authority.__file__).resolve().parents[5]
 
     assert authority.invoking_source_commit() == git(source, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("self_hosted", [False, True])
+def test_explicit_supply_keeps_adopter_selection_and_self_hosted_authority_distinct(
+    tmp_path: Path, *, self_hosted: bool
+) -> None:
+    repo = (
+        _repository(tmp_path, version=True)[0]
+        if self_hosted
+        else init_git_repo(tmp_path / "adopter")
+    )
+    prior = require_selected_runtime(
+        fixture_runtime_generation(
+            tmp_path / "prior", "prior", build=runtime_build("a" * 40, "b" * 40)
+        )
+    )
+    expected = authority.expected_runtime_build(repo)
+    before = git(repo, "status", "--porcelain"), (repo / ".git/index").read_bytes()
+
+    observed = authority.expected_runtime_build(repo, installed_runtime=prior.root)
+
+    assert observed.identity == (expected.identity if self_hosted else prior.build)
+    assert observed.source == (expected.source if self_hosted else None)
+    assert observed.invoking is not self_hosted
+    assert before == (git(repo, "status", "--porcelain"), (repo / ".git/index").read_bytes())

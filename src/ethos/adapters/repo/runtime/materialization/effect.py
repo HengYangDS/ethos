@@ -74,15 +74,20 @@ def materialize_runtime(
     """Select admitted installed supply or materialize an exact repository runtime."""
     invoking_source = Path(__file__).resolve().parents[6]
     package_source = build_source or invoking_source
-    project = build_source or resolve_runtime_project(package_source)
     if installed_runtime is not None:
         common = Path(git_common_dir(repo))
         runtime_selection_bytes(common, installed_runtime)
         selected = require_selected_runtime(installed_runtime, expected_build=expected_build)
         require_runtime_selection_scope(common, selected)
-        if not _runtime_supply_current(selected, project):
+        valid_supply = (
+            _runtime_supply_current(selected, build_source)
+            if build_source is not None
+            else _runtime_supply_wheel(selected) is not None
+        )
+        if not valid_supply:
             _fail("hook_runtime_installed_supply_invalid")
         return pin_installed_runtime(selected, consumer=common) / "python"
+    project = build_source or resolve_runtime_project(package_source)
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")

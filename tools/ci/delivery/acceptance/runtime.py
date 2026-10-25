@@ -316,19 +316,8 @@ def prove_retained_upgrade(
     """Upgrade and roll back a real predecessor with nonempty retained state."""
     common = Path(git_common_dir(repository))
     previous = require_upgrade_predecessor(predecessor.root, build=successor.build, common=common)
-    # Native activation pins supplied bytes before selecting a reclaiming predecessor.
-    successor_report = activate_from_runtime(
-        successor.python,
-        repository,
-        environment=environment,
-        installed_runtime=successor.root,
-    )
-    require_manifest(
-        successor_report, repository, build=successor.build, wheel_sha256=successor.wheel_sha256
-    )
-    successor = current_runtime(common, expected_build=successor.build)
     predecessor_report = activate_from_runtime(
-        previous.python,
+        successor.python,
         repository,
         environment=environment,
         installed_runtime=previous.root,
@@ -338,6 +327,14 @@ def prove_retained_upgrade(
         repository,
         build=previous.build,
         wheel_sha256=previous.wheel_sha256,
+    )
+    # The installed activation already preserves the displaced coordinator in its own store.
+    coordinator = predecessor_report.get("rollback_supply")
+    if not isinstance(coordinator, dict) or coordinator.get("runtime_digest") != successor.digest:
+        message = "package_upgrade_coordinator_supply_missing"
+        raise RuntimeError(message)
+    successor = require_selected_runtime(
+        Path(str(coordinator["runtime"])), expected_build=successor.build
     )
     brownfield_acceptance.seed_retained_state(
         repository, python=previous.python, environment=environment
@@ -368,7 +365,7 @@ def prove_retained_upgrade(
         raise RuntimeError(message)
     rollback = require_selected_runtime(Path(str(supply["runtime"])), expected_build=previous.build)
     restored = activate_from_runtime(
-        rollback.python,
+        successor.python,
         repository,
         environment=environment,
         installed_runtime=rollback.root,

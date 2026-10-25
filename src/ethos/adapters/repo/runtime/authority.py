@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import NamedTuple
 
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_fact
+from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.profile import load_repository_profile
@@ -55,8 +58,8 @@ def invoking_source_commit() -> str:
     return _invoking_build(include_overlay=False).source_commit
 
 
-def expected_runtime_build(root: Path) -> RuntimeBuild:
-    """Return the accepted self-hosted build or the invoking package build."""
+def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None) -> RuntimeBuild:
+    """Keep accepted self-hosted authority distinct from explicit adopter supply."""
     package_source = Path(__file__).resolve().parents[5]
     source_authority = (
         package_source
@@ -69,6 +72,10 @@ def expected_runtime_build(root: Path) -> RuntimeBuild:
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
         return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)
     if profile is None or profile.profile_id != "ethos":
+        if installed_runtime is not None:
+            selected = require_selected_runtime(installed_runtime)
+            require_runtime_selection_scope(Path(git_common_dir(repo)), selected)
+            return RuntimeBuild(selected.build, None, invoking=True)
         return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)
     policy = load_branch_role_policy(repo)
     commit = ref_head(repo, policy.accepted_branch)

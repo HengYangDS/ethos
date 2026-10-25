@@ -84,6 +84,7 @@ def _change_staged_bytes(indexed: Path) -> None:
         "user-file",
         "index",
         "selector",
+        "coordinator-supply",
     ],
 )
 def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, tmp_path, drift):
@@ -126,6 +127,9 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
     }
 
     def activate(_python, _repository, *, installed_runtime, **_kwargs):
+        assert _python == successor.python, (
+            "the qualified successor coordinates selection and rollback"
+        )
         selected = prior if installed_runtime == prior.root else successor
         activations.append(selected.digest)
         hook_path = hooks[selected.digest]
@@ -140,7 +144,14 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
             "python": str(selected.python),
             "wheel_sha256": selected.wheel_sha256,
             "hooks_path": str(hook_path),
-            "rollback_supply": {"runtime_digest": prior.digest, "runtime": str(prior.root)},
+            "rollback_supply": {
+                "runtime_digest": (
+                    successor.digest
+                    if selected == prior and drift != "coordinator-supply"
+                    else prior.digest
+                ),
+                "runtime": str(successor.root if selected == prior else prior.root),
+            },
         }
 
     monkeypatch.setattr(runtime_acceptance, "activate_from_runtime", activate)
@@ -149,7 +160,6 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
             successor, repository, predecessor=prior, environment={}
         )
         assert activations == [
-            successor.digest,
             prior.digest,
             successor.digest,
             prior.digest,
@@ -165,7 +175,9 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
         )
     else:
         reason = (
-            "package_runtime_identity_mismatch"
+            "package_upgrade_coordinator_supply_missing"
+            if drift == "coordinator-supply"
+            else "package_runtime_identity_mismatch"
             if drift == "selector"
             else "package_upgrade_rollback_prestate_changed"
         )
@@ -173,7 +185,11 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
             runtime_acceptance.prove_retained_upgrade(
                 successor, repository, predecessor=prior, environment={}
             )
-        assert activations == [successor.digest, prior.digest, successor.digest, prior.digest]
+        assert activations == (
+            [prior.digest]
+            if drift == "coordinator-supply"
+            else [prior.digest, successor.digest, prior.digest]
+        )
 
 
 def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_path):
@@ -192,15 +208,14 @@ def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_
     def activate(python, _repository, *, installed_runtime, **_kwargs):
         if not python.is_file():
             raise FileNotFoundError(python)
-        if installed_runtime == successor.root:
-            shutil.copytree(successor.root, pinned_root)
-            installed_runtime = pinned_root
         selected = require_selected_runtime(installed_runtime)
         hooks = common / "ethos/hooks" / selected.digest
         hooks.mkdir(parents=True, exist_ok=True)
         selector.write_bytes(runtime_selection_bytes(common, selected.root))
         run_git(repository, "config", "core.hooksPath", str(hooks))
         if selected.digest == prior.digest:
+            if successor.root.exists():
+                shutil.copytree(successor.root, pinned_root)
             runtime_acceptance.remove_generated_tree(successor.root)
         return {
             **selected.build._asdict(),
@@ -209,7 +224,10 @@ def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_
             "python": str(selected.python),
             "wheel_sha256": selected.wheel_sha256,
             "hooks_path": str(hooks),
-            "rollback_supply": {"runtime_digest": prior.digest, "runtime": str(prior.root)},
+            "rollback_supply": {
+                "runtime_digest": successor.digest if selected == prior else prior.digest,
+                "runtime": str(pinned_root if selected == prior else prior.root),
+            },
         }
 
     monkeypatch.setattr(runtime_acceptance, "activate_from_runtime", activate)

@@ -163,6 +163,40 @@ def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return (runtime_root, source, interpreter, artifact, _environment()), observed, command
 
 
+def test_explicit_supply_uses_its_manifest_closure_not_the_coordinator_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    supply = tmp_path / "installed"
+    shutil.copytree(common / "ethos", supply)
+    prior = require_selected_runtime(supply / "runtime" / runtime.parent.name)
+    coordinator = tmp_path / "coordinator"
+    coordinator.mkdir()
+    (coordinator / "uv.lock").write_bytes(b"a distinct coordinator dependency closure\n")
+    monkeypatch.setattr(materialization, "resolve_runtime_project", lambda _source: coordinator)
+    monkeypatch.setattr(
+        materialization, "render_console_script", lambda _name: "a distinct coordinator launcher\n"
+    )
+    before = materialization.runtime_file_inventory(prior.root)
+
+    pinned = materialization.materialize_runtime(
+        repo, Path(sys.executable), expected_build=prior.build, installed_runtime=prior.root
+    )
+
+    assert require_selected_runtime(pinned.parent).digest == prior.digest
+    assert materialization.runtime_file_inventory(prior.root) == before
+    assert not (common / "ethos/runtime/CURRENT").exists()
+    with pytest.raises(ValueError, match="hook_runtime_installed_supply_invalid"):
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=prior.build,
+            build_source=coordinator,
+            installed_runtime=prior.root,
+        )
+
+
 @pytest.mark.parametrize("supply", ["packaged", "split-image", "source", "selected"])
 def test_materialization_binds_package_dependency_and_image_sources(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supply: str

@@ -4,6 +4,9 @@
 
 - [x] 1.1 Reuse native runtime scope admission before package setup; regress foreign private refusal
       and valid external supply without changing either destination.
+- [x] 1.2 Separate activation coordination from explicit runtime selection; verify manifest-bound
+      predecessor rollback, accepted self-hosted authority and nonmutating supply refusal.
+      Evidence: `build/evidence/local-install/smoke.json` (`cec5d6c6c`).
 
 ## 2. Migrate retained authoring identities
 

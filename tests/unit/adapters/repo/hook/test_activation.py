@@ -228,7 +228,7 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     monkeypatch.setattr(
         hook_activation,
         "expected_runtime_build",
-        lambda _root: RuntimeBuild(selected.build, None),
+        lambda _root, **_selection: RuntimeBuild(selected.build, None),
     )
     monkeypatch.setattr(
         runtime_materialization,
@@ -260,7 +260,8 @@ def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
         encoding="utf-8",
     )
 
-    def select_source(root: Path):
+    def select_source(root: Path, *, installed_runtime: Path | None = None):
+        assert installed_runtime is None
         source_selections.append(root)
         return RuntimeBuild(accepted_identity, None)
 
@@ -330,7 +331,7 @@ def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
     monkeypatch.setattr(
         hook_activation,
         "expected_runtime_build",
-        lambda _root: RuntimeBuild(next(observations), None),
+        lambda _root, **_selection: RuntimeBuild(next(observations), None),
     )
 
     with pytest.raises(ValueError, match="hook_runtime_expected_build_stale"):

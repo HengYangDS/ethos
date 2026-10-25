@@ -70,7 +70,7 @@ def install_hook_launchers(
     source_python = python or Path(sys.executable)
     if not source_python.is_absolute() or not source_python.is_file():
         _fail("hook_runtime_python_invalid")
-    expected = expected_runtime_build(repo)
+    expected = expected_runtime_build(repo, installed_runtime=installed_runtime)
     expected_build, build_source = expected.identity, expected.source
     common = Path(git_common_dir(repo))
     current_before = _runtime_selection_bytes(common)
@@ -95,6 +95,7 @@ def install_hook_launchers(
         current_before=current_before,
         reset_state=reset_state,
         expected_build=expected_build,
+        installed_runtime=installed_runtime,
     )
     binding["state_transition"] = state_transition
     if rollback_supply:
@@ -138,6 +139,7 @@ def _activate_with_state(
     current_before: bytes | None,
     reset_state: bool,
     expected_build: BuildIdentity,
+    installed_runtime: Path | None = None,
 ) -> tuple[
     HookRuntimeBinding,
     dict[str, object],
@@ -161,6 +163,7 @@ def _activate_with_state(
                 worktrees_before,
                 expected_build=expected_build,
                 selected_runtime=selected,
+                installed_runtime=installed_runtime,
             )
             connection.commit()
     except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
@@ -275,6 +278,7 @@ def _activate_common_runtime(
     *,
     expected_build: BuildIdentity,
     selected_runtime: SelectedRuntime,
+    installed_runtime: Path | None = None,
 ) -> HookRuntimeBinding:
     """Select and post-observe one common runtime/hook activation."""
     config_effects.set_common_config(repo, {"extensions.worktreeConfig": "true"})
@@ -303,7 +307,8 @@ def _activate_common_runtime(
         if observation := binding.get("contract_observation"):
             raise HookActivationError(reason, observation)
         _fail(reason)
-    if expected_runtime_build(repo).identity != expected_build:
+    observed = expected_runtime_build(repo, installed_runtime=installed_runtime)
+    if observed.identity != expected_build:
         _fail("hook_runtime_expected_build_stale")
     return binding
 

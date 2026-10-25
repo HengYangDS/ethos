@@ -29,6 +29,15 @@ Git-common store is inadmissible; an external installation can be valid. Install
 passes its actual destination to `require_runtime_selection_scope` before setup and rechecks the
 same predicate at activation. A second resolver or a private-flag shortcut would duplicate policy.
 
+### Activation coordination is distinct from selected supply
+
+The qualified successor coordinates upgrade and rollback. An adopter's explicit supplied runtime
+owns its manifest-bound identity and closure; the coordinator's lock and launcher spelling do not
+define predecessor validity. Self-hosted ETHOS keeps its accepted-source authority. The existing
+runtime selection owner checks complete bytes, exact wheel and repository scope before effects and
+rechecks selection authority afterward. Reuse the installed activation's preserved coordinator
+supply without a redundant activation or a host-side pin.
+
 ### Retained identity migration precedes normal authoring
 
 Use fresh native refs, committed declarations and the current holder to bind a bounded rename.

@@ -1,5 +1,23 @@
 ## ADDED Requirements
 
+### Requirement: Retained runtime selection is independent of activation coordination
+
+ETHOS SHALL let its qualified coordinator select an explicit manifest-bound adopter runtime
+without requiring that runtime to share the coordinator's dependency lock or launcher spelling.
+Self-hosted ETHOS SHALL retain accepted-source authority. Complete runtime identity, exact wheel,
+physical repository scope and fresh effect-time admission SHALL remain required.
+
+#### Scenario: A qualified successor restores retained predecessor supply
+
+- **WHEN** an adopter selects an exact validated predecessor through its qualified successor
+- **THEN** the existing activation owner preserves retained state and selects that predecessor
+- **AND** the supplied predecessor does not have to coordinate rollback of newer supply.
+
+#### Scenario: A supplied runtime conflicts with self-hosted accepted authority
+
+- **WHEN** explicit supply does not match the current self-hosted accepted build
+- **THEN** activation refuses without changing selected runtime or retained repository state.
+
 ### Requirement: Retained authoring identities have a native migration
 
 ETHOS SHALL provide an exactly admitted migration from retained authoring

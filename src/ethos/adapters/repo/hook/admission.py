@@ -92,7 +92,13 @@ def _pre_commit(
     index_env: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     staged = _git_paths(
-        root, "diff", "--cached", "--name-only", "--diff-filter=ACMRTD", index_env=index_env
+        root,
+        "diff",
+        "--cached",
+        "--no-renames",
+        "--name-only",
+        "--diff-filter=ACMRTD",
+        index_env=index_env,
     )
     if not staged:
         return passed_report("pre-commit", "no_staged_paths")

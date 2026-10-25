@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -12,6 +13,7 @@ import ethos.adapters.repo.hook.activation as activation
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.authority import RuntimeBuild
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -41,7 +43,9 @@ def _upgrade_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     supplied = package / "ethos/runtime" / successor_python.parent.name
     selected = require_selected_runtime(supplied)
     monkeypatch.setattr(
-        activation, "expected_runtime_build", lambda _root: RuntimeBuild(selected.build, None)
+        activation,
+        "expected_runtime_build",
+        create_autospec(expected_runtime_build, return_value=RuntimeBuild(selected.build, None)),
     )
     return repo, previous_python.parent, supplied
 
@@ -251,7 +255,9 @@ def test_a_superseded_rollback_installation_is_retired_by_the_next_cutover(
     third = package / "ethos/runtime" / third_python.parent.name
     selected = require_selected_runtime(third)
     monkeypatch.setattr(
-        activation, "expected_runtime_build", lambda _root: RuntimeBuild(selected.build, None)
+        activation,
+        "expected_runtime_build",
+        create_autospec(expected_runtime_build, return_value=RuntimeBuild(selected.build, None)),
     )
 
     result = activation.install_hook_launchers(repo, installed_runtime=third)

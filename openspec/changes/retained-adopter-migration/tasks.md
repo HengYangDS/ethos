@@ -13,8 +13,8 @@
 - [x] 2.1 Implement the native owned-topic migration; verify fresh ref admission and preserved dirty
       bytes, index intent, Lease holder and recoverable projection failure.
       Evidence: `build/evidence/retained-runtime-preservation/focused/topic-binding-work-green.xml`.
-- [x] 2.2 Qualify active Change identity migration through the existing OpenSpec owner; verify
-      preserved task identities, acceptance and exact collision refusal.
+- [ ] 2.2 Qualify active Change migration through prewrite and native signed commits; verify
+      preserved task identities, unrelated index intent and exact collision refusal.
       Evidence: `build/evidence/retained-runtime-preservation/focused/active-change-migration-green.xml`.
 
 ## 3. Qualify the retained consumer

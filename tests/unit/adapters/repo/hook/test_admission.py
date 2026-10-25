@@ -191,3 +191,38 @@ def test_pre_commit_scans_the_staged_secret_policy_closure(
         ".config/checks/gitleaks/gitleaksignore": "fixture:ignored\n",
         "config/base.toml": '[extend]\npath = ".config/checks/gitleaks/gitleaks.toml"\n',
     }
+
+
+@pytest.mark.parametrize("alternate_index", [False, True])
+def test_pre_commit_observes_both_rename_identities_without_changing_the_index(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, *, alternate_index: bool
+) -> None:
+    """Admission owns complete path effects, independent of Git's rename presentation."""
+    source, target = repo / "old.py", repo / "new.py"
+    source.write_text("VALUE = 1\n")
+    assert git_process(repo, "add", source).returncode == 0
+    _commit_fixture(repo, "record rename source")
+    index_env = {"GIT_INDEX_FILE": str(repo / "selected-index")} if alternate_index else None
+    if index_env:
+        hook_runtime.run_git(repo, "read-tree", "HEAD", env=index_env)
+    source.rename(target)
+    hook_runtime.run_git(repo, "add", "--all", "--", source.name, target.name, env=index_env)
+    before = hook_runtime.run_git(repo, "write-tree", env=index_env).stdout
+    if index_env:
+        monkeypatch.setenv("GIT_INDEX_FILE", index_env["GIT_INDEX_FILE"])
+    else:
+        monkeypatch.delenv("GIT_INDEX_FILE", raising=False)
+    observed = []
+
+    def prewrite(**options: object) -> dict[str, object]:
+        observed.append(options)
+        return {"verdict": "pass"}
+
+    monkeypatch.setattr("ethos.adapters.admission.prewrite.prewrite_guard", prewrite)
+    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 0
+    [request] = observed
+    paths = request["paths"]
+    assert isinstance(paths, list)
+    assert set(paths) == {source, target}
+    assert request["index_env"] == index_env
+    assert hook_runtime.run_git(repo, "write-tree", env=index_env).stdout == before

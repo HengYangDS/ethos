@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.toolchain.mise as mise
 from ethos.adapters.process import run_command
+from tests.support.mise_host import outside_ci
 
 if TYPE_CHECKING:
     import subprocess
@@ -235,6 +236,8 @@ def test_resolution_carries_only_native_trust_to_its_copy(
         run_command(repository, (str(mise.mise_executable()), "trust"), timeout=30, check=True)
     elif trust:
         monkeypatch.setenv("MISE_TRUSTED_CONFIG_PATHS", str(repository))
+    else:
+        outside_ci(monkeypatch, repository)
     before = _initialized_state(repository, host_mise_state)
     with patch.object(mise, "run_command", wraps=mise.run_command) as native:
         if trust:

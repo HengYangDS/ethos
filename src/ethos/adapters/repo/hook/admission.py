@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from collections.abc import Mapping
 
+    from ethos.contracts.branch.roles import BranchRolePolicy
+
 
 def admit_hook(
     root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
@@ -48,7 +50,13 @@ def admit_hook(
         {"GIT_INDEX_FILE": str((root / selected_index).resolve())} if selected_index else None
     )
     if name == "commit-msg":
-        return (_commit_msg(root, args, index_env=index_env),)
+        if len(args) != 1:
+            return (blocked_report("commit-msg", "commit_message_file_missing"),)
+        return (
+            import_module("ethos.adapters.repo.commit.admission").commit_message_report(
+                root, Path(args[0]), index_env=index_env
+            ),
+        )
     if name == "pre-commit":
         return (_pre_commit(root, selected_runtime=selected_runtime, index_env=index_env),)
     return _pre_push(root, args, stdin)
@@ -73,16 +81,6 @@ def admit_reference(
             "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
         }
     return report
-
-
-def _commit_msg(
-    root: Path, args: tuple[str, ...], *, index_env: Mapping[str, str] | None = None
-) -> dict[str, object]:
-    if len(args) != 1:
-        return blocked_report("commit-msg", "commit_message_file_missing")
-    return import_module("ethos.adapters.repo.commit.admission").commit_message_report(
-        root, Path(args[0]), index_env=index_env
-    )
 
 
 def _pre_commit(
@@ -370,11 +368,10 @@ def _prepared_reference_report(
     if protected:
         report = _candidate_report(
             root,
-            policy.candidate_branch,
             ref_name,
             old_value,
             new_value,
-            "prepared",
+            policy=policy,
             selected_runtime=selected_runtime,
         )
     elif policy.role_for_branch(branch) == ROLE_WORK_LANE:
@@ -407,21 +404,17 @@ def _prepared_reference_report(
 
 def _candidate_report(
     root: Path,
-    candidate_branch: str,
     ref_name: str,
     old_value: str,
     new_value: str,
-    phase: str,
     *,
+    policy: BranchRolePolicy,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
-    policy = import_module("ethos.adapters.admission.ref_move_policy").resolve_ref_move_policy(
-        root, ref_name, old_value, new_value
-    )
     records = import_module("ethos.adapters.repo.status.workspace").worktree_records(
         root, current_path=root, policy=policy
     )
-    record = next((item for item in records if item.get("branch") == candidate_branch), {})
+    record = next((item for item in records if item.get("branch") == policy.candidate_branch), {})
     candidate = Path(str(record.get("path") or ""))
     if (
         not candidate.is_dir()
@@ -429,8 +422,10 @@ def _candidate_report(
         or run_git(candidate, "status", "--porcelain", check=False).stdout.strip()
     ):
         return blocked_report("reference-transaction", "candidate_semantic_runner_unavailable")
-    python = _candidate_python(candidate, selected_runtime=selected_runtime)
-    if python is None:
+    binding = import_module("ethos.adapters.repo.hook.observation").hook_runtime_binding(
+        candidate, selected_runtime=selected_runtime
+    )
+    if binding["required_gaps"] or not (python := Path(binding["python"])).is_file():
         return blocked_report("reference-transaction", "candidate_semantic_runner_unavailable")
     completed = run_command(
         candidate,
@@ -446,7 +441,7 @@ def _candidate_report(
             old_value,
             new_value,
             "--phase",
-            phase,
+            "prepared",
             "--root",
             root.as_posix(),
             "--json",
@@ -463,20 +458,6 @@ def _candidate_report(
         if isinstance(data, dict)
         else blocked_report("reference-transaction", "candidate_semantic_runner_invalid")
     )
-
-
-def _candidate_python(
-    candidate: Path,
-    *,
-    selected_runtime: SelectedRuntime,
-) -> Path | None:
-    binding = import_module("ethos.adapters.repo.hook.observation").hook_runtime_binding(
-        candidate, selected_runtime=selected_runtime
-    )
-    if binding["required_gaps"]:
-        return None
-    python = Path(binding["python"])
-    return python if python.is_file() else None
 
 
 def _git_paths(

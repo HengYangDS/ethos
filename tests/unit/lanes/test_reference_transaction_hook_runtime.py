@@ -269,9 +269,11 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
         "ethos.adapters.repo.hook.admission.current_runtime",
         lambda _common: object(),
     )
+    python = tmp_path / "python"
+    python.write_bytes(b"")
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook.admission._candidate_python",
-        lambda *_args, **_kwargs: tmp_path / "python",
+        "ethos.adapters.repo.hook.observation.hook_runtime_binding",
+        lambda *_args, **_kwargs: {"required_gaps": [], "python": python.as_posix()},
     )
     monkeypatch.setattr(
         "ethos.adapters.repo.hook.admission.run_command",

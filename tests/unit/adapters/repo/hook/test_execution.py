@@ -244,6 +244,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     python = candidate / "runtime-python"
     python.write_text("runtime", encoding="utf-8")
     policy = BranchRolePolicy()
+    observe_policy = Mock(return_value=policy)
     selected_runtime = object()
     monkeypatch.setattr(
         hook_runtime,
@@ -251,7 +252,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
         lambda _common: selected_runtime,
     )
     monkeypatch.setattr(
-        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy", lambda *_args: policy
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy", observe_policy
     )
     monkeypatch.setattr(
         "ethos.adapters.repo.status.workspace.worktree_records",
@@ -285,6 +286,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     )
 
     assert result == (1 if gap else 0)
+    observe_policy.assert_called_once_with(tmp_path, "refs/heads/dev", "a" * 40, "b" * 40)
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
     if runner != "missing":
@@ -294,6 +296,13 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
             call.kwargs["selected_runtime"] is selected_runtime
             for call in project_runtime.call_args_list
         )
+    if runner == "pass":
+        assert (
+            execute_hook(tmp_path, "reference-transaction", ("prepared",), stdin=StringIO(update))
+            == 0
+        )
+        assert observe_policy.call_count == 2
+        assert project_runtime.call_count == 2
 
 
 def test_hook_execution_rejects_a_noncanonical_current_selector(

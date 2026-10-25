@@ -341,17 +341,50 @@ def _archive_scope(
     source_artifacts = _tree_paths(root, source_head, active_root, environment=environment)
     if source_artifacts is None:
         return None
-    return _scope_report(
-        root,
-        change=change,
-        archive_root=archive_root,
-        changed_paths=paths,
-        completion_artifacts=completion_artifacts or source_artifacts,
-        projection_paths=projection_paths,
-    ) | {
+    completed = completion_artifacts or source_artifacts
+    profile = load_repository_profile(root)
+    if (
+        profile.state == "invalid"
+        or profile.declaration is None
+        or profile.declaration.openspec is None
+    ):
+        raise ValueError(INVALID_PROFILE_ERROR)
+    patterns = profile.declaration.openspec.material_paths
+    material = tuple(
+        path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
+    )
+    source_paths = {
+        path: path
+        if path in projection_paths
+        else archive_source_path(
+            path,
+            change=change,
+            archive_root=archive_root,
+            completion_artifacts=completed,
+        )
+        for path in material
+    }
+    covered = [
+        {"path": path, "changes": [change]}
+        for path, source in source_paths.items()
+        if source is not None
+    ]
+    uncovered = [path for path, source in source_paths.items() if source is None]
+    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
+    return {
+        "verdict": "block" if gaps else "pass",
+        "state": "archive_transition",
+        "changed_paths": list(paths),
+        "material_patterns": list(patterns),
+        "material_paths": list(material),
+        "changes": [{"name": change, "path": archive_root}],
+        "covered_paths": covered,
+        "uncovered_paths": uncovered,
+        "required_gaps": gaps,
+        "advisory_gaps": [],
         "tree": tree,
         "archive_path": archive_root,
-        "completion_artifacts": list(completion_artifacts or source_artifacts),
+        "completion_artifacts": list(completed),
         **({"pending_projection_paths": list(pending)} if pending else {}),
         **({"preserved_archive_path": preservation} if preservation else {}),
     }
@@ -386,57 +419,3 @@ def _object_id(
 ) -> str:
     observed = run_git(root, "rev-parse", specification, check=False, env=environment)
     return observed.stdout.strip() if observed.returncode == 0 else ""
-
-
-def _scope_report(
-    root: Path,
-    *,
-    change: str,
-    archive_root: str,
-    changed_paths: tuple[str, ...],
-    completion_artifacts: tuple[str, ...],
-    projection_paths: tuple[str, ...] = (),
-) -> dict[str, Any]:
-    profile = load_repository_profile(root)
-    if (
-        profile.state == "invalid"
-        or profile.declaration is None
-        or profile.declaration.openspec is None
-    ):
-        raise ValueError(INVALID_PROFILE_ERROR)
-    patterns = profile.declaration.openspec.material_paths
-    material = tuple(
-        path
-        for path in changed_paths
-        if any(repository_path_matches(path, glob) for glob in patterns)
-    )
-    source_paths = {
-        path: path
-        if path in projection_paths
-        else archive_source_path(
-            path,
-            change=change,
-            archive_root=archive_root,
-            completion_artifacts=completion_artifacts,
-        )
-        for path in material
-    }
-    covered = [
-        {"path": path, "changes": [change]}
-        for path, source in source_paths.items()
-        if source is not None
-    ]
-    uncovered = [path for path, source in source_paths.items() if source is None]
-    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": "archive_transition",
-        "changed_paths": list(changed_paths),
-        "material_patterns": list(patterns),
-        "material_paths": list(material),
-        "changes": [{"name": change, "path": archive_root}],
-        "covered_paths": covered,
-        "uncovered_paths": uncovered,
-        "required_gaps": gaps,
-        "advisory_gaps": [],
-    }

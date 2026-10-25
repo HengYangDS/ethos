@@ -22,9 +22,9 @@
 - [x] 3.1 Pass installed predecessor upgrade, rollback and renewed authoring with nonempty retained
       state and legacy identities through public native commands.
       Evidence: `build/evidence/local-install/attempts/27f575058-retained-qualified/smoke.json`.
-- [ ] 3.2 Qualify the final source within the native source budget, with focused quality and review,
+- [x] 3.2 Qualify the final source within the native source budget, with focused quality and review,
       strict OpenSpec validation and official archive simulation.
-      Current dependency: `build/evidence/retained-runtime-preservation/focused/source-budget-after-native-simplification.json`.
+      Evidence: `build/evidence/retained-runtime-preservation/focused/hook-archive-owner-openspec.json`.
 
 ## Workflow follow-up
 

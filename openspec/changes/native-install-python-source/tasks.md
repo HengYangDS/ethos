@@ -8,7 +8,7 @@
 ## 2. Verify delivery
 
 - [x] 2.1 Pass focused delivery regressions, formatting, Ruff, Ty, source budget and OCR review.
-- [ ] 2.2 Pass the actual isolated installed-console runtime lifecycle.
+- [x] 2.2 Pass the actual isolated installed-console runtime lifecycle.
 - [x] 2.3 Pass strict OpenSpec validation and the official archive projection.
 
 ## Workflow follow-up

@@ -23,6 +23,7 @@ from ethos.adapters.toolchain.mise import mise_executable
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.mise_host import outside_ci
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -222,6 +223,8 @@ def test_provisioning_carries_only_native_trust_to_its_copy(
     mise = mise_executable()
     if trusted:
         run_command(repo, (str(mise), "trust"), timeout=30, check=True)
+    else:
+        outside_ci(monkeypatch, repo)
     carried: list[Mapping[str, str]] = []
 
     def download(_command: tuple[str, ...], *, root: Path, **options: object) -> None:

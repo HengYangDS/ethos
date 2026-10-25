@@ -22,6 +22,7 @@ from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
+from tests.support.mise_host import outside_ci
 from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
 
@@ -434,6 +435,7 @@ def test_unavailable_locked_node_does_not_fall_back_to_host_path(
             "mise.lock": "lockfile_version = 2\n",
         },
     )
+    outside_ci(monkeypatch, repo)
     original_which = native_quality.shutil.which
     monkeypatch.setattr(
         native_quality.shutil,

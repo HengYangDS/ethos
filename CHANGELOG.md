@@ -12,7 +12,7 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
-## [0.2.0-alpha.14] - 2026-10-25
+## [0.2.0-alpha.14] - 2026-10-26
 
 ### Changed
 

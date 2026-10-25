@@ -223,9 +223,10 @@ def _upstream(root: Path, subjects: list[AuditSubject], lock_source: bytes, time
             value = json.loads(completed.stdout) if completed.returncode == 0 else None
         except (OSError, ValueError, ProcessExecutionError, subprocess.TimeoutExpired):
             value = None
-        # The native `name@latest` view is a one-element array; any other shape stays unobserved.
-        if isinstance(value, list) and len(value) == 1 and isinstance(value[0], str) and value[0]:
-            observation["npm"][name] = value[0]
+        if isinstance(value, list) and len(value) == 1:
+            value = value[0]
+        if isinstance(value, str) and value:
+            observation["npm"][name] = value
     return observation
 
 

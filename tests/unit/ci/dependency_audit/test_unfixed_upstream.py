@@ -36,8 +36,7 @@ def _transport(monkeypatch, raw: dict, latest: dict[str, object]) -> list[tuple[
                 raise value
             if value is None:
                 return subprocess.CompletedProcess(command, 1, "", "npm error code E404")
-            native = value if isinstance(value, list) else [value]
-            return subprocess.CompletedProcess(command, 0, json.dumps(native, indent=2) + "\n", "")
+            return subprocess.CompletedProcess(command, 0, json.dumps(value, indent=2) + "\n", "")
         if ecosystem == "npm":
             return subprocess.CompletedProcess(command, 1, output, "")
         return native_result(command, ecosystem)
@@ -54,6 +53,7 @@ def _views(observed: list[tuple[str, ...]]) -> list[str]:
     ("latest", "verdict"),
     [
         ({"braces": "3.0.3"}, "pass"),
+        ({"braces": ["3.0.3"]}, "pass"),
         ({"braces": "3.0.4"}, "block"),
         ({}, "block"),
         ({"braces": 3}, "block"),

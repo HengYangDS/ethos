@@ -30,6 +30,9 @@ modify archived intent, qualify interruption or uninstall, or activate adopters.
 4. Move the existing retained-upgrade tests to their own semantic pytest home and add independent
    staged-only, mode and linked-worktree faults. Do not duplicate the lifecycle tests or split
    production ownership merely to satisfy a line ceiling.
+5. Bind read-only UV candidate enumeration to an explicit working directory and resolve its valid
+   relative paths there. Keep independent executable, version, ABI, architecture, prefix and
+   copyable-image admission unchanged; discovery neither downloads nor activates Python.
 
 ## Risks / Trade-offs
 

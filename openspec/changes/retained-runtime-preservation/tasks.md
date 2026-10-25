@@ -12,4 +12,6 @@
 - [x] 2.1 Bind each upgrade, rollback and reactivation comparison and its evidence to the full
       snapshot; focused consumer tests, native layout, Ruff, Ty, SCC and OCR review pass.
 - [ ] 2.2 Qualify the exact packaged successor against a distinct installed predecessor outside
-      the source checkout; preserve all observed Git, index, file, mode and Lease state.
+      the source checkout; verify read-only interpreter discovery and preserve all observed
+      Git, index, file, mode and Lease state. Local Python supply risk is approved through
+      2026-11-13; CI, distribution and adopter activation are not approved.

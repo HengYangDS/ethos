@@ -26,8 +26,9 @@ None. This repairs verification of existing preservation requirements; `skip_spe
 
 ## Impact
 
-The existing brownfield snapshot and retained-upgrade acceptance, their focused tests and evidence
-projection change. Runtime activation, signing, project constraints and adopter source do not.
+The existing brownfield snapshot, retained-upgrade acceptance and installed interpreter-source
+reader, their focused tests and evidence projection change. Runtime activation, signing, project
+constraints and adopter source do not.
 
 ## Out of Scope
 

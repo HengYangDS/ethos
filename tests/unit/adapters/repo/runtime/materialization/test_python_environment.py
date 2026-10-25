@@ -161,8 +161,9 @@ def test_congruent_image_uses_native_containment_without_candidate_discovery(
 
 
 @pytest.mark.parametrize("base_kind", ["framework", "missing-stdlib"])
+@pytest.mark.parametrize("candidate_path", ["absolute", "relative"])
 def test_image_source_discovery_is_read_only_and_uses_the_invoking_python(
-    monkeypatch, tmp_path, base_kind
+    monkeypatch, tmp_path, base_kind, candidate_path
 ):
     """Fallback discovery enumerates installed candidates without provisioning Python."""
     invoked, base, home, observations = _observed_pair(
@@ -179,10 +180,13 @@ def test_image_source_discovery_is_read_only_and_uses_the_invoking_python(
     observations[standalone.resolve()] = _facts(standalone, prefix=standalone_root)
     _observe(monkeypatch, observations)
     commands: list[tuple[str, ...]] = []
+    directories: list[Path | None] = []
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "ambient"))
 
     def run(command: tuple[str, ...], **kwargs) -> subprocess.CompletedProcess[str]:
         commands.append(command)
+        directories.append(kwargs.get("cwd"))
         assert "VIRTUAL_ENV" not in kwargs["env"]
         assert {
             key: kwargs["env"][key] for key in ("UV_NO_CACHE", "UV_OFFLINE", "UV_PYTHON_DOWNLOADS")
@@ -192,7 +196,11 @@ def test_image_source_discovery_is_read_only_and_uses_the_invoking_python(
             0,
             json.dumps(
                 [
-                    {"path": str(path)}
+                    {
+                        "path": str(path.relative_to(tmp_path))
+                        if candidate_path == "relative" and isinstance(path, Path)
+                        else str(path)
+                    }
                     for path in (standalone, base, incompatible, standalone, "relative")
                 ]
             ),
@@ -204,6 +212,7 @@ def test_image_source_discovery_is_read_only_and_uses_the_invoking_python(
     source_facts = require_python_image_source(invoked)
 
     assert Path(source_facts["executable"]).resolve() == standalone.resolve()
+    assert directories == [tmp_path]
     assert commands == [
         (
             invoked.as_posix(),

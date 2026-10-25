@@ -231,6 +231,7 @@ def _installed_python_candidates(
         "--no-config",
         invoked["python_version"],
     )
+    directory = Path.cwd()
     try:
         completed = subprocess.run(
             command,
@@ -238,6 +239,7 @@ def _installed_python_candidates(
             check=False,
             text=True,
             env=environment,
+            cwd=directory,
         )
         rows = json.loads(completed.stdout)
     except (OSError, TypeError, ValueError):
@@ -248,9 +250,7 @@ def _installed_python_candidates(
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("path"), str):
             return ()
-        candidate = Path(row["path"])
-        if candidate.is_absolute():
-            candidates.add(candidate.resolve())
+        candidates.add((directory / row["path"]).resolve())
     return tuple(sorted(candidates, key=lambda path: path.as_posix()))
 
 

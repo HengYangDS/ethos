@@ -2,7 +2,7 @@
 
 ## 1. Native Trust in Resolution
 
-- [ ] 1.1 Ask native mise, under the caller's own trust inputs, whether the repository's configuration root is trusted. Carry only that trust to resolution's disposable copy of the exact declared bytes, for one invocation, keeping safe mode and disposable state. Done when regressions prove five things: a trusted root's copy is trusted during resolution, an untrusted root's copy is not, no trust record is written, the execution environment never carries trust, and an untrusted refusal names `mise trust`.
+- [x] 1.1 Ask native mise, under the caller's own trust inputs, whether the repository's configuration root is trusted. Carry only that trust to resolution's disposable copy of the exact declared bytes, for one invocation, keeping safe mode and disposable state. Done when regressions prove five things: a trusted root's copy is trusted during resolution, an untrusted root's copy is not, no trust record is written, the execution environment never carries trust, and an untrusted refusal names `mise trust` (`test_resolution_carries_only_native_trust_to_its_copy`, `test_native_supply_resolution_leaves_no_host_mise_state`).
 
 ## 2. Windows JavaScript Reporter
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import tomllib
 from contextlib import contextmanager
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
+_LAYOUTS = ((MISE_CONFIG, MISE_LOCK), ("mise.toml", "mise.lock"), (".mise.toml", "mise.lock"))
 # The caller's own mise storage and safe-mode choice; resolution overrides the last two.
 _CALLER_INPUTS = frozenset(
     ("MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR", "MISE_STATE_DIR", "MISE_SAFE")
@@ -52,6 +54,7 @@ def _mise_environment(
     offline: bool,
     files: Mapping[str, str] | None = None,
     execution: bool = False,
+    trusted: bool = False,
 ) -> dict[str, str]:
     """Bind native storage and safety inputs; execution keeps only the caller's explicit policy."""
     environment = {key: value for key, value in os.environ.items() if key in _CALLER_INPUTS} | {
@@ -66,6 +69,9 @@ def _mise_environment(
     if not execution:
         # Resolution runs no repository task, and mise's record of what it loaded stays disposable.
         environment |= {"MISE_SAFE": "1", "MISE_STATE_DIR": str(isolated / "state")}
+        if trusted:
+            # The repository's own native trust, for this copy of its exact bytes only.
+            environment["MISE_TRUSTED_CONFIG_PATHS"] = str(isolated / MISE_CONFIG)
     settings = tomllib.loads(files[MISE_CONFIG]).get("settings", {}) if files else {}
     if type(settings) is not dict:
         message = "mise_idiomatic_settings_invalid"
@@ -108,12 +114,7 @@ def _task_only_configuration(config_text: str) -> bool:
 def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict[str, str] | None:
     """Select the native declaration closure without repository or host fallback."""
     canonical = root.resolve()
-    layouts = (
-        (MISE_CONFIG, MISE_LOCK),
-        ("mise.toml", "mise.lock"),
-        (".mise.toml", "mise.lock"),
-    )
-    selected = [(config, lock) for config, lock in layouts if (canonical / config).is_file()]
+    selected = [(config, lock) for config, lock in _LAYOUTS if (canonical / config).is_file()]
     if not selected:
         return None
     if len(selected) != 1:
@@ -195,6 +196,47 @@ def _mise_input(root: Path, relative: str) -> str:
     ).decode("utf-8")
 
 
+def _declares(root: Path, config: str) -> bool:
+    """Whether these exact bytes are the root's one native configuration."""
+    selected = [path for path, _lock in _LAYOUTS if (root / path).is_file()]
+    try:
+        return len(selected) == 1 and _mise_input(root, selected[0]) == config
+    except (OSError, ValueError):
+        return False
+
+
+def _root_trusted(root: Path, executable: Path | None) -> bool:
+    """Ask native mise, under the caller's own trust inputs, whether root's config is trusted.
+
+    Safe mode changes no answer and runs no repository code. Only an exact `<root>: trusted` line
+    counts; any other output or a query that cannot run is untrusted, and a timeout propagates.
+    """
+    try:
+        shown = run_command(
+            root,
+            (str(executable or mise_executable()), "--cd", str(root), "trust", "--show"),
+            timeout=15,
+            env={"MISE_SAFE": "1"},
+        )
+        rows = (line.rpartition(": ") for line in shown.stdout.splitlines())
+        paths = [
+            Path(path).expanduser() for path, _separator, status in rows if status == "trusted"
+        ]
+        return not shown.returncode and any(
+            path.is_absolute() and path.resolve() == root for path in paths
+        )
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
+    """Name native trust as the next action when the user's own mise distrusts the root too."""
+    canonical = root.resolve()
+    if not _root_trusted(canonical, executable):
+        message += "; next: " + shlex.join(("mise", "--cd", str(canonical), "trust"))
+    return ValueError(message)
+
+
 def mise_executable() -> Path:
     """Resolve only the operator-selected native mise executable."""
     if not (installed := shutil.which("mise")):
@@ -239,16 +281,19 @@ def run_mise(
             if current != content:
                 message = f"mise_version_carrier_changed:{path}"
                 raise ValueError(message)
+    selected = executable or mise_executable()
+    canonical = root.resolve()
+    trusted = _declares(canonical, materials[MISE_CONFIG]) and _root_trusted(canonical, selected)
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
-        environment = _mise_environment(isolated, offline=offline, files=materials)
+        environment = _mise_environment(isolated, offline=offline, files=materials, trusted=trusted)
         for path, content in materials.items():
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8", newline="")
         return run_command(
             isolated,
-            (str(executable or mise_executable()), *arguments),
+            (str(selected), *arguments),
             timeout=timeout,
             remove_env_prefixes=("MISE_",),
             env=environment,
@@ -260,7 +305,7 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
     result = run_mise(root, ("which", name), files=files, offline=True)
     if result.returncode or result.stderr:
         message = f"mise_supply_unavailable:{name}:{result.stderr.strip()}"
-        raise ValueError(message)
+        raise _refusal(message, root)
     executable = Path(result.stdout.strip())
     if not executable.is_absolute() or not executable.is_file():
         message = f"mise_executable_unavailable:{name}"
@@ -275,7 +320,7 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
     selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
     if selected.returncode or selected.stderr:
         message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
-        raise ValueError(message)
+        raise _refusal(message, root, executable)
     try:
         environment = json.loads(selected.stdout)
     except json.JSONDecodeError as error:
@@ -289,11 +334,11 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
     listed = run_mise(root, ("bin-paths",), files=files, executable=executable, offline=True)
     if listed.returncode or listed.stderr:
         message = f"mise_bin_paths_unavailable:{listed.stderr.strip()[:512]}"
-        raise ValueError(message)
+        raise _refusal(message, root, executable)
     paths = tuple(Path(line) for line in listed.stdout.splitlines() if line)
     if not paths or any(not path.is_absolute() or not path.is_dir() for path in paths):
         message = "mise_bin_paths_invalid"
-        raise ValueError(message)
+        raise _refusal(message, root, executable)
     with TemporaryDirectory(prefix="ethos-mise-bin-") as directory:
         suffix = executable.suffix.lower()
         alias_name = "mise"

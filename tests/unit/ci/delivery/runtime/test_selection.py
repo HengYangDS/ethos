@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -11,7 +10,6 @@ import pytest
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -167,8 +165,8 @@ def test_foreign_private_predecessor_is_rejected_before_package_setup(monkeypatc
     assert not (tmp_path / "smoke.terminal.json").exists()
 
 
-def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, tmp_path):
-    """Archiving follows the selected successor after the original is reclaimed."""
+def test_package_retained_upgrade_keeps_independent_repository_selection(monkeypatch, tmp_path):
+    """The retained journey owns a separate family, leaving package selection intact."""
     work = tmp_path / "work"
     repository = init_git_repo(work / "adopter")
     supply = Path(git_common_dir(repository)) / "ethos/runtime"
@@ -183,7 +181,6 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
     )
     common = Path(git_common_dir(repository))
     activate_runtime(common, successor.root)
-    pinned = tmp_path / "installation/runtime" / successor.digest
     previous = require_selected_runtime(fixture_runtime_generation(tmp_path / "prior", "prior"))
     wheel = tmp_path / "ethos.whl"
     wheel.write_bytes(b"wheel")
@@ -254,27 +251,24 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
     targets = []
 
     def retained(selected, target, *, predecessor, environment):
-        require_runtime_selection_scope(Path(git_common_dir(target)), selected)
+        require_runtime_selection_scope(common, selected)
         assert selected == successor
+        assert target == work / "retained-adopter"
         assert predecessor is previous
         assert environment["UV_OFFLINE"] == "1"
-        shutil.copytree(selected.root, pinned)
-        activate_runtime(common, pinned)
-        remove_generated_tree(selected.root)
-        assert not selected.root.exists()
         targets.append(target)
         return {"state": "passed"}
 
     def archive(path, package, destination):
         selected = require_selected_runtime(path)
-        assert selected.root == pinned
+        assert selected.root == successor.root
         assert selected.digest == successor.digest
         assert package == wheel
         assert destination.parent == work / "native"
         return {"path": "archive", "runtime_digest": successor.digest}
 
     def retain(qualified, runtime, package, destination):
-        assert runtime == pinned
+        assert runtime == successor.root
         assert package == wheel
         assert destination.parent == tmp_path / "build/artifacts/native" / successor.digest
         return {**qualified, "retained": True}
@@ -288,7 +282,7 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
         head=successor.build.source_commit,
         predecessor=previous,
     )
-    assert targets == [repository]
+    assert targets == [work / "retained-adopter"]
     assert result["distribution"] == {
         "path": "archive",
         "runtime_digest": successor.digest,

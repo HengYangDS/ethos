@@ -159,9 +159,12 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
         "selector": lambda: selector.write_bytes(runtime_selection_bytes(common, successor.root)),
     }
 
-    def activate(_python, _repository, *, installed_runtime, **_kwargs):
+    def activate(_python, _repository, *, installed_runtime=None, **_kwargs):
         assert _python == successor.python, (
             "the qualified successor coordinates selection and rollback"
+        )
+        assert activations or installed_runtime is None, (
+            "activate the destination family's coordinator before selecting a predecessor"
         )
         selected = prior if installed_runtime == prior.root else successor
         activations.append(selected.digest)
@@ -193,6 +196,7 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
             successor, repository, predecessor=prior, environment={}
         )
         assert activations == [
+            successor.digest,
             prior.digest,
             successor.digest,
             prior.digest,
@@ -220,9 +224,9 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
                 successor, repository, predecessor=prior, environment={}
             )
         assert activations == (
-            [prior.digest]
+            [successor.digest, prior.digest]
             if drift == "coordinator-supply"
-            else [prior.digest, successor.digest, prior.digest]
+            else [successor.digest, prior.digest, successor.digest, prior.digest]
         )
 
 
@@ -239,10 +243,10 @@ def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_
     )
     pinned_root = tmp_path / "installed" / "runtime" / successor.digest
 
-    def activate(python, _repository, *, installed_runtime, **_kwargs):
+    def activate(python, _repository, *, installed_runtime=None, **_kwargs):
         if not python.is_file():
             raise FileNotFoundError(python)
-        selected = require_selected_runtime(installed_runtime)
+        selected = require_selected_runtime(installed_runtime or successor.root)
         hooks = common / "ethos/hooks" / selected.digest
         hooks.mkdir(parents=True, exist_ok=True)
         selector.write_bytes(runtime_selection_bytes(common, selected.root))

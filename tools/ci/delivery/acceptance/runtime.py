@@ -316,6 +316,11 @@ def prove_retained_upgrade(
     """Upgrade and roll back a real predecessor with nonempty retained state."""
     common = Path(git_common_dir(repository))
     previous = require_upgrade_predecessor(predecessor.root, build=successor.build, common=common)
+    initial = activate_from_runtime(successor.python, repository, environment=environment)
+    require_manifest(
+        initial, repository, build=successor.build, wheel_sha256=successor.wheel_sha256
+    )
+    successor = current_runtime(common, expected_build=successor.build)
     predecessor_report = activate_from_runtime(
         successor.python,
         repository,

@@ -1,14 +1,8 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Native supply resolution leaves no host mise state
+### Requirement: Disposable mise copies carry only native trust
 
-Resolving native tool supply SHALL run mise in safe mode over a disposable directory and SHALL keep mise's state in that directory. Resolution thus runs no repository task, hook or template and records nothing in the host's mise state. Provisioning into a disposable root SHALL keep mise's state in that root. Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A resolution refused for an untrusted configuration SHALL name native `mise trust` as the next action.
-
-#### Scenario: A resolution completes
-
-- **WHEN** ETHOS resolves a repository's declared version files, a locked tool or a locked environment
-- **THEN** the host's mise state is unchanged and no repository task ran
-- **AND** the resolved executables are those of the locked selection
+Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A resolution refused for an untrusted configuration SHALL name native `mise trust` as the next action.
 
 #### Scenario: A trusted configuration locks a trust-keyed install
 
@@ -27,6 +21,8 @@ Resolving native tool supply SHALL run mise in safe mode over a disposable direc
 - **WHEN** native mise does not report the repository's configuration as trusted
 - **THEN** resolution carries no trust to its copy and its result is unchanged
 - **AND** a refusal names `mise trust` as the next action
+
+## MODIFIED Requirements
 
 ### Requirement: Locked execution keeps native mise policy
 

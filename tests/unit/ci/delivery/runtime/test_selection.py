@@ -155,6 +155,7 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
 
     observations = (
         (effect, "_run", run),
+        (effect, "require_python_image_source", {"executable": str(tmp_path / "image-python")}),
         (effect, "prepare_locked_requirements", work / "requirements.txt"),
         (effect, "install_locked_runtime", None),
         (effect.adopter_fixture, "materialize_adopter", ""),

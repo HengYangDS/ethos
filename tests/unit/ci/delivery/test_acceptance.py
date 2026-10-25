@@ -61,6 +61,9 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     remove_generated_tree = effect.remove_generated_tree
 
     source_python = tmp_path / "project-python"
+    image_python = tmp_path / "image-python"
+    image_source = Mock(return_value={"executable": str(image_python)})
+    monkeypatch.setattr(effect, "require_python_image_source", image_source)
     for name, value in {
         "ROOT": tmp_path,
         "ARTIFACTS": artifacts,
@@ -161,7 +164,29 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         cleanup=cleanup_evidence_states,
         sealed_payload=sealed_payload,
         selected_runtime=selected_runtime,
+        image_source=image_source,
     )
+
+
+def test_console_uses_image_source_without_changing_locked_dependency_owner(
+    monkeypatch, tmp_path, acceptance_case
+):
+    command = Mock(return_value="")
+    requirements = Mock(return_value=effect.WORK / "locked-requirements.txt")
+    monkeypatch.setattr(effect, "_run", command)
+    monkeypatch.setattr(effect, "prepare_locked_requirements", requirements)
+    effect.run(cast("nox.Session", SimpleNamespace(error=pytest.fail, log=lambda _: None)))
+    assert command.call_args_list[0].args == (
+        "/locked/uv",
+        "venv",
+        "--offline",
+        "--python",
+        str(tmp_path / "image-python"),
+        str(effect.WORK / "venv"),
+    )
+    acceptance_case.image_source.assert_called_once_with(tmp_path / "project-python")
+    requirements.assert_called_once_with(tmp_path, effect.WORK, tmp_path / "project-python")
+    assert acceptance_case.observed["supply"][1] == tmp_path / "project-python"
 
 
 @pytest.mark.parametrize(

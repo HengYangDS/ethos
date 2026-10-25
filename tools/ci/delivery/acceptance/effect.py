@@ -32,6 +32,9 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.materialization.python_environment import (
+    require_python_image_source,
+)
 from ethos.adapters.repo.runtime.selection import current_runtime
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
@@ -314,6 +317,7 @@ def observe_package(
     wheel = selected.path
     smoke, adopter = WORK / "venv", WORK / "adopter"
     uv, source_python = RUNTIME.script("uv"), RUNTIME.python
+    image_python = Path(require_python_image_source(source_python)["executable"])
     package_environment = independent_host_environment()[0]
     package_environment.update(UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data"))
     with observe_stage("locked_package_installation"):
@@ -322,7 +326,7 @@ def observe_package(
             "venv",
             "--offline",
             "--python",
-            str(source_python),
+            str(image_python),
             str(smoke),
             env=package_environment,
         )

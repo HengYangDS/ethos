@@ -253,37 +253,30 @@ def observe_installed_package(
     python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
     _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK, env=environment)
     version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK, env=environment)
+    status_json = _run(
+        str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter, env=environment
+    )
     origin = _run(
         str(python),
         "-B",
         "-I",
         "-c",
-        "from pathlib import Path; import ethos,sys; "
+        "from pathlib import Path; import ethos,json,sys; "
+        "from ethos.result import EthosResult; "
         "from ethos.repository.release.identity import packaged_build_identity; "
         "assert packaged_build_identity().distribution_version in sys.argv[1], "
-        "'installed_console_identity_mismatch'; print(Path(ethos.__file__).resolve())",
+        "'installed_console_identity_mismatch'; "
+        "result=EthosResult.from_payload(json.loads(sys.argv[2])); "
+        "assert result.command=='status' and result.verdict in {'pass','block','unknown'}; "
+        "print(Path(ethos.__file__).resolve())",
         version,
+        status_json,
         cwd=WORK,
         env=environment,
     )
     if not Path(origin).is_relative_to(smoke):
         message = f"installed package escaped smoke environment: {origin}"
         raise RuntimeError(message)
-    status_json = _run(
-        str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter, env=environment
-    )
-    _run(
-        str(python),
-        "-I",
-        "-c",
-        "import json,sys; "
-        "from ethos.result import EthosResult; "
-        "result=EthosResult.from_payload(json.loads(sys.argv[1])); "
-        "assert result.command=='status' and result.verdict in {'pass','block','unknown'}",
-        status_json,
-        cwd=adopter,
-        env=environment,
-    )
     cli_invocation.require_installed_guidance(status_json, origin)
     _run(
         str(python),

@@ -18,6 +18,7 @@ import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import git_environment
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -27,6 +28,7 @@ from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
+from tools.ci.delivery.acceptance.brownfield import prove_retained_authoring
 
 
 def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Path) -> None:
@@ -56,6 +58,64 @@ def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Pa
     assert candidate.as_posix() in run_git(repository, "worktree", "list", "--porcelain").stdout
     run_git(repository, "verify-commit", head)
     assert not run_git(repository, "status", "--porcelain").stdout
+
+
+def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Outer source intent cannot leak through native Git into an independent fixture."""
+    configuration = tmp_path / "config.yaml"
+    configuration.write_bytes(b"schema: spec-driven\n")
+    repository = tmp_path / "retained"
+
+    def run(*command, cwd=tmp_path, env=None):
+        result = run_command(cwd, command, env=env)
+        result.check_returncode()
+        return result.stdout.strip()
+
+    adopter_fixture.materialize_adopter(
+        repository, openspec_config=configuration, run=run, retained=True
+    )
+    branch, holder = "work/retained-upgrade-fixture", "agent:test:package-only:retained"
+    run_git(repository, "branch", "-m", branch)
+    run_git(repository, "config", "extensions.worktreeConfig", "true")
+    acquire_lease(
+        state_database(repository),
+        lease=LaneLease(
+            lane_ref=branch,
+            holder_ref=holder,
+            generation=1,
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+        ),
+    )
+    _stage_working_bytes(repository)
+    commits = []
+
+    def selected_git(root, *args, **options):
+        if args[:1] == ("commit",):
+            effective = git_environment(env=options.get("env"))
+            assert effective["ETHOS_CHANGE"] == "smoke-change"
+            commits.append(run_git(root, *args, **options))
+            return commits[-1]
+        return run_git(root, *args, **options)
+
+    def prewrite(root, _command, *, environment):
+        del environment
+        target = root / "openspec/changes/smoke-change/proposal.md"
+        collision = target.is_file() and target.read_bytes() == b"Existing independent intent\n"
+        return int(collision), {"verdict": "block" if collision else "pass"}, ""
+
+    monkeypatch.setenv("ETHOS_CHANGE", "outer-source-change")
+    monkeypatch.setattr(brownfield_acceptance, "run_git", selected_git)
+    monkeypatch.setattr(brownfield_acceptance, "invoke", prewrite)
+    report = prove_retained_authoring(
+        repository, python=Path(sys.executable), environment={"ETHOS_ACTOR": holder}
+    )
+    assert len(commits) == 1
+    assert report["state"] == "passed"
+    assert report["unrelated_index_preserved"] is True
+    assert report["renewed_authoring"] == "admitted_write_and_restore"
+    run_git(repository, "verify-commit", "HEAD")
 
 
 @pytest.fixture(autouse=True)

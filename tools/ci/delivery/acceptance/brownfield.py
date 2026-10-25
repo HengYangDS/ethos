@@ -268,8 +268,8 @@ def _prove_retained_change(
 ) -> dict[str, object]:
     """Qualify one native Change move independently of topic-renaming authority."""
     before = retained_repository(lane)
-    env = dict(environment)
     old, new = "smoke-change-20261008", "smoke-change"
+    env = {**environment, "ETHOS_CHANGE": new}
     source_root, target_root = (f"openspec/changes/{name}" for name in (old, new))
     originals = {
         path.relative_to(lane / source_root).as_posix(): (path.read_bytes(), path.stat().st_mode)

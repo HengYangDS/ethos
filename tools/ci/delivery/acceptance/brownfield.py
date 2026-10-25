@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.projection import LeaseRow
@@ -18,6 +19,7 @@ from ethos.adapters.store.state.lease.projection import lease_row
 from ethos.adapters.store.state.lease.projection import lease_rows
 from ethos.adapters.store.state.schema import state_database
 from ethos.adapters.store.state.schema import state_schema_report
+from ethos.repository.paradigm.repair import CarrierEdit
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -134,7 +136,7 @@ def seed_retained_state(
     *,
     python: Path,
     environment: Mapping[str, str],
-) -> None:
+) -> Path:
     """Admit one leased fixture through the installed owner before authoring dirty state."""
     authored = repository / "retained-user-data.txt"
     if authored.exists() or authored.is_symlink():
@@ -182,6 +184,7 @@ def seed_retained_state(
     indexed.write_bytes(b"Retained working bytes\n")
     (lane / "README.md").unlink()
     (lane / "retained-untracked.txt").write_bytes(b"Retained untracked user bytes\n")
+    return lane
 
 
 def retained_repository(repository: Path) -> RetainedRepository:
@@ -210,6 +213,231 @@ def retained_repository(repository: Path) -> RetainedRepository:
         message = "package_upgrade_retained_worktrees_changed"
         raise ValueError(message)
     return replace(observed, worktree_registration=registration, linked_worktrees=linked)
+
+
+def prove_retained_authoring(
+    lane: Path, *, python: Path, environment: Mapping[str, str]
+) -> dict[str, object]:
+    """Migrate real retained identities, preserve intent and write through installed admission."""
+    before = retained_repository(lane)
+    [lease] = before.leases
+    source = run_git(lane, "branch", "--show-current").stdout.strip()
+    if not source.startswith(("task/", "work/")) or lease.lane_ref != source:
+        message = "package_retained_legacy_topic_missing"
+        raise RuntimeError(message)
+    target = "work/" + source.partition("/")[2]
+    env = {**environment, "ETHOS_ACTOR": lease.holder_ref}
+    env.pop("ETHOS_CHANGE", None)
+    prefix = (str(python), "-B", "-I", "-m", "ethos.cli")
+    repair = (*prefix, "lane", "repair-paradigm", "--root", str(lane))
+    if source != target:
+        for options, state in (((), "ready_to_rename"), (("--apply",), "topic_identity_migrated")):
+            code, report, detail = invoke(lane, (*repair, *options, "--json"), environment=env)
+            if code or (report.get("verdict"), report.get("state")) != ("pass", state):
+                message = f"package_retained_topic_migration_failed:{detail}"
+                raise RuntimeError(message)
+            if not options and retained_repository(lane) != before:
+                message = "package_retained_topic_preview_mutated"
+                raise RuntimeError(message)
+    rows = (replace(lease, lane_ref=target, generation=lease.generation + (source != target)),)
+    expected = replace(
+        before,
+        leases=rows,
+        worktree_registration=before.worktree_registration.replace(
+            f"branch refs/heads/{source}\0", f"branch refs/heads/{target}\0"
+        ),
+        linked_worktrees=tuple(
+            (path, replace(checkout, leases=rows)) for path, checkout in before.linked_worktrees
+        ),
+    )
+    if retained_repository(lane) != expected:
+        message = "package_retained_topic_state_changed"
+        raise RuntimeError(message)
+    change = _prove_retained_change(lane, prefix, environment=env)
+    return {
+        **change,
+        "source_topic": source,
+        "target_topic": target,
+        "lease_generation": rows[0].generation,
+        "topic_migration": "migrated" if source != target else "not_required",
+    }
+
+
+def _prove_retained_change(
+    lane: Path, prefix: tuple[str, ...], *, environment: Mapping[str, str]
+) -> dict[str, object]:
+    """Qualify one native Change move independently of topic-renaming authority."""
+    before = retained_repository(lane)
+    env = dict(environment)
+    old, new = "smoke-change-20261008", "smoke-change"
+    source_root, target_root = (f"openspec/changes/{name}" for name in (old, new))
+    originals = {
+        path.relative_to(lane / source_root).as_posix(): (path.read_bytes(), path.stat().st_mode)
+        for path in (lane / source_root).rglob("*")
+        if path.is_file() and not path.is_symlink()
+    }
+    edits = tuple(
+        edit
+        for relative, (content, _mode) in originals.items()
+        for edit in (
+            CarrierEdit(f"{source_root}/{relative}", content.decode(), None),
+            CarrierEdit(f"{target_root}/{relative}", None, content.decode()),
+        )
+    )
+    preview = apply_carrier_edits(root=lane, edits=edits)
+    if preview["verdict"] != "pass":
+        message = f"package_retained_change_patch_unavailable:{preview['required_gaps']}"
+        raise RuntimeError(message)
+    patch = str(preview["patch"])
+    paths = tuple(edit.path for edit in edits)
+    patch_file = lane.parent / "retained-change.patch"
+    patch_file.write_text(patch, encoding="utf-8", newline="\n")
+    request = (
+        *prefix,
+        "lane",
+        "prewrite",
+        *paths,
+        "--patch",
+        str(patch_file),
+        "--root",
+        str(lane),
+        "--editor-root",
+        str(lane),
+        "--require-editor-root",
+        "--json",
+    )
+    collision = lane / target_root / "proposal.md"
+    collision.parent.mkdir()
+    collision.write_bytes(b"Existing independent intent\n")
+    occupied = retained_repository(lane)
+    try:
+        _code, report, detail = invoke(lane, request, environment=env)
+        if report.get("verdict") != "block" or retained_repository(lane) != occupied:
+            message = f"package_retained_change_collision_not_preserved:{detail}"
+            raise RuntimeError(message)
+    finally:
+        collision.unlink()
+        collision.parent.rmdir()
+    code, report, detail = invoke(lane, request, environment=env)
+    if code or report.get("verdict") != "pass" or retained_repository(lane) != before:
+        message = f"package_retained_change_prewrite_failed:{detail}"
+        raise RuntimeError(message)
+    indexed = sorted(
+        entry.replace(f"\t{source_root}/", f"\t{target_root}/", 1)
+        for entry in run_git(lane, "ls-files", "--stage", "-z").stdout.split("\0")
+        if entry
+    )
+    run_git(lane, "apply", "--index", "-", stdin=patch, env=env)
+    run_git(
+        lane,
+        "commit",
+        "--only",
+        "-m",
+        "fix: migrate retained change identity",
+        "--",
+        *paths,
+        env=env,
+    )
+    run_git(lane, "verify-commit", "HEAD", env=env)
+    if (
+        (lane / source_root).exists()
+        or indexed
+        != sorted(
+            entry
+            for entry in run_git(lane, "ls-files", "--stage", "-z").stdout.split("\0")
+            if entry
+        )
+        or originals
+        != {
+            relative: (
+                (lane / target_root / relative).read_bytes(),
+                (lane / target_root / relative).stat().st_mode,
+            )
+            for relative in originals
+        }
+    ):
+        message = "package_retained_change_identity_changed_intent"
+        raise RuntimeError(message)
+    after = retained_repository(lane)
+    expected = replace(
+        before,
+        head=after.head,
+        index_sha256=after.index_sha256,
+        files_sha256=tuple(
+            sorted(
+                (
+                    name.replace(source_root, target_root, 1)
+                    if name.startswith(source_root + "/")
+                    else name,
+                    value,
+                )
+                for name, value in before.files_sha256
+            )
+        ),
+        file_modes=tuple(
+            sorted(
+                (
+                    name.replace(source_root, target_root, 1)
+                    if name.startswith(source_root + "/")
+                    else name,
+                    value,
+                )
+                for name, value in before.file_modes
+            )
+        ),
+        worktree_registration=before.worktree_registration.replace(
+            f"worktree {lane.as_posix()}\0HEAD {before.head}\0",
+            f"worktree {lane.as_posix()}\0HEAD {after.head}\0",
+        ),
+    )
+    if after != expected:
+        message = "package_retained_change_modified_unrelated_state"
+        raise RuntimeError(message)
+    _prove_renewed_authoring(lane, prefix, new, environment=env)
+    if retained_repository(lane) != expected:
+        message = "package_retained_authoring_restore_changed_state"
+        raise RuntimeError(message)
+    patch_file.unlink()
+    return {
+        "state": "passed",
+        "source_change": old,
+        "target_change": new,
+        "tasks_sha256": hashlib.sha256(originals["tasks.md"][0]).hexdigest(),
+        "collision_preserved": True,
+        "unrelated_index_preserved": True,
+        "renewed_authoring": "admitted_write_and_restore",
+    }
+
+
+def _prove_renewed_authoring(
+    lane: Path, prefix: tuple[str, ...], change: str, *, environment: Mapping[str, str]
+) -> None:
+    """Exercise new writing and exact restoration through separate fresh admissions."""
+    target_root = f"openspec/changes/{change}"
+    proposal = lane / target_root / "proposal.md"
+    content = proposal.read_bytes()
+    write = (
+        *prefix,
+        "lane",
+        "prewrite",
+        proposal.relative_to(lane).as_posix(),
+        "--root",
+        str(lane),
+        "--editor-root",
+        str(lane),
+        "--require-editor-root",
+        "--json",
+    )
+    env = {**environment, "ETHOS_CHANGE": change}
+    for postimage in (content + b"\nRetained authoring acceptance exercised.\n", content):
+        code, report, detail = invoke(lane, write, environment=env)
+        if code or report.get("verdict") != "pass":
+            message = f"package_retained_renewed_authoring_failed:{detail}"
+            raise RuntimeError(message)
+        proposal.write_bytes(postimage)
+        if proposal.read_bytes() != postimage:
+            message = "package_retained_renewed_authoring_readback_failed"
+            raise RuntimeError(message)
 
 
 def _retained_configuration(repository: Path, scope: str) -> tuple[str, ...]:

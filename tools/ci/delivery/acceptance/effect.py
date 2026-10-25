@@ -400,9 +400,16 @@ def observe_package(
         )
         formation = formation_run.result()
     if predecessor is not None:
+        retained_adopter = WORK / "retained-adopter"
+        adopter_fixture.materialize_adopter(
+            retained_adopter,
+            openspec_config=ROOT / "openspec/config.yaml",
+            run=_run,
+            retained=True,
+        )
         lifecycle["retained_state_upgrade"] = runtime_acceptance.prove_retained_upgrade(
             current_runtime(Path(git_common_dir(adopter)), expected_build=build),
-            adopter,
+            retained_adopter,
             predecessor=predecessor,
             environment=package_environment,
         )

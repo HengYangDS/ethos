@@ -165,13 +165,27 @@ def materialize_adopter(
     *,
     openspec_config: Path,
     run: CommandRunner,
+    retained: bool = False,
 ) -> str:
     """Materialize and commit one signed repository adopted by the installed wheel."""
     git = _required_executable("git")
     run(git, "init", "--quiet", "--initial-branch=dev", str(root))
     _configure_fixture_identity(root, git=git, run=run)
     _configure_product_signer(root, git=git, run=run)
-    for relative, content in _ADOPTER_FILES.items():
+    authored = dict(_ADOPTER_FILES)
+    if retained:
+        authored = {
+            relative.replace(_SMOKE_CHANGE, f"{_SMOKE_CHANGE}-20261008"): content
+            for relative, content in authored.items()
+        }
+        authored[f"{_SMOKE_CHANGE}-20261008/tasks.md"] += "- [ ] 1.2 Verify retained authoring.\n"
+        authored[".ethos/workspace.toml"] = (
+            '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
+            'candidate_branch = "candidate/dev"\nwork_branch_prefix = "task/"\n'
+            'proposal_branch_prefix = "proposal/"\nrelease_mirror = "independent"\n'
+            "canonical_sibling_worktrees = false\n"
+        )
+    for relative, content in authored.items():
         carrier = root / relative
         carrier.parent.mkdir(parents=True, exist_ok=True)
         carrier.write_text(content, encoding="utf-8", newline="\n")

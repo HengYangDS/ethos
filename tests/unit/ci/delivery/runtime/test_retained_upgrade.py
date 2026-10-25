@@ -13,8 +13,10 @@ from pathlib import Path
 
 import pytest
 
+import tools.ci.delivery.acceptance.adopter as adopter_fixture
 import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -25,6 +27,31 @@ from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
+
+
+def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Path) -> None:
+    """Prepare historical inputs, not a bypass of an already installed governor."""
+    configuration = tmp_path / "config.yaml"
+    configuration.write_bytes(b"schema: spec-driven\n")
+    repository = tmp_path / "retained"
+
+    def run(*command, cwd=tmp_path, env=None):
+        result = run_command(cwd, command, env=env)
+        result.check_returncode()
+        return result.stdout.strip()
+
+    head = adopter_fixture.materialize_adopter(
+        repository, openspec_config=configuration, run=run, retained=True
+    )
+    original = repository / "openspec/changes/smoke-change-20261008"
+    assert (original / ".openspec.yaml").is_file()
+    assert "- [x] 1.1" in (original / "tasks.md").read_text()
+    assert "- [ ] 1.2" in (original / "tasks.md").read_text()
+    assert not (repository / "openspec/changes/smoke-change").exists()
+    assert 'work_branch_prefix = "task/"' in (repository / ".ethos/workspace.toml").read_text()
+    assert run_git(repository, "rev-parse", "HEAD").stdout.strip() == head
+    run_git(repository, "verify-commit", head)
+    assert not run_git(repository, "status", "--porcelain").stdout
 
 
 @pytest.fixture(autouse=True)
@@ -52,6 +79,12 @@ def lane_start_transport(monkeypatch):
         return 0, {"verdict": "pass", "data": {"path": str(linked), "branch": branch}}, ""
 
     monkeypatch.setattr(brownfield_acceptance, "invoke", start)
+    monkeypatch.setattr(
+        brownfield_acceptance,
+        "prove_retained_authoring",
+        lambda *_args, **_kwargs: {"state": "passed", "transport_double": True},
+        raising=False,
+    )
     return calls
 
 
@@ -168,6 +201,7 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
         preservation = result["preservation"]
         assert isinstance(preservation, dict)
         assert preservation["lease_count"] == 1
+        assert result.get("authoring") == {"state": "passed", "transport_double": True}
         assert (
             result["interruption_recovery"]
             == result["live_consumer_safe_uninstall"]

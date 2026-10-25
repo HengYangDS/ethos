@@ -336,7 +336,7 @@ def prove_retained_upgrade(
     successor = require_selected_runtime(
         Path(str(coordinator["runtime"])), expected_build=successor.build
     )
-    brownfield_acceptance.seed_retained_state(
+    lane = brownfield_acceptance.seed_retained_state(
         repository, python=previous.python, environment=environment
     )
     before = brownfield_acceptance.retained_repository(repository)
@@ -396,8 +396,12 @@ def prove_retained_upgrade(
     if brownfield_acceptance.retained_repository(repository) != before:
         message = "package_upgrade_reactivation_retained_state_changed"
         raise RuntimeError(message)
+    authoring = brownfield_acceptance.prove_retained_authoring(
+        lane, python=successor.python, environment=environment
+    )
     return {
         "state": "passed",
+        "authoring": authoring,
         "predecessor": runtime_activation_evidence(predecessor_report),
         "successor": runtime_activation_evidence(upgraded),
         "rollback": runtime_activation_evidence(restored),

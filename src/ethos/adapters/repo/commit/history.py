@@ -174,15 +174,25 @@ def history_repair_scope(
 ) -> tuple[str, ...]:
     """Derive an exact affected DAG from existing objects without creating any object."""
     _require(corrections, "history_repair_selection_required")
-    ordered = tuple(run_git(root, "rev-list", "--reverse", "--topo-order", old).stdout.splitlines())
+    graph = tuple(
+        tuple(line.split())
+        for line in run_git(
+            root, "rev-list", "--parents", "--reverse", "--topo-order", old
+        ).stdout.splitlines()
+    )
+    ordered = tuple(row[0] for row in graph)
     _require(set(corrections) <= set(ordered), "history_repair_selection_not_reachable")
-    payloads = read_objects(root, ordered, kind="commit")
+    selected_objects = tuple(oid for oid in ordered if oid in corrections)
+    payloads = dict(
+        zip(selected_objects, read_objects(root, selected_objects, kind="commit"), strict=True)
+    )
     affected: set[str] = set()
-    for oid, raw in zip(ordered, payloads, strict=True):
-        payload = unsigned_commit_payload(raw)
-        parents = _parents(payload)
+    for oid, *parent_edges in graph:
+        parents = tuple(parent_edges)
         inherited = any(parent in affected for parent in parents)
         if oid in corrections:
+            payload = unsigned_commit_payload(payloads[oid])
+            _require(_parents(payload) == parents, "history_repair_parent_count_changed")
             selected = _correction(corrections[oid])
             replacement = replacement_payload(root, payload, parents=parents, correction=selected)
             if replacement == payload and not inherited:
@@ -252,8 +262,18 @@ def validate_history_repair(
     root: Path, old: str, new: str, *, corrections: Mapping[str, object]
 ) -> dict[str, str]:
     """Reconstruct and verify the replacement relation from actual DAGs, not a claimed map."""
+    mapping = observe_history_repair_mapping(root, old, new, corrections=corrections)
+    trust = verify_commit_trust(root, tuple(mapping.values()))
+    _require(trust["verdict"] == "pass", "history_repair_signature_untrusted")
+    return mapping
+
+
+def observe_history_repair_mapping(
+    root: Path, old: str, new: str, *, corrections: Mapping[str, object]
+) -> dict[str, str]:
+    """Observe exact payload conservation for selection, without asserting signature trust."""
     affected = set(history_repair_scope(root, old, corrections=corrections))
-    ordered = tuple(run_git(root, "rev-list", new, old).stdout.splitlines())
+    ordered = (*affected, *run_git(root, "rev-list", new, f"^{old}").stdout.splitlines())
     payloads = {
         oid: unsigned_commit_payload(raw)
         for oid, raw in zip(ordered, read_objects(root, ordered, kind="commit"), strict=True)
@@ -274,6 +294,7 @@ def validate_history_repair(
             current not in inverse or inverse[current] == previous,
             "history_repair_mapping_not_bijective",
         )
+        _require(current in payloads, "history_repair_unselected_object_changed")
         payload, actual = payloads[previous], payloads[current]
         parents, replacements = _parents(payload), _parents(actual)
         _require(len(parents) == len(replacements), "history_repair_parent_count_changed")
@@ -287,8 +308,6 @@ def validate_history_repair(
         mapping[previous], inverse[current] = current, previous
         pending.extend(zip(parents, replacements, strict=True))
     _require(set(mapping) == affected, "history_repair_mapping_incomplete")
-    trust = verify_commit_trust(root, tuple(mapping.values()))
-    _require(trust["verdict"] == "pass", "history_repair_signature_untrusted")
     return mapping
 
 

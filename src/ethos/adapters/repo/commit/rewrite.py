@@ -112,12 +112,14 @@ def _composition_result(
 
 
 def refresh_edges(
-    root: Path, *, branch: str, attestations: tuple[Any, ...]
+    root: Path, *, branch: str, attestations: tuple[Any, ...], previous: str | None = None
 ) -> dict[str, tuple[RewriteEdge, ...]]:
     """Derive the branch's validated adjacency relation from exact refresh evidence."""
     grouped: dict[str, list[RewriteEdge]] = {}
     for attestation in attestations:
-        edge = validated_refresh_edge(root, branch=branch, attestation=attestation)
+        edge = validated_refresh_edge(
+            root, branch=branch, attestation=attestation, previous=previous
+        )
         if edge is not None:
             grouped.setdefault(edge.previous, []).append(edge)
     return {previous: tuple(values) for previous, values in grouped.items()}
@@ -128,21 +130,30 @@ def validated_refresh_edge(
     *,
     branch: str,
     attestation: Any,
+    previous: str | None = None,
 ) -> RewriteEdge | None:
     """Decode one refresh edge only when both Git and native evidence validate."""
     try:
         _require(
             valid=attestation.predicate == "effect:git-ref-update"
             and declares_transition(attestation, "lane.refresh")
+            and attestation.payload.body["plan"]["policy"].get("execution_branch") == branch
+            and (
+                previous is None
+                or attestation.payload.body["plan"]["effect"]["updates"][f"refs/heads/{branch}"][
+                    "expected"
+                ]
+                == previous
+            )
         )
         plan = plan_from_attestation(attestation)
         _require(valid=plan.policy.get("transition") == "lane.refresh")
-        _require(valid=plan.policy.get("execution_branch") == branch)
         effect = git_effect_from_plan(plan)
         ref = f"refs/heads/{branch}"
         update = effect.updates.get(ref)
         _require(valid=update is not None and len(effect.updates) == 1)
         assert update is not None
+        _require(valid=previous is None or update.expected == previous)
         validate_git_effect_attestation(
             root,
             effect,

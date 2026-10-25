@@ -66,6 +66,7 @@ def attested_archive_transition(
             return None
     matches: list[AttestedArchive] = []
     repairs: dict[str, dict[str, object] | None] = {}
+    repair_mappings: dict[str, dict[str, str]] = {}
     for attestation in attestations:
         match = _attested_archive(
             root,
@@ -74,6 +75,7 @@ def attested_archive_transition(
             attestation=attestation,
             attestations=attestations,
             repairs=repairs,
+            repair_mappings=repair_mappings,
         )
         if match is not None:
             matches.append(match)
@@ -96,6 +98,7 @@ def _attested_archive(
     attestation: Any,
     attestations: tuple[Any, ...],
     repairs: dict[str, dict[str, object] | None],
+    repair_mappings: dict[str, dict[str, str]],
 ) -> AttestedArchive | None:
     """Validate one archive effect as a current-history intent source."""
     if attestation.predicate != "effect:git-ref-update" or not declares_transition(
@@ -128,6 +131,7 @@ def _attested_archive(
             archive_path=archive_path,
             attestations=attestations,
             repairs=repairs,
+            repair_mappings=repair_mappings,
         )
         if (
             not branch

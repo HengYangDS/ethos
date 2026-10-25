@@ -238,6 +238,9 @@ def archive_graph(tmp_path, monkeypatch):
             updates={f"refs/heads/{branch}": SimpleNamespace(expected=previous, desired=current)},
             assertions={"refs/heads/candidate/dev": HEAD},
         )
+        item.payload.body["plan"]["effect"] = {
+            "updates": {f"refs/heads/{branch}": {"expected": previous, "desired": current}}
+        }
         return item
 
     def validate(_root, effect, item, *, issuer, plan, current_postconditions):

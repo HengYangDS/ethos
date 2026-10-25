@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 import ethos.adapters.mutation.accepted.signature as repair
+import ethos.adapters.repo.commit.history as history
 import ethos.adapters.repo.commit.signature as signature
 import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.admission.publication import ref_update_admission_report
@@ -54,6 +55,23 @@ def _history(tmp_path):
         }
     }
     return repo, old, selected, before, corrections
+
+
+def test_history_scope_reads_only_explicit_correction_payloads(tmp_path, monkeypatch):
+    """Fresh native parent edges select descendants without decoding unaffected history."""
+    repo, old, selected, _before, corrections = _history(tmp_path)
+    requested = []
+    native_read = history.read_objects
+
+    def observe(root, objects, **kwargs):
+        requested.append(tuple(objects))
+        return native_read(root, objects, **kwargs)
+
+    monkeypatch.setattr(history, "read_objects", observe)
+    before = git(repo, "show-ref")
+    assert history_repair_scope(repo, old, corrections=corrections) == (selected, old)
+    assert requested == [(selected,)]
+    assert git(repo, "show-ref") == before
 
 
 @pytest.mark.parametrize("ending", [b"\n", b"\r\n"])

@@ -6,10 +6,12 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.repo.commit.history import observe_history_repair_mapping
 from ethos.adapters.repo.commit.rewrite import RewriteEdge
 from ethos.adapters.repo.commit.rewrite import refresh_edges
 from ethos.adapters.repo.commit.signature import RESULT
 from ethos.adapters.repo.commit.signature import completed_signature_repair
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 
@@ -26,6 +28,7 @@ def resolve_archive_head(
     archive_path: str,
     attestations: tuple[Any, ...],
     repairs: dict[str, dict[str, object] | None],
+    repair_mappings: dict[str, dict[str, str]] | None = None,
 ) -> tuple[str, int, tuple[RewriteEdge, ...]] | None:
     """Find one exact preserved archive through refresh, repair and later descendants."""
     direct = _ancestor_distance(root, archived_head, current_head)
@@ -34,7 +37,7 @@ def resolve_archive_head(
     archive_tree = ref_head(root, f"{archived_head}:{archive_path}") if archive_path else ""
     if not archive_tree:
         return None
-    edges = refresh_edges(root, branch=branch, attestations=attestations)
+    repair_mappings = {} if repair_mappings is None else repair_mappings
     candidates: list[tuple[str, int, tuple[RewriteEdge, ...]]] = []
     pending: list[tuple[str, tuple[RewriteEdge, ...], frozenset[str]]] = [
         (archived_head, (), frozenset({archived_head}))
@@ -49,19 +52,57 @@ def resolve_archive_head(
         next_edges = tuple(
             edge
             for edge in (
-                *edges.get(commit, ()),
-                *_repair_edges(root, commit, attestations, repairs),
+                *refresh_edges(root, branch=branch, attestations=attestations, previous=commit).get(
+                    commit, ()
+                ),
+                *_repair_edges(root, commit, attestations, repairs, repair_mappings),
             )
             if edge.current not in seen
         )
         if len(next_edges) > 1:
-            return None
+            next_edges = tuple(
+                verified[0]
+                for edge in next_edges
+                if (verified := _verified_chain(root, (edge,), attestations, repairs)) is not None
+            )
+            if len(next_edges) > 1:
+                return None
         pending.extend((edge.current, (*chain, edge), seen | {edge.current}) for edge in next_edges)
-    if not candidates:
-        return None
-    nearest = min(candidate[1] for candidate in candidates)
-    selected = [candidate for candidate in candidates if candidate[1] == nearest]
-    return selected[0] if len(selected) == 1 else None
+    for nearest in sorted({candidate[1] for candidate in candidates}):
+        selected = [
+            (commit, distance, verified)
+            for commit, distance, chain in candidates
+            if distance == nearest
+            and (verified := _verified_chain(root, chain, attestations, repairs)) is not None
+        ]
+        if selected:
+            return selected[0] if len(selected) == 1 else None
+    return None
+
+
+def _verified_chain(
+    root: Path,
+    chain: tuple[RewriteEdge, ...],
+    attestations: tuple[Any, ...],
+    repairs: dict[str, dict[str, object] | None],
+) -> tuple[RewriteEdge, ...] | None:
+    """Demand full fresh repair trust only for a path that can reach current history."""
+    verified = []
+    for edge in chain:
+        if edge.kind != "repair":
+            verified.append(edge)
+            continue
+        if edge.candidate not in repairs:
+            repairs[edge.candidate] = completed_signature_repair(
+                root, new=edge.candidate, attestations=attestations
+            )
+        repair = repairs[edge.candidate]
+        mapping = repair.get("mapping") if repair else None
+        if not isinstance(mapping, Mapping) or mapping.get(edge.previous) != edge.current:
+            return None
+        assert repair is not None
+        verified.append(edge._replace(attestation_id=str(repair["attestation_id"])))
+    return tuple(verified)
 
 
 def _repair_edges(
@@ -69,29 +110,44 @@ def _repair_edges(
     previous: str,
     attestations: tuple[Any, ...],
     cache: dict[str, dict[str, object] | None],
+    repair_mappings: dict[str, dict[str, str]],
 ) -> tuple[RewriteEdge, ...]:
-    """Verify each relevant repair once in this observation, never from a digest alone."""
+    """Observe possible repair edges without treating payload conservation as trust."""
     edges = []
     for attestation in attestations:
-        if attestation.predicate != RESULT:
+        if attestation.predicate != RESULT or not (
+            new := str(attestation.payload.body.get("replacement") or "")
+        ):
             continue
         body = attestation.payload.body
         coordinates = body.get("coordinates")
         old = str(coordinates.get("old") or "") if isinstance(coordinates, Mapping) else ""
-        new = str(body.get("replacement") or "")
-        if not new or _ancestor_distance(root, previous, old) is None:
-            continue
         if new not in cache:
-            cache[new] = completed_signature_repair(root, new=new, attestations=attestations)
-        repair = cache[new]
-        if repair is None:
-            continue
-        mapping = repair["mapping"]
-        assert isinstance(mapping, dict)
+            if new not in repair_mappings:
+                history = coordinates.get("history") if isinstance(coordinates, Mapping) else None
+                if isinstance(history, Mapping) and isinstance(
+                    corrections := history.get("corrections"), Mapping
+                ):
+                    if not is_ancestor(root, previous, old) or not any(
+                        is_ancestor(root, str(oid), previous) for oid in corrections
+                    ):
+                        continue
+                    repair_mappings[new] = observe_history_repair_mapping(
+                        root, old, new, corrections=corrections
+                    )
+                else:
+                    if previous != old:
+                        continue
+                    repair_mappings[new] = {old: new}
+            mapping = repair_mappings[new]
+        else:
+            repair = cache[new]
+            if repair is None:
+                continue
+            mapping = repair["mapping"]
+            assert isinstance(mapping, dict)
         if current := mapping.get(previous):
-            edges.append(
-                RewriteEdge(previous, str(current), str(repair["attestation_id"]), "repair")
-            )
+            edges.append(RewriteEdge(previous, str(current), attestation.id, "repair", new))
     return tuple(edges)
 
 

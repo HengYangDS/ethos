@@ -23,8 +23,8 @@
 
 ## 5. Release Entry
 
-- [ ] 5.1 Move the product version to 0.2.0-alpha.14 in `VERSION`, `distributions/npm/package.json`, its `package-lock.json` entry and the three version tests. Done when the lane's `ethos --version` reports 0.2.0-alpha.14 and those tests pass.
-- [ ] 5.2 Curate the `0.2.0-alpha.14` entry from the Unreleased notes, the fixes and the supply refresh above. Done when the changelog validates with 0.2.0-alpha.14 as its release target and the entry describes every product change since `v0.2.0-alpha.13`.
+- [x] 5.1 Move the product version to 0.2.0-alpha.14 in `VERSION`, `distributions/npm/package.json`, its `package-lock.json` entry and the three version tests. Done when the lane's `ethos --version` reports 0.2.0-alpha.14 and those tests pass (`tests/unit/cli/test_version_command.py`, `tests/unit/release/test_version_identity.py`).
+- [x] 5.2 Curate the `0.2.0-alpha.14` entry from the Unreleased notes, the fixes and the supply refresh above. Done when the changelog validates with 0.2.0-alpha.14 as its release target and the entry describes every product change since `v0.2.0-alpha.13` (`changelog_errors` with target 0.2.0-alpha.14).
 
 ## Workflow follow-up
 

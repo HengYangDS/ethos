@@ -12,6 +12,18 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.14] - 2026-10-25
+
+### Changed
+
+- The locked supply moves to the latest stable releases that ETHOS's constraints allow: mise
+  2026.10.19, which ETHOS's own repository now requires and its CI bootstraps, Node 26.12.1,
+  Python 3.14.9, Go 1.27.3, Syft 1.55.0, Vale 3.25.1, OpenSpec 1.15.0, markdownlint-cli2 0.24.0,
+  Allure 3.22.1 and the latest stable releases in the Python lock, among them uv 0.13.5 and ruff
+  0.17.2. The supported Python versions remain 3.12 through 3.14. The CI model pins setup-uv
+  10.3.2, docker/login-action 4.7.0 and jdx/mise-action 5.2.3 by commit; mise-action 5 delays only
+  an unpinned mise release, and the model always names one.
+
 ### Removed
 
 - The docs registry, decision records and docs health no longer read metadata wrapped in a
@@ -19,6 +31,22 @@ historical bindings are governed by [Release Governance](docs/governance/release
   metadata, and the repository paradigm reports the wrapper, which
   `ethos lane repair-paradigm --apply` removes. The `docs_title_not_first` gap retires with the
   carrier.
+
+### Fixed
+
+- Locked tools whose installed copy mise selects only for trusted configuration, such as
+  aube-locked npm packages, now resolve for repositories that native mise reports as trusted.
+  ETHOS resolves in a disposable copy of the declarations, which mise never trusted, so it reported
+  those tools missing. Resolution now asks native mise, under the caller's own trust inputs,
+  whether the repository is trusted, and carries only that answer to the copy for one invocation,
+  in safe mode and with disposable state; it writes no trust record. A refusal for an untrusted
+  repository names `mise --cd <root> trust` as the next action. Provisioning a locked tool whose
+  archive is not cached carries the same trust, so a source checkout can provision it outside CI.
+- On Windows the JavaScript behavior gate now loads Node's test reporter. Node loads reporters as
+  module URLs and read the absolute reporter path as the URL scheme `c:`, so every run ended with
+  an empty journal. The reporter is now passed as a file URL.
+- codespell and Vale now check every selected Markdown file, including one whose name looks like an
+  option. Without `--` before the inputs, such a name could be read as an option instead of a file.
 
 ## [0.2.0-alpha.13] - 2026-10-25
 

@@ -100,12 +100,71 @@ def test_upgrade_requires_a_distinct_build_not_a_different_runtime_digest(tmp_pa
     assert predecessor.digest != successor.digest
     if distinct:
         assert (
-            runtime_acceptance.require_upgrade_predecessor(predecessor.root, build=successor.build)
+            runtime_acceptance.require_upgrade_predecessor(
+                predecessor.root, build=successor.build, common=tmp_path / "adopter/.git"
+            )
             == predecessor
         )
     else:
         with pytest.raises(ValueError, match="package_upgrade_predecessor_not_distinct"):
-            runtime_acceptance.require_upgrade_predecessor(predecessor.root, build=successor.build)
+            runtime_acceptance.require_upgrade_predecessor(
+                predecessor.root, build=successor.build, common=tmp_path / "adopter/.git"
+            )
+
+
+@pytest.mark.parametrize("supply", ["local-private", "foreign-private", "external-private"])
+def test_upgrade_predecessor_binds_destination_scope(tmp_path: Path, supply: str) -> None:
+    """Physical repository ownership, not the private flag alone, admits prior supply."""
+    common = Path(git_common_dir(init_git_repo(tmp_path / "adopter")))
+    source = (
+        common / "ethos/runtime"
+        if supply == "local-private"
+        else Path(git_common_dir(init_git_repo(tmp_path / "foreign"))) / "ethos/runtime"
+        if supply == "foreign-private"
+        else tmp_path / "installation/runtime"
+    )
+    source.mkdir(parents=True, exist_ok=True)
+    previous = require_selected_runtime(
+        fixture_runtime_generation(source / "prior", "prior", repository_private=True)
+    )
+    build = runtime_build("b" * 40, "b" * 40)
+    if supply == "foreign-private":
+        with pytest.raises(ValueError, match="hook_runtime_repository_private"):
+            runtime_acceptance.require_upgrade_predecessor(
+                previous.root, build=build, common=common
+            )
+    else:
+        assert (
+            runtime_acceptance.require_upgrade_predecessor(
+                previous.root, build=build, common=common
+            )
+            == previous
+        )
+
+
+def test_foreign_private_predecessor_is_rejected_before_package_setup(monkeypatch, tmp_path):
+    """Bad input cannot clear owned work or invoke the expensive package consumer."""
+    foreign = Path(git_common_dir(init_git_repo(tmp_path / "foreign"))) / "ethos/runtime"
+    foreign.mkdir(parents=True)
+    previous = require_selected_runtime(
+        fixture_runtime_generation(foreign / "prior", "prior", repository_private=True)
+    )
+    work = tmp_path / "work"
+    work.mkdir()
+    retained = work / "retained"
+    retained.write_bytes(b"owned work")
+    package = PackageArtifact(tmp_path / "ethos.whl", "c" * 64, runtime_build("b" * 40, "b" * 40))
+    monkeypatch.setattr(effect, "WORK", work)
+    monkeypatch.setattr(effect, "current_tracked_head", lambda _root: package.build.source_commit)
+    monkeypatch.setattr(effect, "selected_wheel", lambda *_args, **_kwargs: package)
+    monkeypatch.setattr(effect, "require_artifact_current", lambda *_args, **_kwargs: None)
+    setup = Mock(side_effect=AssertionError("invalid predecessor reached setup"))
+    monkeypatch.setattr(effect, "remove_generated_tree", setup)
+    with pytest.raises(ValueError, match="hook_runtime_repository_private"):
+        effect.run(Mock(), evidence=tmp_path / "smoke.json", predecessor=previous.root)
+    setup.assert_not_called()
+    assert retained.read_bytes() == b"owned work"
+    assert not (tmp_path / "smoke.terminal.json").exists()
 
 
 def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, tmp_path):

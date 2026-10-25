@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tools.ci.delivery.acceptance import adopter as adopter_fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_acceptance
@@ -292,12 +293,15 @@ def prove_repair(
     return {"state": "passed", "repair_command": repair}
 
 
-def require_upgrade_predecessor(path: Path, *, build: BuildIdentity) -> SelectedRuntime:
-    """Validate real immutable prior bytes before creating acceptance work."""
+def require_upgrade_predecessor(
+    path: Path, *, build: BuildIdentity, common: Path
+) -> SelectedRuntime:
+    """Validate immutable prior bytes and destination scope before acceptance work."""
     selected = require_selected_runtime(path)
     if selected.build == build:
         message = "package_upgrade_predecessor_not_distinct"
         raise ValueError(message)
+    require_runtime_selection_scope(common, selected)
     return selected
 
 
@@ -310,8 +314,8 @@ def prove_retained_upgrade(
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Upgrade and roll back a real predecessor with nonempty retained state."""
-    previous = require_upgrade_predecessor(predecessor.root, build=successor.build)
     common = Path(git_common_dir(repository))
+    previous = require_upgrade_predecessor(predecessor.root, build=successor.build, common=common)
     # Native activation pins supplied bytes before selecting a reclaiming predecessor.
     successor_report = activate_from_runtime(
         successor.python,

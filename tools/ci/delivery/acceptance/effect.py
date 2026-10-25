@@ -482,7 +482,9 @@ def run(
     selected = artifact or selected_wheel(ROOT, head=head, artifacts=ARTIFACTS)
     require_artifact_current(selected, head=head, repo=ROOT)
     previous = (
-        runtime_acceptance.require_upgrade_predecessor(predecessor, build=selected.build)
+        runtime_acceptance.require_upgrade_predecessor(
+            predecessor, build=selected.build, common=WORK / "adopter/.git"
+        )
         if predecessor is not None
         else None
     )

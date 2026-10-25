@@ -17,7 +17,7 @@ Adopters install only published releases, so they need a successor that carries 
 - codespell and Vale receive `--` before the Markdown inputs, so a file named like an option is read as a file.
 - The supply moves to the latest stable releases within ETHOS's constraints:
   - mise 2026.10.19 as the floor and the CI bootstrap;
-  - Node 26.12.1, Python 3.14.9, Go 1.27.3, syft 1.55.0 and Vale 3.25.1;
+  - Node 26.12.1, Python 3.14.9, Go 1.27.3, Syft 1.55.0 and Vale 3.25.1;
   - OpenSpec 1.15.0, markdownlint-cli2 0.24.0, Allure 3.22.1 and the katex override 0.19.1;
   - the latest stable releases in the Python lock;
   - setup-uv v10.3.2 with uv 0.13.5, docker/login-action v4.7.0 and jdx/mise-action v5.2.3, pinned by commit.

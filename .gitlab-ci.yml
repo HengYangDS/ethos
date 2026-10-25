@@ -166,7 +166,7 @@ ethos:npm:
       when: never
     - when: on_success
   variables:
-    NODE_VERSION: 26.12.0
+    NODE_VERSION: 26.12.1
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:a2a8637a4106738307859fcef96f81053b347184b6ea30ff61c544185893980d
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"

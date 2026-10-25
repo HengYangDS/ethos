@@ -1,18 +1,18 @@
-min_version = "2026.10.14"
+min_version = "2026.10.19"
 [settings]
 locked = true
 not_found_system_fallback = false
 idiomatic_version_file_enable_tools = []
 [tools]
-node = "26.12.0"
-python = "3.14.8"
+node = "26.12.1"
+python = "3.14.9"
 cue = "0.17.1"
-go = "1.27.2"
+go = "1.27.3"
 "github:rhysd/actionlint" = "1.7.12"
 "github:boyter/scc" = "4.1.0"
 "github:gitleaks/gitleaks" = "8.30.1"
-"github:anchore/syft" = "1.54.1"
-"github:vale-cli/vale" = "3.24.0"
+"github:anchore/syft" = "1.55.0"
+"github:vale-cli/vale" = "3.25.1"
 [tasks.bootstrap]
 description = "Synchronize the locked Python environment, native tools, npm packages and test fixtures"
 run = [

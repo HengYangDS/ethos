@@ -14,15 +14,48 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
+from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import mise_executable
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from collections.abc import Sequence
+
+GITLEAKS_BODY = b"#!/bin/sh\nprintf '8.30.1\\n'\n"
+
+
+def _locked_gitleaks(root: Path, package: Path) -> None:
+    """Lock gitleaks 8.30.1 for this host to one archive that ships it and its license."""
+    machine = platform.machine()
+    arch = "arm64" if machine in {"arm64", "aarch64"} else "x86_64"
+    system = "macos" if platform.system() == "Darwin" else "linux"
+    target = f"{system}-{'x64' if arch == 'x86_64' else arch}"
+    with tarfile.open(package, "w:gz") as archive:
+        member = tarfile.TarInfo("gitleaks")
+        member.size, member.mode = len(GITLEAKS_BODY), 0o755
+        archive.addfile(member, io.BytesIO(GITLEAKS_BODY))
+        license_member = tarfile.TarInfo("LICENSE")
+        license_member.size = len(b"Publisher license\n")
+        archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
+    checksum = hashlib.sha256(package.read_bytes()).hexdigest()
+    config = root / ".config/mise"
+    config.mkdir(parents=True)
+    backend = "github:gitleaks/gitleaks"
+    (config / "config.toml").write_text(f'[tools]\n"{backend}" = "8.30.1"\n', encoding="utf-8")
+    (config / "mise.lock").write_text(
+        f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "8.30.1"\n'
+        f'[tools."{backend}"."platforms.{target}"]\n'
+        f'checksum = "sha256:{checksum}"\n'
+        f'url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/{package.name}"\n',
+        encoding="utf-8",
+    )
 
 
 @pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
@@ -39,39 +72,14 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     if cache_selector is not None:
         monkeypatch.setenv(cache_selector, str(tmp_path / "explicit-cache"))
     repo = init_git_repo(tmp_path / "repo")
-    backend = "github:gitleaks/gitleaks"
-    version = "8.30.1"
-    machine = platform.machine()
-    arch = "arm64" if machine in {"arm64", "aarch64"} else "x86_64"
-    system = "macos" if platform.system() == "Darwin" else "linux"
-    target = f"{system}-{'x64' if arch == 'x86_64' else arch}"
-    body = b"#!/bin/sh\nprintf '8.30.1\\n'\n"
     package = tmp_path / "fixture.tar.gz"
-    with tarfile.open(package, "w:gz") as archive:
-        member = tarfile.TarInfo("gitleaks")
-        member.size, member.mode = len(body), 0o755
-        archive.addfile(member, io.BytesIO(body))
-        license_member = tarfile.TarInfo("LICENSE")
-        license_member.size = len(b"Publisher license\n")
-        archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
-    checksum = hashlib.sha256(package.read_bytes()).hexdigest()
-    config = repo / ".config/mise"
-    config.mkdir(parents=True)
-    (config / "config.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n', encoding="utf-8")
-    (config / "mise.lock").write_text(
-        f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
-        f'[tools."{backend}"."platforms.{target}"]\n'
-        f'checksum = "sha256:{checksum}"\n'
-        f'url = "https://github.com/gitleaks/gitleaks/releases/download/v{version}/{package.name}"\n',
-        encoding="utf-8",
-    )
+    _locked_gitleaks(repo, package)
     commit_fixture(repo, "lock native supply")
     linked = tmp_path / "linked"
     git(repo, "worktree", "add", "--detach", str(linked), "HEAD")
     calls: list[Sequence[str]] = []
 
-    def supply_download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
-        del timeout
+    def supply_download(command: tuple[str, ...], *, root: Path, **_options: object) -> None:
         calls.append(command)
         destination = root / "data/downloads" / package.name
         destination.parent.mkdir(parents=True)
@@ -93,11 +101,11 @@ def test_linked_worktrees_reuse_one_locked_native_download(
         if cache_selector is not None
         else Path(git_common_dir(repo)) / "ethos/tool-cache/ci-tools"
     )
-    expected = cache_root / "gitleaks" / version / supply.platform
+    expected = cache_root / "gitleaks" / "8.30.1" / supply.platform
     assert caches == (expected, expected)
     assert len(calls) == 1
-    assert (expected / "gitleaks").read_bytes() == body
-    assert supply.executable_bytes(expected / package.name) == body
+    assert (expected / "gitleaks").read_bytes() == GITLEAKS_BODY
+    assert supply.executable_bytes(expected / package.name) == GITLEAKS_BODY
     assert not (repo / "build/runtime/tool-cache/ci-tools").exists()
     assert not (linked / "build/runtime/tool-cache/ci-tools").exists()
     if cache_selector is not None:
@@ -156,8 +164,7 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
     repo, linked, package, body = linked_node_supply
     calls: list[tuple[str, ...]] = []
 
-    def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
-        del timeout
+    def download(command: tuple[str, ...], *, root: Path, **_options: object) -> None:
         calls.append(command)
         target = root / "data/downloads" / package.name
         target.parent.mkdir(parents=True)
@@ -194,3 +201,36 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
         native_supply.materialize_tool(repo, "node")
     assert npm.read_bytes() == b"untrusted npm bytes\n"
     assert not list(supply.cache(repo).glob(".prepare-*"))
+
+
+@pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
+@pytest.mark.parametrize("trusted", [False, True])
+def test_provisioning_carries_only_native_trust_to_its_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, trusted: bool
+) -> None:
+    """A safe-mode copy's lock counts only when trusted, so the root's own trust goes along."""
+    state, absent = tmp_path / "host-state", tmp_path / "host-config"
+    monkeypatch.setenv("XDG_STATE_HOME", str(state))
+    monkeypatch.setenv("MISE_GLOBAL_CONFIG_FILE", str(absent / "config.toml"))
+    monkeypatch.setenv("MISE_SYSTEM_CONFIG_DIR", str(absent))
+    monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", str(tmp_path / "cache"))
+    for name in ("MISE_STATE_DIR", "MISE_TRUSTED_CONFIG_PATHS", "MISE_PARANOID"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
+    repo, package = tmp_path / "repo", tmp_path / "fixture.tar.gz"
+    _locked_gitleaks(repo, package)
+    mise = mise_executable()
+    if trusted:
+        run_command(repo, (str(mise), "trust"), timeout=30, check=True)
+    carried: list[Mapping[str, str]] = []
+
+    def download(_command: tuple[str, ...], *, root: Path, **options: object) -> None:
+        trust = options.get("trust") or {}
+        assert isinstance(trust, dict)
+        carried.append({name: value.replace(str(root), "<copy>") for name, value in trust.items()})
+        (root / "data/downloads").mkdir(parents=True)
+        shutil.copyfile(package, root / "data/downloads" / package.name)
+
+    monkeypatch.setattr(native_supply, "download_tool", download)
+    native_supply.materialize_tool(repo, "gitleaks", mise=mise)
+    assert carried == [{"MISE_TRUSTED_CONFIG_PATHS": f"<copy>/{MISE_CONFIG}"} if trusted else {}]

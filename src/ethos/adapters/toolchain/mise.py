@@ -54,7 +54,6 @@ def _mise_environment(
     offline: bool,
     files: Mapping[str, str] | None = None,
     execution: bool = False,
-    trusted: bool = False,
 ) -> dict[str, str]:
     """Bind native storage and safety inputs; execution keeps only the caller's explicit policy."""
     environment = {key: value for key, value in os.environ.items() if key in _CALLER_INPUTS} | {
@@ -69,9 +68,6 @@ def _mise_environment(
     if not execution:
         # Resolution runs no repository task, and mise's record of what it loaded stays disposable.
         environment |= {"MISE_SAFE": "1", "MISE_STATE_DIR": str(isolated / "state")}
-        if trusted:
-            # The repository's own native trust, for this copy of its exact bytes only.
-            environment["MISE_TRUSTED_CONFIG_PATHS"] = str(isolated / MISE_CONFIG)
     settings = tomllib.loads(files[MISE_CONFIG]).get("settings", {}) if files else {}
     if type(settings) is not dict:
         message = "mise_idiomatic_settings_invalid"
@@ -229,6 +225,16 @@ def _root_trusted(root: Path, executable: Path | None) -> bool:
         return False
 
 
+def carried_trust(
+    root: Path, copy: Path, config: str, executable: Path | None = None
+) -> dict[str, str]:
+    """Carry the root's own native trust to one disposable copy of its exact configuration."""
+    canonical = root.resolve()
+    if _declares(canonical, config) and _root_trusted(canonical, executable):
+        return {"MISE_TRUSTED_CONFIG_PATHS": str(copy / MISE_CONFIG)}
+    return {}
+
+
 def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
     """Name native trust as the next action when the user's own mise distrusts the root too."""
     canonical = root.resolve()
@@ -282,11 +288,10 @@ def run_mise(
                 message = f"mise_version_carrier_changed:{path}"
                 raise ValueError(message)
     selected = executable or mise_executable()
-    canonical = root.resolve()
-    trusted = _declares(canonical, materials[MISE_CONFIG]) and _root_trusted(canonical, selected)
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
-        environment = _mise_environment(isolated, offline=offline, files=materials, trusted=trusted)
+        environment = _mise_environment(isolated, offline=offline, files=materials)
+        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], selected)
         for path, content in materials.items():
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)

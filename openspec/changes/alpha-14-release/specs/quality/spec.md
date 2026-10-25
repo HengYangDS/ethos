@@ -2,7 +2,7 @@
 
 ### Requirement: Native supply resolution leaves no host mise state
 
-Resolving native tool supply SHALL run mise in safe mode over a disposable directory and SHALL keep mise's state in that directory. Resolution thus runs no repository task, hook or template and records nothing in the host's mise state. Provisioning into a disposable root SHALL keep mise's state in that root. Resolution SHALL carry to its disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. It SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A resolution refused for an untrusted configuration SHALL name native `mise trust` as the next action.
+Resolving native tool supply SHALL run mise in safe mode over a disposable directory and SHALL keep mise's state in that directory. Resolution thus runs no repository task, hook or template and records nothing in the host's mise state. Provisioning into a disposable root SHALL keep mise's state in that root. Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A resolution refused for an untrusted configuration SHALL name native `mise trust` as the next action.
 
 #### Scenario: A resolution completes
 
@@ -15,6 +15,12 @@ Resolving native tool supply SHALL run mise in safe mode over a disposable direc
 - **WHEN** native mise reports the repository's configuration as trusted, and it locks a tool whose installed copy is keyed by trust-only lock metadata such as an aube entry
 - **THEN** resolution selects that installed copy
 - **AND** no repository code runs and no trust record is written
+
+#### Scenario: A trusted configuration provisions a locked tool
+
+- **WHEN** native mise reports the repository's configuration as trusted, and ETHOS provisions a locked tool whose archive is not cached
+- **THEN** the one native install in the disposable copy reads that copy's lock
+- **AND** no trust record is written
 
 #### Scenario: An untrusted configuration
 

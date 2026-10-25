@@ -8,7 +8,7 @@
 ## 2. Trust Regressions on Hosted Runners
 
 - [x] 2.1 Make the three trust regressions that need an untrusted configuration hide CI detection and require native mise to report the root untrusted. Done when they pass with and without `CI=true`, and when an unhidden marker fails the precondition by name (`tests/support/mise_host.py`; the three regressions pass with and without `CI=true`).
-- [ ] 2.2 Date the 0.2.0-alpha.14 entry 2026-10-26, the day its tag is created. Done when the changelog validates with 0.2.0-alpha.14 as its release target.
+- [x] 2.2 Date the 0.2.0-alpha.14 entry 2026-10-26, the day its tag is created. Done when the changelog validates with 0.2.0-alpha.14 as its release target (`changelog_errors` with target 0.2.0-alpha.14).
 
 ## Workflow follow-up
 

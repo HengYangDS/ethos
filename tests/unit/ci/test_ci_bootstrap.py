@@ -6,15 +6,18 @@ import os
 import shlex
 import shutil
 import tempfile
+import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from uv import find_uv_bin
 
 import tools.ci.toolchain.environment as ci_environment
 import tools.ci.toolchain.fixture_supply as fixture_supply
 from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
+from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -43,6 +46,28 @@ def test_fixture_supply_preserves_native_project_policy(
     assert {path: path.read_bytes() for path in fixture.iterdir()} == inputs
     assert not (fixture / ".venv").exists()
     assert not (tmp_path / "unrelated-environment").exists()
+
+
+def test_tracked_fixture_projects_build_offline_from_an_empty_cache(tmp_path: Path) -> None:
+    """A fixture build needs nothing that a refresh of uv's shared index could make unavailable."""
+    projects = [ROOT / relative for relative in git_files(ROOT, "tests/fixtures/**/pyproject.toml")]
+    assert projects
+    for index, declaration in enumerate(projects):
+        copy = tmp_path / str(index)
+        shutil.copytree(declaration.parent, copy)
+        declared = tomllib.loads(declaration.read_text(encoding="utf-8"))
+        backend = declared.get("tool", {}).get("uv", {}).get("build-backend", {})
+        module = backend.get("module-name") or declared["project"]["name"].replace("-", "_")
+        (copy / "src" / module).mkdir(parents=True)
+        (copy / "src" / module / "__init__.py").write_text("")
+        built = run_command(
+            copy,
+            (find_uv_bin(), "build", "--wheel", "--offline", "--no-config", "--out-dir", "dist"),
+            env={"UV_CACHE_DIR": str(tmp_path / f"empty-cache-{index}")},
+            timeout=120,
+        )
+        assert built.returncode == 0, (declaration, built.stderr)
+        assert len(list((copy / "dist").glob("*.whl"))) == 1
 
 
 @pytest.mark.parametrize("case", ["valid", "inside", "unprotected", "missing"])

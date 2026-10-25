@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import pytest
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
@@ -111,7 +112,6 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
     """Archiving follows the selected successor after the original is reclaimed."""
     work = tmp_path / "work"
     repository = init_git_repo(work / "adopter")
-    init_git_repo(work / "brownfield-adopter")
     supply = Path(git_common_dir(repository)) / "ethos/runtime"
     supply.mkdir(parents=True)
     successor = require_selected_runtime(
@@ -132,8 +132,29 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
         monkeypatch.setattr(effect, name, value)
     monkeypatch.setattr(effect, "RUNTIME", SimpleNamespace(python=tmp_path / "python", script=str))
     lifecycle = {name: {"state": "passed"} for name in receipt.REQUIRED_LIFECYCLE_STAGES}
+
+    def run(*command, **kwargs):
+        return (
+            run_git(kwargs["cwd"], *command[1:]).stdout
+            if command[1:3] == ("worktree", "add")
+            else ""
+        )
+
+    def prepare_lifecycle(*, repository, run, **_kwargs):
+        run(
+            "git",
+            "worktree",
+            "add",
+            "-b",
+            "candidate/dev",
+            str(repository.parent / "repo-candidate-dev"),
+            "HEAD",
+            cwd=repository,
+        )
+        return lifecycle
+
     observations = (
-        (effect, "_run", ""),
+        (effect, "_run", run),
         (effect, "prepare_locked_requirements", work / "requirements.txt"),
         (effect, "install_locked_runtime", None),
         (effect.adopter_fixture, "materialize_adopter", ""),
@@ -159,13 +180,17 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
                 "authored_content_preserved": True,
             },
         ),
-        (runtime_acceptance, "observe_lifecycle", lifecycle),
+        (runtime_acceptance, "observe_lifecycle", prepare_lifecycle),
         (effect, "prove_shared_supply", {"state": "passed"}),
         (effect, "require_artifact_current", None),
         (effect, "current_tracked_head", successor.build.source_commit),
     )
     for owner, name, value in observations:
-        monkeypatch.setattr(owner, name, lambda *_args, result=value, **_kwargs: result)
+        monkeypatch.setattr(
+            owner,
+            name,
+            value if callable(value) else lambda *_args, result=value, **_kwargs: result,
+        )
     targets = []
 
     def retained(selected, target, *, predecessor, environment):

@@ -10,8 +10,9 @@
 
 ## 2. Migrate retained authoring identities
 
-- [ ] 2.1 Implement the native owned-topic migration; verify fresh ref admission and preserved dirty
+- [x] 2.1 Implement the native owned-topic migration; verify fresh ref admission and preserved dirty
       bytes, index intent, Lease holder and recoverable projection failure.
+      Evidence: `build/evidence/retained-runtime-preservation/focused/topic-binding-work-green.xml`.
 - [ ] 2.2 Qualify active Change identity migration through the existing OpenSpec owner; verify
       preserved task identities, acceptance and exact collision refusal.
 
@@ -23,5 +24,5 @@
 
 ## Workflow follow-up
 
-- Obtain exact-current proof before archive and integration; preserve the release hold.
+- Obtain exact-current proof before archive and integration on the released alpha.14 baseline.
 - Adopter cutover and retirement require their own current admission and consumer acceptance.

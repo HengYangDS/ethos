@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.mutation.accepted.legacy_roles import rename_legacy_roles
-from ethos.adapters.mutation.accepted.legacy_roles import resume_renamed_bindings
+from ethos.adapters.mutation.branch_roles import rename_legacy_roles
+from ethos.adapters.mutation.branch_roles import resume_renamed_bindings
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 

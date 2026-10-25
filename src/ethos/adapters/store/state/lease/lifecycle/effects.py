@@ -1,4 +1,4 @@
-"""Exact Lane Lease retirement effects."""
+"""Exact Lane Lease identity and retirement effects."""
 
 from __future__ import annotations
 
@@ -8,11 +8,53 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
+from ethos.adapters.store.state.lease.projection import lease_record
+from ethos.adapters.store.state.lease.projection import observe_lease_from_connection
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from ethos.contracts.coordination import LeaseOperationRequest
+
+
+def migrate_lease(
+    db_path: Path,
+    *,
+    request: LeaseOperationRequest,
+    target: str,
+    recheck: Callable[[], None],
+) -> dict[str, Any]:
+    """Move one exact live Lease relation after the attested Git rename, without reissuing it."""
+    if request.operation != "rename" or not request.apply:
+        message = "lease_apply_required:rename"
+        raise ValueError(message)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        row, _lease = expected_current_lease(connection, request=request, require_expired=False)
+        if observe_lease_from_connection(connection, target).state != "missing":
+            msg = f"retained_topic_target_lease_present:{target}"
+            raise ValueError(msg)
+        recheck()
+        cursor = connection.execute(
+            "update leases set lane_ref = ?, generation = ? "
+            "where lane_ref = ? and holder_ref = ? and generation = ? and expires_at = ?",
+            (
+                target,
+                row.generation + 1,
+                row.lane_ref,
+                row.holder_ref,
+                row.generation,
+                row.expires_at,
+            ),
+        )
+        if cursor.rowcount != 1:
+            msg = f"lease_generation_stale:{row.lane_ref}"
+            raise ValueError(msg)
+        recheck()
+        connection.commit()
+    return lease_record((target, row.holder_ref, row.generation + 1, row.expires_at))
 
 
 def revoke_lease(

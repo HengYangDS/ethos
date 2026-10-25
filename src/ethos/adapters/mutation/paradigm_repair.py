@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.mutation.branch_roles import rename_retained_topic
 from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.git import tracked_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
@@ -27,6 +28,8 @@ _APPLY = "ethos lane repair-paradigm --apply --json"
 def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
     """Derive the repair plan, and apply it only after exact-path prewrite admission."""
     repo = root.resolve()
+    if renamed := rename_retained_topic(repo, apply=apply):
+        return renamed
     tracked = tracked_paths(repo)
     received = received_paths(repo, tracked)
     report = repository_paradigm_report(
@@ -52,7 +55,10 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         "next_action": _APPLY if plan.edits else _first(plan.actions, plan.report_only),
     }
     effect = apply_carrier_edits(
-        root=repo, edits=plan.edits, apply=apply, next_action=str(planned["next_action"])
+        root=repo,
+        edits=plan.edits,
+        apply=apply,
+        next_action=str(planned["next_action"]),
     )
     result = {**planned, **effect, "edits": planned["edits"]}
     if not effect["applied"]:

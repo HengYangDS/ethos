@@ -12,6 +12,17 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- Retained adopters can migrate an owned legacy Work Lane name through `ethos lane repair-paradigm`
+  without changing its files, index intent, holder or Lease expiry. An interrupted projection
+  recovers forward from the attested ref transaction only while the exact current binding remains
+  admitted. Worktree binding reads now select only the renamed worktrees and still recheck each
+  affected HEAD before writing it.
+- Explicit runtime supply is validated against its own manifest and repository scope instead of
+  the activation coordinator's lock. Upgrade and rollback keep manifest-bound predecessor
+  selection distinct from activation coordination and accepted self-hosted source authority.
+
 ## [0.2.0-alpha.14] - 2026-10-26
 
 ### Changed

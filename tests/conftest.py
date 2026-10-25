@@ -101,7 +101,9 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         )
         monkeypatch.setenv("MISE_DATA_DIR", str(Path(shared) / "mise"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
-    # What mise loads or trusts during a test is recorded with that test, not for the host.
+    # What mise loads or trusts during a test is recorded with that test, not for the host. As on
+    # a host that uses mise, the state directory exists before native mise first reads it.
+    (tmp_path / "user-state").mkdir(exist_ok=True)
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "user-state"))
     # Fixture full proofs keep their per-repository slot but never wait on the test host's load.
     monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")

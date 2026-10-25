@@ -8,22 +8,16 @@ import shutil
 import stat
 from dataclasses import dataclass
 from dataclasses import replace
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import LeaseRow
 from ethos.adapters.store.state.lease.projection import lease_row
 from ethos.adapters.store.state.lease.projection import lease_rows
 from ethos.adapters.store.state.schema import state_database
 from ethos.adapters.store.state.schema import state_schema_report
-from ethos.contracts.coordination import HolderRef
-from ethos.contracts.coordination import LaneLease
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -135,22 +129,47 @@ class RetainedRepository:
     linked_worktrees: tuple[tuple[str, RetainedRepository], ...] = ()
 
 
-def seed_retained_state(repository: Path) -> None:
-    """Seed one real leased linked fixture without changing the accepted checkout."""
+def seed_retained_state(
+    repository: Path,
+    *,
+    python: Path,
+    environment: Mapping[str, str],
+) -> None:
+    """Admit one leased fixture through the installed owner before authoring dirty state."""
     authored = repository / "retained-user-data.txt"
-    lane = repository.parent / f"{repository.name}-work-retained-upgrade-fixture"
-    branch = "work/retained-upgrade-fixture"
-    occupied = run_git(
-        repository, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False
-    )
-    if (
-        any(path.exists() or path.is_symlink() for path in (authored, lane))
-        or occupied.returncode != 1
-    ):
+    if authored.exists() or authored.is_symlink():
         message = "package_upgrade_retained_fixture_occupied"
         raise ValueError(message)
     run_git(repository, "ls-files", "--error-unmatch", "--", "README.md")
-    run_git(repository, "worktree", "add", "-b", branch, str(lane), "HEAD")
+    holder = "agent:test:package-only:retained"
+    code, started, detail = invoke(
+        repository,
+        (
+            str(python),
+            "-B",
+            "-I",
+            "-m",
+            "ethos.cli",
+            "lane",
+            "start",
+            "retained-upgrade-fixture",
+            "--holder-ref",
+            holder,
+            "--root",
+            str(repository),
+            "--apply",
+            "--json",
+        ),
+        environment={**environment, "ETHOS_ACTOR": holder},
+    )
+    data = started.get("data")
+    if code or started.get("verdict") != "pass" or not isinstance(data, dict):
+        message = f"package_upgrade_retained_lane_failed:{detail}"
+        raise RuntimeError(message)
+    if not isinstance(data.get("path"), str):
+        message = "package_upgrade_retained_lane_path_missing"
+        raise TypeError(message)
+    lane = Path(data["path"])
     run_git(repository, "config", "extensions.worktreeConfig", "true")
     run_git(lane, "config", "--worktree", "retained.fixture", "user-owned configuration")
     authored.write_bytes(b"User-owned state: preserve\n")
@@ -163,15 +182,6 @@ def seed_retained_state(repository: Path) -> None:
     indexed.write_bytes(b"Retained working bytes\n")
     (lane / "README.md").unlink()
     (lane / "retained-untracked.txt").write_bytes(b"Retained untracked user bytes\n")
-    acquire_lease(
-        state_database(repository),
-        lease=LaneLease(
-            lane_ref=branch,
-            holder_ref=HolderRef.parse("agent:test:package-only:retained"),
-            generation=1,
-            expires_at=datetime.now(UTC) + timedelta(days=1),
-        ),
-    )
 
 
 def retained_repository(repository: Path) -> RetainedRepository:

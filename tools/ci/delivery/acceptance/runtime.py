@@ -335,7 +335,9 @@ def prove_retained_upgrade(
         build=previous.build,
         wheel_sha256=previous.wheel_sha256,
     )
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=previous.python, environment=environment
+    )
     before = brownfield_acceptance.retained_repository(repository)
     selector = common / "ethos/runtime/CURRENT"
     original_selector = selector.read_bytes()

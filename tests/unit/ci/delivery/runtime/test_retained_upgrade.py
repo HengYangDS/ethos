@@ -5,6 +5,10 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import sys
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -15,9 +19,40 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
+
+
+@pytest.fixture(autouse=True)
+def lane_start_transport(monkeypatch):
+    """Double installed CLI transport while retaining real Git and Lease state."""
+    calls = []
+
+    def start(repository, command, *, environment):
+        assert command[4:8] == ("ethos.cli", "lane", "start", "retained-upgrade-fixture")
+        holder = environment["ETHOS_ACTOR"]
+        assert command[command.index("--holder-ref") + 1] == holder
+        branch = "work/retained-upgrade-fixture"
+        linked = repository.parent / f"{repository.name}-work-retained-upgrade-fixture"
+        run_git(repository, "worktree", "add", "-b", branch, str(linked), "HEAD")
+        acquire_lease(
+            state_database(repository),
+            lease=LaneLease(
+                lane_ref=branch,
+                holder_ref=holder,
+                generation=1,
+                expires_at=datetime.now(UTC) + timedelta(days=1),
+            ),
+        )
+        calls.append(command)
+        return 0, {"verdict": "pass", "data": {"path": str(linked), "branch": branch}}, ""
+
+    monkeypatch.setattr(brownfield_acceptance, "invoke", start)
+    return calls
 
 
 def _stage_working_bytes(repository: Path) -> Path:
@@ -190,7 +225,9 @@ def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_
 @pytest.mark.parametrize("drift", ["bytes", "mode"])
 def test_snapshot_distinguishes_staged_only_change(tmp_path: Path, drift: str) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     indexed = _stage_working_bytes(repository)
     run_git(repository, "config", "core.filemode", "false")
     before = brownfield_acceptance.retained_repository(repository)
@@ -206,7 +243,9 @@ def test_snapshot_distinguishes_staged_only_change(tmp_path: Path, drift: str) -
 
 def test_snapshot_observes_deleted_tracked_file(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     before = brownfield_acceptance.retained_repository(repository)
     (repository / "README.md").unlink()
     deleted = brownfield_acceptance.retained_repository(repository)
@@ -217,7 +256,9 @@ def test_snapshot_observes_deleted_tracked_file(tmp_path: Path) -> None:
 @pytest.mark.skipif(os.name == "nt", reason="POSIX symbolic links")
 def test_snapshot_preserves_raw_symlink_target(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     link = repository / "retained-link"
     link.symlink_to("domain//target")
     before = brownfield_acceptance.retained_repository(repository)
@@ -230,7 +271,9 @@ def test_snapshot_preserves_raw_symlink_target(tmp_path: Path) -> None:
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
 def test_snapshot_distinguishes_user_file_permission_change(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     authored = repository / "retained-user-data.txt"
     authored.chmod(0o644)
     before = brownfield_acceptance.retained_repository(repository)
@@ -240,7 +283,9 @@ def test_snapshot_distinguishes_user_file_permission_change(tmp_path: Path) -> N
 
 def test_snapshot_observes_linked_worktree_content(tmp_path: Path) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     linked = tmp_path / "linked-peer"
     run_git(repository, "worktree", "add", "-b", "work/retained-peer", str(linked), "HEAD")
     before = brownfield_acceptance.retained_repository(repository)
@@ -248,9 +293,13 @@ def test_snapshot_observes_linked_worktree_content(tmp_path: Path) -> None:
     assert brownfield_acceptance.retained_repository(repository) != before
 
 
-def test_retained_fixture_has_one_real_leased_dirty_lane(tmp_path: Path) -> None:
+def test_retained_fixture_has_one_real_leased_dirty_lane(
+    tmp_path: Path, lane_start_transport
+) -> None:
     repository = init_git_repo(tmp_path / "adopter")
-    brownfield_acceptance.seed_retained_state(repository)
+    brownfield_acceptance.seed_retained_state(
+        repository, python=Path(sys.executable), environment={}
+    )
     registration = run_git(repository, "worktree", "list", "--porcelain").stdout
     assert "branch refs/heads/work/retained-upgrade-fixture" in registration
     linked = repository.parent / f"{repository.name}-work-retained-upgrade-fixture"
@@ -261,3 +310,4 @@ def test_retained_fixture_has_one_real_leased_dirty_lane(tmp_path: Path) -> None
     retained = brownfield_acceptance.retained_repository(repository)
     assert len(retained.leases) == 1
     assert retained.leases[0].lane_ref == "work/retained-upgrade-fixture"
+    assert len(lane_start_transport) == 1

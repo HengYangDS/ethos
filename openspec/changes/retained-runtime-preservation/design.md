@@ -21,8 +21,9 @@ modify archived intent, qualify interruption or uninstall, or activate adopters.
    identity; keep missing files and filesystem modes explicit. Observe each registered linked
    checkout through the same snapshot, with native registration binding. A second preservation
    registry or controller would duplicate Git and the current acceptance owner.
-2. Seed one real leased fixture lane through native Git, with different staged and working bytes,
-   deletion and untracked content. Keep the accepted fixture intact. The existing package attempt
+2. Prepare the fixture's candidate before governance activation, then create its leased Work Lane
+   through the installed native owner before seeding staged, working, deleted and untracked bytes.
+   Keep the accepted fixture intact. The existing package attempt
    owns fixture cleanup; the real adopter's dirty work is never the test input.
 3. Retain phase-specific failure reasons and compare the same complete prestate after upgrade,
    rollback and reactivation. Project the additional evidence from that snapshot rather than

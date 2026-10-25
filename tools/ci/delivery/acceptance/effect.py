@@ -347,6 +347,17 @@ def observe_package(
             openspec_config=ROOT / "openspec/config.yaml",
             run=_run,
         )
+        if predecessor is not None:
+            _run(
+                "git",
+                "worktree",
+                "add",
+                "-b",
+                "candidate/dev",
+                str(WORK / "adopter-candidate-dev"),
+                cwd=adopter,
+                env=package_environment,
+            )
         line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
     with observe_stage("installed_command_plane"):
         origin, version, command_plane = observe_installed_package(

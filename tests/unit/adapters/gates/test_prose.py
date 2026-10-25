@@ -273,3 +273,17 @@ def test_prose_gate_runs_the_shipped_and_repository_vale_policy(tmp_path, monkey
         "quality_gate_failed:prose-vale-increment",
         "native_prose_not_read_only_clean",
     ], report
+
+
+def test_prose_tools_read_a_document_named_like_an_option(tmp_path, monkeypatch):
+    """A tracked name is an operand of codespell and Vale, never one of their options."""
+    name = "--notes.md"
+    (tmp_path / name).write_text("We utilize teh data to decide.\n")
+    _quality_files(monkeypatch, [name])
+    _without_ambient_toolchain(monkeypatch)
+    report = gate_tool.prose_report(tmp_path)
+    findings = {result["id"]: str(result["stdout"]).splitlines() for result in report["native"]}
+    assert any(line.startswith(f"{name}:1:") and "teh" in line for line in findings["prose"]), (
+        report
+    )
+    assert any(line.startswith(f"{name}:1:") for line in findings["prose-vale"]), report

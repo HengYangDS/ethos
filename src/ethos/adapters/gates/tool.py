@@ -360,6 +360,7 @@ def prose_report(root: Path) -> dict[str, object]:
                     config,
                     "--count",
                     "--quiet-level=2",
+                    "--",
                     *files,
                 ],
                 spelling=True,
@@ -433,7 +434,14 @@ def _vale_reports(
             sources,
             gate_id="prose-vale" if ordinal == 0 else "prose-vale-increment",
             tool=executable,
-            command=[executable, "--no-global", f"--config={config}", "--output=line", *files],
+            command=[
+                executable,
+                "--no-global",
+                f"--config={config}",
+                "--output=line",
+                "--",
+                *files,
+            ],
         )
         if ordinal == 0 and controls:
             result.update(verdict="block", state="unproven")

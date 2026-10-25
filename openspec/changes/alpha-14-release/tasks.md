@@ -10,7 +10,7 @@
 
 ## 3. Option-Safe Prose Inputs
 
-- [ ] 3.1 Pass `--` before the Markdown inputs of codespell and Vale. Done when a regression proves that both tools check a Markdown file named like an option.
+- [x] 3.1 Pass `--` before the Markdown inputs of codespell and Vale. Done when a regression proves that both tools check a Markdown file named like an option (`test_prose_tools_read_a_document_named_like_an_option`).
 
 ## 4. Supply Refresh
 

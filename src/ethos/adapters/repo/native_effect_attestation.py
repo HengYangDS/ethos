@@ -10,10 +10,11 @@ from typing import NamedTuple
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 
+# NativeEffect annotations are evaluated by its Pydantic TypeAdapter consumer.
+from ethos.contracts.value import JsonObject  # noqa: TC001
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.value import JsonObject
 
 
 class NativeEffect(NamedTuple):

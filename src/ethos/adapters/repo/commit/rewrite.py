@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
+from pydantic import TypeAdapter
+
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_effect_attestation import declares_transition
@@ -23,6 +25,8 @@ from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_NATIVE_EFFECT = TypeAdapter(NativeEffect)
 
 
 class RewriteEdge(NamedTuple):
@@ -74,55 +78,30 @@ def observe_refresh_conservation(root: Path, edge: RewriteEdge) -> dict[str, obj
                 "merge-tree", "--write-tree", f"--merge-base={base}", edge.candidate, edge.previous
             )
             output = git("rev-parse", f"{edge.current}^{{tree}}")
-            return _composition_result(edge, base, result, output)
+            composition = {
+                **observed,
+                "base": base,
+                "candidate": edge.candidate,
+                "previous": edge.previous,
+                "output": edge.current,
+                "exit_code": result.returncode,
+            }
+            if result.returncode == 1:
+                return {**composition, "verdict": "block", "reason": "native_composition_conflict"}
+            if result.returncode or output.returncode:
+                return composition
+            composed = result.stdout.splitlines()[0] if result.stdout.splitlines() else ""
+            expected = output.stdout.strip()
+            equal = bool(composed) and composed == expected
+            return {
+                **composition,
+                "verdict": "pass" if equal else "block",
+                "reason": "conserved" if equal else "native_composition_mismatch",
+                "composed_tree": composed,
+                "output_tree": expected,
+            }
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         return {**observed, "reason": str(error)}
-
-
-def _composition_result(
-    edge: RewriteEdge,
-    base: str,
-    result: subprocess.CompletedProcess[str],
-    output: subprocess.CompletedProcess[str],
-) -> dict[str, object]:
-    """Separate native conflict, missing observations and exact tree agreement."""
-    observed = {
-        "verdict": "unknown",
-        "reason": "native_composition_unavailable",
-        "base": base,
-        "candidate": edge.candidate,
-        "previous": edge.previous,
-        "output": edge.current,
-        "exit_code": result.returncode,
-    }
-    if result.returncode == 1:
-        return {**observed, "verdict": "block", "reason": "native_composition_conflict"}
-    if result.returncode or output.returncode:
-        return observed
-    composed = result.stdout.splitlines()[0] if result.stdout.splitlines() else ""
-    expected = output.stdout.strip()
-    equal = bool(composed) and composed == expected
-    return {
-        **observed,
-        "verdict": "pass" if equal else "block",
-        "reason": "conserved" if equal else "native_composition_mismatch",
-        "composed_tree": composed,
-        "output_tree": expected,
-    }
-
-
-def refresh_edges(
-    root: Path, *, branch: str, attestations: tuple[Any, ...], previous: str | None = None
-) -> dict[str, tuple[RewriteEdge, ...]]:
-    """Derive the branch's validated adjacency relation from exact refresh evidence."""
-    grouped: dict[str, list[RewriteEdge]] = {}
-    for attestation in attestations:
-        edge = validated_refresh_edge(
-            root, branch=branch, attestation=attestation, previous=previous
-        )
-        if edge is not None:
-            grouped.setdefault(edge.previous, []).append(edge)
-    return {previous: tuple(values) for previous, values in grouped.items()}
 
 
 def validated_refresh_edge(
@@ -165,53 +144,39 @@ def validated_refresh_edge(
         carried = plan.prior_attestations.get("rebase")
         _require(valid=isinstance(carried, Mapping))
         rebase = Attestation.model_validate(mutable_json(carried))
-        projected_body = mutable_json(rebase.payload.body)
-        _require(valid=isinstance(projected_body, dict))
-        assert isinstance(projected_body, dict)
-        body = {str(key): value for key, value in projected_body.items()}
-        before = body.get("input")
-        after = body.get("output")
+        body = rebase.payload.body
         freshness = body.get("freshness")
-        command = body.get("command")
         repository = str(body.get("repository") or "")
-        _require(valid=all(isinstance(value, dict) for value in (before, after, freshness)))
-        assert isinstance(before, dict)
-        assert isinstance(after, dict)
-        assert isinstance(freshness, dict)
-        _require(valid=isinstance(command, list | tuple) and bool(repository))
-        assert isinstance(command, list | tuple)
-        before_map = {str(key): value for key, value in before.items()}
-        after_map = {str(key): value for key, value in after.items()}
-        freshness_map = {str(key): value for key, value in freshness.items()}
-        subject = freshness_map.get("subject")
-        _require(valid=isinstance(subject, dict))
-        assert isinstance(subject, dict)
-        subject_map = {str(key): value for key, value in subject.items()}
+        _require(valid=isinstance(freshness, Mapping) and bool(repository))
+        assert isinstance(freshness, Mapping)
+        native = _NATIVE_EFFECT.validate_python(
+            {
+                "predicate": "effect:git-rebase",
+                "operation": "git.rebase",
+                "command": body.get("command"),
+                "subject": freshness.get("subject"),
+                "before": body.get("input"),
+                "after": body.get("output"),
+            }
+        )
         expected_rebase = issue_native_effect(
             root,
-            effect=NativeEffect(
-                predicate="effect:git-rebase",
-                operation="git.rebase",
-                command=tuple(str(value) for value in command),
-                subject=subject_map,
-                before=before_map,
-                after=after_map,
-            ),
+            effect=native,
             state="applied",
             commitment_digest=None,
             repository_id=repository,
             issued_at=rebase.issued_at,
         )
         candidate_heads = tuple(str(value) for value in effect.assertions.values())
-        candidate_head = str(before_map.get("candidate_head") or "")
+        candidate_head = str(native.before.get("candidate_head") or "")
         _require(valid=rebase.canonical_json() == expected_rebase.canonical_json())
         _require(valid=repository == repository_identity(root, tree_ref=update.desired))
-        _require(valid=subject_map == {"branch": branch, "candidate_head": candidate_head})
-        _require(valid=before_map.get("branch") == branch)
-        _require(valid=before_map.get("head") == update.expected)
-        _require(valid=after_map.get("branch") == "detached")
-        _require(valid=after_map.get("head") == update.desired)
-        _require(valid=candidate_head == after_map.get("candidate_head"))
+        _require(valid=native.subject == {"branch": branch, "candidate_head": candidate_head})
+        _require(valid=native.before.get("branch") == branch)
+        _require(valid=native.before.get("head") == update.expected)
+        _require(valid=native.after.get("branch") == "detached")
+        _require(valid=native.after.get("head") == update.desired)
+        _require(valid=candidate_head == native.after.get("candidate_head"))
         _require(valid=candidate_heads == (candidate_head,))
     except (AttributeError, KeyError, TypeError, ValueError):
         return None

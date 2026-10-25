@@ -110,7 +110,7 @@ def test_archive_candidates_verify_repair_once_per_fresh_observation(
     monkeypatch.setattr(archive, "plan_from_attestation", lambda record: plans[record.id])
     monkeypatch.setattr(archive, "git_effect_from_plan", lambda plan: plan.effect)
     monkeypatch.setattr(archive, "validate_git_effect_attestation", validate_effect)
-    monkeypatch.setattr(provenance, "refresh_edges", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(provenance, "validated_refresh_edge", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(provenance, "completed_signature_repair", verify)
     native_git = Mock(wraps=provenance.run_git)
     monkeypatch.setattr(provenance, "run_git", native_git)
@@ -169,7 +169,7 @@ def test_unaffected_archive_ancestor_does_not_demand_history_verification(tmp_pa
         verified.append(new)
         return {"mapping": {old: replacement}, "attestation_id": "repair"}
 
-    monkeypatch.setattr(provenance, "refresh_edges", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(provenance, "validated_refresh_edge", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(provenance, "completed_signature_repair", verify)
     original_refs = git(root, "show-ref")
     result = provenance.resolve_archive_head(

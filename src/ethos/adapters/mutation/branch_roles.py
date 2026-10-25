@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.role_rename import RENAMED_ROLES
 from ethos.adapters.admission.role_rename import ROLE_RENAME_OPERATION
-from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.admission.role_rename import legacy_role_renames
 from ethos.adapters.admission.role_rename import require_owned_topic
 from ethos.adapters.admission.role_rename import retained_topic_target
@@ -232,21 +231,44 @@ def rename_legacy_roles(
     """
     try:
         renames = legacy_role_renames(root, current_head)
-        names = legacy_role_names(committed_file_text(root, current_head, ".ethos/workspace.toml"))
+        declared = declared_role_names(
+            committed_file_text(root, current_head, ".ethos/workspace.toml")
+        )
     except (TypeError, ValueError):
         return None
-    accepted = names.get("accepted_branch", BranchRolePolicy().accepted_branch)
+    standard = BranchRolePolicy()
+    accepted = declared.get("accepted_branch", standard.accepted_branch)
     if not renames or current_branch(root) != accepted:
         return None
     targets = {legacy: target for legacy, (target, _head) in renames.items()}
-    gaps = _rename_gaps(root, current_head, renames, authorized=authorized, expect_head=expect_head)
+    retired = {
+        declared.get(field, getattr(standard, field))
+        for field in ("work_branch_prefix", "proposal_branch_prefix")
+    } - {standard.work_branch_prefix, standard.proposal_branch_prefix}
+    gaps = [
+        *(["authorization_required"] if not authorized else []),
+        *(["expected_head_mismatch"] if expect_head != current_head else []),
+        *(
+            f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
+            for target, _head in renames.values()
+            if ref_head(root, target)
+        ),
+        *(
+            f"legacy_role_rename_topic_refs_present:{prefix}"
+            for prefix in sorted(retired)
+            if git_stdout(root, "for-each-ref", "--format=%(refname)", f"refs/heads/{prefix}")
+        ),
+    ]
     report: dict[str, object] = {
         "verdict": "block",
         "state": "blocked",
         "head": current_head,
         "renames": targets,
         "required_gaps": gaps,
-        "next_action": _closeout_command(root, current_head),
+        "next_action": (
+            f"ethos land --closeout --apply --authorize --expect-head {current_head} "
+            f"--root {shlex.quote(root.resolve().as_posix())} --json"
+        ),
     }
     if gaps:
         return report
@@ -268,7 +290,6 @@ def rename_legacy_roles(
             **report,
             "verdict": "pass",
             "state": "ready_to_rename",
-            "required_gaps": [],
         }
     attestation = execute_git_effect(
         root,
@@ -280,7 +301,6 @@ def rename_legacy_roles(
         **report,
         "verdict": "pass",
         "state": "branch_roles_renamed",
-        "required_gaps": [],
         "attestation": attestation.model_dump(mode="json"),
         "next_action": "ethos status --json",
     }
@@ -320,43 +340,4 @@ def resume_renamed_bindings(root: Path) -> None:
             for role in RENAMED_ROLES
             if role in declared and ref_head(root, f"refs/heads/{getattr(standard, role)}")
         },
-    )
-
-
-def _rename_gaps(
-    root: Path,
-    head: str,
-    renames: Mapping[str, tuple[str, str]],
-    *,
-    authorized: bool,
-    expect_head: str | None,
-) -> list[str]:
-    """Admit a rename only by authority, at the expected head, onto absent standard refs."""
-    declared = declared_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
-    standard = BranchRolePolicy()
-    retired = {
-        declared.get(field, getattr(standard, field))
-        for field in ("work_branch_prefix", "proposal_branch_prefix")
-    } - {standard.work_branch_prefix, standard.proposal_branch_prefix}
-    return [
-        *(["authorization_required"] if not authorized else []),
-        *(["expected_head_mismatch"] if expect_head != head else []),
-        *(
-            f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
-            for target, _head in renames.values()
-            if ref_head(root, target)
-        ),
-        *(
-            f"legacy_role_rename_topic_refs_present:{prefix}"
-            for prefix in sorted(retired)
-            if git_stdout(root, "for-each-ref", "--format=%(refname)", f"refs/heads/{prefix}")
-        ),
-    ]
-
-
-def _closeout_command(root: Path, head: str) -> str:
-    """Return the exact closeout invocation that renames this accepted root's role refs."""
-    return (
-        f"ethos land --closeout --apply --authorize --expect-head {head} "
-        f"--root {shlex.quote(root.resolve().as_posix())} --json"
     )

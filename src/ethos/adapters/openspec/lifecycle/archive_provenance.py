@@ -8,7 +8,7 @@ from typing import Any
 
 from ethos.adapters.repo.commit.history import observe_history_repair_mapping
 from ethos.adapters.repo.commit.rewrite import RewriteEdge
-from ethos.adapters.repo.commit.rewrite import refresh_edges
+from ethos.adapters.repo.commit.rewrite import validated_refresh_edge
 from ethos.adapters.repo.commit.signature import RESULT
 from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import is_ancestor
@@ -49,12 +49,14 @@ def resolve_archive_head(
         distance = _ancestor_distance(root, commit, current_head)
         if distance is not None:
             candidates.append((commit, distance, chain))
+        refreshes = (
+            validated_refresh_edge(root, branch=branch, attestation=record, previous=commit)
+            for record in attestations
+        )
         next_edges = tuple(
             edge
             for edge in (
-                *refresh_edges(root, branch=branch, attestations=attestations, previous=commit).get(
-                    commit, ()
-                ),
+                *filter(None, refreshes),
                 *_repair_edges(root, commit, attestations, repairs, repair_mappings),
             )
             if edge.current not in seen
@@ -155,9 +157,7 @@ def _ancestor_distance(root: Path, ancestor: str, descendant: str) -> int | None
     """Return native Git distance; failed or malformed observations never invent ancestry."""
     if not ancestor or not descendant:
         return None
-    if run_git(
-        root, "merge-base", "--is-ancestor", ancestor, descendant, check=False, observation=True
-    ).returncode:
+    if not is_ancestor(root, ancestor, descendant):
         return None
     result = run_git(
         root, "rev-list", "--count", f"{ancestor}..{descendant}", check=False, observation=True

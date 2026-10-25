@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 import shutil
@@ -401,6 +402,23 @@ def prove_retained_upgrade(
         "preservation": {
             "head": before.head,
             "files_sha256": dict(before.files_sha256),
+            "file_modes": dict(before.file_modes),
+            "index_sha256": before.index_sha256,
+            "worktree_registration_sha256": hashlib.sha256(
+                before.worktree_registration.encode()
+            ).hexdigest(),
+            "linked_worktrees": {
+                path: {
+                    "head": retained.head,
+                    "index_sha256": retained.index_sha256,
+                    "files_sha256": dict(retained.files_sha256),
+                    "file_modes": dict(retained.file_modes),
+                }
+                for path, retained in before.linked_worktrees
+            },
+            "index_preserved": True,
+            "file_modes_preserved": True,
+            "linked_worktrees_preserved": True,
             "lease_count": len(before.leases),
             "configuration_preserved": True,
             "state_schema_preserved": True,

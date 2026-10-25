@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
+import stat
 from dataclasses import dataclass
+from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import LeaseRow
@@ -24,7 +29,6 @@ from tools.ci.delivery.acceptance.invocation import invoke
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
-    from pathlib import Path
 
 
 def prove_brownfield(
@@ -116,27 +120,53 @@ def prove_brownfield(
 
 @dataclass(frozen=True, slots=True)
 class RetainedRepository:
-    """Selection-independent repository bytes and native Lease semantics."""
+    """Immutable authored checkout state and its registered repository family."""
 
     head: str
     configuration: tuple[str, ...]
     schema: tuple[str, ...]
     leases: tuple[LeaseRow, ...]
-    files_sha256: tuple[tuple[str, str], ...]
+    files_sha256: tuple[tuple[str, str | None], ...]
+    file_modes: tuple[tuple[str, int | None], ...]
+    index_sha256: str
     working_state: str
+    worktree_configuration: tuple[str, ...]
+    worktree_registration: str = ""
+    linked_worktrees: tuple[tuple[str, RetainedRepository], ...] = ()
 
 
 def seed_retained_state(repository: Path) -> None:
-    """Give the disposable brownfield fixture real user bytes and Lease state."""
+    """Seed one real leased linked fixture without changing the accepted checkout."""
     authored = repository / "retained-user-data.txt"
-    if authored.exists() or authored.is_symlink():
+    lane = repository.parent / f"{repository.name}-work-retained-upgrade-fixture"
+    branch = "work/retained-upgrade-fixture"
+    occupied = run_git(
+        repository, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False
+    )
+    if (
+        any(path.exists() or path.is_symlink() for path in (authored, lane))
+        or occupied.returncode != 1
+    ):
         message = "package_upgrade_retained_fixture_occupied"
         raise ValueError(message)
+    run_git(repository, "ls-files", "--error-unmatch", "--", "README.md")
+    run_git(repository, "worktree", "add", "-b", branch, str(lane), "HEAD")
+    run_git(repository, "config", "extensions.worktreeConfig", "true")
+    run_git(lane, "config", "--worktree", "retained.fixture", "user-owned configuration")
     authored.write_bytes(b"User-owned state: preserve\n")
+    indexed = lane / "retained-index.txt"
+    indexed.write_bytes(b"Retained staged bytes\n")
+    if os.name != "nt":
+        indexed.chmod(0o755)
+    run_git(lane, "add", "--", indexed.name)
+    run_git(lane, "update-index", "--chmod=+x", "--", indexed.name)
+    indexed.write_bytes(b"Retained working bytes\n")
+    (lane / "README.md").unlink()
+    (lane / "retained-untracked.txt").write_bytes(b"Retained untracked user bytes\n")
     acquire_lease(
         state_database(repository),
         lease=LaneLease(
-            lane_ref="work/retained-upgrade-fixture",
+            lane_ref=branch,
             holder_ref=HolderRef.parse("agent:test:package-only:retained"),
             generation=1,
             expires_at=datetime.now(UTC) + timedelta(days=1),
@@ -145,32 +175,86 @@ def seed_retained_state(repository: Path) -> None:
 
 
 def retained_repository(repository: Path) -> RetainedRepository:
-    """Read the complete selected fixture without treating hooks as user config."""
+    """Observe native common state and every linked checkout without caching authority."""
     schema = state_schema_report(repository)
     rows = tuple(lease_row(row) for row in lease_rows(state_database(repository)))
     columns = schema["observed_columns"]
     if schema["observed_state"] != "current" or not isinstance(columns, list) or not rows:
         message = "package_upgrade_retained_state_missing"
         raise ValueError(message)
-    configuration = run_git(repository, "config", "--local", "--null", "--list").stdout
+    configuration = _retained_configuration(repository, "--local")
+    declared_columns = tuple(str(column) for column in columns)
+    registration = run_git(repository, "worktree", "list", "--porcelain", "-z").stdout
+    paths = tuple(
+        Path(entry.removeprefix("worktree "))
+        for entry in registration.split("\0")
+        if entry.startswith("worktree ")
+    )
+    linked = tuple(
+        (str(path), _retained_checkout(path, configuration, declared_columns, rows))
+        for path in paths
+        if path.resolve() != repository.resolve()
+    )
+    observed = _retained_checkout(repository, configuration, declared_columns, rows)
+    if run_git(repository, "worktree", "list", "--porcelain", "-z").stdout != registration:
+        message = "package_upgrade_retained_worktrees_changed"
+        raise ValueError(message)
+    return replace(observed, worktree_registration=registration, linked_worktrees=linked)
+
+
+def _retained_configuration(repository: Path, scope: str) -> tuple[str, ...]:
+    result = run_git(repository, "config", scope, "--null", "--get-regexp", ".", check=False)
+    if result.returncode == 1 and not result.stdout:
+        return ()
+    result.check_returncode()
+    configuration = result.stdout
+    return tuple(
+        entry
+        for entry in configuration.split("\0")
+        if entry and not entry.startswith("core.hookspath\n")
+    )
+
+
+def _retained_checkout(
+    repository: Path,
+    configuration: tuple[str, ...],
+    columns: tuple[str, ...],
+    rows: tuple[LeaseRow, ...],
+) -> RetainedRepository:
     files = run_git(
         repository, "ls-files", "--cached", "--others", "--exclude-standard", "-z"
-    ).stdout.split("\0")
+    ).stdout
+    entries = tuple(
+        (name, *_retained_file(repository / name))
+        for name in sorted(set(files.split("\0")))
+        if name
+    )
     return RetainedRepository(
         head=run_git(repository, "rev-parse", "HEAD").stdout.strip(),
-        configuration=tuple(
-            entry
-            for entry in configuration.split("\0")
-            if entry and not entry.startswith("core.hookspath\n")
-        ),
-        schema=tuple(str(column) for column in columns),
+        configuration=configuration,
+        schema=columns,
         leases=rows,
-        files_sha256=tuple(
-            (name, hashlib.sha256((repository / name).read_bytes()).hexdigest())
-            for name in sorted(set(files))
-            if name
-        ),
+        files_sha256=tuple((name, digest) for name, digest, _mode in entries),
+        file_modes=tuple((name, mode) for name, _digest, mode in entries),
+        index_sha256=index_content_sha256(repository),
         working_state=run_git(
             repository, "status", "--porcelain=v1", "--untracked-files=all", "-z"
         ).stdout,
+        worktree_configuration=_retained_configuration(repository, "--worktree"),
     )
+
+
+def _retained_file(path: Path) -> tuple[str | None, int | None]:
+    try:
+        state = path.lstat()
+    except FileNotFoundError:
+        return None, None
+    if stat.S_ISLNK(state.st_mode):
+        # Preserve raw target spelling; Path.readlink normalizes its returned path.
+        content = os.fsencode(os.readlink(path, dir_fd=None))
+    elif stat.S_ISREG(state.st_mode):
+        content = path.read_bytes()
+    else:
+        message = "package_upgrade_retained_file_invalid"
+        raise ValueError(message)
+    return hashlib.sha256(content).hexdigest(), stat.S_IMODE(state.st_mode)

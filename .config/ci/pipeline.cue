@@ -88,9 +88,9 @@ let githubPythonBootstrap = list.Concat([[{
 		ref:           githubSourceSHA
 	}
 }, {
-	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+	uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
 	with: {
-		version:          "0.13.4"
+		version:          "0.13.5"
 		"python-version": "3.14"
 	}
 }, {
@@ -120,9 +120,9 @@ let githubHostSupplyAt = {
 			ref:           checkout
 		}
 	}, {
-		uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+		uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
 		with: {
-			version:          "0.13.4"
+			version:          "0.13.5"
 			"python-version": python
 		}
 	}, {
@@ -223,7 +223,7 @@ github: {
 				name: "Build the supply image"
 				run:  "docker buildx build --platform linux/arm64 --file \(supplyDockerfile) --target supply --tag \(supplyImage) --load ."
 			}, {
-				uses: "docker/login-action@dbcb813823bdd20940b903addbd779551569679f"
+				uses: "docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6"
 				with: {
 					registry: "ghcr.io"
 					username: "${{ github.actor }}"
@@ -406,9 +406,9 @@ github: {
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 				with: ref: releaseTagRef
 			}, {
-				uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+				uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
 				with: {
-					version:          "0.13.4"
+					version:          "0.13.5"
 					"python-version": "3.14"
 				}
 			}, {

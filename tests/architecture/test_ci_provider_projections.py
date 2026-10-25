@@ -459,7 +459,7 @@ def _offline_generation(root, command, **kwargs):
         ("missing", "model", None, None),
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
         ("missing-output", "output", None, None),
-        ("bootstrap-version", "mise", "2026.10.14", "0.0.0"),
+        ("bootstrap-version", "mise", "2026.10.19", "0.0.0"),
         ("bootstrap-lock", "declaration", "linux-arm64 =", "linux-unsupported ="),
     ],
 )

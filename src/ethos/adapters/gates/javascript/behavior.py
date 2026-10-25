@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from ethos.adapters.gates.javascript.execution import command_observation
 from ethos.adapters.gates.javascript.execution import native_recipe
+from ethos.adapters.gates.javascript.execution import node_test_environment
 from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
@@ -58,14 +59,7 @@ def _observe_test(
         root,
         command,
         timeout=timeout,
-        env={
-            **environment,
-            "NODE_V8_COVERAGE": str(raw),
-            "NODE_OPTIONS": (
-                f"--test-reporter={json.dumps(str(Path(__file__).with_name('reporter.mjs')))} "
-                f"--test-reporter-destination={json.dumps(str(raw.parent / 'journal.jsonl'))}"
-            ),
-        },
+        env={**environment, **node_test_environment(raw.parent)},
         remove_env=removed,
         remove_env_prefixes=("MISE_",),
     )

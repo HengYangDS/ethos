@@ -10,7 +10,7 @@
     "test:npm": "node --test tests/architecture/npm-package.test.mjs"
   },
   "dependencies": {
-    "@fission-ai/openspec": "1.14.3",
+    "@fission-ai/openspec": "1.15.0",
     "c8": "12.0.0",
     "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1",
@@ -19,12 +19,12 @@
     "globals": "17.13.0",
     "npm": "12.2.1",
     "@taplo/cli": "0.7.0",
-    "markdownlint-cli2": "0.23.3",
+    "markdownlint-cli2": "0.24.0",
     "prettier": "3.9.10",
     "svgo": "4.1.0"
   },
   "devDependencies": {
-    "allure": "3.21.0"
+    "allure": "3.22.1"
   },
   "overrides": {
     "markdownlint-cli2": {
@@ -32,7 +32,7 @@
       "smol-toml": "1.9.1"
     },
     "micromark-extension-math": {
-      "katex": "0.19.0"
+      "katex": "0.19.1"
     },
     "@allurereport/web-commons": {
       "dompurify": "3.4.17"

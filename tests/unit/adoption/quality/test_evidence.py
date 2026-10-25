@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -420,7 +421,10 @@ def test_native_tool_absence_does_not_become_quality_success(tmp_path: Path, mon
 def test_unavailable_locked_node_does_not_fall_back_to_host_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A declared locked tool remains required when an ambient binary exists."""
+    """A declared locked tool remains required when an ambient binary exists.
+
+    The repository is untrusted, so the refusal names native trust as the next action.
+    """
     repo = committed_source_repo(
         tmp_path,
         {
@@ -453,9 +457,9 @@ def test_unavailable_locked_node_does_not_fall_back_to_host_path(
         ),
     )
 
-    assert native_quality.static_report(repo)["required_gaps"] == [
-        "quality_static-analysis_mise_supply_unavailable:node:locked node unavailable"
-    ]
+    refusal = "quality_static-analysis_mise_supply_unavailable:node:locked node unavailable"
+    trust = shlex.join(("mise", "--cd", str(repo.resolve()), "trust"))
+    assert native_quality.static_report(repo)["required_gaps"] == [f"{refusal}; next: {trust}"]
 
 
 def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:

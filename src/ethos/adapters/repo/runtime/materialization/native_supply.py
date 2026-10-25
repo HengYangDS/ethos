@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from ethos.adapters.process import run_command
@@ -24,11 +25,15 @@ from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
+from ethos.adapters.toolchain.mise import carried_trust
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
 from ethos.repository.release.resources import require_packaged_resource
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 NATIVE_BACKENDS = {
     "cue": "cue",
@@ -266,7 +271,13 @@ def native_supply_is_offline() -> bool:
     return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
 
 
-def download_tool(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
+def download_tool(
+    command: tuple[str, ...],
+    *,
+    root: Path,
+    timeout: float = 180,
+    trust: Mapping[str, str] | None = None,
+) -> None:
     """Run the native provisioner through the existing bounded process owner."""
     result = run_command(
         root,
@@ -284,6 +295,7 @@ def download_tool(command: tuple[str, ...], *, root: Path, timeout: float = 180)
             "MISE_STATE_DIR": str(root / "state"),
             "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
             "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
+            **(trust or {}),
         },
     )
     sys.stderr.write(result.stdout + result.stderr)
@@ -312,18 +324,25 @@ def materialize_tool(
                     message = f"native_tool_offline_cache_missing:{name}"
                     raise ValueError(message)
                 isolated = Path(scratch)
-                for source in (MISE_CONFIG, MISE_LOCK):
+                declared = {
+                    source: (root / source).read_bytes() for source in (MISE_CONFIG, MISE_LOCK)
+                }
+                for source, content in declared.items():
                     target_config = isolated / source
                     target_config.parent.mkdir(parents=True, exist_ok=True)
-                    target_config.write_bytes((root / source).read_bytes())
+                    target_config.write_bytes(content)
+                selected_mise = mise or mise_executable()
                 download_tool(
                     (
-                        str(mise or mise_executable()),
+                        str(selected_mise),
                         "install",
                         "--locked",
                         "node" if isinstance(supply, NodeSupply) else supply.backend,
                     ),
                     root=isolated,
+                    trust=carried_trust(
+                        root, isolated, declared[MISE_CONFIG].decode("utf-8"), selected_mise
+                    ),
                 )
                 candidates = list((isolated / "data/downloads").rglob(supply.archive))
                 if len(candidates) != 1:

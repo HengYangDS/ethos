@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from pathlib import Path
 from zipfile import ZipFile
@@ -10,6 +11,7 @@ from zipfile import ZipFile
 import pytest
 
 import ethos.adapters.gates.javascript.behavior as javascript_behavior
+import ethos.adapters.gates.javascript.execution as javascript_execution
 from ethos.adapters.gates.javascript.execution import native_recipe
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.store.state.schema import local_state_root
@@ -169,3 +171,43 @@ def test_native_recipe_requires_one_test_mode(tmp_path: Path, recipe: str) -> No
     (tmp_path / "package.json").write_text(json.dumps({"scripts": {"test": recipe}}))
     with pytest.raises(ValueError, match=r"^javascript_native_recipe_unsupported$"):
         native_recipe(tmp_path, ("answer.test.js",), "/native/node")
+
+
+def test_node_test_options_name_the_reporter_module_by_file_url(tmp_path: Path) -> None:
+    """Node loads reporters as module URLs, where a Windows drive path reads as a URL scheme."""
+    output = tmp_path / "attempt"
+    environment = javascript_execution.node_test_environment(output)
+    options = dict(option.split("=", 1) for option in shlex.split(environment["NODE_OPTIONS"]))
+    reporter = Path(javascript_execution.__file__).with_name("reporter.mjs")
+    assert options == {
+        "--test-reporter": reporter.as_uri(),
+        "--test-reporter-destination": str(output / "journal.jsonl"),
+    }
+    assert environment["NODE_V8_COVERAGE"] == str(output / "raw")
+    attempt = javascript_execution.NodeAttempt(tmp_path, "", (), "", output)
+    assert attempt.environment() == environment
+
+
+def test_behavior_gate_gives_node_the_one_owned_test_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The behavior gate and the gate runner pass Node identical reporter and journal options."""
+    repo = _answer_package(tmp_path)
+    observed: list[dict[str, str]] = []
+
+    def native(_cwd: Path, command: tuple[str, ...], *, env: dict[str, str], **_options: object):
+        if command[1].endswith("selection.mjs"):
+            selected = json.dumps({"selected_paths": ["answer.test.js"]})
+            return subprocess.CompletedProcess(command, 0, selected, "")
+        observed.append(env)
+        return subprocess.CompletedProcess(command, 1, "", "")
+
+    monkeypatch.setattr(javascript_behavior, "run_command", native)
+    subjects = observed_code_subjects(tuple(_ANSWER))
+    javascript_behavior.behavior_observation(repo, subjects, None, "/fixture/node", {})
+    assert observed
+    for environment in observed:
+        output = Path(environment["NODE_V8_COVERAGE"]).parent
+        assert {
+            name: environment[name] for name in ("NODE_OPTIONS", "NODE_V8_COVERAGE")
+        } == javascript_execution.node_test_environment(output)

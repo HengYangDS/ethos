@@ -51,6 +51,21 @@ def retain_attempt(root: Path, output: Path, observation: dict[str, object]) -> 
     }
 
 
+def node_test_environment(output: Path) -> dict[str, str]:
+    """Give descendant Node tests a separate native journal and raw V8 input.
+
+    Node loads a reporter as a module URL, so the reporter is a file URL on every platform.
+    """
+    reporter = Path(__file__).with_name("reporter.mjs").as_uri()
+    return {
+        "NODE_V8_COVERAGE": str(output / "raw"),
+        "NODE_OPTIONS": (
+            f"--test-reporter={json.dumps(reporter)} "
+            f"--test-reporter-destination={json.dumps(str(output / 'journal.jsonl'))}"
+        ),
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class NodeAttempt:
     """Invocation-local custody; raw file shape never authenticates a producer."""
@@ -63,14 +78,7 @@ class NodeAttempt:
 
     def environment(self) -> dict[str, str]:
         """Give descendant Node tests a separate native journal and raw V8 input."""
-        reporter = Path(__file__).with_name("reporter.mjs")
-        return {
-            "NODE_V8_COVERAGE": str(self.output / "raw"),
-            "NODE_OPTIONS": (
-                f"--test-reporter={json.dumps(str(reporter))} "
-                f"--test-reporter-destination={json.dumps(str(self.output / 'journal.jsonl'))}"
-            ),
-        }
+        return node_test_environment(self.output)
 
 
 @contextmanager

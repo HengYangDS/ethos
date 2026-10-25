@@ -73,12 +73,12 @@ inputs = { gate_registry = "system/gates.toml", node = ".config/mise/config.toml
 # shell installer supports only Linux and macOS.
 # The official mise executables of the bound version, digests from its SHASUMS256.txt.
 [bootstrap]
-version = "2026.10.14"
+version = "2026.10.19"
 
 [bootstrap.executables]
-linux-arm64 = "a9a8eec284d1c8e1a76685dcfa2fd609e76773fe56546eb72e4568dd1f50c1c3"
-linux-x64 = "50be7185bcf75929f01cc5630276bcb43ca367f7c5b176e2580903d28c611dc4"
-macos-arm64 = "005b32b9c22ca9cb63ff9d35c74b3abe69c433e9ca655fea288ba3dcbe7e4918"
-macos-x64 = "158cd8124bc1108efa6588679b87031c970f592230b618e11c409b55c58e7b27"
-windows-arm64 = "e7a1d0bfea13eb19bdfa4d56eb26e7626eeacd180346717f338595975b11e9e9"
-windows-x64 = "110a77fa198e7394417cb9bf256e9995edd5a96df715a19089638ded93714fcb"
+linux-arm64 = "4a4ca53b28e5433c527f4f73fac1f98f992a17cf32ca136a58e2e375f790f627"
+linux-x64 = "3162760f40b6b5f706c60641e4ef5ee7322bc6c54f72fc26a7111b337aa18d9d"
+macos-arm64 = "7dc61dfa71abbcda1c40d18440bc556b5d58b80e6042bc4f95fd106fa1bb3c66"
+macos-x64 = "8d5e1591811143f15334f690373cefb58c13bd6cbd0292008748fd777f6c99d8"
+windows-arm64 = "5059645075ef762be24d584178aafe6c586fd8647de61d276aa48b6ca94e7240"
+windows-x64 = "8268d9bdfcc5f55c209e300a8454294ebf470a6fd0cf995cf2ce96f2b627979a"

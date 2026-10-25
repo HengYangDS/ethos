@@ -6,7 +6,7 @@
 
 ## 2. Windows JavaScript Reporter
 
-- [ ] 2.1 Build the Node test-runner options in one owner and pass the reporter module as a file URL. Done when a regression proves that both callers use that owner, that the reporter is a file URL and the journal destination a file path, and that the JavaScript behavior tests pass with real Node.
+- [x] 2.1 Build the Node test-runner options in one owner and pass the reporter module as a file URL. Done when a regression proves that both callers use that owner, that the reporter is a file URL and the journal destination a file path, and that the JavaScript behavior tests pass with real Node (`test_node_test_options_name_the_reporter_module_by_file_url`, `test_behavior_gate_gives_node_the_one_owned_test_options`; real Node: `tests/unit/adoption/quality/test_evidence.py`).
 
 ## 3. Option-Safe Prose Inputs
 

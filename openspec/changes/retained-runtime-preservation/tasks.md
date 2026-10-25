@@ -11,7 +11,8 @@
 
 - [x] 2.1 Bind each upgrade, rollback and reactivation comparison and its evidence to the full
       snapshot; focused consumer tests, native layout, Ruff, Ty, SCC and OCR review pass.
-- [ ] 2.2 Qualify the exact packaged successor against a distinct installed predecessor outside
+- [x] 2.2 Qualify the exact packaged successor against a distinct installed predecessor outside
       the source checkout; verify read-only interpreter discovery and preserve all observed
       Git, index, file, mode and Lease state. Local Python supply risk is approved through
-      2026-11-13; CI, distribution and adopter activation are not approved.
+      2026-11-13; CI, distribution and adopter activation are not approved. Evidence:
+      `build/evidence/local-install/attempts/a3d9f72d4-retained-upgrade/smoke.json`.

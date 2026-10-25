@@ -186,7 +186,8 @@ def materialize_adopter(
     run(git, "add", ".", cwd=root)
     run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
     if retained:
-        run(git, "branch", "candidate/dev", cwd=root)
+        candidate = str(root.with_name(f"{root.name}-candidate-dev"))
+        run(git, "worktree", "add", "-b", "candidate/dev", candidate, "dev", cwd=root)
     return run(git, "rev-parse", "HEAD", cwd=root)
 
 

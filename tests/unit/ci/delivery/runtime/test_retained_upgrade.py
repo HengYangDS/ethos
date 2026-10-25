@@ -51,6 +51,9 @@ def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Pa
     assert 'work_branch_prefix = "task/"' in (repository / ".ethos/workspace.toml").read_text()
     assert run_git(repository, "rev-parse", "HEAD").stdout.strip() == head
     assert run_git(repository, "rev-parse", "candidate/dev").stdout.strip() == head
+    candidate = repository.with_name(f"{repository.name}-candidate-dev")
+    assert run_git(candidate, "rev-parse", "HEAD").stdout.strip() == head
+    assert candidate.as_posix() in run_git(repository, "worktree", "list", "--porcelain").stdout
     run_git(repository, "verify-commit", head)
     assert not run_git(repository, "status", "--porcelain").stdout
 

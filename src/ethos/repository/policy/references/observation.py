@@ -23,6 +23,7 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.orchestration import retained_step_texts
 from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
+from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands import normalize_command
@@ -121,27 +122,40 @@ def product_references_from_files(
     declared_commands = tuple(declared_commands)
     command_sources = dict(context_files or {})
     command_sources.update(files)
-    prefixes = python_references.cyclopts_prefixes(command_sources)
+    parsed_files = {
+        path: python_references.complete_python_tree(text)
+        for path, text in declaration_files(command_sources, "commands").items()
+    }
+    prefixes = python_references.cyclopts_prefixes(command_sources, parsed_files=parsed_files)
+    command_owners = {
+        path: python_references.cyclopts_command_owners(path, tree, prefixes)
+        for path, tree in parsed_files.items()
+        if tree is not None
+    }
     known_commands = {
         normalize_command(command) for command in declared_commands if command.strip()
     }
-    for path, text in command_sources.items():
-        for tree in python_references.python_trees(text):
-            known_commands.update(python_references.cyclopts_command_owners(path, tree, prefixes))
+    known_commands.update(command for commands in command_owners.values() for command in commands)
     command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
     npm_scripts = npm_script_commands(command_sources)
     observed = {kind: set() for kind in REFERENCE_KINDS}
+    if include_declarations:
+        observed["command"].update(
+            command
+            for path in files
+            if not path.startswith("tests/")
+            for command in command_owners.get(path, {})
+        )
     unknown_paths: list[str] = []
     for path, text in files.items():
         parsed = _file_references(
             path,
             text,
-            prefixes,
             command_vocabulary,
             npm_scripts,
             observed,
             include_declarations=include_declarations,
-            require_complete=True,
+            parsed_files=parsed_files,
             retained_steps=retained_steps,
         )
         if not parsed:
@@ -170,12 +184,10 @@ def reference_consumer_sources_from_files(
         parsed = _file_references(
             path,
             text,
-            {},
             command_vocabulary,
             npm_scripts,
             observed,
             include_declarations=False,
-            require_complete=True,
             parsed_files=parsed_files,
             retained_steps=retained_steps,
         )
@@ -200,106 +212,48 @@ def reference_consumer_sources_from_files(
 def _file_references(
     path: str,
     text: str,
-    prefixes: dict[tuple[str, str], str],
     known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     *,
     include_declarations: bool,
-    require_complete: bool = False,
     parsed_files: Mapping[str, AST | None] | None = None,
     retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
-        return _python_carrier_references(
-            path=path,
-            text=text,
-            prefixes=prefixes,
-            npm_scripts=npm_scripts,
-            observed=observed,
-            include_declarations=include_declarations,
-            require_complete=require_complete,
-            parsed_files=parsed_files,
+        tree = (
+            parsed_files.get(path)
+            if parsed_files is not None
+            else python_references.complete_python_tree(text)
         )
+        if tree is None:
+            return False
+        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
+        observed["import"].update(imports)
+        if not path.startswith("tests/"):
+            observed["executable"].update(executables)
+            observed["value"].update(inputs)
+        return True
     if carrier == "pyproject":
         return pyproject_references(text, observed, declarations=include_declarations)
     if carrier == "package-json":
         return package_json_references(
             text, npm_scripts, observed, declarations=include_declarations
         )
-    parsed = _text_carrier_references(
-        carrier=carrier,
-        path=path,
-        text=text,
-        known_commands=known_commands,
-        npm_scripts=npm_scripts,
-        observed=observed,
-        retained_steps=retained_steps,
-    )
-    if not parsed and require_complete:
-        return False
-    if text.startswith("#!") and (
-        executable := command_references.shebang_executable(text.splitlines()[0])
-    ):
-        observed["executable"].add(executable)
-    return True
-
-
-def _python_carrier_references(
-    *,
-    path: str,
-    text: str,
-    prefixes: dict[tuple[str, str], str],
-    npm_scripts: dict[str, set[str]],
-    observed: dict[str, set[str]],
-    include_declarations: bool,
-    require_complete: bool,
-    parsed_files: Mapping[str, AST | None] | None,
-) -> bool:
-    tree = (
-        parsed_files.get(path)
-        if parsed_files is not None
-        else python_references.complete_python_tree(text)
-        if require_complete
-        else None
-    )
-    if require_complete and tree is None:
-        return False
-    _python_file_references(
-        path,
-        text,
-        prefixes,
-        npm_scripts,
-        observed,
-        include_declarations=include_declarations,
-        trees=(tree,) if tree is not None else None,
-    )
-    return True
-
-
-def _text_carrier_references(
-    *,
-    carrier: str,
-    path: str,
-    text: str,
-    known_commands: command_references.CommandVocabulary,
-    npm_scripts: dict[str, set[str]],
-    observed: dict[str, set[str]],
-    retained_steps: frozenset[tuple[str, str, str]],
-) -> bool:
+    parsed = True
     if carrier == "yaml":
         # A step that the retention record binds by file, job and text is owned glue.
         retained = retained_step_texts(load_repository_paradigm(), path, text, retained_steps)
-        return _yaml_references(path, text, npm_scripts, observed, retained=retained)
-    if carrier == "shell":
+        parsed = _yaml_references(path, text, npm_scripts, observed, retained=retained)
+    elif carrier == "shell":
         observed["executable"].update(
             command_references.shell_executables(
                 text, npm_scripts, module_imports=observed["import"]
             )
         )
     elif carrier == "markdown":
-        return markdown_observation.markdown_references(
+        parsed = markdown_observation.markdown_references(
             path,
             text,
             known_commands,
@@ -307,30 +261,13 @@ def _text_carrier_references(
             observed,
             yaml_references=_yaml_references,
         )
-    return True
-
-
-def _python_file_references(
-    path: str,
-    text: str,
-    prefixes: dict[tuple[str, str], str],
-    npm_scripts: dict[str, set[str]],
-    observed: dict[str, set[str]],
-    *,
-    include_declarations: bool,
-    trees: tuple[AST, ...] | None = None,
-) -> None:
-    for tree in trees or python_references.python_trees(text):
-        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
-        observed["import"].update(imports)
-        if path.startswith("tests/"):
-            continue
-        observed["executable"].update(executables)
-        observed["value"].update(inputs)
-        if include_declarations:
-            observed["command"].update(
-                python_references.cyclopts_command_owners(path, tree, prefixes)
-            )
+    if (
+        parsed
+        and text.startswith("#!")
+        and (executable := command_references.shebang_executable(text.splitlines()[0]))
+    ):
+        observed["executable"].add(executable)
+    return parsed
 
 
 def _yaml_references(

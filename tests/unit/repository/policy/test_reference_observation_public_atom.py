@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from collections import Counter
 from typing import TYPE_CHECKING
 
 import pytest
@@ -281,3 +282,44 @@ def test_command_owner_observation_skips_python_without_command_syntax(
 
     assert "def plain" not in "".join(parsed)
     assert owners["ethos status"] == frozenset({"src/example/commands.py:status"})
+
+
+def test_product_observation_parses_only_native_python_once_and_keeps_inputs_fresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mixed carrier observation shares complete syntax only within its invocation."""
+    application = "from cyclopts import App\napp = App(name='example')\n"
+    command = "from .app import app\n@app.command(name='run')\ndef execute(): pass\n"
+    plain = "import original\n"
+    broken = "def broken(:\n    pass\n"
+    files = {
+        "src/example/commands.py": command,
+        "src/example/plain.py": plain,
+        "src/example/broken.py": broken,
+        "docs/README.md": "Run `example run --json`.\n",
+        "package.json": "{}\n",
+    }
+    calls: list[str] = []
+    original = reference_declarations.python_references.ast.parse
+
+    def record_parse(text: str) -> ast.AST:
+        calls.append(text)
+        return original(text)
+
+    context = {"src/example/app.py": application}
+    with monkeypatch.context() as scope:
+        scope.setattr(reference_declarations.python_references.ast, "parse", record_parse)
+        observed = product_references_from_files(files, context_files=context)
+        first_calls = Counter(calls)
+        calls.clear()
+        files["src/example/plain.py"] = "import successor\n"
+        successor = product_references_from_files(files, context_files=context)
+        second_calls = Counter(calls)
+
+    assert observed.references["command"] == {"example run"}
+    assert observed.references["import"] == {"app", "original"}
+    assert observed.unknown_paths == ("src/example/broken.py",)
+    assert first_calls == Counter((application, command, plain, broken))
+    assert successor.references["import"] == {"app", "successor"}
+    assert successor.unknown_paths == ("src/example/broken.py",)
+    assert second_calls == Counter((application, command, files["src/example/plain.py"], broken))

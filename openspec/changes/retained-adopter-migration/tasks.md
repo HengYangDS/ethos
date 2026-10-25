@@ -13,15 +13,17 @@
 - [x] 2.1 Implement the native owned-topic migration; verify fresh ref admission and preserved dirty
       bytes, index intent, Lease holder and recoverable projection failure.
       Evidence: `build/evidence/retained-runtime-preservation/focused/topic-binding-work-green.xml`.
-- [ ] 2.2 Qualify active Change migration through prewrite and native signed commits; verify
+- [x] 2.2 Qualify active Change migration through prewrite and native signed commits; verify
       preserved task identities, unrelated index intent and exact collision refusal.
-      Evidence: `build/evidence/retained-runtime-preservation/focused/active-change-migration-green.xml`.
+      Evidence: `build/evidence/local-install/attempts/27f575058-retained-qualified/smoke.json`.
 
 ## 3. Qualify the retained consumer
 
-- [ ] 3.1 Pass installed predecessor upgrade, rollback and renewed authoring with nonempty retained
+- [x] 3.1 Pass installed predecessor upgrade, rollback and renewed authoring with nonempty retained
       state and legacy identities through public native commands.
-- [ ] 3.2 Pass focused quality and review, strict OpenSpec validation and official archive simulation.
+      Evidence: `build/evidence/local-install/attempts/27f575058-retained-qualified/smoke.json`.
+- [x] 3.2 Pass focused quality and review, strict OpenSpec validation and official archive simulation.
+      Evidence: `build/evidence/retained-runtime-preservation/focused/retained-final-archive-simulation.json`.
 
 ## Workflow follow-up
 

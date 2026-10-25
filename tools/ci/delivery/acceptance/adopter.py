@@ -90,8 +90,7 @@ capabilities = ["repository", "publication"]
 
 
 def _required_executable(name: str) -> str:
-    executable = shutil.which(name)
-    if executable is None:
+    if (executable := shutil.which(name)) is None:
         message = f"required executable is unavailable: {name}"
         raise RuntimeError(message)
     return executable
@@ -120,19 +119,6 @@ def product_signer(root: Path, *, run: CommandRunner) -> dict[str, str]:
     }
 
 
-def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
-    """Configure one materialized repository with its own trusted SSH signer."""
-    signer = product_signer(root, run=run)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("gpg.ssh.program", signer["signing_program"]),
-        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
-        ("user.signingkey", signer["signing_key"]),
-        ("commit.gpgsign", "true"),
-    ):
-        run(git, "config", name, value, cwd=root)
-
-
 def materialize_bootstrap_repository(root: Path, *, run: CommandRunner) -> None:
     """Create the minimal Git root required for first runtime activation."""
     root.mkdir()
@@ -148,16 +134,11 @@ def _configure_fixture_identity(
 ) -> None:
     """Bind later fixture commits locally without replacing the formed SSH signer."""
     env = dict(environment) if environment is not None else None
-    run(git, "config", "--local", "user.name", "ETHOS Install Smoke", cwd=root, env=env)
-    run(
-        git,
-        "config",
-        "--local",
-        "user.email",
-        "ethos-install-smoke@example.invalid",
-        cwd=root,
-        env=env,
-    )
+    for name, value in (
+        ("user.name", "ETHOS Install Smoke"),
+        ("user.email", "ethos-install-smoke@example.invalid"),
+    ):
+        run(git, "config", "--local", name, value, cwd=root, env=env)
 
 
 def materialize_adopter(
@@ -171,7 +152,16 @@ def materialize_adopter(
     git = _required_executable("git")
     run(git, "init", "--quiet", "--initial-branch=dev", str(root))
     _configure_fixture_identity(root, git=git, run=run)
-    _configure_product_signer(root, git=git, run=run)
+    signer = product_signer(root, run=run)
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("gpg.ssh.program", signer["signing_program"]),
+        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
+        ("user.signingkey", signer["signing_key"]),
+        ("commit.gpgsign", "true"),
+    ):
+        run(git, "config", name, value, cwd=root)
+
     authored = dict(_ADOPTER_FILES)
     if retained:
         authored = {
@@ -195,6 +185,8 @@ def materialize_adopter(
     run(git, "remote", "add", "file", str(peer), cwd=root)
     run(git, "add", ".", cwd=root)
     run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
+    if retained:
+        run(git, "branch", "candidate/dev", cwd=root)
     return run(git, "rev-parse", "HEAD", cwd=root)
 
 
@@ -390,13 +382,7 @@ def prove_formation(
             message = "installed_formation_retry_replayed_effect"
             raise RuntimeError(message)
         preserved = invoke(target, status_command, environment=environment)
-        verify_formed(
-            target,
-            plan,
-            applied_data,
-            preserved,
-            expected_guidance,
-        )
+        verify_formed(target, plan, applied_data, preserved, expected_guidance)
         _configure_fixture_identity(
             target, git=_required_executable("git"), run=run, environment=environment
         )
@@ -475,7 +461,6 @@ def line_ending_conformance(adopter: Path, *, run: CommandRunner) -> list[str]:
         "lf": b"portable UTF-8: \xe9\x81\x93\n",
         "crlf": b"portable UTF-8: \xe9\x81\x93\r\n",
     }
-    observed: list[str] = []
     for style, payload in fixtures.items():
         relative = f"line-ending-{style}.txt"
         path = adopter / relative
@@ -491,11 +476,10 @@ def line_ending_conformance(adopter: Path, *, run: CommandRunner) -> list[str]:
         if git_blob != payload or path.read_bytes() != payload:
             message = f"portable line-ending round-trip failed: {style}"
             raise RuntimeError(message)
-        observed.append(style)
-    run(git, "reset", "--quiet", "--", *[f"line-ending-{s}.txt" for s in observed], cwd=adopter)
-    for style in observed:
+    run(git, "reset", "--quiet", "--", *[f"line-ending-{s}.txt" for s in fixtures], cwd=adopter)
+    for style in fixtures:
         (adopter / f"line-ending-{style}.txt").unlink()
-    return observed
+    return list(fixtures)
 
 
 def prepare_acceptance_topology(
@@ -518,14 +502,12 @@ def prepare_acceptance_topology(
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"
     run(git, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev", cwd=root)
-    (root / "notes").mkdir(exist_ok=True)
-    (root / "notes/accepted.txt").write_text("accepted\n", encoding="utf-8", newline="\n")
-    run(git, "add", "notes/accepted.txt", cwd=root)
-    run(git, "commit", "--quiet", "-m", "advance accepted independently", cwd=root)
-    (candidate / "notes").mkdir(exist_ok=True)
-    (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8", newline="\n")
-    run(git, "add", "notes/candidate.txt", cwd=candidate)
-    run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
+    for checkout, role in ((root, "accepted"), (candidate, "candidate")):
+        (checkout / "notes").mkdir(exist_ok=True)
+        relative = f"notes/{role}.txt"
+        (checkout / relative).write_text(f"{role}\n", encoding="utf-8", newline="\n")
+        run(git, "add", relative, cwd=checkout)
+        run(git, "commit", "--quiet", "-m", f"advance {role} independently", cwd=checkout)
     profile = root / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
@@ -538,20 +520,21 @@ def prepare_acceptance_topology(
         'schema_version = 1\nid = "package-smoke-trust"\n\n'
         '[proof_sets]\ndefault = ["signature-trust", "patch-validity"]\n'
         'full = ["signature-trust", "patch-validity"]\n\n'
-        '[[gates]]\nid = "signature-trust"\nkind = "governance"\n'
-        'command = ["git", "verify-commit", "HEAD"]\n'
-        'profile = "repository"\ntoolchain = "git"\n'
-        'asset_classes = ["git-history"]\ndimensions = ["signature-trust"]\n'
-        'execution_mode = "subprocess"\nevidence_class = "contract"\n'
-        'trust_bearing = true\ntool_adapter = "repository-native"\n'
-        'version_source = "git"\n\n'
-        '[[gates]]\nid = "patch-validity"\nkind = "governance"\n'
-        'command = ["git", "diff", "--check", "HEAD^", "HEAD"]\n'
-        'profile = "repository"\ntoolchain = "git"\n'
-        'asset_classes = ["git-history"]\ndimensions = ["patch-integrity"]\n'
-        'execution_mode = "subprocess"\nevidence_class = "contract"\n'
-        'trust_bearing = true\ntool_adapter = "repository-native"\n'
-        'version_source = "git"\n',
+        + "\n".join(
+            f'[[gates]]\nid = "{name}"\nkind = "governance"\ncommand = {command}\n'
+            f'asset_classes = ["git-history"]\ndimensions = ["{dimension}"]\n'
+            'profile = "repository"\ntoolchain = "git"\n'
+            'execution_mode = "subprocess"\nevidence_class = "contract"\n'
+            'trust_bearing = true\ntool_adapter = "repository-native"\nversion_source = "git"\n'
+            for name, command, dimension in (
+                ("signature-trust", '["git", "verify-commit", "HEAD"]', "signature-trust"),
+                (
+                    "patch-validity",
+                    '["git", "diff", "--check", "HEAD^", "HEAD"]',
+                    "patch-integrity",
+                ),
+            )
+        ),
         encoding="utf-8",
         newline="\n",
     )

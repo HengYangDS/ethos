@@ -311,9 +311,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
             "is_dir",
             lambda path: is_dir(path) if path != target or path in seen else bool(seen.add(path)),
         )
-        context.setattr(
-            Path, "rename", lambda _path, _target: (_ for _ in ()).throw(FileExistsError)
-        )
+        context.setattr(Path, "rename", Mock(side_effect=FileExistsError))
         assert (
             materialization.materialize_runtime_generation(*args, locked_requirements=None)
             == target
@@ -573,11 +571,7 @@ def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
     materialization.remove_generated_tree(generated)
     failed = tmp_path / "failed"
     failed.mkdir()
-    monkeypatch.setattr(
-        materialization.shutil,
-        "rmtree",
-        lambda _path: (_ for _ in ()).throw(OSError("busy")),
-    )
+    monkeypatch.setattr(materialization.shutil, "rmtree", Mock(side_effect=OSError("busy")))
     with pytest.raises(OSError, match="busy"):
         materialization.remove_generated_tree(failed)
     materialization.remove_generated_tree(failed, ignore_errors=True)

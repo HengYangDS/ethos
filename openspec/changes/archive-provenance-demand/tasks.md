@@ -3,7 +3,8 @@
 ## 1. Repair provenance demand
 
 - [x] 1.1 Add a real-Git regression: an unaffected ancestor demands no repair validation.
-- [x] 1.2 Select actual affected history in its native owner; pass provenance regressions.
+- [x] 1.2 Select actual affected history in its native owner; pass native provenance regressions.
+      Evidence: `build/evidence/retained-runtime-preservation/focused/archive-ancestry-seam-green.xml`.
 - [x] 1.3 Verify archive recovery, status and exact-path prewrite within 60 seconds.
 
 ## 2. Integrate acceptance

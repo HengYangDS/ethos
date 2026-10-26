@@ -263,6 +263,7 @@ def archive_graph(tmp_path, monkeypatch):
     monkeypatch.setattr(archive, "current_tree", lambda *_args: "commit-tree")
     monkeypatch.setattr(rewrite, "repository_identity", lambda *_args, **_kwargs: "repository:test")
     monkeypatch.setattr(provenance, "run_git", ancestry)
+    monkeypatch.setattr(provenance, "is_ancestor", lambda _root, old, _new: old in distances)
     monkeypatch.setattr(provenance, "ref_head", lambda _root, spec: objects.get(spec, ""))
     return SimpleNamespace(
         archive=archive_effect,
@@ -408,6 +409,7 @@ def test_archive_ancestry_observation_rejects_failed_or_malformed_count(
     archive_graph, monkeypatch, code, count, expected
 ):
     archive_graph.archive("archive", HEAD)
+    archive_graph.distances[HEAD] = 0
 
     def run_git(_root, *args, **_kwargs):
         return SimpleNamespace(returncode=code if args[0] == "rev-list" else 0, stdout=count)

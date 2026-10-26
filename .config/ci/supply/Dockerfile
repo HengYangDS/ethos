@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS prepare
+# Preparing supply is CI work: outside CI mode mise ignores the lock of the untrusted copy it resolves.
+ENV CI=true
 
 COPY .config/mise/config.toml .config/mise/mise.lock .config/mise/
 COPY .config/checks/ci-projection/policy.toml .config/checks/ci-projection/policy.toml
@@ -59,7 +61,8 @@ LABEL org.opencontainers.image.source="https://github.com/HengYangDS/ethos"
 # Offline acceptance of the supply against one checkout, as the CI jobs bootstrap it.
 # Build with --target smoke and the checkout as the named context "workspace".
 FROM supply AS smoke
-ENV ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256
+ENV ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256 \
+    CI=true
 COPY --from=workspace --chown=65534:65534 . /workspace
 WORKDIR /workspace
 RUN --network=none test "$(id -u)" -eq 65534 \

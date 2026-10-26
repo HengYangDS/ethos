@@ -2,8 +2,8 @@
 
 ## 1. Supply Image Build
 
-- [ ] 1.1 Reproduce the failure. Done when the local `linux/arm64` smoke build of `.config/ci/supply/Dockerfile` at `2ee966d46` fails in prepare with "No lockfile URL found".
-- [ ] 1.2 Declare `CI=true` in the prepare and smoke stages. Done when the same local smoke build passes, including its offline acceptance and the pinned pytest selection.
+- [x] 1.1 Reproduce the failure. Done when the local `linux/arm64` smoke build of `.config/ci/supply/Dockerfile` at `2ee966d46` fails in prepare with "No lockfile URL found" (local smoke build at `2ee966d46`: go, actionlint and cue refused with "No lockfile URL found" for linux-arm64; `build/evidence/supply-image-ci-mode/red-build.log`).
+- [x] 1.2 Declare `CI=true` in the prepare and smoke stages. Done when the same local smoke build passes, including its offline acceptance and the pinned pytest selection (the same build passes: `build/evidence/supply-image-ci-mode/green-build.log`).
 
 ## 2. Delivery
 

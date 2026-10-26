@@ -64,9 +64,9 @@ _LINUX_DENIED_ENTRY = re.compile(
     rb"fd/(?P<descriptor>[0-9]+) \(readlink): Permission denied\)"
 )
 _LINUX_ENTRY_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
-# lsof prints a socket it finds in the kernel's socket tables by its socket inode alone; no
-# such socket is a file a worktree holds.
-_INODE_ONLY_SOCKETS = frozenset({b"unix", b"netlink"})
+# Native lsof can report sockets and Darwin FIFOs by inode alone. Reviewed retirement
+# content admits only regular files, directories and symlinks, never these node types.
+_INODE_ONLY_NON_CONTENT = frozenset({b"unix", b"netlink", b"FIFO"})
 _UNREADABLE = "file_observation_unreadable"
 # A process that changes credentials or turns non-dumpable after lsof opened its descriptor
 # directory leaves one record unreadable. A fresh scan observes it settled, so a scan is
@@ -117,7 +117,7 @@ def _record_identity(frame: bytes, fields: dict[bytes, bytes]) -> set[tuple[int,
         or fields.get(b"f", b"NOFD") == b"NOFD"
         or fields.get(b"t", b"unknown") == b"unknown"
         or (b"i" in fields and not fields[b"i"].isdigit())
-        or (b"i" in fields and b"D" not in fields and fields[b"t"] not in _INODE_ONLY_SOCKETS)
+        or (b"i" in fields and b"D" not in fields and fields[b"t"] not in _INODE_ONLY_NON_CONTENT)
         or (fields[b"t"] in {b"REG", b"DIR"} and b"i" not in fields)
     ):
         _file_observation_failure(f"{_UNREADABLE}:{frame[:256]!r}")

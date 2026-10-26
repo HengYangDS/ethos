@@ -123,6 +123,10 @@ def _file_reference_payloads() -> dict[str, bytes]:
     threads = _THREADED_UNINSPECTABLE[_THREADED_UNINSPECTABLE.index(b"p2616", 1) :]
     return {
         "unix-inode": payload + unix,
+        # Darwin lsof 4.91 records a named FIFO's inode but omits its device. This
+        # native record blocked the retained-runtime full proof at 654f98a06.
+        "darwin-named-fifo": payload + b"f3\0tFIFO\0i4013078855\0n/private/tmp/claude-501/"
+        b"w4-tooling-probe.SYpKzn/git/fifo-reftable\0\n",
         **{f"linux-netlink-lsof-{version}": payload + netlink[version] for version in netlink},
         "linux-denied-thread-of-inspected-process": payload
         + b"p2616\0cpython3\0u0\0\n"
@@ -203,6 +207,7 @@ def _file_reference_payloads() -> dict[str, bytes]:
 _FILE_REFERENCE_PAYLOADS = _file_reference_payloads()
 _OBSERVED = {
     "valid",
+    "darwin-named-fifo",
     "fd-gone",
     "process-gone",
     "revoked",

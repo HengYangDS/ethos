@@ -318,6 +318,38 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
     return executable
 
 
+# Git for Windows' bin directory also holds a shell; its cmd directory holds only launchers.
+_SHELLS = ("bash.exe", "sh.exe")
+
+
+def shell_free_git_directory(git: Path) -> Path | None:
+    """Name the directory of a Git launcher that holds no shell, preferring Git's own cmd."""
+    for directory in (git.parent.parent / "cmd", git.parent):
+        if (directory / git.name).is_file() and not any(
+            (directory / shell).exists() for shell in _SHELLS
+        ):
+            return directory
+    return None
+
+
+def host_command_baseline(*, windows: bool, system_root: str, git: Path | None) -> tuple[str, ...]:
+    """The host's own command directories that follow the locked tools.
+
+    POSIX keeps its default path. Windows names its system directories and Git's shell-free
+    launcher, never the current directory.
+    """
+    if not windows:
+        return tuple(os.defpath.split(os.pathsep))
+    system = (f"{system_root}\\System32", system_root) if system_root else ()
+    return (*system, *((str(git),) if git else ()))
+
+
+def _host_git_directory() -> Path | None:
+    """Locate the shell-free launcher of the Git that this ETHOS itself runs."""
+    git = shutil.which("git")
+    return shell_free_git_directory(Path(git).resolve()) if git else None
+
+
 @contextmanager
 def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[str, str]]:
     """Expose locked tools and the selected mise only for the child lifetime."""
@@ -344,6 +376,12 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
     if not paths or any(not path.is_absolute() or not path.is_dir() for path in paths):
         message = "mise_bin_paths_invalid"
         raise _refusal(message, root, executable)
+    windows = os.name == "nt"
+    baseline = host_command_baseline(
+        windows=windows,
+        system_root=os.environ.get("SYSTEMROOT", ""),
+        git=_host_git_directory() if windows else None,
+    )
     with TemporaryDirectory(prefix="ethos-mise-bin-") as directory:
         suffix = executable.suffix.lower()
         alias_name = "mise"
@@ -363,5 +401,5 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
         yield {
             **environment,
             **_mise_environment(Path(directory), offline=True, files=files, execution=True),
-            "PATH": os.pathsep.join((directory, *(str(path) for path in paths), os.defpath)),
+            "PATH": os.pathsep.join((directory, *(str(path) for path in paths), *baseline)),
         }

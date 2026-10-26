@@ -263,3 +263,53 @@ def test_resolution_carries_only_native_trust_to_its_copy(
             str(call.args[0] / mise.MISE_CONFIG) if trust else None
         )
     assert _state(host_mise_state) == before
+
+
+@pytest.mark.parametrize(
+    ("windows", "system_root", "git", "expected"),
+    [
+        (False, "", None, tuple(os.defpath.split(os.pathsep))),
+        (False, "", Path("/opt/homebrew/bin"), tuple(os.defpath.split(os.pathsep))),
+        (
+            True,
+            "C:\\Windows",
+            Path("C:/Program Files/Git/cmd"),
+            ("C:\\Windows\\System32", "C:\\Windows", str(Path("C:/Program Files/Git/cmd"))),
+        ),
+        (True, "C:\\Windows", None, ("C:\\Windows\\System32", "C:\\Windows")),
+        (True, "", Path("C:/Program Files/Git/cmd"), (str(Path("C:/Program Files/Git/cmd")),)),
+        (True, "", None, ()),
+    ],
+    ids=["posix", "posix-ignores-git", "windows", "windows-without-git", "no-system-root", "empty"],
+)
+def test_host_command_baseline_is_the_host_own_command_directories(
+    *, windows: bool, system_root: str, git: Path | None, expected: tuple[str, ...]
+) -> None:
+    """POSIX keeps its default path; Windows names its system and shell-free Git directories."""
+    baseline = mise.host_command_baseline(windows=windows, system_root=system_root, git=git)
+    assert baseline == expected
+    assert "." not in baseline
+    assert "C:\\bin" not in baseline
+
+
+@pytest.mark.parametrize(
+    ("layout", "expected"),
+    [
+        ({"cmd": ["git.exe"]}, "cmd"),
+        ({"bin": ["git.exe", "bash.exe", "sh.exe"], "cmd": ["git.exe"]}, "cmd"),
+        ({"bin": ["git.exe", "bash.exe", "sh.exe"]}, None),
+        ({"cmd": ["git.exe", "sh.exe"]}, None),
+    ],
+    ids=["launcher", "bin-maps-to-cmd", "bin-only", "shell-beside-launcher"],
+)
+def test_git_launcher_directory_never_brings_a_shell(
+    tmp_path: Path, layout: dict[str, list[str]], expected: str | None
+) -> None:
+    """Git for Windows' bin directory holds bash and sh; only its shell-free launcher joins."""
+    for directory, names in layout.items():
+        (tmp_path / directory).mkdir()
+        for name in names:
+            (tmp_path / directory / name).write_bytes(b"")
+    resolved = tmp_path / next(iter(layout)) / "git.exe"
+    selected = mise.shell_free_git_directory(resolved)
+    assert selected == (tmp_path / expected if expected else None)

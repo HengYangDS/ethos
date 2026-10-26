@@ -23,6 +23,18 @@ historical bindings are governed by [Release Governance](docs/governance/release
   the activation coordinator's lock. Upgrade and rollback keep manifest-bound predecessor
   selection distinct from activation coordination and accepted self-hosted source authority.
 
+## [0.2.0-alpha.15] - 2026-10-26
+
+### Fixed
+
+- On Windows, repository-declared commands that ETHOS runs in the locked toolchain now find host
+  commands such as `git` and `tar`. Their PATH listed the locked tools followed only by Python's
+  default search path, which on Windows is `.;C:\bin`: it names no system directory and includes
+  the current directory. PATH now ends with the host's command directories. POSIX keeps
+  `/bin:/usr/bin`. Windows gets `%SystemRoot%\System32`, `%SystemRoot%` and the directory of Git's
+  shell-free launcher; a Git directory that also holds a shell, such as Git for Windows' `bin`,
+  never joins.
+
 ## [0.2.0-alpha.14] - 2026-10-26
 
 ### Changed

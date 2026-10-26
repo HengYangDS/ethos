@@ -2768,6 +2768,12 @@ The environment that ETHOS gives an admitted repository command SHALL expose the
 - **WHEN** an admitted command reads an untrusted repository configuration that needs trust through a mise command that does not trust it
 - **THEN** nothing in that configuration runs and ETHOS records no trust for it
 
+#### Scenario: An admitted command runs a host command
+
+- **WHEN** an admitted command runs a host command such as `git` or `tar`
+- **THEN** its PATH holds the locked tools ahead of the host's own command baseline, and nothing else from the caller's PATH
+- **AND** on Windows that baseline holds the system command directories and the shell-free Git launcher, but no shell and not the current directory
+
 ### Requirement: Disposable mise copies carry only native trust
 
 Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A resolution refused for an untrusted configuration SHALL name native `mise trust` as the next action.

@@ -184,6 +184,18 @@ def test_command_vocabulary_is_reused_across_identity_checks() -> None:
     assert command_identity(("ethos", "lane", "start", "x"), vocabulary) == "ethos lane start"
 
 
+def test_command_vocabulary_compiles_one_canonical_identity_per_native_command() -> None:
+    vocabulary = CommandVocabulary.compile(
+        iter(("  ethos  lane  ", '"ethos" lane', "ethos lane start", " ", "ethos 'unterminated"))
+    )
+
+    assert vocabulary.identities == (
+        (("ethos", "lane", "start"), "ethos lane start"),
+        (("ethos", "lane"), "ethos lane"),
+    )
+    assert vocabulary.groups == frozenset({"ethos lane"})
+
+
 @pytest.mark.parametrize(
     ("tokens", "expected", "modules"),
     [

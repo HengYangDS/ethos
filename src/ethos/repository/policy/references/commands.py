@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 import shlex
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,26 +20,23 @@ class CommandVocabulary:
     roots: frozenset[str]
 
     @classmethod
-    def compile(cls, commands: set[str]) -> CommandVocabulary:
+    def compile(cls, commands: Iterable[str]) -> CommandVocabulary:
         """Compile normalized command identities once for repeated matching."""
         identities = tuple(
             sorted(
-                ((tokens, command) for command in commands if (tokens := _split_command(command))),
+                {
+                    (tokens, shlex.join(tokens))
+                    for command in commands
+                    if (tokens := _split_command(command))
+                },
                 key=lambda item: (len(item[0]), item[1]),
                 reverse=True,
             )
         )
-        groups = frozenset(
-            identity
-            for tokens, identity in identities
-            if any(
-                other[: len(tokens)] == tokens and len(other) > len(tokens)
-                for other, _ in identities
-            )
-        )
+        prefixes = {tokens[:end] for tokens, _ in identities for end in range(1, len(tokens))}
         return cls(
             identities=identities,
-            groups=groups,
+            groups=frozenset(identity for tokens, identity in identities if tokens in prefixes),
             roots=frozenset(tokens[0] for tokens, _ in identities),
         )
 

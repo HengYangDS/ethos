@@ -17,16 +17,22 @@ from pydantic import ConfigDict
 import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
+from ethos.adapters.mutation.decision import admission_decision
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import worktree_records
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.normalization.coercion import string_mapping
+from ethos.repository.context import repository_context
+from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -426,3 +432,119 @@ def repository_audit_after_admission(repo: Path, decision: AdmissionDecision) ->
             "root": repo.as_posix(),
         }
     return ethos.domain.status.audit_for_root(repo, openspec_mode="shape")
+
+
+def closeout_result(
+    *,
+    repo: Path,
+    command: str,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    accepted_head: str,
+    candidate_head: str,
+    audit_root: Path,
+    audit: dict[str, object],
+    lifecycle: dict[str, object],
+    update: dict[str, object],
+    gaps: tuple[str, ...],
+    verdict: Verdict,
+    control_replacement: dict[str, object],
+    receipt_path: Path | None,
+    identity_transition: bool = False,
+) -> EthosResult:
+    """Project one closeout decision and its native mutation envelope."""
+    pending = update.get("state") == "accepted_materialization_pending"
+    resolution = closeout_resolution(
+        repo=repo,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+        audit_root=audit_root,
+        audit=audit,
+        lifecycle=lifecycle,
+        control_replacement=control_replacement,
+        update=update,
+        verdict=verdict,
+        gaps=gaps,
+        apply=apply,
+        receipt_path=receipt_path,
+        identity_transition=identity_transition,
+    )
+    mutation_next_action = resolution.next_action
+    policy = load_branch_role_policy(repo)
+    expected_state = {
+        "root": repo.resolve().as_posix(),
+        "accepted_ref": f"refs/heads/{policy.accepted_branch}",
+        "accepted_head": accepted_head,
+        "candidate_ref": f"refs/heads/{policy.candidate_branch}",
+        "candidate_head": candidate_head,
+    }
+    decision = admission_decision(
+        subject=MutationSubject(
+            action="accepted.advance",
+            resource=f"refs/heads/{policy.accepted_branch}",
+            expected_state=expected_state,
+        ),
+        verdict=verdict,
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="not_evaluated",
+            state_bindings=tuple(expected_state),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_runner",
+            time_basis="evaluation_time",
+        ),
+        policy_ref=f"commitment:{command}-admission",
+        required_gaps=gaps,
+        why=(
+            ("accepted_materialization_pending" if pending else "candidate_already_current",)
+            if verdict == "pass" and candidate_head == accepted_head
+            else ()
+        ),
+        next_action=mutation_next_action,
+    )
+    return EthosResult(
+        command="land",
+        verdict=verdict,
+        state=(
+            "accepted_materialization_pending"
+            if verdict == "pass" and pending
+            else "accepted_current"
+            if verdict == "pass" and candidate_head == accepted_head
+            else "ready_to_closeout"
+            if verdict == "pass" and not apply
+            else "deferred"
+            if verdict == "unknown"
+            else "blocked"
+            if verdict == "block"
+            else str(update.get("state") or command)
+        ),
+        required_gaps=gaps,
+        next_action=mutation_next_action,
+        user_decision_required=resolution.user_decision_required,
+        governance_context=repository_context(audit_root),
+        data={
+            "repository_audit": audit,
+            "openspec_lifecycle": lifecycle,
+            "accepted_update": update,
+            "control_replacement": control_replacement,
+            "closeout_resolution": resolution.model_dump(mode="json"),
+            "closeout_bootstrap": closeout_bootstrap_package(
+                repo=repo,
+                audit_root=audit_root,
+                required_gaps=gaps,
+                accepted_head=accepted_head,
+                candidate_head=candidate_head,
+                receipt_path=receipt_path,
+                verification=string_mapping(control_replacement.get("independent_verification")),
+                next_action=mutation_next_action,
+            ),
+            "mutation": mutation_envelope(
+                command=command,
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+                decision=decision,
+            ),
+        },
+    )

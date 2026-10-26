@@ -8,6 +8,8 @@ from ethos.adapters.admission.control.replacement import control_replacement_rep
 from ethos.adapters.mutation.accepted.admission import candidate_to_accepted
 from ethos.adapters.mutation.accepted.promotion import current_acceptance
 from ethos.adapters.mutation.accepted.release import promote_release
+from ethos.adapters.mutation.branch_roles import rename_legacy_roles
+from ethos.adapters.mutation.branch_roles import resume_renamed_bindings
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
@@ -19,7 +21,6 @@ from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
-from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import proof_acceptance_purpose
@@ -30,130 +31,13 @@ from ethos.contracts.verdict import report_verdict
 from ethos.domain.execution import application_result
 from ethos.domain.execution import profile_failure_result
 from ethos.domain.land.closeout import closeout_audit_root
-from ethos.domain.land.closeout import closeout_bootstrap_package
-from ethos.domain.land.closeout import closeout_resolution
+from ethos.domain.land.closeout import closeout_result
 from ethos.domain.land.closeout import land_next_action
 from ethos.domain.land.closeout import repository_audit_after_admission
-from ethos.domain.land.legacy_roles import legacy_role_rename_result
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
-
-
-def _closeout_result(
-    *,
-    repo: Path,
-    command: str,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    accepted_head: str,
-    candidate_head: str,
-    audit_root: Path,
-    audit: dict[str, object],
-    lifecycle: dict[str, object],
-    update: dict[str, object],
-    gaps: tuple[str, ...],
-    verdict: Verdict,
-    control_replacement: dict[str, object],
-    receipt_path: Path | None,
-    identity_transition: bool = False,
-) -> EthosResult:
-    pending = update.get("state") == "accepted_materialization_pending"
-    resolution = closeout_resolution(
-        repo=repo,
-        accepted_head=accepted_head,
-        candidate_head=candidate_head,
-        audit_root=audit_root,
-        audit=audit,
-        lifecycle=lifecycle,
-        control_replacement=control_replacement,
-        update=update,
-        verdict=verdict,
-        gaps=gaps,
-        apply=apply,
-        receipt_path=receipt_path,
-        identity_transition=identity_transition,
-    )
-    mutation_next_action = resolution.next_action
-    policy = load_branch_role_policy(repo)
-    expected_state = {
-        "root": repo.resolve().as_posix(),
-        "accepted_ref": f"refs/heads/{policy.accepted_branch}",
-        "accepted_head": accepted_head,
-        "candidate_ref": f"refs/heads/{policy.candidate_branch}",
-        "candidate_head": candidate_head,
-    }
-    decision = admission_decision(
-        subject=MutationSubject(
-            action="accepted.advance",
-            resource=f"refs/heads/{policy.accepted_branch}",
-            expected_state=expected_state,
-        ),
-        verdict=verdict,
-        basis=DecisionBasis(
-            enforcement_boundary="local_process_guard",
-            identity_basis="not_evaluated",
-            state_bindings=tuple(expected_state),
-            evidence_boundary="current_local_observation",
-            verifier_provenance="current_runner",
-            time_basis="evaluation_time",
-        ),
-        policy_ref=f"commitment:{command}-admission",
-        required_gaps=gaps,
-        why=(
-            ("accepted_materialization_pending" if pending else "candidate_already_current",)
-            if verdict == "pass" and candidate_head == accepted_head
-            else ()
-        ),
-        next_action=mutation_next_action,
-    )
-    return EthosResult(
-        command="land",
-        verdict=verdict,
-        state=(
-            "accepted_materialization_pending"
-            if verdict == "pass" and pending
-            else "accepted_current"
-            if verdict == "pass" and candidate_head == accepted_head
-            else "ready_to_closeout"
-            if verdict == "pass" and not apply
-            else "deferred"
-            if verdict == "unknown"
-            else "blocked"
-            if verdict == "block"
-            else str(update.get("state") or command)
-        ),
-        required_gaps=gaps,
-        next_action=mutation_next_action,
-        user_decision_required=resolution.user_decision_required,
-        governance_context=repository_context(audit_root),
-        data={
-            "repository_audit": audit,
-            "openspec_lifecycle": lifecycle,
-            "accepted_update": update,
-            "control_replacement": control_replacement,
-            "closeout_resolution": resolution.model_dump(mode="json"),
-            "closeout_bootstrap": closeout_bootstrap_package(
-                repo=repo,
-                audit_root=audit_root,
-                required_gaps=gaps,
-                accepted_head=accepted_head,
-                candidate_head=candidate_head,
-                receipt_path=receipt_path,
-                verification=string_mapping(control_replacement.get("independent_verification")),
-                next_action=mutation_next_action,
-            ),
-            "mutation": mutation_envelope(
-                command=command,
-                apply=apply,
-                authorized=authorize,
-                expect_head=expect_head,
-                decision=decision,
-            ),
-        },
-    )
 
 
 def _observed_candidate_head(repo: Path, current_head: str) -> str:
@@ -291,7 +175,7 @@ def _closeout_land_result(
         )
         gaps = tuple(dict.fromkeys((*gaps, *string_sequence(update.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(update), required_gaps=gaps)
-    return _closeout_result(
+    return closeout_result(
         repo=repo,
         command=command,
         apply=apply,
@@ -493,13 +377,24 @@ def land_repository(
             next_action=str(report["next_action"]),
             data=cast("dict[str, object]", report["data"]),
         )
-    renamed = (
-        legacy_role_rename_result(repo, apply=apply, authorize=authorize, expect_head=expect_head)
-        if closeout
-        else None
-    )
-    if renamed is not None:
-        return renamed
+    if closeout:
+        resume_renamed_bindings(repo)
+        renamed = rename_legacy_roles(
+            repo,
+            current_head=git.current_head(repo),
+            apply=apply,
+            authorized=authorize,
+            expect_head=expect_head,
+        )
+        if renamed is not None:
+            return EthosResult(
+                command="land",
+                verdict=cast("Verdict", renamed["verdict"]),
+                state=str(renamed["state"]),
+                required_gaps=tuple(string_sequence(renamed["required_gaps"])),
+                next_action=str(renamed["next_action"]),
+                data={"branch_role_rename": renamed},
+            )
     current_head = git.current_head(repo)
     command = "closeout" if closeout else "land"
     return (

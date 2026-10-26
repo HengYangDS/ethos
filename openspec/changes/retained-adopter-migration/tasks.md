@@ -22,7 +22,7 @@
 - [x] 3.1 Pass installed predecessor upgrade, rollback and renewed authoring with nonempty retained
       state and legacy identities through public native commands.
       Evidence: `build/evidence/local-install/attempts/27f575058-retained-qualified/smoke.json`.
-- [x] 3.2 Qualify pure archive-coverage compilation and the final source within the native source
+- [ ] 3.2 Qualify pure archive-coverage compilation and the final source within the native source
       budget; pass unchanged consumers, focused quality/review, strict OpenSpec and archive simulation.
       Evidence: `build/evidence/retained-runtime-preservation/focused/archive-pure-scope-review.json`.
 - [x] 3.3 Admit native inode-only FIFO records at the existing open-file owner; pass the recorded

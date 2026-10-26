@@ -11,6 +11,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
+from itertools import chain
 from typing import TYPE_CHECKING
 from typing import Literal
 
@@ -26,7 +27,6 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
-from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
@@ -119,7 +119,6 @@ def product_references_from_files(
     retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> ProductReferences:
     """Observe native references and keep malformed consumed carriers explicit."""
-    declared_commands = tuple(declared_commands)
     command_sources = dict(context_files or {})
     command_sources.update(files)
     parsed_files = {
@@ -132,11 +131,9 @@ def product_references_from_files(
         for path, tree in parsed_files.items()
         if tree is not None
     }
-    known_commands = {
-        normalize_command(command) for command in declared_commands if command.strip()
-    }
-    known_commands.update(command for commands in command_owners.values() for command in commands)
-    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
+    command_vocabulary = command_references.CommandVocabulary.compile(
+        chain(declared_commands, chain.from_iterable(command_owners.values()))
+    )
     npm_scripts = npm_script_commands(command_sources)
     observed = {kind: set() for kind in REFERENCE_KINDS}
     if include_declarations:
@@ -172,10 +169,7 @@ def reference_consumer_sources_from_files(
     retained_steps: frozenset[tuple[str, str, str]] = frozenset(),
 ) -> ReferenceConsumption:
     """Return consumed identities with current carrier provenance."""
-    known_commands = {
-        normalize_command(command) for command in declared_commands if command.strip()
-    }
-    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
+    command_vocabulary = command_references.CommandVocabulary.compile(declared_commands)
     npm_scripts = npm_script_commands(files)
     consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
     unknown_paths: list[str] = []

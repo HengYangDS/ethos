@@ -396,15 +396,7 @@ def _terminate_commands(
     processes: tuple[subprocess.Popen[Any], ...], *, grace_seconds: float
 ) -> None:
     """Interrupt all owned leaders, then close their groups within one cleanup budget."""
-    errors: list[OSError] = []
-    for process in processes:
-        try:
-            if os.name == "posix" and process.poll() is None:
-                os.killpg(process.pid, signal.SIGINT)
-        except ProcessLookupError:
-            pass
-        except OSError as error:
-            errors.append(error)
+    errors = [error for error in map(_interrupt_group, processes) if error is not None]
     deadline = monotonic() + grace_seconds
     for process in processes:
         try:
@@ -416,6 +408,22 @@ def _terminate_commands(
     if errors:
         message = "command_scope_cleanup_failed"
         raise ExceptionGroup(message, errors)
+
+
+def _interrupt_group(process: subprocess.Popen[Any]) -> OSError | None:
+    """Interrupt one running leader's group and return a refusal that cleanup must report."""
+    try:
+        if os.name == "posix" and process.poll() is None:
+            os.killpg(process.pid, signal.SIGINT)
+    except ProcessLookupError:
+        return None
+    except PermissionError as error:
+        # Darwin refuses a group whose leader exited after its poll and awaits its reaper; the
+        # bounded group close settles that. A running leader's refusal fails cleanup.
+        return error if process.poll() is None else None
+    except OSError as error:
+        return error
+    return None
 
 
 def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None = None) -> None:

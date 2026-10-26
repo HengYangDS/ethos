@@ -27,6 +27,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   worktree to `dev`, and the edits survived only in an unnamed, unreferenced commit. The hook now restores the
   checkout only when another ref already contains the refused commit, as after a refused fast-forward.
   Otherwise it keeps the staged content and names the refused commit.
+- On macOS, a command that failed while ETHOS cleaned up its owned processes no longer loses its own
+  failure. When a command's leader exited just as cleanup interrupted it, Darwin refused the signal to
+  its process group, and cleanup reported `command_scope_cleanup_failed` in place of the command's
+  error. Cleanup now leaves such a group to its bounded close, which already waits for Darwin to reap
+  exited members. A refusal while the leader still runs still fails cleanup.
 
 ## [0.2.0-alpha.15] - 2026-10-26
 

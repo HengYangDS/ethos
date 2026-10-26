@@ -6,8 +6,8 @@
 
 ## 2. Release Entry
 
-- [ ] 2.1 Move the product version to 0.2.0-alpha.15 in `VERSION`, `distributions/npm/package.json`, its `package-lock.json` entry and the three version tests. Done when the lane's `ethos --version` reports 0.2.0-alpha.15 and those tests pass.
-- [ ] 2.2 Curate the `0.2.0-alpha.15` entry from this fix. Done when the changelog validates with 0.2.0-alpha.15 as its release target and the entry describes every product change since `v0.2.0-alpha.14`.
+- [x] 2.1 Move the product version to 0.2.0-alpha.15 in `VERSION`, `distributions/npm/package.json`, its `package-lock.json` entry and the three version tests. Done when the lane's `ethos --version` reports 0.2.0-alpha.15 and those tests pass (`tests/unit/cli/test_version_command.py`, `tests/unit/release/test_version_identity.py`; `ethos --version` reports 0.2.0-alpha.15).
+- [x] 2.2 Curate the `0.2.0-alpha.15` entry from this fix. Done when the changelog validates with 0.2.0-alpha.15 as its release target and the entry describes every product change since `v0.2.0-alpha.14` (`changelog_errors` with target 0.2.0-alpha.15).
 
 ## Workflow follow-up
 

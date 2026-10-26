@@ -12,8 +12,16 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.16] - 2026-10-27
+
 ### Fixed
 
+- A refused commit to a protected branch no longer loses its content. When the
+  reference-transaction hook refused, for example, `git commit` on `dev` in the accepted checkout,
+  its compensation reset the index and worktree to `dev`, and the edits survived only in an
+  unnamed, unreferenced commit. The hook now restores the checkout only when another ref already
+  contains the refused commit, as after a refused fast-forward. Otherwise it keeps the staged
+  content and names the refused commit.
 - Retained adopters can migrate an owned legacy Work Lane name through `ethos lane repair-paradigm`
   without changing its files, index intent, holder or Lease expiry. An interrupted projection
   recovers forward from the attested ref transaction only while the exact current binding remains
@@ -22,16 +30,33 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Explicit runtime supply is validated against its own manifest and repository scope instead of
   the activation coordinator's lock. Upgrade and rollback keep manifest-bound predecessor
   selection distinct from activation coordination and accepted self-hosted source authority.
-- A refused commit to a protected branch no longer loses its content. When the reference-transaction hook
-  refused, for example, `git commit` on `dev` in the accepted checkout, its compensation reset the index and
-  worktree to `dev`, and the edits survived only in an unnamed, unreferenced commit. The hook now restores the
-  checkout only when another ref already contains the refused commit, as after a refused fast-forward.
-  Otherwise it keeps the staged content and names the refused commit.
-- On macOS, a command that failed while ETHOS cleaned up its owned processes no longer loses its own
-  failure. When a command's leader exited just as cleanup interrupted it, Darwin refused the signal to
-  its process group, and cleanup reported `command_scope_cleanup_failed` in place of the command's
-  error. Cleanup now leaves such a group to its bounded close, which already waits for Darwin to reap
-  exited members. A refusal while the leader still runs still fails cleanup.
+- Runtime materialization no longer ignores an interpreter that `uv python list` reports by a
+  relative path. It now lists uv's candidates in an explicit working directory and resolves
+  relative paths there. Every candidate still passes the same executable, version, ABI,
+  architecture, prefix and copyable-image checks.
+- On macOS, a command that failed while ETHOS cleaned up its owned processes no longer loses its
+  own failure. When a command's leader exited just as cleanup interrupted it, Darwin refused the
+  signal to its process group, and cleanup reported `command_scope_cleanup_failed` in place of the
+  command's error. Cleanup now leaves such a group to its bounded close, which already waits for
+  Darwin to reap exited members. A refusal while the leader still runs still fails cleanup.
+- `status` and `prewrite` no longer exceed their execution deadline in a repository whose history
+  holds signature repairs. Archive resolution verified the whole repair history for every archive
+  commit, including commits that a repair did not affect. It now selects only the repairs in each
+  commit's affected history and shares their verification within one observation.
+- The commit hook judges both sides of a staged rename. Git's rename detection listed only the
+  new path, so moving a file out of a governed path was judged as an addition alone.
+- On macOS, lane retirement no longer counts a FIFO that `lsof` reports by inode alone as open
+  content inside the worktree. Reviewed retirement content admits only regular files,
+  directories and symlinks.
+
+### Security
+
+- The wheels and installed runtimes ship npm 12.2.1 as a production Node module, which runtime
+  materialization uses to install the locked Node supply; the development and CI supply use it
+  too. npm's bundled undici 6.29.0 (GHSA-4qv8-2p9j-2685, GHSA-xjj6-f33q-929c) and ip-address 10.7.2
+  (GHSA-rxp7-6hxx-x8q5) carry known advisories, and no npm release fixes them yet. The dependency
+  gate reports them without blocking, as its policy requires for findings with no fixed stable
+  release. The npm launcher package does not contain them.
 
 ## [0.2.0-alpha.15] - 2026-10-26
 

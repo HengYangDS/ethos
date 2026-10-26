@@ -14,6 +14,7 @@ Under the Product Design Contract, unknown observations defer deletion (PDC 424-
 - The observation walk treats a listed path deleted between its existence check and its resolution as absent.
 - A dangling symbolic link, and every other resolution error, stays unknown and still defers reclamation.
 - When the historical-observation test fails, it reports the whole result.
+- The process-listing tests move into their own module, so that the retirement tests stay within the paradigm's size ceiling.
 - A changelog entry under `[Unreleased]`.
 
 ## Capabilities
@@ -28,5 +29,5 @@ Under the Product Design Contract, unknown observations defer deletion (PDC 424-
 
 ## Impact
 
-- Code: `src/ethos/adapters/repo/runtime/retirement.py` and `tests/unit/adapters/repo/runtime/test_retirement.py`.
+- Code: `src/ethos/adapters/repo/runtime/retirement.py`; tests in `tests/unit/adapters/repo/runtime/`: `test_retirement.py`, the new `test_retirement_listing.py` and its shared `support.py`.
 - A listed path that resolves into a generation still retains it. `python_product` does not grow.

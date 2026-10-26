@@ -12,6 +12,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Fixed
+
+- Runtime generation reclamation no longer defers when another process deletes a path that a
+  running command names while reclamation is observing it. A path deleted after its existence
+  check is an observed absence, as if it had been absent from the start; a dangling symbolic link
+  still defers reclamation. Concurrent test workers hit this race in a full proof.
+
 ## [0.2.0-alpha.16] - 2026-10-27
 
 ### Fixed

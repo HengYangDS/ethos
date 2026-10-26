@@ -20,17 +20,7 @@ from ethos.adapters.repo.hook.activation import materialize_hook_launchers
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
-
-
-def _tree(tmp_path: Path) -> tuple[Path, Path, Path]:
-    repo = init_git_repo(tmp_path / "repo")
-    common = Path(git_common_dir(repo))
-    hooks, runtime = common / "ethos/hooks" / ("a" * 64), common / "ethos/runtime" / ("a" * 64)
-    for path in (hooks, runtime):
-        path.mkdir(parents=True)
-        (path / "selected").write_bytes(b"selected immutable payload")
-    (runtime.parent / "CURRENT").write_text(runtime.name + "\n", encoding="ascii")
-    return repo, hooks, runtime
+from tests.unit.adapters.repo.runtime.support import generation_tree
 
 
 @pytest.mark.parametrize("relation", ["process", "config", "environment", "interpreter"])
@@ -38,7 +28,7 @@ def test_current_operational_dependency_retains_exact_generation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relation: str
 ) -> None:
     """All actual reference sources preserve the referenced generation bytes."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     needed = fixture_runtime_generation(runtime, "b" * 64)
     process_observations: list[Path] = []
 
@@ -72,7 +62,7 @@ def test_current_operational_dependency_retains_exact_generation(
 
 def test_source_cleanup_preserves_another_repositorys_selected_runtime(tmp_path: Path) -> None:
     """A foreign CURRENT is a live consumer even when no source process uses it."""
-    source, hooks, runtime = _tree(tmp_path / "source")
+    source, hooks, runtime = generation_tree(tmp_path / "source")
     old = fixture_runtime_generation(runtime, "foreign-legacy", repository_private=False)
     adopter = init_git_repo(tmp_path / "adopter")
     adopter_common = Path(git_common_dir(adopter))
@@ -130,7 +120,7 @@ def test_a_later_generation_gets_a_fresh_consumer_observation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The first effect cannot authorize deletion after a new dependency appears."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     first, second = sorted(fixture_runtime_generation(runtime, letter * 64) for letter in "bc")
     active = ""
     remove = retirement.remove_generated_tree
@@ -156,7 +146,7 @@ def test_partial_cleanup_preserves_observed_effects_and_retries_freshly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     """A failure after one removal neither erases that effect nor repeats it."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     first, second = sorted(fixture_runtime_generation(runtime, letter * 64) for letter in "bc")
     remove = retirement.remove_generated_tree
 
@@ -196,7 +186,7 @@ def test_cleanup_refuses_a_replaced_selection_or_generation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
 ) -> None:
     """A fresh name is not the directory selected by an earlier admission."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     first, second = sorted(fixture_runtime_generation(runtime, letter * 64) for letter in "bc")
     remove = retirement.remove_generated_tree
 
@@ -227,7 +217,7 @@ def test_cleanup_refuses_a_replaced_selection_or_generation(
 def test_cleanup_rejects_unsafe_generation_roots_without_touching_referents(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, invalidity: str
 ) -> None:
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     candidate = runtime.parent / ("b" * 64)
     if invalidity == "file":
         candidate.write_bytes(b"not an owned directory")
@@ -254,7 +244,7 @@ def test_cleanup_rejects_unsafe_generation_roots_without_touching_referents(
 
 def test_missing_selected_hooks_cannot_authorize_any_reclamation(tmp_path: Path) -> None:
     """A lost selected resource fails before an unrelated generation is removed."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     candidate = fixture_runtime_generation(runtime, "b" * 64)
     (hooks / "selected").unlink()
     hooks.rmdir()
@@ -272,7 +262,7 @@ def test_unreadable_binding_shape_does_not_become_an_absent_consumer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
     """Native shape failures defer deletion rather than silently discarding a binding."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     candidate = fixture_runtime_generation(runtime, "b" * 64)
     if fault == "environment-file":
         (repo / ".venv").write_bytes(b"not a readable environment")
@@ -301,7 +291,7 @@ def test_unreadable_binding_shape_does_not_become_an_absent_consumer(
 def test_unknown_operational_observation_defers_cleanup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     candidate = fixture_runtime_generation(runtime, "b" * 64)
     if fault in {"exit", "stderr", "timeout"}:
 
@@ -349,7 +339,7 @@ def test_unknown_operational_observation_defers_cleanup(
 
 def test_retirement_waits_boundedly_for_a_real_native_selector_lock(tmp_path: Path) -> None:
     """Native contention defers deletion and a fresh retry uses the same lock inode."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     candidate = fixture_runtime_generation(runtime, "b" * 64)
     lock_path = runtime.parent.parent / "runtime-selection.lock"
     with selection.FileLock(lock_path, fallback_to_soft=False, preserve_lock_file=True):
@@ -377,7 +367,7 @@ def test_live_native_process_keeps_generation_until_exit(
 ) -> None:
     """Display width cannot hide a live dependency or keep it after process exit."""
     monkeypatch.setenv("COLUMNS", columns)
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     needed = fixture_runtime_generation(runtime, "b" * 64)
     ready = tmp_path / "process-ready"
     script = "import pathlib,sys; pathlib.Path(sys.argv[3]).write_text('ready'); sys.stdin.read(1)"
@@ -424,7 +414,7 @@ def test_unowned_digest_directory_survives_unrelated_historical_carriers(
     tmp_path: Path,
 ) -> None:
     """Digest spelling grants no deletion ownership over a user's directory."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     unowned = runtime.parent / ("b" * 64)
     unowned.mkdir()
     (unowned / "payload").write_bytes(b"user content")
@@ -450,7 +440,7 @@ def test_unowned_digest_directory_survives_unrelated_historical_carriers(
 @pytest.mark.parametrize("drift", ["content", "mode"])
 def test_unowned_digest_hook_directory_survives_retirement(tmp_path: Path, drift: str) -> None:
     """A damaged or user-authored hook directory is not safe to reclaim."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     generated = materialize_hook_launchers(hooks.parent)
     unknown = hooks.parent / ("b" * 64) if drift == "content" else generated
     if drift == "content":
@@ -469,76 +459,11 @@ def test_unowned_digest_hook_directory_survives_retirement(tmp_path: Path, drift
     assert unknown.as_posix() in result["unproven_removals"]
 
 
-@pytest.mark.parametrize("layout", ["plain", "with spaces", "O'Brien (native); owner"])
-@pytest.mark.parametrize(
-    "reference", ["exact", "launcher", "alias", "direct-alias", "foreign-root", "longer-name"]
-)
-def test_generation_reference_preserves_repository_and_path_identity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reference: str, layout: str
-) -> None:
-    """Equal digest spelling in another repository is not this runtime dependency."""
-    repo, hooks, runtime = _tree(tmp_path / layout)
-    candidate = fixture_runtime_generation(runtime, "b" * 64)
-    alias = tmp_path / "runtime-alias"
-    alias.symlink_to(candidate.parent, target_is_directory=True)
-    direct = tmp_path / "selected-runtime"
-    direct.symlink_to(candidate, target_is_directory=True)
-    command = {
-        "exact": f"{candidate}/python/bin/python -m ethos.cli",
-        "launcher": f"{hooks}/../../runtime/{candidate.name}/python/bin/python -m ethos.cli",
-        "alias": f"{alias}/{candidate.name}/python/bin/python -m ethos.cli",
-        "direct-alias": f"{direct}/python/bin/python -m ethos.cli",
-        "foreign-root": f"{tmp_path}/other/.git/ethos/runtime/{candidate.name}/python/bin/python",
-        "longer-name": f"{candidate}-unrelated/python/bin/python",
-    }[reference]
-    monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
-
-    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
-
-    needed = reference in {"exact", "launcher", "alias", "direct-alias"}
-    assert result["state"] == "complete", result
-    assert candidate.exists() is needed
-    assert (candidate.as_posix() in result["retained"]) is needed
-    assert (candidate.as_posix() in result["removed"]) is not needed
-
-
-@pytest.mark.parametrize("arguments", ["absent-paths", "native-service-tail"])
-def test_unrelated_command_arguments_do_not_amplify_path_resolution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, arguments: str
-) -> None:
-    """Resolver work follows native path components, not unbounded command arguments."""
-    repo, hooks, runtime = _tree(tmp_path)
-    candidate = fixture_runtime_generation(runtime, "b" * 64)
-    tail = (
-        " ".join(f"/not-present-{i}/arg" for i in range(200))
-        if arguments == "absent-paths"
-        else "-BSServiceDomains " + json.dumps({"LaunchArguments": ["service" * 80]})
-    )
-    command = f"{candidate}/payload {tail}"
-    monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
-    resolve = Path.resolve
-    calls = 0
-
-    def measured(path: Path, *args, **kwargs):
-        nonlocal calls
-        calls += 1
-        assert calls < 1500, "command suffix combinations amplify native resolution work"
-        return resolve(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "resolve", measured)
-
-    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
-
-    assert result["state"] == "complete", result
-    assert candidate.as_posix() in result["retained"]
-    assert (candidate / "payload").read_text() == "b" * 64
-
-
 def test_historical_runtime_observation_does_not_pin_an_executable_generation(
     tmp_path: Path,
 ) -> None:
     """Repeated history stays byte-exact without accumulating idle generations."""
-    repo, hooks, runtime = _tree(tmp_path / "source")
+    repo, hooks, runtime = generation_tree(tmp_path / "source")
     common = Path(git_common_dir(repo))
     records: dict[Path, bytes] = {}
     for ordinal, carrier in enumerate(("operations", "transactions", "ref-intent")):
@@ -550,7 +475,7 @@ def test_historical_runtime_observation_does_not_pin_an_executable_generation(
 
         result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
 
-        assert result["removed"] == [obsolete.as_posix()]
+        assert result["removed"] == [obsolete.as_posix()], result
         assert not obsolete.exists(), "descriptive history kept an unused runtime alive"
         assert all(path.read_bytes() == content for path, content in records.items())
         assert {path.name for path in runtime.parent.iterdir() if path.is_dir()} == {runtime.name}
@@ -559,7 +484,7 @@ def test_historical_runtime_observation_does_not_pin_an_executable_generation(
 
 def test_repository_cleanup_preserves_external_supply(tmp_path):
     """Retire local copies without claiming deletion authority over installed bytes."""
-    repo, hooks, runtime = _tree(tmp_path)
+    repo, hooks, runtime = generation_tree(tmp_path)
     external = tmp_path / "installed" / runtime.name
     external.parent.mkdir()
     runtime.rename(external)

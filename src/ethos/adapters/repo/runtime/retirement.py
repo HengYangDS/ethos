@@ -149,26 +149,27 @@ def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
         component, separator, rest = tail.partition("/")
         for end in re.finditer(r"[\s'\";|&)]|$", component):
             part = component[: end.start()]
-            candidate = current / part
-            if part and _native_path_exists(candidate):
-                paths.add(candidate.resolve(strict=True))
-        full = current / component
-        if not separator or not _native_path_exists(full, directory=True):
+            if part and (resolved := _native_path(current / part)):
+                paths.add(resolved)
+        if not separator or not (resolved := _native_path(current / component, directory=True)):
             break
-        current = full.resolve(strict=True)
+        current = resolved
         paths.add(current)
         tail = rest
     return paths
 
 
-def _native_path_exists(path: Path, *, directory: bool = False) -> bool:
-    """Reject invalid command suffixes without hiding unobserved filesystem errors."""
+def _native_path(path: Path, *, directory: bool = False) -> Path | None:
+    """Resolve an observed path; an invalid suffix or one deleted since its check is absent."""
     try:
-        return path.is_dir() if directory else path.exists() or path.is_symlink()
+        if path.is_dir() if directory else path.exists() or path.is_symlink():
+            return path.resolve(strict=True)
     except OSError as failure:
-        if failure.errno in {errno.ENAMETOOLONG, errno.EINVAL}:
-            return False
-        raise
+        # A path deleted after its check is an observed absence; a dangling link stays unknown.
+        vanished = isinstance(failure, FileNotFoundError) and not path.is_symlink()
+        if not vanished and failure.errno not in {errno.ENAMETOOLONG, errno.EINVAL}:
+            raise
+    return None
 
 
 def _require_identity(path: Path, expected: tuple[int, int, int, int]) -> None:

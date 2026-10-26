@@ -1,0 +1,11 @@
+# Tasks
+
+## 1. Release Entry
+
+- [ ] 1.1 Move the product version to 0.2.0-alpha.16 in `VERSION`, `distributions/npm/package.json`, its `package-lock.json` entry and the three version tests. Done when the lane's `ethos --version` reports 0.2.0-alpha.16 and those tests pass (`tests/unit/cli/test_version_command.py`, `tests/unit/release/test_version_identity.py`, `tests/unit/release/test_policy_attestation.py`).
+- [ ] 1.2 Curate the `0.2.0-alpha.16` entry from the Unreleased notes and every user-visible product change since `v0.2.0-alpha.15`. Done when the changelog validates with 0.2.0-alpha.16 as its release target and the entry describes every user-visible product change since `v0.2.0-alpha.15` (`changelog_errors` with target 0.2.0-alpha.16).
+
+## Workflow follow-up
+
+- Prove the exact head, archive this Change, prove the archived head, then land, close out, bootstrap and publish `dev` and `main` to GitHub. GitLab waits for the owner's notice that the intranet is available.
+- When the landed head's hosted runs pass on every platform, the release owner creates the signed tag with `ethos land --release`, publishes it to GitHub, dispatches the hosted release, verifies the published assets and relays the identities to the adopter owners. The GitLab tag publication and its hosted run follow after the notice.

@@ -287,7 +287,16 @@ def restore_rejected_checkout_projection(
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> bool:
-    """Restore a clean Git porcelain projection whose ref transaction was rejected."""
+    """Restore a clean Git porcelain projection whose ref transaction was rejected.
+
+    Git projected the target only if another ref already contains it. A commit that only the
+    rejected operation created holds the caller's own content, so its checkout is never reset.
+    """
+    owners = runner(
+        root, "for-each-ref", "--contains", target_head, "--count=1", check=False, env=environment
+    )
+    if owners.returncode or not owners.stdout.strip():
+        return False
     current_head = runner(root, "rev-parse", "HEAD", check=False, env=environment).stdout.strip()
     target_tree = current_tree(root, target_head, environment=environment)
     indexed = runner(root, "write-tree", check=False, env=environment)

@@ -69,17 +69,16 @@ def admit_reference(
     report = _prepared_reference_report(
         root, ref_name, old_value, new_value, selected_runtime=selected_runtime
     )
-    if (
-        report_verdict(report) != "pass"
-        and _protected_checkout(root)
-        and import_module(
+    if report_verdict(report) != "pass" and _protected_checkout(root):
+        if import_module(
             "ethos.adapters.repo.worktree_effects"
-        ).restore_rejected_checkout_projection(root, target_head=new_value)
-    ):
-        report["checkout_compensation"] = {
-            "state": "restored",
-            "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
-        }
+        ).restore_rejected_checkout_projection(root, target_head=new_value):
+            report["checkout_compensation"] = {
+                "state": "restored",
+                "head": run_git(root, "rev-parse", "HEAD", check=False).stdout.strip(),
+            }
+        elif new_value.strip("0"):
+            report["checkout_compensation"] = {"state": "kept", "rejected_target": new_value}
     return report
 
 

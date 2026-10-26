@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import sqlite3
 import subprocess
@@ -194,6 +195,47 @@ def test_checkout_compensation_refuses_non_exact_index_overlay(tmp_path: Path) -
         "index_tree": g("write-tree").stdout,
         "status": g("status", "--porcelain=v1", "-z").stdout,
     } == before
+
+
+def test_checkout_compensation_keeps_a_commit_no_ref_contains(tmp_path: Path) -> None:
+    """A commit that only the refused operation created holds the caller's own content."""
+    g, _hooks, _no_binary = _unavailable_runtime_repo(tmp_path)
+    g("config", "core.hooksPath", "")
+    (tmp_path / "a").write_text("2", encoding="utf-8")
+    assert g("add", "a").returncode == 0
+    staged = g("write-tree").stdout.strip()
+    target = g("commit-tree", staged, "-p", "HEAD", "-m", "refused").stdout.strip()
+    before = {
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+    }
+
+    assert not restore_rejected_checkout_projection(tmp_path, target_head=target)
+    assert {
+        "index_tree": g("write-tree").stdout,
+        "status": g("status", "--porcelain=v1", "-z").stdout,
+    } == before
+
+
+def test_refused_direct_commit_keeps_its_staged_change_and_names_it(tmp_path: Path) -> None:
+    """A policy-refused commit to dev keeps the staged change and reports the refused commit."""
+    g, hooks, _no_binary = _unavailable_runtime_repo(tmp_path)
+    _install_policy_only_hook(hooks)
+    dev = g("rev-parse", "dev").stdout.strip()
+    (tmp_path / "a").write_text("2", encoding="utf-8")
+    assert g("add", "a").returncode == 0
+    staged = g("write-tree").stdout.strip()
+
+    refused = g("commit", "-m", "direct to dev")
+
+    assert refused.returncode != 0
+    assert g("rev-parse", "dev").stdout.strip() == dev
+    assert g("write-tree").stdout.strip() == staged
+    assert (tmp_path / "a").read_text(encoding="utf-8") == "2"
+    report = json.loads(next(line for line in refused.stderr.splitlines() if line.startswith("{")))
+    assert report["checkout_compensation"]["state"] == "kept"
+    target = report["checkout_compensation"]["rejected_target"]
+    assert g("rev-parse", f"{target}^{{tree}}").stdout.strip() == staged
 
 
 def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(

@@ -22,6 +22,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Explicit runtime supply is validated against its own manifest and repository scope instead of
   the activation coordinator's lock. Upgrade and rollback keep manifest-bound predecessor
   selection distinct from activation coordination and accepted self-hosted source authority.
+- A refused commit to a protected branch no longer loses its content. When the reference-transaction hook
+  refused, for example, `git commit` on `dev` in the accepted checkout, its compensation reset the index and
+  worktree to `dev`, and the edits survived only in an unnamed, unreferenced commit. The hook now restores the
+  checkout only when another ref already contains the refused commit, as after a refused fast-forward.
+  Otherwise it keeps the staged content and names the refused commit.
 
 ## [0.2.0-alpha.15] - 2026-10-26
 

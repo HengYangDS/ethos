@@ -21,6 +21,7 @@ from ethos.adapters.admission.role_rename import require_owned_topic
 from ethos.adapters.admission.role_rename import retained_topic_target
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -49,6 +50,8 @@ if TYPE_CHECKING:
 
 def rename_retained_topic(root: Path, *, apply: bool) -> dict[str, object] | None:
     """Migrate only the caller's retained topic, recovering projections from its attested CAS."""
+    if (root / ".git").resolve() == Path(git_common_dir(root)).resolve():
+        return None
     report: dict[str, object] = {
         "verdict": "block",
         "state": "blocked",
@@ -146,7 +149,7 @@ def _topic_plan(
 
 
 def _topic_transition(root: Path) -> tuple[str, str, str, TransitionPlan | None] | None:
-    """Select a declared retained topic or the exact interrupted identity projection."""
+    """Select a linked retained topic or its exact interrupted identity projection."""
     bound = git_stdout(root, "symbolic-ref", "--quiet", "HEAD").removeprefix("refs/heads/")
     if not bound:
         return None

@@ -16,6 +16,7 @@ See [proposal.md](proposal.md).
 
 - Admitted commands on Windows find the host's system commands and the shell-free Git launcher, as POSIX commands find `/usr/bin`.
 - The locked tools stay first, and nothing else from the caller's PATH joins.
+- One accepted head that names and describes 0.2.0-alpha.15.
 
 **Non-Goals:**
 
@@ -32,6 +33,7 @@ See [proposal.md](proposal.md).
   - A resolved `bin\git.exe` maps to its sibling `cmd\git.exe` when that exists.
   - Otherwise git stays out, and the adopter's command refuses explicitly instead of finding an unvetted directory.
 - **No new requirement text.** The accepted requirement "Locked execution keeps native mise policy" already promises configuration isolation. A new scenario states the baseline. Its text stays unmodified, because a longer requirement would exceed OpenSpec's strict limit of 500 characters.
+- **Release entry, as in earlier entries.** Bump the version owner and its projections as exact replacements, and date the entry with the local calendar day on which the tag is created.
 
 ## Risks / Trade-offs
 

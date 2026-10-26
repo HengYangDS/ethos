@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
+from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.openspec.identifiers import OPEN_SPEC_ARCHIVE_ROOT
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import parse_archived_change_root
@@ -34,22 +35,42 @@ def collision_preservation_path(path: str, tree: str, head: str) -> str:
     return f"{path}-{suffix}"
 
 
-def archive_source_path(
-    path: str,
+def archive_material_scope(
+    paths: tuple[str, ...],
+    patterns: tuple[str, ...],
     *,
     change: str,
     archive_root: str,
     completion_artifacts: tuple[str, ...],
-) -> str | None:
-    """Map native output to its exact relocated source, not to write authority."""
+    projection_paths: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Compile archive coverage from completed source values, without reading authority."""
     active_root = active_change_root(change)
-    if path.startswith(f"{active_root}/") and path in completion_artifacts:
-        return path
-    if path == archive_root or path.startswith(f"{archive_root}/"):
-        source = active_root + path.removeprefix(archive_root)
-        return source if source in completion_artifacts else None
-    canonical_prefix = "openspec/specs/"
-    if path.startswith(canonical_prefix):
-        source = f"{active_root}/specs/{path.removeprefix(canonical_prefix)}"
-        return source if source in completion_artifacts else None
-    return None
+    active_prefix, delta_prefix = f"{active_root}/", f"{active_root}/specs/"
+    destinations = set(projection_paths)
+    for source in completion_artifacts:
+        if source == active_root or source.startswith(active_prefix):
+            destinations.add(archive_root + source.removeprefix(active_root))
+        if source.startswith(active_prefix):
+            destinations.add(source)
+        if source.startswith(delta_prefix):
+            destinations.add("openspec/specs/" + source.removeprefix(delta_prefix))
+    material = tuple(
+        path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
+    )
+    uncovered = [path for path in material if path not in destinations]
+    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
+    return {
+        "verdict": "block" if gaps else "pass",
+        "state": "archive_transition",
+        "changed_paths": list(paths),
+        "material_patterns": list(patterns),
+        "material_paths": list(material),
+        "changes": [{"name": change, "path": archive_root}],
+        "covered_paths": [
+            {"path": path, "changes": [change]} for path in material if path in destinations
+        ],
+        "uncovered_paths": uncovered,
+        "required_gaps": gaps,
+        "advisory_gaps": [],
+    }

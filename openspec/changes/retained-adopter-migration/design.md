@@ -46,6 +46,10 @@ An attested ref effect is not reversed merely because a projection subsequently 
 OpenSpec owns Change artifact semantics; migrate through its existing carrier operation rather than
 copy tasks into a new checklist or accept the old name permanently.
 
+Archive coverage compiles completed source artifacts into valid active, archived and canonical
+destinations in the existing archive-binding owner. This pure calculation replaces per-path source
+resolution; the transition adapter retains fresh Git, profile, collision and projection observations.
+
 ### Actual consumers determine retirement
 
 The retained fixture exercises nonempty predecessor state and legacy authoring identities.

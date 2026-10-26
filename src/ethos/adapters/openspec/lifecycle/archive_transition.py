@@ -8,8 +8,8 @@ from typing import Any
 from typing import NamedTuple
 
 from ethos.adapters.openspec.archive_projection import archive_projection_scope
+from ethos.adapters.openspec.lifecycle.archive_binding import archive_material_scope
 from ethos.adapters.openspec.lifecycle.archive_binding import archive_root_from_path
-from ethos.adapters.openspec.lifecycle.archive_binding import archive_source_path
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_provenance import resolve_archive_head
@@ -23,7 +23,6 @@ from ethos.adapters.repo.git_effect_attestation import validate as validate_git_
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Commitment
-from ethos.normalization.coercion import repository_path_matches
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -349,39 +348,14 @@ def _archive_scope(
         or profile.declaration.openspec is None
     ):
         raise ValueError(INVALID_PROFILE_ERROR)
-    patterns = profile.declaration.openspec.material_paths
-    material = tuple(
-        path for path in paths if any(repository_path_matches(path, glob) for glob in patterns)
-    )
-    source_paths = {
-        path: path
-        if path in projection_paths
-        else archive_source_path(
-            path,
-            change=change,
-            archive_root=archive_root,
-            completion_artifacts=completed,
-        )
-        for path in material
-    }
-    covered = [
-        {"path": path, "changes": [change]}
-        for path, source in source_paths.items()
-        if source is not None
-    ]
-    uncovered = [path for path, source in source_paths.items() if source is None]
-    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": "archive_transition",
-        "changed_paths": list(paths),
-        "material_patterns": list(patterns),
-        "material_paths": list(material),
-        "changes": [{"name": change, "path": archive_root}],
-        "covered_paths": covered,
-        "uncovered_paths": uncovered,
-        "required_gaps": gaps,
-        "advisory_gaps": [],
+    return archive_material_scope(
+        paths,
+        profile.declaration.openspec.material_paths,
+        change=change,
+        archive_root=archive_root,
+        completion_artifacts=completed,
+        projection_paths=projection_paths,
+    ) | {
         "tree": tree,
         "archive_path": archive_root,
         "completion_artifacts": list(completed),

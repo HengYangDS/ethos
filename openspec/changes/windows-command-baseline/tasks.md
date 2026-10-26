@@ -2,7 +2,7 @@
 
 ## 1. Host Command Baseline
 
-- [ ] 1.1 Follow the locked tools with the host's own command baseline, built by one pure function. Done when a regression proves three things: POSIX keeps `os.defpath`; Windows gets `%SystemRoot%\System32`, `%SystemRoot%` and the shell-free Git launcher, without `.` or `C:\bin`; and a Git directory that holds a shell never joins.
+- [x] 1.1 Follow the locked tools with the host's own command baseline, built by one pure function. Done when a regression proves three things: POSIX keeps `os.defpath`; Windows gets `%SystemRoot%\System32`, `%SystemRoot%` and the shell-free Git launcher, without `.` or `C:\bin`; and a Git directory that holds a shell never joins (`test_host_command_baseline_is_the_host_own_command_directories`, `test_git_launcher_directory_never_brings_a_shell`; three mutants caught).
 
 ## Workflow follow-up
 

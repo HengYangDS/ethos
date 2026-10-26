@@ -367,14 +367,15 @@ def test_source_wheel_disappearing_after_admission_fails_without_partial_install
     """An input race must not become an unhandled iterator error or selected supply."""
     repo, selected, store = _host_case(tmp_path, monkeypatch)
     wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
+    observe = materialization.file_sha256
 
-    def remove_after_observation(runtime, project):
-        assert runtime.root == selected.root
-        assert project.is_dir()
-        wheel.unlink()
-        return True
+    def remove_after_observation(path):
+        observed = observe(path)
+        if path == wheel:
+            wheel.unlink()
+        return observed
 
-    monkeypatch.setattr(materialization, "_runtime_supply_current", remove_after_observation)
+    monkeypatch.setattr(materialization, "file_sha256", remove_after_observation)
     with pytest.raises(ValueError, match="hook_runtime_installed_supply_invalid"):
         _pin(repo, selected.build, installed_runtime=selected.root)
     assert not store.exists() or not any(path.is_dir() for path in store.iterdir())

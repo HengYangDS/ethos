@@ -133,6 +133,23 @@ configuration plane, not a truth center.
 - `.config/release/release-sbom/policy.toml` selects the built-wheel subject, SPDX
   output and claim boundary. Mise owns the Syft version and artifact checksums.
   SBOM generation does not establish publication, signing or SLSA conformance.
+- `.config/checks/import-linter/import-linter.toml` owns the import-layer contracts of the
+  one `ethos` package; the `import_boundaries` Nox session and the `import-boundaries` gate
+  check them.
+- `.config/checks/ty/ty.toml` owns Python type-check selection and rules for the
+  `python-types` gate.
+- `.config/checks/vale/vale.ini` and its `styles/` vocabularies own prose style for the
+  `prose` gate, beside Codespell.
+- `.config/checks/lychee/policy.toml` declares the locked Lychee supply that the link
+  check in `lychee.toml` runs on.
+- `.config/checks/repository-hygiene/policy.toml` holds the repo-shape knobs that
+  `tools/ci/repository_hygiene.py` executes.
+- `.config/ci/verification.cue` is the shared `#Verification` CI model that
+  `.config/ci/pipeline.cue` instantiates for both providers.
+- `.config/ci/runners.toml` declares the executables each forge's runner provides
+  beyond the repository toolchain and the product runtime.
+- `.config/ci/supply/Dockerfile` and its `.dockerignore` build the locked Linux ARM64
+  supply image for GitLab jobs; source and policy stay in the CI checkout.
 - `.config/ci/pipeline.cue` models every hosted job. Its one bootstrap command
   list runs native uv commands and `tools/ci/toolchain` modules; hosted CI YAML
   is only the provider projection of that model. `.config/mise/config.toml`
@@ -184,8 +201,8 @@ policy inline.
 ## Generated/local state topology
 
 Configuration under `.config/checks/` owns policy only. Runtime caches and
-local generated outputs must use semantic ignored homes: `.cache/local-state/`
-for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
+local generated outputs must use semantic ignored homes: `<git-common-dir>/ethos/`,
+outside every checkout, for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
 the project `.venv/` for the one uv-locked Python environment,
 `build/runtime/work/<provider>/` for provider emulator work state,
 `build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine

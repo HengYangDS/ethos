@@ -72,10 +72,11 @@ linked worktree cannot introduce a parallel state authority.
 Use the public reader to inspect the current repository boundary:
 
 ```bash
-ethos status --json
+ethos lane status --json
 ```
 
-A status result reports each Work Lane Lease as exactly `valid`, `expired`,
+`ethos status` reports Lease counts only. `ethos lane status` reports each Work Lane
+Lease as exactly `valid`, `expired`,
 `unknown`, or `missing`. `unknown` means a row exists but its wire is malformed,
 retired, mismatched, or otherwise unverifiable; it is never treated as missing
 and is observe-only. These facts guide the next action but do not authorize a

@@ -58,7 +58,9 @@ can retain that upgrade basis from generation; brownfield must preserve native
 layout and user customizations rather than pretend it was generated. Template
 answers are generation provenance, not another intent store. Test deletion,
 conflict, cancellation, upgrade and exit, including removal of owned hooks and
-references without deleting user material.
+references without deleting user material. Decided: package-owned starters evolve
+by `git merge-tree` (see [Adoption Profiles](../../architecture/adoption-profiles.md));
+Copier stays an optional adapter.
 
 Documentation format, metadata and human/agent navigation are evaluated in
 [Documentation And Knowledge Interchange](documentation.md).

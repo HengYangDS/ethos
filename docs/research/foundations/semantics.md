@@ -50,7 +50,7 @@ an implementation proof without a checked correspondence and explicit assumption
 
 ### Executed CUE Rule Trial
 
-On September 15, the accepted `c03e209118ba72120c58278996fab1a6043bc927`
+On September 15, the accepted `20192a13153d66c542f43834ca7ef39377ce19ea`
 source was compared with the already installed CUE 0.17.1 executable. No tool
 installation, dependency change, adopter mutation or production CUE integration
 occurred. The trial consumed the actual three rules in `.ethos/rules.toml`,
@@ -81,10 +81,11 @@ Choose one editable owner per rule family; generated wire schemas and Python
 values are projections, not independently editable policy. Settle the numeric
 carrier distinction explicitly before switching any consumer.
 
-The trial is recorded in the existing ignored quality evidence as
+The trial was recorded on 2026-09-15 in the ignored quality evidence as
 `build/evidence/quality/validation-results/cue-rule-evaluation.json`: exact source,
 input and binary hashes,
-argv, stdout/stderr, individual verdicts and cleanup readback. Production
+argv, stdout/stderr, individual verdicts and cleanup readback. That receipt is no
+longer retained. Production
 packaging, offline supply, native-platform qualification, error compatibility
 and measured cold/warm cost remain unproved. Prior research prioritized this
 trial; it did not justify indefinite deferral or establish that CUE was already
@@ -224,9 +225,10 @@ Evidence remains in the existing custody: `repowise-trial-cu1e3d91/results/`
 (first trial), `repowise-quality-completion-xql_swxp/results/` (completed health),
 and `repowise-optimization-9wli7wjw/` (exact source bindings, native mechanism
 probes, final matched reads, public RED/GREEN, Allure and owned cleanup).
-The host installation receipt is
-`repowise-official-installation-acceptance-20261005.json`, SHA-256
-`39be6853501b3a42bee4e3e603b48e5f4c2db9d3358cef5f7a655141258c9314`.
+The host installation receipt,
+`repowise-official-installation-acceptance-20261005.json`, had SHA-256
+`39be6853501b3a42bee4e3e603b48e5f4c2db9d3358cef5f7a655141258c9314`; it is no
+longer retained.
 Matched Agent quality, token savings, complete iteration speed, live watch and
 fleet conformance remain unqualified; each affected owner keeps those obligations.
 

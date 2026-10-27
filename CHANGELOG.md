@@ -12,6 +12,20 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Changed
+
+- The decisions index lists every number from DR-0001 to DR-0016 in order. A deleted record keeps
+  one line with its status, its decision date, its successor and a reachable commit that holds its
+  last text.
+- The product design contract carries the full meaning of 雅 (aesthetic judgment, taste, and
+  artistic and cultural refinement, assessed in the rendered whole), and the Docs Registry and the
+  terminal plan link to it.
+- The terminal plan names the repository paradigm as the owner of per-file limits, and it lets a
+  measured iteration cost that every later Change pays be removed ahead of the batches.
+- Accepted specs, unshipped documents, research, history, Skills, CONTRIBUTING, README and the
+  glossary no longer describe removed behavior or cite deleted files. Pinned commits that a history
+  repair rewrote now cite their reachable twins.
+
 ### Fixed
 
 - Runtime generation reclamation no longer defers when another process deletes a path that a

@@ -52,9 +52,9 @@ before execution. A dependent gate executes only after every
 prerequisite has passed with exit code zero; otherwise it receives an unexecuted
 blocked result naming the unmet dependency. Independent diagnostics can
 continue. Dry-run projection does not execute effects or invent failed checks.
-The declared inexpensive source checks precede heavy tests. Coverage therefore
-cannot fail and still launch dependent package delivery. These prerequisites
-belong to the gate declaration, not a second phase registry.
+The declared inexpensive source checks precede heavy tests. Package delivery no
+longer waits for coverage (`ecf55c727`); a coverage failure still fails the proof.
+These prerequisites belong to the gate declaration, not a second phase registry.
 
 Provider gates call their declared Python owner. Adapter gates invoke their
 declared command. Results retain identity, verdict, exit code, diagnostics,

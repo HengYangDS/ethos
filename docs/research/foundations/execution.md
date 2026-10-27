@@ -42,7 +42,7 @@ A selected engine supplies execution evidence, never repository authorization.
 
 ## September 20 Replacement Analysis
 
-At source `81848f2fe50ef5ebea8f8e1dee75854a7be45c45`, exact full proof took
+At source `06bf5cc44405bb6572e3b33d1e798538bfe1d543`, exact full proof took
 804.632 seconds. Tests took 597.887 seconds from offset 22.696; installed
 acceptance took 170.509 seconds from offset 622.743. Their durations total about
 95.5 percent of elapsed proof time. Eight pytest workers do not provide
@@ -212,13 +212,14 @@ owns the shared experiment contract. Additional execution-specific obligations:
 The read-only quality inventory found 2,930 tracked files and 548 Python files.
 Ruff selected all 548 and carrier assignment had no unowned file; this proves
 selection, not effective assurance. Ty still translates package "." to "src".
-The current Prettier-only JavaScript path accepts a formatted undefined binding.
+The Prettier-only JavaScript path then accepted a formatted undefined binding;
+ESLint now rejects it through the `javascript-lint` gate (`system/gates.toml`).
 An execution-engine change does not fix these quality obligations.
 
 ## Disposition And Evidence Limits
 
-Proceed with a dependency-complete Pants test-partition replacement under the
-existing Change; do not activate it for all workloads merely because one warm
+Proceed with a dependency-complete Pants test-partition replacement, which no
+Change owns yet; do not activate it for all workloads merely because one warm
 partition wins. Qualify selected batching, input materialization, coverage and
 failure behavior, then remove corresponding custom execution code. Preserve
 direct execution where no replacement benefit is established, under the existing
@@ -229,19 +230,24 @@ remains the native build-closure candidate. They are different responsibilities,
 not a mandatory three-engine product stack. Their missing delivery observations
 remain explicit and must not become indefinite excuses to retain custom assembly.
 
-Evidence resides in the existing quality evidence home:
+Evidence was recorded on 2026-09-20 in the quality evidence home,
+`build/evidence/quality/commit-integrity/`:
 `tracked-quality-scope.json`, `foundation-source-review.json`,
 `foundation-resolver-review.json`, `dagger-engine-preflight.json`,
 `dagger-verdict-workload.json`, `dagger-workload-cleanup.json`,
 `pants-comparison-casefold-safe.json`, `pants-native-resource-comparison.json`,
 `pants-public-proof-supply-comparison.json`, `pants-public-proof-supply-input.json`,
-`pants-native-report-reuse.json` and `pants-native-target-dependencies.json`.
+`pants-native-report-reuse.json` and `pants-native-target-dependencies.json`;
+they are no longer retained.
 Failed preparation records remain failures; none is exact repository proof.
 The completed environment and three owned baseline pytest roots were removed
 after process quiescence and exact ownership checks. Reproduction inputs and
-native JUnit bytes remain in `pants-reproduction-inputs.tar.gz`; cleanup preview
-and absence readback remain in `pants-workload-cleanup*.json`. Homebrew supply,
-the project's Node environment and unrelated resources were preserved.
+native JUnit bytes were recorded in `pants-reproduction-inputs.tar.gz`, which the
+commit-integrity lane's owner-only retirement custody, SHA-256
+`57cd4119488a846b3e5f5bc7ed4761cc9be95b48717f753b99bc4132d419bb3e`, retains.
+Cleanup preview and absence readback were recorded in `pants-workload-cleanup*.json`,
+which is no longer retained. Homebrew supply, the project's Node environment and
+unrelated resources were preserved.
 
 ## Sources
 

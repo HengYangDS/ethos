@@ -53,9 +53,9 @@ The README lists each number in order. A current record is a link. Every other n
 Each line cites a reachable commit:
 
 - **DR-0001 to DR-0008:** `374d49d94^`, the parent of the commit that deleted them.
-- **DR-0009:** `13864eb4f`, where the number was reserved. Revision 5.1 cited `a8b859b6f`, but no ref reaches that commit. Its twin `13864eb4f` has the same tree (`915f90c35`) and is reachable from `dev`.
+- **DR-0009:** `13864eb4f`, whose text of DR-0008 first named DR-0009 as a record to create. DR-0009 was never written and had no index row. Its tree twin `a8b859b6f` (tree `915f90c35`) survives only under preservation refs (`refs/keep/…`, `refs/codex/snapshots/…`), which no branch reaches. `13864eb4f` is on `dev` and `main`.
 
-Each line names its direct successor as its own record stated it, so DR-0002 and DR-0007 name DR-0004, and DR-0004's line names DR-0011 and the Docs Registry. The chain stays visible without repeating it.
+Each line names its direct successor as its own record stated it, so DR-0002 and DR-0007 name DR-0004. DR-0004's line names the Docs Registry, which its retained historical carrier names as the current owner, and says that no replacement record was created. The retained carrier keeps its exact bytes, so its Git origin is cited from the index rather than added to the carrier.
 
 ### DR-0003 and DR-0005 stay index lines
 
@@ -83,7 +83,11 @@ The PDC stays at 512 nonblank lines; its rewrapped lines are longer, which `pros
 
 ### Spec deltas
 
-Each corrected requirement is a MODIFIED block restating its complete text and every retained scenario. A requirement that only describes removed behavior is REMOVED with a reason and a migration note. No requirement text exceeds 500 characters. The archive simulation runs before proof.
+Each corrected requirement is a MODIFIED block that restates its complete text and every retained scenario. A requirement that only describes removed behavior is REMOVED, with a reason and a migration note. No requirement text exceeds 500 characters, and the archive simulation runs before proof.
+
+OpenSpec 1.15.0 refuses a MODIFIED block that drops or renames a scenario, because it matches scenarios by name. A stale scenario therefore keeps its title and gets a true body. Where a kept title would be false (kernel "Chronicle remains authoritative evidence", distribution "Linux bootstrap repairs supported prerequisites"), the requirement is REMOVED and ADDED under a new name with the same obligation.
+
+A delta cannot change a spec's Purpose, so the kernel and repository-governance Purposes are edited directly in their spec files.
 
 ### Pinned commits
 
@@ -91,7 +95,41 @@ A history or research citation of a commit that no ref reaches moves to its reac
 
 ### Dispositions
 
-Each finding of the rerun reviews gets one of four dispositions: corrected here, linked, kept with a reason, or owned by a named Change. The table below records them.
+Each finding of the rerun reviews gets one of four dispositions: corrected here, linked, kept with a reason, or owned by a named Change. Four read-only audits at `ad9108d70` produced the findings. Their reports, with file, line and evidence for every finding, are in `build/evidence/knowledge-currency/`.
+
+| Owner                                  | Findings                      | Corrected here                                                                                                                     | Not corrected here                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| kernel spec                            | 8                             | 8, the Purpose included                                                                                                            | —                                                                                                                                                                                                                                                                                                                                                       |
+| distribution spec                      | 4                             | 4                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+| contracts spec                         | 9                             | 9                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+| adapters spec                          | 5                             | 5                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+| repository-governance spec             | 48 requirements               | 46: 19 modified, 8 replaced under new names, 19 removed; plus the Purpose                                                          | Release Policy's in-repository executable rule is kept: it matches PDC 405-406, and the bare-name PATH lookup in `publication.py:380-390` is a product defect for the product lane. The `release_mirror` key in "Accepted closeout remains candidate-first and non-self-approving" is left to `shared-quality-obligations` with the branch-role wording |
+| Unshipped documents, research, history | 26 rows and 15 pinned commits | 23 rows; 14 commits moved to reachable twins; research receipt claims re-dated, with custody digests cited where the bytes survive | distribution Homebrew status (true as stated); a dated historical table (MEF 264); `4dd2f442` is gone with no twin, so its description stays and the citation is marked missing                                                                                                                                                                         |
+| Skills                                 | 7                             | 7, with both package digests                                                                                                       | —                                                                                                                                                                                                                                                                                                                                                       |
+| CONTRIBUTING                           | 4                             | 4                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+| README                                 | 3                             | 3                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+| Glossary                               | 7                             | 7                                                                                                                                  | —                                                                                                                                                                                                                                                                                                                                                       |
+
+Findings outside these owners go to the route's Changes:
+
+- **`normative-layering`:**
+  - `rules/module-layout.md` still names the retired `python-size` gate;
+  - `authority.md` points at a missing North Star section;
+  - the retained entry in `docs/_meta/taxonomy.toml` is past its 2026-10-15 review;
+  - `docs/_meta/stable-paths.toml` has no reader;
+  - the proof-hosts spec still names parity, Claim admission and promotion targets;
+  - `ethos-change-lifecycle` was removed without a `[retired]` record in the activation file.
+- **`bounded-supply-and-state`:**
+  - `topology.toml` still admits `.cache/local-state/` and `.config/ethos/`;
+  - the supply image's uv `0.13.4` lags the locked `0.13.5`.
+- **`application-result-contract`:**
+  - the status schema diagnostic is labelled `target: "data"` when nothing is emitted;
+  - `governance_context` is optional on results.
+- **`knowledge-checks`:** the `skills` gate accepts an activation glob that matches no tracked file.
+- **`skill-workflows`:** Skill descriptions, `uv run ethos` portability, link portability and `--expect-head` in post-checks.
+- **`promote-by-identity` and `one-proof-per-change`:** the spec ranges they own, which this Change leaves untouched.
+
+`command-plane.md` keeps "explicitly human-authorized": that authorization is the maintainer's, which CONTRIBUTING now links to the PDC's bounded maintainer recovery.
 
 ## Risks / Trade-offs
 

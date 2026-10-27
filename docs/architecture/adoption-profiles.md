@@ -16,7 +16,8 @@ or inventing repository-type profiles.
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Repository Profile Contract](../governance/repository-profile-contract.md), and [Config Boundary Model](../governance/config-boundary-model.md).
 
 `ethos adopt` composes one ETHOS binding with native OpenSpec initialization.
-The sole ETHOS-owned declaration is:
+It writes one declaration; the repository paradigm also admits optional
+`release.toml`, `rules.toml` and `workspace.toml` beside it:
 
 ```text
 .ethos/profile.toml

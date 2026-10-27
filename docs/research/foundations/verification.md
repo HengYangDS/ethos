@@ -93,8 +93,9 @@ passes without removing source hashes, suppressing findings or excluding files.
 
 A September 13 local-time diagnostic scanned 489 Python files from the then-dirty
 `4dd2f442` worktree in 0.071 seconds with native scc 4.1.0 cognitive, unique-line
-and character analysis. This is a bounded runtime observation, not a benchmark or
-the official ELOC measure. Per-file cognitive leaders included Python reference
+and character analysis; that commit object is no longer present in the repository.
+This is a bounded runtime observation, not a benchmark or the official ELOC
+measure. Per-file cognitive leaders included Python reference
 observation, OpenSpec scope, prewrite, hook activation and proof CLI. Ranking alone
 does not establish a defect, duplicate behavior or safe deletion.
 
@@ -190,8 +191,11 @@ stop its dependent write in the same checked control flow. This attempt's
 missed refusal was preserved, rolled back under a new passing decision, and
 reapplied only after separate fresh admission; later tests do not authorize it
 retroactively. Receipts, source hashes, failed attempts and profile comparison
-remain under the existing `source-delivery/tool-depth-publication-reuse-*`
-evidence owner, with Git-native custody before mutable report replacement.
+were recorded on 2026-10-15 under `source-delivery/tool-depth-publication-reuse-*`.
+Non-authorizing Attestation
+`1d8d983ce9bd4a497e5a4f2b9670d3604d352f1d9d96d552b6927d0b172b2820` binds the
+complete original JSON that holds them as
+`custody:sha256:c35e34597598275a786137b5595619a36d2c9863a7dcbe338b4e8c515b076925`.
 
 #### First-Time Native Release Qualification
 
@@ -208,7 +212,11 @@ recovery and maintenance proof/Lease freshness. All previous behavior assertions
 remain. This is a measured computation-count reduction, not a paired latency
 claim or complete proof. No cache, waiver, new abstraction or longer timeout was
 added. Execution still validates signed tag identity, source, proof, policy and
-exact effects before CAS. Originals are `source-delivery/tool-depth-first-release-*`.
+exact effects before CAS. Originals were recorded on 2026-10-15 under
+`source-delivery/tool-depth-first-release-*`; non-authorizing Attestation
+`e0aebacd1c074d693e5ea8ec0e6b420490aacd637bf18f12254476df93cf6c37` binds the
+complete original JSON that holds them as
+`custody:sha256:0fc693b441f1ad4db8bda3dfebea78d13bfb2c4f9b18cfc6d9f570078dcc4211`.
 
 #### Interrupted Proof And Hermetic Test Inputs
 
@@ -387,7 +395,8 @@ Evidence remains in the existing comparison results: `ocr-native-config.*`,
 `ocr-native-model-test.*`, `ocr-semantic-model.*`, `ocr-astra-config.*`,
 `ocr-astra-semantic.*`, `ocr-astra-semantic-completion.*`, preservation receipts
 and `ocr-findings-reproduction.json`. Findings do not establish a repair, accepted
-runtime or adopter delivery; task 10.11 retains those obligations.
+runtime or adopter delivery; task 10.11 of the archived `quality-evidence-admission`
+Change, withdrawn by DR-0016, names those obligations.
 
 ### Stronger Complementary Mechanisms
 
@@ -454,7 +463,8 @@ Their exact contents and hashes are now in non-authorizing Attestation
 native query readback verifies both. Its bounded observation summary retains
 the source inventory digest and selected command receipts. This proves
 preservation and retrieval, not historical-proof currentness or deployed uptake.
-The existing feedback tasks retain actual-use and accepted delivery obligations.
+Tasks 13.2 and 13.3 of the archived `feedback-and-skill-closure` Change, withdrawn
+by DR-0016, name the actual-use and accepted delivery obligations.
 
 ## Sources
 

@@ -40,9 +40,9 @@ producer and preserve deletions when checking surviving native consumers.
 
 | Path family                                                                                                                                                        | Boundary                                                                                               | Generated output allowed? | Tracked?          |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------- | ----------------- |
-| `.config/ethos/`                                                                                                                                                   | Declarative config, policy, and adopter interface only.                                                | No                        | Yes               |
+| `.ethos/`                                                                                                                                                          | Tracked repository bindings only.                                                                      | No                        | Yes               |
 | `<git-common-dir>/ethos/`                                                                                                                                          | ETHOS leases, runtime artifacts, and transaction state shared by worktrees.                            | Yes                       | Outside checkout  |
-| `.cache/local-state/`                                                                                                                                              | Repository-native host-local state.                                                                    | Yes                       | No                |
+| `.cache/local-state/`                                                                                                                                              | Admitted prefix only; ETHOS writes no state here.                                                      | Yes                       | No                |
 | `build/runtime/tool-cache/`                                                                                                                                        | Tool runtime caches keyed by tool name.                                                                | Yes                       | No                |
 | `.venv/`                                                                                                                                                           | Repository-local Python environment selected by `uv.lock`.                                             | Yes                       | No                |
 | `build/runtime/work/`                                                                                                                                              | Provider emulator state and scratch working state.                                                     | Yes                       | No                |
@@ -137,7 +137,7 @@ happen to exist after a run. Provider CI projections, reusable owner scripts,
 package entrypoints, and tool configuration must route generated state before
 the command writes it:
 
-- `noxfile.py` and `tools/ci/python_test_gate.py` must call pytest with the explicit
+- `tools/ci/python_test_gate.py` must call pytest with the explicit
   `.config/checks/pytest/pytest.toml` owner, route pytest cache to
   `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
   `build/evidence/quality/tests/`, use an explicit scratch temp directory, and

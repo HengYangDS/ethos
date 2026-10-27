@@ -15,8 +15,9 @@ A gate is active only when its existing owner surfaces agree:
 3. The shared gate executor owns dependency scheduling and prerequisite outcomes.
    ETHOS uses Nox for its Python checks; adopters keep their native declared
    toolchain. Local CI selects that full closure, not a private session list or
-   a required Python orchestration layer. `tools/ci/scripts/` retains necessary
-   platform adapters.
+   a required Python orchestration layer. `tools/ci/toolchain/` retains the necessary
+   bootstrap adapters, and `.config/mise/config.toml` declares the bootstrap, check
+   and fix verbs.
 4. Hosted CI and hooks invoke Nox sessions, retained adapters, or ETHOS command surfaces; they do
    not restate policy inline.
 5. Tests or proof commands assert the contract so drift becomes visible.
@@ -92,8 +93,9 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
 Keep tool policy under its semantic configuration concern when native loading
 preserves direct, hook, CI and editor behavior. Root discovery files may contain
 native references and irreducible path bindings, never a second rule set.
-Ruff rules live in `.config/checks/ruff/ruff.toml`; root `ruff.toml` owns only
-inheritance and the repository-relative cache location. Pytest is invoked with
+Ruff rules and its repository-relative cache location live in
+`.config/checks/ruff/ruff.toml`; there is no root `ruff.toml`, and every consumer
+passes that path explicitly. Pytest is invoked with
 its explicit `.config/checks/pytest/pytest.toml` owner. Verify relative paths
 through each native discovery mode before claiming a configuration move safe.
 Update skill package digests whenever included guidance changes.

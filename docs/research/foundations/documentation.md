@@ -115,7 +115,7 @@ its required type field to every document.
 
 On September 20, 2026, isolated documents were passed to the installed public
 docs-registry report adapter, loading the real command tree and shared health
-owner. Source: 684823165b48c8d18ded89969fbfaeee15dd14f5.
+owner. Source: 2e07e1dfc5e923458d93c91159fce607262bbc42.
 Runtime: 12e1dcb17fae62c59976a4c8e17084732f60ccc9a585162b9fcc4c21c3aadd92.
 
 | Input                                                       | Observed | Required distinction                                     |
@@ -128,15 +128,18 @@ Runtime: 12e1dcb17fae62c59976a4c8e17084732f60ccc9a585162b9fcc4c21c3aadd92.
 | Canonical header with superseded visible status             | PASS     | Human and machine views cannot disagree.                 |
 | Required visible labels appear only inside a fenced example | PASS     | Literal examples are not actual page guidance.           |
 
-The inspected owner splits lines and flattens nested fields; visible-section
-checks search raw text. These mechanisms explain the sampled outcomes.
+The inspected owner split lines and flattened nested fields; visible-section
+checks searched raw text. These mechanisms explained the sampled outcomes.
 The samples exercise this report, not every gate or full-proof admission.
 They do not establish that a release bypass occurred.
 
-Exact samples and reports are in the existing ignored evidence location
+Exact samples and reports were recorded on 2026-09-20 in the ignored evidence location
 build/evidence/quality/commit-integrity/document-metadata-public-probes.json.
 SHA-256: b4845f4cac592e73845486a2c1f4a405b2ce505c44b22c089cbd6bccd09fa955.
-All owned fixtures were removed. Parser repair, migration and installed
+The commit-integrity lane's owner-only retirement custody, SHA-256
+`57cd4119488a846b3e5f5bc7ed4761cc9be95b48717f753b99bc4132d419bb3e`, retains
+those bytes. All owned fixtures were removed. Parser repair landed in `bef9d34c6`
+with regressions for the six defective cases; migration and installed
 requalification remain unproved.
 
 ## Dual-Reader Acceptance

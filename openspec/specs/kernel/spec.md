@@ -2,8 +2,9 @@
 
 ## Purpose
 
-ETHOS SHALL persist only Commitment and Attestation semantic entities and
-derive Facts and TransitionPlan.
+ETHOS SHALL persist only Attestation among its semantic roots, compile
+transient Commitment from official OpenSpec, and derive transient Facts and
+TransitionPlan.
 
 ## Requirements
 

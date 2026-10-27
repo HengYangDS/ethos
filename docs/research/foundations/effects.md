@@ -22,7 +22,7 @@ See also: [Research Overview](../modern-engineering-foundations.md),
 
 ### Executed Native Observation Comparison
 
-September 18 source `7711c673648426ce8aace0e267340e02cb593591` changes the next
+September 18 source `eef582f11d0dcffd333eec62f66a988cf3123ae3` changes the next
 replacement priority. One closeout case spends approximately 4.36 seconds on
 OpenSpec starts and 3.43 seconds on eight native ref updates including hooks;
 forty-three profile-object reads consume approximately 0.21 seconds. Counts
@@ -35,21 +35,23 @@ Reopening a packed object reader for every query can regress. Retain native
 effects, hooks, signatures and CAS; no production object-library choice follows
 from this microbenchmark. Full reftable behavior and Windows remain unqualified.
 
-The locked OpenSpec 1.13.0 package exports its Commander program. An awaited
-sequential batch reuses that official parser and command implementation, rather
-than constructing a parallel API. Eight reads measured approximately 0.94 seconds
-individually and 0.136 seconds batched. Output differs only in native validation
-duration fields; native failure exits preserve output and do not execute the
-tail. The bounded adapter must verify ordered frames, failure/currentness,
-read-only scope, installed-package inclusion and process cleanup before adoption.
+The then-locked OpenSpec 1.13.0 package exported its Commander program; the lock
+is now 1.15.0 (`package.json`). An awaited sequential batch reuses that official
+parser and command implementation, rather than constructing a parallel API. Eight
+reads measured approximately 0.94 seconds individually and 0.136 seconds batched.
+Output differs only in native validation duration fields; native failure exits
+preserve output and do not execute the tail. The bounded adapter must verify
+ordered frames, failure/currentness, read-only scope, installed-package inclusion
+and process cleanup before adoption.
 
 The fixed upstream references are OpenSpec commit
 `9d4e5974e5c0d9a09b9c6c1e1eb0975e80ec4461`, its exported
 `src/cli/index.ts`, Commander 14.0.3 repeated `parseAsync` state restoration, and
-Dulwich tag `dulwich-1.2.15`. Raw commands, source metadata and comparisons are
-in the existing ignored `build/evidence/quality/commit-integrity/` root under
-`throughput-foundation-` and `throughput-official-program-batch-feasibility`.
-These experiments qualify a narrow mechanism, not full-product superiority.
+Dulwich tag `dulwich-1.2.15`. Raw commands, source metadata and comparisons were
+recorded on 2026-09-18 in the ignored `build/evidence/quality/commit-integrity/`
+root under `throughput-foundation-` and `throughput-official-program-batch-feasibility`;
+they are no longer retained. These experiments qualify a narrow mechanism, not
+full-product superiority.
 
 [Git's native configured hooks][git-hook] and [configuration contract][git-hook-config]
 provide composition without another script dispatcher. The local isolated probe
@@ -86,7 +88,7 @@ remain distinguishable whether implemented directly or through a framework.
 
 ### Native Windows Security Metadata
 
-On September 22, exact source `d5008a29e` failed Windows 3.12 and 3.14
+On September 22, exact source `3066334f0` failed Windows 3.12 and 3.14
 package conformance at
 `git_object_trust_anchor_observation_unavailable:timeout`. Completed GitHub
 jobs `106740192755` and `106740192850` locate the failure in shell-backed ACL
@@ -110,9 +112,9 @@ does not grant authority to change it. PowerShell remains with any independently
 necessary process-observation owner, not as an ACL fallback.
 
 This direction is not an implemented or qualified Windows repair. Complete native
-safe/unsafe/error cases and the installed publication path in the existing
-proof-throughput conformance work. Local macOS proof and source inspection do not
-establish Windows behavior.
+safe/unsafe/error cases and the installed publication path; `proof-throughput`,
+which held that conformance work, was archived on 2026-10-17, and no Change owns
+it yet. Local macOS proof and source inspection do not establish Windows behavior.
 
 ## Sources
 

@@ -3,8 +3,7 @@
 ## Purpose
 
 ETHOS SHALL govern repository operation lifecycles: status, plan, prove, land,
-publish, intake, campaign, quality, evidence, release readiness, and
-evolution.
+publish, quality, evidence, release readiness, and evolution.
 
 ## Requirements
 

@@ -117,7 +117,7 @@ cites it. Completed incidents remain regression boundaries, not a queue to repla
   and outcome checks, without retries inside proof or relaxed deadlines.
 - Numeric quality limits belong to
   [aggregate ownership](../../.config/checks/format-selection/policy.toml),
-  [file policy](../../.ethos/rules.toml) and
+  the repository paradigm's [per-file ceilings](../../src/ethos/contracts/paradigm/paradigm.toml) and
   [coverage policy](../../.config/checks/coverage/policy.toml).
   Superseded goal snapshots cannot override them. Tests assert required behavior,
   not framework absence or a universal uv/virtual-environment layout.
@@ -211,7 +211,9 @@ through existing consumers, not another rule declaration in this plan.
    at their existing owners. Configuration deduplication alone cannot close
    those behavioral gaps. The current Python reference observer still confuses
    spelling with binding and file-global constants with call-site values;
-   [the public-gate repair](../../openspec/changes/archive/2026-10-24-quality-evidence-admission/tasks.md#10-native-quality-rules-and-early-failure)
+   the public-gate repair (task 10.11 in the archived
+   [`quality-evidence-admission` tasks](../../openspec/changes/archive/2026-10-24-quality-evidence-admission/tasks.md),
+   withdrawn by DR-0016; the route's `reference-observation-repair` Change restores it)
    must close alias, shadow, scope, program-point and relevant dynamic UNKNOWN
    without a second parser or repository-wide permanent block. The same
    reference owner must also consume trusted native profile and release
@@ -317,8 +319,10 @@ passes; its own official Change must close the stated exit boundary.
    docstrings, all meaningful tracked carrier formats, non-compensating
    per-owner budgets, modern Python within the supported floor, and native
    configuration placement. Verify that architecture and brand projections are
-   faithful, accessible, navigable `信、达、雅` views rather than parallel
-   ontology. Exit only after whole-repository ownership and dependency review,
+   `信、达、雅` views as the
+   [Product Design Contract](../governance/product-design-contract.md#evidence-planes-and-completion-claims)
+   defines them, rather than parallel ontology. Exit only after whole-repository
+   ownership and dependency review,
    executable import/resource/link checks, behavior preservation, and projection
    readback find no missing, duplicate, orphan, superseded-active, conflicting,
    or misplaced owner. A clean file-count report is not semantic verification.
@@ -366,7 +370,10 @@ parallel, but each shared effect has one admitted owner and accepted outcome;
 clean up before the next overlapping transition.
 At the start of every batch, fresh facts may prove some work already satisfied;
 that evidence closes the item without reimplementation. Reordering requires a
-proved prerequisite, not convenience.
+proved prerequisite, not convenience. A measured iteration cost that every later
+Change pays may be removed ahead of the batches, and a reuse mechanism with
+declared soundness conditions may precede stage P4, while P5 keeps its
+measurement.
 
 Actual-use feedback is a separate acceptance plane: bind the environment,
 baseline and observation window, then return a falsifying result to its source

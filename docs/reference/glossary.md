@@ -34,9 +34,9 @@ change through the shared evidence-bound transition loop.
 
 ## Authority
 
-The authority used for product decisions: user instruction, repository truth,
-accepted decisions, authority order, and truth boundaries. North Star language
-is derived from this source; it is not the source.
+The inputs of product judgment: current user instruction, repository truth, the
+exact official OpenSpec projection, fresh Facts, applicable policy, and valid
+Attestations. No reader-facing summary overrides them.
 
 ## Commitment
 
@@ -68,12 +68,14 @@ evidence set, or release target.
 
 ## Change
 
-The governed movement from one repository state to another, such as plan to
-prove, Work Lane to candidate, candidate to accepted root, or release readiness.
+An official OpenSpec Change: the sole tracked carrier of intent, design, specs,
+task progress, and archive in a mutation-capable repository. ETHOS compiles its
+exact Git-tree projection into a transient Commitment; paths and Git coordinates
+stay fresh Facts, and related Changes are query views, not stored relations.
 
 ## Evidence
 
-Digest-bound proof material that supports Attestation verdicts and lifecycle decisions.
+Digest-bound material carried by an Attestation and bound to its verdict.
 
 ## Model Promotion
 
@@ -96,8 +98,8 @@ state is `lane_ref`, `holder_ref`, `generation`, and `expires_at`.
 
 ## Proposal Ref
 
-A governed remote review-ref projection of a proved object, never a local
-authoring lane.
+A `proposal/*` ref that projects a trusted object for review; review needs no
+completed proof, and the ref never becomes an authoring lane.
 
 ## Exact CAS
 
@@ -114,9 +116,15 @@ A repo-authored or host-local view that is not repository truth by itself.
 
 ## Required Gap
 
-A blocking missing condition that prevents promotion.
+A missing, failed, or unverifiable required condition listed in `required_gaps`.
+A result that carries one cannot pass, and only `pass` authorizes an effect.
 
-## Proof Lattice
+## Continuation
 
-The state model that separates planned readiness from executed diagnostics and
-trust-bearing proven evidence.
+The pure, non-persistent projection of a schema-version-`2` result: `await-user`
+when `user_decision_required` is true, otherwise `blocked` for a non-passing
+verdict, `continue` when a passing result names its one `next_action`, and `done`
+when it names none. `done` ends that observation, not the repository, delivery, or
+unrelated work. It is recomputed, never a second lifecycle state; the
+[Product Design Contract](../governance/product-design-contract.md#openspec-acceptance-and-closeout)
+owns it.

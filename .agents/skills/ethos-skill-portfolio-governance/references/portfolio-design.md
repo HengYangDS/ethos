@@ -7,8 +7,8 @@ truth center.
 
 - One portfolio, few skills: strengthen an existing subject owner before adding
   another skill.
-- MECE subjects: lifecycle, repository governance, skill portfolio, quality
-  gates, and adoption profiles have distinct primary reasons to change.
+- MECE subjects: repository governance, skill portfolio, quality gates, and
+  adoption profiles have distinct primary reasons to change.
 - SSOT: activation routes, package manifests, and SKILL.md front matter agree;
   command JSON and repository files remain truth.
 - DRY: put repeated fragile checks in owner scripts and longer judgement

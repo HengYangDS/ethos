@@ -63,7 +63,7 @@ outside the Python budget; total maintenance surface remains visible.
 ## Installed Product Comparison
 
 September 21, 2026, Asia/Shanghai: the existing accepted package at source
-abc5ab1541834032cd27a79b18d89f9a49f49266 executes outside the checkout.
+88186616714567768561e5447993e4ab5c999c04 executes outside the checkout.
 The installed-package probe resolved ETHOS and bundled OpenSpec from immutable
 production supply, not the source tree. This establishes source-independent
 execution, not host distribution or a complete Agent journey.
@@ -79,16 +79,18 @@ not evidence that freezing cannot work.
 The experiment used foreign site-packages with the Homebrew builder and emitted
 a deprecation warning. Its dependency collection was deliberately broad; optional
 module warnings, native platforms, signing, relocation and full client lifecycle
-remain unqualified. Evidence: product-packaging-lifecycle-probe.json,
-product-source-independence-observation.json and pyinstaller-product-build-bound.json
-under the existing build/evidence/quality/commit-integrity execution output.
+remain unqualified. Evidence was recorded on 2026-09-21 as
+product-packaging-lifecycle-probe.json, product-source-independence-observation.json
+and pyinstaller-product-build-bound.json under build/evidence/quality/commit-integrity;
+it is no longer retained.
 
 Homebrew installation is a user-required delivery channel. Native Python formula
 support is an alternative to freezing, while uv tool environments separate a
 Python tool from the project environment. Compare both with a portable
 interpreter/wheel image on the same full lifecycle; none wins by naming alone.
-The existing installed-product Change owns the selection and implementation,
-not this research note. Do not confuse internal npm supply for OpenSpec with
+The selection and implementation belonged to task 3.4 of the installed-product
+Change, not this research note; DR-0016 withdrew that task, and the Change was
+archived on 2026-10-24. Do not confuse internal npm supply for OpenSpec with
 user-facing ETHOS distribution.
 
 Official references: [Homebrew Python formula support][brew-python],
@@ -107,22 +109,25 @@ Boolean was coerced in flexible mode and rejected before execution in strict
 mode. Valid calls retained structured output in both modes.
 
 This refutes the inference that the official SDK MCPServer's extra-argument
-behavior also describes standalone FastMCP. The installed-product Change selects
-FastMCP strict mode instead of manual low-level callback assembly. The comparison
-does not qualify subprocess transport, cancellation, effect recovery, package
-delivery or platforms. Its 66-package isolated environment is an observed supply
-closure, not proof that every package is necessary for ETHOS deployment.
+behavior also describes standalone FastMCP. The installed-product Change, archived
+on 2026-10-24, selected FastMCP strict mode instead of manual low-level callback
+assembly. The comparison does not qualify subprocess transport, cancellation,
+effect recovery, package delivery or platforms. Its 66-package isolated environment
+is an observed supply closure, not proof that every package is necessary for ETHOS
+deployment.
 
-Evidence remains in the existing build/evidence/quality/commit-integrity output:
+Evidence was recorded on 2026-09-21 in build/evidence/quality/commit-integrity:
 fastmcp-contract-probe.log and the owned script under the recorded `mcp-sdk-scratch`
-root. Official [FastMCP tool validation][fastmcp-tools] documents strict mode;
-the measured behavior, not the documentation alone, supports this choice.
+root. Neither is retained now. Official [FastMCP tool validation][fastmcp-tools]
+documents strict mode; the measured behavior, not the documentation alone, supports
+this choice.
 
 ## MCP Adapter Implementation Observations
 
-The owned Work Lane committed FastMCP supply as e9bf7d27d and the command
-declaration/consumer correction as 2bfca40b8. The accepted checkout and installed
-runtime remain unchanged. Candidate implementation is not installed acceptance.
+The owned Work Lane committed FastMCP supply as d5e4f247e and the command
+declaration/consumer correction as 7de9b980f. Both are now on `dev`; the accepted
+checkout and installed runtime were unchanged on 2026-09-21. Candidate
+implementation is not installed acceptance.
 
 The declaration defect was reproduced through exact prewrite and then covered
 by eight positive/negative cases. Declaration alone no longer counts as a
@@ -144,19 +149,21 @@ This does not prove hard interruption of blocked filesystem calls or recovery
 from every process-kill window.
 
 Existing test fixtures were consolidated by semantic responsibility, preserving
-distinct cases and assertions rather than excluding obligations. The latest
-measurement is 46,661 product and 49,972 test ELOC; both limits are 50,000.
+distinct cases and assertions rather than excluding obligations. On 2026-09-21
+the measurement was 46,661 product and 49,972 test ELOC against 50,000 limits;
+the ceilings are now 70,000 and 90,000.
 Native Ruff, dependencies, import boundaries, schemas and focused typing passed.
 The direct module-layout provider passed; its host-proof wrapper rejected an
 unfrozen source/index pair, so it was not reported as executed proof.
 
-Raw outputs remain under the existing commit-integrity evidence root:
-mcp-command-owner-tests.log, mcp-command-relation-red.log,
+Raw outputs were recorded on 2026-09-21 under the commit-integrity evidence root
+and are no longer retained: mcp-command-owner-tests.log, mcp-command-relation-red.log,
 mcp-command-relation-green.log, mcp-stdio-integration.log,
 mcp-deadline-red.log, mcp-deadline-green.log, mcp-final-focused.log and
-mcp-native-static-gates.log. The existing installed-product tasks own remaining
-work. Full proof, accepted integration, Homebrew and platform qualification
-remain separate and unproved.
+mcp-native-static-gates.log. Tasks 2.3, 2.4, 3.5 and 3.6 of the archived
+installed-product Change, withdrawn by DR-0016, name the remaining MCP, Homebrew
+and platform work. On 2026-09-21, full proof, accepted integration, Homebrew and
+platform qualification remained separate and unproved.
 
 ## Sources
 

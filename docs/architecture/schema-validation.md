@@ -32,12 +32,11 @@ branches. Work Lane bindings project the four-field Lease relation and a
 non-Work-Lane bindings use `none`. This keeps invalid persisted state observable
 without mirroring Git or OpenSpec inside Lease state.
 
-`ethos status --json` and `ethos lane status --json` validate the live
-workspace-status payload before emitting it. The validation verdict is reported
-as a `schema_validation` diagnostic that targets `data`; the `data` object stays
-the raw workspace-status payload so existing consumers can continue to read
+`ethos status --json` and `ethos lane status --json` validate the observed
+workspace-status payload and report a `schema_validation` diagnostic. Only
+`ethos lane status --json` emits that payload as `data`, so its consumers read
 `data.role_policy`, `data.candidate`, `data.branch_bindings`, and
-`data.closeout_support` directly.
+`data.closeout_support` directly; `ethos status --json` emits a compact summary.
 
 Reference admission has no universal schema or coupling registry. Dependencies
 are owned by package manifests, commands by the Cyclopts command tree, tools by
@@ -75,13 +74,10 @@ Terminal semantic contracts are explicit:
 Accepted OpenSpec capability identity and requirements live in each capability's
 `spec.md`; schema validation does not maintain a parallel capability model.
 
-`ethos prove --gate schemas --json` validates the schemas and sample contract
-instances.
-
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
-`ethos prove --gate schemas --json` validates both schemas and representative
-instances for docs registry, gate registry, workspace status, and skill
-contracts. Product-root runs also validate the live
+`ethos prove --gate schemas --json` validates the schemas against the live
+docs-registry report, gate registry, and skill contracts; the status commands
+validate workspace-status payloads. Product-root runs also validate the live
 `.agents/skills/activation.toml`, the normalized live skill registry, and every
 live `.agents/skills/*/package.toml` against the skill schemas.

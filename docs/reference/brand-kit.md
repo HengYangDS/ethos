@@ -94,8 +94,8 @@ claim must be bound to evidence, not a performance metric or status badge.
 | Muted    | #687771 | Secondary explanatory text.         |
 
 Do not introduce gradients, neon glows, extra accent colors, badges, growth
-metrics, or decorative East-Asian motifs. 问道 is the root constraint on
-judgment, not a visual feature taxonomy.
+metrics, or decorative East-Asian motifs. The PDC's Root Constraint governs
+judgment; 问道 is only its visual label, not a visual feature taxonomy.
 
 ## Hosted-Forge Boundary
 

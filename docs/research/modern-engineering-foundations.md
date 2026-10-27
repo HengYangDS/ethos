@@ -119,7 +119,7 @@ replace the whole product or postpone delivery behind indefinite experiments.
 ### Measured Direction — September 20, 2026
 
 The [execution study](foundations/execution.md) binds unchanged ETHOS tests to
-source `81848f2fe50ef5ebea8f8e1dee75854a7be45c45`, fixed dependencies and explicit
+source `06bf5cc44405bb6572e3b33d1e798538bfe1d543`, fixed dependencies and explicit
 resources. It records raw output, supply preparation, invalidation and cleanup.
 
 | Executed scope                                  | Existing pytest median | Pants warm median | Finding                                                                                                    |
@@ -191,14 +191,15 @@ unchanged inputs. Opposite pair directions do not establish a stable benefit;
 the shortcut and its experiment-only identity cases were withdrawn without
 altering preceding admitted work. Preserve the failed hypothesis, not its code.
 
-The broader `substitute` copy-on-change candidate retains unchanged structural
-channels after resolving every current dependency. Seven RED cases now pass;
+The broader `substitute` copy-on-change candidate retained unchanged structural
+channels after resolving every current dependency. Seven RED cases passed;
 180 selected cases and 435 additional existing semantic/public-observation cases
-pass without repeating the first selection. Six alternating observations preserve
+passed without repeating the first selection. Six alternating observations preserved
 complete results and source hashes: median 11.590 to 8.097 seconds. Calls to
-`substitute` remain 403,025, while `_replace` calls fall from 1,267,569 to 880,724.
-Retain the candidate for broader exact-source qualification, not as an installed
-or full-proof performance claim. The workload still has zero concrete requests.
+`substitute` remained 403,025, while `_replace` calls fell from 1,267,569 to 880,724.
+The candidate, never an installed or full-proof performance claim, was withdrawn
+with the call-time engine on 2026-10-12 (`b18465bb0`). Its workload had zero
+concrete requests.
 
 Repeated transitive summary instantiation and effect interpretation remain the
 larger opportunity. Compare demand/delta worklists and context-complete reuse
@@ -248,28 +249,33 @@ build once from signed source with existing supply by reference, and render repo
 from the same attempt. Retain failed receipts and retire completed owned scratch.
 Raw comparison and maintenance receipts are in the existing bound recovery scope,
 `semantic-demand-closure-20261009/{identity-sharing,substitution-copy-on-change,candidate-native-hook,commit-range-native-batch}-*`;
-the existing `proof-throughput` tasks retain implementation and acceptance state.
+`proof-throughput` task 13.4.2 held their implementation and acceptance state. It
+moved to `publication-history-repair`, which was archived with that task withdrawn
+by DR-0016.
 
 The original September 12 source review used official documentation and read-only
 GitHub APIs; its receipts remain in the existing ignored evidence home under
 `build/evidence/quality/evidence-retirement/foundations-*.json`. These historical
-observations are retained for provenance, not current implementation status:
+observations are retained for provenance, not current implementation status; the
+authoring commit `4dd2f442` and its tree are no longer present in the repository:
 
 | Historical observation           | Evidence and original limitation                                                                                                                                                                                                                                                         |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authoring and accepted baselines | Authoring `4dd2f442eb6cae9477d8599ca990d708820d0a8c`, tree `d03c47380c7e9612e1e6b8df7069a754c5588b6e`; accepted `d9a936edb49247d31e6dd4356ad00fd7d8c889cf`, tree `c1d155b35f0efe43a624d5d6684a0ddedf69fb5f`. Dirty handoff work and an unrelated browser output were not research-owned. |
+| Authoring and accepted baselines | Authoring `4dd2f442eb6cae9477d8599ca990d708820d0a8c`, tree `d03c47380c7e9612e1e6b8df7069a754c5588b6e`; accepted `f99627cdcfe0a4e6dc8c4ee5b00aad7b79c59277`, tree `c1d155b35f0efe43a624d5d6684a0ddedf69fb5f`. Dirty handoff work and an unrelated browser output were not research-owned. |
 | Available tools                  | mise 2026.9.5, Pixi 0.80.0, Dagger 0.21.9 and Git 2.55.0 answered version queries; that did not prove integration.                                                                                                                                                                       |
 | Native reference hook            | A 0.331-second isolated valid/rejected-update probe preserved old refs and config; its scratch was removed. Not a security proof or incumbent migration acceptance.                                                                                                                      |
 | Scheduler and process path       | Dependency-ready scheduling and work stealing already existed. The then-observed timeout gap was not proof of the historical hang cause; it is not a claim about today's process owner.                                                                                                  |
 | Budget change                    | Product/test 41,407/43,172 were below independent 50,000 limits; 74 budget tests passed in 3.15 seconds. This was focused evidence, not delivery.                                                                                                                                        |
 | Framework comparison             | No common benchmark existed in that original review. September 20 execution evidence supersedes that limitation only for its named scopes.                                                                                                                                               |
 
-September 20 receipts live under `build/evidence/quality/commit-integrity/`:
+September 20 receipts were recorded under `build/evidence/quality/commit-integrity/`:
 `foundation-first-principles-source-check.json`, the execution study's named
 Pants/Dagger records, and `foundation-source-review.json` /
-`foundation-resolver-review.json`. They retain successful and failed retrievals,
-raw hashes, native help and execution limits. Upstream snapshots and popularity
-are not stable-release or comparative-performance evidence.
+`foundation-resolver-review.json`. They held successful and failed retrievals,
+raw hashes, native help and execution limits; apart from the Pants reproduction
+inputs that the execution study cites from custody, they are no longer retained.
+Upstream snapshots and popularity are not stable-release or comparative-performance
+evidence.
 
 ### Primary Sources
 

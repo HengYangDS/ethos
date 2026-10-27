@@ -17,11 +17,14 @@ git config user.name "<your-name-or-team>"
 git config user.email "<your-approved-email>"
 git config commit.gpgsign true
 git config gpg.format ssh
+git config user.signingkey "<ssh-public-key-path>"
+git config gpg.ssh.allowedSignersFile "<absolute-allowed-signers-path>"
 ```
 
 SSH signing is required for every commit in a governed repository. ETHOS verifies
 the resulting Git object against the configured external trust anchor; it does
-not turn author metadata into mutation authority.
+not turn author metadata into mutation authority. ETHOS runs Git without global
+configuration, so keep the signer and the trust anchor in local configuration.
 
 ## Commit Messages
 
@@ -64,17 +67,17 @@ Use scoped checks while editing and the standard proof at acceptance. A small
 change does not need a full proof after every edit. Choose the path by its
 effect and affected consumers, not only its line count.
 
-| Path                 | Use                                                                                 | Completion boundary                                                         |
-| -------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Standard             | Integration, release, governance changes, or the current admission's required floor | Exact-source proof and a separately authorized effect                       |
-| Routine fast         | Focused repairs, documentation edits, and development feedback                      | Selected tests and gates; omitted acceptance obligations remain open        |
-| Authorized emergency | A human-approved temporary bypass of a specific blocked operation                   | Recorded local effect, preserved recovery and explicit pending verification |
+| Path                   | Use                                                                                                                                                        | Completion boundary                                                                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Standard               | Integration, release, governance changes, or the current admission's required floor                                                                        | Exact-source proof and a separately authorized effect                                                                                                               |
+| Routine fast           | Focused repairs, documentation edits, and development feedback                                                                                             | Selected tests and gates; omitted acceptance obligations remain open                                                                                                |
+| Maintainer break-glass | Recovery when governance itself is inconsistent; see [bounded maintainer recovery](docs/governance/product-design-contract.md#bounded-maintainer-recovery) | Exact scope, explicit reason, the maintainer's non-interactive authority, a receipt, post-effect observation and re-entry; an agent never authorizes its own bypass |
 
 The [verification command reference](docs/reference/command-plane.md#standard-and-fast-verification)
 owns commands, guarantees, escalation and temporary hook bypass. The routine
 fast path is not an emergency exception; neither path silently lowers the
-repository's acceptance floor. Automatic risk-selected small-change acceptance
-is not yet generally available.
+repository's acceptance floor. There is no automatic risk-selected small-change
+acceptance or `--fast` option.
 
 ### Shared Source Formatting
 
@@ -124,10 +127,14 @@ Escalate to standard verification when ownership or impact is unresolved, a
 shared contract changes, or current admission requires a broader floor. A
 non-host `--gate` selection cannot accept an omitted required gate.
 
-### Authorized Emergency Operations
+### Maintainer Break-Glass
 
-Temporary hook bypass is available through Git's command-scoped configuration,
-not a permanent disable or a new ETHOS wrapper. Use it only for the exact
-human-authorized operation, with recovery retained and unproved obligations
-recorded in the existing Change. Keep signing enabled and verify the actual
-effect before retrying. See the [bypass procedure](docs/reference/command-plane.md#authorized-temporary-hook-bypass).
+An emergency operation is a maintainer break-glass transition under
+[bounded maintainer recovery](docs/governance/product-design-contract.md#bounded-maintainer-recovery):
+an exact object, path or ref scope, current preconditions, an explicit reason, the
+maintainer's non-interactive authority, a deterministic receipt, and mandatory
+post-effect observation and re-entry. An agent never authorizes its own bypass. A
+temporary hook bypass uses Git's command-scoped configuration, not a permanent
+disable or a new ETHOS wrapper. Keep signing enabled, record unproved obligations
+in the existing Change, and follow the
+[bypass procedure](docs/reference/command-plane.md#authorized-temporary-hook-bypass).

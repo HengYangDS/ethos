@@ -48,10 +48,10 @@ GitHub observations are distinct proof planes.
 > 万象昭幽，度协畛域，枢得环中；
 > 物遂其性，化育无穷，是谓玄德。
 
-This constrains judgment: preserve meaning with the smallest model, distinguish
-only what changes action, keep authority separate from views, and retire a
-mechanism when its obligation disappears. [Engineering Axioms](../../system/axioms.md)
-derive checkable constraints from this section; they do not own product meaning.
+The verses are authored design analogies, not definitions of Tao or classical proof of any mechanism.
+They constrain judgment: preserve meaning with the smallest model, distinguish only what changes
+action, keep authority separate from views, and retire a mechanism when its obligation disappears.
+[Engineering Axioms](../../system/axioms.md) derive checkable constraints from this section; they do not own product meaning.
 
 ## Construction And Evolution Discipline
 
@@ -519,10 +519,10 @@ default heavyweight blocker for every Change. When required, it uses an
 independent verifier and preserves that plane explicitly; when not required,
 its absence cannot invalidate a complete claim on another declared plane.
 
-Public prose, examples, diagrams, architecture projections, and brand assets
-are views of the same source meaning. They must remain faithful, legible,
-accessible, navigable, and restrained in accordance with `信、达、雅`; visual
-appeal never permits a second ontology or an unverified completion claim.
+Public prose, examples, diagrams, architecture projections, and brand assets are views of the same
+source meaning and answer to `信、达、雅`: faithful, legible, accessible, navigable, and elegant.
+Elegance (雅) includes aesthetic judgment, taste, and artistic and cultural refinement, assessed in the
+rendered whole; restraint and alignment support it but do not define it, and visual appeal never permits a second ontology or an unverified completion claim.
 
 ## Feedback Intent Preservation
 

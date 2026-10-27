@@ -55,7 +55,10 @@ A warm locked-install preview took 0.016 seconds and installed nothing.
 A later empty-cache isolated install took 7.359 seconds; its warm repeat took
 0.017 seconds, installed nothing, and preserved the lock bytes. Both tools ran
 successfully from that supply and the owned temporary installation was removed.
-`build/evidence/quality/commit-integrity/mise-cold-warm.json` contains the result.
+The result was recorded on 2026-09-20 in
+`build/evidence/quality/commit-integrity/mise-cold-warm.json`; the commit-integrity
+lane's owner-only retirement custody, SHA-256
+`57cd4119488a846b3e5f5bc7ed4761cc9be95b48717f753b99bc4132d419bb3e`, retains it.
 
 The bounded implementation uses the native resolver with exact supplied config
 and lock bytes in an owned temporary directory. Safe mode disables project hooks;
@@ -68,12 +71,15 @@ A deliberate altered archive checksum still allowed `mise which` to return an
 already installed binary. This is not archive verification or an installed-byte
 integrity proof. Keep trusted supply selection and execution identity independent;
 do not replace stronger installed-runtime verification with a version string.
-The evidence in `build/evidence/quality/commit-integrity/mise-lock-repro.json`
-and the `mise-*-red.log` / `mise-*-green.log` files is local candidate evidence,
-not hosted qualification, complete supply migration or product installation.
+The evidence was recorded on 2026-09-20 in
+`build/evidence/quality/commit-integrity/mise-lock-repro.json`, which the same
+custody retains, and in `mise-*-red.log` / `mise-*-green.log` files, which are no
+longer retained. It is local candidate evidence, not hosted qualification,
+complete supply migration or product installation.
 
 Native retained-download execution is now qualified on the local candidate for
-SCC, gitleaks and Syft. `mise-native-real-activation.json` records real cold
+SCC, gitleaks and Syft. `mise-native-real-activation.json`, a 2026-09-20 receipt
+that is no longer retained, recorded real cold
 provisioning followed by 0.052/0.166/0.191-second verified warm reuse, unchanged
 executable identity and complete isolated-root cleanup. The existing materializer
 delegates download/install to native mise in temporary storage and keeps only
@@ -101,7 +107,7 @@ Linux/Windows bootstrap, hosted CI or installed ETHOS product completion.
 
 ### Generation Is Supply Work, Not A Pure Read
 
-On September 20, the exact `920eb0179bdd36903590da895beee0e5dc6394eb`
+On September 20, the exact `4095d90be495a7ceb6815246c685f1b8fa7264f2`
 proof failed four CI-projection cases at a 30-second native generation deadline.
 A bounded debug replay took 1.236 seconds and observed two HTTP requests: the
 versioned installer and its Minisign signature. The [upstream generator][mise-generator]
@@ -125,9 +131,10 @@ temporary copy of validated bytes. Joint lock/material edits remain reviewed
 supply changes, not independent upstream verification. The trust boundary, measured consumers and outstanding delivery are decided
 in "Authenticated Bootstrap Supply And Offline Checking" of the
 `proof-throughput` design at source `7b457b27e33ad9846d15394db149d4cb7133821f`.
-The existing `mise-generation-baseline.json`,
+The `mise-generation-baseline.json`,
 `mise-offline-cold-warm-concurrent.json` and
-`package-environment-full-proof.json` receipts retain the execution evidence.
+`package-environment-full-proof.json` receipts recorded the execution evidence on
+2026-09-20; they are no longer retained.
 
 ## Sources
 

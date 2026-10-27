@@ -82,8 +82,9 @@ Use one discovery path, then branch by audience.
 
 - Humans start from this README, then the [documentation root](docs/README.md) and
   [quickstart](docs/guides/quickstart.md).
-- Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
-  then run `ethos status --json` before planning mutation.
+- Agents start from [AGENTS.md](AGENTS.md), run `ethos status --json` in the target
+  worktree, then load only the rule or skill that result selects before planning
+  mutation.
 - Both treat `ethos status` as a reader view: it makes role, capability, foreign
   Work Lanes, unbound Work Lane refs, gaps, and the current continuation visible
   without minting truth.
@@ -139,9 +140,13 @@ repositories apply to ETHOS product changes.
 
 ## Release Readiness
 
-GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
-`CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab templates. Use
-`ethos prove --full --execute --json` and `ethos publish --json` before publishing.
+`.ethos/release.toml` declares two publication peers: `gitlab` for organization
+collaboration (`.gitlab-ci.yml` and the `.gitlab/` templates) and `github` for public
+distribution (`.github/workflows/ci.yml` and the `.github/` templates). `LICENSE`,
+`CONTRIBUTING.md` and `CHANGELOG.md` serve both. Before publishing, run
+`ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json`, then
+`ethos publish --json`; [release governance](docs/governance/release-governance.md#release-surfaces-and-evidence)
+defines peer selection with `--peer <id>`.
 
 ## Development
 

@@ -207,8 +207,9 @@ exercise. Quality follows fidelity, intelligibility and elegance, in that order.
 - Intelligibility: organize around reader questions, explain prerequisites and
   exceptions, and make current meaning discoverable through progressive detail.
   Human reading and agent retrieval must reach consistent supported conclusions.
-- Elegance: use precise terminology, cohesive structure and restrained expression.
-  Remove redundancy and incidental complexity without sacrificing necessary
+- Elegance: `雅` as the [Product Design Contract](product-design-contract.md#evidence-planes-and-completion-claims)
+  defines it, judged in the rendered whole. Precise terminology, cohesive structure and restrained
+  expression support it; remove redundancy and incidental complexity without sacrificing necessary
   meaning. Shortness, symmetry and metadata volume are not quality goals.
 
 ## Human And Agent Reading Contract
@@ -296,8 +297,10 @@ syntax without executing it; ambiguous inline execution is refused rather than
 reported as proved absent. Mechanical validation does not decide whether a
 choice is sound or worth preserving.
 
-Its directory README navigates records but does not become a second decision
-register. Adopters need not copy ETHOS's directory shape; their decision records
+Its directory README navigates records and lists every number in order: a number
+without a current record keeps one line with its status, date, successor and Git
+origin. It does not become a second decision register. Adopters need not copy
+ETHOS's directory shape; their decision records
 use this same contract within the selected documentation root. Non-decision roles
 retain the common metadata floor without DR-specific fields or sections.
 

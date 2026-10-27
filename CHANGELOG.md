@@ -25,6 +25,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Accepted specs, unshipped documents, research, history, Skills, CONTRIBUTING, README and the
   glossary no longer describe removed behavior or cite deleted files. Pinned commits that a history
   repair rewrote now cite their reachable twins.
+- The Work Lane coordination requirements of the repository-governance specification describe the
+  current Lease, handoff, refresh, retirement and publication behavior: retirement consumes an exact
+  reviewed receipt rather than a preservation package, and handoffs record a package and effect
+  Attestation rather than Chronicle.
 
 ### Fixed
 

@@ -7,8 +7,9 @@
 - runtime generation reclamation no longer defers when another process deletes a path that a
   running command names while reclamation observes it, so a full proof no longer fails while
   removing nothing;
-- the decisions index lists every decision number, and the product design contract, the Docs
-  Registry and the glossary that the wheel ships are current.
+- the decisions index lists every decision number; the product design contract, the Docs Registry
+  and the glossary that the wheel ships are current; and the accepted specs, including the Work Lane
+  coordination requirements, describe current behavior.
 
 Adopters rebind once, to one release that carries both.
 

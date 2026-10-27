@@ -21,11 +21,11 @@ both declared peers, GitLab and GitHub, are reachable.
 
 ## Decisions
 
-- **Release notes cover the product only.** The entry keeps the four knowledge notes under
-  Changed, because the wheel ships the product design contract, the Docs Registry and the glossary
-  (`pyproject.toml` force-include), and the decision index and the terminal plan are the governance
-  those documents cite. The refreshed GitLab CI supply binding is development infrastructure that
-  no adopter consumes, so the entry omits it.
+- **Release notes cover the product only.** The entry keeps the knowledge notes under Changed,
+  because the wheel ships the product design contract, the Docs Registry and the glossary
+  (`pyproject.toml` force-include), and the decision index, the terminal plan and the accepted specs
+  are the governance those documents cite. The refreshed GitLab CI supply binding is development
+  infrastructure that no adopter consumes, so the entry omits it.
 - **Both peers publish in one pass.** `.ethos/release.toml` declares `gitlab` and `github`. The
   `dev` and `main` refs and the tag go to both; the hosted release runs on GitHub, its declared
   distribution peer. A peer that becomes unreachable during the pass is reported as pending rather

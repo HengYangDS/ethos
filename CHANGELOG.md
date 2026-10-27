@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.17] - 2026-10-28
+
 ### Changed
 
 - The decisions index lists every number from DR-0001 to DR-0016 in order. A deleted record keeps

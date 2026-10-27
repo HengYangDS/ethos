@@ -24,10 +24,11 @@ The canonical repo-local skill portfolio lives in `.agents/skills/`. Its
 integrity is checked by the portfolio owner and the current proof gate:
 
 ```bash
-ethos prove --gate skills --json
+ethos prove --execute --gate skills --expect-head "$(git rev-parse HEAD)" --json
 ```
 
-Agent protocols are optional adapter boundaries, not a public lifecycle. A
+MCP is a required delivered surface and other agent protocols are optional adapters
+([First-Hour UX](../governance/product-design-contract.md#first-hour-ux)); none is a public lifecycle. A
 projection may read and format repository facts; durable results must be
 promoted into source, tests, schemas, docs, OpenSpec, or evidence before they can
 support a claim.

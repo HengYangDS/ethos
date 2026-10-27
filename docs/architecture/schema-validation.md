@@ -16,7 +16,7 @@ See also: [Documentation Root](../README.md), [Command Plane](../reference/comma
 
 ETHOS command output and kernel protocols are JSON-first and schema-governed.
 
-`ethos prove --gate schemas --json` validates tracked JSON Schemas with the
+`ethos prove --execute --gate schemas --expect-head <head> --json` validates tracked JSON Schemas with the
 Draft 2020-12 validator. Command payloads use `system/schemas/kernel/result.schema.json`
 as the stable envelope.
 
@@ -76,7 +76,7 @@ Accepted OpenSpec capability identity and requirements live in each capability's
 
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
-`ethos prove --gate schemas --json` validates the schemas against the live
+`ethos prove --execute --gate schemas --expect-head <head> --json` validates the schemas against the live
 docs-registry report, gate registry, and skill contracts; the status commands
 validate workspace-status payloads. Product-root runs also validate the live
 `.agents/skills/activation.toml`, the normalized live skill registry, and every

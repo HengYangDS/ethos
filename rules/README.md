@@ -36,15 +36,10 @@ Rules state duties; Skills route methods and cannot waive those duties.
 
 ## Placement
 
-- Semantic meaning and authority/currentness: canonical product contract.
-- Machine-readable resolver and quality declarations: `system/`.
-- Concise operational constraints: `rules/`.
-- Active ETHOS self-profile delta: `openspec/`.
-- Reusable agent procedures: `.agents/skills/`, as optional adapters.
-- Native host/forge files: their host directories, as projections or narrow
-  declarations.
-- Immutable recovery and forensic bytes: immutable repository records; their
-  manifests prove package integrity, not current authority.
+The Product Design Contract's carrier map
+([Feedback Intent Preservation](../docs/governance/product-design-contract.md#feedback-intent-preservation))
+and the [Docs Registry](../docs/governance/docs-registry.md#semantic-authority-and-carrier-boundaries)
+owner table place each kind of meaning; rules carry only concise operational duties.
 
 ## Upstream Enforcement
 

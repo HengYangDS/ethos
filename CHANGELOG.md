@@ -8,9 +8,24 @@ Commit subjects follow Conventional Commits; they do not replace curated release
 
 Historical entries preserve recorded changes and dates; they do not by themselves
 prove a tag, published package or hosted release. Release evidence and unresolved
-historical bindings are governed by [Release Governance](docs/governance/release-governance.md).
+historical bindings are governed by the [distribution specification](openspec/specs/distribution/spec.md).
 
 ## [Unreleased]
+
+### Changed
+
+- Eleven governance policy documents that no higher owner named give back their statements: the
+  covered ones become links to their owners, twelve unique obligations become requirements of the
+  repository-governance, distribution, adapters and quality specifications, and two new guides take
+  the independent-verification and release procedures. The proof-hosts specification, the rules
+  index, the module layout rule, the system contract headers and the documentation metadata no
+  longer cite removed behavior.
+
+### Removed
+
+- The wheel no longer ships the five retired policy documents. `ethos context` serves the matching
+  sections of the Product Design Contract and the release rules in their place, with the same reader
+  roles.
 
 ## [0.2.0-alpha.17] - 2026-10-28
 

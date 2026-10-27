@@ -18,11 +18,13 @@ OpenSpec archives, and Attestations. Governance adapters may sign
 Attestations, publish transparency records, or emit hosted CI artifacts, but
 adapter output never replaces the repository evidence chain.
 
-`ethos prove --json` emits a proof Attestation bound to the compiled Commitment
-identity, exact HEAD, Facts digest, TransitionPlan digest, policy
+`ethos prove --execute --full --expect-head <HEAD> --json` emits a proof Attestation bound to the
+compiled Commitment identity, exact HEAD, Facts digest, TransitionPlan digest, policy
 digest, effect digest, and verifier boundary. It does not establish a release.
 The canonical record is selected through `refs/ethos/attestations-set`; local
-command output is a projection, not a second proof selector.
+command output is a projection, not a second proof selector. What such proof can claim belongs
+to the Product Design Contract's
+[Evidence Planes And Completion Claims](product-design-contract.md#evidence-planes-and-completion-claims).
 
 ## Storage And Currentness
 

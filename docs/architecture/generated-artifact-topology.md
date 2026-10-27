@@ -49,7 +49,7 @@ producer and preserve deletions when checking surviving native consumers.
 | `build/ethos/`                                                                                                                                                     | Machine proof, logs, reports, artifacts, and projections.                                              | Yes                       | No                |
 | `build/evidence/`                                                                                                                                                  | Machine evidence bundles before review/promotion.                                                      | Yes                       | No                |
 | `build/artifacts/`                                                                                                                                                 | Local package and build artifacts, grouped by artifact kind.                                           | Yes                       | No                |
-| `docs/architecture/`, `docs/concepts/`, `docs/decisions/`, `docs/governance/`, `docs/reference/`, `docs/guides/`, `docs/plans/`, `docs/research/`, `docs/history/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No                        | Yes, after review |
+| `docs/architecture/`, `docs/concepts/`, `docs/decisions/`, `docs/governance/`, `docs/reference/`, `docs/guides/`, `docs/plans/`, `docs/research/`, `docs/history/` | Product documentation; each document links its owner, and state is front matter, not generated output. | No                        | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/`                                                                                                                 | Source, tests, rules, schemas, and contracts.                                                          | No                        | Yes, after review |
 
 Current proof belongs to the independent Git-native Attestation set selected
@@ -99,14 +99,15 @@ are cache, provider work, evidence, or package output.
 
 ## Source Contracts
 
-A `[[proof.source_contracts]]` entry in `.ethos/profile.toml` relates an artifact to the native owner of its bytes; the profile model (`src/ethos/repository/profile.py`) owns its fields and quality "Quality applicability preserves carrier and native semantics" owns the obligation. Each kind has one existing owner and one required observation:
+A `[[proof.source_contracts]]` entry in `.ethos/profile.toml` relates an artifact to the native owner of its bytes; the profile model (`src/ethos/repository/profile.py`) owns its fields and quality "Quality applicability preserves carrier and native semantics" owns the obligation. `kind` is `generated` or `upstream`; a file that no member declares stays
+authored. Each kind, and the authored case, has one existing owner and one required observation:
 
-| Kind      | Existing owner                                                                    | Required observation                                                                   |
-| --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
-| Upstream  | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
-| Upstream  | Committed received ZIP named `<path>.zip#sha256:<hex>` with its pinned SHA-256    | Match the archive digest and each declared entry's bytes in memory                     |
-| Authored  | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
+| Kind                   | Existing owner                                                                    | Required observation                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generated              | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
+| Upstream               | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
+| Upstream               | Committed received ZIP named `<path>.zip#sha256:<hex>` with its pinned SHA-256    | Match the archive digest and each declared entry's bytes in memory                     |
+| Authored (no contract) | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
 
 A received-archive member names its exact ZIP entry, such as `archify/bin/archify.mjs`.
 
@@ -131,15 +132,13 @@ own reachability and retention lifecycle independently of workspace cleanup.
 
 ## Audit
 
-```bash
-ethos prove --gate generated-artifacts --json
-```
-
-The audit is the sole owner of generated and local-state topology. It reports the
+The audit checks paths against the topology declaration
+(`src/ethos/contracts/artifacts/topology.toml`) and the Git-common state requirements, which own
+them. It reports the
 path router contract, lifecycle classes, entrypoint routing, blocked generated
 drift, tracked files in generated-output homes, and review-required paths. Its
 JSON contract includes `source_refs` so reviewers can see which declaration
-supplied the topology. It is also a proof gate:
+supplied the topology. Run it as a proof gate:
 
 ```bash
 ethos prove --execute --gate generated-artifacts --expect-head <git-head> --json
@@ -184,12 +183,12 @@ producer relations together with their outputs and required consumers; deleting
 a declaration alone cannot legitimize arbitrary retained output bytes. Preserve
 selected Attestations and supporting objects still required by current consumers.
 
-`ethos prove --gate generated-artifacts --root <repo> --json` consumes this
-same audit before it can support an execution-substrate transition. A transition
-candidate must be clean under that proof gate; generated drift in repo
-root, `.config/`, semantic docs truth, or source trees remains a blocking
-adoption/rollback gap until its exact generated output is routed to an admitted
-home and any required proof has been recorded through the current owner.
+An execution-substrate transition relies on the same audit, run with
+`ethos prove --execute --gate generated-artifacts --root <repo> --expect-head <head> --json`.
+Generated drift in the repository root, `.config/`, documentation or source trees stays a
+blocking gap of that gate until its exact output is routed to an admitted home and any required
+proof is recorded through its owner. The comparative-assurance requirements of
+repository-governance decide whether the transition may proceed.
 
 ## Documentation Kernel
 

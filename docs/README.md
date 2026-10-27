@@ -42,11 +42,11 @@ and [Command Plane](reference/command-plane.md).
 
 ## ETHOS Product Extensions
 
-| Root                                          | Owns                                                              |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| `architecture/`                               | Product architecture and contract explanations.                   |
-| `governance/`                                 | Product governance models and policies.                           |
-| `concepts/`, `plans/`, `research/`, `guides/` | Product-specific explanation, planning, research, and onboarding. |
+| Root                                          | Owns                                                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `architecture/`                               | Product architecture and contract explanations.                                                    |
+| `governance/`                                 | The product design contract, the documentation contract and explanations of governance mechanisms. |
+| `concepts/`, `plans/`, `research/`, `guides/` | Product-specific explanation, planning, research, and onboarding.                                  |
 
 Additional routes: [Governance](governance/README.md),
 [Reference](reference/README.md), [History](history/README.md), and

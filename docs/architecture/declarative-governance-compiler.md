@@ -46,6 +46,9 @@ and reducers are deterministic transformations over supplied values.
 | CLI                 | Cyclopts declarations at the composition root                  | one human and machine command surface                 |
 | Projections         | pure reducers and native serializers                           | bounded status, protocol, and external carrier views  |
 
+The [Declarative Lifecycle Rules](../../rules/declarative-lifecycle.md) own the duty to use this
+spine; this page explains it.
+
 Schemas may generate language bindings and externally required projections when
 the schema is the sole owner and drift is checked. Generated output never
 becomes a parallel hand-edited truth source.
@@ -67,7 +70,7 @@ precondition, and permission boundary.
 
 ## Declaration Rule
 
-A declaration must identify its authority, inputs, output contract, and proof
+A useful declaration names its authority, inputs, output contract, and proof
 surface. Python is reserved for composition, I/O, mutation, and an algorithmic
 primitive that cannot be expressed safely by the selected declaration or
 standard-library mechanism.

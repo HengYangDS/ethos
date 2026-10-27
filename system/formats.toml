@@ -1,6 +1,6 @@
 # system/formats.toml
 # Carrier policy — use formats by author and lifecycle, not by habit.
-# Loaded as a product system contract; the PDC's Configuration Boundaries own its meaning.
+# Loaded as a product system contract; it owns the format-by-lifecycle assignment.
 
 schema = "system/schemas/contracts/formats.schema.json"
 

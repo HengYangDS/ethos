@@ -15,10 +15,10 @@ do not create a second semantic owner, ontology, or authority center.
 1. **Keep persistence singular.** ([Semantic Kernel](../docs/governance/product-design-contract.md#semantic-kernel)) Only `Attestation` persists.
    `Commitment` is transient intent compiled from official OpenSpec;
    Facts are observed anew and TransitionPlan is regenerated.
-2. **Bind propositions.** ([Semantic Kernel](../docs/governance/product-design-contract.md#semantic-kernel)) An authorizing proposition names its subject,
+2. **Bind propositions.** ([Binding Taxonomy](../docs/governance/product-design-contract.md#binding-taxonomy)) An authorizing proposition names its subject,
    predicate, scope, plane, bindings, validity, verifier, and evidence.
 3. **Fail closed.** ([Invalid-State Taxonomy](../docs/governance/product-design-contract.md#invalid-state-taxonomy)) Unknown required facts, ambiguous authority, stale bindings,
-   contradiction, and model gap block effects and retirement.
+   contradiction, and model gap block the effects and retirement that depend on them.
 4. **Project one way.** ([Projection Homomorphism](../docs/governance/product-design-contract.md#projection-homomorphism)) A projection may reduce presentation but cannot create
    authority, conceal an absence reason, or become its own source.
 5. **Promote the model.** ([Model Promotion](../docs/governance/product-design-contract.md#model-promotion)) Preserve a lossless conflict, promote the smallest

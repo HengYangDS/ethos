@@ -27,14 +27,14 @@ ethos status --root <repo> --json
 ethos prove --root <repo> --execute --full --expect-head <HEAD> --json
 ```
 
-Adopter evidence remains in that repository's tracked surfaces. Provider state,
-editor state, and generated projections are adapters. They must be promoted
-into source, tests, schemas, docs, OpenSpec, or Attestations before they
-support an adopter claim.
+Adopter proof lives in that repository's own Attestation set (adapters "Attestations use one
+deterministic Git set carrier"). Provider state, editor state, and generated projections are
+adapters; they support an adopter claim only once promoted into source, tests, schemas, docs,
+OpenSpec, or Attestations.
 
 An adopter may also serve as a reference integration, a dogfood repository, a migration
-oracle or a rollback anchor. None of these roles makes it product ontology (kernel "Product
-Core Adopter Isolation").
+oracle or a rollback anchor. None of these roles makes it product ontology
+([Isomorphic Adopter Governance](../governance/product-design-contract.md#isomorphic-adopter-governance)).
 
 ## Moving An Adopter To A New Execution Substrate
 

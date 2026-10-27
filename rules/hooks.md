@@ -2,13 +2,13 @@
 
 Purpose: place guards at the earliest useful failure point.
 
-| Field     | Rule                                                                                                                                           |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authority | [Git-Native Repository Substrate](../docs/governance/product-design-contract.md#git-native-repository-substrate), `ethos lane prewrite --json` |
-| Trigger   | Any host or tool supports a hook before context use, file write, shell execution, commit, push, or CI publish.                                 |
-| Action    | Install the earliest hook that can block the invalid action.                                                                                   |
-| Evidence  | Hook report or equivalent command JSON shows target root, role, paths, and decision.                                                           |
-| Stop      | A normal write path can bypass `prewrite_guard` or context refresh.                                                                            |
+| Field     | Rule                                                                                                                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | [Git-Native Repository Substrate](../docs/governance/product-design-contract.md#git-native-repository-substrate), repository-governance "Git-common hook runtime activation is singular", `ethos lane prewrite --json` |
+| Trigger   | Any host or tool supports a hook before context use, file write, shell execution, commit, push, or CI publish.                                                                                                         |
+| Action    | Install the earliest hook that can block the invalid action.                                                                                                                                                           |
+| Evidence  | Hook report or equivalent command JSON shows target root, role, paths, and decision.                                                                                                                                   |
+| Stop      | A normal write path can bypass `prewrite_guard` or context refresh.                                                                                                                                                    |
 
 ## Hook Layers
 

@@ -1,21 +1,21 @@
 # Module Layout And Visibility Rules
 
-This document is the SSOT for how ETHOS Python code is organized — physically
-(directories/files) and logically (public vs private surface). It exists because
+This rule owns the duties for how ETHOS Python code is organized — physically
+(directories/files) and logically (public vs private surface); `.config/checks/module-layout/policy.toml` holds the exact values its checks apply. It exists because
 organization is a correctness property, not a matter of taste: a reader or a tool
 must be able to tell, from name and place alone, what a symbol is for and whether
 it may be depended upon.
 
-Derived from the parsimony axiom in `system/axioms.md` and the
-general module-layout boundary study and `system/axioms.md`.
+Derived from the Product Design Contract's [Construction And Evolution Discipline](../docs/governance/product-design-contract.md#construction-and-evolution-discipline),
+which also names this rule the owner of physical source shape.
 
-| Field     | Rule                                                                                                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `system/axioms.md`, `.config/checks/module-layout/policy.toml`              |
-| Trigger   | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python.                                                                |
-| Action    | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership. |
-| Evidence  | `uv run --frozen --offline python -m nox -s module_layout` and focused contract tests.                                                                |
-| Stop      | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric.                          |
+| Field     | Rule                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md#construction-and-evolution-discipline), `.config/checks/module-layout/policy.toml` |
+| Trigger   | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python.                                                                     |
+| Action    | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership.      |
+| Evidence  | `uv run --frozen --offline python -m nox -s module_layout` and focused contract tests.                                                                     |
+| Stop      | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric.                               |
 
 ## 1. Physical organization — semantic boundaries, not metric shapes
 
@@ -216,7 +216,7 @@ _root`). That is compatibility residue — it exists only to preserve old
   A leading `_` marks a definition private in ITS OWN module; it is not an import
   decoration.
 - **Do NOT rename canonical symbols** via `as` (`from x import run_y as main`,
-  `MapBackend as PMap`). Canonical names are part of the contract (AGENTS.md).
+  `MapBackend as PMap`). Canonical names are part of the contract ([Construction And Evolution Discipline](../docs/governance/product-design-contract.md#construction-and-evolution-discipline)).
 
 ## 3. Size and split
 

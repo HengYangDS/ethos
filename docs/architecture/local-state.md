@@ -21,9 +21,10 @@ every linked worktree without materializing files in any checkout. The current
 database is `<git-common-dir>/ethos/state.sqlite`. Durable Attestations are selected
 by `refs/ethos/attestations-set`; local requests and operation receipts remain
 under `<git-common-dir>/ethos/requests/` and `receipts/`. These are distinct
-owners and lifetimes, not an alternative local Attestation store. This state is a
-projection over current repository facts, not a source of truth or a substitute
-for Git, OpenSpec, or tracked records.
+owners and lifetimes, not an alternative local Attestation store. The Lease owns
+lane-holder coordination ([Git-Native Repository Substrate](../governance/product-design-contract.md#git-native-repository-substrate));
+everything else here is re-observed from Git and OpenSpec and substitutes for neither, nor for
+tracked records.
 
 Immutable hook runtimes and generated launchers are also common-dir projections:
 `<git-common-dir>/ethos/runtime/<digest>/` and
@@ -89,6 +90,6 @@ handoff state, or effect outcome. Commands compile those values from fresh
 Facts and exact intent, then compare-and-swap only the four-field relation when
 ownership changes.
 
-Tool caches belong under ignored runtime locations. Curated evidence becomes
-repository truth only after its owning gate promotes it through the declared
-evidence path.
+Tool caches belong under ignored runtime locations. Evidence becomes durable only
+as an Attestation that its command owner records in `refs/ethos/attestations-set`
+(see [Proof Recording](generated-artifact-topology.md#proof-recording)).

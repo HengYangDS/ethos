@@ -5,7 +5,7 @@ state: canonical
 decision_id: DR-0006
 decision_status: accepted
 relations:
-  current_owner: ../governance/provenance-and-attestation.md
+  current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0006: Proof Trust Boundary

@@ -66,9 +66,10 @@ provider state, and tool-native configuration remain adopter facts; adoption
 does not generate or normalize them. The repository paradigm fixes the
 branch-role names.
 
-The common floor that every adopter shares is the union of its owners' obligations:
-repository-governance for the binding, OpenSpec, commits, release and documentation
-carriers, and the Product Design Contract for the quality floor, feedback and recovery.
+The common floor that every adopter shares is the union of its owners' obligations: the
+repository paradigm for structure, the configuration plane, the binding, commits, versions,
+changelog and Markdown size; repository-governance for OpenSpec, release and documentation
+carriers; and the Product Design Contract for the quality floor, feedback and recovery.
 No Skill or generated entrypoint adds to it.
 
 ## Formation and Starter Evolution
@@ -104,8 +105,8 @@ create a second command plane or copy adopter semantics into the ETHOS product
 runtime.
 
 Product release policy is likewise profile-bounded. Merely having a
-`pyproject.toml` does not make an adopter an ETHOS Python workspace. A
-runtime-files adopter may keep its release name, distribution kind, Python
-floor, and `VERSION` path under one repository-owned `[tool.<name>]` table;
-ETHOS reads that declared identity without requiring a synthetic `[project]`
-table or applying product-only release surfaces during generic audits.
+`pyproject.toml` does not make an adopter an ETHOS Python workspace. ETHOS reads
+a release version only from a committed `VERSION`, a `package.json` `version` or a
+static `[project].version`, reports a missing source as `release_version_source_missing`,
+and applies no product-only release surface during generic audits (adapters
+"Adopter Release Metadata Remains Profile Bounded").

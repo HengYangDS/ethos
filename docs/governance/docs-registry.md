@@ -117,6 +117,12 @@ and reason to change, not by filename or storage location.
 | Irreducible cross-Change rationale                                | One necessary decision record                           | Name the current owner; history does not grant permission.                      |
 | Directory orientation                                             | A necessary README.md                                   | Derive navigation views; no index.md directory entrypoint.                      |
 
+A document is normative only when it is the Product Design Contract or a higher owner links it as
+the owner of a named subject, as the terminal plan does for this registry's documentation contract
+and the Product Design Contract does for the Module Layout Rules and the Engineering Axioms. Every
+other document explains, instructs, navigates or records, and links its owner instead of
+restating it.
+
 SSOT means one editable owner per proposition, not one file for everything.
 MECE separates responsibilities and covers in-scope obligations without denying
 their relationships. DRY removes independent copies of knowledge, not clearly

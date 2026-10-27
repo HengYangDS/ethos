@@ -2,13 +2,13 @@
 
 Purpose: define the canonical skill system and projection boundary.
 
-| Field     | Rule                                                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Authority | [Product Projection Contract](../docs/governance/product-design-contract.md#projection-homomorphism), [Agent Rules](agents.md) |
-| Trigger   | Creating, updating, routing, projecting, or invoking repo-local skills.                                                        |
-| Action    | Keep the canonical repo-local skill portfolio under `.agents/skills/` and treat host-native copies as projections.             |
-| Evidence  | Activation entry, skill manifest, and post-check commands.                                                                     |
-| Stop      | Skill duplicates docs, conflicts with rules, or creates host-specific truth.                                                   |
+| Field     | Rule                                                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md#first-hour-ux), [Agent Rules](agents.md)   |
+| Trigger   | Creating, updating, routing, projecting, or invoking repo-local skills.                                            |
+| Action    | Keep the canonical repo-local skill portfolio under `.agents/skills/` and treat host-native copies as projections. |
+| Evidence  | Activation entry, skill manifest, and post-check commands.                                                         |
+| Stop      | Skill duplicates docs, conflicts with rules, or creates host-specific truth.                                       |
 
 ## Rules
 
@@ -39,8 +39,8 @@ describe ETHOS self-maintenance, not an adopter's required Skill inventory.
   procedure, then replay a known failure through its actual consumer. Preserve
   evidence scope: routing, package integrity, instruction quality, host loading
   and changed agent behavior are different claims.
-- `.agents/skills`, `.claude/skills`, `.codex/skills`, IDE rules, and MCP
-  prompt packs are projections unless the host owns an official native artifact.
+- `.claude/skills`, `.codex/skills`, IDE rules, and MCP prompt packs are
+  projections of `.agents/skills/` unless the host owns an official native artifact.
 - Generate OpenSpec Skills and supported slash commands only through the pinned
   official OpenSpec workflow, then characterize their version and use of
   official status/instructions. Do not copy or maintain local OpenSpec templates.

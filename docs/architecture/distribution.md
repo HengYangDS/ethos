@@ -93,7 +93,8 @@ package-lock-owned npm module through the existing runtime resolver; CI has no
 separate npm version selector or installer. Local audit disposition never
 permits CI, public release or distribution.
 
-Published package scope is intentionally narrower than repository history.
+Published package scope is intentionally narrower than repository history (distribution
+"Published Distribution Boundary").
 Distribution manifests must use explicit allowlists for neutral launcher assets
 and package documentation. They must not publish historical evidence, archived
 change records, ignored local state, tests, adopter-private records, host

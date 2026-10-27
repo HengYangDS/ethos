@@ -33,6 +33,9 @@ Commitment + Facts + Attestations
 
 ## Contract
 
+The kernel specification's "Deterministic TransitionPlan" and "Closed Verdict Reduction" own
+this contract; the list explains it.
+
 - Inputs are explicit values; compilation does not read ambient files, clocks,
   networks, processes, or mutable state.
 - Node identity, dependencies, inputs, and expected state determine a stable

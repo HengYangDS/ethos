@@ -354,8 +354,9 @@ JSON results use schema version `2`: `verdict` alone decides authorization,
 
 ## Proof Depth
 
-`ethos prove --gate <id> --json` runs one declared gate with its dependencies;
-repeat it for several roots. An adopter can select a packaged gate only when a
+`ethos prove --execute --gate <id> --expect-head <head> --json` runs one declared gate with its
+dependencies; repeat it for several roots. Without `--execute` it reports that gate's readiness
+and runs nothing. An adopter can select a packaged gate only when a
 product provider implements it; a packaged gate that runs the product's own
 toolchain command returns `proof_gate_not_importable:<id>`.
 

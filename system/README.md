@@ -8,14 +8,14 @@ This directory is not another product definition or runtime state store.
 
 ## Definitions And Boundaries
 
-| Carrier                      | Carries                                                                                                     | Excludes                                                        |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `system/`                    | Foundational interpretation constraints, machine-readable declarations, schemas, and projection definitions | Product deployment, mutable state, or a second intent authority |
-| `src/ethos/resources/`       | Authored package-specific static inputs without another canonical source owner                              | User data, adopter policy, caches, or ETHOS implementation      |
-| Installed `ethos/resources/` | The version-matched, selected read-only package closure                                                     | New authority over its source contracts or permission to act    |
-| `assets/`                    | Visual and media source material                                                                            | Governance contracts or automatically shipped runtime inputs    |
-| `.config/`                   | Tool-native configuration                                                                                   | Business scripts or another implementation layer                |
-| `build/`                     | Bounded, reproducible derived output                                                                        | Accepted meaning or indefinite evidence custody                 |
+| Carrier                      | Carries                                                                                             | Excludes                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `system/`                    | Derived engineering constraints, machine-readable declarations, schemas, and projection definitions | Product deployment, mutable state, or a second intent authority |
+| `src/ethos/resources/`       | Authored package-specific static inputs without another canonical source owner                      | User data, adopter policy, caches, or ETHOS implementation      |
+| Installed `ethos/resources/` | The version-matched, selected read-only package closure                                             | New authority over its source contracts or permission to act    |
+| `assets/`                    | Visual and media source material                                                                    | Governance contracts or automatically shipped runtime inputs    |
+| `.config/`                   | Configuration that a tool or repository check consumes                                              | Business scripts or another implementation layer                |
+| `build/`                     | Bounded, reproducible derived output                                                                | Accepted meaning or indefinite evidence custody                 |
 
 Runtime state, leases, caches and effect receipts belong to their declared native
 state/evidence stores, never the immutable resource closure. A path is a carrier:
@@ -44,15 +44,15 @@ nor a catch-all for the repository. Select required product inputs, not all file
 
 ## Owners And Navigation
 
-| Concern                                 | Source owner                                                                                    |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Foundational interpretation             | [Axioms](axioms.md)                                                                             |
-| Gate executors and evidence obligations | [Gate declaration](gates.toml)                                                                  |
-| Evidence relationships                  | [Source evidence boundaries](evidence-boundaries.toml "source-only")                            |
-| Routing and public surfaces             | [Source routing](routing.toml "source-only") and [source surfaces](surfaces.toml "source-only") |
-| Native carrier formats                  | [Source formats](formats.toml "source-only")                                                    |
-| Schemas and their local references      | `schemas/`; [contract schemas](schemas/contracts/README.md)                                     |
-| Publication projections                 | [Source projection owners](projections/README.md "source-only")                                 |
+| Concern                                 | Source owner                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Derived engineering constraints         | [Axioms](axioms.md), under the PDC [Root Constraint](../docs/governance/product-design-contract.md#root-constraint) |
+| Gate executors and evidence obligations | [Gate declaration](gates.toml)                                                                                      |
+| Evidence relationships                  | [Source evidence boundaries](evidence-boundaries.toml "source-only")                                                |
+| Routing and public surfaces             | [Source routing](routing.toml "source-only") and [source surfaces](surfaces.toml "source-only")                     |
+| Native carrier formats                  | [Source formats](formats.toml "source-only")                                                                        |
+| Schemas and their local references      | `schemas/`; [contract schemas](schemas/contracts/README.md)                                                         |
+| Publication projections                 | [Source projection owners](projections/README.md "source-only")                                                     |
 
 ## Source And Installed Resources
 

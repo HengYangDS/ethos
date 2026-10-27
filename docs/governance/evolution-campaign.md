@@ -5,6 +5,7 @@ state: active
 relations:
   projects:
     - product-design-contract.md#recursive-domain-feedback
+    - product-design-contract.md#change-relations-and-learning
 ---
 
 # Learning And Change Relations

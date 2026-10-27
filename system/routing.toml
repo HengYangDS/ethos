@@ -1,7 +1,7 @@
 # system/routing.toml
 # Subject resolver, stage map, and proof-set routing.
 # The machine kernel's map from "what am I touching" to "which stage and proof applies".
-# Derived from the terminal design loop; the repository paradigm fixes the branch roles.
+# Loaded as a product system contract; the repository paradigm fixes the branch roles.
 
 schema = "system/schemas/contracts/routing.schema.json"
 

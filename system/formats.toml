@@ -1,6 +1,6 @@
 # system/formats.toml
 # Carrier policy — use formats by author and lifecycle, not by habit.
-# Derived from the terminal design "Carrier Policy" table and .ethos/rules.toml [formats].
+# Loaded as a product system contract; the PDC's Configuration Boundaries own its meaning.
 
 schema = "system/schemas/contracts/formats.schema.json"
 
@@ -36,11 +36,7 @@ not_for = "Core dependency."
 use = "Optional guard expression adapter when plain TOML predicates are insufficient."
 not_for = "Universal policy language."
 
-[carriers.rego]
-use = "Optional organization policy gate through subprocess or extension."
-not_for = "In-process policy engine."
-
-# Format-by-lifecycle assignment (from .ethos/rules.toml [formats]).
+# Format-by-lifecycle assignment.
 [assignment]
 user_config = "TOML"
 machine_output = "JSON"

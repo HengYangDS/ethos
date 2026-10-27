@@ -1,28 +1,6 @@
 [profiles]
 active = ["generic"]
 
-[standards]
-json_schema = true
-slsa_attestation = "adapter"
-in_toto = "attestation-envelope"
-spdx = "artifact-metadata-adapter"
-mcp = "agent-projection"
-
-[determinism]
-kernel_io = "forbidden"
-transition_plan = "required"
-stable_json = "required"
-sqlite_state = "local-only"
-
-[formats]
-user_config = "TOML"
-machine_output = "JSON"
-local_state = "SQLite"
-
-[artifacts]
-state_tracked_truth = false
-generated_outputs_tracked_truth = false
-
 [[rule]]
 id = "local-state-boundary"
 owner = "repo-local"
@@ -57,5 +35,5 @@ subject = "skill-package-projection-drift"
 severity = "advisory"
 stop_condition = "skill-package-projection-drift"
 profile_layers = []
-path_globs = [".agents/skills/**", "rules/skills.md", "docs/governance/skills.md"]
+path_globs = [".agents/skills/**", "rules/skills.md"]
 required_gates = ["skills"]

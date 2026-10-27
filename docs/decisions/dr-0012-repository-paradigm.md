@@ -5,7 +5,7 @@ state: canonical
 decision_id: DR-0012
 decision_status: accepted
 relations:
-  current_owner: ../governance/config-boundary-model.md
+  current_owner: ../../openspec/specs/repository-paradigm/spec.md
 ---
 
 # DR-0012: Repository Paradigm
@@ -16,7 +16,7 @@ Date: 2026-10-14.
 
 Purpose: preserve why every ETHOS-governed repository follows one common repository contract, and which structure that contract deliberately leaves to each repository.
 
-See also: [Config Boundary Model](../governance/config-boundary-model.md), [DR-0011: Documentation portability](dr-0011-documentation-portability.md), and the `repository-paradigm` OpenSpec Change.
+See also: [Repository paradigm specification](../../openspec/specs/repository-paradigm/spec.md), [DR-0011: Documentation portability](dr-0011-documentation-portability.md), and the `repository-paradigm` OpenSpec Change.
 
 ## Context
 

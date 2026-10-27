@@ -5,19 +5,19 @@ state: canonical
 decision_id: DR-0015
 decision_status: accepted
 relations:
-  current_owner: ../governance/release-governance.md
+  current_owner: ../../openspec/specs/distribution/spec.md
 ---
 
 # DR-0015: Release Stages Follow a Declared Journey Scope
 
-Status: canonical rationale. Release Governance owns current behavior.
+Status: canonical rationale. The distribution specification owns current behavior.
 
 Date: 2026-10-24.
 
 Purpose: preserve why a prerelease advances by evidence on the journeys its target declares, and
 why an adopter's own environment is not an ETHOS release precondition.
 
-See also: [Release Governance](../governance/release-governance.md#prerelease-stages) and the
+See also: [Distribution specification](../../openspec/specs/distribution/spec.md) and the
 `installed-product` OpenSpec Change.
 
 ## Context
@@ -71,8 +71,8 @@ and the Homebrew channel are not declared for 0.2.0.
 
 ## Evidence and Revisit
 
-- [Release Governance](../governance/release-governance.md#prerelease-stages) states the current
-  stage rule and the declared 0.2.0 journeys.
+- The [distribution specification](../../openspec/specs/distribution/spec.md) states the current stage rule; this record's
+  decision holds the declared 0.2.0 journeys.
 - The 0.2.0-alpha.6 release run 39685244088 published no Windows archive; tasks 3.2.1 to 3.2.3 of
   `installed-product` sealed pinned installations and report payload damage after the
   0.2.0-alpha.7 bytecode incident.

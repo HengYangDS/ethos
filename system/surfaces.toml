@@ -1,7 +1,7 @@
 # system/surfaces.toml
 # Current product-surface contract.
 # The CLI is NOT the semantic center. All surfaces consume the same contracts,
-# schemas, and command JSON. Derived from the terminal design "Product Surfaces" table.
+# schemas, and command JSON. The command plane reference and the PDC own their meaning.
 
 schema = "system/schemas/contracts/surfaces.schema.json"
 

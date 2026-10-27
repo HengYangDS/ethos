@@ -56,7 +56,7 @@ For an incompatible change, add `!` immediately before the colon, a
 `BREAKING CHANGE: ...` footer, or both. Explain the incompatibility and migration;
 for example, `feat(cli)!: replace the command contract`. Commit syntax alone
 does not establish SemVer or release
-compliance; [release governance](docs/governance/release-governance.md#semantic-versioning-and-changelog)
+compliance; the [distribution specification](openspec/specs/distribution/spec.md)
 owns those obligations.
 
 Avoid vague subjects such as `Update files` or product claims without evidence.

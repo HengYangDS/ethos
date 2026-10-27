@@ -13,7 +13,7 @@ manifests, projection drift controls, or the skill creation process.
 ## Workflow
 
 1. Read `AGENTS.md`, `rules/skills.md`, and
-   `docs/governance/skills.md` before changing skill semantics.
+   `rules/skills.md` before changing skill semantics.
 2. Keep each skill narrow: trigger, workflow, evidence, and trust boundary.
    Route executable checks through `skills`; put longer criteria in references.
 3. Update `SKILL.md`, `package.toml`, and `activation.toml` together so the

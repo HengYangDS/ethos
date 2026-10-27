@@ -25,6 +25,9 @@ rules:
       behavior and its boundaries, not implementation names.
     - Keep observable obligations and falsifiers here; reference the rationale
       and implementation design rather than maintaining duplicate contracts.
+    - Before archive, remove from the delta each requirement whose
+      implementation task was withdrawn; it returns with the Change that
+      restores that task.
   tasks:
     - Use official checkboxes under numbered groups in dependency order, with
       numbering and nesting expressing one hierarchy. Each task keeps a stable
@@ -39,6 +42,12 @@ rules:
     - Keep exact-current proof outside the snapshot it verifies. Preserve
       required workflow follow-up as plain bullets under the official optional
       Workflow follow-up section; task completion does not prove closeout.
+    - A task that its Change will not deliver keeps its line, number and
+      nesting without a checkbox and names its decision record and reason, as
+      in `Withdrawn by DR-<id> (environment).`; the record states when the
+      task returns, and a later Change restores it with fresh acceptance.
+      Withdrawal is not completion; a Change whose tasks were all withdrawn
+      checks its closing decision as its one task.
   design:
     - Follow the official design template for a non-trivial change. Explain its
       architecture, alternatives, rationale, authority boundaries and migration
@@ -64,3 +73,6 @@ operations:
         complete deltas, evidence bindings and migrated incoming references.
       - Observe the actual result before retrying and reconcile affected
         reader projections without copying task state into docs.
+      - Before archive, move each durable cross-Change ruling in the design to
+        its owner (the Product Design Contract, the terminal plan or a decision
+        record); the archived Change keeps history, not current instructions.

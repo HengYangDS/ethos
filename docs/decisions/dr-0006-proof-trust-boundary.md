@@ -19,7 +19,7 @@ are separate evidence planes rather than stronger names for the same claim.
 
 See also: [Documentation Root](../README.md),
 [Provenance And Attestation](../governance/provenance-and-attestation.md), and
-[Independent Verification](../governance/independent-verification-adoption.md).
+[Independent Verification](../guides/independent-verification.md).
 
 ## Context
 

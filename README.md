@@ -145,8 +145,8 @@ collaboration (`.gitlab-ci.yml` and the `.gitlab/` templates) and `github` for p
 distribution (`.github/workflows/ci.yml` and the `.github/` templates). `LICENSE`,
 `CONTRIBUTING.md` and `CHANGELOG.md` serve both. Before publishing, run
 `ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json`, then
-`ethos publish --json`; [release governance](docs/governance/release-governance.md#release-surfaces-and-evidence)
-defines peer selection with `--peer <id>`.
+`ethos publish --json`; [Release And Publication](docs/guides/release-and-publication.md)
+shows peer selection with `--peer <id>`.
 
 ## Development
 

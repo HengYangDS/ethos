@@ -2,6 +2,12 @@
 version = 2
 source_of_truth = "repository"
 
+[retired.ethos-change-lifecycle]
+reason = "Retired in fb8c7203f when agent entrypoint authority converged; the official OpenSpec Skills and ethos status continuations own the Change lifecycle."
+retired_on = "2026-09-01"
+kill_signal = "A route or package named ethos-change-lifecycle reappears under .agents/skills/."
+path = ".agents/skills/ethos-change-lifecycle"
+
 [coverage]
 required_primary_subjects = [
   "repository-governance",
@@ -37,7 +43,7 @@ path_globs = [
   "system/schemas/**",
 ]
 intent_tokens = ["ethos", "governance", "proof", "adoption", "skills", "feedback", "recurrence"]
-pre_reads = ["AGENTS.md", "rules/agents.md", "docs/governance/skills.md"]
+pre_reads = ["AGENTS.md", "rules/agents.md", "rules/skills.md"]
 during_rules = [
   "treat skills as projections over repository truth",
   "use ETHOS command JSON as machine evidence",
@@ -66,7 +72,6 @@ subjects = [
 path_globs = [
   ".agents/skills/**",
   "rules/skills.md",
-  "docs/governance/skills.md",
   "system/schemas/kernel/skill-*.schema.json",
   "src/ethos/assistants/**",
   "src/ethos/contracts/skill/activation.py",
@@ -85,7 +90,6 @@ intent_tokens = [
 pre_reads = [
   "AGENTS.md",
   "rules/skills.md",
-  "docs/governance/skills.md",
 ]
 during_rules = [
   "add a skill only for repeated repository-specific procedure",

@@ -5,19 +5,19 @@ state: canonical
 decision_id: DR-0016
 decision_status: accepted
 relations:
-  current_owner: ../governance/openspec-governance.md
+  current_owner: ../../openspec/config.yaml
 ---
 
 # DR-0016: Changes Close on Their Delivered Scope
 
-Status: canonical rationale. OpenSpec Governance owns current behavior.
+Status: canonical rationale. The OpenSpec configuration owns current behavior.
 
 Date: 2026-10-24.
 
 Purpose: preserve why the 13 Changes open for 0.2.0 were archived with only the tasks they
 delivered, how each withdrawn task stays visible in its Change, and when it returns.
 
-See also: [OpenSpec Governance](../governance/openspec-governance.md#official-artifact-contract),
+See also: [OpenSpec configuration](../../openspec/config.yaml),
 [DR-0015: Release stages follow a declared journey scope](dr-0015-release-stage-scope.md), and
 the [Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
 

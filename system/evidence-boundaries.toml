@@ -1,9 +1,7 @@
 # system/evidence-boundaries.toml
 # The evidence and decision boundaries — the machine governance kernel's contract
 # for what evidence proves, what a decision means, and what may become repository
-# truth. Derived from system/axioms.md (evidence-before-claim and boundary-before-adapter
-# provable truth-store and derive-do-not-duplicate derivations) and the terminal design
-# "Authority And Truth" + red-team convergence review.
+# truth. The PDC's Evidence Planes And Completion Claims and axioms 2-4 own its meaning.
 #
 # These boundaries are enforced (not merely documented): a decision or evidence
 # claim that crosses a boundary must carry the required qualifier or be blocked.

@@ -8,13 +8,13 @@ carrier model are owned by the [Product Design Contract](../docs/governance/prod
 
 Each durable rule states exactly:
 
-| Field           | Requirement                                                             |
-| --------------- | ----------------------------------------------------------------------- |
-| Trigger         | The observable event that activates it.                                 |
-| Owner           | The narrow native carrier, command, schema, or test that owns its fact. |
-| Required action | The imperative action or prohibition.                                   |
-| Evidence        | The command, artifact, or verifier that proves compliance.              |
-| Stop            | The condition that blocks an effect, retirement, or closeout.           |
+| Field     | Requirement                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | The owner whose duty the rule carries: a PDC section, an accepted requirement, or the narrow native carrier, command, schema or test. |
+| Trigger   | The observable event that activates it.                                                                                               |
+| Action    | The imperative action or prohibition.                                                                                                 |
+| Evidence  | The command, artifact, or verifier that proves compliance.                                                                            |
+| Stop      | The condition that blocks an effect, retirement, or closeout.                                                                         |
 
 Delete or demote prose that cannot supply this record. Common semantic principles
 apply to ETHOS and every governed repository. A rule may describe a profile-selected

@@ -49,19 +49,15 @@ def repository_context(root: Path) -> dict[str, object]:
             ),
         ),
         (
-            "docs/governance/repository-profile-contract.md",
+            "docs/governance/product-design-contract.md",
             "adoption",
-            ("Responsibilities", "Adapter Command Contract", "Product Boundary"),
+            ("Binding Taxonomy", "Configuration Boundaries", "First-Hour UX"),
         ),
+        ("rules/release.md", "release", ("Rules",)),
         (
-            "docs/governance/release-governance.md",
-            "release",
-            ("Semantic Versioning and Changelog", "Release Surfaces and Evidence"),
-        ),
-        (
-            "docs/governance/adopter-boundary-and-retirement.md",
+            "docs/governance/product-design-contract.md",
             "recovery",
-            ("Product And Adopter Ownership", "Exact Effects And Recovery", "Retirement Judgment"),
+            ("Runtime And State Authority", "Bounded Maintainer Recovery"),
         ),
         (
             "docs/reference/command-plane.md",

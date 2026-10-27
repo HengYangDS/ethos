@@ -9,7 +9,7 @@ relations:
 # Command Plane
 
 This reference projects public commands from the [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
-See [Quickstart](../guides/quickstart.md) for first use and [OpenSpec Governance](../governance/openspec-governance.md) for intent.
+See [Quickstart](../guides/quickstart.md) for first use. Official OpenSpec owns intent, and the [ETHOS source OpenSpec configuration](../../openspec/config.yaml "source-only") holds its artifact rules.
 
 ## Workflow And Transport Roots
 
@@ -25,6 +25,7 @@ The daily workflow and transport operations are:
 | `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json`                                | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state.                                                                                  |
 | `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json`            | Derive and consume the same full-ref publication request.                                                                                                  | Uses the same receipt-bound exact-CAS executor as explicit receipt apply.                                                                                          |
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers.                                                                             | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
+| `ethos publish --retire --ref <full-ref> --probe-remote --expect-head <head> --json`                       | Derive an exact retirement request for one proposal or legacy role ref whose content an accepted peer branch contains.                                     | Read-only; the returned receipt action applies it after each peer is re-observed.                                                                                  |
 | `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
 | `ethos mcp --root <repo>`                                                                                  | Serve MCP over stdio for one exact repository.                                                                                                             | Tool calls retain native admission; launching the transport grants no authority.                                                                                   |
 
@@ -501,6 +502,10 @@ openspec validate --all --strict --json
 ethos lane archive-change --change <id> --expect-head <source-head> --json
 ```
 
+When several Changes are active, select one per invocation:
+`ETHOS_CHANGE=<id> ethos lane prewrite <path> --json`. The variable selects intent, never
+permission; an empty or unknown value fails closed, and no selector is stored.
+
 ## Exact Ref Observation For CI
 
 ```bash
@@ -612,3 +617,9 @@ Do not write a global hook disable, fabricated proof or permanent waiver.
 
 Readiness, execution, local publication and remote publication remain distinct;
 Work Lane visibility grants no writes. The Product Design Contract owns semantics.
+
+An independent-verification receipt reaches closeout through
+`ethos land --closeout … --independent-verification-receipt <path>` and publication through
+`ETHOS_INDEPENDENT_VERIFICATION_RECEIPT`; the
+[ETHOS source independent verification guide](../guides/independent-verification.md "source-only")
+sets up the provider.

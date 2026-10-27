@@ -7,9 +7,9 @@ See [proposal.md](proposal.md). Owner decision D3 binds this Change. Revision 5.
 Five read-only audits at `ad9108d70` placed every statement, with file and line evidence. Their reports are this Change's evidence (`build/runtime/work/fbee0c-session/normative-layering/audits/`):
 
 - N0: the consumers of the 11 documents;
-- N1: openspec-governance, skills, independent-verification-adoption, authority, product-boundary-convergence and standards-adoption-policy;
-- N2: release-governance and forge-provider-contract;
-- N3: repository-profile-contract, config-boundary-model and adopter-boundary-and-retirement;
+- N1: `openspec-governance`, `skills`, `independent-verification-adoption`, `authority`, `product-boundary-convergence` and `standards-adoption-policy`;
+- N2: `release-governance` and `forge-provider-contract`;
+- N3: `repository-profile-contract`, `config-boundary-model` and `adopter-boundary-and-retirement`;
 - N4: rules, system and documentation metadata;
 - N5: the proof-hosts spec.
 
@@ -50,7 +50,7 @@ Each statement takes one of four routes:
 
 | Document                          | Statements | Covered | Stale  | Unique obligations | Non-normative moves | Dropped |
 | --------------------------------- | ---------- | ------- | ------ | ------------------ | ------------------- | ------- |
-| openspec-governance               | 55         | 49      | 0      | 2 (configuration)  | 1                   | 3       |
+| `openspec-governance`             | 55         | 49      | 0      | 2 (configuration)  | 1                   | 3       |
 | skills                            | 42         | 39      | 1      | 0                  | 1                   | 1       |
 | independent-verification-adoption | 31         | 25      | 1      | 1                  | 3                   | 1       |
 | authority                         | 10         | 8       | 1      | 0                  | 0                   | 1       |
@@ -73,8 +73,8 @@ Each statement takes one of four routes:
 - **distribution.** Three requirements: version compatibility, prerelease stages, and release candidates and stable releases. DR-0015 keeps their rationale; release preparation and its entry are their verifier, since no checker exists.
 - **adapters.** "Forge review observation uses declared API coordinates."
 - **quality.** "Isolated Python static analysis judges the declared target." This is the one quality delta of this Change. `shared-quality-obligations` rebases onto it.
-- **openspec/config.yaml.**
-  - The withdrawn-task form moves into `rules.tasks` and `rules.specs`. DR-0016 named openspec-governance as its owner.
+- **`openspec/config.yaml`.**
+  - The withdrawn-task form moves into `rules.tasks` and `rules.specs`. DR-0016 named `openspec-governance` as its owner.
   - The duty to move durable design rulings to their owner before archive moves into `operations.archive.guidance`.
 
 ### Comparative assurance is accepted ahead of a checker
@@ -140,6 +140,8 @@ Its true claims without a current regression are listed in N5. They are coverage
 All four go. `system/formats.toml` keeps its format assignment as the loaded product carrier contract. Revision 5.1 assumed the opposite direction (`formats.toml` stops repeating `.ethos/rules.toml`), but the owner with a consumer is the one that stays.
 
 ### Kept, or owned elsewhere
+
+- **The retained history record.** Its exit condition retires the carrier once the history README stops linking it. The README would then have no child, and the directory entrypoint rule forbids a README without one. The terminal plan links two of the README's sections, and this Change edits no TP line. So the record stays, with a new review date and an exit condition that names this dependency.
 
 - **The kernel role set.** It keeps `findings` and `progress` (`src/ethos/repository/registry/docs/registry.py`). The taxonomy lists the same set, so removing a role is a product change with a fleet check of adopter documents. It goes to the product lane.
 - **`VERSION`.** It stays the next release target, as distribution states. Practice leaves it at the released version between releases, so post-release development builds sort before the release. That is a release-process defect for the product lane, and the spec is not reworded to match it.

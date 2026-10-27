@@ -3,8 +3,7 @@
 # Tool-native TOML so the installed lychee binary reads it directly.
 #
 # A documentation cross-reference is a claim about where truth lives; a broken
-# link is an unprovable claim. This gate keeps doc jump-links honest (First
-# Principle #4: a generated/linked surface is a liability unless drift is checkable).
+# link is an unprovable claim. This gate keeps doc jump-links honest.
 
 # Offline by default: the local gate is deterministic. Hosted external-link
 # proof overrides this value explicitly while reusing the same exclusions.

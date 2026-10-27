@@ -46,7 +46,7 @@ nor a catch-all for the repository. Select required product inputs, not all file
 
 | Concern                                 | Source owner                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Foundational interpretation             | [Axioms](axioms.md) and [source derivations](derivations.md "source-only")                      |
+| Foundational interpretation             | [Axioms](axioms.md)                                                                             |
 | Gate executors and evidence obligations | [Gate declaration](gates.toml)                                                                  |
 | Evidence relationships                  | [Source evidence boundaries](evidence-boundaries.toml "source-only")                            |
 | Routing and public surfaces             | [Source routing](routing.toml "source-only") and [source surfaces](surfaces.toml "source-only") |

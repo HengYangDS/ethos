@@ -173,8 +173,9 @@ committed objects. A candidate cannot disable a required predecessor verifier.
 Execution-identity changes are review information, not proof of weakening or
 equivalence, and cannot turn disabled or optional policy into required policy.
 
-[Independent verification adoption](../governance/independent-verification-adoption.md)
-owns the provider, protected receipt store and recovery boundary. Control
+The repository-governance requirement "External verification recovery follows its owning
+prerequisite" owns the provider, protected receipt store and recovery boundary, and
+[Independent Verification](../guides/independent-verification.md) sets the provider up. Control
 replacement and publication consume the same configured-evidence owner before
 offering an effect. Provider setup does not authorize repository changes, and
 a local re-execution is not an independent identity claim.

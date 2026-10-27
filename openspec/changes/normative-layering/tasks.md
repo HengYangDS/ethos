@@ -24,7 +24,7 @@
 
 - [ ] 4.1 Make the rules index name the fields the rules use, and remove the retired gate and the wrong module paths from `rules/module-layout.md`. Done when `markdown_lint` and `prose` pass.
 - [ ] 4.2 Delete `system/derivations.md` and its README row. Cite the PDC in `system/axioms.md`, correct the `system/*.toml` headers, and remove the unused `rego` carrier and the four `.ethos/rules.toml` tables that nothing reads. Done when the `schemas` gate and the rules-configuration tests pass.
-- [ ] 4.3 Retire the overdue retained history record by its exit condition and delete `docs/_meta/stable-paths.toml`, which has no reader. Correct `docs/README.md` on decisions and the link-check configuration's retired citation, and record the retired `ethos-change-lifecycle` Skill. Done when the Docs Registry validation and the `skills` gate pass.
+- [ ] 4.3 Review the overdue retained history record and record the dependency that holds it, and delete `docs/_meta/stable-paths.toml`, which has no reader. Correct `docs/README.md` on decisions and the link-check configuration's retired citation, and record the retired `ethos-change-lifecycle` Skill. Done when the Docs Registry validation and the `skills` gate pass.
 
 ## 5. Review And Record
 

@@ -200,7 +200,7 @@ architecture; these rules make the claim honest and checkable.
   the common case and reads cleanest.
 - **`import package.module` (bind the module) only when** you genuinely want the
   module namespace at the call site — usually to disambiguate several same-named
-  functions, or when the module name itself carries meaning (`ethos.adapters.git`
+  functions, or when the module name itself carries meaning (`ethos.adapters.repo.git`
   called as `git.current_head(...)`). Prefer the shortest honest name.
 - **Do NOT bind submodules through a package root** (`from package import module`).
   If the call site genuinely needs a module namespace, import the concrete
@@ -209,7 +209,7 @@ architecture; these rules make the claim honest and checkable.
 - **`as` is for necessity, not cosmetics.** Use `as` ONLY when:
   1. two imported names genuinely collide, or
   2. a module is bound as a namespace and its dotted path is too long to repeat
-     (`import ethos_repository.repository_audit as repository_audit_module`).
+     (`import ethos.adapters.gates.native.inputs as native_inputs`).
 - **Do NOT use `as` to add a `_` prefix** (`emit as _emit`, `resolve_root as
 _root`). That is compatibility residue — it exists only to preserve old
   call sites. Use the real public name (`emit`, `resolve_root`) and update callers.
@@ -221,8 +221,8 @@ _root`). That is compatibility residue — it exists only to preserve old
 ## 3. Size and split
 
 The single effective-LOC ceiling for every Python file is a repository paradigm
-value, enforced by the paradigm report in the repository audit. The `python-size`
-gate projects that same obligation over tracked and non-ignored new Python sources.
+value, enforced by the paradigm report in the repository audit, which names a breach
+the `python-size` obligation for every tracked Python file.
 Roles describe ownership without granting capacity. Unavailable inventory or
 invalid syntax cannot certify a passing measurement.
 A breach requires semantic review, but only a distinct concept, invariant,

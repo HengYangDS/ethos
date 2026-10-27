@@ -51,6 +51,12 @@ The present distribution boundary is:
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one
 ETHOS command plane.
 
+## Versions And Releases
+
+Product versions are canonical Semantic Versioning: `X.Y.Z` with an optional `-alpha.N`, `-beta.N` or `-rc.N`. That spelling is ETHOS's interoperable profile of the standard; other SemVer prerelease identifiers stay valid for adopters. Python package metadata uses its PEP 440 projection, and development builds carry source hashes that identify them without deciding precedence.
+
+A release target declares the journeys it supports, and its prereleases advance on evidence from those journeys rather than on age; the distribution specification states the stages and [DR-0015](../decisions/dr-0015-release-stage-scope.md) records why. The 0.2.0 release archives are neither signed nor notarized.
+
 ## Node Runtime Compatibility
 
 `.config/mise/config.toml` selects the exact Node release; its native lock owns

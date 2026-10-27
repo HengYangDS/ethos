@@ -97,6 +97,21 @@ is `build/runtime/tool-cache/import-linter/`. Likewise, `build/cache/` is not
 accepted as a generic dumping ground because it does not say whether the bytes
 are cache, provider work, evidence, or package output.
 
+## Source Contracts
+
+A `[[proof.source_contracts]]` entry in `.ethos/profile.toml` relates an artifact to the native owner of its bytes; the profile model (`src/ethos/repository/profile.py`) owns its fields and quality "Quality applicability preserves carrier and native semantics" owns the obligation. Each kind has one existing owner and one required observation:
+
+| Kind      | Existing owner                                                                    | Required observation                                                                   |
+| --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
+| Upstream  | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
+| Upstream  | Committed received ZIP named `<path>.zip#sha256:<hex>` with its pinned SHA-256    | Match the archive digest and each declared entry's bytes in memory                     |
+| Authored  | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
+
+A received-archive member names its exact ZIP entry, such as `archify/bin/archify.mjs`.
+
+The product source-integrity adapter delegates SRI, cache digest selection and TAR interpretation to its selected native npm libraries. A framing adapter accounts for complete headers, metadata, body padding, EOF and trailing bytes that the native parser does not expose. It is not a general-purpose strict TAR/PAX validator or a guarantee against a same-user malicious producer, and native PAX tolerance keeps its explicit limits.
+
 ## Proof Recording
 
 Machine output does not become proof by living under `build/evidence/` or

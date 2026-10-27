@@ -2,8 +2,11 @@
 
 ## Purpose
 
-ETHOS SHALL keep conformance, parity, sample repository, schema compatibility,
-and migration replay proof separate from runtime packages.
+ETHOS SHALL keep proof material, including test fixtures, sample-repository
+constructors, package acceptance and host-conformance checks, outside the
+shipped runtime packages. It SHALL keep local Git semantics host-portable and
+run hosted proof from the checked-out source without letting hosted execution or
+provider observation become repository authority.
 
 ## Requirements
 

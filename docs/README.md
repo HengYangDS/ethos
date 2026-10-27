@@ -34,11 +34,11 @@ and [Command Plane](reference/command-plane.md).
 
 ## ETHOS Documentation Shape
 
-| Lane         | Owns                                                                                |
-| ------------ | ----------------------------------------------------------------------------------- |
-| `decisions/` | Durable reasons for accepted or superseded design choices; never runtime authority. |
-| `reference/` | Stable vocabulary, boundaries, and governance references.                           |
-| `history/`   | Retired rationale and archival logs.                                                |
+| Lane         | Owns                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| `decisions/` | Durable reasons for accepted, irreducible cross-Change choices; never runtime authority. |
+| `reference/` | Stable vocabulary, boundaries, and governance references.                                |
+| `history/`   | Retired rationale and archival logs.                                                     |
 
 ## ETHOS Product Extensions
 

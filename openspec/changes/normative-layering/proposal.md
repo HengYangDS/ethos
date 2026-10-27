@@ -20,7 +20,7 @@ Read-only audits of 2026-10-28 placed each of their 412 statements:
 
 ## What Changes
 
-- **Eleven documents retire.** authority, product-boundary-convergence, standards-adoption-policy, skills, openspec-governance, independent-verification-adoption, forge-provider-contract, release-governance, repository-profile-contract, config-boundary-model and adopter-boundary-and-retirement each give back every statement:
+- **Eleven documents retire.** `authority`, `product-boundary-convergence`, `standards-adoption-policy`, `skills`, `openspec-governance`, `independent-verification-adoption`, `forge-provider-contract`, `release-governance`, `repository-profile-contract`, `config-boundary-model` and `adopter-boundary-and-retirement` each give back every statement:
   - a covered statement becomes a link to its owner;
   - a unique obligation moves to its owner;
   - explanation, reference and procedure move to an existing document or a new how-to;
@@ -36,7 +36,7 @@ Read-only audits of 2026-10-28 placed each of their 412 statements:
 - **Existing documents.** command-plane, configuration, adoption-profiles, fleet-and-adopters, generated-artifact-topology, distribution, gate-runner, agent-projections and the glossary gain the moved explanation and reference text.
 - **Consumers move in the same Change.** These are the context sources, the required-document list, the Skills rule contract, the wheel and sdist entries, the Skill activation routes, the decision records' `current_owner` pointers, CHANGELOG, CONTRIBUTING, `rules/release.md` and every incoming link.
 - **Governance documents.** The Docs Registry takes `role: policy`, and the governance index lists the documents that remain.
-- **Rules, system and metadata.** The rules index names the fields the rules use. `module-layout.md` drops its retired gate and wrong module paths. `system/derivations.md` is deleted. The axioms cite the PDC. The `system/*.toml` headers cite their current owners. The unused `rego` carrier goes, and so do four `.ethos/rules.toml` tables that nothing reads. The overdue retained history record retires by its exit condition, and the link-check configuration stops citing a retired principle.
+- **Rules, system and metadata.** The rules index names the fields the rules use. `module-layout.md` drops its retired gate and wrong module paths. `system/derivations.md` is deleted. The axioms cite the PDC. The `system/*.toml` headers cite their current owners. The unused `rego` carrier goes, and so do four `.ethos/rules.toml` tables that nothing reads. The overdue retained history record gets its review: it stays until the terminal plan stops linking the history README, and its exit condition says so. The link-check configuration stops citing a retired principle.
 - **CHANGELOG.** One entry under `[Unreleased]`.
 
 Out of scope:

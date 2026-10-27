@@ -42,6 +42,12 @@ required observation does not pass. Hosted CI is a separate post-publication
 observation, not an in-flight pipeline waiting on itself. Read the declaration
 for current membership instead of copying gate lists here.
 
+## Forge Projections
+
+Each Forge's CI is a projection of the same gates. The gate declaration and its owner commands compile through `.config/ci/pipeline.cue` into the generated `.github/workflows/ci.yml` and `.gitlab-ci.yml`. Neither generated file is an editable source, and `ethos lane project` writes both from the model (repository-paradigm "CI for several Forges is one model" and "Repository orchestration is native").
+
+Optional local emulators (`act` and `gitlab-ci-local`, selected in `.config/checks/ci-projection/policy.toml`) give local evidence only. A hosted run on a Forge is a separate observation of that Forge's plane (proof-hosts "Hosted provider observations remain evidence-class scoped"). Local proof, emulator evidence, hosted status, ref reachability and release publication are distinct evidence states, and none stands in for another (quality "Local And Hosted Planes Stay Separate").
+
 ## Dependency Safety
 
 The runner executes the admitted DAG through one bounded ready-node executor.

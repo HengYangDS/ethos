@@ -12,7 +12,7 @@ Status: canonical.
 
 Purpose: map each ETHOS configuration file under `.config/` to the tool or repository check that consumes it.
 
-See also: [Reference Documentation](README.md), [Config Boundary Model](../governance/config-boundary-model.md) and [DR-0012: Repository Paradigm](../decisions/dr-0012-repository-paradigm.md).
+See also: [Reference Documentation](README.md), the [repository-paradigm specification](../../openspec/specs/repository-paradigm/spec.md), whose "Tool configuration lives in the configuration plane" owns this plane, and [DR-0012: Repository Paradigm](../decisions/dr-0012-repository-paradigm.md).
 
 `.config/` holds only configuration that a tool or repository check consumes, grouped by that consumer. It is a
 configuration plane, not a truth center.
@@ -112,6 +112,17 @@ configuration plane, not a truth center.
 - `.config/checks/ci-projection/policy.toml` declares provider emulator selection,
   events, jobs, images and time limits. `tools/ci/ci_projection.py` consumes
   that declaration; emulator output is local evidence, not hosted CI status.
+  Its `[[forge_surface]]` entries declare the issue and change forms each Forge projects and
+  their required sections; `tools/ci/ci_projection.py` checks them. CUE compiler inputs keep
+  their native carriers: a string reference stays TOML, and a typed reference names an exact
+  `path` and `format`:
+
+  ```toml
+  [compiler.inputs]
+  policy = "policy.toml"
+  package = { path = "package.json", format = "json" }
+  ```
+
 - `python -m tools.ci.ci_projection` validates GitHub workflows through locked
   Actionlint and finite-input ShellCheck, without a shell launcher. Native policy
   and supply remain under `.config/mise/config.toml`, `.config/mise/mise.lock`
@@ -191,6 +202,30 @@ uv run --frozen --offline pre-commit run --config .config/checks/pre-commit/.pre
 
 The source-bound `config_quality` Nox session validates this same native YAML.
 Git hook installation remains owned by `ethos hook install`.
+
+## Repository surfaces
+
+Each repository surface holds one kind of fact; the owner column names the carrier that defines it.
+
+| Surface                   | Holds                                                                                                              | Does not hold                                                                           | Owner                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.ethos/`                 | The tracked ETHOS binding: profile, workspace, release and rules                                                   | Change intent, tool-native configuration, domain truth, durable evidence, mutable state | repository-paradigm "The binding uses only ETHOS-defined files"                                                                                                   |
+| `<git-common-dir>/ethos/` | Repository-local coordination shared by worktrees: Leases, bounded requests, operation receipts, transaction state | Durable Attestation selection, product meaning, portable configuration                  | kernel "Durable event-like values are consumed Attestations" (scenario "Git-common state stays outside checkouts"); [Local State](../architecture/local-state.md) |
+| `.config/`                | Configuration that a tool or repository check consumes, grouped by that consumer                                   | Scripts, tool implementation, documentation, evidence, user decisions                   | repository-paradigm "Tool configuration lives in the configuration plane" and "The configuration plane holds only consumed configuration"                         |
+| `rules/`                  | Executable duties, each bound to the check its Evidence names                                                      | Tool implementation details, generated state                                            | [Rules System](../../rules/README.md)                                                                                                                             |
+| `docs/`                   | Explanation, reference, how-to, decisions, research and history, each linking its owner                            | Normative policy outside the PDC and its linked owners, mutable state, evidence         | [Docs Registry](../governance/docs-registry.md)                                                                                                                   |
+| `system/`                 | Machine-readable product contracts, in the product repository only                                                 | Adopter domain truth; an adopter needs no `system/` tree                                | [System Contracts](../../system/README.md)                                                                                                                        |
+| `openspec/`               | Official OpenSpec Changes, accepted specs and their native lifecycle                                               | Execution authority, runtime state, proof by itself                                     | repository-governance "Official OpenSpec Governance"                                                                                                              |
+| `.agents/`                | Repository-local Skills and their activation routes                                                                | An independent truth store                                                              | [Skill Rules](../../rules/skills.md)                                                                                                                              |
+
+## `.ethos/` bindings
+
+The binding layer holds only ETHOS-defined files (repository-paradigm "The binding uses only ETHOS-defined files"):
+
+- `.ethos/profile.toml`: the repository profile. The profile model (`src/ethos/repository/profile.py`) owns its fields, and repository-governance "Repository profile is a strict current binding" owns its validation.
+- `.ethos/release.toml`: `[protected_refs]`, `[host_profile]`, `[publication]` with its local verification and installation commands, `[[publication.peers]]` (identity, provider, role, Git remote, capabilities, Forge repository and CI surface), `[attestation]` and `[release]`. `src/ethos/repository/release/publication.py` owns the peer fields, and repository-governance "Declared publication peer topology" owns the topology.
+- `.ethos/rules.toml`: the active rule profiles and repository rules (`src/ethos/repository/policy/rules/config.py`).
+- `.ethos/workspace.toml`, when present: the workspace binding.
 
 ## Boundary rule
 

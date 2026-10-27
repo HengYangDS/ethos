@@ -13,7 +13,7 @@ Status: canonical.
 Purpose: explain how ETHOS binds an adopter without cloning product governance
 or inventing repository-type profiles.
 
-See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Repository Profile Contract](../governance/repository-profile-contract.md), and [Config Boundary Model](../governance/config-boundary-model.md).
+See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), [Glossary](../reference/glossary.md), [Configuration Plane](../reference/configuration.md) and the [repository-governance specification](../../openspec/specs/repository-governance/spec.md), whose "Repository profile is a strict current binding" owns the profile.
 
 `ethos adopt` composes one ETHOS binding with native OpenSpec initialization.
 It writes one declaration; the repository paradigm also admits optional
@@ -21,6 +21,15 @@ It writes one declaration; the repository paradigm also admits optional
 
 ```text
 .ethos/profile.toml
+```
+
+Adoption writes the minimal declaration:
+
+```toml
+profile_id = "<repository>"
+
+[openspec]
+material_paths = ["**"]
 ```
 
 The strict frozen repository-profile declaration owns validation and TOML
@@ -56,6 +65,11 @@ presence is capability state, not a bootstrap prerequisite. Domain gates,
 provider state, and tool-native configuration remain adopter facts; adoption
 does not generate or normalize them. The repository paradigm fixes the
 branch-role names.
+
+The common floor that every adopter shares is the union of its owners' obligations:
+repository-governance for the binding, OpenSpec, commits, release and documentation
+carriers, and the Product Design Contract for the quality floor, feedback and recovery.
+No Skill or generated entrypoint adds to it.
 
 ## Formation and Starter Evolution
 

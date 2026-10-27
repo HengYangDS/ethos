@@ -5,19 +5,19 @@ state: canonical
 decision_id: DR-0014
 decision_status: accepted
 relations:
-  current_owner: ../governance/adopter-boundary-and-retirement.md
+  current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0014: Comparative Correction
 
-Status: canonical rationale. The adopter boundary contract owns current behavior.
+Status: canonical rationale. The repository-governance specification owns current behavior.
 
 Date: 2026-10-18.
 
 Purpose: preserve why a replacement may drop an incumbent finding that evidence outside the
 candidate shows false, and why that correction never weakens the non-regression rule.
 
-See also: [Adopter Boundary And Retirement](../governance/adopter-boundary-and-retirement.md),
+See also: [Repository-governance specification](../../openspec/specs/repository-governance/spec.md),
 [DR-0006: Proof trust boundary](dr-0006-proof-trust-boundary.md), and the
 `quality-evidence-admission` OpenSpec Change.
 
@@ -82,8 +82,8 @@ correction is admitted, the missing gap remains a comparative false negative.
 
 ## Evidence and Revisit
 
-- [Adopter Boundary And Retirement](../governance/adopter-boundary-and-retirement.md) states the
-  current comparative outcomes and what a retirement judgment records.
+- The [repository-governance specification](../../openspec/specs/repository-governance/spec.md) states the current comparative outcomes and
+  what a retirement judgment records.
 - The accepted quality specification scenario "A candidate weakens its own quality policy" requires
   an independently admitted transition before a candidate's weaker policy judges it.
 - Task 11.9.2.2 of `quality-evidence-admission`, fix `a28692620` with proof `dbe68ce0`, made the

@@ -1,5 +1,5 @@
 ---
-subject: docs:guides
+subject: ethos:quickstart
 role: how-to
 state: active
 relations:

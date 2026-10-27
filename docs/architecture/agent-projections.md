@@ -13,7 +13,7 @@ Status: canonical.
 Purpose: define the boundary between repository truth and agent-facing
 projections.
 
-See also: [Repo-local Skills](../governance/skills.md) and
+See also: [Skill Rules](../../rules/skills.md) and
 [Command Plane](../reference/command-plane.md).
 
 Assistant files, protocol adapters, hosted runners, provider prompts, and

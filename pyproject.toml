@@ -93,11 +93,6 @@ packages = ["src/ethos"]
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
 "docs/governance/docs-registry.md" = "ethos/resources/docs/governance/docs-registry.md"
-"docs/governance/repository-profile-contract.md" = "ethos/resources/docs/governance/repository-profile-contract.md"
-"docs/governance/release-governance.md" = "ethos/resources/docs/governance/release-governance.md"
-"docs/governance/adopter-boundary-and-retirement.md" = "ethos/resources/docs/governance/adopter-boundary-and-retirement.md"
-"docs/governance/config-boundary-model.md" = "ethos/resources/docs/governance/config-boundary-model.md"
-"docs/governance/openspec-governance.md" = "ethos/resources/docs/governance/openspec-governance.md"
 "docs/concepts/kernel-model.md" = "ethos/resources/docs/concepts/kernel-model.md"
 "docs/reference/glossary.md" = "ethos/resources/docs/reference/glossary.md"
 "docs/reference/command-plane.md" = "ethos/resources/docs/reference/command-plane.md"
@@ -117,11 +112,6 @@ only-include = [
   "system",
   "docs/governance/product-design-contract.md",
   "docs/governance/docs-registry.md",
-  "docs/governance/repository-profile-contract.md",
-  "docs/governance/release-governance.md",
-  "docs/governance/adopter-boundary-and-retirement.md",
-  "docs/governance/config-boundary-model.md",
-  "docs/governance/openspec-governance.md",
   "docs/concepts/kernel-model.md",
   "docs/reference/glossary.md",
   "docs/reference/command-plane.md",

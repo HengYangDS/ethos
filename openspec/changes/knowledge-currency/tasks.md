@@ -38,4 +38,5 @@
 ## Workflow follow-up
 
 - Prove the exact head, archive this Change, prove the archived head, land it and publish `dev` to GitHub.
+- Start `coordination-spec-currency` in the knowledge lane for the 11 Work Lane coordination requirements of repository-governance; their audited plan is in this Change's evidence.
 - Publish `main` only after the `dev` push run's ETHOS CI has succeeded, then read the `main` push's rule suite, which settles revision 5.1's open D11 observation. GitLab follows on the owner's notice.

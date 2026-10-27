@@ -23,7 +23,7 @@ Revision 5.1 orders this Change first in the knowledge lane, before any reordere
   - The repository paradigm's `[size]` table owns the numeric file limits.
   - The views clause links to the PDC's 雅.
   - One sentence admits a measured iteration cost that every later Change pays to be removed ahead of the batches.
-- **Accepted specs.** kernel, distribution, repository-governance, contracts and adapters drop or correct the statements that describe removed behavior, cite deleted files or contradict the PDC.
+- **Accepted specs.** kernel, distribution, repository-governance, contracts and adapters drop or correct the statements that describe removed behavior, cite deleted files or contradict the PDC. The Work Lane coordination requirements of repository-governance follow in `coordination-spec-currency`, because one delta file must stay within the 512-line Markdown ceiling.
 - **Other carriers.** Unshipped documents, research, history, Skills, CONTRIBUTING, README and the glossary correct their confirmed outdated statements and dead references. Pinned commits that no ref reaches move to their reachable twins with the same tree.
 - **Dispositions.** Every finding of the rerun currency and duplication reviews in these owners gets one: corrected, linked, kept with a reason, or owned by another Change.
 - **CHANGELOG.** One entry under `[Unreleased]`.

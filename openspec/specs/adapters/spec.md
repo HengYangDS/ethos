@@ -229,20 +229,22 @@ SHALL roll back branch and worktree residue.
 
 - **WHEN** a verified preserved handoff package is imported into a clean
   accepted-root clone
-- **THEN** ETHOS creates a destination-local branch, worktree, lane incarnation,
-  and lease
+- **THEN** ETHOS creates a destination-local branch, worktree, and Lease
+  generation
 - **AND** restores tracked and non-ignored untracked content before acknowledgement
 - **AND** rolls back branch and worktree state if restoration or lease creation fails.
 
 ### Requirement: Internal ETHOS Gate Fast Path
 
-ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
+ETHOS SHALL execute gates that declare Python `providers` in-process and gates
+that declare a `command` through the subprocess adapter.
 
 #### Scenario: Internal gate runs without nested CLI process
 
-- **WHEN** the local runner executes `python -m ethos.cli <command> --json`
-- **THEN** ETHOS invokes the command plane in-process
-- **AND** external provider commands still use the subprocess adapter
+- **WHEN** the local runner executes a gate that declares `providers`
+- **THEN** ETHOS calls each declared provider in-process without a nested CLI
+  process
+- **AND** a gate that declares a `command` still uses the subprocess adapter
 
 ### Requirement: Official OpenSpec Lifecycle Adapter
 
@@ -366,7 +368,7 @@ or topology or require protected refs to equal the promoted object already.
 
 #### Scenario: changed managed shell hook bootstraps an accepted-to-release mirror
 
-- **GIVEN** the candidate policy enables `release_mirror = "accepted_ff"`
+- **GIVEN** the candidate `.ethos/release.toml` declares `[release] mirror = "accepted_ff"`
 - **AND** the candidate changes the tracked `reference-transaction` shell hook
 - **AND** the incumbent shell can admit the accepted transition only through the
   candidate semantic runner
@@ -417,46 +419,19 @@ reconstruct an equivalent Runtime graph in a forwarding facade.
 ### Requirement: Adopter Release Metadata Remains Profile Bounded
 
 ETHOS SHALL NOT infer product release semantics from the presence of a generic
-tool configuration file, and SHALL report supported runtime-files identity
-without requiring Python package metadata.
+tool configuration file, and SHALL read a release version only from a committed
+`VERSION`, a `package.json` `version`, or a static `[project].version`, returning
+missing, dynamic, malformed, or conflicting sources as structured gaps.
 
 #### Scenario: Runtime-files adopter is audited
 
-- **WHEN** an adopted repository has `pyproject.toml` without `[project]`
-- **AND** one `[tool.<name>]` table declares `distribution = "runtime-files"`
-  and a contained `version-source`
-- **THEN** generic coupling and schema audits do not execute ETHOS product-only
-  release policy
-- **AND** direct release inspection reads the table name and declared version
-  file as release identity
-- **AND** malformed or unsupported metadata is returned as a structured gap,
-  not a Python traceback
+- **WHEN** an adopted repository has `pyproject.toml` without `[project]`, a
+  `[tool.<name>]` table that declares `distribution = "runtime-files"`, and no
+  `VERSION` file or `package.json` version
+- **THEN** schema audits do not execute ETHOS product-only release policy
+- **AND** direct release inspection reports `release_version_source_missing` as a
+  structured gap, not a Python traceback
 - **AND** invalid release-policy TOML is likewise returned as a structured gap
-
-### Requirement: Atomic Fresh Change Bootstrap
-
-ETHOS SHALL create a mutation-capable Work Lane and its official OpenSpec Change
-through one bounded public transition from clean accepted truth. The Lease SHALL
-bind only lane, holder, generation, and expiry; the resulting Git ref and
-OpenSpec artifacts SHALL be re-observed as fresh facts.
-
-#### Scenario: A fresh Change starts without a predecessor lane
-
-- **WHEN** an operator supplies a Change name and holder from a clean accepted root with a current clean candidate
-- **THEN** ETHOS creates the exact Work Lane and official OpenSpec artifacts
-- **AND** no tracked Commitment carrier, predecessor ledger, or Lease mirror is created
-
-#### Scenario: Bootstrap intent is absent or ambiguous
-
-- **WHEN** the Change name, target lane, holder, accepted root, or candidate is missing or ambiguous
-- **THEN** ETHOS blocks before the first effect or compensates only its exact owned effects
-- **AND** it does not infer intent from an archive, branch name, historical task, or conversation
-
-#### Scenario: A live Change continuation is requested
-
-- **WHEN** an operator continues a valid active Change in its owned Work Lane
-- **THEN** ETHOS reuses that lane and official Change
-- **AND** the fresh bootstrap path is not also evaluated
 
 ### Requirement: Attestations use one deterministic Git set carrier
 

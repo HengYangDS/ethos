@@ -20,8 +20,6 @@ rather than implementation package names.
   `assistant-projections`, `distribution`, `quality`, and `proof-hosts`
 - **AND** no accepted capability directory is required merely because it mirrors
   a retired package or host surface name
-- **AND** `capability.toml` records implementation ownership as metadata rather
-  than capability identity
 
 ### Requirement: Official OpenSpec Governance
 
@@ -37,56 +35,6 @@ ETHOS status is the singular reader for repository readiness.
 - **WHEN** ETHOS audits OpenSpec repository governance
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
-
-### Requirement: Coupling Binding Registry
-
-ETHOS SHALL classify product-semantic hard bindings, mandatory governance
-dependencies, native protocols, product toolchains, profile or adapter
-bindings, historical evidence, and test fixtures through a machine-readable
-coupling registry. Profile or adapter bindings SHALL carry explicit admission
-metadata before they can participate in the registry.
-
-#### Scenario: Binding registry is audited
-
-- **WHEN** `ethos prove --gate repository-audit --json` runs
-- **THEN** the output includes `binding_registry`
-- **AND** Git repository substrate and configured branch roles are classified as
-  product-semantic hard bindings
-- **AND** the branch role policy entry reports its configuration source,
-  configuration keys, default-policy state, semantic role order, and configured
-  patterns
-- **AND** the standard Work Lane lifecycle command contract is classified as a
-  product-semantic hard binding
-- **AND** OpenSpec workspace and CLI are classified as mandatory governance
-  dependencies rather than product substrate
-- **AND** command JSON, JSON Schema, claims, evidence, and ignored local state
-  are classified as native protocols
-- **AND** product proof tools and host projections do not own product
-  semantics
-- **AND** profile or adapter bindings include admission authority, truth
-  boundary, and decision state
-- **AND** adapter or profile admission keeps `truth_boundary=profile_or_adapter`
-  and `decision_state=admitted`
-- **AND** host navigation labels in product semantic docs are reported as
-  required gaps
-
-#### Scenario: Adapter binding lacks admission
-
-- **WHEN** a `profile_or_adapter_binding` lacks admission metadata
-- **THEN** coupling audit reports a required gap naming the binding
-- **AND** the adapter cannot silently become repository truth.
-
-### Requirement: Standards Adapter Lifecycle
-
-ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,
-input contract, output contract, fallback, and exit strategy.
-
-#### Scenario: Standards are checked
-
-- **WHEN** `ethos prove --gate repository-audit --json` runs
-- **THEN** the canonical repository audit verifies each current standard adapter
-  against its declared boundary, lifecycle, contracts, fallback, and retirement
-  behavior
 
 ### Requirement: Product Design Contract
 
@@ -130,26 +78,6 @@ history and SHALL NOT own the current implementation queue.
 - **AND** obsolete carrier advice is not restored as compatibility state,
   duplicated prose, or another tracked schema
 
-### Requirement: Changed Scope Playbook Routing
-
-ETHOS SHALL route changed-scope skill requests through explicit activation
-metadata and changed-path evidence rather than subject or identifier substring
-matches.
-
-#### Scenario: Changed scope route is explicit
-
-- **WHEN** `ethos plan --changed --json` runs
-- **THEN** every selected skill has matched changed paths, activation metadata,
-  operation metadata, and runnable proof obligations
-- **AND** unmatched changed paths are reported as required gaps
-
-#### Scenario: presence-only skills do not close report scoring
-
-- **GIVEN** a repository only has a placeholder skill projection
-- **WHEN** `ethos status --json` runs
-- **THEN** ETHOS does not give the skill capability full score from file
-  presence alone
-
 ### Requirement: Fast Daily Governance Checks
 
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
@@ -180,7 +108,7 @@ ETHOS SHALL govern repositories through one governed repository semantic model.
 
 #### Scenario: Primary command results expose the shared governance context
 
-- **WHEN** ETHOS emits `status`, `plan`, `prove`, `land`, or `publish` JSON for any
+- **WHEN** ETHOS emits `status`, `prove`, `land`, or `publish` JSON for any
   governed repository
 - **THEN** the top-level result includes `governance_context`
 - **AND** the context identifies the subject as a repository
@@ -233,8 +161,9 @@ their native subject layout under the portable Docs Registry contract.
 - **THEN** role, state, subject, and relation metadata are validated by the
   registry owner and directory names express subject/function rather than
   lifecycle state
-- **AND** the registry SHALL report every broken link, stale stable path,
-  unindexed document, duplicate subject, and invalid README disposition
+- **AND** the registry SHALL report missing or invalid metadata, duplicate
+  subjects, unindexed plans, and invalid README dispositions
+- **AND** the `markdown-links` gate SHALL report broken links
 
 #### Scenario: `current`/`future` roots do not become truth lanes
 
@@ -441,8 +370,8 @@ valid executed proof evidence.
 - **WHEN** `ethos land --json` evaluates the Work Lane
 - **THEN** ETHOS reports `proof_not_proven`
 - **AND** ETHOS does not report `ready_to_land`
-- **AND** the payload exposes `proof_readiness.head` bound to the current HEAD
-- **AND** the next action is `ethos prove --execute --expect-head <HEAD> --json`
+- **AND** the next action is
+  `ethos prove --full --execute --expect-head <HEAD> --json`
 
 #### Scenario: Work Lane land dry-run with executed proof is ready
 
@@ -450,7 +379,6 @@ valid executed proof evidence.
 - **AND** a valid executed proof record exists for the Work Lane HEAD
 - **WHEN** `ethos land --json` evaluates the Work Lane
 - **THEN** ETHOS reports `ready_to_land`
-- **AND** `proof_readiness.state` is `proven`
 
 ### Requirement: Accepted-root closeout distinguishes current from promotable
 
@@ -558,20 +486,6 @@ required.
 - **AND** the repaired source requires fresh strict validation and proof without
   recreating the active Change or repeating its completed archive effect
 
-### Requirement: Reference Adopter Parity Closure
-
-ETHOS SHALL prove reference adopter parity through generic profile and shadow
-evidence mechanisms rather than product-runtime adopter terms.
-
-#### Scenario: Reference adopter parity is closed
-
-- **GIVEN** tracked parity evidence for a reference adopter reports `verdict=pass`
-- **AND** the evidence covers OpenSpec claims trust review, Work Lane
-  lifecycle, proof evidence, and profile boundaries
-- **WHEN** ETHOS reports parity gaps for that adopter
-- **THEN** no covered capability gap is emitted for that adopter
-- **AND** product runtime packages remain free of adopter-private terminology
-
 ### Requirement: Contextual Authority Resolution
 
 ETHOS SHALL resolve authority and currentness for the exact subject, predicate,
@@ -592,8 +506,9 @@ carrier before mutation.
 #### Scenario: Adoption dry-run is inspected
 
 - **WHEN** `ethos adopt --json` runs
-- **THEN** the result SHALL report read files, the exact one-file plan, apply
-  criteria, conflicts, and rollback instructions
+- **THEN** the result SHALL report read files, the exact plan for the ETHOS
+  profile and the official OpenSpec configuration, apply criteria, conflicts,
+  and rollback instructions
 - **AND** profile selection, historical profile names, `init`, explicit
   `--dry-run`, and overlay SHALL not remain as alternate adoption paths.
 
@@ -763,16 +678,16 @@ prior decisions SHALL NOT become reusable authorization by themselves.
 #### Scenario: mutation decision is exact-request bound
 
 - **WHEN** ETHOS evaluates a mutation request
-- **THEN** it returns `pass`, `block`, or `unknown` with `why`, `next`, and
-  `required_gaps`
+- **THEN** it returns `pass`, `block`, or `unknown` with `why`, `next_action`,
+  and `required_gaps`
 - **AND** the decision binds action, resource, expected mutable state, policy
   refs, evidence refs, and decision basis
-- **AND** `allow` applies only to that request and mints no role, capability,
+- **AND** a `pass` applies only to that request and mints no role, capability,
   session, token, or reusable authorization.
 
 #### Scenario: confirmation and user instruction do not bypass policy
 
-- **WHEN** a caller supplies `--apply`, legacy `--authorize`, another destructive
+- **WHEN** a caller supplies `--apply`, `--authorize`, another destructive
   confirmation, or an unverified session instruction
 - **THEN** ETHOS treats it as execution intent or active-session reasoning input
 - **AND** it is not caller authentication or durable repository policy
@@ -802,7 +717,7 @@ prior decisions SHALL NOT become reusable authorization by themselves.
 - **AND** unavailable incumbent provenance defers rather than trusts candidate
   controls
 - **AND** first policy adoption requires a bootstrap approver/verifier configured
-  outside the candidate tree and a bootstrap Chronicle decision.
+  outside the candidate tree and a bootstrap decision Attestation.
 
 ### Requirement: Work Lane Coordination Read Model
 
@@ -1014,7 +929,8 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
 #### Scenario: publish probes remote availability without blocking local readiness
 
 - **WHEN** `ethos publish --json` runs
-- **THEN** the payload includes a read-only `remote_availability` fact
+- **THEN** the payload includes a read-only availability observation for each
+  declared peer under `remote_observations`
 - **AND** remote probe failure, missing remote, or timeout remains advisory and
   does not create a required gap for local readiness
 - **AND** the payload includes `local_ci_fallback` with evidence class
@@ -1030,51 +946,14 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
   hosted CI policy inline
 - **AND** local fallback evidence does not claim hosted CI pipeline success
 
-### Requirement: Advisory governance signals are visible in reader views
-
-ETHOS SHALL expose non-blocking advisory governance signals in the bounded
-status reader without treating them as transition-blocking required gaps.
-
-#### Scenario: Status exposes advisory signal count and layer
-
-- **WHEN** `ethos status --json` runs
-- **THEN** the summary includes `advisory_gap_count`
-- **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
-- **AND** when there are advisory gaps but no required gaps status remains
-  reports `verdict=pass` and `state=advisory` rather than `state=ready`
-- **AND** required gaps remain reserved for blocking transition failures
-
-#### Scenario: Status exposes advisory signal count, layer, and one bounded next action
-
-- **WHEN** `ethos status --json` runs
-- **THEN** the summary includes `advisory_gap_count`
-- **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
-- **AND** top-level `next_action` selects one deterministic read-only inspection or explanation action for known advisory signals
-- **AND** required gaps remain reserved for blocking transition failures
-
-#### Scenario: Status carries Work Lane coordination advisories
-
-- **WHEN** `ethos status --json` runs and workspace status contains Work Lane coordination advisory gaps
-- **THEN** the status summary includes those gaps in `advisory_gap_count`
-- **AND** `gap_layers.advisory_signals.advisory_gaps` includes the Work Lane coordination advisories
-- **AND** top-level `next_action` routes to one deterministic read-only coordination inspection command when no blocking gap is present
-- **AND** the advisories do not become status `required_gaps`
-
-#### Scenario: Status carries Work Lane coordination blockers
-
-- **WHEN** `ethos status --json` runs for a product or adopter profile and workspace status contains required Work Lane coordination gaps
-- **THEN** those required coordination gaps appear in status `required_gaps`
-- **AND** `gap_layers.coordination_risk.required_gaps` carries the required coordination gaps
-- **AND** `gap_layers.coordination_risk.advisory_gaps` carries advisory coordination signals without making them required
-- **AND** product and adopter profiles both surface required coordination gaps as blockers
-- **AND** status remains read-only and does not authorize foreign Work Lane cleanup
-
 ### Requirement: Generated Evidence Boundary
 
 Generated proof artifacts SHALL remain outside repository truth, with
 deterministic latest-artifact writes. Product and contributor package builds
-SHALL clear and write `build/artifacts/python`, SHALL rely on the repository-level
-ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
+SHALL build in a disposable staging directory and replace
+`build/artifacts/python`, or `build/artifacts/release/python` for a release
+build, with exactly one admitted wheel; they SHALL rely on the repository-level
+ignore and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 
 #### Scenario: Shared coverage evidence writes are serialized
 
@@ -1087,22 +966,23 @@ ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 
 #### Scenario: An interrupted coverage writer does not block future proof forever
 
-- **GIVEN** the generated coverage writer lock records a process identity whose
-  PID and start fingerprint no longer identify a live process
+- **GIVEN** a coverage writer exited or died while holding the native file lock
 - **WHEN** a later Python owner test gate starts for that same evidence home
-- **THEN** it reclaims only that dead-owner lock before acquiring the writer
-  boundary
-- **AND** it never preempts an unknown or live owner
-- **AND** an unrecoverable lock fails after a configured bounded wait with the
-  lock path and observed owner identity, rather than waiting indefinitely
-- **AND** lock metadata remains ignored generated state, not repository truth.
+- **THEN** the operating system has released that lock and the gate acquires the
+  writer boundary
+- **AND** it never preempts a live holder
+- **AND** a lock held past the configured bounded wait
+  (`ETHOS_COVERAGE_LOCK_WAIT_SECONDS`) fails with the lock path rather than
+  waiting indefinitely
+- **AND** the lock file remains ignored generated state, not repository truth.
 
 #### Scenario: Package build writes to the semantic artifact home
 
 - **WHEN** the product full proof executes its package build gate or a
   contributor follows the documented package-build command
-- **THEN** `uv build --out-dir build/artifacts/python --clear
---no-create-gitignore` is the invoked command
+- **THEN** the `build` owner runs `uv build` with `--out-dir <staging>` and
+  `--no-create-gitignore`, then replaces `build/artifacts/python` with the one
+  admitted wheel
 - **AND** generated package artifacts remain disposable local state under
   `build/artifacts/python`
 - **AND** concurrent workspace package builds do not race on an output-local
@@ -1236,7 +1116,6 @@ and non-admitted roles SHALL fail before remote writes.
 
 - **WHEN** a locally existing signed annotated tag matches the declared release-tag policy
 - **THEN** `refs/tags/<tag>` SHALL resolve to annotated release tag and release-publication role
-- **AND** it SHALL NOT emit `publication_remote_role_unavailable:other`
 
 #### Scenario: tag is lightweight or untrusted
 
@@ -1288,20 +1167,6 @@ projections, and gates instead of making adopter tools product ontology.
 - **AND** missing method-pack availability SHALL NOT block ETHOS repository
   governance when equivalent evidence discipline is satisfied
 
-### Requirement: Evidence-bound preservation-package clearing
-
-ETHOS SHALL remove a retained recovery package only after a manifest-bound,
-Chronicle-gated manual-clear decision.
-
-#### Scenario: a package is cleared deliberately
-
-- **GIVEN** the selected manifest matches its expected SHA-256 and the accepted
-  Chronicle selects `lane_resolution/clear-preservation`
-- **WHEN** a maintainer supplies a reason, break-glass, and irreversible
-  confirmation
-- **THEN** ETHOS records a clear receipt and removes only that package
-- **AND** preserves the original resolution receipt and Chronicle
-
 ### Requirement: Source-bound Work Lane runner bootstrap
 
 ETHOS SHALL return a runner bootstrap for a newly started Work Lane that uses
@@ -1335,20 +1200,21 @@ or its project lock exposes an `ethos` executable.
 
 ### Requirement: Deterministic Official OpenSpec Tool Supply
 
-ETHOS SHALL invoke the repository-locked official `@fission-ai/openspec@1.12.0`
+ETHOS SHALL invoke the repository-locked official `@fission-ai/openspec`
 package from its declared local runtime and CI bootstrap. The effective package
 identity SHALL derive from the repository package declaration and lockfile;
 ambient npx, PATH, cache, and global versions SHALL not be accepted as a
-fallback. Adoption SHALL NOT generate an OpenSpec workspace or provider CI
-surface.
+fallback. Adoption SHALL NOT generate provider CI surfaces or OpenSpec artifacts
+beyond the official default configuration.
 
 #### Scenario: ETHOS-owned fallback and CI supply are inspected
 
 - **WHEN** a maintainer inspects the OpenSpec adapter and CI bootstrap
 - **THEN** each repository-owned package invocation SHALL resolve the locked
-  `@fission-ai/openspec@1.12.0` identity
+  `@fission-ai/openspec` identity
 - **AND** strict official OpenSpec validation SHALL remain the governance gate
-- **AND** adoption SHALL plan no OpenSpec or CI carrier.
+- **AND** adoption SHALL plan no CI carrier and no OpenSpec carrier beyond the
+  official default configuration.
 
 ### Requirement: Entrypoint audits distinguish declarations from producers
 
@@ -1365,94 +1231,6 @@ The generated-artifact entrypoint audit SHALL evaluate executable producer comma
 - **WHEN** a supported task command in `pyproject.toml` actively writes a cache or package artifact to a denied home
 - **THEN** the entrypoint audit emits the corresponding denied-home producer gap
 - **AND** declaration-only filtering does not suppress the finding
-
-### Requirement: Worktree-bound semantic runtime bootstrap
-
-One repository bootstrap SHALL bind `UV_PROJECT_ENVIRONMENT` to the current
-worktree's `build/runtime/venv` and execute that checkout's source. Explicit
-cache roots win; otherwise downloads use a host-scoped content-addressed cache.
-Nested cross-worktree bootstrap SHALL use a bounded child cache namespace and
-keep child source without waiting on the outer lock.
-`ETHOS_RUNTIME_BOOTSTRAPPED=1` owner scripts SHALL invoke outer uv with
-`--no-sync`.
-
-#### Scenario: two Work Lanes initialize independently
-
-- **GIVEN** two linked Work Lanes from the same Git common directory
-- **WHEN** each runs a Python owner command through the bootstrap
-- **THEN** each command receives its own `<worktree>/build/runtime/venv`
-- **AND** neither command resolves `<worktree>/.venv` as its project environment
-- **AND** the cache location does not become a Work Lane lease, source, evidence,
-  or authority store
-
-#### Scenario: a hook starts before its checkout environment exists
-
-- **GIVEN** a hook requests the default
-  `<worktree>/build/runtime/venv/bin/python` and that interpreter is absent
-- **WHEN** the request passes through the runtime bootstrap
-- **THEN** the bootstrap invokes `uv run --group dev python` with the original
-  Python arguments and lets uv materialize only that checkout's environment
-- **AND** it does not resolve the retired root project environment interpreter
-
-#### Scenario: a nested hook bootstrap avoids parent cache-lock reentry
-
-- **GIVEN** an outer uv command holds the selected cache lock for one worktree
-- **WHEN** a Git hook in a different worktree requests its missing default
-  semantic interpreter through the bootstrap
-- **THEN** the hook materializes only the child worktree's
-  `build/runtime/venv`
-- **AND** its uv invocation uses a bounded namespace beneath the selected host
-  or CI cache root
-- **AND** it does not wait on or share the outer uv cache lock
-
-#### Scenario: a marked owner script does not reenter its own environment lock
-
-- **GIVEN** a product owner script is handed off through
-  `env ETHOS_RUNTIME_BOOTSTRAPPED=1 <script>`
-- **WHEN** the runtime bootstrap launches that handoff
-- **THEN** its outer `uv run` invocation includes `--no-sync`
-- **AND** the script retains ownership of any later tool synchronization
-- **AND** an inner tool invocation does not wait on a parent process holding
-  the same `<worktree>/build/runtime/venv` lock
-
-### Requirement: Explicit execution overrides remain bounded
-
-ETHOS SHALL permit an explicit `ETHOS_PYTHON`, `PYTHON`, `UV_CACHE_DIR`, or
-`ETHOS_UV_CACHE_DIR` override for a bounded invocation. An override MUST NOT
-change the checkout root, substitute another checkout's source environment, or
-silently make root `.venv` the default runtime.
-
-#### Scenario: CI supplies its own cache path
-
-- **GIVEN** a hosted CI projection supplies an explicit uv cache location
-- **WHEN** an owner script invokes the runtime bootstrap
-- **THEN** the bootstrap preserves that cache location
-- **AND** the source environment remains under the current checkout's
-  `build/runtime/venv`
-
-### Requirement: Generated Artifact Topology Contract
-
-ETHOS SHALL classify generated outputs by lifecycle and audit both files and
-executable producers. Root `.venv` SHALL NOT serve normal execution; ignored
-legacy copies may remain observable migration residue but SHALL NOT be
-auto-deleted. Allowlisted host-bootstrap adapters may use the host interpreter
-only to install or configure a missing hosted toolchain before repository
-runtime exists, and SHALL NOT execute product modules.
-
-#### Scenario: an executable entrypoint attempts root environment fallback
-
-- **WHEN** generated-artifact topology audits a product-owned executable script,
-  hook, or CI projection containing an active retired root-environment fallback
-  or bare `uv run` path that bypasses the semantic bootstrap
-- **THEN** the audit reports a required runtime-entrypoint routing gap
-- **AND** proof remains blocked until the producer routes through the bootstrap
-
-#### Scenario: legacy root environment remains observable but non-authoritative
-
-- **GIVEN** an ignored root `.venv` exists after the runtime contract changes
-- **WHEN** topology and local-state audits run
-- **THEN** they identify it as migration residue rather than product truth
-- **AND** no cleanup command removes it without an explicit local operator action
 
 ### Requirement: Temporary test probe provenance remains explicit and bounded
 
@@ -1486,31 +1264,6 @@ non-Git provenance payloads.
 - **AND** it reports a bounded repository-relative path list and an overflow
   indicator
 
-### Requirement: Protected-root probe remediation is reader-only
-
-ETHOS SHALL derive explicit temporary-probe remediation in orientation when an
-accepted or candidate root has one or more classified temporary probes. The
-JSON and human orientation views SHALL state that the operator must remove the
-probe or migrate it into an owned Work Lane, and SHALL state that no automated
-cleanup occurs. The projection SHALL NOT mint authority to write, land,
-retire, or clean another lane.
-
-#### Scenario: Accepted root receives explicit remediation
-
-- **WHEN** `ethos status --json` reads an accepted root with classified
-  temporary probes
-- **THEN** its candidate action names temporary-probe removal or migration
-- **AND** its reason and next actions identify removal or migration into an
-  owned Work Lane
-- **AND** its mutation and landing capabilities remain false
-
-#### Scenario: Ordinary dirty state keeps its existing orientation
-
-- **WHEN** a protected root is dirty but has no classified temporary probe
-- **THEN** orientation retains the generic dirty-state candidate action and
-  remediation
-- **AND** no temporary-probe remediation is implied
-
 ### Requirement: Independent verification is an optional action-scoped adapter
 
 ETHOS SHALL default independent verification to disabled and SHALL allow an
@@ -1540,33 +1293,6 @@ proof floor, policy digest, and implementation digest match the request.
 - **WHEN** an exact independent receipt is admitted
 - **THEN** ETHOS SHALL project `independently_reexecuted`
 - **AND** SHALL NOT claim semantic correctness or mint authority.
-
-### Requirement: Fresh Work Lane bootstrap avoids unnecessary runtime admission
-
-ETHOS SHALL allow Git to create or reassert a fresh Work Lane ref without
-materializing a checkout-local Python runtime when the ref does not change.
-This exception SHALL be limited to a `work/*` branch with an absent selected
-local runtime and either a zero old object ID or equal old and new object IDs.
-
-#### Scenario: Fresh Work Lane ref is reasserted without a runtime
-
-- **GIVEN** Git is creating a linked Work Lane checkout
-- **AND** the reference-transaction event creates the Work Lane ref from the
-  zero object ID or reasserts equal old and new object IDs
-- **AND** the checkout-local runtime interpreter is absent
-- **WHEN** the reference-transaction hook evaluates that event
-- **THEN** it completes the non-accepted no-op event without invoking runtime
-  materialization
-- **AND** `ethos lane start --apply` can create the Work Lane and then acquire
-  its lease without requiring network access.
-
-#### Scenario: Protected and changed refs retain ordinary admission
-
-- **WHEN** the reference-transaction event targets the accepted branch,
-  changes an existing Work Lane ref, or targets a non-Work-Lane branch
-- **THEN** ETHOS SHALL retain the existing runtime-backed admission path
-- **AND** accepted-root admission remains fail-closed
-- **AND** a committed changed Work Lane ref retains lease-head repair.
 
 ### Requirement: Work Lane refresh success is ancestry-bound
 
@@ -1667,28 +1393,6 @@ OpenSpec/repository-governance gaps and SHALL NOT be represented as
 - **WHEN** the adopter runs plan or prove
 - **THEN** the lifecycle payload and its required gap are returned
 - **AND** the command is not clean merely because the root is not the product.
-
-### Requirement: Publish readiness distinguishes observed remote synchronization from execution
-
-`ethos publish` SHALL keep local readiness, remote observation, remote mutation,
-and hosted CI as separate evidence classes.
-
-#### Scenario: Synchronized tracking ref is reported without a new push
-
-- **WHEN** `ethos publish --probe-remote --json` observes the local tracking ref
-  for the current branch at the same HEAD as the checkout
-- **THEN** `summary.remote_publication_state` and
-  `data.publication.remote_state` SHALL be `synchronized`
-- **AND** `remote_push` SHALL remain `not_performed`
-- **AND** the mutation verdict SHALL remain `unknown`
-- **AND** the next action SHALL state that no push was performed
-
-#### Scenario: Reachable but non-synchronized remote remains deferred
-
-- **WHEN** the remote is available but the tracking comparison is not
-  `synchronized`
-- **THEN** `data.publication.remote_state` SHALL remain `deferred`
-- **AND** the command SHALL not claim a remote push or hosted-CI result
 
 ### Requirement: Authoritative Adopter Material Change Scope Binding
 
@@ -1846,42 +1550,6 @@ session instruction as reusable wildcard authority.
 - **AND** recovery-package retention remains independent
 - **AND** local completion does not claim remote push, hosted execution, or
   distribution publication.
-
-### Requirement: Status distinguishes local publication and hosted observation state
-
-ETHOS status SHALL expose local publication readiness and hosted provider
-observation status as separate read-only projections without performing a
-remote probe or minting proof, hosted-success, or publication authority.
-
-#### Scenario: Current hosted observation is projected
-
-- **WHEN** `ethos status` runs and the configured hosted observation artifact
-  binds the current tracked head
-- **THEN** status data SHALL include hosted_observation state, freshness,
-  provider-state summary, and bounded observation gaps
-- **AND** those gaps SHALL remain advisory rather than repository proof
-  required_gaps
-- **AND** hosted GitHub status claimed, hosted GitLab status claimed, and remote
-  publication claimed SHALL remain false
-
-#### Scenario: Hosted observation is missing invalid or stale
-
-- **WHEN** the hosted observation artifact is missing, malformed, or bound to a
-  different tracked head
-- **THEN** status SHALL expose missing, invalid, or stale hosted observation
-  state
-- **AND** it SHALL provide a bounded next action to rerun the observation owner
-  script
-- **AND** status SHALL remain read-only
-
-#### Scenario: Local publication readiness is projected
-
-- **WHEN** `ethos status` summarizes current blockers and proof readiness
-- **THEN** status data SHALL include a local_publication projection that
-  distinguishes ready from blocked local state
-- **AND** the projection SHALL list its local blockers
-- **AND** remote publication claimed SHALL remain false
-- **AND** the projection SHALL NOT replace the `ethos publish` transition verdict
 
 ### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
 
@@ -2064,23 +1732,6 @@ unpreserved dirty overlay.
   its native unbound retirement path
 - **AND** it does not delete the ref merely because it lacks a linked worktree.
 
-### Requirement: Shadow parity external execution honors checkout runtime topology
-
-ETHOS SHALL select the checkout-bound semantic runtime interpreter for a
-shadow-parity external command when that interpreter exists. It SHALL select
-that runtime before a retired root-environment interpreter, so ignored migration
-residue that cannot import ETHOS does not make a current Work Lane appear to
-have an external command failure.
-
-#### Scenario: Stale root environment does not block current parity
-
-- **WHEN** a Work Lane has both the checkout-bound semantic runtime and a
-  retired root project environment that lacks the ETHOS package
-- **THEN** shadow parity invokes the checkout-bound runtime for its external
-  command
-- **AND** it can produce current parity evidence instead of reporting an
-  `external_command_failed` gap solely because of the stale root environment.
-
 ### Requirement: Final declared-peer proposal absorption is proof-bound and non-destructive
 
 When one or more declared peer proposal refs carry a final divergent patch,
@@ -2154,43 +1805,6 @@ not the audited checkout, and unchanged at immediate reobservation.
 - **THEN** housekeeping reports a blocking inventory gap
 - **AND** it does not project an empty removable set as successful inspection.
 
-### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
-
-Before an exceptional unbound effect, ETHOS SHALL re-observe the exact target,
-selected Commitment, decision Attestation, Lease, and protected refs. It SHALL
-publish a no-clobber attempt, compare-delete only the expected ref, verify
-postconditions, and record the result in the sole Attestation set.
-
-#### Scenario: Current holder relinquishes one exact lease generation
-
-- **WHEN** the exact current holder and generation satisfy the selected operation
-- **THEN** ETHOS revokes only that Lease through native CAS
-- **AND** re-observes all non-Lease bindings before ref deletion
-
-#### Scenario: Lease relinquishment remains fail-closed
-
-- **WHEN** the Lease is absent, foreign, malformed, stale, replaced, or
-  head-mismatched
-- **THEN** ETHOS leaves the source ref intact and reports the observed gap
-
-#### Scenario: Apply deletes only the observed ref
-
-- **WHEN** all exact bindings remain stable and compare-delete succeeds
-- **THEN** the effect Attestation binds before/after observations and
-  postconditions
-- **AND** protected refs remain unchanged
-
-#### Scenario: Observation or postcondition drifts
-
-- **WHEN** target, evidence, Lease, protected refs, or postconditions drift
-- **THEN** ETHOS reports a blocked partial result without deleting newer state
-
-#### Scenario: Target-specific evidence remains vendor-neutral
-
-- **WHEN** exceptional retirement evidence is evaluated
-- **THEN** its authority is limited to the exact branch, head, and operation
-- **AND** vendor, account, session, host, or another target cannot extend it
-
 ### Requirement: Versioned local-state schema evolution
 
 ETHOS SHALL support only the current subject-keyed lease schema: generation
@@ -2234,52 +1848,6 @@ still requires the accepted checkout.
 - **THEN** a linked Work Lane reads the same Lease generation and Claim binding
 - **AND** destructive retirement still requires its accepted-checkout control root.
 
-### Requirement: Explicit conservative local-state maintenance
-
-ETHOS SHALL keep local-state audit read-only by default and SHALL require an
-explicit maintenance action before pruning disposable state.
-
-#### Scenario: Audit runs without maintenance authorization
-
-- **WHEN** the local-state owner runs in its default audit mode
-- **THEN** it reports migration residue, lease candidates, proof candidates, and
-  ignored-state inventory
-- **AND** it does not mutate SQLite, proofs, refs, worktrees, or snapshots.
-
-#### Scenario: Expired orphan leases are maintained
-
-- **WHEN** explicit maintenance evaluates an expired lease whose branch ref,
-  linked worktree, and recorded path are all absent
-- **THEN** ETHOS deletes that exact lease row and reports its identity
-- **AND** it retains every unexpired, current, ambiguous, or still-observable
-  lease.
-
-### Requirement: Ref-bound proof retention
-
-ETHOS SHALL treat HEAD-keyed local proof as disposable readiness state while
-preserving the current HEAD record and every proof whose commit remains reachable
-from a current Git ref.
-
-#### Scenario: A proof HEAD is unreachable from all refs
-
-- **WHEN** explicit maintenance finds a well-formed proof record whose named Git
-  HEAD is not reachable from any current ref and is not current HEAD
-- **THEN** it removes that proof record and reports its path and HEAD
-- **AND** current or ref-reachable proof records remain unchanged.
-
-### Requirement: Recovery material is preservation-bound before cleanup
-
-ETHOS SHALL NOT delete a recovery snapshot set until a complete operator archive
-and a digest-bound Chronicle receipt have been verified.
-
-#### Scenario: Recovery snapshots contain unique Git and dirty-worktree material
-
-- **WHEN** an operator closes a recovery snapshot set
-- **THEN** the archive manifest binds every entry, archive digest, byte size,
-  bundle verification result, archive location, and repository HEAD
-- **AND** extraction and bundle verification succeed before the source snapshot
-  directory is removed.
-
 ### Requirement: Accepted-root closeout is bound to one audited candidate HEAD
 
 ETHOS SHALL bind candidate audit, signature, local or external proof admission,
@@ -2316,30 +1884,6 @@ own a competing accepted-head decision.
   candidate head
 - **AND** no hosted receipt, provider status, or remote truth is fabricated.
 
-### Requirement: Tracked lifecycle does not imply local-state maintenance effects
-
-ETHOS SHALL require an explicit, authorized, digest-bound maintenance apply and
-its own receipt before reporting that ignored local state changed. Tracked
-OpenSpec, Git, land, closeout, or publish transitions SHALL NOT mint such an
-effect.
-
-#### Scenario: A tracked Change archives and lands without maintenance apply
-
-- **WHEN** an OpenSpec carrier validates, archives, lands to candidate, or closes
-  out accepted root without an explicit local-state maintenance apply
-- **THEN** ETHOS does not infer that a live SQLite database migrated
-- **AND** it does not infer lease or proof pruning, operator archive creation, or
-  recovery-source deletion.
-
-#### Scenario: A maintenance effect is claimed
-
-- **WHEN** evidence states that local leases, proofs, databases, or recovery
-  material changed
-- **THEN** the evidence names the authorized apply command, exact inventory
-  digest, affected local root, result receipt, and postcondition verification
-- **AND** fixture, copied-state, dry-run, OpenSpec, land, closeout, and publish
-  receipts are insufficient substitutes.
-
 ### Requirement: Bounded Coordination Aggregate Detail State
 
 ETHOS SHALL derive coordination aggregate detail state from the reader mode
@@ -2364,33 +1908,6 @@ Lane rows.
 - **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
   `unknown_scope_count`, `closeout_residue_count`, and
   `dirty_closeout_residue_count` SHALL all be zero.
-
-### Requirement: Real history-residue effects use a distinct local closeout successor
-
-The system SHALL keep the dated tracked-work archive immutable and SHALL bind any
-later real local-state maintenance to a distinct successor claim and exact
-external receipt.
-
-#### Scenario: Historical operator apply is admitted without rewriting the predecessor
-
-- **WHEN** a verified maintenance receipt postdates an archive that excluded real effects
-- **THEN** a new successor records the receipt HEAD, inventory digest, artifact digests, deletion counts, and source postconditions
-- **AND** the predecessor archive remains byte-for-byte unchanged
-- **AND** the record does not infer current ignored-state counts from historical apply counts
-
-#### Scenario: Local closeout preserves authority boundaries
-
-- **WHEN** the successor completes its archive and promotion transitions
-- **THEN** accepted closeout uses `maintainer_break_glass_local`
-- **AND** remote publication and hosted execution remain deferred and unclaimed
-- **AND** r7 plus foreign and unbound lanes remain observe-only
-- **AND** only the current owned lane is eligible for retirement
-
-#### Scenario: Control replacement requires external verification
-
-- **WHEN** the final candidate differs on configured control paths
-- **THEN** accepted closeout requires an external control-replacement receipt outside the candidate tree
-- **AND** the receipt binds exact accepted and candidate heads, control paths, both control digests, verifier digest, and executed-proof digest
 
 ### Requirement: Repository profile is a strict current binding
 
@@ -2531,21 +2048,6 @@ without private adopter coupling or claims beyond the exercised boundary.
 - **WHEN** an observation is retained as product evidence
 - **THEN** it binds revisions, observed outcomes and the raw-bundle identity without host paths or credentials
 - **AND** native backend parity, full semantic correctness, hosted execution and independent review require their own evidence
-
-### Requirement: Lease generation transitions compile from one declaration
-
-ETHOS SHALL define renew, resume, handoff-offer, and handoff-accept operation
-IDs, guard requirements, planned and applied states, and effect fields in the
-tracked workflow declaration. The CLI SHALL supply current facts to one pure
-reducer and SHALL dispatch only the effect named by the resulting
-declaration-owned plan.
-
-#### Scenario: A declared lease generation transition is evaluated
-
-- **WHEN** renew, resume, handoff offer, or handoff accept is requested
-- **THEN** ETHOS loads the matching declared lease transition
-- **AND** the pure reducer returns its ordered gaps and state
-- **AND** no parallel procedural operation matrix owns the same behavior.
 
 ### Requirement: Linked Work Lane retirement has one exact effect
 
@@ -2809,19 +2311,18 @@ not exactly 40 or 64 hexadecimal characters.
 
 ### Requirement: Protected-ref semantics are candidate-commit bound
 
-Protected-ref transitions SHALL execute the semantic runner from the candidate
-HEAD's committed project, lockfile, package metadata, and initializers, using
-locked, offline, isolated dependency resolution with `PYTHONPATH` cleared. They
-SHALL reject ignored candidate runtimes, accepted-checkout interpreters, and
-missing or mismatched committed inputs. The proof floor SHALL match the
-committed repository role.
+Protected-ref transitions SHALL run admission from the Git-common selected
+immutable runtime in isolated mode and SHALL read candidate policy from the
+candidate HEAD's committed tree. They SHALL reject ignored candidate runtimes,
+accepted-checkout interpreters, inherited `PYTHONPATH`, and missing or mismatched
+committed policy inputs. The proof floor SHALL match the committed repository
+role.
 
 #### Scenario: Candidate runtime state attempts to override committed semantics
 
 - **WHEN** a candidate ignored interpreter, inherited `PYTHONPATH`, accepted
-  interpreter, uncommitted lockfile, or uncommitted package source differs from
-  the candidate HEAD
-- **THEN** the protected-ref transition does not execute that state
+  interpreter, or uncommitted policy file differs from the candidate HEAD
+- **THEN** the protected-ref transition does not execute or read that state
 - **AND** missing or mismatched committed candidate inputs block the transition.
 
 #### Scenario: A product-root control revision carries adopter proof
@@ -2836,113 +2337,14 @@ committed repository role.
 ### Requirement: Archived evidence does not own runtime replay
 
 ETHOS SHALL NOT hard-code one archived Claim ID, dated archive carrier, or fixed
-historical file set into Work Lane rebase execution. It SHALL resolve generated
-parity conflicts through the parity projection path; every other semantic conflict
-remains blocked for explicit resolution.
+historical file set into Work Lane rebase execution. Every rebase conflict SHALL
+remain blocked for explicit resolution.
 
 #### Scenario: Historical one-off conflict shape reappears
 
 - **WHEN** a rebase conflict matches a retired Claim-specific file set
 - **THEN** ETHOS does not auto-resolve it from the historical Claim or archive
-- **AND** the generic current conflict rules either resolve it or fail closed.
-
-### Requirement: Ownerless closeout admission is consumed at the effect boundary
-
-ETHOS SHALL retire a clean linked ownerless Work Lane only when the executor
-recomputes the exact selected Commitment, decision Attestation, observations,
-accepted relation, and local fencing. It SHALL perform no force operation and
-write one completion Attestation only after exact postconditions pass.
-
-#### Scenario: exact ownerless target is retired
-
-- **WHEN** target, accepted head, decision, observation, occupancy, and fence
-  remain exact
-- **THEN** ETHOS performs only the admitted worktree/ref effects
-- **AND** records completion after explicit absence checks
-
-#### Scenario: decision snapshot replacement is rejected
-
-- **WHEN** the decision Attestation changes after admission
-- **THEN** ETHOS blocks before any effect
-- **AND** later bindings derive from one immutable snapshot
-
-#### Scenario: late coordination or competing decision blocks zero-effect
-
-- **WHEN** a Lease, accepted head, decision, path, or reservation changes before
-  the fence is acquired
-- **THEN** ETHOS performs no Git or worktree effect
-
-#### Scenario: worktree-remove failure is re-observed
-
-- **WHEN** worktree removal fails
-- **THEN** ETHOS re-reads ref, registration, and path
-- **AND** reports the exact partial state rather than rollback success
-
-#### Scenario: zero-effect retry is rebound after accepted history advances
-
-- **WHEN** no effect occurred and accepted history advanced by ancestry only
-- **THEN** fresh admission may replace the exact old fence and reservation
-- **AND** divergence or any other drift blocks
-
-#### Scenario: target-ref inspection is three state
-
-- **WHEN** a target ref is present, absent, or unreadable
-- **THEN** only explicit absence satisfies the postcondition
-
-#### Scenario: destructive partial transition remains visible and recoverable
-
-- **WHEN** any destructive boundary becomes partial or uncertain
-- **THEN** inventory retains exact phase, target, decision, and recovery facts
-
-#### Scenario: receipt-present cleanup retry converges
-
-- **WHEN** the completion Attestation is durable but cleanup is incomplete
-- **THEN** retry verifies it and performs only idempotent cleanup
-- **AND** never recreates effect authority
-
-#### Scenario: closeout-fence inspection is three state
-
-- **WHEN** the exact fence is present, absent, or unverifiable
-- **THEN** each recovery phase accepts only its explicitly declared state
-- **AND** unverifiable state blocks
-
-#### Scenario: successful cleanup preserves ordering
-
-- **WHEN** cleanup follows durable completion
-- **THEN** ETHOS releases the exact fence before removing the reservation
-
-#### Scenario: effect-complete recovery precedes ordinary observation
-
-- **WHEN** effect completion lacks its final Attestation
-- **THEN** recovery resolves completion before ordinary lane observation
-
-#### Scenario: dangling path and post-CAS exception fail closed
-
-- **WHEN** a dangling path or post-CAS exception is observed
-- **THEN** ETHOS treats the path as present and reports transition unknown
-
-#### Scenario: native ownerless authority binding is exact
-
-- **WHEN** any required decision or coordination field is absent or invalid
-- **THEN** ETHOS rejects admission without inferring compatibility
-
-#### Scenario: canonical and legacy reservations disagree
-
-- **WHEN** historical reservation bytes coexist with the current carrier
-- **THEN** current readers ignore historical bytes as authority
-- **AND** no scan-order choice or compatibility merge occurs
-
-#### Scenario: receipt compatibility is one way
-
-- **WHEN** historical completion bytes are encountered after cutover
-- **THEN** they remain inert history and cannot satisfy current recovery
-- **AND** new completion uses Attestation v2 only
-
-#### Scenario: damaged fence payload preserves independent lease truth
-
-- **WHEN** a fence payload is invalid but Lease state is independently readable
-- **THEN** inventory reports both facts separately
-- **AND** invalid fence state cannot erase or authorize the Lease
+- **AND** the replay fails closed with `refresh_base_failed`.
 
 ### Requirement: Historical Work Lane semantic convergence
 
@@ -3200,18 +2602,6 @@ unique owners and coverage is verified.
 - **AND** it SHALL NOT create a mutable Change DAG, hypothesis registry,
   experiment ledger, successor back-link, or replacement carrier when that view
   is absent
-
-### Requirement: Deployed adopter readers remain bounded
-
-ETHOS SHALL inspect the exact deployed transition and terminal-v1 repository
-carrier without making either a proof or mutation authority.
-
-#### Scenario: Package-only readers execute
-
-- **WHEN** an installed wheel reads the deployed adopter fixture
-- **THEN** `status` and `plan` SHALL pass without traceback
-- **AND** `plan` SHALL bind carrier bytes, deny authority, and emit no v2 plan
-- **AND** any transition-row drift SHALL fail closed.
 
 ### Requirement: Candidate proof admission selects repository authority
 
@@ -6332,3 +5722,90 @@ fail closed before observation or mutation.
 - **WHEN** peers `gitlab_a`, `gitlab_b` and `github` are explicitly declared
 - **THEN** both GitLab peers SHALL use the GitLab adapter without sharing identity
 - **AND** publication SHALL support selecting any declared subset independently
+
+### Requirement: Changed-scope Skill routing is explicit
+
+ETHOS SHALL route changed-scope skill requests through explicit activation
+metadata and changed-path evidence rather than subject or identifier substring
+matches.
+
+#### Scenario: Changed scope route is explicit
+
+- **WHEN** `ethos plan --changed --json` runs
+- **THEN** each selected Skill matches its declared route subject, an activation
+  path glob, or the current operation
+- **AND** a passing activation lists each selected Skill's id, path, and
+  operation in `data.skill_activation` with its ordered pre-read, rule, and
+  post-check obligations
+- **AND** a missing required Skill, an unavailable Skill observation, or a
+  dependency cycle is reported as a required gap
+
+### Requirement: Status separates coordination advisories from blockers
+
+ETHOS SHALL expose non-blocking advisory governance signals in the bounded
+status reader without treating them as transition-blocking required gaps.
+
+#### Scenario: Status carries Work Lane coordination advisories
+
+- **WHEN** `ethos status --json` runs and workspace status reports Work Lane
+  coordination signals such as `foreign_work_lane_present` or
+  `coordination_gap:scope_overlap:<branch>`
+- **THEN** `summary.coordination_advisory_count` counts the reported signals
+- **AND** advisory signals do not become status `required_gaps`
+- **AND** when a foreign or unbound Work Lane is visible and no other
+  continuation applies, `next_action` is the read-only `ethos lane status --json`
+
+#### Scenario: Status carries Work Lane coordination blockers
+
+- **WHEN** workspace status contains a required coordination gap such as
+  `coordination_gap:current_scope_unknown`
+- **THEN** that gap appears in status `required_gaps`
+- **AND** `summary.coordination_blocking` is true
+- **AND** status remains read-only and does not authorize foreign Work Lane
+  cleanup
+
+### Requirement: Generated artifact topology binds the root project environment
+
+ETHOS SHALL classify generated outputs by lifecycle and audit both files and
+executable producers. The ignored root `.venv` that `uv.lock` selects SHALL be
+each checkout's single Python environment; an active producer that executes
+through the retired `build/runtime/venv` home SHALL report a required gap.
+
+#### Scenario: An executable entrypoint uses the retired runtime home
+
+- **WHEN** generated-artifact topology audits a `tools/`, `.github/`, or
+  `.gitlab-ci.yml` producer whose active text executes through
+  `build/runtime/venv`
+- **THEN** the audit reports
+  `generated_artifact_entrypoint_retired_venv_runtime:<path>`
+- **AND** proof remains blocked until the producer uses the root `.venv`
+
+#### Scenario: The root project environment is an allowed runtime home
+
+- **WHEN** topology classifies the ignored root `.venv`
+- **THEN** it is the repository-local virtual environment that `uv.lock` selects
+- **AND** it remains disposable host-local state, neither tracked nor promoted
+  as repository truth
+
+### Requirement: Publish readiness separates remote observation from execution
+
+`ethos publish` SHALL keep local readiness, remote observation, remote mutation,
+and hosted CI as separate evidence classes.
+
+#### Scenario: Synchronized tracking ref is reported without a new push
+
+- **WHEN** `ethos publish --probe-remote --json` observes the local tracking ref
+  for the current branch at the same HEAD as the checkout
+- **THEN** `summary.remote_publication_state` and
+  `data.publication.remote_state` SHALL be `synchronized`
+- **AND** `remote_push` SHALL remain `not_performed`
+- **AND** the mutation verdict SHALL remain `unknown`
+- **AND** the next action SHALL state that no push was performed
+
+#### Scenario: Reachable but non-synchronized remote is an available target
+
+- **WHEN** a declared remote is available but its tracking comparison is not
+  `synchronized`
+- **THEN** `data.publication.remote_state` SHALL be `target_available`, or
+  `targets_available` when several declared peers are all available
+- **AND** the command SHALL not claim a remote push or hosted-CI result

@@ -10,8 +10,10 @@ TransitionPlan.
 
 ### Requirement: Minimal Semantic Kernel
 
-ETHOS SHALL persist exactly Commitment and Attestation as semantic roots. Facts
-and `TransitionPlan` SHALL remain derived. No Claim, Chronicle, Ledger, Campaign,
+ETHOS SHALL keep exactly Commitment and Attestation as semantic roots; only
+Attestation SHALL persist. Commitment SHALL remain transient acceptance compiled
+from one exact official OpenSpec Change, and Facts and `TransitionPlan` SHALL
+remain transient and derived. No Claim, Chronicle, Ledger, Campaign,
 shared inbox, Lease, ref, task, or stored plan SHALL own normative intent or
 reusable authority.
 
@@ -28,6 +30,13 @@ reusable authority.
 - **THEN** assurance is a candidate-external, non-authorizing Attestation bound
   to subject, scope, exact HEAD, verifier, verdict, and validity
 - **AND** digest-only proof requires no external account or network
+
+#### Scenario: Commitment is compiled, not stored
+
+- **WHEN** ETHOS needs a Change's acceptance meaning
+- **THEN** it compiles the Commitment from the exact Git-tree projection of the
+  official OpenSpec Change
+- **AND** no Commitment record, path, relation graph or workflow state persists
 
 ### Requirement: Root Interpretation Boundary
 
@@ -47,7 +56,7 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
 
 #### Scenario: Lifecycle declarations compile directly into TransitionPlan
 
-- **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
+- **WHEN** ETHOS evaluates declared gates or a lane lifecycle effect
 - **THEN** tracked declarations and current facts compile directly into TransitionPlan
 - **AND** no parallel workflow-runtime read model or state store is required
 - **AND** generated projections do not outrank source, tests, schemas, docs,
@@ -96,22 +105,9 @@ for invalid dependency sets.
 - **THEN** selected gates are represented as ordered TransitionPlan nodes with
   explicit dependencies and validation gaps
 
-### Requirement: Physical Target Product Homes
-
-ETHOS SHALL provide buildable target product package homes for the semantic kernel,
-contracts, repository semantics, assistants, adapters, CLI, and conformance
-proof.
-
-#### Scenario: Target package homes are audited
-
-- **WHEN** architecture tests inspect product package topology
-- **THEN** each target package has package metadata and a canonical README
-- **AND** semantic target packages do not import provider execution modules
-
 ### Requirement: Product Core Adopter Isolation
 
-ETHOS SHALL keep adopter-specific domain names out of product Python code except
-for explicit parity contract records.
+ETHOS SHALL keep adopter-specific domain names out of product Python code.
 
 #### Scenario: Product code is scanned
 
@@ -145,44 +141,6 @@ SHALL NOT satisfy the query.
 - **THEN** the Attestation binds exact subject, semantic scope, and current HEAD
 - **AND** validity and operation-specific predicate evaluation remain required
 
-### Requirement: Event entities require an executable dataflow
-
-ETHOS SHALL retain a durable event-like value only as an Attestation consumed by
-a current evaluator or derived projection. Declaration-only streams, generic
-event logs, Campaign state, mutable inbox state, and Chronicle authority SHALL
-be absent.
-
-#### Scenario: lifecycle declaration is loaded
-
-- **WHEN** lifecycle declaration is validated and projected
-- **THEN** it contains only currently consumed transition and Lease policies
-- **AND** no Campaign or generic event owner is emitted
-
-#### Scenario: local state is initialized
-
-- **WHEN** ignored local state is created
-- **THEN** it creates only tables consumed by current behavior
-- **AND** generic event and Chronicle CRUD is absent
-
-#### Scenario: ignored local state uses the current contract
-
-- **WHEN** ETHOS initializes disposable coordination state
-- **THEN** it creates only the current Lease contract
-- **AND** no migration ledger or retired local format persists
-
-#### Scenario: Git-common state stays outside checkouts
-
-- **WHEN** ETHOS resolves mutable state for any linked worktree
-- **THEN** staging, cache, and Lease state use the shared Git common directory
-- **AND** no checkout gains untracked runtime truth
-
-#### Scenario: Chronicle remains authoritative evidence
-
-- **WHEN** a governance decision becomes durable
-- **THEN** it is one Attestation v2 in the sole set, not Chronicle
-- **AND** no campaign CEL, event table, migration ledger, acknowledgement,
-  consumed flag, or inbox cursor is created
-
 ### Requirement: Semantic identity is schema-versioned and runtime-independent
 
 Each supported carrier SHALL use one immutable schema-version protocol.
@@ -201,7 +159,8 @@ determine validity or identity.
 
 - **WHEN** normal plan compilation or mutation loads it
 - **THEN** ETHOS blocks before deriving current semantic authority
-- **AND** only the exact one-shot bootstrap may consume its persisted Lease tuple
+- **AND** only runtime activation's staged state transition may migrate the
+  previous Lease relation
 
 #### Scenario: Equivalent collection permutations are loaded
 
@@ -274,3 +233,41 @@ satisfy an authority query.
 - **WHEN** its canonical envelope is valid but its semantic kind is unknown
 - **THEN** ETHOS round-trips it without reinterpretation
 - **AND** it cannot authorize an effect or satisfy required evidence
+
+### Requirement: Durable event-like values are consumed Attestations
+
+ETHOS SHALL retain a durable event-like value only as an Attestation consumed by
+a current evaluator or derived projection. Declaration-only streams, generic
+event logs, Campaign state, mutable inbox state, and Chronicle authority SHALL
+be absent.
+
+#### Scenario: Tracked declarations are loaded
+
+- **WHEN** ETHOS loads its tracked declarations
+- **THEN** they contain only currently consumed policies
+- **AND** no Campaign or generic event owner is emitted
+
+#### Scenario: local state is initialized
+
+- **WHEN** ignored local state is created
+- **THEN** it creates only tables consumed by current behavior
+- **AND** generic event and Chronicle CRUD is absent
+
+#### Scenario: ignored local state uses the current contract
+
+- **WHEN** ETHOS initializes disposable coordination state
+- **THEN** it creates only the current Lease contract
+- **AND** no migration ledger or retired local format persists
+
+#### Scenario: Git-common state stays outside checkouts
+
+- **WHEN** ETHOS resolves mutable state for any linked worktree
+- **THEN** staging, cache, and Lease state use the shared Git common directory
+- **AND** no checkout gains untracked runtime truth
+
+#### Scenario: A durable governance decision is one Attestation
+
+- **WHEN** a governance decision becomes durable
+- **THEN** it is one Attestation v2 in the sole set, not Chronicle
+- **AND** no campaign CEL, event table, migration ledger, acknowledgement,
+  consumed flag, or inbox cursor is created

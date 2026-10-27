@@ -29,7 +29,7 @@ the repository-root `pyproject.toml`.
 - **WHEN** the repository contains a Node distribution adapter under
   `distributions/npm`
 - **THEN** the wheel package remains `src/ethos`
-- **AND** Node package-manager metadata does not alter Python builds
+- **AND** `distributions/npm` launcher metadata does not alter Python builds
 
 ### Requirement: Published Distribution Boundary
 
@@ -59,49 +59,44 @@ the Python package workspace.
 
 ### Requirement: Exact Node Runtime Compatibility Policy
 
-ETHOS SHALL keep exact current LTS and current npm-launcher compatibility
-releases in one repository policy and SHALL execute hosted compatibility
-acceptance through one reusable runner rather than provider-inline npm command
-bodies.
+ETHOS SHALL select exactly one Node release in `.config/mise/config.toml`,
+verify its official archive against `.config/mise/mise.lock`, and execute hosted
+npm acceptance through `tools/ci/toolchain/npm.py` and the `javascript_tests` Nox
+session rather than provider-inline npm command bodies.
 
 #### Scenario: Hosted npm compatibility is executed for an exact release
 
-- **WHEN** a hosted npm compatibility job runs
-- **THEN** `.config/checks/node/runtime.toml` declares Node 24.20.0 and Node
-  26.8.1 as the exact compatibility set
-- **AND** the provider selects one declared release through `NODE_VERSION`
-- **AND** the installer verifies the selected official archive against a
-  policy-pinned SHA-256 value before extraction
-- **AND** `tools/ci/scripts/run-node-compatibility.sh` rejects an active-runtime
-  mismatch before npm executes
-- **AND** the runner enables npm engine-strict behavior and executes
-  `npm ci --ignore-scripts`, `npm run ethos -- --version`, and
-  `npm run test:npm` in that order
+- **WHEN** a hosted npm acceptance job runs
+- **THEN** Node is the single release pinned in `.config/mise/config.toml`
+- **AND** its official archive matches the `mise.lock` SHA-256 before extraction
+- **AND** `tools/ci/toolchain/npm.py` enables npm engine-strict behavior and runs
+  `npm ci --ignore-scripts` and `npm run ethos -- --version`, then
+  `nox -s javascript_tests` runs `npm run test:npm`
 - **AND** hosted provider YAML invokes the reusable owner instead of restating
   the acceptance command body.
 
 ### Requirement: Reviewed Node Default Promotion
 
-ETHOS SHALL keep compatibility expansion separate from hosted packaging-default
-promotion and SHALL require a reviewed change for any default transition.
+ETHOS SHALL keep hosted compatibility verification separate from its single
+mise-pinned Node release and SHALL require a separate reviewed change to move
+that pin.
 
 #### Scenario: Compatibility expands without promoting packaging
 
 - **WHEN** a Node release is added only to hosted compatibility verification
-- **THEN** the existing runtime policy and npm packaging default remain
-  unchanged
+- **THEN** the `.config/mise/config.toml` Node pin and the Node packaged in the
+  wheel remain unchanged
 - **AND** promotion requires current release-status verification, successful
   hosted compatibility results, package evidence, and a separate reviewed
   repository change.
 
 #### Scenario: Current stable release becomes the packaging default
 
-- **WHEN** Node 26.8.1 has current upstream release evidence and passes the
-  declared hosted compatibility acceptance
-- **THEN** Node 26.8.1 becomes the runtime policy and npm packaging default
-- **AND** Node 24.20.0 remains the exact LTS compatibility release
-- **AND** future default changes still require current release-status
-  verification, package evidence, and a separate reviewed repository change.
+- **WHEN** a newer stable Node release has current upstream release evidence and
+  passes the hosted npm acceptance
+- **THEN** a separate reviewed change moves the `.config/mise/config.toml` pin, and
+  its lock and the Node packaged in the wheel follow that pin
+- **AND** no second compatibility release is retained beside the pin.
 
 ### Requirement: Node Runtime Authority Boundary
 
@@ -399,47 +394,6 @@ transition and SHALL reject rollback, source reuse, or artifact disagreement.
 - **THEN** local repository and artifact evidence can establish the same version fact
 - **AND** a Forge tag or release is an optional projection, not the version owner.
 
-### Requirement: Hosted package construction uses platform-native locked inputs
-
-ETHOS SHALL bootstrap hosted prerequisites from the observed operating system
-and SHALL resolve `nodejs-wheel` Node/npm inputs through one product-owned,
-validated resolver used by every source-build, package-only runtime, OpenSpec,
-and delivery consumer. It SHALL NOT infer a Debian host from a missing Linux
-utility or reconstruct package paths independently at each caller.
-
-#### Scenario: Darwin bootstrap does not enter Debian installation
-
-- **GIVEN** the shared Python bootstrap executes on Darwin with Git available
-- **WHEN** Linux `ldconfig` is unavailable
-- **THEN** the bootstrap does not invoke `apt-get`
-- **AND** it continues through the repository-locked Python and OpenSpec setup.
-
-#### Scenario: Linux bootstrap repairs supported prerequisites
-
-- **GIVEN** the shared Python bootstrap executes on Linux
-- **WHEN** Git, `libatomic.so.1`, or the signing policy's `ssh-keygen` executable
-  is missing and `apt-get` is available
-- **THEN** it installs only the corresponding declared host prerequisite before
-  repository bootstrap continues
-- **AND** absence of the selected package manager fails with a precise diagnostic.
-
-#### Scenario: Windows wheel build resolves the installed Node layout
-
-- **GIVEN** `nodejs-wheel-binaries` is installed from the repository lock on Windows
-- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
-- **THEN** Node resolves to the package-root `node.exe`
-- **AND** npm resolves to the package-local `npm-cli.js` when npm is required
-- **AND** the coordinates are validated before their consumer executes.
-
-#### Scenario: POSIX wheel build resolves the installed Node layout
-
-- **GIVEN** `nodejs-wheel-binaries` is installed from the repository lock on a
-  supported POSIX host
-- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
-- **THEN** Node resolves to the package-local `bin/node`
-- **AND** npm resolves to the package-local `npm-cli.js` when npm is required
-- **AND** callers do not reconstruct either coordinate.
-
 ### Requirement: Content-addressed package publication is host portable
 
 ETHOS SHALL publish immutable package bytes with file durability, atomic
@@ -665,3 +619,37 @@ Unreleased until selected for explicit release.
 - **WHEN** an earlier entry lacks a verifiable tag or publication record
 - **THEN** the uncertainty remains explicit and historical content is preserved
 - **AND** no tag, date or release claim is invented to make the changelog appear complete
+
+### Requirement: Hosted package construction uses runner supply and one Node resolver
+
+ETHOS SHALL take hosted prerequisites from the runner environment, which for
+GitLab's Linux jobs is the locked supply image, and SHALL install no host
+prerequisite at bootstrap. It SHALL resolve Node from the `mise.lock`-verified
+official archive and npm from the locked product module through one validated
+resolver that every source-build, package-only runtime, OpenSpec, and delivery
+consumer uses.
+
+#### Scenario: A GitLab Linux job runs in the locked supply image
+
+- **GIVEN** a GitLab Linux job runs in the locked supply image
+- **WHEN** repository bootstrap starts
+- **THEN** Git, `libatomic1`, and `openssh-client` are present at the versions
+  that `.config/ci/supply/Dockerfile` pins
+- **AND** bootstrap installs no host prerequisite.
+
+#### Scenario: Windows build resolves the installed Node layout
+
+- **GIVEN** the `mise.lock`-verified Node archive is installed on Windows
+- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
+- **THEN** Node resolves to the distribution-root `node.exe`
+- **AND** npm resolves to the locked npm module's `npm-cli.js` when npm is required
+- **AND** the coordinates are validated before their consumer executes.
+
+#### Scenario: POSIX build resolves the installed Node layout
+
+- **GIVEN** the `mise.lock`-verified Node archive is installed on a supported
+  POSIX host
+- **WHEN** runtime materialization, OpenSpec, or delivery binds Node inputs
+- **THEN** Node resolves to the distribution's `bin/node`
+- **AND** npm resolves to the locked npm module's `npm-cli.js` when npm is required
+- **AND** callers do not reconstruct either coordinate.

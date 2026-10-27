@@ -16,43 +16,9 @@ execution behavior.
 
 #### Scenario: Contracts are inspected
 
-- **WHEN** architecture tests scan `contracts`
+- **WHEN** imports of modules under `src/ethos/contracts` are inspected
 - **THEN** contract modules do not import Git, SQLite, subprocess, hosted CI,
   assistant runtime, or adopter-private implementation modules
-
-### Requirement: Trust Envelope Contract
-
-ETHOS SHALL define a provider-neutral trust envelope contract for claim
-admission and proof consumers.
-
-#### Scenario: Trust envelope is emitted
-
-- **WHEN** ETHOS reports active claim governance
-- **THEN** every trust envelope includes claim id, claim state, boundary,
-  evidence, carriers, fallback, kill signal, promotion, and required gaps
-
-### Requirement: Promotion Target Contract
-
-ETHOS SHALL define promotion targets as provider-neutral repository authority
-references.
-
-#### Scenario: Promotion target is validated
-
-- **WHEN** ETHOS validates a promotion target
-- **THEN** the target kind is one of source, tests, docs, schema, `openspec`, or
-  evidence
-- **AND** the target path is repository-relative
-
-### Requirement: Capability Profile Contract
-
-ETHOS SHALL define capability profiles that map OpenSpec capabilities to owner,
-boundary, routing, and proof metadata.
-
-#### Scenario: Capability profile is inspected
-
-- **WHEN** ETHOS validates capability profile metadata
-- **THEN** the profile names a family, owner object, primary invariant,
-  routing question, boundary rules, and proof profile
 
 ### Requirement: Governed Repository Context Contract
 
@@ -63,11 +29,10 @@ proof and command payloads.
 #### Scenario: Governance context is provider-neutral
 
 - **WHEN** ETHOS emits `governance_context`
-- **THEN** the context identifies the subject as a repository
-- **AND** the context records the profile, kernel
-  chain, and singular lifecycle command semantics
-- **AND** `shared_commands` and `transition_commands` contain the five transition
-  commands
+- **THEN** `contract` is `governed_repository` and `truth_boundary` is
+  `repository`
+- **AND** the context records `profile`, `profile_boundary`, and digest-bound
+  `agent_guidance` sources
 - **AND** `reader_projection_commands` contains `ethos status`
 - **AND** provider, host, editor, model, and toolchain choices remain outside
   product semantics
@@ -112,7 +77,7 @@ checkout-role, editor-root, target-path, and admission-result fields.
 
 ETHOS SHALL distinguish human-facing Markdown, durable TOML config, public JSON
 command output, ecosystem-native YAML, generated JSONL, ignored local indexes,
-and tracked evidence by author, lifecycle, and truth status.
+and Git-set Attestations by author, lifecycle, and truth status.
 
 #### Scenario: Machine and human carriers do not collapse
 
@@ -132,18 +97,6 @@ identity sufficient for drift detection.
 - **WHEN** ETHOS generates a tracked agent or host projection
 - **THEN** the projection records its source surface or digest
 - **AND** a later drift check can determine whether the projection is stale
-
-### Requirement: Capability Profile Facet Contract
-
-ETHOS SHALL define capability profiles with decision axes and recommended facets
-so OpenSpec proposal routing can be validated without hardcoded domain terms.
-
-#### Scenario: Capability profile declares routing facets
-
-- **WHEN** ETHOS validates a product capability profile
-- **THEN** the profile includes decision axes used for routing and review
-- **AND** recommended facets describe local valid values for proposal metadata
-- **AND** aliases remain optional diagnostic metadata rather than routing truth.
 
 ### Requirement: TransitionPlan Transition Contract
 
@@ -166,14 +119,14 @@ repository truth.
 #### Scenario: Handoff package is validated
 
 - **WHEN** a handoff package is inspected
-- **THEN** it records source refs, source digests, target actor, intended use, freshness state, and proof/evidence refs
+- **THEN** it records the source lane ref, head and tree, target holder ref, context and dirty-content digests, source Lease binding, and digest-bound artifacts
 - **AND** stale source digests block trust-bearing handoff claims
-- **AND** handoff content remains context until promoted into evidence or chronicle
+- **AND** handoff content remains context until recorded as an Attestation
 
 ### Requirement: Declarative Registry Compilation
 
-ETHOS SHALL compile durable coupling and standards registry facts from strict
-frozen TOML contracts before emitting public projections.
+ETHOS SHALL compile durable `system/` declarations, including the gate registry,
+from strict frozen TOML contracts before emitting public projections.
 
 #### Scenario: A valid declaration projects stable registry data
 

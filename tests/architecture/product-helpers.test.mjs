@@ -17,12 +17,10 @@ const OPENSPEC_VERSION = JSON.parse(
 ).version;
 
 // The product callers remove these, and an inherited test context would nest the runner.
-const {
-  NODE_OPTIONS: _options,
-  NODE_PATH: _path,
-  NODE_TEST_CONTEXT: _context,
-  ...INHERITED
-} = process.env;
+const REMOVED = new Set(["NODE_OPTIONS", "NODE_PATH", "NODE_TEST_CONTEXT"]);
+const INHERITED = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !REMOVED.has(name)),
+);
 
 // Helpers judge canonical paths, so a scratch root is canonical too.
 function scratch(t) {

@@ -44,7 +44,9 @@ function launch(t, stubs) {
     writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`);
     chmodSync(join(bin, name), 0o755);
   }
-  const { NODE_OPTIONS: _options, ...env } = process.env;
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name !== "NODE_OPTIONS"),
+  );
   return spawnSync(process.execPath, [join(ROOT, "distributions/npm/bin/ethos.mjs"), "--version"], {
     cwd: temporary(t, "ethos-launcher-cwd-"),
     encoding: "utf8",

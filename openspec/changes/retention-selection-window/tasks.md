@@ -16,8 +16,8 @@
   adoption, with a regression that the lock is held while hook installation pins. Done when the
   activation, adoption and lane-start tests pass and `python_product` grows by at most 8 lines
   (`green.log`; `python_product` 69,994, +8).
-- [ ] 1.4 Record the fix under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown_lint` and
-  `prose` pass.
+- [x] 1.4 Record the fix under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown_lint` and
+  `prose` pass (both pass with the other fast gates on `b41ecb49d`).
 
 ## Workflow follow-up
 

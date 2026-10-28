@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.18] - 2026-10-28
+
 ### Changed
 
 - Eleven governance policy documents that no higher owner named give back their statements: the
@@ -38,8 +40,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
-- The hosted host conformance jobs are named `<os> / Python <version>` from their matrix alone. A
-  Node version no longer renames them, so the repository ruleset's required checks match them.
 - Python reference observation follows import aliases, from-imports, lexical scope and program
   point. A local named like a module no longer invents a consumer, a later assignment no longer
   replaces an earlier read, and a command constant that nothing runs is no longer a consumer. A
@@ -52,10 +52,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `.ethos/release.toml` invoke.
 - An active Change's validation repair is no longer refused because another active Change drifted
   from its template.
-- Healthy tests no longer fail a busy proof. The Python test gate bounds each test by one 600 s
-  hang limit instead of 120 s, which the heaviest tests crossed inside full proofs at the admitted
-  load without hanging. The three journeys that had raised their own limit to 240 s use the shared
-  one, and a test may only declare a shorter limit.
 
 ## [0.2.0-alpha.17] - 2026-10-28
 

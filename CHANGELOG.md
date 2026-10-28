@@ -12,18 +12,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
-### Fixed
-
-- Host-store retention no longer removes an installation that a repository is about to select. A
-  repository now holds its runtime selection lock from the pin that records it as a consumer until
-  its selectors name what it pinned, and retention keeps every consumer whose lock is held. It takes
-  that lock only in a repository with ETHOS state, so it creates nothing in one without. Before,
-  a retention that another repository ran inside that window released the record, and a later one
-  removed the installation that the repository's `CURRENT` then named, so its commands failed with
-  `hook_runtime_manifest_invalid` or `hook_runtime_current_target_invalid`. Repositories that still
-  run an earlier release keep the old window until they rebind.
-
-## [0.2.0-alpha.18] - 2026-10-28
+## [0.2.0-alpha.18] - 2026-10-29
 
 ### Changed
 
@@ -51,6 +40,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- Host-store retention no longer removes an installation that a repository is about to select. A
+  repository now holds its runtime selection lock from the pin that records it as a consumer until
+  its selectors name what it pinned, and retention keeps every consumer whose lock is held. It takes
+  that lock only in a repository with ETHOS state, so it creates nothing in one without. Before,
+  a retention that another repository ran inside that window released the record, and a later one
+  removed the installation that the repository's `CURRENT` then named, so its commands failed with
+  `hook_runtime_manifest_invalid` or `hook_runtime_current_target_invalid`. Repositories that still
+  run an earlier release keep the old window until they rebind.
 - Python reference observation follows import aliases, from-imports, lexical scope and program
   point. A local named like a module no longer invents a consumer, a later assignment no longer
   replaces an earlier read, and a command constant that nothing runs is no longer a consumer. A
@@ -63,6 +60,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `.ethos/release.toml` invoke.
 - An active Change's validation repair is no longer refused because another active Change drifted
   from its template.
+
+### Security
+
+- The wheels and installed runtimes ship uv 0.13.5 as a production dependency, which ETHOS runs to
+  build runtime environments and Python gates. Its embedded rustls 0.23.45 carries four advisories
+  published on 2026-10-27: GHSA-c8m5-c952-6cm4 (medium) and GHSA-vp88-798v-h67f,
+  GHSA-w44r-93j7-qv28 and GHSA-h2v8-394m-p7vv (low). rustls 0.23.46 fixes them, but no uv release
+  embeds it yet; the latest, 0.13.6, still embeds 0.23.45. The dependency gate audits the locked
+  Python and Node packages, not the crates inside a package's binary, so it does not report them.
+  `v0.2.0-alpha.17` ships the same uv.
 
 ## [0.2.0-alpha.17] - 2026-10-28
 

@@ -20,6 +20,7 @@ from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.result import EthosResult
+from tests.support.registries import repository_registry
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -222,7 +223,7 @@ def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
         load_schema("gate.schema.json")["properties"]["cpu_reservation"]
         == (Gate.model_json_schema()["properties"]["cpu_reservation"])
     )
-    payload = resolve_gate_policy().registry["unit-architecture"].to_dict()
+    payload = repository_registry().registry()["unit-architecture"].to_dict()
     assert payload["cpu_reservation"] == 2
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
     payload["cpu_reservation"] = 0

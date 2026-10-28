@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 import ethos.adapters.gates.runner as gate_execution
-import ethos.adapters.gates.ty as ty_gate
+import ethos.surface.cli.root.reference as reference
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -44,18 +44,17 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     monkeypatch.setattr(
-        ty_gate,
-        "ty_gate_report",
+        reference,
+        "docs_registry_report",
         lambda _root: {
             "verdict": verdict,
             "state": "clean" if verdict == "pass" else "failed",
             "required_gaps": [] if verdict == "pass" else ["type_error"],
             "stderr": "exact-provider-error" if verdict == "block" else "",
-            "packages": {},
         },
     )
 
-    completed = _host(repo, head, "--gate", "python-types")
+    completed = _host(repo, head, "--gate", "docs-registry")
 
     assert completed.returncode == (0 if verdict == "pass" else 1), completed.stderr
     payload = json.loads(completed.stdout)
@@ -67,7 +66,7 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
         "proof_attestation_issued": False,
     }
     assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
-    assert payload["data"]["checks"][0]["action_id"] == "python-types"
+    assert payload["data"]["checks"][0]["action_id"] == "docs-registry"
     assert payload["data"]["checks"][0]["duration_seconds"] >= 0
     if verdict == "block":
         report = json.loads(payload["data"]["checks"][0]["stdout"])

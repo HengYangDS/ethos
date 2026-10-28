@@ -184,7 +184,7 @@ def test_common_audit_enforces_the_selected_documentation_owner(
     assert status.audit_for_root(repo)["verdict"] == "pass"
 
 
-def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -> None:
+def test_common_audit_cannot_omit_documentation_identity(tmp_path: Path) -> None:
     """Default governance refuses a docs defect without a separately selected docs gate."""
     repo = _adopter(tmp_path / "public-docs", registry=False)
     decision = repo / "docs/rulings/choice.md"
@@ -192,17 +192,12 @@ def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -
     decision.write_text(_document("sample:choice", "decision", "Choice"))
     commit_fixture(repo, "docs: preserve a decision choice")
 
-    observed = run_ethos_raw(
-        "prove", "--host", "--execute", "--gate", "repository-audit", "--json", cwd=repo
-    )
+    observed = run_ethos_raw("prove", "--json", cwd=repo)
     report = json.loads(observed.stdout)
 
     assert observed.returncode != 0
     assert report["verdict"] == "block", report
-    assert report["summary"]["proof_attestation_issued"] is False
-    payload = json.loads(report["data"]["checks"][0]["stdout"])
-    audit = payload["providers"][0]["report"]
-    assert "docs_decision_name_invalid:docs/rulings/choice.md" in audit["required_gaps"]
+    assert "docs_decision_name_invalid:docs/rulings/choice.md" in report["required_gaps"]
 
 
 def _document(subject: str, role: str, title: str) -> str:

@@ -12,6 +12,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- ETHOS judges its own tree by the obligations it ships for every repository. The packaged
+  `system/gates.toml` holds only those obligations, declared as every repository runs them, and
+  ETHOS declares its own gates in `system/repository-gates.toml`, which its profile names. A
+  repository's obligations no longer depend on its registry path or its history.
+- The shared Python static floor follows the import-sorting values that a repository's native Ruff
+  configuration declares.
+
 ## [0.2.0-alpha.18] - 2026-10-28
 
 ### Changed

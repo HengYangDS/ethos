@@ -312,7 +312,7 @@ def test_config_quality_projects_the_installed_owner(monkeypatch) -> None:
 def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Real package tests keep the native child Node and remove their owned npm cache."""
+    """Real package tests run under c8 on the supplied Node and remove their owned npm cache."""
     shadow = isolated_path(
         tmp_path,
         {"node": "#!/bin/sh\nexit 83\n", "npm": "#!/bin/sh\nexit 84\n"},
@@ -329,8 +329,10 @@ def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
     ci_sessions.javascript_tests(SimpleNamespace(run=execute))
 
     ((command, environment, result),) = observations
-    assert command == (str(runtime.executable), str(runtime.npm), "run", "test:npm")
+    supply = ci_sessions.RUNTIME.node_package_supply()
+    assert command[:2] == (str(runtime.executable), str(supply / "c8/bin/c8.js"))
+    assert command.count(str(runtime.executable)) == 2
     assert environment["PATH"].split(os.pathsep)[0] == str(runtime.executable.parent)
     assert environment["npm_config_offline"] == "true"
     assert not Path(environment["npm_config_cache"]).exists()
-    assert "test:npm" in result.stdout + result.stderr
+    assert "the launcher package exposes only its declared transport" in result.stdout

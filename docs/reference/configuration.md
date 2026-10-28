@@ -165,9 +165,12 @@ configuration plane, not a truth center.
   list runs native uv commands and `tools/ci/toolchain` modules; hosted CI YAML
   is only the provider projection of that model. `.config/mise/config.toml`
   declares the `bootstrap`, `check` and `fix` verbs for local use.
-- `system/gates.toml` owns each gate's identity, profile, executable boundary,
-  evidence class, and proof-floor membership. Native configuration and supply
-  files remain the unique owners of tool-specific policy and versions.
+- `system/gates.toml` declares the obligations ETHOS owns for every repository,
+  and `system/repository-gates.toml`, which `.ethos/profile.toml` names,
+  declares ETHOS's own gates. Each owns its gates' identity, profile,
+  executable boundary, evidence class, and proof-floor membership. Native
+  configuration and supply files remain the unique owners of tool-specific
+  policy and versions.
 
 ## Root discovery and remaining migration boundaries
 

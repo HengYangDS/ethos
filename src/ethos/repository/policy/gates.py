@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from ethos.contracts.gates import DECLARATION_PATH
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -57,7 +58,6 @@ class ResolvedGatePolicy:
     carrier_roles: tuple[tuple[str, str], ...] = ()
     acceptance_purpose: AcceptancePurpose = "repository"
     selected_obligations: bool = False
-    product_source: bool = False
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -122,7 +122,6 @@ class ResolvedGatePolicy:
                 self.script_paths,
                 self.carrier_roles,
                 self.gates if self.selected_obligations else None,
-                product_source=self.product_source,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
@@ -146,8 +145,6 @@ def _owner_projection(
     script_paths: tuple[str, ...],
     carrier_roles: tuple[tuple[str, str], ...],
     selected_gates: tuple[Gate, ...] | None = None,
-    *,
-    product_source: bool,
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "id": declaration.id,
@@ -212,8 +209,6 @@ def _owner_projection(
         owner["source_contracts"] = contracts
     if prerequisites:
         owner["source_binding_gaps"] = list(prerequisites)
-    if proof.gate_registry and product_source:
-        return owner
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
@@ -277,16 +272,18 @@ def resolve_gate_declaration(
     proof = profile.declaration.proof
     if not proof.gate_registry:
         return _profile_declaration(profile), profile
+    return _registry_declaration(gate_registry_source, proof.gate_registry), profile
+
+
+def _registry_declaration(source: bytes | None, path: str) -> GateRegistryDeclaration:
+    """Parse a declared or a supplied packaged registry by the same native contract."""
     try:
-        if gate_registry_source is None:
-            raise FileNotFoundError(proof.gate_registry)
-        declaration = GateRegistryDeclaration.model_validate(
-            tomllib.loads(gate_registry_source.decode())
-        )
+        if source is None:
+            raise FileNotFoundError(path)
+        return GateRegistryDeclaration.model_validate(tomllib.loads(source.decode()))
     except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValidationError, ValueError) as error:
-        message = f"gate_registry_invalid:{proof.gate_registry}"
+        message = f"gate_registry_invalid:{path}"
         raise ValueError(message) from error
-    return declaration, profile
 
 
 def bind_gate_source_digests(
@@ -332,6 +329,7 @@ def resolve_gate_policy(
     *,
     profile: RepositoryProfile | None = None,
     gate_registry_source: bytes | None = None,
+    packaged_registry_source: bytes | None = None,
     source_materials: Mapping[str, bytes | None] | None = None,
     repository_python: str | None = None,
     repository_paths: tuple[str, ...] = (),
@@ -341,7 +339,6 @@ def resolve_gate_policy(
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
     selected_obligations: bool = False,
-    product_source: bool = False,
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
     selected_obligations = selected_obligations and bool(gate_ids) and not full
@@ -352,10 +349,11 @@ def resolve_gate_policy(
     selected = select_gate_declaration(
         declaration,
         gate_ids,
-        _PACKAGED_GATE_DECLARATION,
+        _PACKAGED_GATE_DECLARATION
+        if packaged_registry_source is None
+        else _registry_declaration(packaged_registry_source, DECLARATION_PATH.as_posix()),
         repository_paths=repository_paths,
         full=full,
-        product_source=product_source,
     )
     python_executable = repository_python or sys.executable
     gates = tuple(
@@ -404,7 +402,6 @@ def resolve_gate_policy(
             script_paths,
             carrier_roles,
             gates if selected_obligations else None,
-            product_source=product_source,
         )
         gaps = (
             *gaps,
@@ -423,7 +420,6 @@ def resolve_gate_policy(
         carrier_roles,
         acceptance_purpose,
         selected_obligations,
-        product_source,
     )
 
 

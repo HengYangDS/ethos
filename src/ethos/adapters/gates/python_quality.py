@@ -31,6 +31,7 @@ from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
+    from ethos.adapters.gates.python_target import PythonTarget
     from ethos.repository.policy.code_subjects import CodeSubject
 
 # The shared formatter width of governed repositories; isolation keeps it product-owned.
@@ -58,12 +59,12 @@ def _native_fields(execution: NativeExecution) -> dict[str, object]:
 
 
 def _static_execution(
-    root: Path, paths: tuple[str, ...], target: str, execution: NativeExecution | None
+    root: Path, paths: tuple[str, ...], target: PythonTarget, execution: NativeExecution | None
 ) -> NativeExecution:
     """Select the native isolated command before execution or same-attempt consumption.
 
-    Isolation keeps the product's rule floor; the explicit target keeps the subject's
-    declared Python version rather than the checker's default.
+    Isolation keeps the product's rule floor; the explicit target and import style keep the
+    subject's declared values rather than the checker's defaults.
     """
     command = (
         sys.executable,
@@ -80,7 +81,8 @@ def _static_execution(
         "--line-length",
         str(_FLEET_LINE_LENGTH),
         "--target-version",
-        target,
+        target.version,
+        *(part for override in target.import_style for part in ("--config", override)),
         "--select",
         "E,F,B,I,UP",
         *paths,
@@ -136,7 +138,7 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
         )
         target = compatibility_target(root, tree, authored) if authored else None
         if target is not None:
-            execution = _static_execution(root, authored, target.version, execution)
+            execution = _static_execution(root, authored, target, execution)
             native = _native_fields(execution)
         elif execution is not None:
             return {**_failure("static", "python_native_selection_invalid"), "native": native}

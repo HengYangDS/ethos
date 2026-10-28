@@ -4,4 +4,4 @@ profile_id = "ethos"
 material_paths = ["**"]
 
 [proof]
-gate_registry = "system/gates.toml"
+gate_registry = "system/repository-gates.toml"

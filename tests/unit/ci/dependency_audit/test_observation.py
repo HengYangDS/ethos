@@ -16,10 +16,9 @@ from filelock import FileLock
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
 import ethos.repository.release.resources as resource_owner
-import tests
-from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
+from tests.support.registries import repository_registry
 from tests.unit.ci.dependency_audit.support import clean_report
 from tests.unit.ci.dependency_audit.support import invoke_audit
 from tests.unit.ci.dependency_audit.support import native_result
@@ -101,8 +100,7 @@ def test_invalid_policy_replaces_previous_success(repository, monkeypatch, fault
 
 def test_registry_has_one_security_owner_without_making_offline_tests_online() -> None:
     """Online security guards delivery without changing the offline test plane."""
-    root = Path(tests.__file__).resolve().parent.parent
-    declaration = load_gate_registry_declaration(root / "system/gates.toml")
+    declaration = repository_registry()
     registry = declaration.registry()
     assert "python-vulnerabilities" not in registry
     assert "dependency-vulnerabilities" in registry

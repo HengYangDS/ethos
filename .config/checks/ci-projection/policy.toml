@@ -65,7 +65,7 @@ required_sections = ["summary", "evidence", "governance"]
 [compiler]
 source = ".config/ci/pipeline.cue"
 supply = { config = ".config/mise/config.toml", lock = ".config/mise/mise.lock" }
-inputs = { gate_registry = "system/gates.toml", node = ".config/mise/config.toml" }
+inputs = { gate_registry = "system/repository-gates.toml", node = ".config/mise/config.toml" }
 
 # Generated supply binding, not an independent source signature or version selector.
 # Refresh only from native generation; ordinary CI checks never acquire this material.

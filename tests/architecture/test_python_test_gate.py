@@ -13,6 +13,7 @@ import pytest
 import tools.ci.python_test_gate as python_test_gate
 from ethos.adapters.process import run_command
 from ethos.contracts.gates import GateRegistryDeclaration
+from tests.support.registries import repository_registry_path
 from tests.support.runtime_scenarios import empty_node_package_supply
 from tests.support.subprocesses import kill_after_marker
 
@@ -103,7 +104,7 @@ def test_worker_loss(index):
 @pytest.mark.parametrize("full", [False, True])
 def test_coverage_gate_is_in_the_resolved_proof_closure(*, full: bool) -> None:
     declaration = GateRegistryDeclaration.model_validate(
-        tomllib.loads((python_test_gate.ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+        tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))
     )
     selected = declaration.proof_gates(full=full, python_executable=str(python_test_gate.PYTHON))
     identifiers = [gate.id for gate in selected]
@@ -185,6 +186,29 @@ def _test_gate(tmp_path: Path, *, workers: int | None = None):
             node_package_supply=tmp_path / "node_modules",
         )
     )
+
+
+@pytest.mark.parametrize("selected", [False, True])
+def test_native_outputs_reach_the_selected_root(tmp_path, monkeypatch, *, selected: bool) -> None:
+    """The runner's native output root receives exactly this attempt's JUnit and Cobertura."""
+    gate = _test_gate(tmp_path)
+    monkeypatch.setattr(gate, "_stable_head", lambda: None)
+    reports = {
+        gate.pytest / "junit.xml": "<testsuites/>",
+        gate.coverage / "coverage.xml": "<coverage/>",
+    }
+    for path, content in reports.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    native = tmp_path / "native"
+    native.mkdir()
+    if selected:
+        monkeypatch.setenv("ETHOS_NATIVE_OUTPUT_DIR", str(native))
+    else:
+        monkeypatch.delenv("ETHOS_NATIVE_OUTPUT_DIR", raising=False)
+    gate.publish_native_outputs()
+    published = {path.name: path.read_text() for path in native.iterdir()}
+    assert published == ({path.name: text for path, text in reports.items()} if selected else {})
 
 
 @pytest.mark.parametrize("unavailable", [False, True])

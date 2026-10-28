@@ -17,6 +17,8 @@ from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_po
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
+from tests.support.registries import repository_registry
+from tests.support.registries import repository_registry_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -36,13 +38,13 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
     tmp_path: Path, owner_kind: str, *, full: bool
 ) -> None:
     """One explicit purpose changes the audit command, never the required gate set."""
-    declaration = load_gate_registry_declaration()
+    declaration = repository_registry()
     profile = (
         RepositoryProfile(
             root=tmp_path,
             exists=True,
             declaration=RepositoryProfileDeclaration(
-                profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
+                profile_id="ethos", proof=ProofPolicy(gate_registry="system/repository-gates.toml")
             ),
         )
         if owner_kind == "registry"
@@ -59,14 +61,15 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
             repository_paths=("src/ethos/cli.py",),
             full=full,
             acceptance_purpose=purpose,
-            product_source=owner_kind == "registry",
         )
 
     strict = compiled("repository")
     source = compiled("local-source")
     assert source.projection["owner"] == strict.projection["owner"]
     assert not set(_MISSING_QUALITY).intersection(source.gaps)
-    missing_audit = () if full else ("proof_dependency_acceptance_audit_missing",)
+    # The shared obligations declare no audit; ETHOS's own registry declares one in full only.
+    missing = not full and profile is not None
+    missing_audit = ("proof_dependency_acceptance_audit_missing",) if missing else ()
     assert source.gaps == (*strict.gaps, *missing_audit)
     assert source.declaration == strict.declaration
     assert source.gate_ids == strict.gate_ids
@@ -87,9 +90,20 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
         compile_gate_policy(full=True, acceptance_purpose="publishing")
 
 
-def test_partial_product_source_floor_still_requires_its_native_audit(tmp_path: Path) -> None:
-    """A product gate subset cannot acquire a native-profile applicability exemption."""
-    selected = compile_gate_policy(acceptance_purpose="local-source")
+def test_a_default_floor_still_requires_its_declared_native_audit(tmp_path: Path) -> None:
+    """A proof subset cannot acquire an applicability exemption from the audit it declares."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="ethos", proof=ProofPolicy(gate_registry="system/repository-gates.toml")
+        ),
+    )
+    selected = compile_gate_policy(
+        profile=profile,
+        gate_registry_source=repository_registry_path().read_bytes(),
+        acceptance_purpose="local-source",
+    )
     assert "proof_dependency_acceptance_audit_missing" in selected.gaps
     assert dependency_acceptance_gaps(
         tmp_path, "a" * 40, selected.projection, (), acceptance_purpose="local-source"

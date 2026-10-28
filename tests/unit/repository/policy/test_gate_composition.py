@@ -22,6 +22,7 @@ from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import SourceContract
+from tests.support.registries import repository_registry
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -94,17 +95,12 @@ def test_required_common_verifier_cannot_be_replaced_by_same_named_native_comman
 
 
 @pytest.mark.parametrize(
-    ("requested", "refused"),
-    [
-        (("dependency-vulnerabilities",), "dependency-vulnerabilities"),
-        (("native", "ruff"), "ruff"),
-        (("generated-artifacts",), "(ruff|unit-architecture)"),
-    ],
+    "requested", [("dependency-vulnerabilities",), ("native", "ruff"), ("generated-artifacts",)]
 )
-def test_adopter_selection_refuses_a_product_toolchain_command(
-    tmp_path: Path, requested: tuple[str, ...], refused: str
+def test_the_packaged_registry_holds_only_the_shared_obligations(
+    tmp_path: Path, requested: tuple[str, ...]
 ) -> None:
-    """An adopter imports provider-backed packaged gates only, never a product command."""
+    """A repository imports what every repository runs; ETHOS's own gates stay ETHOS's."""
     profile = RepositoryProfile(
         root=tmp_path,
         exists=True,
@@ -117,28 +113,28 @@ def test_adopter_selection_refuses_a_product_toolchain_command(
             ),
         ),
     )
-    with pytest.raises(ValueError, match=f"^proof_gate_not_importable:{refused}$"):
+    with pytest.raises(ValueError, match=r"^unknown proof gate$"):
         compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
-    imported = compile_gate_policy(
-        profile=profile, gate_ids=("external-links",), repository_python="python"
-    )
-    assert imported.registry["external-links"].tool_adapter == "ethos"
+    imported = compile_gate_policy(profile=profile, gate_ids=("prose",), repository_python="python")
+    assert imported.registry["prose"] == load_gate_registry_declaration().registry()["prose"]
 
 
-def test_product_registry_keeps_its_native_floor_declarations() -> None:
-    """The product declares the shared floors natively; composition rewrites only adopters."""
+def test_each_shared_obligation_is_declared_as_every_repository_runs_it() -> None:
+    """Composition copies a shared obligation unchanged; a command needs the product toolchain."""
     shipped = load_gate_registry_declaration()
-    floor = shipped.registry()["markdown-lint"].model_copy(update={"required_for_paths": ("*.md",)})
-    packaged = shipped.model_copy(
-        update={"gates": tuple(floor if gate.id == floor.id else gate for gate in shipped.gates)}
+    assert {(gate.profile, gate.tool_adapter, bool(gate.providers)) for gate in shipped.gates} == {
+        ("repository", "ethos", True)
+    }
+    composed = select_gate_declaration(
+        repository_registry(), (), shipped, repository_paths=("README.md",), full=True
     )
-    paths = ("README.md",)
-    product = select_gate_declaration(
-        shipped, (), packaged, repository_paths=paths, full=True, product_source=True
+    assert {gate.id: gate for gate in composed.gates}["markdown-lint"] == (
+        shipped.registry()["markdown-lint"]
     )
-    assert product is shipped
-    adopted = select_gate_declaration(shipped, (), packaged, repository_paths=paths, full=True)
-    assert adopted.registry()["markdown-lint"].profile == "repository"
+    command = Gate(id="tool", kind="lint", command=("tool",))
+    packaged = shipped.model_copy(update={"gates": (*shipped.gates, command)})
+    with pytest.raises(ValueError, match=r"^proof_gate_not_importable:tool$"):
+        select_gate_declaration(repository_registry(), ("tool",), packaged)
 
 
 def test_native_configuration_uses_one_shared_directory_shape() -> None:

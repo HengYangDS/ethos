@@ -17,9 +17,8 @@ def select_gate_declaration(
     *,
     repository_paths: tuple[str, ...] = (),
     full: bool = False,
-    product_source: bool = False,
 ) -> GateRegistryDeclaration:
-    """Compose applicable shared floors into adopters; explicit diagnosis stays focused."""
+    """Compose applicable shared floors into every repository; explicit diagnosis stays focused."""
     owned = declaration.registry()
     packaged = packaged_declaration.registry()
     authored = tuple(
@@ -31,7 +30,6 @@ def select_gate_declaration(
         gate.id
         for gate in packaged.values()
         if gate.required_for_paths
-        and not product_source
         and (
             gate.id in gate_ids
             or (
@@ -53,12 +51,7 @@ def select_gate_declaration(
         ):
             message = f"common_gate_execution_conflict:{gate_id}"
             raise ValueError(message)
-    common_contracts = {
-        gate_id: packaged[gate_id].model_copy(
-            update={"profile": "repository", "tool_adapter": "ethos"}
-        )
-        for gate_id in common
-    }
+    common_contracts = {gate_id: packaged[gate_id] for gate_id in common}
     extra: dict[str, Gate] = {}
     pending = [*common, *gate_ids]
     while pending:
@@ -73,7 +66,7 @@ def select_gate_declaration(
         if not (gate.providers or gate.verification_providers):
             message = f"proof_gate_not_importable:{gate_id}"
             raise ValueError(message)
-        extra[gate_id] = gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
+        extra[gate_id] = gate
         pending.extend(gate.depends_on)
     proof_sets = GateProofSets(
         default=tuple(dict.fromkeys((*declaration.proof_sets.default, *common))),

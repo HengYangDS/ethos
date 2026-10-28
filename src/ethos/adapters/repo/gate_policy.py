@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from packaging.utils import canonicalize_name
 
 import ethos
 from ethos.adapters.repo.git import current_tracked_head
@@ -11,7 +14,6 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.profile import load_committed_repository_profile
-from ethos.adapters.repo.runtime.authority import invoking_source_commit
 from ethos.contracts.gates import DECLARATION_PATH
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.code_subjects import observed_code_subjects
@@ -106,7 +108,10 @@ def _resolve_policies(
         profile.declaration.proof.gate_registry if profile.declaration is not None else None
     )
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
-    product_source = _shares_product_history(root, tree_ref, registry_path)
+    own_product = _builds_running_product(root, tree_ref)
+    packaged_source = (
+        (_material(root, tree_ref, DECLARATION_PATH.as_posix()) or b"") if own_product else None
+    )
     entries = _repository_material_entries(root, tree_ref) if tree_ref is not None else None
     repository_paths = tuple(entries) if entries is not None else _repository_paths(root, tree_ref)
     script_paths = _repository_script_paths(root, tree_ref, repository_paths)
@@ -124,7 +129,7 @@ def _resolve_policies(
             full=full,
             acceptance_purpose=acceptance_purpose,
             selected_obligations=selected_obligations,
-            product_source=product_source,
+            packaged_registry_source=packaged_source,
         )
         for full in floors
     )
@@ -140,6 +145,7 @@ def _resolve_policies(
         ),
         entries=entries,
         regular_only=bool(contracts),
+        own_product=own_product,
     )
     try:
         expanded = source_paths_for_gates(
@@ -157,6 +163,7 @@ def _resolve_policies(
             tuple(relative for relative in expanded if relative not in materials),
             entries=entries,
             regular_only=bool(contracts),
+            own_product=own_product,
         )
     )
     return tuple(
@@ -172,32 +179,27 @@ def _resolve_policies(
             full=full,
             acceptance_purpose=acceptance_purpose,
             selected_obligations=selected_obligations,
-            product_source=product_source,
+            packaged_registry_source=packaged_source,
         )
         for full in floors
     )
 
 
-def committed_product_source(root: Path, tree_ref: str) -> bool:
-    """Return whether the committed tree is this product's own source, by its shared history."""
+def _builds_running_product(root: Path, tree_ref: str | None) -> bool:
+    """A tree whose package manifest declares the running distribution supplies its data."""
     try:
-        profile = load_committed_repository_profile(root, tree_ref)
-    except (OSError, ValueError):
+        project = tomllib.loads((_material(root, tree_ref, "pyproject.toml") or b"").decode())
+        return canonicalize_name(project["project"]["name"]) == canonicalize_name(ethos.__name__)
+    except (KeyError, TypeError, UnicodeError, tomllib.TOMLDecodeError):
         return False
-    registry = profile.declaration.proof.gate_registry if profile.declaration is not None else None
-    return _shares_product_history(root, tree_ref, registry)
 
 
-def _shares_product_history(root: Path, tree_ref: str | None, registry_path: str | None) -> bool:
-    """Recognize the product registry by history shared with the running build, not by bytes."""
-    if registry_path != DECLARATION_PATH.as_posix():
-        return False
-    try:
-        build = invoking_source_commit()
-    except (OSError, ValueError):
-        return False
-    shared = run_git(root, "merge-base", build, tree_ref or "HEAD", check=False, observation=True)
-    return not shared.returncode and bool(shared.stdout.strip())
+def _subject_path(relative: str) -> str:
+    """Invert the wheel projection, so product data keep the paths of the tree that builds them."""
+    name = relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
+    if name == relative:
+        return relative
+    return name.removeprefix("resources/") if name.startswith("resources/") else f"src/ethos/{name}"
 
 
 def _repository_paths(root: Path, tree_ref: str | None) -> tuple[str, ...]:
@@ -330,19 +332,21 @@ def _materials(
     *,
     entries: dict[str, tuple[str, str]] | None,
     regular_only: bool,
+    own_product: bool = False,
 ) -> dict[str, bytes | None]:
     """Acquire selected committed bytes in one fresh typed batch, sharing identical blobs."""
     materials: dict[str, bytes | None] = {}
     objects: dict[str, str] = {}
     for relative in paths:
-        if relative.startswith(PRODUCT_PROVIDER_SOURCE):
-            materials[relative] = _material(root, None, relative)
+        source = _subject_path(relative) if own_product else relative
+        if source.startswith(PRODUCT_PROVIDER_SOURCE):
+            materials[relative] = _material(root, None, source)
             continue
-        mode, object_id = entries.get(relative, ("", "")) if entries is not None else ("", "")
+        mode, object_id = entries.get(source, ("", "")) if entries is not None else ("", "")
         if regular_only and mode not in {"100644", "100755"}:
             materials[relative] = None
         elif tree_ref is None or mode not in {"100644", "100755", "120000"}:
-            materials[relative] = _material(root, tree_ref, relative)
+            materials[relative] = _material(root, tree_ref, source)
         else:
             materials[relative] = None
             if object_id:

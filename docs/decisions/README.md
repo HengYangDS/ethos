@@ -40,3 +40,4 @@ five-section form; this entrance does not maintain another template or rule set.
 - [DR-0014: Comparative correction](dr-0014-comparative-correction.md): why a replacement may drop an incumbent finding only when evidence outside the candidate shows it false.
 - [DR-0015: Release stages follow a declared journey scope](dr-0015-release-stage-scope.md): why a prerelease advances by evidence on its declared journeys and an adopter's environment is not a release precondition.
 - [DR-0016: Changes close on their delivered scope](dr-0016-change-closure-scope.md): why a Change archives with the tasks it delivered and how a withdrawn task stays visible until a new Change restores it.
+- [DR-0017: One obligation, one owner](dr-0017-one-obligation-one-owner.md): why each obligation has one owner across ETHOS and every governed repository, and why ETHOS judges its own tree by the obligations it ships.

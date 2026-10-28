@@ -13,8 +13,10 @@ HEAD-bound observations, not this document's state.
 
 Purpose: explain selection, execution safety and the limits of local evidence.
 
-The [gate declaration](../../system/gates.toml) owns check identity, dependency
-closure, execution identity and proof-set membership. Native configuration owns
+The gate declarations own check identity, dependency closure, execution
+identity and proof-set membership: the [packaged registry](../../system/gates.toml)
+for the obligations every repository shares, and the gates a repository's
+profile declares or names for its own. Native configuration owns
 each tool's rules and supply. The policy compiler binds those materials; the
 shared runner executes the resulting graph. Local CI uses that same full
 closure rather than maintaining a second scheduler or list.

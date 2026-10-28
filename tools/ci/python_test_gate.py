@@ -301,6 +301,15 @@ class PythonTestGate:
         self._stable_head()
         return self.allure_report
 
+    def publish_native_outputs(self) -> None:
+        """Copy this attempt's JUnit and Cobertura reports to the runner's native output root."""
+        target = os.getenv("ETHOS_NATIVE_OUTPUT_DIR")
+        if not target:
+            return
+        self._stable_head()
+        for source in (self.pytest / "junit.xml", self.coverage / "coverage.xml"):
+            shutil.copyfile(source, Path(target) / source.name)
+
     def _allure_result_dirs(self) -> tuple[Path, ...]:
         if not self.allure_results.is_dir():
             return ()

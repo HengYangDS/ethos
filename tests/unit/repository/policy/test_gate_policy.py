@@ -150,11 +150,15 @@ def test_audit_applicability_reads_only_the_committed_declaration(
     ) == ["proof_dependency_acceptance_audit_missing"]
 
 
-@pytest.mark.parametrize("profile", ["", "invalid profile"], ids=["absent", "invalid"])
-def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
-    tmp_path: Path, profile: str
+@pytest.mark.parametrize(
+    ("profile", "expected"),
+    [("", []), ("invalid profile", ["proof_dependency_acceptance_audit_missing"])],
+    ids=["absent", "invalid"],
+)
+def test_audit_applicability_follows_the_committed_declaration(
+    tmp_path: Path, profile: str, expected: list[str]
 ) -> None:
-    """Only a valid committed native declaration can select its own audit owner."""
+    """An absent profile owes the shared obligations, which declare no audit; invalid blocks."""
     repo = init_git_repo(tmp_path / "repo")
     (repo / "README.md").write_text("Audit applicability fixture\n")
     if profile:
@@ -162,9 +166,10 @@ def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
         path.parent.mkdir()
         path.write_text(profile)
     head = commit_fixture(repo, "capture profile state")
-    assert dependency_acceptance_gaps(
-        repo, head, {"gates": ()}, (), acceptance_purpose="local-source"
-    ) == ["proof_dependency_acceptance_audit_missing"]
+    assert (
+        dependency_acceptance_gaps(repo, head, {"gates": ()}, (), acceptance_purpose="local-source")
+        == expected
+    )
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:

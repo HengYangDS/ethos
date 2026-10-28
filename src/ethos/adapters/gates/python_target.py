@@ -6,11 +6,13 @@ accepted fact rather than the checker's default or ETHOS's interpreter. The targ
 the exact committed tree in Ruff's own order: the target-version of the accepted Ruff
 configuration, either the paradigm carrier or Ruff's root discovery, following extend inside
 the repository; otherwise the lower bound of requires-python. Missing, malformed or conflicting
-declarations, and nested declarations that give checked code another target, are gaps.
+declarations, and nested declarations that give checked code another target, are gaps. The
+import-sorting values the root configurations declare are the repository's own as well.
 """
 
 from __future__ import annotations
 
+import json
 import posixpath
 import re
 import tomllib
@@ -44,6 +46,7 @@ class PythonTarget:
     version: str
     basis: str
     files: tuple[str, ...]
+    import_style: tuple[str, ...] = ()
 
     def evidence(self) -> dict[str, object]:
         """Return the JSON form recorded beside the same-attempt checker evidence."""
@@ -105,7 +108,18 @@ def compatibility_target(root: Path, tree: str, paths: tuple[str, ...]) -> Pytho
         nested = _directory_target(committed, ruff, directory)
         if nested is None or nested.version != target.version:
             raise ValueError(DIVERGENT)
-    return target
+    style: dict[str, object] = {}
+    for _path, settings in _configurations(committed, ruff, ""):
+        lint = settings.get("lint", {})
+        table = lint.get("isort", {}) if isinstance(lint, dict) else None
+        if not isinstance(table, dict):
+            _invalid()
+        if any(style.setdefault(key, value) != value for key, value in table.items()):
+            raise ValueError(CONFLICT)
+    overrides = tuple(
+        f"lint.isort.{key} = {json.dumps(value)}" for key, value in sorted(style.items())
+    )
+    return PythonTarget(target.version, target.basis, target.files, overrides)
 
 
 def _directory_target(committed: _Tree, ruff: ToolCarrier, directory: str) -> PythonTarget | None:

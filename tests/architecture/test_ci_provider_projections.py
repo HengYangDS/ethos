@@ -20,6 +20,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
+from tests.support.registries import repository_registry_path
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
 from tools.ci.ci_projection import emulator_declaration
@@ -404,13 +405,13 @@ def test_hosted_cache_roots_do_not_move_with_child_working_directories(github, g
 
 
 def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    declaration = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}
 
     assert declaration["proof_sets"]["full"].count("github-workflow-syntax") == 1
     gate = gates["github-workflow-syntax"]
     assert gate["command"] == ["{python}", "-m", "tools.ci.ci_projection"]
-    assert gate["depends_on"] == ["config-quality"]
+    assert "depends_on" not in gate
     assert gate["writes_files"] is False
     assert gate["network_policy"] == "offline"
 

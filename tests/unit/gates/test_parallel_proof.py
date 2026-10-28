@@ -15,13 +15,13 @@ import ethos.adapters.gates.runner as gate_runner
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.gates import Gate
-from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.registries import repository_registry
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -194,7 +194,7 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
     "readiness_gate",
     [
         gate.id
-        for gate in load_gate_registry_declaration().proof_gates(full=True)
+        for gate in repository_registry().proof_gates(full=True)
         if gate.kind not in {"test", "package"} and "unit-architecture" not in gate.depends_on
     ],
 )
@@ -203,7 +203,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
 ):
     """Selected source failures stop public proof without expanding its scope."""
     repo = init_git_repo(tmp_path / "repo")
-    declaration = load_gate_registry_declaration()
+    declaration = repository_registry()
     selected = tuple(
         gate.model_copy(update={"kind": execution_kind})
         if gate.id == "unit-architecture"

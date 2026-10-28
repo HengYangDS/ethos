@@ -34,6 +34,7 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
+from tests.support.registries import repository_registry
 from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -49,7 +50,7 @@ EXPIRED = "proof_dependency_acceptance:unapproved_or_expired_findings"
 def _declare_audit(root: Path, expires: datetime) -> None:
     path = root / "system/gates.toml"
     declaration = tomllib.loads(path.read_text())
-    native = load_gate_registry_declaration().registry()[AUDIT]
+    native = repository_registry().registry()[AUDIT]
     declaration["gates"].append(native.model_dump(mode="json", exclude_none=True))
     for floor in ("default", "full"):
         declaration["proof_sets"][floor].append(AUDIT)

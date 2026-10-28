@@ -3,42 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "source-format", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "source-format", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
-
-[[gates]]
-id = "repository-audit"
-kind = "governance"
-providers = ["ethos.domain.status:audit_for_root", "ethos.adapters.gates.generated_artifacts:generated_artifact_gate_report"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["evidence"]
-dimensions = ["governance", "determinism"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-repository-audit"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "repository-hygiene"
-kind = "governance"
-command = ["{python}", "-m", "nox", "-s", "repository_hygiene"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code", "config", "markdown-docs"]
-dimensions = ["repository-hygiene", "suppression-policy"]
-execution_mode = "adapter"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-hygiene"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
+default = ["docs-registry", "openspec", "markdown-links", "config-quality", "markdown-lint", "source-format", "prose"]
+full = ["docs-registry", "openspec", "markdown-links", "config-quality", "markdown-lint", "source-format", "prose"]
 
 [[gates]]
 id = "docs-registry"
@@ -46,49 +12,14 @@ kind = "docs"
 required_for_paths = ["*.md"]
 providers = ["ethos.surface.cli.root.reference:docs_registry_report"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "ethos"
 asset_classes = ["markdown-docs"]
 dimensions = ["front-matter", "taxonomy", "visible-sections", "command-examples", "plan-discoverability"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "ethos-docs-registry"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "generated-artifacts"
-kind = "governance"
-providers = ["ethos.adapters.gates.generated_artifacts:generated_artifact_gate_report"]
-depends_on = ["unit-architecture", "ruff"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["generated-artifacts", "evidence", "local-state"]
-dimensions = ["path-topology", "drift", "rollback"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-generated-artifacts"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "product-boundary"
-kind = "governance"
-providers = ["ethos.repository.policy.boundary.product:product_boundary_report", "ethos.domain.status:product_audit"]
-policy = "required"
-profile = "product"
-toolchain = "ethos"
-asset_classes = ["markdown-docs", "config", "tests", "release-artifacts"]
-dimensions = ["product-boundary", "adopter-neutrality", "distribution-boundary"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-product-boundary"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
@@ -98,14 +29,14 @@ id = "schemas"
 kind = "schema"
 providers = ["ethos.repository.policy.schema:schema_validation_report"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "ethos"
 asset_classes = ["json-contracts"]
 dimensions = ["schema", "stable-ordering"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "jsonschema"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
@@ -115,14 +46,14 @@ id = "skills"
 kind = "governance"
 providers = ["ethos.assistants.skills.portfolio:skill_portfolio_report"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "ethos"
 asset_classes = ["skills", "assistant-projections"]
 dimensions = ["projection", "activation", "schema"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "ethos-skills"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
@@ -133,7 +64,7 @@ kind = "governance"
 required_for_paths = ["openspec/config.yaml", "openspec/specs/*.md", "openspec/changes/*.md"]
 providers = ["ethos.adapters.openspec.governance:openspec_validation_report"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "ethos"
 depends_on = ["schemas"]
 asset_classes = ["markdown-docs", "json-contracts"]
@@ -141,149 +72,8 @@ dimensions = ["specification", "schema"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "openspec"
+tool_adapter = "ethos"
 writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "unit-architecture"
-kind = "test"
-depends_on = [
-  "repository-audit",
-  "schemas",
-  "skills",
-  "ruff",
-  "docstrings",
-  "module-layout",
-  "shell-lint",
-  "config-quality",
-  "source-budget",
-  "python-types",
-  "import-boundaries",
-  "format-selection",
-  "architecture-projection",
-]
-command = ["{python}", "-m", "nox", "-s", "tests"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["test", "coverage"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "pytest"
-writes_files = true
-cpu_reservation = 2
-resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "coverage-floor"
-kind = "test"
-command = ["{python}", "-m", "nox", "-s", "coverage_floor"]
-depends_on = ["unit-architecture"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["coverage"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "coverage.py"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "ruff"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "lint"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["lint", "format", "process-safety"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "ruff"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "docstrings"
-kind = "docs"
-providers = ["ethos.repository.policy.docstrings.coverage:docstring_coverage_report"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["documentation", "intent"]
-execution_mode = "provider"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "ethos-docstrings-google"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "module-layout"
-kind = "architecture"
-providers = ["ethos.adapters.gates.tool:module_layout_gate_report"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["module-layout", "semantic-subpackages", "import-discipline"]
-execution_mode = "provider"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "ethos-module-layout"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "build"
-kind = "package"
-command = ["{python}", "-m", "nox", "-s", "build"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-depends_on = ["ruff", "dependency-vulnerabilities"]
-asset_classes = ["release-artifacts"]
-dimensions = ["reproducibility", "attestation"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "uv-build"
-writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "exclusive", "scratch/build" = "exclusive" }
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "local-install-smoke"
-kind = "package"
-command = ["{python}", "-m", "nox", "-s", "install_smoke"]
-profile = "product-toolchain"
-toolchain = "uv-python"
-depends_on = ["build"]
-asset_classes = ["release-artifacts"]
-dimensions = ["installability", "isolation", "provenance"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "uv-local-install-smoke"
-writes_files = true
-cpu_reservation = 2
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "artifacts/native" = "exclusive", "evidence/install" = "exclusive", "scratch/install" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -294,49 +84,14 @@ required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:markdown_links_report"]
 tools = ["lychee"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "quality-adapter"
 asset_classes = ["markdown-docs"]
 dimensions = ["links", "anchors"]
 execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
-tool_adapter = "lychee"
-writes_files = false
-network_policy = "offline"
-version_source = "adopter-toolchain"
-
-[[gates]]
-id = "external-links"
-kind = "docs"
-providers = ["ethos.adapters.gates.tool:external_links_report"]
-tools = ["lychee"]
-policy = "required"
-profile = "hosted"
-toolchain = "quality-adapter"
-asset_classes = ["markdown-docs"]
-dimensions = ["external-reachability"]
-execution_mode = "provider"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "lychee"
-writes_files = false
-network_policy = "required"
-version_source = "adopter-toolchain"
-
-[[gates]]
-id = "shell-lint"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "shell_lint"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["shell-scripts"]
-dimensions = ["lint"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "shellcheck"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "adopter-toolchain"
@@ -348,101 +103,15 @@ required_for_paths = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg"]
 providers = ["ethos.adapters.gates.configuration:configuration_report"]
 tools = ["taplo", "prettier", "prettier-ignore", "yamllint"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "quality-adapter"
 asset_classes = ["toml-config", "json-contracts", "yaml-config"]
 dimensions = ["format", "lint", "syntax", "projection-boundary"]
 execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
-tool_adapter = "repository-config-toolchain"
+tool_adapter = "ethos"
 writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "github-workflow-syntax"
-kind = "config"
-command = ["{python}", "-m", "tools.ci.ci_projection"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-depends_on = ["config-quality"]
-asset_classes = ["yaml-config"]
-dimensions = ["syntax", "provider-projection"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "actionlint"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "source-budget"
-kind = "determinism"
-providers = ["ethos.domain.source_budget.measurement:source_budget_report"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["repository-source"]
-dimensions = ["volume", "maintainability", "deletion"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-source-budget"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "python-types"
-kind = "typing"
-providers = ["ethos.adapters.gates.ty:ty_gate_report"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["typing", "determinism"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ty"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "import-boundaries"
-kind = "architecture"
-command = ["{python}", "-m", "nox", "-s", "import_boundaries"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["python-code"]
-dimensions = ["architecture", "acyclicity"]
-execution_mode = "adapter"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "import-linter"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "dependency-hygiene"
-kind = "dependency"
-command = ["{python}", "-m", "nox", "-s", "dependencies"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code", "config"]
-dimensions = ["dependency-hygiene", "metadata"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "deptry"
-writes_files = true
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -453,118 +122,14 @@ required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:markdown_lint_report"]
 tools = ["prettier", "prettier-ignore", "markdownlint-cli2"]
 policy = "required"
-profile = "product-toolchain"
+profile = "repository"
 toolchain = "ethos"
 asset_classes = ["markdown-docs"]
 dimensions = ["markdown-format", "markdown-lint"]
 execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
-tool_adapter = "markdown_lint"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "javascript-lint"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "javascript_lint"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["javascript-code"]
-dimensions = ["javascript-format"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "javascript_lint"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "javascript-tests"
-kind = "test"
-depends_on = ["javascript-lint"]
-command = ["{python}", "-m", "nox", "-s", "javascript_tests"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["javascript-code"]
-dimensions = ["package-behavior"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "javascript_tests"
-writes_files = false
-resource_locks = { repository = "shared", supply = "shared", "scratch/javascript" = "exclusive" }
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "svg-format"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "svg_lint"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["assets"]
-dimensions = ["svg-format"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "svg_lint"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "asset-validation"
-kind = "asset"
-command = ["{python}", "-m", "nox", "-s", "asset_validation"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["assets"]
-dimensions = ["asset-integrity"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "asset_validation"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "ci-projection"
-kind = "config"
-command = ["{python}", "-m", "nox", "-s", "ci_templates"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["config"]
-dimensions = ["provider-projection"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "ci_templates"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "format-selection"
-kind = "governance"
-command = ["{python}", "-m", "nox", "-s", "format_selection"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["config"]
-dimensions = ["carrier-ownership"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "format_selection"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "locked-toolchain"
@@ -576,34 +141,17 @@ required_for_paths = ["*.py", "*.pyi", "*.md", "*.toml", "*.yaml", "*.yml", "*.j
 providers = ["ethos.adapters.gates.formatting:source_format_report"]
 tools = ["prettier", "prettier-ignore", "taplo", "ruff"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "ethos"
 asset_classes = ["python-code", "config", "markdown-docs", "assets"]
 dimensions = ["native-source-format"]
 execution_mode = "provider"
 evidence_class = "contract"
 trust_bearing = true
-tool_adapter = "ethos-source-format"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
-
-[[gates]]
-id = "architecture-projection"
-kind = "architecture"
-command = ["{python}", "-m", "nox", "-s", "architecture_projection"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["config", "markdown-docs"]
-dimensions = ["architecture-projection"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "architecture_projection"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
 
 [[gates]]
 id = "prose"
@@ -612,67 +160,14 @@ required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:prose_report"]
 tools = ["codespell", "vale"]
 policy = "required"
-profile = "product"
+profile = "repository"
 toolchain = "quality-adapter"
 asset_classes = ["markdown-docs"]
 dimensions = ["spelling"]
 execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
-tool_adapter = "prose"
+tool_adapter = "ethos"
 writes_files = false
 network_policy = "offline"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "dependency-vulnerabilities"
-kind = "security"
-command = ["{python}", "-m", "nox", "-s", "vulnerabilities"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["dependency-lock"]
-dimensions = ["vulnerability-freshness"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "vulnerabilities"
-writes_files = true
-network_policy = "required"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "release-sbom"
-kind = "package"
-command = ["{python}", "-m", "nox", "-s", "supply_chain"]
-depends_on = ["build"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["release-artifacts"]
-dimensions = ["sbom-generation"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "supply_chain"
-writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "evidence/release" = "exclusive" }
-network_policy = "required"
-version_source = "locked-toolchain"
-
-[[gates]]
-id = "secrets"
-kind = "security"
-command = ["{python}", "-m", "nox", "-s", "secrets"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "native"
-asset_classes = ["source"]
-dimensions = ["secrets"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "gitleaks"
-writes_files = true
-network_policy = "required"
 version_source = "locked-toolchain"

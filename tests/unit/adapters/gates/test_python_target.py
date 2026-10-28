@@ -139,12 +139,35 @@ def test_the_repositorys_own_ignores_do_not_weaken_the_judgment(tmp_path: Path) 
     """A candidate's ignore list or noqa comment cannot remove a finding of its own target."""
     source = _GENERIC.replace("):\n", "):  # noqa: UP046\n") + "    pass\n"
     manifest = _manifest(">=3.12", 'lint.ignore = ["UP046"]')
-    repo = committed_source_repo(tmp_path, {"src/app.py": source, "pyproject.toml": manifest})
+    files = {"src/app.py": source, "pyproject.toml": manifest, **_UNTARGETED}
+    repo = committed_source_repo(tmp_path, files)
 
     report = python_quality.static_report(repo)
 
     assert _codes(report) == ["UP046"]
     assert report["required_gaps"] == ["quality_static_diagnostics"]
+
+
+@pytest.mark.parametrize(
+    ("source", "codes"),
+    [
+        ("from typing import Any\nfrom typing import cast\n\nprint(Any, cast)\n", []),
+        ("from typing import Any, cast\n\nprint(Any, cast)\n", ["I001"]),
+    ],
+    ids=["follows", "breaks"],
+)
+def test_the_static_floor_follows_the_declared_import_style(
+    tmp_path: Path, source: str, codes: list[str]
+) -> None:
+    """The import-sorting values a repository declares are its own; breaking them blocks."""
+    carrier = 'target-version = "py312"\n\n[lint.isort]\nforce-single-line = true\n'
+    repo = committed_source_repo(tmp_path, {"src/app.py": source, _CARRIER: carrier})
+
+    report = python_quality.static_report(repo)
+
+    command = report["native"]["command"]
+    assert command[command.index("--config") + 1] == "lint.isort.force-single-line = true"
+    assert _codes(report) == codes
 
 
 def test_an_undeclared_target_is_a_gap_before_any_judgment(tmp_path: Path) -> None:

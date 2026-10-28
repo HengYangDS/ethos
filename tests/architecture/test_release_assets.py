@@ -16,6 +16,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.gates.runner as gate_execution
+import ethos.repository.policy.gates as gate_policy
 import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
@@ -217,6 +218,8 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
 
     monkeypatch.setattr(gate_execution, "LocalGateRunner", Runner)
     monkeypatch.setattr(gate_execution, "run_gate_graph", execute)
+    # The verifier payloads have their own regressions; this transport keeps only its own claim.
+    monkeypatch.setattr(gate_policy, "quality_obligation_gaps", lambda *_a, **_k: ())
     session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
     if case == "pass":
         local_ci.run(cast("nox.Session", session))

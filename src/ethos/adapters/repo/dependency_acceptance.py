@@ -14,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.gate_policy import committed_product_source
 from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
@@ -51,7 +50,7 @@ def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict]:
 
 
 def _captured_audit_materials(
-    stdout: str, head: str, source: Callable[[str], bytes], *, product_source: bool = False
+    stdout: str, head: str, source: Callable[[str], bytes]
 ) -> tuple[dict, dict, AuditPolicy]:
     """Resolve every observed source to its exact captured hash before interpretation."""
     payload = json.loads(stdout)
@@ -84,22 +83,21 @@ def _captured_audit_materials(
     if not workspace <= materials.keys():
         message = "dependency_audit_workspace_inputs_missing"
         raise ValueError(message)
-    # The product's own source ships the policy its head commits, so a predecessor build that
-    # judges the landing is not its product; every other subject keeps the selected product.
-    product, binding = (
-        _committed_product_policy(materials[AUDIT_POLICY_PATH])
-        if product_source
-        else product_audit_snapshot(build=invoking_build_identity())
-    )
+    # A capture composes the judging product's portable policy or the subject's own projection,
+    # which adds nothing to the subject's dispositions; either is known by its exact content.
     captured = payload.get("product_policy")
-    if not isinstance(captured, dict) or _policy_identity(captured) != _policy_identity(binding):
-        message = (
-            "dependency_audit_product_policy_changed"
-            if "product_policy" in payload
-            else "dependency_audit_product_policy_missing"
-        )
-        raise ValueError(message)
-    return payload, materials, product
+    for product, binding in (
+        _committed_product_policy(materials[AUDIT_POLICY_PATH]),
+        product_audit_snapshot(build=invoking_build_identity()),
+    ):
+        if isinstance(captured, dict) and _policy_identity(captured) == _policy_identity(binding):
+            return payload, materials, product
+    message = (
+        "dependency_audit_product_policy_changed"
+        if "product_policy" in payload
+        else "dependency_audit_product_policy_missing"
+    )
+    raise ValueError(message)
 
 
 def _committed_product_policy(raw: bytes) -> tuple[AuditPolicy, dict]:
@@ -122,13 +120,10 @@ def captured_dependency_acceptance(
     head: str,
     source: Callable[[str], bytes],
     scope: AuditScope,
-    product_source: bool = False,
 ) -> dict:
     """Read same-attempt native facts, never a build receipt or saved permission."""
     try:
-        payload, materials, product = _captured_audit_materials(
-            stdout, head, source, product_source=product_source
-        )
+        payload, materials, product = _captured_audit_materials(stdout, head, source)
         policy = AuditPolicy.model_validate(tomllib.loads(materials[AUDIT_POLICY_PATH].decode()))
         return evaluate_dependency_acceptance(
             compose_audit_policies(policy, product),
@@ -180,14 +175,12 @@ def dependency_acceptance_gaps(
     if len(selected) != len(audit_ids):
         return ["proof_dependency_acceptance_audit_missing"]
     gaps = []
-    product_source = committed_product_source(root, head)
     for check in selected:
         decision = captured_dependency_acceptance(
             check["stdout"],
             head=head,
             source=lambda name: committed_file_bytes(root, head, name),
             scope=scope,
-            product_source=product_source,
         )
         if decision["verdict"] != "pass":
             gaps.append(f"proof_dependency_acceptance:{decision['reason']}")

@@ -356,9 +356,9 @@ JSON results use schema version `2`: `verdict` alone decides authorization,
 
 `ethos prove --execute --gate <id> --expect-head <head> --json` runs one declared gate with its
 dependencies; repeat it for several roots. Without `--execute` it reports that gate's readiness
-and runs nothing. An adopter can select a packaged gate only when a
-product provider implements it; a packaged gate that runs the product's own
-toolchain command returns `proof_gate_not_importable:<id>`.
+and runs nothing. Every packaged gate runs through a product provider, so it
+runs in every repository on the product alone; a repository's own gates come
+from its profile or from the registry file its profile names.
 
 `ethos prove --full --json` observes the complete configured plan without
 execution. Add `--execute --expect-head <head>` for frozen-source evidence.

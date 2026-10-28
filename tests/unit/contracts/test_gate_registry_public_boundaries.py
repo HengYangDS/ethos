@@ -21,6 +21,7 @@ from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.sources import source_paths_for_gate
 from ethos.repository.policy.references.commands import python_module
+from tests.support.registries import repository_registry
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -63,9 +64,9 @@ def test_gate_cpu_reservation_is_positive_and_only_explicit_values_bind_policy()
     assert heavy.to_dict()["cpu_reservation"] == 2
     assert gate_policy_fields(heavy)["cpu_reservation"] == 2
     assert "cpu_reservation" not in _gate("ordinary").to_dict()
-    packaged = load_gate_registry_declaration().registry()
-    assert packaged["unit-architecture"].cpu_reservation == 2
-    assert packaged["local-install-smoke"].cpu_reservation == 2
+    declared = repository_registry().registry()
+    assert declared["unit-architecture"].cpu_reservation == 2
+    assert declared["local-install-smoke"].cpu_reservation == 2
 
 
 def test_gate_deadline_is_finite_positive_and_bound_to_policy() -> None:
@@ -150,7 +151,7 @@ def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid
     assert gate.conflicts_with(reader) == reader.conflicts_with(gate) == writer
     assert gate_policy_fields(gate)["resource_locks"] == locks
     if locks == {"source": "shared"}:
-        registry = load_gate_registry_declaration().registry()
+        registry = repository_registry().registry()
         javascript = registry["javascript-tests"]
         assert not any(
             javascript.conflicts_with(registry[name]) for name in ("unit-architecture", "build")
@@ -214,7 +215,7 @@ def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) 
 def test_native_nox_gates_share_the_bound_interpreter() -> None:
     """Quality execution must not bootstrap or mutate its own prepared environment."""
     python = "/bound/runtime/bin/python"
-    gates = load_gate_registry_declaration().registry(python_executable=python)
+    gates = repository_registry().registry(python_executable=python)
     nox_gates = [gate for gate in gates.values() if "nox" in gate.command]
     assert {gate.command[:3] for gate in nox_gates} == {(python, "-m", "nox")}
 
@@ -222,7 +223,7 @@ def test_native_nox_gates_share_the_bound_interpreter() -> None:
 @pytest.mark.parametrize("options", [("-m",), ("-B", "-I", "-m"), ("-mtools.ci.ci_projection",)])
 def test_resolved_python_module_gate_binds_exact_source(options: tuple[str, ...]) -> None:
     """A direct module check cannot certify success without its selected source."""
-    gate = load_gate_registry_declaration().registry(python_executable=sys.executable)[
+    gate = repository_registry().registry(python_executable=sys.executable)[
         "github-workflow-syntax"
     ]
     command = (sys.executable, *options)
@@ -282,7 +283,7 @@ def test_native_gate_loader_rejects_unsupported_format(tmp_path: Path, version: 
 
 def test_skill_gate_identity_names_its_responsibility() -> None:
     """Gate selection and provider ownership do not expose development generations."""
-    registry = load_gate_registry_declaration().registry()
+    registry = repository_registry().registry()
     assert registry["skills"].providers == (
         "ethos.assistants.skills.portfolio:skill_portfolio_report",
     )
@@ -454,7 +455,6 @@ _VALE = (
         ("source-format", (*_PRETTIER, _TAPLO, ".config/checks/ruff/ruff.toml")),
         ("markdown-lint", (*_PRETTIER, ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml")),
         ("markdown-links", (".config/checks/lychee/lychee.toml",)),
-        ("external-links", (".config/checks/lychee/lychee.toml",)),
         ("prose", (".config/checks/codespell/codespell.toml", *_VALE)),
         ("config-quality", (*_PRETTIER, _TAPLO, ".config/checks/yamllint/.yamllint.yaml")),
     ],

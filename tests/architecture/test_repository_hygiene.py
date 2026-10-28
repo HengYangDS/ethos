@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.registries import repository_registry_path
 from tools.ci.repository_hygiene import audit
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +45,7 @@ def test_repository_hygiene_is_one_python_nox_owner(pytestconfig: pytest.Config)
 
 
 def test_full_proof_includes_the_repository_hygiene_owner_once() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    declaration = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))
     full = declaration["proof_sets"]["full"]
     gates = {item["id"]: item for item in declaration["gates"]}
 

@@ -25,6 +25,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.registries import repository_registry_path
 from tools.ci import dependency_hygiene
 from tools.ci import sessions
 
@@ -43,7 +44,7 @@ def test_noxfile_is_only_a_projection_of_repository_sessions() -> None:
 def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
     public = set(sessions.PUBLIC_SESSIONS)
     assert len(public) == len(sessions.PUBLIC_SESSIONS)
-    gates = tomllib.loads((ROOT / "system/gates.toml").read_text())["gates"]
+    gates = tomllib.loads(repository_registry_path().read_text())["gates"]
     assert {
         command[-1]
         for item in gates
@@ -56,7 +57,7 @@ def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
 
 
 def test_package_lifecycle_has_one_execution_owner() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    declaration = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))
     full = declaration["proof_sets"]["full"]
     gates = {item["id"]: item for item in declaration["gates"]}
     lifecycle_gates = {
@@ -449,21 +450,32 @@ def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault
     )
 
 
-@pytest.mark.parametrize("code", [0, 19])
-def test_javascript_gate_executes_package_behavior(tmp_path, monkeypatch, code):
-    """Native package failure propagates, and both outcomes reclaim owned state."""
-    registry = tomllib.loads((ROOT / "system/gates.toml").read_text())
+@pytest.mark.parametrize("passes", [True, False])
+def test_javascript_gate_executes_package_behavior(tmp_path, monkeypatch, passes):
+    """A failing test propagates, both reports reach the native output root, owned state goes."""
+    registry = tomllib.loads(repository_registry_path().read_text())
     assert "javascript-tests" in registry["proof_sets"]["full"]
-    body = "require('node:fs').writeFileSync('node.txt', process.execPath);"
-    script = f'node -e "{body}process.exit({code})"'
-    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"test:npm": script}}))
-    monkeypatch.setattr(sessions, "ROOT", tmp_path)
+    repo, native = init_git_repo(tmp_path / "repo"), tmp_path / "native"
+    (repo / "src").mkdir()
+    (repo / "src/answer.mjs").write_text("export const answer = 42;\n")
+    (repo / "answer.test.mjs").write_text(
+        'import { equal } from "node:assert/strict";\nimport { writeFileSync } from "node:fs";\n'
+        'import test from "node:test";\nimport { answer } from "./src/answer.mjs";\n'
+        f'test("runs", () => {{ writeFileSync("node.txt", process.execPath); '
+        f"equal(answer, {42 if passes else 0}); }});\n"
+    )
+    git(repo, "add", "--", "src/answer.mjs", "answer.test.mjs")
+    native.mkdir()
+    monkeypatch.setattr(sessions, "ROOT", repo)
+    monkeypatch.setenv("ETHOS_NATIVE_OUTPUT_DIR", str(native))
     session = Mock()
     session.run.side_effect = lambda *args, env: run_command(
-        tmp_path, args, env=env, timeout=30, check=True
+        repo, args, env=env, timeout=60, check=True
     )
-    with pytest.raises(subprocess.CalledProcessError) if code else nullcontext():
+    with nullcontext() if passes else pytest.raises(subprocess.CalledProcessError):
         sessions.javascript_tests(session)
     session.run.assert_called_once()
-    assert (tmp_path / "node.txt").read_text() == str(sessions.RUNTIME.node_executable())
+    assert (repo / "node.txt").read_text() == str(sessions.RUNTIME.node_executable())
+    assert "SF:src/answer.mjs" in (native / "lcov.info").read_text()
+    assert "<testsuites" in (native / "javascript-junit.xml").read_text()
     assert not Path(session.run.call_args.kwargs["env"]["npm_config_cache"]).exists()

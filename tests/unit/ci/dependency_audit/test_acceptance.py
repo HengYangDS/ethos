@@ -527,18 +527,21 @@ def test_captured_product_policy_is_bound_by_content_not_reading_build(
         assert decision["reason"] == "dependency_audit_product_policy_changed"
 
 
-@pytest.mark.parametrize("subject", ["product-source", "adopter", "tampered"])
-def test_product_source_binds_the_policy_its_head_commits(repository, monkeypatch, subject):
-    """The product's own source may change its policy; elsewhere a drifted product refuses."""
+@pytest.mark.parametrize("captured", ["own", "judging", "tampered"])
+def test_a_capture_composes_the_subjects_own_or_the_judging_products_policy(
+    repository, monkeypatch, captured
+):
+    """Either policy is known by its content; neither adds a disposition the subject lacks."""
     native_transport(monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem))
     committed = repository / AUDIT_POLICY_PATH
     shipped = Path(resource_owner.files("ethos")) / "resources" / AUDIT_POLICY_PATH
     predecessor = shipped.read_bytes()
     committed.write_text(committed.read_text().replace("summary = ", 'summary = "Renewed" #', 1))
-    shipped.write_bytes(product_audit_projection(committed.read_bytes()))
+    if captured == "own":
+        shipped.write_bytes(product_audit_projection(committed.read_bytes()))
     payload = invoke_audit(repository)
     shipped.write_bytes(predecessor)
-    if subject == "tampered":
+    if captured == "tampered":
         payload["product_policy"] = {**payload["product_policy"], "sha256": "0" * 64}
 
     decision = captured_dependency_acceptance(
@@ -546,10 +549,9 @@ def test_product_source_binds_the_policy_its_head_commits(repository, monkeypatc
         head="a" * 40,
         source=lambda name: (repository / name).read_bytes(),
         scope="production-release",
-        product_source=subject != "adopter",
     )
 
-    if subject == "product-source":
-        assert decision["verdict"] == "pass", decision
-    else:
+    if captured == "tampered":
         assert decision["reason"] == "dependency_audit_product_policy_changed", decision
+    else:
+        assert decision["verdict"] == "pass", decision

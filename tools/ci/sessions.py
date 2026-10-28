@@ -181,6 +181,7 @@ def tests(session) -> None:
             session.log(f"Allure report unavailable after failed tests: {error}")
         raise
     gate.render_report()
+    gate.publish_native_outputs()
 
 
 def coverage_floor(session) -> None:
@@ -431,16 +432,34 @@ def local_ci(session) -> None:
 
 
 def javascript_tests(session) -> None:
-    """Execute package-owned behavior with locked tools and disposable npm state."""
-    command = RUNTIME.npm_command()
-    with TemporaryDirectory(prefix="ethos-javascript-tests-") as cache:
+    """Execute JavaScript behavior under V8 coverage with locked tools and disposable npm state.
+
+    The JUnit and lcov reports go to the runner's native output root when it supplies one.
+    """
+    node, npm = RUNTIME.npm_command()
+    supply = RUNTIME.node_package_supply()
+    with TemporaryDirectory(prefix="ethos-javascript-tests-") as scratch:
+        reports = Path(os.environ.get("ETHOS_NATIVE_OUTPUT_DIR") or scratch)
         session.run(
-            *command,
-            "run",
-            "test:npm",
+            node,
+            str(supply / "c8/bin/c8.js"),
+            "--reporter=lcovonly",
+            f"--reports-dir={reports}",
+            f"--temp-directory={Path(scratch) / 'raw'}",
+            "--include=src/**/*.mjs",
+            "--include=distributions/**/*.mjs",
+            node,
+            "--test",
+            "--test-reporter=junit",
+            f"--test-reporter-destination={reports / 'javascript-junit.xml'}",
+            "--test-reporter=spec",
+            "--test-reporter-destination=stdout",
+            *_paths("*.test.mjs"),
             env={
-                "PATH": os.pathsep.join((str(Path(command[0]).parent), os.environ.get("PATH", ""))),
-                "npm_config_cache": cache,
+                "PATH": os.pathsep.join((str(Path(node).parent), os.environ.get("PATH", ""))),
+                "ETHOS_NODE_PACKAGE_SUPPLY": str(supply),
+                "npm_execpath": npm,
+                "npm_config_cache": str(Path(scratch) / "npm"),
                 "npm_config_offline": "true",
                 "npm_config_update_notifier": "false",
                 "npm_config_audit": "false",

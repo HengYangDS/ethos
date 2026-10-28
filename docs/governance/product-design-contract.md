@@ -20,7 +20,8 @@ from understanding a problem to evolving a repository and evaluating its use.
 The product connects value and observation, research, interpretation and
 trade-offs, accepted intent, specification and acceptance, context and capability
 composition, collaboration and execution, verification and delivery, actual
-outcomes, feedback, learning and exit.
+outcomes, feedback, learning and exit. ETHOS owns, once, what governed
+repositories share, so each repository carries only its own purpose.
 
 A proof-carrying repository change compiler and transaction protocol forms its
 small trust kernel. It compiles accepted intent and fresh observations into a
@@ -325,15 +326,22 @@ newer transport, worktree or ref receipts cannot substitute.
 
 Repository source owns behavior, `system/` machine contracts, tool-named
 `.config/checks/<owner>/` native inputs and provider files provider syntax.
-The packaged `system/gates.toml` owns ETHOS gates; adopters declare gates inline.
+The packaged `system/gates.toml` holds the obligations ETHOS owns for every
+repository; each repository, ETHOS included, declares its own gates in its
+profile or in the registry file its profile names.
 Native configs and locks own tool policy and versions. Projections link rather than copy.
 
 ## Isomorphic Adopter Governance
 
 ETHOS and an adopted repository use the same kernel and transaction protocol.
-Profiles and adapters select native carriers, checks, and proof depth; they do
-not create another command plane, ontology, or truth store. This is not product
+Facts select ETHOS's obligations; profiles declare a repository's gates, values
+and proof depth, and adapters select native carriers; none creates another
+command plane, ontology, or truth store. This is not product
 cloning: each repository keeps its domain model, product layout and provider shape; the [ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") fixes only shared carriers.
+A repository's obligations are a function of the carriers it authors and the
+values it declares, the same under any name, profile id, registry path,
+location or history. The ETHOS product that judges a repository supplies the
+shared ones, from the repository's own tree when that tree builds the product.
 
 The semantic kernel remains independent of OpenSpec types. Complete,
 mutation-capable adoption nevertheless pins verified OpenSpec as the sole
@@ -597,7 +605,8 @@ their rendered dashboards, indexes, and command output remain projections.
 
 ## Invariants
 
-1. One durable obligation has one narrow semantic owner.
+1. One durable obligation has one narrow semantic owner across ETHOS and every
+   governed repository.
 2. Every effect is compiled, evaluated, freshly admitted and applied by exact CAS.
 3. Unknown required facts, ambiguous authority, stale bindings and conflicts block.
 4. Historical source bytes remain recoverable through Git without becoming current authority.

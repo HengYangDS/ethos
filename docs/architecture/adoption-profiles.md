@@ -66,10 +66,11 @@ provider state, and tool-native configuration remain adopter facts; adoption
 does not generate or normalize them. The repository paradigm fixes the
 branch-role names.
 
-The common floor that every adopter shares is the union of its owners' obligations: the
-repository paradigm for structure, the configuration plane, the binding, commits, versions,
-changelog and Markdown size; repository-governance for OpenSpec, release and documentation
-carriers; and the Product Design Contract for the quality floor, feedback and recovery.
+The common floor that every governed repository shares, ETHOS included, is the union of its
+owners' obligations: the repository paradigm for structure, the configuration plane, the
+binding, commits, versions, changelog and Markdown size; repository-governance for OpenSpec,
+release and documentation carriers; and the Product Design Contract for the quality floor,
+feedback and recovery.
 No Skill or generated entrypoint adds to it.
 
 ## Formation and Starter Evolution

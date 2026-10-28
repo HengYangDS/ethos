@@ -8,17 +8,16 @@ from pathlib import Path
 import pytest
 
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
+from tests.support.registries import proof_registry
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_proof_floor_has_no_workspace_history_precondition() -> None:
     """Current proof is independent of a historical directory layout."""
-    declaration = load_gate_registry_declaration()
-    assert "evidence-freshness" not in declaration.registry()
+    assert "evidence-freshness" not in proof_registry()
     assert not (ROOT / "evidence").exists()
     assert not (ROOT / "docs/evidence").exists()
 
@@ -38,7 +37,7 @@ def test_proof_floor_has_no_workspace_history_precondition() -> None:
 def test_declarative_offline_provider_executes_through_the_shared_runner(
     gate_id: str,
 ) -> None:
-    gate = load_gate_registry_declaration().registry()[gate_id]
+    gate = proof_registry()[gate_id]
     assert gate.providers
     assert gate.network_policy == "offline"
     assert gate.writes_files is False

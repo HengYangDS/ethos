@@ -6,7 +6,7 @@ tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
 pythonpath = ["../../..", "../../../src"]
 required_plugins = ["allure-pytest", "pytest-timeout", "pytest-cov", "pytest-xdist"]
-timeout = "120"
+timeout = "600"
 markers = [
   "unit: unit tests for deterministic product logic.",
   "architecture: repository architecture and boundary tests.",

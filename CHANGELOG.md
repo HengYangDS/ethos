@@ -50,6 +50,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `.ethos/release.toml` invoke.
 - An active Change's validation repair is no longer refused because another active Change drifted
   from its template.
+- Healthy tests no longer fail a busy proof. The Python test gate bounds each test by one 600 s
+  hang limit instead of 120 s, which the heaviest tests crossed inside full proofs at the admitted
+  load without hanging. The three journeys that had raised their own limit to 240 s use the shared
+  one, and a test may only declare a shorter limit.
 
 ## [0.2.0-alpha.17] - 2026-10-28
 

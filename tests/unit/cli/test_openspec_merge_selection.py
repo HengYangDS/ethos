@@ -244,9 +244,6 @@ def _declare_executable_checks(work: Path) -> None:
     declare_native_proof_checks(work, test=verify, typecheck=validate)
 
 
-# Archive, lane birth and two full proofs form one native journey; each operation keeps its own
-# deadline.
-@pytest.mark.timeout(240)
 def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, monkeypatch):
     """One source tree has different authoring ownership in old and new lanes."""
     work = pending_merge
@@ -389,8 +386,6 @@ def completed_product_work(tmp_path, monkeypatch):
     return repo, candidate, work
 
 
-# One case drives the complete native integration journey; each operation keeps its own deadline.
-@pytest.mark.timeout(240)
 def test_process_intent_carries_product_work_through_native_integration(
     completed_product_work, monkeypatch
 ):

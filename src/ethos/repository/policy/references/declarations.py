@@ -27,6 +27,7 @@ from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
 from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.release.publication import LOCAL_COMMAND_FIELDS
 from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
@@ -102,16 +103,8 @@ def command_owner_sources_from_files(
     context_files: dict[str, str] | None = None,
 ) -> dict[str, frozenset[str]]:
     """Return each command identity with every exact defining symbol."""
-    sources = {
-        path: text
-        for path, text in declaration_files(files, "commands").items()
-        if "App(" in text or ".command" in text
-    }
-    context = {
-        path: text
-        for path, text in declaration_files((context_files or {}) | files, "commands").items()
-        if "App(" in text or ".command" in text
-    }
+    sources = _command_declarations(files)
+    context = _command_declarations((context_files or {}) | files)
     prefixes = python_references.cyclopts_prefixes(context, parsed_files=parsed_files)
     owners: dict[str, set[str]] = {}
     module_paths = {python_references.module_name(path): path for path in sources}
@@ -131,6 +124,12 @@ def command_owner_sources_from_files(
             ).items():
                 owners.setdefault(command, set()).update(symbols)
     return {command: frozenset(symbols) for command, symbols in owners.items()}
+
+
+def _command_declarations(files: dict[str, str]) -> dict[str, str]:
+    """Select the command carriers that declare a Cyclopts application or command."""
+    commands = declaration_files(files, "commands")
+    return {path: text for path, text in commands.items() if "App(" in text or ".command" in text}
 
 
 def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, ...]], set[str]]:
@@ -284,10 +283,15 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
     if isinstance(host, dict) and isinstance(provider := host.get("provider"), str):
         owned["reference"].add(provider)
     publication = release.get("publication", {}) if isinstance(release, dict) else {}
+    publication = publication if isinstance(publication, dict) else {}
     # Each publication peer names its forge and the Git remote that reaches it.
-    for peer in _table_items(publication.get("peers") if isinstance(publication, dict) else None):
+    for peer in _table_items(publication.get("peers")):
         names = {peer.get("provider"), peer.get("git_remote")}
         owned["reference"].update(name for name in names if isinstance(name, str))
+    # The local publication commands own the executables they invoke.
+    commands = [publication.get(key) for key in LOCAL_COMMAND_FIELDS]
+    text = "\n".join(command for command in commands if isinstance(command, str))
+    owned["executable"].update(command_references.shell_executables(text, {}))
 
 
 def _declared_tool_supply(files: dict[str, str], owned: dict[str, set[str]]) -> None:

@@ -343,3 +343,16 @@ def test_public_patch_admission_reports_invalid_native_declaration(
     assert report["reason"] == "reference_carrier_unknown:package.json"
     assert report["reference_coverage"] == "unknown"
     assert package.read_text(encoding="utf-8") == before
+
+
+def test_local_publication_commands_declare_their_executables() -> None:
+    """The release declaration's local commands own the executables they invoke, and no others."""
+    release = (
+        "[publication]\n"
+        'local_verification_command = "pixi run --locked ci-local"\n'
+        'local_installation_command = "pixi run --locked hosted-package"\n'
+    )
+    executables = native_owned_references_from_files({".ethos/release.toml": release})["executable"]
+
+    assert "pixi" in executables
+    assert "gitlab-ci-local" not in executables

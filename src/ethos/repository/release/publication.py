@@ -21,8 +21,8 @@ from ethos.repository.release.changelog import semver_from_text
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-_LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
-_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers", "transport_tags"))
+LOCAL_COMMAND_FIELDS = ("local_verification_command", "local_installation_command")
+_DECLARATION_FIELDS = frozenset((*LOCAL_COMMAND_FIELDS, "peers", "transport_tags"))
 _PEER_FIELDS = frozenset(
     ("id", "provider", "role", "git_remote", "capabilities", "ci_surface", "forge_repository")
 )
@@ -110,12 +110,12 @@ def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, obj
         transport_tags = publication_transport_tags(config)
     except ValueError as error:
         return _topology(local={}, peers=(), gaps=(str(error),))
-    if any(not isinstance(raw.get(field), str) for field in _LOCAL_FIELDS):
+    if any(not isinstance(raw.get(field), str) for field in LOCAL_COMMAND_FIELDS):
         return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
     raw_peers = raw.get("peers", [])
     if not isinstance(raw_peers, list):
         return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
-    local = {field: str(raw.get(field) or "") for field in _LOCAL_FIELDS}
+    local = {field: str(raw.get(field) or "") for field in LOCAL_COMMAND_FIELDS}
     peers: list[dict[str, object]] = []
     gaps = _local_path_gaps(root, local)
     for index, raw_peer in enumerate(raw_peers):
@@ -361,7 +361,7 @@ def _duplicate_peer_gaps(peers: list[dict[str, object]]) -> list[str]:
 def _local_path_gaps(root: Path, values: Mapping[str, str]) -> list[str]:
     return [
         gap
-        for field in _LOCAL_FIELDS
+        for field in LOCAL_COMMAND_FIELDS
         if (gap := _repository_path_gap(root, field, values[field], executable=True))
     ]
 

@@ -27,6 +27,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   sections of the Product Design Contract and the release rules in their place, with the same reader
   roles.
 
+### Fixed
+
+- Native tools no longer report a moved configuration carrier as ambiguous while the index still
+  lists its deleted previous path.
+- Reference admission accepts the executables that the local publication commands in
+  `.ethos/release.toml` invoke.
+- An active Change's validation repair is no longer refused because another active Change drifted
+  from its template.
+
 ## [0.2.0-alpha.17] - 2026-10-28
 
 ### Changed

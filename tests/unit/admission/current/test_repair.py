@@ -499,3 +499,22 @@ def test_archived_canonical_repair_uses_verified_source_without_masking_proof(
     ordinary = resolve_report(monkeypatch, report, root=tmp_path)
     assert ordinary.verdict == "block"
     assert "openspec_validation_failed:spec:distribution" in ordinary.required_gaps
+
+
+@pytest.mark.parametrize(
+    ("other_gap", "admitted"),
+    [
+        ("openspec_template_heading_missing:other-change:design:Context", True),
+        ("openspec_template_heading_missing:repair-change:design:Context", False),
+        ("openspec_official_cli_unavailable", False),
+    ],
+)
+def test_another_changes_template_drift_does_not_hold_a_validation_repair(
+    tmp_path: Path, monkeypatch, other_gap: str, *, admitted: bool
+) -> None:
+    """Another Change's drift is repaired once it is selected; any other gap keeps repair closed."""
+    report = _active_change_validation_report(tmp_path)
+    report["required_gaps"] = [*report["required_gaps"], other_gap]
+    resolution = resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
+    assert (resolution.verdict == "pass") is admitted
+    assert (resolution.scope.material_scope.get("authorized_paths") == [ACTIVE_SPEC]) is admitted

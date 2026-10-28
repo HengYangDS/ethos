@@ -27,6 +27,12 @@ def _template_drifted_artifacts(official: dict[str, object], *, change: str) -> 
     return {parts[2] for gap in gaps if len(parts := gap.split(":", 3)) == 4 and parts[1] == change}
 
 
+def other_change_template_drift(gap: str, change: str) -> bool:
+    """Whether a gap is template drift of another active Change, which that Change repairs."""
+    parts = gap.split(":", 3)
+    return gap.startswith(TEMPLATE_HEADING_GAP) and len(parts) == 4 and parts[1] != change
+
+
 def template_conformance_repair_paths(
     root: Path,
     official: dict[str, object],

@@ -192,9 +192,12 @@ def quality_inventory_failure(
 
 
 def native_repository_configuration(root: Path, tool: str) -> Path | None:
-    """Return the repository's own native configuration at its paradigm carrier, if any."""
-    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
-    if selected is None:
+    """Return the repository's own native configuration at its paradigm carrier, if any.
+
+    The tool reads its carrier from the worktree, so an indexed path deleted there is absent.
+    """
+    live = tuple(p for p in quality_source_files(root) if (root / p).exists(follow_symlinks=False))
+    if (selected := native_tool_configuration(live, tool)) is None:
         return None
     path = root / selected
     if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()) or not path.is_file():

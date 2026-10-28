@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
+from ethos.adapters.openspec.lifecycle.template_repair import other_change_template_drift
 from ethos.adapters.openspec.lifecycle.template_repair import template_conformance_repair_paths
 from ethos.adapters.openspec.lifecycle.validation import canonical_info_only_capabilities
 from ethos.adapters.openspec.lifecycle.validation import canonical_spec_repair_paths
@@ -338,29 +339,13 @@ def _active_change_validation_repair_context_valid(
 ) -> bool:
     """Require one complete selected Change and one readable failed validation."""
     validation_gap = f"openspec_validation_failed:change:{change}"
-    permitted_gaps = {
-        validation_gap,
-        f"commitment_invalid:{change}",
-    }
+    permitted_gaps = {validation_gap, f"commitment_invalid:{change}"}
     gaps = string_sequence(official.get("required_gaps"))
+    # Another Change's template drift is repaired once that Change is selected.
+    permitted_gaps.update(gap for gap in gaps if other_change_template_drift(gap, change))
     if validation_gap not in gaps or any(gap not in permitted_gaps for gap in gaps):
         return False
-    lifecycle = official.get("lifecycle")
-    changes = lifecycle.get("changes") if isinstance(lifecycle, dict) else None
-    if not isinstance(changes, list) or len(changes) != 1 or not isinstance(changes[0], dict):
-        return False
-    selected = changes[0]
-    artifacts = selected.get("artifacts")
-    if not (
-        selected.get("name") == change
-        and not string_sequence(selected.get("required_gaps"))
-        and isinstance(artifacts, list)
-        and artifacts
-        and all(
-            isinstance(artifact, dict) and artifact.get("status") in {"done", "skipped"}
-            for artifact in artifacts
-        )
-    ):
+    if not _complete_selected_change(official, change=change):
         return False
     commands = official.get("commands")
     status = commands.get("status") if isinstance(commands, dict) else None
@@ -408,8 +393,13 @@ def canonical_repair_context_valid(
         commitment = Commitment.model_validate(projected)
     except ValueError:
         return False
-    if commitment.id != f"change:{change}":
-        return False
+    return commitment.id == f"change:{change}" and _complete_selected_change(
+        official, change=change
+    )
+
+
+def _complete_selected_change(official: dict[str, object], *, change: str) -> bool:
+    """Require exactly the selected Change in the lifecycle, with every artifact complete."""
     lifecycle = official.get("lifecycle")
     changes = lifecycle.get("changes") if isinstance(lifecycle, dict) else None
     if not isinstance(changes, list) or len(changes) != 1 or not isinstance(changes[0], dict):

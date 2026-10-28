@@ -27,7 +27,7 @@ class CommandVocabulary:
                 {
                     (tokens, shlex.join(tokens))
                     for command in commands
-                    if (tokens := _split_command(command))
+                    if (tokens := split_command(command))
                 },
                 key=lambda item: (len(item[0]), item[1]),
                 reverse=True,
@@ -43,11 +43,11 @@ class CommandVocabulary:
 
 def normalize_command(command: str) -> str:
     """Return one whitespace-normalized command identity without dropping options."""
-    tokens = _split_command(command)
+    tokens = split_command(command)
     return shlex.join(tokens) if tokens else command.strip()
 
 
-def _split_command(command: str) -> tuple[str, ...]:
+def split_command(command: str) -> tuple[str, ...]:
     try:
         return tuple(shlex.split(command))
     except ValueError:
@@ -164,7 +164,7 @@ def command_executables(
         )
     if executable == "npm" and (script := _npm_script_name(command)) and script not in trail:
         for value in npm_scripts.get(script, set()):
-            if script_tokens := _split_command(value):
+            if script_tokens := split_command(value):
                 executables.update(
                     command_executables(
                         script_tokens,
@@ -319,7 +319,7 @@ def _shell_command_line(line: str) -> str:
 
 def shebang_executable(line: str) -> str:
     """Extract the executable identity from a shebang line."""
-    tokens = _split_command(line.removeprefix("#!"))
+    tokens = split_command(line.removeprefix("#!"))
     if not tokens:
         return ""
     executable = tokens[0].rsplit("/", maxsplit=1)[-1]

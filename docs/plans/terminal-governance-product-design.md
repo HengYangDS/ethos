@@ -209,15 +209,14 @@ through existing consumers, not another rule declaration in this plan.
    obligations; they neither copy implementation logic nor redefine the rules.
 5. Repair incomplete observation, lost UNKNOWN and invalid effect composition
    at their existing owners. Configuration deduplication alone cannot close
-   those behavioral gaps. The current Python reference observer still confuses
-   spelling with binding and file-global constants with call-site values;
-   the public-gate repair (task 10.11 in the archived
-   [`quality-evidence-admission` tasks](../../openspec/changes/archive/2026-10-24-quality-evidence-admission/tasks.md),
-   withdrawn by DR-0016; the route's `reference-observation-repair` Change restores it)
-   must close alias, shadow, scope, program-point and relevant dynamic UNKNOWN
-   without a second parser or repository-wide permanent block. The same
-   reference owner must also consume trusted native profile and release
-   command fields as executable declarations, not infer ownership from names.
+   those behavioral gaps. The Python reference observer resolves reads through
+   import binding, lexical scope and program point; a sink chosen by dynamic
+   lookup makes its carrier UNKNOWN, and a run-time value stays with its
+   producer (`reference-observation-repair`, which restores task 10.11 of the
+   archived [`quality-evidence-admission` tasks](../../openspec/changes/archive/2026-10-24-quality-evidence-admission/tasks.md),
+   withdrawn by DR-0016). The same reference owner consumes trusted native
+   profile and release command fields, and container environment declarations,
+   instead of inferring ownership from names.
 
 The five effect owners are Git refs, worktree/filesystem, Lease/state, remote
 publication, and runtime/package. Each observes a fresh pre-state, compiles a

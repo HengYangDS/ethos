@@ -7,6 +7,7 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
+import yaml
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import StrictStr
@@ -61,7 +62,32 @@ def native_owned_references_from_files(
     owned["command"].update(command_owners or command_owner_sources_from_files(files))
     _declared_gates(files, npm_scripts, owned)
     _declared_profiles(files, npm_scripts, owned)
+    _declared_container_environment(files, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
+
+
+def _declared_container_environment(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+    """Dockerfile ENV and ARG names and Compose service environments declare runtime values."""
+    for text in declaration_files(files, "container-environment").values():
+        for line in text.replace("\\\n", " ").splitlines():
+            instruction, _, rest = line.strip().partition(" ")
+            tokens = command_references.split_command(rest)
+            if instruction.upper() == "ENV" and tokens and "=" not in tokens[0]:
+                tokens = tokens[:1]  # The legacy form names one variable and its value.
+            if instruction.upper() in {"ENV", "ARG"}:
+                owned["value"].update(token.split("=", 1)[0] for token in tokens)
+    for path, text in files.items():
+        if reference_carrier(path).name != "yaml":
+            continue
+        try:
+            document = yaml.safe_load(text)
+        except yaml.YAMLError:
+            continue
+        services = document.get("services") if isinstance(document, dict) else None
+        for service in services.values() if isinstance(services, dict) else ():
+            environment = service.get("environment") if isinstance(service, dict) else None
+            names = environment if isinstance(environment, list | dict) else ()
+            owned["value"].update(str(name).split("=", 1)[0] for name in names)
 
 
 class _Runner(BaseModel):

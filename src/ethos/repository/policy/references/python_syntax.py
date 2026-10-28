@@ -3,19 +3,33 @@
 from __future__ import annotations
 
 import ast
-import re
-import shlex
 import warnings
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands import split_command
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
+_SINKS = {
+    "subprocess.run": "command",
+    "subprocess.Popen": "command",
+    "subprocess.check_call": "command",
+    "subprocess.check_output": "command",
+    "shutil.which": "executable",
+    "pathlib.Path": "path",
+    "os.getenv": "value",
+    "os.environ.get": "value",
+}
+_MODULES = frozenset({"os", "shutil", "subprocess"})
+_BINARIES = ("/bin/", "/usr/bin/", "/usr/local/bin/")
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+_BINDERS = (ast.Name, ast.Import, ast.ImportFrom, ast.arg, *_SCOPES)
+# A name bound only through names this deep is not followed further.
+_DEPTH = 8
 
 
 def python_trees(text: str) -> tuple[ast.AST, ...]:
@@ -51,100 +65,205 @@ def _parse_without_syntax_warnings(text: str) -> ast.AST:
 
 
 def python_references(
-    tree: ast.AST,
-    npm_scripts: dict[str, set[str]],
-) -> tuple[set[str], set[str], set[str]]:
-    """Extract imports, executables, and runtime inputs in one AST traversal."""
-    imports: set[str] = set()
+    tree: ast.AST, npm_scripts: dict[str, set[str]]
+) -> tuple[set[str], set[str], set[str], bool]:
+    """Extract imports, executables, runtime inputs and dynamic sink lookup through bindings."""
+    bindings = _Bindings(tree)
     executables: set[str] = set()
     inputs: set[str] = set()
-    constants = {
-        target.id: value
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Assign)
-        and len(node.targets) == 1
-        and isinstance((target := node.targets[0]), ast.Name)
-        and (value := _string(node.value))
-    }
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.add(node.module.split(".")[0])
+    dynamic = False
+    for node in bindings.sites:
+        if isinstance(node, ast.Subscript) and "os.environ" in bindings.values(node.value):
+            inputs.update(bindings.strings(node.slice))
         elif isinstance(node, ast.Call):
-            executables.update(_call_executables(node, npm_scripts, imports))
-            owner = node.func.value if isinstance(node.func, ast.Attribute) else None
-            name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
-            value = _string(node.args[0]) if node.args else ""
-            if not value and node.args and isinstance(node.args[0], ast.Name):
-                value = constants.get(node.args[0].id, "")
-            if value and _is_environment_read(owner, name):
-                inputs.add(value)
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
-            target = node.targets[0]
-            if (
-                isinstance(target, ast.Name)
-                and re.search(r"(?:COMMAND|CMD|EXECUTABLE|BINARY|CLI|TOOL)$", target.id)
-                and isinstance(node.value, ast.List | ast.Tuple)
-            ):
-                executables.update(
-                    command_executables(
-                        _literal_command_tokens(node.value), npm_scripts, module_imports=imports
-                    )
-                )
-    return imports, executables, inputs
+            for callee in bindings.values(node.func):
+                kind = _SINKS.get(callee, "") if isinstance(callee, str) else ""
+                found = _sink_references(kind, node.args[0], bindings, npm_scripts)
+                (inputs if kind == "value" else executables).update(found)
+                # A sink chosen at run time cannot be observed, so its file is unknown.
+                dynamic |= isinstance(callee, _Name) and callee == _DYNAMIC
+    return bindings.imports, executables, inputs, dynamic
 
 
-def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
-    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
-        isinstance(owner, ast.Attribute)
-        and isinstance(owner.value, ast.Name)
-        and owner.value.id == "os"
-        and owner.attr == "environ"
-        and name == "get"
-    )
-
-
-def _call_executables(
-    node: ast.Call, npm_scripts: dict[str, set[str]], module_imports: set[str]
+def _sink_references(
+    kind: str, operand: ast.expr, bindings: _Bindings, npm_scripts: dict[str, set[str]]
 ) -> set[str]:
-    name = node.func.id if isinstance(node.func, ast.Name) else ""
-    attribute = node.func.attr if isinstance(node.func, ast.Attribute) else ""
-    owner = (
-        node.func.value.id
-        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
-        else ""
-    )
-    if node.args and (owner == "subprocess" and attribute in _SUBPROCESS_CALLS):
-        return command_executables(
-            _literal_command_tokens(node.args[0]), npm_scripts, module_imports=module_imports
-        )
-    if node.args and owner == "shutil" and attribute == "which":
-        return {_string(node.args[0])} - {""}
-    if (
-        name == "Path"
-        and node.args
-        and (value := _string(node.args[0]))
-        and value.startswith(("/bin/", "/usr/bin/", "/usr/local/bin/"))
-    ):
-        return {value.rsplit("/", maxsplit=1)[-1]}
-    return set()
+    """The executables or inputs one sink call references through its first argument."""
+    if kind == "command":
+        return {
+            executable
+            for tokens in bindings.commands(operand)
+            for executable in command_executables(
+                tokens, npm_scripts, module_imports=bindings.imports
+            )
+        }
+    strings = bindings.strings(operand) if kind else set()
+    if kind == "path":
+        return {text.rsplit("/", 1)[-1] for text in strings if text.startswith(_BINARIES)}
+    return strings
 
 
-def _literal_command_tokens(node: ast.AST) -> tuple[str, ...]:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        try:
-            return tuple(shlex.split(node.value))
-        except ValueError:
-            return ()
-    if isinstance(node, ast.List | ast.Tuple):
-        values = []
-        for item in node.elts:
-            if not (value := _string(item)):
-                break
-            values.append(value)
-        return tuple(values)
-    return ()
+class _Name(str):
+    """A qualified name an import, attribute or builtin binds, as opposed to a string value."""
+
+    __slots__ = ()
+
+
+# An attribute of a sink module that getattr selects by a computed name.
+_DYNAMIC = _Name("*")
+
+
+_Binding = ast.expr | _Name | None
+_Value = str | tuple[str, ...]
+
+
+class _Bindings:
+    """Each scope's name bindings and the program position after which each holds."""
+
+    def __init__(self, tree: ast.AST) -> None:
+        self.module = tree
+        self.parent: dict[ast.AST, ast.AST] = {}
+        self.imports: set[str] = set()
+        self.sites: list[ast.AST] = []
+        raw: list[tuple[ast.AST, str, tuple[int, int], _Binding]] = []
+        declared: dict[tuple[ast.AST, str], ast.AST] = {}
+        stack = [tree]
+        while stack:
+            node = stack.pop()
+            children = tuple(ast.iter_child_nodes(node))
+            self.parent.update(dict.fromkeys(children, node))
+            stack.extend(children)
+            if (isinstance(node, ast.Call) and node.args) or (
+                isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Load)
+            ):
+                self.sites.append(node)
+            elif isinstance(node, ast.Global | ast.Nonlocal):
+                scope = self.scope(node)
+                owner = self.module if isinstance(node, ast.Global) else self.enclosing(scope)
+                declared.update(dict.fromkeys(((scope, name) for name in node.names), owner))
+            elif isinstance(node, _BINDERS) and (bound := self.bound(node)):
+                scope = self.scope(node)
+                position = (0, 0) if isinstance(node, ast.arg) else self.effect(node)
+                raw.extend((scope, name, position, value) for name, value in bound.items())
+        self.names: dict[ast.AST, dict[str, list[tuple[tuple[int, int], _Binding]]]] = {}
+        for scope, name, position, value in raw:
+            owner = declared.get((scope, name), scope)
+            self.names.setdefault(owner, {}).setdefault(name, []).append((position, value))
+
+    def bound(self, node: ast.AST) -> dict[str, _Binding]:
+        """The names one node binds, each with its assigned expression, import or nothing known."""
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            owner = self.parent[node]
+            simple = isinstance(owner, ast.AnnAssign | ast.NamedExpr) or (
+                isinstance(owner, ast.Assign) and node in owner.targets
+            )
+            return {node.id: getattr(owner, "value", None) if simple else None}
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            modules = (
+                [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module]
+            )
+            self.imports.update(module.split(".")[0] for module in modules if module)
+            return {
+                alias.asname or alias.name.split(".")[0]: _Name(
+                    f"{node.module}.{alias.name}"
+                    if isinstance(node, ast.ImportFrom)
+                    else alias.name
+                    if alias.asname
+                    else alias.name.split(".")[0]
+                )
+                for alias in node.names
+            }
+        if isinstance(node, ast.arg | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            return {node.arg if isinstance(node, ast.arg) else node.name: None}
+        return {}
+
+    def scope(self, node: ast.AST) -> ast.AST:
+        """The innermost function, lambda, class or module a node binds or reads in."""
+        current = self.parent.get(node)
+        while current is not None and not isinstance(current, _SCOPES):
+            current = self.parent.get(current)
+        return current or self.module
+
+    def enclosing(self, scope: ast.AST) -> ast.AST:
+        """The scope whose names a nested scope reads; a class body is never one."""
+        scope = self.scope(scope)
+        while isinstance(scope, ast.ClassDef):
+            scope = self.scope(scope)
+        return scope
+
+    def effect(self, node: ast.AST) -> tuple[int, int]:
+        """A binding holds once the statement that makes it completes."""
+        while not isinstance(node, ast.stmt):
+            node = self.parent[node]
+        return (node.end_lineno or 0, node.end_col_offset or 0)
+
+    def reaching(self, name: str, site: ast.expr) -> list[_Binding] | None:
+        """The bindings that can hold at a site, or None when only a builtin can."""
+        reader = scope = self.scope(site)
+        while (entries := self.names.get(scope, {}).get(name)) is None and scope is not self.module:
+            scope = self.enclosing(scope)
+        if entries is None:
+            return None
+        current, looped = self.parent.get(site), False
+        while current is not None and current is not scope:
+            looped |= isinstance(current, ast.For | ast.AsyncFor | ast.While)
+            current = self.parent.get(current)
+        if scope is reader and not looped:
+            entries = [entry for entry in entries if entry[0] <= (site.lineno, site.col_offset)]
+        return [value for _, value in entries]
+
+    def values(self, node: ast.AST | None, depth: int = 0) -> set[_Value]:
+        """The strings, literal argv prefixes and qualified names an expression can hold."""
+        if text := _string(node) if node is not None else "":
+            return {text}
+        if isinstance(node, ast.Name) and depth < _DEPTH:
+            found = self.reaching(node.id, node)
+            # An unbound name is a builtin, or a module a fragment uses without importing it.
+            builtin = [_Name("pathlib.Path" if node.id == "Path" else node.id)]
+            return {
+                value
+                for binding in (builtin if found is None else found)
+                for value in (
+                    {binding} if isinstance(binding, _Name) else self.values(binding, depth + 1)
+                )
+            }
+        if isinstance(node, ast.Attribute | ast.Call):
+            return self.attributes(node, depth)
+        if isinstance(node, ast.List | ast.Tuple):
+            tokens: list[str] = []
+            for element in node.elts:
+                if len(found := self.strings(element)) != 1:
+                    break
+                tokens.append(found.pop())
+            return {tuple(tokens)}
+        return set()
+
+    def attributes(self, node: ast.Attribute | ast.Call, depth: int) -> set[_Value]:
+        """The qualified names an attribute, or a getattr call, selects from its owners."""
+        if isinstance(node, ast.Attribute):
+            owner, attribute = node.value, node.attr
+        elif len(node.args) == 2 and "getattr" in self.values(node.func, depth):
+            owner, attribute = node.args[0], _string(node.args[1])
+        else:
+            return set()
+        owners = {name for name in self.values(owner, depth) if isinstance(name, _Name)}
+        if attribute:
+            return {_Name(f"{name}.{attribute}") for name in owners}
+        return {_DYNAMIC} if any(name.split(".")[0] in _MODULES for name in owners) else set()
+
+    def strings(self, node: ast.AST) -> set[str]:
+        """The plain string values an expression can hold."""
+        return {value for value in self.values(node) if type(value) is str}
+
+    def commands(self, node: ast.AST) -> list[tuple[str, ...]]:
+        """The literal argv prefixes an expression can hold, splitting command strings."""
+        commands = []
+        for value in self.values(node):
+            if isinstance(value, tuple):
+                commands.append(value)
+            elif type(value) is str and (tokens := split_command(value)):
+                commands.append(tokens)
+        return commands
 
 
 def _string(node: ast.AST) -> str:
@@ -172,12 +291,7 @@ def cyclopts_prefixes(
             continue
         tree = trees[0]
         module = module_name(path)
-        imported = {
-            alias.asname or alias.name: (import_module(path, node), alias.name)
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom)
-            for alias in node.names
-        }
+        imported = _from_imports(path, tree)
         applications.update(
             {
                 (module, target.id): _app_name(node.value, target.id)
@@ -303,6 +417,16 @@ def module_source_paths(module: str, paths: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys((*entries, *packages))) if entries else (stem + ".py",)
 
 
+def _from_imports(path: str, tree: ast.AST) -> dict[str, tuple[str, str]]:
+    """Map each name a from-import binds to its resolved module and imported attribute."""
+    return {
+        alias.asname or alias.name: (import_module(path, node), alias.name)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+
+
 def import_module(path: str, node: ast.ImportFrom) -> str:
     if node.level == 0:
         return node.module or ""
@@ -319,12 +443,7 @@ def cyclopts_command_owners(
     prefixes: dict[tuple[str, str], str],
 ) -> dict[str, set[str]]:
     """Return command identities with their exact defining symbols."""
-    imported = {
-        alias.asname or alias.name: (import_module(path, node), alias.name)
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
-        for alias in node.names
-    }
+    imported = _from_imports(path, tree)
     owners: dict[str, set[str]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):

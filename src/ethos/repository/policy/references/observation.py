@@ -22,7 +22,6 @@ import ethos.repository.policy.references.markdown as markdown_observation
 import ethos.repository.policy.references.python_syntax as python_references
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.orchestration import retained_step_texts
-from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
@@ -31,6 +30,7 @@ from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
+from ethos.repository.policy.surfaces import product_surface_files
 
 if TYPE_CHECKING:
     from ast import AST
@@ -223,12 +223,15 @@ def _file_references(
         )
         if tree is None:
             return False
-        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
+        imports, executables, inputs, dynamic = python_references.python_references(
+            tree, npm_scripts
+        )
         observed["import"].update(imports)
         if not path.startswith("tests/"):
             observed["executable"].update(executables)
             observed["value"].update(inputs)
-        return True
+        # Tests consume no executable or input, so their dynamic lookup leaves nothing unknown.
+        return path.startswith("tests/") or not dynamic
     if carrier == "pyproject":
         return pyproject_references(text, observed, declarations=include_declarations)
     if carrier == "package-json":

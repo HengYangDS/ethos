@@ -462,7 +462,8 @@ PATCH_CASES = [
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),
     ((), T, DECL, "pass"),
-    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), E_EXEC),
+    # A command constant that no executor runs is not a consumer.
+    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), "pass"),
 ]
 
 

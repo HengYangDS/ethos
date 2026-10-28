@@ -76,6 +76,13 @@ REFERENCE_CARRIERS = (
         entrypoint_globs=("tools/ci/scripts/*",),
     ),
     ReferenceCarrier("markdown", suffixes=frozenset({".md"})),
+    # A container build runs against its image, so a Dockerfile only declares environment.
+    ReferenceCarrier(
+        "dockerfile",
+        filenames=frozenset({"Containerfile", "Dockerfile"}),
+        suffixes=frozenset({".dockerfile"}),
+        declarations=("container-environment",),
+    ),
     ReferenceCarrier(
         "text",
         suffixes=frozenset({".json", ".mjs", ".toml"}),

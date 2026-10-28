@@ -15,7 +15,7 @@ from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
-from ethos.repository.policy.boundary.product import product_surface_files
+from ethos.repository.policy.surfaces import product_surface_files
 from ethos.repository.registry.docs.decisions import decision_record_gaps
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter

@@ -38,6 +38,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- Python reference observation follows import aliases, from-imports, lexical scope and program
+  point. A local named like a module no longer invents a consumer, a later assignment no longer
+  replaces an earlier read, and a command constant that nothing runs is no longer a consumer. A
+  sink chosen by dynamic lookup makes its file unknown instead of passing as evaluated.
+- Dockerfile and Containerfile `ENV` and `ARG` names, and Compose service environments, declare
+  the runtime values that maintained code reads.
 - Native tools no longer report a moved configuration carrier as ambiguous while the index still
   lists its deleted previous path.
 - Reference admission accepts the executables that the local publication commands in

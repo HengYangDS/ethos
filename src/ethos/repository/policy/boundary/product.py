@@ -20,7 +20,6 @@ from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_P
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_FORBIDDEN_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_MANIFEST_FILES
 from ethos.repository.policy.boundary.catalog import FIXED_KEY_PATTERNS
-from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
 from ethos.repository.policy.boundary.catalog import PACKAGE_METADATA_FILES
 from ethos.repository.policy.boundary.catalog import PERSONAL_PATTERNS
@@ -28,12 +27,14 @@ from ethos.repository.policy.boundary.catalog import PHASE_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_DOMAIN_MARKER_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_INFRA_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_REFERENCE_PATTERNS
-from ethos.repository.policy.boundary.catalog import PRODUCT_SURFACES
-from ethos.repository.policy.boundary.catalog import RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.boundary.catalog import SESSION_SURFACE_PATTERNS
-from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
-from ethos.repository.policy.boundary.catalog import TEXT_FILENAMES
-from ethos.repository.policy.boundary.catalog import TEXT_SUFFIXES
+from ethos.repository.policy.surfaces import HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.surfaces import RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.surfaces import SKIPPED_PRODUCT_DIR_PARTS
+from ethos.repository.policy.surfaces import TEXT_FILENAMES
+from ethos.repository.policy.surfaces import TEXT_SUFFIXES
+from ethos.repository.policy.surfaces import declared_product_surface_roots
+from ethos.repository.policy.surfaces import product_surface_files
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,51 +49,6 @@ class Finding:
 
     def to_dict(self) -> dict[str, object]:
         return {"path": self.path, "line": self.line, "kind": self.kind, "detail": self.detail}
-
-
-def declared_product_surface_roots(root: Path) -> tuple[str, ...]:
-    """Return policy roots plus carriers declared by the product surface contract."""
-    path = root / "system/surfaces.toml"
-    try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        payload = {}
-    declared = payload.get("surface", [])
-    carriers = (
-        str(surface.get("carrier", "")).strip("/")
-        for surface in declared
-        if isinstance(surface, dict)
-    )
-    active = (*PRODUCT_SURFACES, *carriers, "openspec/changes")
-    return tuple(dict.fromkeys(surface for surface in active if surface))
-
-
-def _is_text_product_file(path: Path, *, root: Path, surfaces: tuple[str, ...]) -> bool:
-    rel = path.relative_to(root).as_posix()
-    if any(rel.startswith(prefix) for prefix in HISTORICAL_SURFACE_PREFIXES):
-        return False
-    if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
-        return False
-    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name in TEXT_FILENAMES)):
-        return False
-    return any(rel == surface or rel.startswith(f"{surface}/") for surface in surfaces)
-
-
-def product_surface_files(root: Path) -> list[Path]:
-    """Return active text files from every policy and declared product surface."""
-    files: list[Path] = []
-    surfaces = declared_product_surface_roots(root)
-    for surface in surfaces:
-        base = root / surface
-        if base.is_file() and _is_text_product_file(base, root=root, surfaces=surfaces):
-            files.append(base)
-        elif base.is_dir():
-            files.extend(
-                path
-                for path in base.rglob("*")
-                if _is_text_product_file(path, root=root, surfaces=surfaces)
-            )
-    return sorted(set(files))
 
 
 def _is_text_release_visible_historical_file(path: Path, *, root: Path) -> bool:

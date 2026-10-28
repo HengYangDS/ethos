@@ -1,85 +1,9 @@
-"""Declare product surfaces and patterns that identify host-specific leakage."""
+"""Declare patterns that identify host-specific leakage on the product surface."""
 
 from __future__ import annotations
 
 import re
 
-PRODUCT_SURFACES = (
-    "AGENTS.md",
-    "CHANGELOG.md",
-    "README.md",
-    "CONTRIBUTING.md",
-    "LICENSE",
-    "package.json",
-    "package-lock.json",
-    "pyproject.toml",
-    "uv.lock",
-    ".config",
-    ".github",
-    ".gitignore",
-    ".gitlab",
-    ".gitlab-ci.yml",
-    "assets",
-    "packages",
-    "distributions",
-    ".ethos",
-    ".agents/skills",
-    "docs/README.md",
-    "docs/_meta",
-    "docs/architecture",
-    "docs/concepts",
-    "docs/decisions",
-    "docs/governance",
-    "docs/reference",
-    "docs/plans",
-    "docs/guides",
-    "openspec/README.md",
-    "openspec/config.yaml",
-    "openspec/specs",
-    "rules",
-    "system",
-    "tests",
-    "tools",
-)
-HISTORICAL_SURFACE_PREFIXES = (
-    "openspec/changes/archive/",
-    "docs/history/",
-)
-RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES = HISTORICAL_SURFACE_PREFIXES
-SKIPPED_PRODUCT_DIR_PARTS = {
-    ".git",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-    "build",
-    "node_modules",
-}
-TEXT_SUFFIXES = {
-    ".c4",
-    ".ini",
-    ".json",
-    ".lock",
-    ".md",
-    ".mjs",
-    ".mmd",
-    ".py",
-    ".sh",
-    ".svg",
-    ".toml",
-    ".txt",
-    ".yaml",
-    ".yml",
-}
-TEXT_FILENAMES = {
-    ".gitignore",
-    ".shellcheckrc",
-    "LICENSE",
-    "pre-commit",
-    "pre-push",
-    "reference-transaction",
-}
 PERSONAL_PATTERNS = (
     # Product surfaces may use placeholders, reserved example domains, or
     # organization/team identities, but must not bake a real private mailbox

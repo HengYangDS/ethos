@@ -11,8 +11,8 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
-from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
+from ethos.repository.policy.surfaces import HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.surfaces import SKIPPED_PRODUCT_DIR_PARTS
 
 POLICY_RELATIVE_PATH = Path(".config/checks/repository-hygiene/policy.toml")
 DEFAULT_POLICY: dict[str, Any] = {

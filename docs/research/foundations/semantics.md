@@ -127,7 +127,9 @@ The current `python_syntax.py` still constructs a whole-tree string table and
 recognizes certain calls by owner spelling. Earlier independent public-gate
 probes demonstrated alias, shadowing and program-point counterexamples. This
 review re-observed the mechanism, but did not replay that public workload at the
-current dirty source; it does not assert full proof or publication bypass.
+current dirty source; it does not assert full proof or publication bypass. On
+2026-10-28, `reference-observation-repair` replaced the table and the owner
+spelling with per-scope bindings.
 
 [LibCST's scope implementation][libcst-mechanism] handles names, assignments and
 access relationships. It is a candidate to replace spelling-based binding

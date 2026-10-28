@@ -141,6 +141,20 @@ def test_a_selection_in_progress_keeps_its_record_and_installation(tmp_path: Pat
     assert report["retained"] == [runtime.parents[1].as_posix()]
 
 
+def test_retention_creates_nothing_in_a_consumer_without_ethos_state(tmp_path: Path) -> None:
+    """A recorded repository without ETHOS state selects nothing and gets no lock from retention."""
+    store = _store(tmp_path)
+    runtime = _installation(store, "2" * 64)
+    (tmp_path / "plain/.git").mkdir(parents=True)
+    common = (tmp_path / "plain/.git").resolve()
+    record_consumer(runtime.parents[1], common)
+
+    report = retire_unused_installations(store, in_use=_nothing_in_use)
+
+    assert not (common / "ethos").exists()
+    assert report["retired"] == [runtime.parents[1].as_posix()]
+
+
 def test_hook_install_holds_the_selection_lock_from_its_pins(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

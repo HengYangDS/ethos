@@ -16,7 +16,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 - Host-store retention no longer removes an installation that a repository is about to select. A
   repository now holds its runtime selection lock from the pin that records it as a consumer until
-  its selectors name what it pinned, and retention keeps every consumer whose lock is held. Before,
+  its selectors name what it pinned, and retention keeps every consumer whose lock is held. It takes
+  that lock only in a repository with ETHOS state, so it creates nothing in one without. Before,
   a retention that another repository ran inside that window released the record, and a later one
   removed the installation that the repository's `CURRENT` then named, so its commands failed with
   `hook_runtime_manifest_invalid` or `hook_runtime_current_target_invalid`. Repositories that still

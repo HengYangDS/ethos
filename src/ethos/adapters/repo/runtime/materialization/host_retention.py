@@ -6,7 +6,7 @@ selector (`CURRENT`) nor its rollback selector (`ROLLBACK`), and no running proc
 refers into it. An installation pinned before consumers were recorded has unknown users, so it
 stays; so does one whose consumer record or selector cannot be read, and one whose consumer holds
 its selection lock, because a selection holds it from the pin that records the consumer until its
-selectors name what it pinned.
+selectors name what it pinned. Retention creates nothing in a consumer without ETHOS state.
 """
 
 from __future__ import annotations
@@ -82,7 +82,10 @@ def _consumer_state(
     try:
         # A held selection lock is a selection in progress, which may be about to name this
         # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.
-        with runtime_selection_lock(consumer).acquire(blocking=False):
+        # Taking a lock creates it, so a consumer without ETHOS state, which has no selectors and
+        # no selection, is read without one.
+        lock = runtime_selection_lock(consumer) if (consumer / "ethos").is_dir() else None
+        with lock.acquire(blocking=False) if lock is not None else contextlib.nullcontext():
             named = [_named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
     except (OSError, UnicodeError, ValueError):
         return "unknown"

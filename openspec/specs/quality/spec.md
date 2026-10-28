@@ -1645,14 +1645,9 @@ inputs remain subject to their runtime assertions, not a blanket static waiver.
 - **THEN** the native type check reports the selected file and the required quality gate blocks
 - **AND** an unavailable checker, invalid configuration or malformed diagnostic result cannot become a pass
 
-### Requirement: Adopters share applicable quality obligations
+### Requirement: Every repository shares the obligations ETHOS owns
 
-ETHOS SHALL compile a common, versioned quality floor from observed repository
-facts before selecting native checks. A repository profile MAY add domain
-constraints and map native evidence, but omission, renaming or a candidate's
-own changed policy SHALL NOT remove an applicable common obligation. The floor
-SHALL express observable properties and explicitly accepted portable limits,
-not ETHOS-specific paths, tools or code budgets.
+ETHOS SHALL compile every repository's obligations, its own included, as one function of the carriers the repository authors and the values it declares: the shared obligations those facts select, read from the ETHOS product that judges the repository, plus the gates it declares. The same carriers and values SHALL yield the same obligations under any name, profile id, registry path, location or history. A shared obligation SHALL state observable properties and accepted portable limits.
 
 #### Scenario: Binding is not quality qualification
 
@@ -1681,9 +1676,22 @@ not ETHOS-specific paths, tools or code budgets.
 
 #### Scenario: A candidate weakens its own quality policy
 
-- **WHEN** a candidate removes a required check or narrows its source scope
-- **THEN** the trusted prior floor still judges the candidate until an independently admitted policy transition replaces it
+- **WHEN** a candidate removes a declared check or narrows its declared source scope
+- **THEN** the shared obligations its authored carriers select still judge it, from the ETHOS product that judges it
 - **AND** local and hosted consumers reject a result set that omits a required obligation
+
+#### Scenario: ETHOS is judged as every repository is
+
+- **WHEN** ETHOS's tree and another tree author the same carriers and declare the same values
+- **THEN** both receive the same shared obligations and the same quality floor
+- **AND** changing only the profile id, the registry path, the location or the history changes neither
+
+#### Scenario: The judging product supplies the shared data
+
+- **WHEN** an ETHOS product judges a repository
+- **THEN** the shared registry and its provider sources come from that product
+- **AND** a tree whose package manifest declares that product's distribution supplies them from its own tree
+- **AND** every disposition that dependency acceptance applies is declared by the subject or by the judging product
 
 ### Requirement: Current Markdown stays within one navigable topic
 
@@ -1833,10 +1841,9 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 
 #### Scenario: Scheduling capacity does not redefine quality ownership
 
-- **WHEN** a candidate whose history the running build shares changes a CPU reservation, a command or a gate in `system/gates.toml`
-- **THEN** the predecessor and candidate keep the product registry owner without comparing bytes with an installed copy
-- **AND** the candidate's execution policy still binds every changed obligation
-- **AND** a repository without that history receives the adopter quality floor, even for a verbatim copy of the product registry
+- **WHEN** a candidate changes a CPU reservation, a command or a gate in the registry it declares
+- **THEN** its execution policy binds every changed obligation
+- **AND** the shared obligations its authored carriers select apply unchanged, whatever its history or registry path
 
 #### Scenario: Source proof disagrees with the installed ref guard
 
@@ -2882,3 +2889,18 @@ The generated reference-transaction launcher SHALL exit successfully for any tra
 
 - **WHEN** status reads the hook declaration of a selected runtime whose template has no guard
 - **THEN** its launchers render as before and status reports no launcher drift
+
+### Requirement: Provider static analysis follows the declared import style
+
+The product Python static provider SHALL apply the import-sorting values that a repository declares in its native Ruff configuration, and Ruff's own defaults where it declares none.
+
+#### Scenario: A repository declares its import style
+
+- **WHEN** a repository's native Ruff configuration declares `force-single-line = true` and its imports follow it
+- **THEN** the static evidence does not report `I001` for them
+- **AND** an import block that breaks the declared style still blocks with `I001`
+
+#### Scenario: A repository declares no import style
+
+- **WHEN** a repository declares no import-sorting values
+- **THEN** the static evidence judges its imports by Ruff's defaults

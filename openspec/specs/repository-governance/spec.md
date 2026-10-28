@@ -469,6 +469,8 @@ required.
   unrelated-Change, symlinked, non-regular, directory-wide, and mixed paths
   remain blocked
 - **AND** an `INFO` issue grants no repair authority
+- **AND** template drift of another active Change does not withhold the repair,
+  while drift of the selected Change or any other governance gap does
 - **AND** the repair authority disappears when fresh strict validation no longer
   reports the matching issue.
 

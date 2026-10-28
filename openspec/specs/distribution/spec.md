@@ -492,6 +492,12 @@ selectors SHALL count as a live consumer of that installation.
 - **THEN** that repository's consumer record and the installation remain
 - **AND** a later reclamation retires the installation only after the repository's selection settles without naming it
 
+#### Scenario: Reclamation observes a repository without ETHOS state
+
+- **WHEN** reclamation reads a recorded repository whose common directory has no ETHOS state
+- **THEN** it creates nothing in that repository
+- **AND** it releases the repository's record, because the repository selects nothing
+
 #### Scenario: An external selected runtime has disappeared
 
 - **WHEN** a repository's `CURRENT` names an absent external runtime

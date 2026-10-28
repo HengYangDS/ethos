@@ -7,8 +7,8 @@
 
 ## 2. Governed States
 
-- [x] 2.1 Declare `phases` and render the launcher guard, keeping declarations without states valid. Done when the launcher test records only prepared starts, one for `update-ref`, and an earlier declaration still renders unchanged launchers.
-- [x] 2.2 Answer every state other than prepared as not governed in the protocol, and remove the terminal branch. Done when the protocol and binding tests pass, and the no-trace test still passes (260 hook, runtime-binding and ref-admission tests passed).
+- [x] 2.1 Add the one-line guard to the launcher template and accept templates with or without it. Done when the launcher test records only prepared starts, one for `update-ref`, `git hook run` shows the guard in Git's shell (it failed without the guard), and an earlier template still renders unchanged launchers.
+- [x] 2.2 Answer every state other than prepared as not governed in the protocol, and remove the terminal branch. Done when the protocol and binding tests pass, and the no-trace test still passes (256 hook, runtime-binding and ref-admission tests passed).
 
 ## 3. Spec And Record
 

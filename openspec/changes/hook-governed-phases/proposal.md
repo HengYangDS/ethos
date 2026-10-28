@@ -8,10 +8,9 @@ The other states cannot change Git's outcome. Git ignores the hook's exit status
 
 ## What Changes
 
-- **Declared states.** The package hook declaration names the states each hook governs. Reference-transaction governs only `prepared`.
-- **Launcher guard.** The launcher generated from that declaration exits successfully, in plain POSIX `sh`, for any other state before it reads the runtime selection.
+- **Launcher guard.** The shared launcher template gains one plain POSIX `sh` line before it reads the runtime selection: `[ "@HOOK@" != reference-transaction ] || [ "$1" = prepared ] || exit 0`. It is a no-op for the other hooks, and it ends every reference-transaction state except prepared.
 - **One rule in the protocol.** The protocol treats every state other than prepared as not governed and drops its separate committed and aborted branch. A launcher from an earlier runtime that still sends those states gets a pass.
-- **Compatibility.** A declaration without states stays valid, so the launchers of an earlier selected runtime stay current until their repository reinstalls hooks. Adopters get the new launcher when they rebind with `ethos hook install`.
+- **Compatibility.** A template without the guard stays valid, so the launchers of an earlier selected runtime stay current until their repository reinstalls hooks. Adopters get the new launcher when they rebind with `ethos hook install`.
 - **Specs.** quality restates the two hook requirements as "only prepared is governed" and adds the launcher requirement.
 - **CHANGELOG.** One entry under `[Unreleased]`.
 
@@ -23,10 +22,10 @@ The other states cannot change Git's outcome. Git ignores the hook's exit status
 
 ### Modified Capabilities
 
-- `quality`: hook launchers start the runtime only for governed states.
+- `quality`: the reference-transaction launcher starts the runtime only for prepared states.
 
 ## Impact
 
 - One `git update-ref` starts the runtime once instead of three times, and one commit twice instead of about seven times.
 - `ethos hook ref-transaction --phase`, the interactive single-update command, keeps its own phase handling.
-- Product Python stays within its ceiling: the declaration check grows by a few lines, and the protocol loses its terminal branch.
+- Product Python shrinks: the template check accepts one guard occurrence on the same line, and the protocol loses its terminal branch.

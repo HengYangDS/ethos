@@ -30,9 +30,8 @@ def load_hook_contract(
         raise ValueError(message)
     data = tomllib.loads(declaration.read_text(encoding="utf-8"))
     scripts, platforms, template = (data.get(key) for key in ("scripts", "python", "launcher"))
-    phases = data.get("phases", {})
     valid = (
-        set(data) - {"phases"} == {"scripts", "python", "launcher"}
+        set(data) == {"scripts", "python", "launcher"}
         and isinstance(scripts, list)
         and bool(scripts)
         and all(
@@ -51,16 +50,7 @@ def load_hook_contract(
         and isinstance(template, str)
         and template.startswith("#!/bin/sh\n")
         and template.endswith("\n")
-        and template.count("@PYTHON@") == template.count("@HOOK@") == 1
-        and template.count("@GUARD@\n") == template.count("@GUARD@") == int("phases" in data)
-        and isinstance(phases, dict)
-        and set(phases) <= set(scripts)
-        and all(
-            isinstance(states, list)
-            and bool(states)
-            and all(isinstance(state, str) and re.fullmatch(r"[a-z]+", state) for state in states)
-            for states in phases.values()
-        )
+        and (template.count("@PYTHON@"), template.count("@HOOK@")) in {(1, 1), (1, 2)}
     )
     if not valid:
         message = "hook_launcher_declaration_invalid"
@@ -70,14 +60,8 @@ def load_hook_contract(
         message = "hook_launcher_platform_invalid"
         raise ValueError(message)
     names = tuple(scripts)
-    guards = {
-        name: f'case "$1" in {"|".join(states)}) ;; *) exit 0 ;; esac\n'
-        for name, states in phases.items()
-    }
     launchers = {
-        name: template.replace("@PYTHON@", platforms[platform])
-        .replace("@HOOK@", name)
-        .replace("@GUARD@\n", guards.get(name, ""))
+        name: template.replace("@PYTHON@", platforms[platform]).replace("@HOOK@", name)
         for name in names
     }
     return HookContract(

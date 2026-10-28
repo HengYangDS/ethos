@@ -29,13 +29,13 @@ A launcher that exits 0 before reading stdin in the other states passed a 3,000-
 
 ## Decisions
 
-### 1. The declaration names the governed states
+### 1. One template line states the rule
 
-`binding.toml` gains `phases = { reference-transaction = ["prepared"] }`, and its template gains one `@GUARD@` line. `binding.py` renders that line as `case "$1" in prepared) ;; *) exit 0 ;; esac` for a hook that names states, and removes it for the others. The guard runs before the launcher reads `CURRENT`, so a skipped state touches neither the runtime selection nor stdin. `case` is plain POSIX `sh`, as the launcher's existing selector checks already are, so Git for Windows' `sh` runs the same bytes.
+The shared template in `binding.toml` gains one plain POSIX `sh` line right after its header: `[ "@HOOK@" != reference-transaction ] || [ "$1" = prepared ] || exit 0`. Rendering already substitutes every `@HOOK@`, so the line is a no-op for the other hooks and ends every reference-transaction state except prepared. It runs before the launcher reads `CURRENT`, so a skipped state touches neither the runtime selection nor stdin. A declared table of governed states was considered and rejected: with one hook and one state it would add about twelve product lines of grammar to state what one line states directly, and the product source is 14 lines below its ceiling.
 
-### 2. Earlier declarations stay valid
+### 2. Earlier templates stay valid
 
-A declaration without `phases` and without `@GUARD@` is still accepted and rendered as before. Status reads the declaration of the selected runtime, so a repository still bound to an earlier runtime keeps current launchers. `ethos hook install` writes the new generation and the new launchers together when a repository rebinds.
+`binding.py` accepts a template with one or two `@HOOK@` occurrences instead of exactly one, so an earlier template without the guard still renders exactly as before. Status reads the declaration of the selected runtime, so a repository still bound to an earlier runtime keeps current launchers. `ethos hook install` writes the new generation and the new launchers together when a repository rebinds.
 
 ### 3. The protocol keeps one rule
 
@@ -43,10 +43,10 @@ A declaration without `phases` and without `@GUARD@` is still accepted and rende
 
 ### 4. Acceptance counts launches
 
-A launcher test runs the rendered reference-transaction launcher through Git with a stub runtime that records each start. Before the guard, a commit started it for the preparing, committed and aborted states as well. With the guard, it starts only for prepared states, and once for `update-ref`. The eight heaviest tests, run one at a time under `/usr/bin/time`, used 218 s user and 173 s system CPU before and 192 s user and 135 s system CPU after, a 16 percent cut (391.7 s to 327.3 s). Their wall time fell from 381 s to 320 s at a lower load, so the CPU time is the comparison.
+A launcher test runs the rendered reference-transaction launcher through Git with a stub runtime that records each start. Before the guard, a commit started it for the preparing, committed and aborted states as well. With the guard, it starts only for prepared states, and once for `update-ref`. A second test runs the current platform's launcher with `git hook run` and no runtime selection: preparing and committed exit 0 and prepared fails at the selector check, so Git's own shell runs the guard on every platform, hosted Windows included. The eight heaviest tests, run one at a time under `/usr/bin/time`, used 218 s user and 173 s system CPU before (load falling from 21 to 14) and 178 s user and 119 s system CPU with the guard (load about 7): 391.7 s to 296.6 s of CPU, and 381 s to 278 s of wall time. The lower load accounts for part of that difference, so the deterministic launch counts are the acceptance and the times only confirm the direction.
 
 ## Risks / Trade-offs
 
-- [A future ETHOS feature needs a terminal state] → It declares that state in `phases`, and the launcher passes it through.
+- [A future ETHOS feature needs a terminal state] → It changes the one guard line, and the protocol already answers any state it does not govern.
 - [Malformed input in a terminal state is no longer reported] → Git ignores those exit statuses, so nothing was enforced. Prepared input is still parsed strictly.
-- [The launch-count test needs a POSIX `sh` stub] → It is skipped on Windows. The rendering test runs on both platforms, and the guard uses only the `case` form that the launcher already uses there.
+- [The launch-count test needs a POSIX `sh` stub] → It is skipped on Windows. The `git hook run` test needs no stub and runs there, through the same Git `sh` that already runs the other three launchers.

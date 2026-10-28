@@ -72,6 +72,6 @@ repository-governance:
 ## Risks / Trade-offs
 
 - [A union of reaching values over-approximates] → a branch that assigns an undeclared name is reported. That is the scenario's rule ("a later assignment cannot erase an earlier undeclared input").
-- [Removing the name rule loses a consumer] → measured on every governed repository: it only ever produced `python`, `nox` and `pytest`, from constants that nothing ran. Dropping a consumer adds no gap.
+- [Removing the name rule loses a consumer] → on the governed repositories it only ever produced `python`, `nox` and `pytest`, from constants that nothing ran. In alphasim and di-effect it also saw `uv`, `pre-commit` and `repo` passed through first-party wrappers (`run_trusted_subprocess`), which the binding observer does not follow (a non-goal). Dropping a consumer adds no gap, but an undeclared tool passed through a wrapper now goes unobserved, like any caller-supplied value. The accepted scenario requires the removal: a spelling-only rename must not change observation.
 - [An adopter gains a true orphan] → `ethos-introduction-film`'s `ffmpeg`, told ahead of the release.
 - [Proof time] → the observer takes about 0.4 s more over ETHOS's files.

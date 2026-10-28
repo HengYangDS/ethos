@@ -36,7 +36,11 @@ The observer also imports the product-boundary check (`repository.policy.boundar
 
 ## Impact
 
-- One read-only fleet diff against current checkouts. ETHOS gains `PATH` (declared) and loses `python` and `nox`, which only the name rule produced. The proxy loses `python` and `pytest` the same way. `ethos-introduction-film` gains one true consumer, `ffmpeg` in `src/container_metadata.py`, which no owner declares; its owner session was told on 2026-10-28. No other governed repository changes, and none has a dynamic sink lookup.
+- One read-only diff against current checkouts:
+  - ETHOS gains `PATH` (declared) and loses `python` and `nox`, which only the name rule produced. The proxy loses `python` and `pytest` the same way.
+  - `ethos-introduction-film` gains one true consumer, `ffmpeg` in `src/container_metadata.py`, which no owner declares; its owner session was told on 2026-10-28.
+  - No other governed repository changes, and none has a dynamic sink lookup.
+  - The deferred families gain true consumers: alphasim `security`; di-effect `git`, `rsync` and GitLab's `CI`, `CI_MERGE_REQUEST_TITLE` and `CI_PIPELINE_SOURCE`. They lose `uv`, `pre-commit` and `repo`, which the name rule had seen only through first-party wrappers.
 - The observer takes 1.2 to 1.3 s over ETHOS's 842 Python files, against 0.85 to 0.95 s before.
 - `python_product` grows by about 125 effective lines. The product lane agreed that this Change lands after `surface-pruning` (−48) and is measured there.
 - alphasim and di-effect are not changed. After a release carries this Change, their owners retry the refused prewrite. Task 10.11 of `quality-evidence-admission`, withdrawn by DR-0016, is restored here; its installed acceptance follows that release.

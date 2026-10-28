@@ -95,11 +95,6 @@ def test_public_archive_preview_recognizes_final_task_check_in_official_stage(
     lifecycle = OpenSpecLifecycle(*fixture, head)
     archive_path = lifecycle.stage_official_archive()
     git(root, "add", "-A")
-    monkeypatch.setattr(
-        archive_command,
-        "proof_gaps",
-        lambda _root, candidate, **_kwargs: [] if candidate == head else ["proof_not_proven"],
-    )
     monkeypatch.setattr(archive_effect, "proof_gaps", lambda *_args, **_kwargs: [])
 
     preview = archive_command.archive_change(
@@ -137,10 +132,8 @@ def test_skip_specs_archive_commits_once_before_exact_postimage_proof(
         "schema: spec-driven\nskip_specs: true\n", encoding="utf-8"
     )
     commit_fixture(root, "declare docs-only change")
-    monkeypatch.setattr(archive_command, "proof_gaps", proof_gaps)
     monkeypatch.setattr(archive_effect, "proof_gaps", proof_gaps)
     source_head = lifecycle.head
-    seed_executed_proof(root, source_head)
     arguments = (
         "lane",
         "archive-change",

@@ -9,7 +9,6 @@ from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import asdict
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import cast
@@ -32,7 +31,6 @@ from ethos.adapters.mutation.proof_validation import assess_proof_execution
 from ethos.adapters.mutation.proof_validation import expected_head_gaps
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import proof_acceptance_purpose
@@ -52,6 +50,8 @@ from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
@@ -67,7 +67,6 @@ class _ProofOptions:
     full: bool = False
     change: str | None = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
-    execution_root: Annotated[str | None, Parameter(name="--execution-root")] = None
     host: bool = False
     probe: bool = False
     acceptance_purpose: Annotated[AcceptancePurpose, Parameter(name="--acceptance-purpose")] = (
@@ -80,7 +79,6 @@ _DEFAULT_PROOF_OPTIONS = _ProofOptions()
 
 def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
     """Admit one proof mode before any governed repository observation."""
-    execution_root = getattr(options, "execution_root", None)
     if getattr(options, "acceptance_purpose", "repository") == "local-source" and (
         options.host
         or options.probe
@@ -90,19 +88,6 @@ def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bo
     ):
         _emit_proof_gap(
             ValueError("local_source_proof_requires_full_repository"), json_output=json_output
-        )
-        return True
-    if execution_root and (
-        not options.execute
-        or not options.full
-        or not options.expect_head
-        or options.scope != "repository"
-        or options.gate
-        or options.host
-        or options.probe
-    ):
-        _emit_proof_gap(
-            ValueError("proof_execution_carrier_requires_full_exact_head"), json_output=json_output
         )
         return True
     if not (options.host and options.execute):
@@ -130,11 +115,6 @@ def _proof_context(
         authority=authority,
         change=options.change,
         changed=True,
-        intent_tree_ref=(
-            authority.current_head
-            if getattr(options, "execution_root", None) and authority
-            else None
-        ),
     )
     current_head = resolution.authority.current_head if resolution.authority is not None else ""
     openspec_lifecycle: dict[str, object] = (
@@ -179,7 +159,6 @@ def run_plan_checks(
     plan: TransitionPlan,
     execute: bool,
     capacity: int | None = None,
-    carrier: ProofExecutionCarrier | None = None,
 ) -> tuple[list[dict[str, object]], bool]:
     """Run or project the admitted TransitionPlan gate sequence."""
     plan_head = plan.facts.get("head")
@@ -194,9 +173,6 @@ def run_plan_checks(
         gate_ids=tuple(node.id for node in plan.nodes),
         acceptance_purpose=proof_acceptance_purpose(plan.policy),
     )
-    if carrier is not None and gates_by_id.digest != plan.inputs.policy:
-        message = "proof_execution_environment_mismatch"
-        raise ValueError(message)
     registry = gates_by_id.registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
@@ -235,7 +211,7 @@ def run_plan_checks(
                 "duration_seconds": run_result.duration_seconds,
             }
         )
-    if execute and carrier is None:
+    if execute:
         assert_proof_execution_source(repo, plan, checks=tuple(checks))
     verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
     trust_bearing_ok = any(
@@ -288,18 +264,16 @@ def _apply_proof_effect(
     execute: bool,
     verdict: Verdict,
     required_gaps: tuple[str, ...],
-    execution_carrier: ProofExecutionCarrier | None,
     json_output: bool,
 ) -> tuple[Attestation | None, Verdict, tuple[str, ...]]:
     """Issue and select one proof, or emit the single failed effect boundary."""
     if not execute:
         return None, verdict, required_gaps
-    kwargs = {"execution_carrier": execution_carrier} if execution_carrier is not None else {}
     try:
-        attestation = issue_proof_attestation(repo, payload, **kwargs)
+        attestation = issue_proof_attestation(repo, payload)
         if attestation.verdict == "pass":
             try:
-                persist_proof_attestation(repo, attestation, **kwargs)
+                persist_proof_attestation(repo, attestation)
             except ValueError as error:
                 required_gaps = tuple(
                     dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
@@ -308,7 +282,6 @@ def _apply_proof_effect(
                 attestation = issue_proof_attestation(
                     repo,
                     {**payload, "verdict": verdict, "required_gaps": required_gaps},
-                    **kwargs,
                 )
     except ValueError as error:
         _emit_proof_gap(error, json_output=json_output)
@@ -327,7 +300,6 @@ def prove(
     repo = resolve_root(root)
     if _emit_proof_preflight(repo=repo, options=options, json_output=json_output):
         return
-    execution_root = getattr(options, "execution_root", None)
     current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
     audit_verdict = report_verdict(audit)
     head_gaps = (
@@ -369,25 +341,12 @@ def prove(
         return
     changed_paths = resolution.scope.paths
     try:
-        carrier = (
-            ProofExecutionCarrier.capture(
-                repo,
-                Path(execution_root),
-                head=current_head,
-                tree=resolution.authority.current_tree,
-                lease=resolution.lease,
-                expect_head=options.expect_head,
-            )
-            if execution_root is not None and resolution.authority is not None
-            else None
-        )
         plan = proof_plan(
             repo,
             resolution=resolution,
             gate_ids=options.gate,
             full=options.full,
             acceptance_purpose=getattr(options, "acceptance_purpose", "repository"),
-            execution_root=carrier.execution if carrier is not None else None,
         )
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output)
@@ -413,12 +372,7 @@ def prove(
     )
     try:
         with admission_scope as admission:
-            checks, runs_ok = run_plan_checks(
-                repo=carrier.execution if carrier is not None else repo,
-                plan=plan,
-                execute=options.execute,
-                carrier=carrier,
-            )
+            checks, runs_ok = run_plan_checks(repo=repo, plan=plan, execute=options.execute)
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output, head=current_head)
         return
@@ -456,7 +410,6 @@ def prove(
         execute=options.execute,
         verdict=verdict,
         required_gaps=required_gaps,
-        execution_carrier=carrier,
         json_output=json_output,
     )
     if options.execute and attestation is None:

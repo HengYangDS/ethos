@@ -489,12 +489,12 @@ the active Change may span integration, accepted closeout, publication and use.
 Check tasks only after observing results; proof authorizes no later effect.
 
 After the Change's obligations are settled, an owned Work Lane invokes
-`ethos lane archive-change --change <id> --expect-head
-<source-head> --json` to derive the bounded official archive and Git transition;
-follow its current guarded continuation. Ordinary `git commit` does not replace
-that effect owner. A staged official archive still needs valid source proof.
-New source bytes invalidate old proof; copied output or repeated commands do
-not repair that binding.
+`ethos lane archive-change --change <id> --expect-head <source-head> --json` to derive the bounded
+official archive and Git transition, also for an official archive already staged. Archive needs no
+prior proof: follow its guarded continuation, which proves the archived head. If that proof fails,
+the same command with `--compensate` and the archived head as `--expect-head` returns the unlanded
+archive to its pre-archive head. Ordinary `git commit` does not replace that effect owner. New
+source bytes invalidate old proof; copied output or repeated commands do not repair that binding.
 
 ```bash
 openspec list --json

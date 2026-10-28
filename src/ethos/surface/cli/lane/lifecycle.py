@@ -87,6 +87,7 @@ class _ArchiveChange(AppliedLaneCommandOptions):
     change: Annotated[str, Parameter(name="--change")]
     expect_head: Annotated[str, Parameter(name="--expect-head")]
     subject: Annotated[str | None, Parameter(name="--subject")] = None
+    compensate: bool = False
 
 
 _DEFAULT_HOUSEKEEPING = _Housekeeping()
@@ -355,13 +356,14 @@ def lane_refresh_base(
 def lane_archive_change(
     options: Annotated[_ArchiveChange, Parameter(name="*")],
 ) -> None:
-    """Archive one completed Change through the official governed transition."""
+    """Archive one completed Change, or with --compensate return its unlanded archive."""
     report = archive_change(
         root=resolve_root(options.root),
         change=options.change,
         expect_head=options.expect_head,
         subject=options.subject,
         apply=options.apply,
+        compensate=options.compensate,
     )
     project_lane_result(
         options.command,

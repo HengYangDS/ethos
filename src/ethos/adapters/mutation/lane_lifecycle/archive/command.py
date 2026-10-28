@@ -13,11 +13,10 @@ import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.mutation.lane_lifecycle.archive.compensation import compensate_archive
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
-from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
-from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
@@ -65,20 +64,28 @@ def archive_change(
     expect_head: str,
     subject: str | None = None,
     apply: bool = False,
+    compensate: bool = False,
 ) -> dict[str, object]:
-    """Run official OpenSpec archive through one exact Git effect."""
+    """Run official OpenSpec archive, or its compensation, through one exact Git effect."""
     repo = root.resolve()
     status, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
     head = str(status.get("head") or current_tracked_head(repo))
     branch = str(status.get("branch") or git_stdout(repo, "branch", "--show-current"))
     try:
-        if head != expect_head:
-            existing = archive_effect.recover_archive_effect(
-                repo,
-                branch=branch,
-                head=head,
-                change=change,
-                apply=apply,
+        if compensate or head != expect_head:
+            existing = (
+                compensate_archive(
+                    repo,
+                    branch=branch,
+                    head=head,
+                    change=change,
+                    expect_head=expect_head,
+                    apply=apply,
+                )
+                if compensate
+                else archive_effect.recover_archive_effect(
+                    repo, branch=branch, head=head, change=change, apply=apply
+                )
             )
             if existing is not None:
                 return existing
@@ -103,13 +110,7 @@ def archive_change(
                 next_action=resolution.next_action or None,
                 user_decision_required=resolution.user_decision_required,
             )
-        gaps = _archive_coordinate_gaps(
-            repo,
-            str(status.get("role") or ""),
-            head,
-            expect_head,
-            change,
-        )
+        gaps = _archive_coordinate_gaps(str(status.get("role") or ""), head, expect_head)
         if gaps:
             return archive_preflight_report(branch, head, change, gaps, lease=resolution.lease)
         commit_subject, subject_gap = _archive_commit_subject(repo, change, subject)
@@ -159,7 +160,9 @@ def archive_change(
             change=change,
             **lifecycle_effect_outcome(
                 kind="committed_residue" if current != expect_head else "zero_effect",
-                next_action=archive_recovery_command(change, expect_head, subject=subject),
+                next_action=archive_recovery_command(
+                    change, expect_head, subject=subject, compensate=compensate
+                ),
             ),
         )
     else:
@@ -278,21 +281,11 @@ def _archive_active_change(
         )
 
 
-def _archive_coordinate_gaps(
-    root: Path,
-    role: str,
-    head: str,
-    expect_head: str,
-    change: str,
-) -> list[str]:
-    gaps: list[str] = []
+def _archive_coordinate_gaps(role: str, head: str, expect_head: str) -> list[str]:
+    """Archive needs the exact Work Lane head; its proof follows the archive."""
     if role != ROLE_WORK_LANE:
-        gaps.append("archive_requires_work_lane")
-    elif head != expect_head:
-        gaps.append("expect_head_mismatch")
-    if not gaps:
-        gaps.extend(proof_gaps(root, head, change_id=change))
-    return list(dict.fromkeys(gaps))
+        return ["archive_requires_work_lane"]
+    return [] if head == expect_head else ["expect_head_mismatch"]
 
 
 def _finalize_existing_archive(
@@ -461,9 +454,7 @@ def archive_preflight_report(
         if user_decision_required is None
         else user_decision_required
     )
-    if next_action is None and first in {"proof_not_proven", "full_proof_required"}:
-        resolved_action = proof_recovery_command(head, change=change)
-    elif next_action is None and state == "different_holder":
+    if next_action is None and state == "different_holder":
         resolved_action = (
             "ethos attestation query --predicate lane-resolution:takeover "
             f"--subject git:branch:{branch} --json"

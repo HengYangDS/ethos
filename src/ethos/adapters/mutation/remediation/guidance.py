@@ -11,12 +11,15 @@ def proof_recovery_command(expect_head: str, *, change: str = "") -> str:
     return f"ethos prove --full --execute --expect-head {expect_head}{selected} --json"
 
 
-def archive_recovery_command(change: str, expect_head: str, *, subject: str | None = None) -> str:
-    """Return the sole public continuation for an observed archive effect."""
+def archive_recovery_command(
+    change: str, expect_head: str, *, subject: str | None = None, compensate: bool = False
+) -> str:
+    """Return the sole public continuation for an observed archive effect or its compensation."""
     subject_argument = f" --subject {shlex.quote(subject)}" if subject is not None else ""
+    mode = " --compensate" if compensate else ""
     return (
         f"ethos lane archive-change --change {change} --expect-head {expect_head}"
-        f"{subject_argument} --apply --json"
+        f"{subject_argument}{mode} --apply --json"
     )
 
 

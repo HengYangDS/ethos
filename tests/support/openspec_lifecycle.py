@@ -279,7 +279,7 @@ def completed_lifecycle(
     *,
     holder: str = HOLDER,
 ) -> OpenSpecLifecycle:
-    """Bind prearchive proof exactly; isolate postimage quality in lifecycle-only tests."""
+    """Complete one Change; isolate postimage quality in lifecycle-only tests."""
     fixture = prepared_work_lane(tmp_path, holder_ref=holder, docs_only=True)
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     tasks = fixture.worktree / "openspec/changes/fixture-change/tasks.md"
@@ -289,12 +289,6 @@ def completed_lifecycle(
         tasks.relative_to(fixture.worktree).as_posix(),
         completed,
         "complete fixture change",
-    )
-
-    monkeypatch.setattr(
-        archive,
-        "proof_gaps",
-        lambda _root, candidate, **_kwargs: [] if candidate == head else ["proof_not_proven"],
     )
     monkeypatch.setattr(archive_effect, "proof_gaps", lambda *_args, **_kwargs: [])
     return OpenSpecLifecycle(*fixture, head)
@@ -387,7 +381,6 @@ def stub_archive_public(
 
     monkeypatch.setattr(archive, "workspace_status_observation", observe_workspace)
     monkeypatch.setattr(archive, "resolve_current_resolution", resolve_current)
-    monkeypatch.setattr(archive, "proof_gaps", lambda *_args, **_kwargs: [])
 
     def git_stdout(_root: Path, *args: str) -> str:
         return {

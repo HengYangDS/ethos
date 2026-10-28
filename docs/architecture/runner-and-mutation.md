@@ -14,7 +14,8 @@ workspace layer chooses a runner.
 Initial runners are deliberately small:
 
 - `DryRunRunner` records the action without side effects.
-- `LocalSubprocessRunner` executes a node in a chosen repository root.
+- `LocalGateRunner` executes a declared gate provider, or its adapter command, in the
+  repository root.
 - Future Dagger, hosted CI, Temporal, or remote agent runners must consume the
   same TransitionPlan contract.
 
@@ -67,17 +68,10 @@ directory.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
-cannot be created from ambiguous local candidate state. When a Work Lane lands
-to the candidate train, ETHOS carries the already verified HEAD-bound executed
-proof record into the candidate worktree's local proof state. This carry-forward
-is not a new proof minting path: the source record must verify before copying,
-and the target copy is re-verified after writing. This projection is internal;
-the public mutation result returns the Git-effect attestation rather than a
-second proof-carry receipt. The projection exposes
-`truth_boundary = "local-proof-state-projection"`,
-`mints_proof = false`, `same_head_only = true`, and source/target verification
-flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
-closeout can prove the candidate head without requiring a redundant runner pass.
+cannot be created from ambiguous local candidate state. Proof Attestations and
+their artifacts live in the Git common directory, so every worktree reads the
+same proof: the candidate head that a Work Lane lands is admitted by the proof
+of that exact commit, and landing copies no proof record.
 The standard Work Lane lifecycle starts from an official OpenSpec Change and a
 fresh Git observation. ETHOS compiles the official projection into the
 three-field Commitment and records only the four-field Lease relation. It then
@@ -102,10 +96,15 @@ an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
 
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
-same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
-from the package-bound supply, admits only its exact rename/spec delta, commits through ordinary
-hooks, and attests the post-state. The archived HEAD remains plan/proof/land
-capable because acceptance is compiled from its exact official projection.
+same-holder Lease and a completed Change, runs official OpenSpec from the
+package-bound supply, validates the actual postimage before the commit, admits
+only its exact rename/spec delta, commits through ordinary hooks, and attests the
+post-state. It needs no proof of the pre-archive HEAD. The archived HEAD is
+proved once, and landing requires that proof; the archived HEAD remains
+plan/proof/land capable because acceptance is compiled from its exact official
+projection. When that proof fails, `ethos lane archive-change --compensate`
+returns the unlanded archive to its exact pre-archive HEAD through one attested,
+Lease-bound compare-and-swap, and the author fixes, commits and archives again.
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
 HEAD, Lease observation, and accepted-relation facts, but no lifecycle
 command deletes them.

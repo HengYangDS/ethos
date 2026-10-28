@@ -20,9 +20,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   the independent-verification and release procedures. The proof-hosts specification, the rules
   index, the module layout rule, the system contract headers and the documentation metadata no
   longer cite removed behavior.
+- A Change needs one complete proof instead of two. `ethos lane archive-change` no longer requires
+  a proof of the pre-archive head; the archived head is proved once, and landing requires that
+  proof. When that proof fails, `ethos lane archive-change --compensate` returns the unlanded
+  archive to its exact pre-archive head.
 
 ### Removed
 
+- `ethos prove` no longer accepts `--execution-root`, and its proof execution carrier is gone. The
+  archive command commits a staged archive, and the archived head is proved in the Work Lane.
 - The wheel no longer ships the five retired policy documents. `ethos context` serves the matching
   sections of the Product Design Contract and the release rules in their place, with the same reader
   roles.

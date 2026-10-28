@@ -425,7 +425,7 @@ def complete_archive(
         return lifecycle_report(
             branch,
             head,
-            "repair_required",
+            "pending_verification" if quality_gaps else "repair_required",
             post_gaps,
             change=change,
             previous_head=str(plan.facts.get("head") or ""),

@@ -13,7 +13,7 @@ command plane.
 | Work Lane write admission                     | `ethos lane prewrite ... --json`                                                                                                                                                                         | Current lane decision                                                                                                                                |
 | Native merge recovery                         | `ethos lane refresh-base --strategy merge --json`                                                                                                                                                        | Native parents, conflicts and exact-state continuation; see the command reference                                                                    |
 | OpenSpec intent and transformation            | official `openspec` CLI                                                                                                                                                                                  | Official command JSON                                                                                                                                |
-| Governed archive effect                       | `ethos lane archive-change --change <id> --expect-head <source-head> --json`                                                                                                                             | Exact source proof and the returned guarded continuation                                                                                             |
+| Governed archive effect                       | `ethos lane archive-change --change <id> --expect-head <source-head> --json`                                                                                                                             | Completed Change; the returned continuation proves the archived head, and `--compensate` returns a failed archive                                    |
 | Detached CI ref observation                   | `ethos hook ref-update --target-ref <full-ref> --proposed-head <oid> --remote-head <old-oid> --remote <name> --json`                                                                                     | Shared role, introduced-range and intent observation; not repository proof                                                                           |
 | Historical attribution/signature correction   | `ethos lane repair-signature --root <accepted-root> --expect-head <old-oid> --json`                                                                                                                      | Exact selection, recoverable original bundle, native object validation and selected-ref CAS; see the command reference for historical request fields |
 | Repo-local skills                             | `skills` proof gate                                                                                                                                                                                      | Proof result                                                                                                                                         |
@@ -35,10 +35,11 @@ from the current command, never a detached checkout name or a copied proof label
 Commit source and actual task progress before exact proof. Source acceptance,
 delivery and Change completion are distinct: keep delivery obligations in the
 same active Change and mark them only after observing their results. Archive
-when those obligations are settled, using its governed continuation. Editing
-tasks after proof makes a new source; ordinary Git commit does not finalize the
-archive effect. A staged archive without valid source proof requires a current
-recovery decision, not repeated commits or hook bypass.
+when those obligations are settled, using its governed continuation, which
+proves the archived head. Editing tasks after proof makes a new source; ordinary
+Git commit does not finalize the archive effect, and the archive command also
+finalizes a staged archive. A failed archived-head proof returns through
+`--compensate`, not through repeated commits or hook bypass.
 
 Treat each peer effect as a new trust boundary. A preflight PASS or earlier peer
 success does not authorize the next effect. Preserve applied peers, report

@@ -50,14 +50,8 @@ def test_lane_start_forwards_exact_immutable_base(monkeypatch, tmp_path):
 @pytest.mark.parametrize("gap", ["proof_not_proven", "full_proof_required"])
 def test_transition_continuations_request_the_admitted_proof_floor(gap):
     """Missing and insufficient proof must not lead through a knowingly weaker run."""
-    command = f"ethos prove --full --execute --expect-head {ARCHIVE_HEAD}"
-    actual = (
-        land_next_action(verdict="block", gaps=(gap,), current_head=ARCHIVE_HEAD),
-        archive.archive_preflight_report(ARCHIVE_BRANCH, ARCHIVE_HEAD, ARCHIVE_CHANGE, [gap])[
-            "next_action"
-        ],
-    )
-    assert actual == (f"{command} --json", f"{command} --change {ARCHIVE_CHANGE} --json")
+    command = f"ethos prove --full --execute --expect-head {ARCHIVE_HEAD} --json"
+    assert land_next_action(verdict="block", gaps=(gap,), current_head=ARCHIVE_HEAD) == command
 
 
 @pytest.mark.parametrize(

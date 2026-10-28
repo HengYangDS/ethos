@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from io import StringIO
 
-import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
-from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.repo.hook.protocol import execute_hook
@@ -14,7 +12,6 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import completed_lifecycle
-from tests.support.proof import seed_executed_proof
 
 
 def test_archived_change_admits_only_stale_markdown_link_consumers(tmp_path, monkeypatch):
@@ -39,8 +36,6 @@ def test_archived_change_admits_only_stale_markdown_link_consumers(tmp_path, mon
         encoding="utf-8",
     )
     commit_fixture(root, "link active Change from authored docs")
-    seed_executed_proof(root, lifecycle.head)
-    monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     archived = lifecycle.archive()
     assert archived["verdict"] == "pass"
     assert not lifecycle.active.exists()

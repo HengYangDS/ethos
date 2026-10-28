@@ -435,7 +435,7 @@ def test_archive_completion_reports_recovery_and_governance_failure(
         tmp_path, "work/change", "change", plan, "b" * 40, apply=True
     )
     assert (blocked["state"], blocked["required_gaps"]) == (
-        "repair_required",
+        "pending_verification" if gap == "proof_not_proven" else "repair_required",
         [gap],
     )
     if gap == "proof_not_proven":

@@ -18,7 +18,14 @@ Lifetime = Literal["operation", "head", "lineage", "window", "open-predicate"]
 
 _LANE_SUBJECT_TRANSITIONS = frozenset({"lane.start", "lane.start.compensate", "lane.retire"})
 _LANE_EXECUTION_TRANSITIONS = frozenset(
-    {"lane.refresh", "lane.merge", "commit.checkpoint", "maintainer.recover", "openspec.archive"}
+    {
+        "lane.refresh",
+        "lane.merge",
+        "commit.checkpoint",
+        "maintainer.recover",
+        "openspec.archive",
+        "openspec.archive.compensate",
+    }
 )
 _LANE_REF_TRANSITIONS = frozenset({"commitment.rebind", "v1-to-v2-bootstrap"})
 _HEAD_BRANCH_FIELDS = {

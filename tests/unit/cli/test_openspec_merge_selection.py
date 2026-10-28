@@ -413,7 +413,6 @@ def test_process_intent_carries_product_work_through_native_integration(
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
     assert proof_gaps(work, head) == ["proof_not_proven"]
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
-    before = git(work, "ls-files", "--stage")
     arguments = (
         "lane",
         "archive-change",
@@ -424,12 +423,6 @@ def test_process_intent_carries_product_work_through_native_integration(
         "--apply",
         "--json",
     )
-    assert (denied := run_ethos_blocked(*arguments, cwd=work))["required_gaps"] == [
-        "proof_not_proven"
-    ]
-    assert "--change fixture-change" in denied["next_action"]
-    assert (git(work, "rev-parse", "HEAD"), git(work, "status", "--porcelain")) == (head, "")
-    assert git(work, "ls-files", "--stage") == before
     other_id = _prove(work, head, "--change", "fixture-change")["id"]
     observed, gaps = proof_for_repository_transition(work, head, attestation_id=other_id)
     assert observed is not None

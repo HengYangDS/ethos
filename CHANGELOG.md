@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- Git hooks start the ETHOS runtime only for a reference transaction's prepared state. The
+  generated launcher exits in `sh` for the preparing, committed and aborted states, which ETHOS
+  never governed, so `git update-ref` starts the runtime once instead of three times and a commit
+  only for its prepared transactions. A repository gets the new launcher when it reinstalls hooks
+  with `ethos hook install`; the launchers of earlier runtimes keep working until then.
+
 ## [0.2.0-alpha.18] - 2026-10-28
 
 ### Changed

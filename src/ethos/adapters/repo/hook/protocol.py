@@ -49,9 +49,8 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
 def _reference_transaction(
     root: Path, args: tuple[str, ...], stdin: IO[str]
 ) -> tuple[dict[str, object], ...]:
-    """Consume Git notifications without importing unused admission machinery."""
-    phase = args[0] if args else ""
-    if phase not in {"prepared", "committed", "aborted"}:
+    """Admit a prepared transaction; Git's other states are not governed."""
+    if (args[0] if args else "") != "prepared":
         return (passed_report("reference-transaction", "phase_not_governed"),)
     reports = []
     admit = None
@@ -64,9 +63,6 @@ def _reference_transaction(
         if not ref_name.startswith(("refs/heads/", "refs/tags/")) or (
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
-            continue
-        if phase != "prepared":
-            reports.append(passed_report("reference-transaction", f"{phase}_observed"))
             continue
         if admit is None:
             admission = import_module("ethos.adapters.repo.hook.admission")

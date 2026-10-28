@@ -339,6 +339,10 @@ def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
         }
     )
     monkeypatch.setenv("NODE_OPTIONS", "unselected ambient input")
+    # An enclosing gate attempt, such as the tests session that runs this test, owns this root.
+    enclosing = tmp_path / "enclosing-output"
+    enclosing.mkdir()
+    monkeypatch.setenv("ETHOS_NATIVE_OUTPUT_DIR", str(enclosing))
     environment = {"ETHOS_CALLER_VALUE": "scoped"}
     caller_output = tmp_path / "caller-output"
     if captured:
@@ -363,6 +367,7 @@ def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
     }
     assert (evidence is not None) is captured
     assert not caller_output.exists()
+    assert not any(enclosing.iterdir())
     if evidence is not None:
         assert evidence.gaps == ()
         assert not Path(evidence.output_root).exists()

@@ -223,7 +223,10 @@ def gate_attempt(
     """Run one gate command; declared native outputs come from that same attempt."""
     if gate.native_outputs:
         return native_attempt(root, gate, command, timeout=timeout, env=env, remove_env=remove_env)
-    return run_command(root, command, timeout=timeout, env=env, remove_env=remove_env), None
+    # A gate without declared outputs gets no output root, so an enclosing attempt's root and
+    # observer stay with that attempt.
+    removed = (*remove_env, "ETHOS_NATIVE_OUTPUT_DIR", OBSERVER_REQUIREMENT)
+    return run_command(root, command, timeout=timeout, env=env, remove_env=removed), None
 
 
 def gate_execution(

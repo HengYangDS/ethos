@@ -57,7 +57,8 @@ def test_runner_transports_one_deadline_to_native_and_provider_execution(
         remove_env: tuple[str, ...] = (),
     ):
         assert env is None
-        assert remove_env == ()
+        # Only the product-owned output root and observer are withheld from a gate without outputs.
+        assert remove_env == ("ETHOS_NATIVE_OUTPUT_DIR", "ETHOS_NATIVE_OBSERVER_REQUIREMENT")
         budgets.append(timeout)
         return subprocess.CompletedProcess(argv, 0, "", "")
 

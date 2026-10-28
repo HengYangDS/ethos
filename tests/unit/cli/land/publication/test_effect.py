@@ -16,13 +16,13 @@ import ethos.adapters.mutation.proof as proof_owner
 import ethos.adapters.mutation.publication.attestation as publication_attestation
 import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import mutable_json
 from ethos.domain.publication.operation import publish_repository
 from ethos.surface.mcp.server import create_server
-from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -51,17 +51,12 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
     assert set(git(repo, "remote").splitlines()) == set(remotes)
     selection = ("--peer", selected_peer) if selected_peer else ()
 
-    report = run_ethos(
-        "hook",
-        "pre-push",
-        PROPOSAL_REF,
-        head,
-        "--remote-head",
-        "0" * 40,
-        "--remote",
-        selected_peer or "gitlab",
-        "--json",
-        cwd=repo,
+    report = push_admission_report(
+        root=repo,
+        target_ref=PROPOSAL_REF,
+        pushed_head=head,
+        remote_head="0" * 40,
+        remote_name=selected_peer or "gitlab",
     )
     dry_run = branch_publication(repo, head, *selection)
     cwd = Path.cwd()

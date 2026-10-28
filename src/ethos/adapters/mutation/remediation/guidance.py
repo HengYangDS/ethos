@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 import shlex
+from typing import TYPE_CHECKING
+
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
+from ethos.adapters.repo.status.workspace import worktree_records
+from ethos.contracts.branch.roles import load_branch_role_policy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def proof_recovery_command(expect_head: str, *, change: str = "") -> str:
@@ -20,6 +28,35 @@ def archive_recovery_command(
     return (
         f"ethos lane archive-change --change {change} --expect-head {expect_head}"
         f"{subject_argument}{mode} --apply --json"
+    )
+
+
+def closeout_apply_command(
+    root: Path,
+    *,
+    accepted_head: str,
+    candidate_head: str,
+    receipt_path: Path | None = None,
+    status: dict[str, object] | None = None,
+    identity_transition: bool = False,
+) -> str:
+    """Render the sole exact public accepted-closeout command."""
+    worktrees = (
+        status.get("worktrees")
+        if status is not None
+        else worktree_records(root, current_path=root, policy=load_branch_role_policy(root))
+    )
+    accepted_root = accepted_worktree_root(worktrees, root).resolve()
+    receipt = (
+        f" --independent-verification-receipt {receipt_path.resolve().as_posix()}"
+        if receipt_path is not None
+        else ""
+    )
+    identity = " --identity-transition" if identity_transition else ""
+    return (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {accepted_head} --candidate-head {candidate_head}{receipt}{identity} "
+        f"--root {accepted_root.as_posix()} --json"
     )
 
 

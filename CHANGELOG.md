@@ -27,6 +27,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Removed
 
+- The hidden `ethos hook pre-push` command is gone; Git's native pre-push hook is the one push
+  admission. When a push waits for accepted closeout, the hook's report names the exact
+  `ethos land --closeout` command, as the removed command did.
 - `ethos prove` no longer accepts `--execution-root`, and its proof execution carrier is gone. The
   archive command commits a staged archive, and the archived head is proved in the Work Lane.
 - The wheel no longer ships the five retired policy documents. `ethos context` serves the matching

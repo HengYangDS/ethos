@@ -12,6 +12,7 @@ import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.mutation.publication.request as publication_request
 import ethos.adapters.openspec.observation as openspec_observation
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
@@ -364,21 +365,15 @@ def test_publication_keeps_unavailable_intent_observation_unknown(
     elif operation == "dry-run":
         report = branch_publication(repo, head)
     else:
-        report = run_ethos_blocked(
-            "hook",
-            "pre-push",
-            PROPOSAL_REF,
-            head,
-            "--remote-head",
-            "0" * 40,
-            "--remote",
-            "gitlab",
-            "--json",
-            cwd=repo,
+        report = push_admission_report(
+            root=repo,
+            target_ref=PROPOSAL_REF,
+            pushed_head=head,
+            remote_head="0" * 40,
+            remote_name="gitlab",
         )
     assert report["verdict"] == "unknown"
     assert all(
-        gap.startswith(f"openspec_ref_tree_unavailable:{head}")
-        for gap in report["missing_facts_or_evidence"]
+        gap.startswith(f"openspec_ref_tree_unavailable:{head}") for gap in report["required_gaps"]
     )
     assert {proposal_ref(remote) for remote in remotes.values()} == {""}

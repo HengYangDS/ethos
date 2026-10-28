@@ -12,9 +12,9 @@ import ethos.adapters.admission.evidence.external as evidence
 import ethos.adapters.repo.status.workspace as workspace
 import ethos.domain.land.closeout as closeout
 import ethos.domain.land.operation as land_commands
-import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
+from ethos.adapters.mutation.remediation.guidance import closeout_apply_command
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
@@ -35,8 +35,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
     from typing import Any
-
-    from ethos.result import EthosResult
 
 
 def _land_candidate(repo: Path, head: str) -> None:
@@ -294,22 +292,19 @@ def test_status_plan_closeout_and_hook_share_exact_apply_command(
     closeout = _closeout(repo)
     status = run_ethos("status", "--json", cwd=repo)
     plan = run_ethos("plan", "--json", cwd=repo)
-    emitted: list[EthosResult] = []
-    monkeypatch.setattr(hook_commands, "resolve_root", lambda _root: candidate)
-    monkeypatch.setattr(hook_commands, "emit", lambda result, **_kwargs: emitted.append(result))
-    hook_commands.pre_push(
-        "refs/heads/dev",
-        candidate_head,
-        options=hook_commands.PushOptions(
-            remote_head=accepted_head, remote="gitlab", json_output=True
-        ),
+    pushed = push_admission_report(
+        root=candidate,
+        target_ref="refs/heads/dev",
+        pushed_head=candidate_head,
+        remote_head=accepted_head,
+        remote_name="gitlab",
     )
     expected = closeout["next_action"]
     assert {
         closeout["next_action"],
         status["next_action"],
         plan["next_action"],
-        emitted[-1].next_action,
+        pushed["next_action"],
     } == {expected}
     monkeypatch.setattr(
         "ethos.adapters.admission.current.resolution.openspec_governance_report",
@@ -507,9 +502,7 @@ def test_closeout_projection_does_not_collect_unrelated_workspace_authority(
         return
     monkeypatch.setattr(workspace, "workspace_status_observation", reject_full_observation)
     if projection == "command":
-        command = closeout.closeout_apply_command(
-            candidate, accepted_head=accepted, candidate_head=proposed
-        )
+        command = closeout_apply_command(candidate, accepted_head=accepted, candidate_head=proposed)
         assert f"--root {repo.resolve().as_posix()} --json" in command
         assert f"--candidate-head {proposed}" in command
     else:

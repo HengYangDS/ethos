@@ -12,10 +12,6 @@ import ast
 import io
 import tokenize
 from functools import lru_cache
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _without_string_expressions(source: str, tree: ast.AST) -> str:
@@ -56,8 +52,3 @@ def effective_code_lines_for_source(source: str) -> int:
             continue
         occupied.update(range(token.start[0], token.end[0] + bool(token.end[1])))
     return len(occupied)
-
-
-def effective_code_lines(path: Path) -> int:
-    """Count effective code lines in a Python file (see module docstring)."""
-    return effective_code_lines_for_source(path.read_text(encoding="utf-8"))

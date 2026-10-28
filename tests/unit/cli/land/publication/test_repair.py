@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.commit.signature as signature_observation
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -18,7 +19,6 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.governed_repository import write_publication_topology
 from tests.support.proof import seed_executed_proof
@@ -51,10 +51,16 @@ def _attestations_without(repo: Path, field: str, value: str) -> Iterator[None]:
 
 
 def _pre_push(repo: Path, head: str, remote_head: str, *, blocked: bool = False) -> dict:
-    """Admit one dev update through the native pre-push hook against an exact peer head."""
-    runner = run_ethos_blocked if blocked else run_ethos
-    update = ("refs/heads/dev", head, "--remote-head", remote_head, "--remote", "gitlab")
-    return runner("hook", "pre-push", *update, "--json", cwd=repo)
+    """Admit one dev update as the native pre-push hook does, against an exact peer head."""
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+        remote_head=remote_head,
+        remote_name="gitlab",
+    )
+    assert (report["verdict"] != "pass") is blocked, report
+    return report
 
 
 def _land_forward(repo: Path, candidate: Path, baseline: str) -> str:
@@ -163,8 +169,8 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
     ).values()
     report = _pre_push(repo, head, old)
     assert report["verdict"] == "pass", report
-    assert report["data"]["commit_policy_admission"]["integration_baseline"] == replacement
-    _require_independent_admission(repo, candidate, old, head, report["data"])
+    assert report["commit_policy_admission"]["integration_baseline"] == replacement
+    _require_independent_admission(repo, candidate, old, head, report)
     receipt = _publish_preview(repo, head, old, peers)
     _publish_apply(repo, receipt, head, peers)
 
@@ -208,10 +214,10 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
     ).values()
     report = _pre_push(repo, head, peer_old)
     assert report["verdict"] == "pass", report
-    commits = report["data"]["commit_policy_admission"]
+    commits = report["commit_policy_admission"]
     assert commits["integration_baseline"] == replacement
     assert commits["revisions"] == [head]
-    _require_independent_admission(repo, candidate, peer_old, head, report["data"])
+    _require_independent_admission(repo, candidate, peer_old, head, report)
     bad = git(repo, "commit-tree", "-S", f"{head}^{{tree}}", "-p", head, "-m", "invalid forward")
     bad_range = ref_update_admission_report(
         repo,
@@ -226,7 +232,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
     receipt = _publish_preview(repo, head, peer_old, peers)
     with _attestations_without(repo, "predicate", SIGNATURE_PREDICATE):
         blocked = _pre_push(repo, head, peer_old, blocked=True)
-        assert blocked["data"]["commit_policy_admission"]["update_kind"] == "existing"
+        assert blocked["commit_policy_admission"]["update_kind"] == "existing"
         assert any(gap.startswith("commit_subject_invalid:") for gap in blocked["required_gaps"])
     _publish_apply(repo, receipt, head, peers)
 
@@ -247,7 +253,7 @@ def _require_independent_admission(
         with _attestations_without(repo, "id", identity):
             blocked = _pre_push(repo, head, old, blocked=True)
             assert gap in blocked["required_gaps"], blocked
-            assert blocked["data"]["commit_policy_admission"]["update_kind"] == "repair"
+            assert blocked["commit_policy_admission"]["update_kind"] == "repair"
             stream = StringIO()
             with redirect_stderr(stream):
                 code = execute_hook(repo, "pre-push", ("gitlab",), stdin=StringIO(update))

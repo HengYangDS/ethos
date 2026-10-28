@@ -20,6 +20,7 @@ import ethos.domain.status
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof import proof_admission_report
+from ethos.adapters.mutation.remediation.guidance import closeout_apply_command
 from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.binding import runner_source_root
@@ -88,35 +89,6 @@ class CloseoutResolution(BaseModel):
     required_gaps: tuple[str, ...]
     next_action: str
     user_decision_required: bool
-
-
-def closeout_apply_command(
-    root: Path,
-    *,
-    accepted_head: str,
-    candidate_head: str,
-    receipt_path: Path | None = None,
-    status: dict[str, object] | None = None,
-    identity_transition: bool = False,
-) -> str:
-    """Render the sole exact public accepted-closeout command."""
-    worktrees = (
-        status.get("worktrees")
-        if status is not None
-        else worktree_records(root, current_path=root, policy=load_branch_role_policy(root))
-    )
-    accepted_root = accepted_worktree_root(worktrees, root).resolve()
-    receipt = (
-        f" --independent-verification-receipt {receipt_path.resolve().as_posix()}"
-        if receipt_path is not None
-        else ""
-    )
-    identity = " --identity-transition" if identity_transition else ""
-    return (
-        "ethos land --closeout --apply --authorize "
-        f"--expect-head {accepted_head} --candidate-head {candidate_head}{receipt}{identity} "
-        f"--root {accepted_root.as_posix()} --json"
-    )
 
 
 def closeout_command_from_status(root: Path, status: dict[str, object]) -> str:

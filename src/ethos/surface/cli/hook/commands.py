@@ -14,7 +14,6 @@ from filelock import Timeout
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.paths import has_invalid_path_character
-from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
@@ -30,7 +29,6 @@ from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.land.closeout import closeout_apply_command
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app as root_app
@@ -44,7 +42,6 @@ root_app.command(_app)
 
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
 _ADMISSION_OPTIONS = Group("Admission")
-_PUSH_OPTIONS = Group("Push")
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,16 +60,6 @@ class _HookAdmissionOptions:
     json_output: JsonFlag = False
 
 
-@dataclass(frozen=True, slots=True)
-class PushOptions:
-    """CLI-only fields for one push admission observation."""
-
-    remote_head: Annotated[str, Parameter(name="--remote-head", group=_PUSH_OPTIONS)] = ""
-    remote: Annotated[str, Parameter(name="--remote", group=_PUSH_OPTIONS)] = ""
-    root: RootOption | None = None
-    json_output: JsonFlag = False
-
-
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CommitRangeOptions:
     """Explicit coordinates for one read-only introduced-range admission."""
@@ -87,7 +74,6 @@ class CommitRangeOptions:
 
 
 _DEFAULT_HOOK_ADMISSION_OPTIONS = _HookAdmissionOptions()
-_DEFAULT_PUSH_OPTIONS = PushOptions(remote_head="")
 
 
 def _report_result(
@@ -185,46 +171,6 @@ def commit_range(options: Annotated[CommitRangeOptions, Parameter(name="*")]) ->
             "checked_commit_count": report["checked_commit_count"],
         },
         lambda verdict: "" if verdict == "pass" else f"ethos status --root {repo} --json",
-    )
-    emit(result, json_output=options.json_output, enforce=True)
-
-
-@_app.command
-def pre_push(
-    target_ref: str,
-    pushed_head: str,
-    *,
-    options: Annotated[PushOptions, Parameter(name="*")] = _DEFAULT_PUSH_OPTIONS,
-) -> None:
-    """Evaluate the exact destination's review or accepted publication obligations."""
-    repo = resolve_root(options.root)
-    report = push_admission_report(
-        root=repo,
-        target_ref=target_ref,
-        pushed_head=pushed_head,
-        remote_head=options.remote_head,
-        remote_name=options.remote,
-    )
-    required_gaps = tuple(string_sequence(report.get("required_gaps")))
-    next_action = str(report.get("next_action") or "")
-    if "accepted_closeout_effect_not_attested" in required_gaps:
-        next_action = closeout_apply_command(
-            repo,
-            accepted_head=options.remote_head,
-            candidate_head=pushed_head,
-        )
-    elif report_verdict(report) != "pass" and not next_action:
-        next_action = f"ethos status --root {repo.resolve().as_posix()} --json"
-    result = _report_result(
-        "hook pre-push",
-        report,
-        {
-            "target_branch": report["target_branch"],
-            "role": report["role"],
-            "remote": str(report.get("remote_name", options.remote)),
-            "decision": _decision_action(report),
-        },
-        lambda verdict: next_action if verdict != "pass" else "",
     )
     emit(result, json_output=options.json_output, enforce=True)
 

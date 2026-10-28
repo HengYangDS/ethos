@@ -12,6 +12,7 @@ from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_report
+from ethos.adapters.mutation.remediation.guidance import closeout_apply_command
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.git import git_stdout
@@ -488,5 +489,9 @@ def push_admission_report(
         "accepted_closeout_effect": closeout,
         "decision": {"action": "allow" if verdict == "pass" else "block", "reason": reason},
         "required_gaps": gaps,
-        "next_action": str(proof.get("next_action") or ""),
+        "next_action": closeout_apply_command(
+            repo, accepted_head=remote_head, candidate_head=pushed_head
+        )
+        if "accepted_closeout_effect_not_attested" in gaps
+        else str(proof.get("next_action") or ""),
     }

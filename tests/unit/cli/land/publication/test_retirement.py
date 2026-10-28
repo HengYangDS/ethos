@@ -18,6 +18,7 @@ import ethos.adapters.mutation.publication.retirement as retirement
 import ethos.adapters.repo.commit.rewrite as rewrite
 import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
 import ethos.adapters.repo.git_object_sandbox as object_sandbox
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -238,18 +239,14 @@ def test_retirement_rejects_local_unaccepted_and_raw_hook_deletion(tmp_path: Pat
     git(repo, "reset", "--hard", accepted)
     for name in ("gitlab", "github"):
         git(repo, "push", name, f"{future}:{PROPOSAL_REF}")
-    report = run_ethos_blocked(
-        "hook",
-        "pre-push",
-        PROPOSAL_REF,
-        "0" * 40,
-        "--remote-head",
-        future,
-        "--remote",
-        "gitlab",
-        "--json",
-        cwd=repo,
+    report = push_admission_report(
+        root=repo,
+        target_ref=PROPOSAL_REF,
+        pushed_head="0" * 40,
+        remote_head=future,
+        remote_name="gitlab",
     )
+    assert report["verdict"] == "block"
     assert "proposal_retirement_not_accepted" in report["required_gaps"]
     assert {proposal_ref(peer) for peer in peers.values()} == {future}
     assert proposal != future

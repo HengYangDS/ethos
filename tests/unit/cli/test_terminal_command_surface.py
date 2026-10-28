@@ -201,17 +201,7 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
         ),
         (("lane", "repair-identity"), "Unknown command"),
         (("hook", "reconciliation-receipt"), "Unknown command"),
-        (
-            (
-                "hook",
-                "pre-push",
-                "refs/heads/dev",
-                "a" * 40,
-                "--reconciliation-receipt",
-                "/tmp/retired.json",
-            ),
-            "Unknown option",
-        ),
+        (("hook", "pre-push"), "Unknown command"),
         (
             (
                 "lane",

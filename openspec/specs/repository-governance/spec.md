@@ -4093,59 +4093,6 @@ rewrite authored prose or create another tracked intent authority.
 - **THEN** the archive grants no write scope to that file
 - **AND** a missing target, unsupported reference or absent archive Attestation remains blocked
 
-### Requirement: Proof execution carrier is not proof authority
-
-An exact-head repository proof MAY run gates in a separately selected clean
-worktree. The authoring Work Lane SHALL remain the authority for actor, Lease,
-committed intent and proof issuance. The execution carrier SHALL use the same
-Git common directory, be detached at that exact commit and have an unchanged
-index and tracked/untracked source corresponding to its HEAD.
-
-#### Scenario: A staged archive needs a current-policy proof
-
-- **WHEN** a Work Lane has a reviewed official archive staged and its unchanged
-  HEAD requires new quality checks
-- **AND** the caller selects a clean, same-common-dir carrier at that HEAD
-- **THEN** ETHOS executes the current required checks against the carrier
-- **AND** a passing Attestation binds the original lane's intent, HEAD and Lease
-- **AND** the original staged and working bytes remain unchanged.
-
-#### Scenario: The carrier is not the exact committed source
-
-- **WHEN** the selected carrier is foreign, attached to another branch, dirty,
-  at another commit, or changes during execution
-- **THEN** ETHOS rejects or reports an unknown outcome without a passing proof
-- **AND** it neither edits the authoring lane nor treats the carrier's Lease as
-  permission.
-
-#### Scenario: The requested exact HEAD is stale
-
-- **WHEN** `--expect-head` differs from the authoring lane's current HEAD
-- **THEN** ETHOS rejects before executing carrier gates
-- **AND** it preserves the original staged archive and issues no proof.
-
-### Requirement: Carrier proof preserves independent admission boundaries
-
-The proof policy SHALL be selected from the committed source and evaluated at
-the current required floor. Earlier policy results, carrier cleanliness,
-repository identity, valid Lease and successful checks are independent claims;
-none substitutes for another. The ordinary clean-lane proof path SHALL not
-require an execution carrier.
-
-#### Scenario: Authority or staged content changes during checks
-
-- **WHEN** the authoring lane's HEAD, Lease generation, staged index or working
-  content changes before issuance
-- **THEN** ETHOS does not mint a passing Attestation from completed gates
-- **AND** it preserves the exact completed-check diagnostics for recovery.
-
-#### Scenario: Historical proof cannot meet a stronger current floor
-
-- **WHEN** previous check materials do not prove each currently required
-  quality subject
-- **THEN** ETHOS requires execution of the missing current checks
-- **AND** it does not re-sign the historical proof or weaken the policy.
-
 ### Requirement: Blocking Canonical Guidance Has a Repair Path
 
 ETHOS SHALL admit corrective prewrite for an existing canonical OpenSpec spec
@@ -4379,9 +4326,10 @@ that the set update observes, never on the absence of a branch or ref alone.
 ### Requirement: Archive completion requires exact postimage quality
 
 Archive completion SHALL require native OpenSpec validity and the existing
-applicable proof for the actual resulting HEAD. Prearchive proof and Git effect
-evidence SHALL NOT establish postimage quality. Pending verification SHALL
-preserve and report the observed committed effect without claiming completion.
+applicable proof for the actual resulting HEAD. Archive SHALL NOT require a proof
+of the pre-archive HEAD, and Git effect evidence SHALL NOT establish postimage
+quality. Pending verification SHALL preserve and report the observed committed
+effect without claiming completion.
 
 #### Scenario: Native postimage finding before Git CAS
 
@@ -4399,8 +4347,8 @@ preserve and report the observed committed effect without claiming completion.
 
 #### Scenario: Archive changes an input consumed by a repository check
 
-- **WHEN** prearchive proof passes but the resulting source has no passing applicable proof
-- **THEN** archive reports a blocked committed repair boundary with the actual HEAD
+- **WHEN** an archive commits a resulting HEAD that has no passing applicable proof
+- **THEN** archive reports blocked pending verification with the actual HEAD
 - **AND** its continuation selects that HEAD's existing proof command and repository root
 - **AND** the reported native command comes from the committed archive artifact,
   retaining `skip_specs` rather than reading a now-absent active Change
@@ -4607,12 +4555,11 @@ not be resolved by choosing a convenient proof.
 
 - **GIVEN** two official Changes share the exact source and only one has proof
 - **WHEN** archive explicitly requests the unproven Change
-- **THEN** admission rejects before changing refs, index or content
-- **AND** an environment-selected proof for the other Change cannot satisfy it
+- **THEN** only that Change is archived, and its archived HEAD requires its own proof
+- **AND** the other Change's proof or environment selection neither satisfies nor alters that archive
 
 #### Scenario: Explicit archive remains selected through post-observation
 
-- **GIVEN** the named Change has a current exact proof
 - **WHEN** archive runs with an unrelated or invalid environment selection
 - **THEN** admission and post-observation consume the explicit Change
 - **AND** unselected intent remains unchanged and replay observes the prior effect
@@ -5867,3 +5814,28 @@ unverified.
   commands
 - **THEN** the comparative proof blocks
 - **AND** it names the dry-run result as the gap.
+
+### Requirement: An unlanded archive returns to its pre-archive head
+
+Until its Work Lane lands, the Lease holder SHALL be able to compensate an
+attested archive commit at the exact archived HEAD. One Lease-bound
+compare-and-swap SHALL restore the archive commit's parent, and the index and
+worktree SHALL then match that parent. Compensation SHALL be attested and SHALL
+NOT create another intent, proof or archive authority.
+
+#### Scenario: A failed archived-head proof returns
+
+- **WHEN** the archived HEAD's proof fails and the holder compensates at that exact HEAD
+- **THEN** the lane ref, index and worktree equal the pre-archive HEAD
+- **AND** the active Change is available again for repair and a later archive
+- **AND** the compensation is recorded as one attested Git effect
+
+#### Scenario: An inexact or landed archive is refused
+
+- **WHEN** the HEAD is not an attested archive of the named Change, is contained in the candidate branch, the worktree is dirty, the expected HEAD differs or another actor holds the Lease
+- **THEN** compensation is refused before any ref, index or worktree effect
+
+#### Scenario: An interrupted compensation completes
+
+- **WHEN** the compensating ref update completed but the index and worktree still hold the archived tree
+- **THEN** repeating the same compensation restores them without a second ref update

@@ -4722,12 +4722,7 @@ coordinates. Equal trees alone SHALL NOT establish acceptance or authority.
 
 ### Requirement: Python reference observation respects binding and call site
 
-Python consumer observation SHALL resolve statically determinable executable and
-environment reads from import binding, lexical scope and values at the call.
-Parsing a carrier SHALL NOT by itself establish semantic coverage. Unsupported
-dynamic expressions SHALL report UNKNOWN for the affected obligation rather
-than a fabricated reference or an unrelated whole-repository block. Patch
-admission, repository audit and private-boundary consumers share this owner.
+Python consumer observation SHALL resolve statically determinable executable and environment reads from import binding, lexical scope and the values that can reach the call. Parsing a carrier SHALL NOT by itself establish semantic coverage. A sink chosen by dynamic lookup SHALL make its carrier UNKNOWN, not a fabricated reference or a whole-repository block; a value supplied at run time stays with its producer. Patch admission, repository audit and private-boundary consumers share this owner.
 
 #### Scenario: Aliases preserve a real consumer
 
@@ -4749,9 +4744,15 @@ admission, repository audit and private-boundary consumers share this owner.
 
 #### Scenario: Dynamic semantics remain bounded unknown
 
-- **WHEN** a relevant callee or value uses unsupported dynamic lookup
-- **THEN** only the affected consumer obligation is UNKNOWN and cannot pass as evaluated
-- **AND** unrelated statically resolved files retain their valid result
+- **WHEN** a sink is chosen by dynamic lookup, such as `getattr(subprocess, name)` with a computed name
+- **THEN** its carrier is UNKNOWN and cannot pass as evaluated
+- **AND** the carrier's statically resolved references and unrelated files retain their result
+
+#### Scenario: A run-time value stays with its producer
+
+- **WHEN** an executor or environment read receives a parameter or a call result
+- **THEN** no reference is invented at that call and the carrier stays evaluated
+- **AND** a command constant that no executor runs is not a consumer
 
 ### Requirement: Native command declarations own their executables
 
@@ -5839,3 +5840,25 @@ NOT create another intent, proof or archive authority.
 
 - **WHEN** the compensating ref update completed but the index and worktree still hold the archived tree
 - **THEN** repeating the same compensation restores them without a second ref update
+
+### Requirement: Container environment declarations own runtime values
+
+The common reference owner SHALL read the names that a tracked Dockerfile or Containerfile declares with `ENV` or `ARG`, and the environment of each Compose service, as declared runtime values. A container build's own commands run against its image and SHALL NOT become repository executable consumers.
+
+#### Scenario: A Dockerfile declares a value
+
+- **GIVEN** a tracked Dockerfile declares `ENV GATE=1`, `ARG GATE` or the legacy `ENV GATE 1`
+- **WHEN** maintained code reads `GATE`
+- **THEN** reference closure recognizes the declaration
+- **AND** a read of an undeclared value remains an orphan consumer
+
+#### Scenario: A Compose service declares a value
+
+- **GIVEN** a Compose service lists `GATE` in its `environment`, as a mapping or as a list
+- **WHEN** maintained code reads `GATE`
+- **THEN** reference closure recognizes the declaration
+
+#### Scenario: Build commands are not consumers
+
+- **WHEN** a Dockerfile `RUN` instruction invokes a tool
+- **THEN** no repository executable consumer is observed from it

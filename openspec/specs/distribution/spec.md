@@ -470,7 +470,9 @@ copy the product source or require ETHOS developer tools.
 Installation, upgrade, rollback and uninstall SHALL use exact owned resources and
 fresh live-consumer observations. Existing common-directory runtime generations
 SHALL remain recoverable until their consumers have migrated. Unknown liveness
-SHALL prevent deletion without erasing successful activation evidence.
+SHALL prevent deletion without erasing successful activation evidence. A
+repository that has pinned an installation and not yet named it in its
+selectors SHALL count as a live consumer of that installation.
 
 #### Scenario: Upgrade is interrupted
 
@@ -483,6 +485,12 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **WHEN** uninstall or reclamation finds a live version consumer
 - **THEN** the consumer's selected bytes remain available
 - **AND** cleanup reports the exact remaining dependency
+
+#### Scenario: A repository is between pinning and selecting an installation
+
+- **WHEN** reclamation runs while a repository has pinned an installation and not yet named it in `CURRENT` or `ROLLBACK`
+- **THEN** that repository's consumer record and the installation remain
+- **AND** a later reclamation retires the installation only after the repository's selection settles without naming it
 
 #### Scenario: An external selected runtime has disappeared
 

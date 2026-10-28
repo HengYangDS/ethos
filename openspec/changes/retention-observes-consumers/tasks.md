@@ -10,9 +10,9 @@
   host-retention, legacy-supply and selection tests pass and `python_product` grows by at most 2
   lines (579 passed across the 25 test modules that run retention or hook installation,
   `green.log`; `host_retention.py` grows by 1 effective line).
-- [ ] 1.3 State in the `[Unreleased]` fix note of `CHANGELOG.md` that retention creates nothing in a
+- [x] 1.3 State in the `[Unreleased]` fix note of `CHANGELOG.md` that retention creates nothing in a
   repository without ETHOS state. Done when `markdown_lint` and `prose` pass with the other fast
-  gates.
+  gates (all 14 pass on `b1d5d67ea`).
 
 ## Workflow follow-up
 

@@ -4,7 +4,9 @@ A repository records itself in each installation it selects or holds as rollback
 installation is retired only when every recorded consumer is gone or names it in neither its
 selector (`CURRENT`) nor its rollback selector (`ROLLBACK`), and no running process or binding
 refers into it. An installation pinned before consumers were recorded has unknown users, so it
-stays; so does one whose consumer record or selector cannot be read.
+stays; so does one whose consumer record or selector cannot be read, and one whose consumer holds
+its selection lock, because a selection holds it from the pin that records the consumer until its
+selectors name what it pinned.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -77,7 +80,10 @@ def _consumer_state(
     if not consumer.exists() and not consumer.is_symlink():
         return "released"
     try:
-        named = [_named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
+        # A held selection lock is a selection in progress, which may be about to name this
+        # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.
+        with runtime_selection_lock(consumer).acquire(blocking=False):
+            named = [_named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
     except (OSError, UnicodeError, ValueError):
         return "unknown"
     return (

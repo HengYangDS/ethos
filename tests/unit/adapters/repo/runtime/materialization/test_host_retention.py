@@ -6,10 +6,15 @@ import shutil
 from typing import TYPE_CHECKING
 
 import pytest
+from filelock import FileLock
+from filelock import Timeout
 
+import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from tests.support.runtime_scenarios import materialized_activation_case
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -115,3 +120,51 @@ def test_an_installation_whose_use_is_uncertain_is_retained(tmp_path: Path, reas
 
     assert runtime.exists()
     assert report["retired"] == []
+
+
+def test_a_selection_in_progress_keeps_its_record_and_installation(tmp_path: Path) -> None:
+    """A repository holding its selection lock may be about to name the installation it pinned."""
+    store = _store(tmp_path)
+    runtime = _installation(store, "1" * 64)
+    other = _consumer(tmp_path / "other", current=runtime)
+    pinning = _consumer(tmp_path / "pinning")
+    for consumer in (other, pinning):
+        record_consumer(runtime.parents[1], consumer)
+    with FileLock(pinning / "ethos/runtime-selection.lock"):
+        retire_unused_installations(store, in_use=_nothing_in_use)
+    (pinning / "ethos/runtime/CURRENT").write_bytes(runtime_selection_bytes(pinning, runtime))
+    shutil.rmtree(tmp_path / "other")
+
+    report = retire_unused_installations(store, in_use=_nothing_in_use)
+
+    assert runtime.exists()
+    assert report["retained"] == [runtime.parents[1].as_posix()]
+
+
+def test_hook_install_holds_the_selection_lock_from_its_pins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retention sees the window between a pin and the selector write as a held lock."""
+    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    lock = common / "ethos/runtime-selection.lock"
+    held: list[bool] = []
+
+    def pin(*_arguments: object, **_options: object) -> Path:
+        probe = FileLock(lock)
+        try:
+            probe.acquire(blocking=False)
+        except Timeout:
+            held.append(True)
+        else:
+            probe.release()
+            held.append(False)
+        return runtime
+
+    monkeypatch.setattr(runtime_materialization, "materialize_runtime", pin)
+
+    install_hook_launchers(repo)
+
+    assert held == [True]
+    released = FileLock(lock)
+    released.acquire(blocking=False)
+    released.release()

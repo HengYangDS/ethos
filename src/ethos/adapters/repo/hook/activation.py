@@ -30,6 +30,7 @@ from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
@@ -73,35 +74,38 @@ def install_hook_launchers(
     expected = expected_runtime_build(repo, installed_runtime=installed_runtime)
     expected_build, build_source = expected.identity, expected.source
     common = Path(git_common_dir(repo))
-    current_before = _runtime_selection_bytes(common)
-    runtime = runtime_materialization.materialize_runtime(
-        repo,
-        source_python,
-        expected_build=expected_build,
-        build_source=build_source,
-        installed_runtime=installed_runtime,
-    )
-    rollback_supply = _rollback_supply(common, runtime.parent) if current_before is not None else {}
-    hooks = materialize_hook_launchers(common / "ethos" / "hooks")
-    linked = _linked_worktree_paths(repo)
-    common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
-    binding, state_transition, worktrees_before = _activate_with_state(
-        repo,
-        common,
-        runtime.parent,
-        hooks,
-        linked,
-        common_before=common_before,
-        current_before=current_before,
-        reset_state=reset_state,
-        expected_build=expected_build,
-        installed_runtime=installed_runtime,
-    )
-    binding["state_transition"] = state_transition
-    if rollback_supply:
-        binding["rollback_supply"] = rollback_supply
-    if rollback_supply.get("state") == "preserved":
-        _hold_rollback(common, Path(rollback_supply["runtime"]))
+    # Retention reads a held selection lock as a selection in progress, so it is held from the
+    # selector read before the pins that record this repository until the selector writes.
+    with runtime_selection_lock(common):
+        current_before = _runtime_selection_bytes(common)
+        runtime = runtime_materialization.materialize_runtime(
+            repo,
+            source_python,
+            expected_build=expected_build,
+            build_source=build_source,
+            installed_runtime=installed_runtime,
+        )
+        rollback_supply = {} if current_before is None else _rollback_supply(common, runtime.parent)
+        hooks = materialize_hook_launchers(common / "ethos" / "hooks")
+        linked = _linked_worktree_paths(repo)
+        common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
+        binding, state_transition, worktrees_before = _activate_with_state(
+            repo,
+            common,
+            runtime.parent,
+            hooks,
+            linked,
+            common_before=common_before,
+            current_before=current_before,
+            reset_state=reset_state,
+            expected_build=expected_build,
+            installed_runtime=installed_runtime,
+        )
+        binding["state_transition"] = state_transition
+        if rollback_supply:
+            binding["rollback_supply"] = rollback_supply
+        if rollback_supply.get("state") == "preserved":
+            _hold_rollback(common, Path(rollback_supply["runtime"]))
     binding["legacy_runtime_locator"] = _retire_legacy_locator(common)
     binding["linked_worktrees"] = [
         {

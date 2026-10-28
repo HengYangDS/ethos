@@ -16,6 +16,7 @@ from ethos.adapters.repo.runtime.materialization.effect import materialize_runti
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.verdict import reduce_verdicts
@@ -209,10 +210,13 @@ def _apply_runtime(
         message = "adoption_runtime_selector_invalid"
         raise TypeError(message)
     prior = previous.encode("utf-8") if previous is not None else None
-    python = materialize_runtime(
-        root, Path(sys.executable), expected_build=expected.identity, build_source=expected.source
-    )
-    selected = activate_runtime(common, python.parent, expected_current=prior)
+    source_python = Path(sys.executable)
+    # Retention reads a held selection lock as a selection in progress, from pin to selection.
+    with runtime_selection_lock(common):
+        python = materialize_runtime(
+            root, source_python, expected_build=expected.identity, build_source=expected.source
+        )
+        selected = activate_runtime(common, python.parent, expected_current=prior)
     desired = runtime_selection_bytes(common, selected.root)
     try:
         with runtime_selection_transaction(common, expected_current=desired):

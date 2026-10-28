@@ -15,21 +15,19 @@ See also: [Kernel Model](../concepts/kernel-model.md), [ETHOS source Terminal Go
 
 ## Product
 
-ETHOS provides a reliable path for people and interchangeable Agent capabilities
-from understanding a problem to evolving a repository and evaluating its use.
-The product connects value and observation, research, interpretation and
-trade-offs, accepted intent, specification and acceptance, context and capability
-composition, collaboration and execution, verification and delivery, actual
-outcomes, feedback, learning and exit. ETHOS owns, once, what governed
-repositories share, so each repository carries only its own purpose.
+ETHOS provides a reliable path for people and interchangeable Agent capabilities from understanding
+a problem to evolving a repository and evaluating its use. The product connects value and
+observation, research, interpretation and trade-offs, accepted intent, specification and acceptance,
+context and capability composition, collaboration and execution, verification and delivery, actual
+outcomes, feedback, learning and exit. ETHOS owns, once, what governed repositories share, so each
+repository carries only its own purpose.
 
-A proof-carrying repository change compiler and transaction protocol forms its
-small trust kernel. It compiles accepted intent and fresh observations into a
-bounded transition, rechecks preconditions at effect time, and attests what was
-observed, decided and effected. ETHOS composes replaceable Skills, generators,
-verifiers and observers with typed I/O, identity/version, permission, cancellation
-and failure bounds; users need no rival authority. External generators only
-propose candidates, without active worktree or Git-common writes or publication credentials.
+A proof-carrying repository change compiler and transaction protocol forms its small trust kernel.
+It compiles accepted intent and fresh observations into a bounded transition, rechecks preconditions
+at effect time, and attests what was observed, decided and effected. ETHOS composes replaceable
+Skills, generators, verifiers and observers with typed I/O, identity/version, permission,
+cancellation and failure bounds; users need no rival authority. External generators only propose
+candidates, without active worktree or Git-common writes or publication credentials.
 
 Its promise is preserved meaning, actionable uncertainty and recoverable results,
 not more governance. Repository formation, gradual adoption, customization,
@@ -37,10 +35,9 @@ upgrade, Agent handoff and exit belong to that responsibility. Deployment and
 successful checks are intermediate claims; actual benefit requires observations
 bound to the deployed identity, environment, baseline and observation window.
 
-ETHOS is local-first and vendor-neutral. Git, forges, CI, OpenSpec, agent
-runtimes, and task systems remain native systems or adapters; none becomes an
-ETHOS-owned truth store merely by being connected to it. Local, GitLab, and
-GitHub observations are distinct proof planes.
+ETHOS is local-first and vendor-neutral. Git, forges, CI, OpenSpec, agent runtimes, and task systems
+remain native systems or adapters; none becomes an ETHOS-owned truth store merely by being connected
+to it. Local, GitLab, and GitHub observations are distinct proof planes.
 
 ## Root Constraint
 
@@ -324,34 +321,31 @@ newer transport, worktree or ref receipts cannot substitute.
 
 ### Configuration Boundaries
 
-Repository source owns behavior, `system/` machine contracts, tool-named
-`.config/checks/<owner>/` native inputs and provider files provider syntax.
-The packaged `system/gates.toml` holds the obligations ETHOS owns for every
-repository; each repository, ETHOS included, declares its own gates in its
-profile or in the registry file its profile names.
-Native configs and locks own tool policy and versions. Projections link rather than copy.
+Repository source owns behavior, `system/` machine contracts, tool-named `.config/checks/<owner>/`
+native inputs and provider files provider syntax. The packaged `system/gates.toml` holds the
+obligations ETHOS owns for every repository; each repository, ETHOS included, declares its own gates
+in its profile or in the registry file its profile names. Native configs and locks own tool policy
+and versions. Projections link rather than copy.
 
 ## Isomorphic Adopter Governance
 
-ETHOS and an adopted repository use the same kernel and transaction protocol.
-Facts select ETHOS's obligations; profiles declare a repository's gates, values
-and proof depth, and adapters select native carriers; none creates another
-command plane, ontology, or truth store. This is not product
-cloning: each repository keeps its domain model, product layout and provider shape; the [ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") fixes only shared carriers.
-A repository's obligations are a function of the carriers it authors and the
-values it declares, the same under any name, profile id, registry path,
-location or history. The ETHOS product that judges a repository supplies the
-shared ones, from the repository's own tree when that tree builds the product.
+ETHOS and an adopted repository use the same kernel and transaction protocol. Facts select ETHOS's
+obligations; profiles declare a repository's gates, values and proof depth, and adapters select
+native carriers; none creates another command plane, ontology, or truth store. This is not product
+cloning: each repository keeps its domain model, product layout and provider shape; the
+[ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") fixes
+only shared carriers. A repository's obligations are a function of the carriers it authors and the
+values it declares, the same under any name, profile id, registry path, location or history. The
+ETHOS product that judges a repository supplies the shared ones, from the repository's own tree when
+that tree builds the product.
 
-The semantic kernel remains independent of OpenSpec types. Complete,
-mutation-capable adoption nevertheless pins verified OpenSpec as the sole
-Change, design, spec, task-progress, dependency, and archive carrier. The
-official CLI owns those semantics. A repository may omit OpenSpec only while it
+The semantic kernel remains independent of OpenSpec types. Complete, mutation-capable adoption
+nevertheless pins verified OpenSpec as the sole Change, design, spec, task-progress, dependency, and
+archive carrier. The official CLI owns those semantics. A repository may omit OpenSpec only while it
 remains observation-only; material governed mutation then fails closed.
 
-Before ETHOS introduces any carrier, schema, persisted record, command-local
-receipt, lifecycle state, or semantic type, the design must answer all three
-questions affirmatively:
+Before ETHOS introduces any carrier, schema, persisted record, command-local receipt, lifecycle
+state, or semantic type, the design must answer all three questions affirmatively:
 
 1. Is the obligation absent from official OpenSpec, Git, Commitment,
    TransitionPlan, Attestation, and the existing effect adapters?
@@ -383,23 +377,19 @@ The public product surface is deliberately small and capability-complete:
 | A2A adapter                 | Optional interoperability over explicit capability contracts, without another task or authority store.                                            |
 | CI and forge projections    | Native provider syntax that invokes the same declared proof capabilities and preserves proof-plane identity.                                      |
 
-UX and DX are kernel properties, not documentation polish. A normal path asks
-only for facts that change the next action; advanced detail is available without
-hiding a gap. Every block names what happened, why it blocks, its evidence or
-missing fact, the one safe next action, and whether a human decision is required.
-Human and JSON views preserve the same verdict and semantic identifiers. Local
-operation is deterministic and offline after bootstrap. An explicitly selected
-installed product supplies ETHOS; the target repository supplies its intent,
-policy, source and project toolchain. Product identity, repository selection and
-project environments are distinct. No adopter needs an ETHOS checkout or developer
-environment. Native macOS and Linux are required supported platforms; Windows
-support is desirable and claimed only after native qualification. Homebrew is a
-supported installation channel; packaging internals do not dictate repository
-semantics. CLI, SDK, MCP and Skills expose the same current
-context, available capabilities, gaps and safe continuation. Adoption
-is previewable, idempotent, minimally invasive, reversible before first governed
-effect, and cleanly uninstallable without leaving hooks, generated truth, or a
-second control plane.
+UX and DX are kernel properties, not documentation polish. A normal path asks only for facts that
+change the next action; advanced detail is available without hiding a gap. Every block names what
+happened, why it blocks, its evidence or missing fact, the one safe next action, and whether a human
+decision is required. Human and JSON views preserve the same verdict and semantic identifiers. Local
+operation is deterministic and offline after bootstrap. An explicitly selected installed product
+supplies ETHOS; the target repository supplies its intent, policy, source and project toolchain.
+Product identity, repository selection and project environments are distinct. No adopter needs an
+ETHOS checkout or developer environment. Native macOS and Linux are required supported platforms;
+Windows support is desirable and claimed only after native qualification. Homebrew is a supported
+installation channel; packaging internals do not dictate repository semantics. CLI, SDK, MCP and
+Skills expose the same current context, available capabilities, gaps and safe continuation. Adoption
+is previewable, idempotent, minimally invasive, reversible before first governed effect, and cleanly
+uninstallable without leaving hooks, generated truth, or a second control plane.
 
 Continuation coordinates are typed by route: an execution session, execution
 cell, and thread operation are not interchangeable. A long mutation writes its
@@ -605,8 +595,7 @@ their rendered dashboards, indexes, and command output remain projections.
 
 ## Invariants
 
-1. One durable obligation has one narrow semantic owner across ETHOS and every
-   governed repository.
+1. One durable obligation has one narrow semantic owner across ETHOS and every governed repository.
 2. Every effect is compiled, evaluated, freshly admitted and applied by exact CAS.
 3. Unknown required facts, ambiguous authority, stale bindings and conflicts block.
 4. Historical source bytes remain recoverable through Git without becoming current authority.

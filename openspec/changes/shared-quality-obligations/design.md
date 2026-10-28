@@ -4,7 +4,7 @@
 
 See [proposal.md](proposal.md). Design revision 5.3, D14
 (`build/runtime/work/architecture-realization/design.md`), states the principle. The route splits
-its step 2 at this proposal under PDC 569-573. This Change is the kernel. `shared-quality-floors`
+its step 2 at this proposal under PDC 567-571. This Change is the kernel. `shared-quality-floors`
 converts the shared Nox floors into providers and carries the route's deletions.
 
 Constraints:

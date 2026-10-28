@@ -5,7 +5,7 @@
 The accepted requirement "Python reference observation respects binding and call site" is ahead of its owner. The observer still recognizes calls by spelling, and on accepted `dev` (`f699fa6cc`) it fails all four of its scenarios:
 
 - `import subprocess as sp; sp.run([...])`, `from subprocess import run`, `import os as o; o.getenv(...)` and `os.environ[...]` are never observed, so an undeclared executable or input passes.
-- A local or a parameter named `subprocess` invents an executable, and a module constant whose name ends in `COMMAND`, `CMD` or `TOOL` becomes a consumer even when nothing runs it.
+- A local or a parameter named `subprocess` invents an executable, and a module constant whose name ends in `COMMAND`, `CMD`, `EXECUTABLE`, `BINARY`, `CLI` or `TOOL` becomes a consumer even when nothing runs it.
 - One file-wide constant table takes each name's last assignment, so `NAME = "A"; getenv(NAME); NAME = "B"` reads `B`, and a function's local `NAME` leaks into other scopes.
 - `getattr(subprocess, name)(...)` is reported as evaluated.
 

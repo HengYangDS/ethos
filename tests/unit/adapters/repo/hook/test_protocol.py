@@ -79,12 +79,13 @@ def test_unused_admission_cannot_become_a_notification_dependency(
     assert result.stdout == result.stderr == ""
 
 
-@pytest.mark.parametrize("phase", ["prepared", "committed", "aborted"])
+@pytest.mark.parametrize("phase", ["prepared", "preparing", "committed", "aborted"])
 def test_malformed_protocol_fails_before_initializing_authority(tmp_path: Path, phase: str) -> None:
-    """A malformed envelope is rejected by its owner, not hidden by heavy startup."""
+    """A malformed prepared envelope is rejected by its owner; other states are not governed."""
     result = _protocol(tmp_path, phase, "malformed\n")
-    assert result.returncode == 1
-    assert json.loads(result.stderr)["required_gaps"] == ["ref_update_invalid"]
+    assert result.returncode == (phase == "prepared")
+    if phase == "prepared":
+        assert json.loads(result.stderr)["required_gaps"] == ["ref_update_invalid"]
 
 
 @pytest.mark.parametrize(

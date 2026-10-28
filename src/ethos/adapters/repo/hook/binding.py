@@ -50,7 +50,7 @@ def load_hook_contract(
         and isinstance(template, str)
         and template.startswith("#!/bin/sh\n")
         and template.endswith("\n")
-        and template.count("@PYTHON@") == template.count("@HOOK@") == 1
+        and (template.count("@PYTHON@"), template.count("@HOOK@")) in {(1, 1), (1, 2)}
     )
     if not valid:
         message = "hook_launcher_declaration_invalid"

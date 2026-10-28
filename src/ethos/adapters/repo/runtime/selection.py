@@ -166,7 +166,7 @@ def activate_runtime(
     desired = runtime_selection_bytes(common_root, runtime)
     candidate = runtime.resolve()
     runtime_root.mkdir(parents=True, exist_ok=True)
-    with _selection_lock(common_root):
+    with runtime_selection_lock(common_root):
         selected = require_selected_runtime(candidate)
         require_runtime_selection_scope(common_root, selected)
         current = _selector_bytes(runtime_root / _SELECTOR)
@@ -198,7 +198,7 @@ def restore_runtime_selection(
     """Restore the exact prior selector bytes after failed activation."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
-    with _selection_lock(common_root):
+    with runtime_selection_lock(common_root):
         _restore_selector(selector, previous, expected_current=expected_current)
 
 
@@ -220,7 +220,7 @@ def runtime_selection_transaction(
     """Guard selector-dependent effects with the canonical lock and exact CAS."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
-    with _selection_lock(common_root):
+    with runtime_selection_lock(common_root):
         if _selector_bytes(selector) != expected_current:
             raise ValueError(_CURRENT_STALE)
         yield
@@ -347,13 +347,19 @@ def _replace_selector(selector: Path, value: bytes | None) -> None:
         staging.unlink(missing_ok=True)
 
 
-def _selection_lock(common: Path) -> FileLock:
-    """Keep one native lock inode and bounded wait for every selector effect."""
+def runtime_selection_lock(common: Path) -> FileLock:
+    """Keep one native lock inode and bounded wait for every selector effect.
+
+    A selection that pins supply holds it until its selectors name what it pinned, so retention
+    reads it held as a selection in progress. It is one object per repository, so the selector
+    effects inside such a selection re-enter it.
+    """
     return FileLock(
-        common / "ethos" / "runtime-selection.lock",
+        common.resolve() / "ethos" / "runtime-selection.lock",
         timeout=10,
         fallback_to_soft=False,
         preserve_lock_file=True,
+        is_singleton=True,
     )
 
 

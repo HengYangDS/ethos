@@ -343,7 +343,6 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
         for step in steps
         if step.get("uses", "").startswith("astral-sh/setup-uv@")
     } == {uv_version}
-    assert mise["tools"]["node"] in github["jobs"]["host-conformance"]["name"]
     npm_job = gitlab["ethos:npm"]
     assert npm_job["variables"]["NODE_VERSION"] == mise["tools"]["node"]
     assert npm_job["script"][-1] == (

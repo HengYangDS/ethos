@@ -59,7 +59,7 @@ jobs:
       - name: Inspect the published supply image
         run: docker buildx imagetools inspect ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}
   host-conformance:
-    name: ${{ matrix.os }} / Python ${{ matrix.python }} / Node 26.12.1
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     if: ${{ !inputs.supply_image && !inputs.release_tag }}
     env:

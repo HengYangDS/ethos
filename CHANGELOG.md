@@ -38,6 +38,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- The hosted host conformance jobs are named `<os> / Python <version>` from their matrix alone. A
+  Node version no longer renames them, so the repository ruleset's required checks match them.
 - Python reference observation follows import aliases, from-imports, lexical scope and program
   point. A local named like a module no longer invents a consumer, a later assignment no longer
   replaces an earlier read, and a command constant that nothing runs is no longer a consumer. A

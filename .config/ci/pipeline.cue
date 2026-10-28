@@ -238,7 +238,7 @@ github: {
 			}]
 		}
 		"host-conformance": {
-			name:      "${{ matrix.os }} / Python ${{ matrix.python }} / Node \(_inputs.node.tools.node)"
+			name:      "${{ matrix.os }} / Python ${{ matrix.python }}"
 			"runs-on": "${{ matrix.os }}"
 			if:        "${{ \(regularRun) }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"

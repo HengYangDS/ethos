@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.19] - 2026-10-29
+
 ### Changed
 
 - Git hooks start the ETHOS runtime only for a reference transaction's prepared state. The
@@ -34,16 +36,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A provider failure reported from a nested command scope ends only that scope's commands. One
   failing gate no longer stops its sibling gates with `process_cancelled`; cancelling the proof
   still ends every gate's commands.
-- CI preparation installs the declared Node through mise, from which shared quality checks resolve
-  it, so the static JavaScript floor finds Node on a clean runner.
+- A gate that declares no native outputs runs without a native output root. Its commands no longer
+  inherit `ETHOS_NATIVE_OUTPUT_DIR` and `ETHOS_NATIVE_OBSERVER_REQUIREMENT` from an enclosing
+  attempt, such as a tests session that runs gates, so they cannot write into that attempt's root.
 
 ### Security
 
 - The product npm lock overrides markdownlint-cli2's re2js 2.8.6, which markdownlint 0.42.0 pins
   exactly, with 2.8.8. re2js before 2.8.7 matches lookbehind assertions in quadratic time
   (GHSA-gg6h-894w-4m9c, high, published on 2026-10-28), and markdownlint 0.42.0 and
-  markdownlint-cli2 0.24.0 are their latest releases. The installed `v0.2.0-alpha.18` runtime ships
-  re2js 2.8.6 in the Node supply of its markdown lint gate.
+  markdownlint-cli2 0.24.0 are their latest releases. `v0.2.0-alpha.18` ships re2js 2.8.6 in the
+  Node supply of its markdown lint gate.
+- The wheels and installed runtimes still ship uv 0.13.5, whose embedded rustls 0.23.45 carries the
+  four advisories that the `0.2.0-alpha.18` entry lists; uv 0.13.6, the latest release, embeds the
+  same rustls.
 
 ## [0.2.0-alpha.18] - 2026-10-29
 

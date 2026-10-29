@@ -81,14 +81,11 @@ def product_reference_gaps(
     observed: dict[str, set[str]],
 ) -> list[str]:
     """Reject machine references outside one declared product closure."""
-    gaps = []
-    for kind in REFERENCE_KINDS:
-        permitted = allowed.get(kind, frozenset())
-        for value in sorted(observed.get(kind, set()) - set(permitted)):
-            if kind == "import" and value in {"ethos", "tests", "tools"}:
-                continue
-            gaps.append(f"product_reference_not_admitted_at_baseline:{kind}:{value}")
-    return gaps
+    return [
+        f"product_reference_not_admitted_at_baseline:{kind}:{value}"
+        for kind in REFERENCE_KINDS
+        for value in sorted(observed.get(kind, set()) - set(allowed.get(kind, frozenset())))
+    ]
 
 
 def runner_provided_references(
@@ -282,8 +279,6 @@ def _orphan_consumers(
             if identity in owners.get(kind, ()) or _runner_provides(
                 runners, kind, identity, sources
             ):
-                continue
-            if kind == "import" and identity in {"ethos", "tests", "tools"}:
                 continue
             findings.append(
                 SemanticClosureFinding(

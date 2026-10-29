@@ -75,6 +75,7 @@ def patch_admission(
     root_repair: dict[str, object] = {}
     relocation: dict[str, object] = {}
     observation: ProductReferences | None = None
+    gaps: list[str] = []
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
@@ -83,7 +84,7 @@ def patch_admission(
             )
             (
                 observation,
-                effect_gaps,
+                gaps,
                 unknown,
                 effects,
                 outputs,
@@ -99,7 +100,7 @@ def patch_admission(
                 baseline=baseline_head,
             )
             references = observation.references
-            reason = effect_gaps[0] if effect_gaps else ""
+            reason = gaps[0] if gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
@@ -119,6 +120,8 @@ def patch_admission(
         "verdict": "block" if reason else "unknown" if unknown else "pass",
         "state": "blocked" if reason else "unknown" if unknown else "admitted",
         "reason": reason or (unknown[0] if unknown else success_reason),
+        # Every refusal at once, so one admission names each declaration the baseline lacks.
+        "required_gaps": list(dict.fromkeys([reason, *gaps])) if reason else [],
         "effects": effects,
         "origin_outputs": outputs,
         "unknown_inputs": unknown,

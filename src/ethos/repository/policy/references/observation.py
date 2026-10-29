@@ -26,6 +26,7 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
+from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
@@ -72,11 +73,15 @@ def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
 
 
 def installed_distribution_modules(root: Path) -> dict[str, tuple[str, ...]]:
-    """Map installed distributions to the modules they provide, as native deptry reads them."""
+    """Map installed distributions to their modules, as native deptry reads an environment.
+
+    Each manager's own location: uv's project `.venv` and every pixi environment.
+    """
     paths = [
         str(path)
+        for environment in (root / ".venv", *sorted((root / ".pixi/envs").glob("*")))
         for pattern in ("lib/python*/site-packages", "Lib/site-packages")
-        for path in sorted((root / ".venv").glob(pattern))
+        for path in sorted(environment.glob(pattern))
     ]
     modules: dict[str, set[str]] = defaultdict(set)
     for distribution in importlib.metadata.distributions(path=paths) if paths else ():
@@ -125,23 +130,18 @@ def product_references_from_files(
         path: python_references.complete_python_tree(text)
         for path, text in declaration_files(command_sources, "commands").items()
     }
-    prefixes = python_references.cyclopts_prefixes(command_sources, parsed_files=parsed_files)
-    command_owners = {
-        path: python_references.cyclopts_command_owners(path, tree, prefixes)
-        for path, tree in parsed_files.items()
-        if tree is not None
-    }
+    command_owners = command_owner_sources_from_files(command_sources, parsed_files=parsed_files)
     command_vocabulary = command_references.CommandVocabulary.compile(
-        chain(declared_commands, chain.from_iterable(command_owners.values()))
+        chain(declared_commands, command_owners)
     )
     npm_scripts = npm_script_commands(command_sources)
     observed = {kind: set() for kind in REFERENCE_KINDS}
     if include_declarations:
         observed["command"].update(
             command
-            for path in files
-            if not path.startswith("tests/")
-            for command in command_owners.get(path, {})
+            for command, symbols in command_owners.items()
+            for symbol in symbols
+            if (path := symbol.rpartition(":")[0]) in files and not path.startswith("tests/")
         )
     unknown_paths: list[str] = []
     for path, text in files.items():

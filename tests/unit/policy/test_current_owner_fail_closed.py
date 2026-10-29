@@ -158,11 +158,15 @@ helper
     assert observed["import"] == {"pytest"}
     assert "printf" not in observed["executable"]
     assert observed["distribution"] == set()
+    # No module is excused by name; first-party ownership comes from the repository tree.
     assert product_reference_gaps(
         {kind: frozenset() for kind in observed},
         observed | {"import": {"ethos", "tests", "tools", "foreign"}},
     ) == [
-        "product_reference_not_admitted_at_baseline:import:foreign",
+        *[
+            f"product_reference_not_admitted_at_baseline:import:{value}"
+            for value in ("ethos", "foreign", "tests", "tools")
+        ],
         *[
             f"product_reference_not_admitted_at_baseline:executable:{value}"
             for value in sorted(observed["executable"])

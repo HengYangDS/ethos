@@ -47,13 +47,11 @@ def native_owned_references_from_files(
     npm_scripts = npm_script_commands(files)
     mappings, first_party = _python_import_owners(files)
     installed = distribution_modules or {}
-    before = set(owned["distribution"])
     for text in declaration_files(files, "python-project").values():
         pyproject_references(text, owned)
     owned["import"].update(
         module
-        for name in owned["distribution"] - before
-        if not name.startswith("@")
+        for name in owned["distribution"]
         for module in mappings.get(name) or installed.get(name) or (name.replace("-", "_"),)
     )
     for text in declaration_files(files, "node-package").values():
@@ -131,20 +129,18 @@ def command_owner_sources_from_files(
     """Return each command identity with every exact defining symbol."""
     sources = _command_declarations(files)
     context = _command_declarations((context_files or {}) | files)
+    if parsed_files is None:
+        parsed_files = {
+            path: python_references.complete_python_tree(text) for path, text in context.items()
+        }
     prefixes = python_references.cyclopts_prefixes(context, parsed_files=parsed_files)
     owners: dict[str, set[str]] = {}
     module_paths = {python_references.module_name(path): path for path in sources}
     for (module, variable), command in prefixes.items():
-        if command and (path := module_paths.get(module)):
+        if path := module_paths.get(module):
             owners.setdefault(command, set()).add(f"{path}:{variable}")
-    for path, text in sources.items():
-        tree = parsed_files.get(path) if parsed_files is not None else None
-        trees = (
-            (tree,)
-            if tree is not None
-            else (() if parsed_files is not None else python_references.python_trees(text))
-        )
-        for tree in trees:
+    for path in sources:
+        if (tree := parsed_files.get(path)) is not None:
             for command, symbols in python_references.cyclopts_command_owners(
                 path, tree, prefixes
             ).items():
@@ -162,6 +158,14 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, .
     payload = _toml(_declaration_text(files, "python-import-policy"))
     mappings: dict[str, tuple[str, ...]] = {}
     first_party = set(_string_items(payload.get("known_first_party")))
+    # The repository owns the modules its own tree provides at its root and under a leading `src/`.
+    first_party.update(
+        name
+        for path in files
+        if path.endswith(".py")
+        for name in (path.partition("/")[0], python_references.module_name(path).partition(".")[0])
+        if name.isidentifier()
+    )
     native = payload.get("package_module_name_map")
     for distribution, modules in native.items() if isinstance(native, dict) else ():
         if names := ((modules,) if isinstance(modules, str) else _string_items(modules)):
@@ -286,6 +290,8 @@ def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[s
     if product is not None:
         owned["executable"].update(product.project.scripts)
         owned["executable"].update(product.project.gui_scripts)
+    # The product's console also runs as its import package, `python -m ethos.cli`.
+    owned["import"].add(__name__.partition(".")[0])
     # A governed repository may invoke what the product itself runs, as it may its scripts.
     surfaces = canonical_resource("system/surfaces.toml")
     if surfaces.is_file():

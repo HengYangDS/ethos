@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import warnings
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -30,38 +31,18 @@ _SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 _BINDERS = (ast.Name, ast.Import, ast.ImportFrom, ast.arg, *_SCOPES)
 # A name bound only through names this deep is not followed further.
 _DEPTH = 8
-
-
-def python_trees(text: str) -> tuple[ast.AST, ...]:
-    """Parse complete Python or independent added lines with valid Python syntax."""
-    try:
-        return (_parse_without_syntax_warnings(text),)
-    except SyntaxError:
-        trees = []
-        for line in text.splitlines():
-            candidate = line
-            if line.lstrip().startswith("@"):
-                candidate += "\ndef _binding_probe() -> None:\n    pass"
-            try:
-                trees.append(_parse_without_syntax_warnings(candidate))
-            except SyntaxError:
-                continue
-        return tuple(trees)
+# Cyclopts' documented default command name splits PascalCase where its own transform does.
+_CASE_BOUNDARY = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-z0-9])(?=[A-Z])")
 
 
 def complete_python_tree(text: str) -> ast.AST | None:
-    """Parse one complete Python carrier without fragment fallback."""
+    """Parse one complete Python carrier; a compile-time warning does not make it invalid."""
     try:
-        return _parse_without_syntax_warnings(text)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", SyntaxWarning)
+            return ast.parse(text)
     except SyntaxError:
         return None
-
-
-def _parse_without_syntax_warnings(text: str) -> ast.AST:
-    """Treat warning-producing snippets as invalid partial Python syntax."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", SyntaxWarning)
-        return ast.parse(text)
 
 
 def python_references(
@@ -159,13 +140,17 @@ class _Bindings:
             )
             return {node.id: getattr(owner, "value", None) if simple else None}
         if isinstance(node, ast.Import | ast.ImportFrom):
+            # A package-relative import resolves inside its own package, never at the top level.
+            relative = "." * getattr(node, "level", 0)
             modules = (
                 [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module]
             )
-            self.imports.update(module.split(".")[0] for module in modules if module)
+            self.imports.update(
+                module.split(".")[0] for module in modules if module and not relative
+            )
             return {
                 alias.asname or alias.name.split(".")[0]: _Name(
-                    f"{node.module}.{alias.name}"
+                    f"{relative}{node.module}.{alias.name}"
                     if isinstance(node, ast.ImportFrom)
                     else alias.name
                     if alias.asname
@@ -275,26 +260,18 @@ def cyclopts_prefixes(
     *,
     parsed_files: Mapping[str, ast.AST | None] | None = None,
 ) -> dict[tuple[str, str], str]:
-    """Discover command prefixes declared by Cyclopts application trees."""
+    """Discover the fully named command paths of Cyclopts application trees."""
     applications: dict[tuple[str, str], str] = {}
     modules: dict[str, tuple[ast.AST, dict[str, tuple[str, str]]]] = {}
     for path, text in files.items():
-        if "App(" not in text:
+        tree = parsed_files.get(path) if parsed_files is not None else complete_python_tree(text)
+        if tree is None:
             continue
-        tree = parsed_files.get(path) if parsed_files is not None else None
-        trees = (
-            (tree,)
-            if tree is not None
-            else (() if parsed_files is not None else python_trees(text))
-        )
-        if not trees:
-            continue
-        tree = trees[0]
         module = module_name(path)
         imported = _from_imports(path, tree)
         applications.update(
             {
-                (module, target.id): _app_name(node.value, target.id)
+                (module, target.id): _name_keyword(node.value) or ""
                 for node in ast.walk(tree)
                 if isinstance(node, ast.Assign)
                 and len(node.targets) == 1
@@ -344,8 +321,9 @@ def cyclopts_prefixes(
                     }
                 )
     return {
-        key: _resolve_app_prefix(key, applications=applications, parents=parents)
+        key: prefix
         for key in applications
+        if (prefix := _resolve_app_prefix(key, applications=applications, parents=parents))
     }
 
 
@@ -364,19 +342,16 @@ def _resolve_app_prefix(
     parents: dict[tuple[str, str], tuple[str, str]],
     trail: frozenset[tuple[str, str]] = frozenset(),
 ) -> str:
-    if key in trail or key not in applications:
+    """An App's command path, or empty when it or any App above it has no static name."""
+    name = applications.get(key, "")
+    if key in trail or not name:
         return ""
-    parent = (
-        _resolve_app_prefix(
-            parents[key],
-            applications=applications,
-            parents=parents,
-            trail=trail | {key},
-        )
-        if key in parents
-        else ""
+    if key not in parents:
+        return name
+    parent = _resolve_app_prefix(
+        parents[key], applications=applications, parents=parents, trail=trail | {key}
     )
-    return " ".join(part for part in (parent, applications[key]) if part)
+    return f"{parent} {name}" if parent else ""
 
 
 def _is_app(node: ast.AST) -> bool:
@@ -386,12 +361,10 @@ def _is_app(node: ast.AST) -> bool:
     )
 
 
-def _app_name(node: ast.AST, variable: str) -> str:
-    if isinstance(node, ast.Call):
-        for keyword in node.keywords:
-            if keyword.arg == "name" and (name := _string(keyword.value)):
-                return name
-    return variable.removesuffix("_app").replace("_", "-")
+def _name_keyword(call: ast.AST | None) -> str | None:
+    """A Cyclopts `name=`: its literal, empty when absent, or None when computed at run time."""
+    keyword = next((item for item in getattr(call, "keywords", ()) if item.arg == "name"), None)
+    return "" if keyword is None else _string(keyword.value) or None
 
 
 def module_name(path: str) -> str:
@@ -450,13 +423,10 @@ def cyclopts_command_owners(
             continue
         for decorator in node.decorator_list:
             owner, names = _command_names(decorator, node.name)
-            key = imported.get(owner, (module_name(path), owner))
-            prefix = prefixes.get(key, "")
-            if not prefix:
-                candidates = {value for (_, name), value in prefixes.items() if name == owner}
-                prefix = candidates.pop() if len(candidates) == 1 else ""
-            for name in names:
-                command = normalize_command(" ".join(part for part in (prefix, name) if part))
+            # Only a fully named Cyclopts App path gives its commands an identity.
+            prefix = prefixes.get(imported.get(owner, (module_name(path), owner)), "")
+            for name in names if prefix else ():
+                command = normalize_command(f"{prefix} {name}")
                 owners.setdefault(command, set()).add(f"{path}:{node.name}")
     return owners
 
@@ -470,11 +440,12 @@ def _command_names(decorator: ast.AST, function_name: str) -> tuple[str, tuple[s
         and isinstance(reference.value, ast.Name)
     ):
         return "", ()
-    names = ()
-    for keyword in call.keywords if call is not None else ():
-        if keyword.arg == "name" and (name := _string(keyword.value)):
-            names = (name,)
-    return reference.value.id, names or (function_name.replace("_", "-"),)
+    name = _name_keyword(call)
+    if name is None:
+        return reference.value.id, ()
+    # The target's own Cyclopts serves the command, so its documented rule applies, not ours.
+    default = _CASE_BOUNDARY.sub("_", function_name).lower().replace("_", "-").strip("-")
+    return reference.value.id, (name or default,)
 
 
 def deleted_python_input_gaps(

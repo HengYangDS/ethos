@@ -134,13 +134,15 @@ def _update_inline_references(
         else tuple(child.content for child in children if child.type == "code_inline")
     )
     for inline in inline_codes:
-        _record_inline_command(
-            inline,
-            known_commands=known_commands,
-            npm_scripts=npm_scripts,
-            observed=observed,
-            require_declared=require_declared,
-        )
+        # Outside a scenario's subject, a single bare word in prose is a term, not an invocation.
+        if openspec or len(command_references.split_command(inline)) > 1:
+            _record_inline_command(
+                inline,
+                known_commands=known_commands,
+                npm_scripts=npm_scripts,
+                observed=observed,
+                require_declared=require_declared,
+            )
 
 
 def _openspec_scenario_commands(children: list[Token]) -> tuple[str, ...]:

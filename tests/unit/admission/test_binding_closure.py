@@ -124,6 +124,7 @@ app.command(lane_app)
         {
             "src/ethos/commands.py": """import external_sdk
 import subprocess
+from .application import lane_app
 @lane_app.command(name="start")
 def start() -> None:
     subprocess.run(["external-runner"], check=True)
@@ -364,7 +365,7 @@ def test_observation_can_exclude_dependency_declarations_but_keeps_consumers() -
     assert observed["executable"] == {"node"}
 
 
-def test_reference_gap_report_ignores_native_modules_and_sorts_unknowns() -> None:
+def test_reference_gap_report_sorts_every_unadmitted_identity() -> None:
     gaps = product_reference_gaps(
         {"import": frozenset({"allowed"})},
         {
@@ -374,7 +375,10 @@ def test_reference_gap_report_ignores_native_modules_and_sorts_unknowns() -> Non
     )
 
     assert gaps == [
-        "product_reference_not_admitted_at_baseline:import:zeta",
+        *[
+            f"product_reference_not_admitted_at_baseline:import:{name}"
+            for name in ("ethos", "tests", "tools", "zeta")
+        ],
         "product_reference_not_admitted_at_baseline:executable:a-tool",
         "product_reference_not_admitted_at_baseline:executable:z-tool",
     ]

@@ -12,6 +12,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- Prewrite no longer refuses a governed repository's patch for references the repository owns or
+  never makes:
+  - Only authored command names declare commands. A Cyclopts application's variable name, a
+    computed `name=` and another framework's decorators declare none, and a single word in prose
+    is a term rather than an invocation.
+  - Package-relative imports stay inside their package.
+  - The repository's own modules, at its root or under `src/`, are first-party without a
+    hard-coded module list, and a governed repository owns the product's import package.
+  - Pixi environments map declared distributions to their modules, as `.venv` does.
+  - A patch admission now reports every refused reference, not only the first.
+
 ## [0.2.0-alpha.19] - 2026-10-29
 
 ### Changed

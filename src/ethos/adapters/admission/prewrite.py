@@ -409,7 +409,12 @@ def _gaps(
         if material_scope.get("state") == "profile_repair" and isinstance(scope_gaps, list)
         else []
     )
-    return list(dict.fromkeys(error for error in (*checks, *repair_gaps) if error))
+    refusals = (
+        patch_admission.get("required_gaps") if report_verdict(patch_admission) != "pass" else ()
+    )
+    return list(
+        dict.fromkeys(error for error in (*checks, *(refusals or ()), *repair_gaps) if error)
+    )
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:

@@ -109,7 +109,8 @@ def test_valid_repository_binding_inherits_product_console_ownership() -> None:
 
     assert owned["executable"] == {"ethos", *surfaces["runtime"]["executables"]}
     assert owned["distribution"] == set()
-    assert owned["import"] == set()
+    # The product console also runs as `python -m ethos.cli`, so its import package is owned.
+    assert owned["import"] == {"ethos"}
 
 
 @pytest.mark.parametrize(

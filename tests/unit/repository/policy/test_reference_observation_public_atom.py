@@ -157,8 +157,9 @@ def test_consumer_observation_does_not_recompute_command_declarations(
     assert calls == []
 
 
-def test_cyclopts_observation_resolves_cycles_and_explicit_names() -> None:
+def test_cyclopts_observation_drops_cycles_and_keeps_explicit_names() -> None:
     assert cyclopts_prefixes({"src/pkg/cli.py": "App("}) == {}
+    # A registration cycle has no named root, so no App in it has a static command path.
     prefixes = cyclopts_prefixes(
         {
             "src/pkg/cli.py": (
@@ -169,7 +170,7 @@ def test_cyclopts_observation_resolves_cycles_and_explicit_names() -> None:
             )
         }
     )
-    assert prefixes == {("pkg.cli", "a_app"): "beta alpha", ("pkg.cli", "b_app"): "alpha beta"}
+    assert prefixes == {}
     assert module_name("src/pkg/__init__.py") == "pkg"
     tree = ast.parse("@app.command(name='explicit')\ndef default_name(): pass\n")
     assert set(
@@ -259,13 +260,13 @@ def test_command_owner_observation_skips_python_without_command_syntax(
 ) -> None:
     """Command ownership parses only files capable of declaring a command."""
     parsed: list[str] = []
-    original = reference_declarations.python_references.python_trees
+    original = reference_declarations.python_references.ast.parse
 
     def record_parse(text: str) -> object:
         parsed.append(text)
         return original(text)
 
-    monkeypatch.setattr(reference_declarations.python_references, "python_trees", record_parse)
+    monkeypatch.setattr(reference_declarations.python_references.ast, "parse", record_parse)
 
     owners = reference_declarations.command_owner_sources_from_files(
         {
@@ -317,9 +318,10 @@ def test_product_observation_parses_only_native_python_once_and_keeps_inputs_fre
         second_calls = Counter(calls)
 
     assert observed.references["command"] == {"example run"}
-    assert observed.references["import"] == {"app", "original"}
+    # `from .app import app` resolves inside its package; it adds no top-level import.
+    assert observed.references["import"] == {"original"}
     assert observed.unknown_paths == ("src/example/broken.py",)
     assert first_calls == Counter((application, command, plain, broken))
-    assert successor.references["import"] == {"app", "successor"}
+    assert successor.references["import"] == {"successor"}
     assert successor.unknown_paths == ("src/example/broken.py",)
     assert second_calls == Counter((application, command, files["src/example/plain.py"], broken))

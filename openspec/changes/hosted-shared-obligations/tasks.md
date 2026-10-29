@@ -30,5 +30,6 @@
 
 ## 3. Acceptance
 
-- [ ] 3.1 Repeat the hosted quality job's preparation and `hosted_verification` session on the lane
+- [x] 3.1 Repeat the hosted quality job's preparation and `hosted_verification` session on the lane
       head with a fresh mise data directory and tool cache. Done when every gate passes.
+      (At `f4b8a98ae` the reproduction passed all 37 gates.)

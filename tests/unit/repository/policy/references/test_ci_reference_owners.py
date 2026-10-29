@@ -203,7 +203,8 @@ RECORD = ".config/ci/retained-steps.toml"
 WINDOWS = yaml.safe_dump(
     {"native-windows": {"before_script": [GLUE], "script": ["git status"]}}, sort_keys=False
 )
-UNRETAINED = {"ErrorActionPreference", "Join-Path", "Write-Host", "git"}
+# `$ErrorActionPreference` is an expansion in command position, so it names no executable.
+UNRETAINED = {"Join-Path", "Write-Host", "git"}
 
 
 def _retention(text: str, jobs: tuple[str, ...] = ("native-windows",)) -> str:
@@ -245,7 +246,7 @@ def test_recorded_glue_is_owned_by_its_retention_record(record: str, expected: s
     ("edited", "reason"),
     [
         ("git status", "baseline_product_closure_matched"),
-        (GLUE, "product_reference_not_admitted_at_baseline:executable:ErrorActionPreference"),
+        (GLUE, "product_reference_not_admitted_at_baseline:executable:Join-Path"),
     ],
     ids=["native-step", "recorded-glue"],
 )

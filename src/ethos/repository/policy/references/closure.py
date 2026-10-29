@@ -9,6 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import get_args
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -40,6 +41,7 @@ SemanticCategory = Literal[
     "conflict",
     "unknown",
 ]
+_CATEGORIES: tuple[SemanticCategory, ...] = get_args(SemanticCategory)
 
 _PATH_REFERENCE = re.compile(
     r"(?<![A-Za-z0-9_.@+-])(?:\.\.?/)*[A-Za-z0-9_.@+-]+(?:/[A-Za-z0-9_.@+-]+)*"
@@ -51,9 +53,9 @@ _REMOVED_REQUIREMENTS = re.compile(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, order=True)
 class SemanticClosureFinding:
-    """One exact relation that prevents repository semantic closure."""
+    """One exact relation that prevents repository semantic closure, ordered by its fields."""
 
     category: SemanticCategory
     relation: str
@@ -157,39 +159,20 @@ def repository_semantic_closure(
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
     ]
-    findings.sort(
-        key=lambda item: (
-            item.category,
-            item.relation,
-            item.kind,
-            item.identity,
-            item.sources,
-        )
-    )
-    categories: tuple[SemanticCategory, ...] = (
-        "missing",
-        "duplicate",
-        "orphan",
-        "superseded",
-        "conflict",
-        "unknown",
-    )
+    findings.sort()
     required_gaps = [finding.gap() for finding in findings]
-    verdict = (
-        "unknown" if findings and all(item.category == "unknown" for item in findings) else "pass"
-    )
+    unknown = sum(item.category == "unknown" for item in findings)
+    verdict = "unknown" if findings and unknown == len(findings) else "pass"
     return {
         "verdict": close_verdict(verdict, required_gaps=tuple(required_gaps)),
-        "coverage": "unknown"
-        if any(item.category == "unknown" for item in findings)
-        else "evaluated",
+        "coverage": "unknown" if unknown else "evaluated",
         "summary": {
             category: sum(finding.category == category for finding in findings)
-            for category in categories
+            for category in _CATEGORIES
         },
         **{
             category: [finding.to_dict() for finding in findings if finding.category == category]
-            for category in categories
+            for category in _CATEGORIES
         },
         "required_gaps": required_gaps,
     }
@@ -501,8 +484,7 @@ def _declaration_findings(report: dict[str, object]) -> list[SemanticClosureFind
         )
         for item in rows
         if isinstance(item, dict)
-        and item.get("category")
-        in {"missing", "duplicate", "orphan", "superseded", "conflict", "unknown"}
+        and item.get("category") in _CATEGORIES
         and isinstance(item.get("sources"), list)
     ]
 

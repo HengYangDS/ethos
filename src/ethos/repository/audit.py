@@ -183,6 +183,8 @@ def governance_audit(
         "mode": "repository",
         "governance_context": repository_context(root),
         **reports,
+        # Reported beside the reports, so a latent gap never changes this verdict.
+        "semantic_closure": repository_semantic_closure(root, retained_origins=retained_origins),
         "required_gaps": gaps,
         "next_action": next(
             (

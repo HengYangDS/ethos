@@ -19,6 +19,7 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.orchestration import retained_step_keys
+from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
@@ -61,7 +62,16 @@ def native_owned_references_from_files(
     _declared_gates(files, npm_scripts, owned)
     _declared_profiles(files, npm_scripts, owned)
     _declared_container_environment(files, owned)
+    _declared_mise_tools(files, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
+
+
+def _declared_mise_tools(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+    """A declared Mise tool owns its `rename_exe`, else its identity's last segment, anywhere."""
+    tools = _toml(files.get(NATIVE_TOOL_LOCATIONS["mise"], "")).get("tools")
+    for identity, value in tools.items() if isinstance(tools, dict) else ():
+        options = value if isinstance(value, dict) else next(iter(_table_items(value)), {})
+        owned["executable"].add(str(options.get("rename_exe") or re.split(r"[:/]", identity)[-1]))
 
 
 def _declared_container_environment(files: dict[str, str], owned: dict[str, set[str]]) -> None:
@@ -158,12 +168,11 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, .
     payload = _toml(_declaration_text(files, "python-import-policy"))
     mappings: dict[str, tuple[str, ...]] = {}
     first_party = set(_string_items(payload.get("known_first_party")))
-    # The repository owns the modules its own tree provides at its root and under a leading `src/`.
     first_party.update(
         name
         for path in files
         if path.endswith(".py")
-        for name in (path.partition("/")[0], python_references.module_name(path).partition(".")[0])
+        for name in _provided_top_levels(path, files)
         if name.isidentifier()
     )
     native = payload.get("package_module_name_map")
@@ -354,6 +363,17 @@ def _declared_provider_references(
             if isinstance(specific, dict):
                 selected_scripts.update(str(path) for path in specific)
     _declare_selected_scripts(files, selected_scripts, npm_scripts, owned)
+
+
+def _provided_top_levels(path: str, files: dict[str, str]) -> tuple[str, str, str]:
+    """Name what a module provides at the root, under `src/`, and as a top-level package."""
+    parts = path.split("/")
+    depth = len(parts) - 1
+    # A top-level package sits directly below its nearest ancestor without `__init__.py`.
+    while depth and "/".join((*parts[:depth], "__init__.py")) in files:
+        depth -= 1
+    package = parts[depth] if depth < len(parts) - 1 else ""
+    return parts[0], python_references.module_name(path).partition(".")[0], package
 
 
 def _declaration_text(files: dict[str, str], declaration: str) -> str:

@@ -130,6 +130,23 @@ def test_common_audit_does_not_require_optional_product_capabilities(tmp_path: P
     assert openspec["state"] == "not_applicable"
 
 
+def test_adopter_audit_reports_its_semantic_closure_beside_the_verdict(tmp_path: Path) -> None:
+    """A latent closure gap is listed with its carrier and leaves the verdict unchanged."""
+    repo = _adopter(tmp_path / "latent", registry=False)
+    (repo / ".ethos/profile.toml").write_text('profile_id = "minimal"\n', encoding="utf-8")
+    (repo / "tools").mkdir()
+    (repo / "tools/check.py").write_text("import frobnicate\n", encoding="utf-8")
+    git(repo, "add", "--", "tools")
+
+    report = status.audit_for_root(repo)
+
+    assert report["verdict"] == "pass", report
+    closure = report["semantic_closure"]
+    assert isinstance(closure, dict)
+    gaps = closure["required_gaps"]
+    assert "semantic_consumer_orphan:import:frobnicate:tools/check.py" in gaps, closure
+
+
 @pytest.mark.parametrize("registry", [False, True])
 def test_common_audit_enforces_the_selected_documentation_owner(
     tmp_path: Path, *, registry: bool

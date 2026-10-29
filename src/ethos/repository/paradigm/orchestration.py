@@ -93,7 +93,8 @@ def orchestration_gaps(
         for step in ci_steps(forge, path, tracked_text(root, path, tracked) or ""):
             script = next((entry for entry in scripts if entry in step.command), "")
             key = (path, step.job, _text_digest(step.command))
-            if not script and inline_shell(step.command) and key in admitted:
+            # Retention owns a step as a whole by file, job and digest, whatever shape it reads as.
+            if not script and key in admitted:
                 matched.add(key)
                 continue
             yield from _command_gaps(

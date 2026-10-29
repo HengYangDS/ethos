@@ -225,8 +225,8 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
     }
     owned = native_owned_references_from_files(files)
     executables = owned["executable"]
-    assert {"curl", "git", "provider-lint", "syft", "tar"} <= executables
-    assert {"rogue-config-tool", "rogue-tool", "cue", "actionlint", "mise"}.isdisjoint(executables)
+    assert {"actionlint", "cue", "curl", "git", "provider-lint", "syft", "tar"} <= executables
+    assert {"rogue-config-tool", "rogue-tool", "mise"}.isdisjoint(executables)
     assert owned["value"] == {"ETHOS_ACTOR"}
 
 

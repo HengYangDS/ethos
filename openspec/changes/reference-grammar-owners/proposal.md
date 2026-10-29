@@ -28,8 +28,9 @@ a time.
   whatever POSIX shape its text reads as.
 - **A Mise tool owns its executable name.** It owns its `rename_exe`, otherwise the last segment of
   its identity, on every platform.
-- **The package tree owns first-party names.** A tracked module's package root contributes its
-  top-level name, and deptry's `[tool.deptry]` `known_first_party` is read.
+- **The package tree owns first-party names.** Each top-level package, the package directory
+  directly below a directory without `__init__.py`, is first-party. A nested standalone module
+  is still not.
 - **Adopter closure at proof is reported** beside the audit reports, without changing the proof
   verdict.
 - Consolidation in the reference observation funds the additions within the product ceiling.

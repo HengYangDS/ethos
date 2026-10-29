@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from markdown_it import MarkdownIt
@@ -107,6 +108,7 @@ def _update_fence_references(
         if language == "console"
         else token.content
     )
+    shell = _documentation_shell(shell)
     observed["executable"].update(
         command_references.shell_executables(shell, npm_scripts, module_imports=observed["import"])
     )
@@ -180,6 +182,7 @@ def _record_inline_command(
     observed: dict[str, set[str]],
     require_declared: bool,
 ) -> None:
+    inline = _documentation_shell(inline)
     if commands := command_references.shell_commands(
         inline,
         known_commands,
@@ -191,6 +194,12 @@ def _record_inline_command(
                 inline, npm_scripts, module_imports=observed["import"]
             )
         )
+
+
+def _documentation_shell(text: str) -> str:
+    """Read documentation metasyntax as values: `<name>` placeholders and `--flag a|b` synopses."""
+    text = _SYNOPSIS.sub(lambda match: match.group(1) + match.group(2).replace("|", ","), text)
+    return _PLACEHOLDER.sub("$_", text)
 
 
 def _requires_declared_commands(path: str) -> bool:
@@ -215,3 +224,5 @@ def _requires_declared_commands(path: str) -> bool:
 
 
 _MARKDOWN = MarkdownIt("commonmark").enable("table")
+_PLACEHOLDER = re.compile(r"<[A-Za-z][\w.-]*>")
+_SYNOPSIS = re.compile(r"(--[\w-]+[= ])([\w.-]+(?:\|[\w.-]+)+)")

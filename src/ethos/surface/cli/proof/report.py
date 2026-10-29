@@ -49,6 +49,7 @@ def compact_proof_context(
 ) -> dict[str, object]:
     """Project bounded audit and lifecycle summaries without their full evidence bodies."""
     audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
+    closure = cast("dict[str, object]", audit.get("semantic_closure") or {})
     lifecycle_summary = cast("dict[str, object]", lifecycle.get("summary") or {})
     lifecycle_change_count = lifecycle_summary.get("change_count")
     return {
@@ -57,6 +58,7 @@ def compact_proof_context(
             "mode": str(audit.get("mode") or ""),
             "openspec_mode": str(audit_openspec.get("mode") or ""),
             "required_gap_count": len(string_sequence(audit.get("required_gaps"))),
+            "semantic_closure_gaps": list(string_sequence(closure.get("required_gaps"))),
         },
         "openspec_lifecycle": {
             "verdict": report_verdict(lifecycle),

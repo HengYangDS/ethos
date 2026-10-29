@@ -58,11 +58,7 @@ def shell_executables(
     text: str, npm_scripts: dict[str, set[str]], *, module_imports: set[str] | None = None
 ) -> set[str]:
     """Extract native executables and optionally collect Python module dependencies."""
-    functions = {
-        match.group(1)
-        for line in text.splitlines()
-        if (match := re.match(r"\s*(?:function\s+)?([A-Za-z_]\w*)\s*\(\)\s*\{", line))
-    }
+    functions = {match[1] for line in text.splitlines() if (match := _FUNCTION.match(line))}
     executables = set()
     for line in _shell_candidate_lines(text):
         for tokens in _shell_command_segments(line):
@@ -96,13 +92,44 @@ def _shell_candidate_lines(text: str) -> list[str]:
         if re.match(r"[A-Za-z_]\w*=\(", line):
             array_depth = line.count("(") - line.count(")")
             continue
-        if re.match(r"(?:function\s+)?[A-Za-z_]\w*\s*\(\)\s*\{", line):
+        if _FUNCTION.match(line):
             line = line.split("{", 1)[1].rsplit("}", 1)[0].strip()
         if match := re.search(r"<<-?\s*['\"]?([A-Za-z_]\w*)['\"]?", line):
             heredoc, line = match.group(1), line[: match.start()].rstrip()
-        if line := _shell_command_line(line):
-            lines.append(line)
+        outer, nested, _end = _scan(line)
+        lines.extend(command for text in (outer, *nested) if (command := _shell_command_line(text)))
     return lines
+
+
+def _scan(text: str, index: int = 0, closer: str = "") -> tuple[str, list[str], int]:
+    """Read to `closer` outside quotes; a substitution becomes one word and yields its commands."""
+    outer: list[str] = []
+    commands: list[str] = []
+    depth, quote = 0, ""
+    while index < len(text):
+        character = text[index]
+        if closer and not quote and not depth and text.startswith(closer, index):
+            break
+        if quote != "'" and (
+            pair := next((p for p in _SUBSTITUTIONS if text.startswith(p[0], index)), None)
+        ):
+            inner, nested, index = _scan(text, index + len(pair[0]), pair[1])
+            # Arithmetic words are values; only a substitution inside them runs a command.
+            commands.extend(nested if pair[0] == "$((" else (inner, *nested))
+            outer.append("$_")
+            index += len(pair[1])
+            continue
+        if character == "\\" and quote != "'":
+            character = text[index : index + 2]
+        elif quote:
+            quote = "" if character == quote else quote
+        elif character in "'\"":
+            quote = character
+        elif character in "()":
+            depth += 1 if character == "(" else -1
+        outer.append(character)
+        index += len(character)
+    return "".join(outer), commands, index
 
 
 def _shell_command_segments(
@@ -187,17 +214,10 @@ def _command_tokens(tokens: tuple[str, ...], *, shell_context: bool = False) -> 
                 ),
                 shell_context=shell_context,
             )
-        if shell_context and tokens[index].rsplit("/", 1)[-1] in {"sudo", "nice", "nohup"}:
-            name = tokens[index].rsplit("/", 1)[-1]
-            options = (
-                frozenset({"-u", "--user", "-g", "--group", "-p", "--prompt", "-h", "--host"})
-                if name == "sudo"
-                else frozenset({"-n", "--adjustment"})
-                if name == "nice"
-                else frozenset()
-            )
+        if shell_context and (name := tokens[index].rsplit("/", 1)[-1]) in _PREFIX_OPTIONS:
             return _command_tokens(
-                _tokens_after_options(tokens[index + 1 :], options), shell_context=True
+                _tokens_after_options(tokens[index + 1 :], _PREFIX_OPTIONS[name]),
+                shell_context=True,
             )
         if shell_context and (
             _SHELL_ASSIGNMENT.fullmatch(tokens[index])
@@ -223,11 +243,7 @@ def python_module(tokens: tuple[str, ...]) -> str:
             return tokens[index + 1] if index + 1 < len(tokens) else ""
         if option.startswith("-m"):
             return option[2:]
-        if (
-            not option.startswith("-")
-            or option.startswith("-c")
-            or option in {"--", "-h", "--help", "-V", "--version"}
-        ):
+        if not option.startswith("-") or option.startswith("-c") or option in _PYTHON_STOPS:
             return ""
         index += 2 if option in {"-W", "-X", "--check-hash-based-pycs"} else 1
     return ""
@@ -238,14 +254,8 @@ def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[s
         # `mise exec [tool@version]... -- command` runs the command after the separator.
         return tokens[tokens.index("--") + 1 :] if "--" in tokens[2:] else ()
     if executable == "uv":
-        run_index = next(
-            (index for index, argument in enumerate(tokens[1:], 1) if argument == "run"), -1
-        )
-        return (
-            _tokens_after_options(tokens[run_index + 1 :], _UV_RUN_OPTIONS_WITH_VALUE)
-            if run_index >= 0
-            else ()
-        )
+        run = tokens.index("run", 1) if "run" in tokens[1:] else 0
+        return _tokens_after_options(tokens[run + 1 :], _UV_RUN_OPTIONS_WITH_VALUE) if run else ()
     if executable in {"npx", "uvx"}:
         value_options = _NPX_OPTIONS_WITH_VALUE if executable == "npx" else _UVX_OPTIONS_WITH_VALUE
         child = _tokens_after_options(tokens[1:], value_options)
@@ -299,22 +309,15 @@ def _executable_identity(token: str) -> str:
         token = token.rsplit("/", maxsplit=1)[-1]
     elif "/" in token:
         return ""
-    return token if re.fullmatch(r"[A-Za-z0-9_.+-]+", token) else ""
+    return token if re.fullmatch(r"(?=.*[A-Za-z0-9])[A-Za-z0-9_.+-]+", token) else ""
 
 
 def _shell_command_line(line: str) -> str:
-    if (
-        not line
-        or line.startswith(("#", "-", "for ((", "case "))
-        or re.match(r"(?:function\s+)?\w+\s*\(\)\s*\{", line)
-    ):
+    if not line or line.startswith(("#", "-", "((", "for ((", "case ")) or _FUNCTION.match(line):
         return ""
-    if match := re.match(
-        r"[A-Za-z0-9_*-]+(?:\s*\|\s*[A-Za-z0-9_*-]+)*\)\s*(.*)$",
-        line,
-    ):
+    if match := re.match(r"[A-Za-z0-9_*-]+(?:\s*\|\s*[A-Za-z0-9_*-]+)*\)\s*(.*)$", line):
         line = match.group(1)
-    return line.removeprefix("$").lstrip()
+    return line.removeprefix("$ ").lstrip()
 
 
 def shebang_executable(line: str) -> str:
@@ -437,6 +440,16 @@ def command_identity(
 
 
 _SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
+_FUNCTION = re.compile(r"\s*(?:function\s+)?([A-Za-z_]\w*)\s*\(\)\s*\{")
+# Openers with their closers, longest first, so arithmetic is not read as a command substitution.
+_SUBSTITUTIONS = (("$((", "))"), ("$(", ")"), ("`", "`"))
+# The options that take a value for each prefix command that runs the command after it.
+_PREFIX_OPTIONS = {
+    "nice": frozenset({"-n", "--adjustment"}),
+    "nohup": frozenset(),
+    "sudo": frozenset({"-u", "--user", "-g", "--group", "-p", "--prompt", "-h", "--host"}),
+}
+_PYTHON_STOPS = frozenset({"--", "-h", "--help", "-V", "--version"})
 
 _SHELL_PREFIXES = {
     "!",
@@ -444,10 +457,8 @@ _SHELL_PREFIXES = {
     "do",
     "elif",
     "else",
-    "env",
     "exec",
     "if",
-    "sudo",
     "then",
     "time",
 }

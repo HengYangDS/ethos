@@ -5,8 +5,8 @@
 Shell reference observation SHALL follow POSIX quoting and nesting. Single-quoted text SHALL be
 opaque, and a command substitution, backtick command or arithmetic expansion SHALL nest with its
 own quoting, also inside double quotes. Words of an arithmetic expansion SHALL be values, and a
-command substitution inside it SHALL still be read. An executable identity SHALL contain a letter
-or digit.
+command substitution inside it SHALL still be read. A command word that an expansion forms SHALL
+name no executable, and an executable identity SHALL contain a letter or digit.
 
 #### Scenario: Quotes inside a substitution pair within it
 
@@ -19,6 +19,11 @@ or digit.
 - **WHEN** a script runs `attempt=$((attempt + 1))`
 - **THEN** no executable `attempt` is observed
 - **AND** `wc` in `n=$(( $(wc -l < f) + 1 ))` is observed
+
+#### Scenario: An expansion names no executable
+
+- **WHEN** a script runs `$PYTHON -m pip install wheel`
+- **THEN** no executable is observed
 
 ### Requirement: Documentation metasyntax is not a command
 
@@ -68,11 +73,12 @@ gaps SHALL require a later Change that names the release.
 
 ### Requirement: The repository's own tree owns its first-party modules
 
-Python import ownership SHALL treat a package-relative import as internal to its package. The
-top-level name contributed by each tracked module's package root, its nearest ancestor without
-`__init__.py`, SHALL be first-party, as SHALL deptry's `known_first_party`. A governed repository
-SHALL own the product's import package through its binding, as it owns the product's scripts. No
-literal module list SHALL substitute for these relations.
+Python import ownership SHALL treat a package-relative import as internal to its package and a
+module the repository provides at its root or under a leading `src/` directory as first-party.
+Each top-level package, the directory directly below its nearest ancestor without `__init__.py`,
+SHALL also be first-party. A governed repository SHALL own the product's import package through
+its binding, as it owns the product's scripts. No literal module list SHALL substitute for these
+relations.
 
 #### Scenario: A relative import stays inside its package
 
@@ -91,6 +97,7 @@ literal module list SHALL substitute for these relations.
 - **WHEN** `.githooks/pre-commit` imports `_hook` from `.githooks/_hook/`, and `.githooks/` has no
   `__init__.py`
 - **THEN** the import is owned by the repository
+- **AND** `model` from a standalone `examples/demo/src/model.py` is still refused
 
 ### Requirement: CI runner and retained-step records own their commands
 

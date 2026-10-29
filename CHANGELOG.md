@@ -12,6 +12,30 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- An adopter's proof reports the repository's semantic reference closure beside the audit reports:
+  each latent gap with its carriers, without changing the proof verdict.
+
+### Changed
+
+- Commands that run inside double-quoted `$(…)` and backticks are now read. A patch that touches
+  such a carrier must own them, as it owns the carrier's other commands.
+
+### Fixed
+
+- Prewrite no longer refuses a governed repository's patch for references that no executor runs or
+  that a declaration supplies:
+  - Shell lines follow POSIX nesting. Quotes pair within each `$(…)`, backtick and `$((…))`,
+    arithmetic words are values, and a command word that an expansion forms, such as `$PYTHON`,
+    names no executable.
+  - In documentation, `<name>` placeholders and `--flag a|b|c` synopses are values.
+  - A CI step that the retention record keeps is owned as a whole, whatever shell it is written
+    for, until its text changes.
+  - Each tool that `.config/mise/config.toml` declares owns its executable: its `rename_exe`,
+    otherwise the last segment of its identity. Companions such as `rustup` stay unowned.
+  - Each top-level package in the tree, such as `.githooks/_hook`, is first-party.
+
 ## [0.2.0-alpha.20] - 2026-10-30
 
 ### Fixed

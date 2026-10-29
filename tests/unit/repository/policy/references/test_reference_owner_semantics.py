@@ -148,7 +148,7 @@ def test_package_relative_imports_stay_inside_their_package() -> None:
 
 
 def test_repository_tree_owns_its_first_party_modules() -> None:
-    """Root and leading `src/` modules are first-party; nothing else is excused by name."""
+    """Root, leading `src/` and top-level package modules are first-party; others are not."""
     files = {
         "noxfile.py": "",
         "src/web_ingestion/__init__.py": "",

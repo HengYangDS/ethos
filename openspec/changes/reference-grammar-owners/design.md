@@ -47,9 +47,11 @@ the moves below. The product Python ceiling is 70,000 lines, and 69,971 are used
   the step's SHA-256; matching no longer requires that the step read as an inline POSIX program.
 - **A Mise tool owns its executable name**, from its `rename_exe` or the last segment of its tool
   identity. No install layout is read, so the verdict does not depend on the auditing host.
-- **The package root owns first-party names.** A tracked module's nearest ancestor without
-  `__init__.py` contributes its top-level name, which subsumes the root and `src/` cases. deptry's
-  `[tool.deptry]` `known_first_party` is read beside the deptry policy.
+- **A top-level package owns its first-party name.** The package directory directly below a
+  tracked package module's nearest ancestor without `__init__.py` is first-party, as Python's
+  `sys.path[0]` makes it importable from a script beside it. A standalone module nested below the
+  root and `src/` stays refused, as before. deptry's names stay read from its policy carrier
+  alone, because the paradigm moves `[tool.deptry]` out of `pyproject.toml`.
 - **The closure is a report beside the audit reports.** It runs in adopter proofs, lists every gap
   with its carrier and leaves the verdict unchanged. A later Change that names a release may make it
   blocking.

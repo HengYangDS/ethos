@@ -13,9 +13,9 @@
       retained PowerShell step yields no reference, and a changed step text is read again.
 - [ ] 1.4 Let each Mise `[tools]` entry own its executable name. Done when `cue` and `pixi` are
       owned and `rustup` stays refused.
-- [ ] 1.5 Own first-party names from package roots and deptry's `[tool.deptry]`. Done when a
-      `.githooks` script's sibling package is owned and an undeclared third-party import is still
-      refused.
+- [ ] 1.5 Own each top-level package as a first-party name. Done when a `.githooks` script's
+      sibling package is owned, while a nested standalone module and an undeclared third-party
+      import are still refused.
 - [ ] 1.6 Report the semantic closure in adopter proofs beside the audit reports. Done when an
       adopter's proof lists a latent gap with its carrier and keeps its verdict.
 - [ ] 1.7 Consolidate the reference observation to fund the additions. Done when the reference
@@ -30,9 +30,11 @@
 
 ## 3. Acceptance
 
-- [ ] 3.1 Re-run the read-only fleet survey with the lane's source. Done when the 20 observed false
-      refusals are gone, no new false refusal appears, and the newly visible true references are
-      listed per root.
+- [ ] 3.1 Re-run the read-only fleet survey with the lane's source and with the `0.2.0-alpha.20`
+      source on the same repository states. Done when the 18 false refusals that ETHOS causes are
+      gone, no new false refusal appears, and the newly visible true references are listed per
+      root. Publisher's `Join-Path` goes once it records its PowerShell step, and `rustup` stays a
+      companion gap.
 - [ ] 3.2 Time the semantic closure on di-effect with the lane's source. Done when the time is
       recorded in this task.
 

@@ -48,6 +48,15 @@ Cyclopts operation declarations own CLI syntax; gate IDs own proof selection.
 - **AND** no `ethos quality` command group, generic report-handler DSL, command
   registry, wrapper alias, or re-export facade exists
 
+#### Scenario: A focused check verifies no code property
+
+- **WHEN** a caller runs `ethos prove --gate <gate-id>` and no selected gate verifies a
+  code-correctness axis or declares a quality dimension
+- **THEN** the selection compiles no code-correctness obligation, whether the gate's implementation
+  lives in the repository's tree or in the judging product
+- **AND** the source contracts whose members the selected gates read remain selected
+- **AND** the focused result still cannot satisfy promotion without the complete required floor
+
 ### Requirement: One Owner Per Property
 
 Ruff, the selected type checker, pytest/coverage, rumdl or markdownlint, dprint or
@@ -2148,6 +2157,14 @@ the supervisor or containment of deliberately detached processes.
 - **THEN** a passing direct-command timeout test does not prove worker recovery
 - **AND** native supervisor-loss and platform acceptance remain required
 
+#### Scenario: A provider reports a failure from a nested scope
+
+- **WHEN** a gate provider's nested command scope fails and the provider reports that failure as its
+  result
+- **THEN** the failure cancels only the commands started under that nested scope
+- **AND** sibling gates and the enclosing proof keep creating and completing their own commands
+- **AND** cancelling the enclosing proof still ends every command of its nested scopes
+
 ### Requirement: Runtime verification failure preserves generation ownership
 
 A newly created runtime generation SHALL remain unaccepted until its required
@@ -2565,6 +2582,15 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 - **THEN** the previous executable remains unchanged and owned descendants are drained
 - **AND** unapproved version diagnostics prevent publication
 - **AND** verified cache reuse preserves identity without repeating downloads
+
+#### Scenario: A shared check resolves a declared tool on a clean runner
+
+- **WHEN** a shared quality check resolves a tool that the repository's mise configuration declares,
+  such as Node for the static JavaScript floor, on a clean CI runner
+- **THEN** CI preparation has installed that tool through mise from the locked selection that
+  development uses
+- **AND** an immutable supply image that lacks the tool fails preparation before any gate runs and
+  names the tool
 
 ### Requirement: Native adoption preserves declared byte identity
 

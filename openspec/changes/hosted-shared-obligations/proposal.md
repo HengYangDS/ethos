@@ -2,27 +2,14 @@
 
 ## Why
 
-`shared-quality-obligations` made ETHOS consume the obligations it ships for every repository and
-landed on `dev` at `6186a48c4`. Its first hosted run, 40796064834, failed two jobs whose gates had
-passed in the lane's local proof:
-
-1. **external link health.** `prove --host --execute --gate external-links` refused to execute with
-   `quality_obligation_unproven:behavior` and `quality_obligation_unproven:static-analysis`. A
-   focused selection counts as a code check when any input of a selected gate is a code subject. In
-   ETHOS a gate's provider module is such an input, because a tree that builds the product supplies
-   its own providers. The obligations of the same selection thus depend on where a gate's
-   implementation lives, which "ETHOS is judged as every repository is" excludes. Focused
-   `docstrings` and `shell-lint` refuse the same way.
-2. **quality gates.** The hosted proof stopped after 18 seconds with `process_cancelled` and no gate
-   result. The new `code-static` gate resolves the repository's mise-declared Node with
-   `mise which node`. The hosted job installs cue, actionlint and Go through mise but supplies Node
-   only through ETHOS's own tool cache, so the provider fails with
-   `mise_supply_unavailable:node`. The provider reports that failure, but the failure first left a
-   nested `command_scope`. Every nested scope shares the proof's one `CommandScope`, so the failure
-   cancelled it, and every sibling gate's next command failed with `process_cancelled`.
-
-A local run that prepares a fresh mise data directory as the hosted job does reproduces both steps
-of the second failure.
+`shared-quality-obligations` landed on `dev` at `6186a48c4`, and hosted run 40796064834 failed two
+jobs whose gates had passed in the lane's proof. A focused `external-links` refused to run because
+a selected gate's own implementation, which ETHOS's tree supplies, counted as a selected code
+subject, so the same selection obliged ETHOS differently from any other repository. On a clean
+runner the new `code-static` gate found no mise-installed Node. Its reported failure left a nested
+command scope and cancelled the proof's shared scope, so every sibling gate stopped with
+`process_cancelled`. A local run that prepares a fresh mise data directory as the hosted job does
+reproduces both failures; `design.md` traces their causes.
 
 ## What Changes
 

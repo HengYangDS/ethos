@@ -60,23 +60,23 @@ condition removes no promotion guarantee.
 
 ### A command scope owns the commands started under it
 
-`command_scope` creates a `CommandScope` for every entry. A nested scope shares its enclosing
-scope's lock and registry and records the scopes that enclose it. The registry maps each command to
-the scope that started it. Cancelling a scope ends the commands of that scope and of the scopes
-nested in it, and a scope refuses new commands when it or an enclosing scope is cancelled. A
-handled failure in one provider thus ends that provider's commands, and an interrupted proof still
-ends every worker's commands before the executor joins them.
+`command_scope` opens a nested scope inside an enclosing one. Each scope holds its own cancellation
+event and those of the scopes that enclose it, and one process-wide record maps each running
+command to the events of the scope that started it. Cancelling a scope ends the commands whose
+events include its own, and a scope refuses new commands once any of its events is set. A handled
+failure in one provider thus ends that provider's commands, and an interrupted proof still ends
+every worker's commands before the executor joins them.
 
 Rejected: letting only the outermost scope cancel, because an exception in the runner's scope would
-then wait for every running worker command before the thread pool joins; and a registry per scope
-with registered child scopes, which needs registration and removal on every exit for the same
-behavior.
+then wait for every running worker command before the thread pool joins; and a lock and registry
+per outermost scope, which needs each nested scope to read its enclosing scope's private state.
 
 ### CI installs the declared Node through mise
 
-`mise_tool_paths` adds `node` to the locked `mise install` that already carries cue, actionlint and
-Go, and `require_cached_mise_tools` checks Node with cue and actionlint in an immutable image. ETHOS's
-own Node supply in the tool cache is unchanged; it serves the product runtime and npm.
+When the configuration declares Node, `mise_tool_paths` adds `node` to the locked `mise install`
+that already carries cue, actionlint and Go, and `require_cached_mise_tools` checks Node with cue
+and actionlint in an immutable image. ETHOS's own Node supply in the tool cache is unchanged; it
+serves the product runtime and npm.
 
 Rejected: running the product-pinned ESLint on the product's Node. `static_observation` already
 falls back to the product runtime, but the current contract is that a repository's locked tool
@@ -85,8 +85,11 @@ a separate decision, and the CI gap would remain for any other declared tool.
 
 ## Risks / Trade-offs
 
-- **Late cleanup.** A command started under an exited nested scope stays in the shared registry
+- **Late cleanup.** A command started under an exited nested scope stays in the process-wide record
   until its own release, so an enclosing cancellation still reaches it.
+- **One lock per process.** Concurrent invocations in one process, such as MCP requests, share the
+  lock that guards command creation. Creation is short, and a cancellation holds the lock for at
+  most its termination grace.
 - **GitLab.** The pinned supply image lacks mise's Node, so GitLab's offline preparation fails with
   `native_tool_offline_cache_missing:node` until the image is rebuilt; it already fails on its
   stale supply manifest.

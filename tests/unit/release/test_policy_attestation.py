@@ -172,10 +172,10 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     )
     _fields(
         manifest,
-        version="0.2.0-alpha.19",
-        tag="v0.2.0-alpha.19",
+        version="0.2.0-alpha.20",
+        tag="v0.2.0-alpha.20",
         all_package_versions_match=True,
-        packages={"ethos": "0.2.0-alpha.19"},
+        packages={"ethos": "0.2.0-alpha.20"},
     )
     _fields(
         report,

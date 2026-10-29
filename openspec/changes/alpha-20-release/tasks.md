@@ -2,16 +2,21 @@
 
 ## 1. Release Entry
 
-- [ ] 1.1 Move the product version to 0.2.0-alpha.20 in `VERSION`,
+- [x] 1.1 Move the product version to 0.2.0-alpha.20 in `VERSION`,
   `distributions/npm/package.json`, its `package-lock.json` and the three version tests. Done when
   the lane's `ethos --version` reports 0.2.0-alpha.20 and those tests pass
   (`tests/unit/cli/test_version_command.py`, `tests/unit/release/test_version_identity.py`,
   `tests/unit/release/test_policy_attestation.py`).
-- [ ] 1.2 Curate the `0.2.0-alpha.20` entry from the Unreleased notes, every user-visible product
+  (On `47776f329` plus the entry, `ethos --version` reported 0.2.0-alpha.20 and the 73 tests
+  passed.)
+- [x] 1.2 Curate the `0.2.0-alpha.20` entry from the Unreleased notes, every user-visible product
   change since `v0.2.0-alpha.19` and the advisories that the release build's audit reports on the
   landed head. Done when the changelog validates with 0.2.0-alpha.20 as its release target
   (`changelog_errors` with target 0.2.0-alpha.20) and the entry names every advisory that audit
   reports.
+  (On `47776f329` plus the entry, `changelog_errors` reported none. The audit of `f40666dd2`
+  reported only the six advisories in npm's bundled undici and ip-address that the entry names,
+  with no unapproved finding.)
 
 ## Workflow follow-up
 

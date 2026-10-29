@@ -26,6 +26,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The shared Python static floor follows the import-sorting values that a repository's native Ruff
   configuration declares.
 
+### Security
+
+- The product npm lock overrides markdownlint-cli2's re2js 2.8.6, which markdownlint 0.42.0 pins
+  exactly, with 2.8.8. re2js before 2.8.7 matches lookbehind assertions in quadratic time
+  (GHSA-gg6h-894w-4m9c, high, published on 2026-10-28), and markdownlint 0.42.0 and
+  markdownlint-cli2 0.24.0 are their latest releases. The installed `v0.2.0-alpha.18` runtime ships
+  re2js 2.8.6 in the Node supply of its markdown lint gate.
+
 ## [0.2.0-alpha.18] - 2026-10-29
 
 ### Changed

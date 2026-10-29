@@ -50,6 +50,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The wheels and installed runtimes still ship uv 0.13.5, whose embedded rustls 0.23.45 carries the
   four advisories that the `0.2.0-alpha.18` entry lists; uv 0.13.6, the latest release, embeds the
   same rustls.
+- They also ship npm 12.2.1, the latest npm release. Its bundled undici 6.29.0 carries
+  GHSA-4qv8-2p9j-2685 (medium) and GHSA-xjj6-f33q-929c (high), which the `0.2.0-alpha.16` entry
+  lists, and GHSA-2m5v-pch6-74hx and GHSA-qrxm-fqhp-jwvm (high) and GHSA-9fm3-97px-rjf6 (medium),
+  published on 2026-10-27; its bundled ip-address 10.7.2 carries GHSA-rxp7-6hxx-x8q5 (medium).
+  undici 6.29.1 and ip-address 10.7.4 fix them, but no npm release bundles those yet, so the
+  dependency gate reports them without blocking, as its policy requires while the bundling package
+  is its latest release. The npm launcher package does not contain them. `v0.2.0-alpha.17` and
+  `v0.2.0-alpha.18` ship the same npm; their entries do not list the three advisories published on
+  2026-10-27.
 
 ## [0.2.0-alpha.18] - 2026-10-29
 

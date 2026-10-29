@@ -9,8 +9,10 @@
   `lane project --check` passes and every GitLab supply job selects that digest.
   (`lane project --check`: conforming; the five GitLab supply jobs select `e542b22f…` and none the
   previous digest.)
-- [ ] 1.3 Validate the authored intent and CI carriers. Done when OpenSpec, the source format, the
+- [x] 1.3 Validate the authored intent and CI carriers. Done when OpenSpec, the source format, the
   CI projection and the configuration quality gates pass.
+  (At `647d6a96` the `openspec`, `source-format`, `ci-projection`, `config-quality`, `markdown-lint`,
+  `schemas` and `prose` gates passed.)
 
 ## Workflow follow-up
 

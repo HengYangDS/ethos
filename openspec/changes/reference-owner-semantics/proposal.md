@@ -37,7 +37,7 @@ Five causes in the shared observation account for most of them:
 - **Prewrite reports every refused reference** in a patch, not only the first.
 - **One parse rule and one command-owner computation.**
   - Owners come from complete syntax trees only; the line-fragment fallback is deleted.
-  - A syntax warning no longer makes a valid file unparseable.
+  - A syntax warning no longer makes a valid file unparsable.
 - **CHANGELOG.** One entry under `[Unreleased]`.
 
 ## Capabilities

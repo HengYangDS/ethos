@@ -215,6 +215,6 @@ def test_patch_admission_reports_every_refused_reference(tmp_path: Path) -> None
     ]
 
 
-def test_a_syntax_warning_does_not_make_valid_python_unparseable() -> None:
+def test_a_syntax_warning_does_not_make_valid_python_unparsable() -> None:
     """An invalid escape warns at compile time but remains complete Python syntax."""
     assert complete_python_tree('import re\nPATTERN = re.compile("\\d+")\n') is not None

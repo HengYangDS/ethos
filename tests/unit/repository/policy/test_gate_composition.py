@@ -362,18 +362,23 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         assert selected.gaps == baseline.gaps
 
 
-@pytest.mark.parametrize("requested", [("docs-registry",), ("native-docs",), ("native",)])
+@pytest.mark.parametrize(
+    "requested", [("docs-registry",), ("native-docs",), ("script-docs",), ("native",)]
+)
 def test_focused_obligations_preserve_source_integrity_for_selected_code(
     tmp_path: Path, requested: tuple[str, ...]
 ) -> None:
-    """Document diagnosis excludes unrelated artifacts; a selected code check retains them."""
+    """Document diagnosis excludes unrelated artifacts; a selected code check retains them.
+
+    A document gate whose own implementation is repository code verifies no code property.
+    """
     profile = RepositoryProfile(
         root=tmp_path,
         exists=True,
         declaration=RepositoryProfileDeclaration(
             profile_id="target",
             proof=ProofPolicy(
-                code_correctness_gates=("native", "native-docs"),
+                code_correctness_gates=("native", "native-docs", "script-docs"),
                 gates=(
                     Gate(id="native", kind="test", command=("tools/check.py",)),
                     Gate(
@@ -381,6 +386,7 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
                         kind="docs",
                         providers=("ethos.surface.cli.root.reference:docs_registry_report",),
                     ),
+                    Gate(id="script-docs", kind="docs", command=("tools/docs.py",)),
                 ),
                 code_correctness_map={"behavior": "native", "static-analysis": "native"},
                 source_contracts=(
@@ -406,11 +412,13 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
         repository_paths=(
             "README.md",
             "tools/check.py",
+            "tools/docs.py",
             "tools/upstream.js",
             "src/ethos/surface/cli/root/reference.py",
         ),
         source_materials={
             "tools/check.py": b"print('native')\n",
+            "tools/docs.py": b"print('documents')\n",
             "@ethos/surface/cli/root/reference.py": b"document provider\n",
             "src/ethos/surface/cli/root/reference.py": b"document provider\n",
         },
@@ -421,6 +429,7 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
     if requested != ("native",):
         assert policy.gaps == ()
         assert "source_contracts" not in owner
+        assert "code_correctness_map" not in owner
     else:
         assert "source_integrity_gate_unbound:native" in policy.gaps
         assert owner["source_contracts"]

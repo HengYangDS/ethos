@@ -192,9 +192,9 @@ def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
     return go.parent
 
 
-def require_cached_mise_tools(root: Path, mise: Path) -> None:
+def require_cached_mise_tools(root: Path, mise: Path, declared: tuple[str, ...] = ()) -> None:
     """Reject an incomplete immutable image before mise can attempt a download."""
-    for name in ("cue", "actionlint"):
+    for name in ("cue", "actionlint", *declared):
         selected = run_mise(root, ("which", name), executable=mise)
         executable = Path(selected.stdout.strip())
         if (
@@ -207,14 +207,20 @@ def require_cached_mise_tools(root: Path, mise: Path) -> None:
 
 
 def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
-    """Prepare declared tools online or verify the image's existing supply."""
+    """Prepare declared tools online or verify the image's existing supply.
+
+    Shared quality checks resolve a declared Node through mise; the Node that
+    `materialize_tool` places in the tool cache serves the product runtime and npm.
+    """
     go_version = declared_go_version(root)
+    tools = tomllib.loads((root / MISE_CONFIG).read_text()).get("tools", {})
+    node = ("node",) if "node" in tools else ()
     if native_supply_is_offline():
-        require_cached_mise_tools(root, mise)
+        require_cached_mise_tools(root, mise, node)
     else:
         result = run_mise(
             root,
-            ("install", "--locked", "cue", "github:rhysd/actionlint")
+            ("install", "--locked", "cue", "github:rhysd/actionlint", *node)
             + (("go",) if go_version is not None else ()),
             executable=mise,
             timeout=300,

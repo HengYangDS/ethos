@@ -1,4 +1,4 @@
-"""Verify the locked Go toolchain used by native adopter-quality checks."""
+"""Verify the locked Go and Node toolchains used by native quality checks."""
 
 from __future__ import annotations
 
@@ -24,15 +24,18 @@ if TYPE_CHECKING:
         "wrong-version",
         "offline-ready",
         "offline-missing",
+        "offline-missing-node",
     ],
 )
 def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], fault: str
 ) -> None:
-    """Go adopter evidence needs the declared toolchain, not an ambient host Go."""
+    """Native quality checks need the declared Go and Node from mise, not ambient host tools."""
     config = tmp_path / ".config/mise"
     config.mkdir(parents=True)
-    (config / "config.toml").write_text('[tools]\ngo = "1.27.1"\n', encoding="utf-8")
+    (config / "config.toml").write_text(
+        '[tools]\nnode = "26.12.1"\ngo = "1.27.1"\n', encoding="utf-8"
+    )
     (config / "mise.lock").write_text("lockfile_version = 2\n", encoding="utf-8")
     binary = tmp_path / "mise-data/installs/go/1.27.1/bin"
     binary.mkdir(parents=True)
@@ -58,7 +61,10 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     def locked_mise(_root: Path, arguments: tuple[str, ...], **_kwargs: object) -> Mock:
         calls.append(arguments)
         output = f"{go}\n" if arguments == ("which", "go") else f"{mise}\n"
-        missing = fault == "offline-missing" and arguments == ("which", "go")
+        missing = (fault, arguments) in {
+            ("offline-missing", ("which", "go")),
+            ("offline-missing-node", ("which", "node")),
+        }
         return Mock(
             returncode=1 if missing else 0,
             stdout=output,
@@ -80,7 +86,10 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     if fault.startswith("offline-"):
         assert not any(command[0] == "install" for command in calls)
     else:
-        assert any(command[:2] == ("install", "--locked") and "go" in command for command in calls)
+        assert any(
+            command[:2] == ("install", "--locked") and {"go", "node"} <= set(command)
+            for command in calls
+        )
     if accepted:
         assert captured.out.strip().split(os.pathsep) == [
             str(node),

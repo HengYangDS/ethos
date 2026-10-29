@@ -192,10 +192,12 @@ def _owner_projection(
                 source_contracts=proof.source_contracts,
             )
         )
+        # A gate's own implementation is an input, not a checked subject; what the selected gates
+        # verify decides whether code obligations apply.
         code_selected = any(
             gate.id in axes.values() or set(gate.dimensions).intersection(QUALITY_PROVIDERS)
             for gate in selected_gates
-        ) or any(subject.path in inputs for subject in code_subjects)
+        )
         if not code_selected:
             code_subjects, axes = (), {}
             selected_ids = {gate.id for gate in selected_gates}

@@ -15,6 +15,7 @@ from contextvars import ContextVar
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryFile
+from threading import Event
 from threading import Lock
 from threading import current_thread
 from threading import main_thread
@@ -73,19 +74,26 @@ class ProcessExecutionError(ValueError):
 
 
 class CommandScope:
-    """Own commands across one caller and its context-propagating worker threads."""
+    """Own commands across one caller and its context-propagating worker threads.
 
-    def __init__(self) -> None:
-        self._lock = Lock()
-        self._processes: set[subprocess.Popen[Any]] = set()
-        self._cancelled = False
+    Cancelling a scope ends the commands started under it and under the scopes nested in it, and a
+    scope refuses new commands once it or an enclosing scope is cancelled.
+    """
+
+    def __init__(self, enclosing: tuple[Event, ...] = ()) -> None:
+        self._cancelled = Event()
+        self._chain = (self._cancelled, *enclosing)
+
+    def nested(self) -> CommandScope:
+        """Open a scope that this scope's cancellation reaches and whose own stays within it."""
+        return CommandScope(self._chain)
 
     def start(
         self, command: tuple[str, ...], *, resources: ExitStack, **kwargs: Any
     ) -> subprocess.Popen[Any]:
         """Bind caller cleanup before a created child can leave its owning scope."""
-        with self._lock:
-            if self._cancelled:
+        with _COMMANDS_LOCK:
+            if any(cancelled.is_set() for cancelled in self._chain):
                 message = "process_cancelled"
                 raise ProcessExecutionError(
                     message,
@@ -97,14 +105,14 @@ class CommandScope:
             try:
                 with defer_interruptions():
                     process = subprocess.Popen(command, **kwargs)
-                    self._processes.add(process)
+                    _COMMAND_OWNERS[process] = self._chain
                     resources.push(partial(self.release, process))
             except BaseException:
                 if process is not None:
                     with defer_interruptions():
                         _terminate_command(process)
                         process.__exit__(None, None, None)
-                        self._processes.discard(process)
+                        _COMMAND_OWNERS.pop(process, None)
                 raise
         return process
 
@@ -130,23 +138,32 @@ class CommandScope:
 
     def discard(self, process: subprocess.Popen[Any]) -> None:
         """Release a completed command without retaining historical process IDs."""
-        with self._lock:
-            self._processes.discard(process)
+        with _COMMANDS_LOCK:
+            _COMMAND_OWNERS.pop(process, None)
 
     def terminate(self, process: subprocess.Popen[Any], *, grace_seconds: float = 1) -> None:
         """Fence both cleanup initiators; the command caller still owns reaping."""
-        with self._lock:
-            if process in self._processes:
+        with _COMMANDS_LOCK:
+            if process in _COMMAND_OWNERS:
                 _terminate_commands((process,), grace_seconds=grace_seconds)
-                self._processes.discard(process)
+                _COMMAND_OWNERS.pop(process)
 
     def cancel(self) -> None:
         """Fan out cancellation within one budget before thread-pool shutdown waits."""
-        with self._lock:
-            self._cancelled = True
-            processes = tuple(self._processes)
+        with _COMMANDS_LOCK:
+            self._cancelled.set()
+            processes = tuple(
+                process for process, chain in _COMMAND_OWNERS.items() if self._cancelled in chain
+            )
             _terminate_commands(processes, grace_seconds=0.5)
-            self._processes.difference_update(processes)
+            for process in processes:
+                _COMMAND_OWNERS.pop(process)
+
+
+# One lock and one record of each running command's scope chain serve every scope, so an
+# enclosing scope's cancellation reaches the commands of the scopes nested in it.
+_COMMANDS_LOCK = Lock()
+_COMMAND_OWNERS: dict[subprocess.Popen[Any], tuple[Event, ...]] = {}
 
 
 _COMMAND_SCOPE: ContextVar[CommandScope | None] = ContextVar("command_scope", default=None)
@@ -186,7 +203,8 @@ def command_scope(
     if handle_termination and current_thread() is not main_thread():
         message = "command_scope_signal_requires_main_thread"
         raise ValueError(message)
-    scope = _COMMAND_SCOPE.get() or CommandScope()
+    enclosing = _COMMAND_SCOPE.get()
+    scope = enclosing.nested() if enclosing else CommandScope()
     token = _COMMAND_SCOPE.set(scope)
     deadline = _COMMAND_DEADLINE.get()
     if timeout_seconds is not None:

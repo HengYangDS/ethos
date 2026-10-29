@@ -26,6 +26,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The shared Python static floor follows the import-sorting values that a repository's native Ruff
   configuration declares.
 
+### Fixed
+
+- A focused `ethos prove --gate` compiles code obligations only when a selected gate verifies code.
+  A gate whose own implementation is repository code, as ETHOS's providers are in its own tree, no
+  longer makes a document or link check require the code floor.
+- A provider failure reported from a nested command scope ends only that scope's commands. One
+  failing gate no longer stops its sibling gates with `process_cancelled`; cancelling the proof
+  still ends every gate's commands.
+- CI preparation installs the declared Node through mise, from which shared quality checks resolve
+  it, so the static JavaScript floor finds Node on a clean runner.
+
 ### Security
 
 - The product npm lock overrides markdownlint-cli2's re2js 2.8.6, which markdownlint 0.42.0 pins

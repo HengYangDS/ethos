@@ -71,6 +71,45 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None
     creation.assert_not_called()
 
 
+def test_nested_scope_owns_the_commands_started_under_it(tmp_path, monkeypatch) -> None:
+    """A handled nested failure ends only its own commands; enclosing cancellation ends all."""
+    ready = threading.Event()
+    children = []
+
+    def observed(child, _options):
+        children.append(child)
+        ready.set()
+
+    def nested_sibling():
+        with process_adapter.command_scope():
+            return process_adapter.run_command(tmp_path, (sys.executable, "-c", body), timeout=8)
+
+    with (
+        ready_descendant(monkeypatch, observed) as (body, _closed),
+        process_adapter.command_scope(timeout_seconds=10) as outer,
+        ThreadPoolExecutor(max_workers=1) as pool,
+    ):
+        pending = pool.submit(copy_context().run, nested_sibling)
+        try:
+            assert ready.wait(5)
+            with pytest.raises(subprocess.CalledProcessError), process_adapter.command_scope():
+                process_adapter.run_command(
+                    tmp_path, (sys.executable, "-c", "raise SystemExit(7)"), check=True, timeout=5
+                )
+            assert children[0].poll() is None
+            completed = process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"))
+            assert completed.returncode == 0
+        finally:
+            outer.cancel()
+            assert pending.result(timeout=5).returncode != 0
+        with (
+            pytest.raises(process_adapter.ProcessExecutionError, match="process_cancelled"),
+            process_adapter.command_scope(),
+        ):
+            process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=2)
+    assert children[0].returncode is not None
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
 def test_interruption_after_process_creation_retains_and_reaps_child(tmp_path, monkeypatch):
     """Registration must finish before a native termination can escape its start."""

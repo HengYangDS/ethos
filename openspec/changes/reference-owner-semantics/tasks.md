@@ -32,10 +32,12 @@
 
 ## 2. Contract Texts
 
-- [ ] 2.1 Add the four requirements to `repository-governance`. Done when strict validation
+- [x] 2.1 Add the four requirements to `repository-governance`. Done when strict validation
       passes and the simulated archive leaves every spec valid.
-- [ ] 2.2 Record the repair under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown-lint`
+      (At `4bf5a5e81` the `openspec` gate passed and the simulated archive validated all 12 specs.)
+- [x] 2.2 Record the repair under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown-lint`
       and `prose` pass.
+      (Both gates passed at `4bf5a5e81`.)
 
 ## 3. Acceptance
 

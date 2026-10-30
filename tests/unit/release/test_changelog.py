@@ -9,7 +9,6 @@ import pytest
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.repository.release.changelog import changelog_errors
-from ethos.repository.release.publication import publication_source_version_gaps
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -113,17 +112,6 @@ def test_history_link_metadata_does_not_require_a_fixed_peer_count() -> None:
     """A link index is metadata; its source still needs independent verification."""
     metadata = "History: [Source](https://example.com/v1.2.3)\n\n"
     assert _gaps(_release("1.2.3").replace("### Fixed", metadata + "### Fixed")) == []
-
-
-def test_generic_tag_publication_does_not_reapply_the_product_wheel_profile() -> None:
-    """A valid adopter SemVer remains valid at the next publication boundary."""
-    version = "1.2.3-preview-1+build.09"
-    assert (
-        publication_source_version_gaps(
-            source_ref=f"refs/tags/v{version}", annotated_tag=True, version_text=version + "\n"
-        )
-        == ()
-    )
 
 
 def test_unreleased_source_is_not_forced_to_have_a_release() -> None:

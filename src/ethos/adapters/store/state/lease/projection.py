@@ -56,10 +56,6 @@ class LeaseObservation:
         return result
 
 
-def active_leases(db_path: Path) -> list[dict[str, Any]]:
-    return [item.record() for item in lease_observations(db_path) if item.state == "valid"]
-
-
 def lease_observations(
     db_path: Path, *, observed_at: datetime | None = None
 ) -> list[LeaseObservation]:

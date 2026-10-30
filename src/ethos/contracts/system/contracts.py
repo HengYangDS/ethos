@@ -36,12 +36,6 @@ def system_contract_file(name: str) -> str:
     return f"system/{name.replace('_', '-')}.toml"
 
 
-def load_system_contract(root: Path, name: str) -> dict[str, object]:
-    """Load one root-owned system contract or fail closed."""
-    path = root / system_contract_file(name)
-    return tomllib.loads(path.read_text(encoding="utf-8"))
-
-
 def schema_validation_gaps(name: str, payload: dict[str, object], schema_path: Path) -> list[str]:
     """Validate a contract against its declared JSON schema."""
     try:

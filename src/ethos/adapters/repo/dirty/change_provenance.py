@@ -38,15 +38,6 @@ def index_content_sha256(root: Path) -> str:
     return hashlib.sha256(entries).hexdigest()
 
 
-def working_overlay_sha256(root: Path) -> str:
-    """Bind unstaged tracked bytes and untracked files independently of HEAD."""
-    return _working_content_sha256(
-        root,
-        baseline=None,
-        drift_gap="working_overlay_snapshot_drift",
-    )
-
-
 def untracked_content_sha256(root: Path) -> str:
     """Bind untracked content independently of a native tracked-tree transition."""
     arguments = ("ls-files", "--others", "--exclude-standard", "-z")

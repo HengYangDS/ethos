@@ -200,11 +200,10 @@ def test_an_invocation_observes_the_running_build_once(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(authority, "source_build_identity", observe)
     with invocation_scope():
-        first = authority.invoking_source_commit()
-        second = authority.invoking_source_commit()
-        authority.invoking_build_identity()
-        authority.invoking_build_identity()
-    later = authority.invoking_source_commit()
+        first = authority.invoking_build_identity()
+        second = authority.invoking_build_identity()
+    later = authority.invoking_build_identity()
 
-    assert first == second != later
-    assert observed == [False, True, False]
+    assert first is second
+    assert first != later
+    assert observed == [True, True]

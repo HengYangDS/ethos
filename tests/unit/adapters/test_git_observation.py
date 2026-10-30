@@ -341,18 +341,6 @@ def test_git_observations_fail_closed_on_unavailable_or_ambiguous_data(
     monkeypatch.setattr(git_adapter, "run_git", lambda *_args, **_kwargs: _completed(1))
     assert git_adapter.committed_file_bytes(tmp_path, "a" * 40, "file") == b""
     assert git_adapter.git_files(tmp_path, "*.py") == []
-    for returncode, payload in (
-        (1, b""),
-        (0, b"R100\0source"),
-        (0, b"R100\0\xff\0target\0"),
-        (0, b"C100\0source\0copy\0R100\0source\0target\0"),
-    ):
-        monkeypatch.setattr(
-            git_adapter,
-            "run_git",
-            lambda *_args, outcome=(returncode, payload), **_kwargs: _completed(*outcome),
-        )
-        assert git_adapter.exact_rename_target(tmp_path, "old", "new", "source") == ""
     monkeypatch.setattr(git_adapter, "current_tracked_head", lambda _root: "a" * 40)
     assert git_adapter.remote_tracking_sync(tmp_path, "", "origin")["state"] == "branch_unknown"
     values = iter(("b" * 40, "not counts"))

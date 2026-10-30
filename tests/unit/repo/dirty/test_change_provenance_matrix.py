@@ -117,22 +117,3 @@ def test_dirty_provenance_reports_unavailable_observation(
     assert report["summary"]["unavailable"] == 1
     assert report["entries"] == []
     assert report["error"] in {"git unavailable", "bad repo"}
-
-
-def test_working_overlay_digest_omits_head_baseline(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = []
-
-    def run_git(_root, *arguments, **_kwargs):
-        calls.append(arguments)
-        return SimpleNamespace(stdout=b"")
-
-    monkeypatch.setattr(provenance, "run_git", run_git)
-    assert len(provenance.working_overlay_sha256(tmp_path)) == 64
-    assert calls == [
-        ("diff", "--binary", "--"),
-        ("ls-files", "--others", "--exclude-standard", "-z"),
-        ("diff", "--binary", "--"),
-        ("ls-files", "--others", "--exclude-standard", "-z"),
-    ]

@@ -138,10 +138,6 @@ class NativeSupply:
         """Retain the existing shared Git-common or explicitly bound CI cache ownership."""
         return native_tool_cache(root) / self.name / self.version / self.platform
 
-    def executable_bytes(self, archive: Path) -> bytes:
-        """Select one regular native member from the same descriptor that passed hashing."""
-        return self._archive_members(archive, (self.executable_name,))[self.executable_name]
-
     def payload_bytes(self, archive: Path) -> dict[str, bytes]:
         """Read the complete distributable payload through the sole archive verifier."""
         return self._archive_members(archive, (self.executable_name, "LICENSE"))

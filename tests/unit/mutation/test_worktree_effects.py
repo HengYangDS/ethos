@@ -10,7 +10,6 @@ from threading import Event
 import pytest
 
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.repo.config_effects import set_local_config
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.worktree_effects import add_worktree
@@ -339,20 +338,3 @@ def test_sync_worktree_refreshes_only_native_index_stat_cache(tmp_path, dirty) -
         assert applied.payload.body["result"]["state"] == "applied"
         assert material.read_text() == "# accepted replacement\n"
         assert git(repo, "write-tree") == git(repo, "rev-parse", f"{head}^{{tree}}")
-
-
-def test_local_config_attests_apply_and_terminal_recognition(tmp_path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    values = {"core.hooksPath": ".githooks", "gc.packRefs": "false"}
-
-    applied = set_local_config(repo, values)
-    recognized = set_local_config(repo, values)
-
-    assert applied.payload.body["result"]["state"] == "applied"
-    assert recognized.payload.body["result"]["state"] == "recognized"
-    assert recognized.payload.body["output"] == values
-    assert recognized.predicate == "effect:git-config"
-    assert recognized.commitment_digest is None
-    assert recognized.payload.body["repository"] == "repository:repo"
-    assert git(repo, "config", "--local", "--get", "core.hooksPath") == ".githooks"

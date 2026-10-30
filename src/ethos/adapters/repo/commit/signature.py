@@ -387,34 +387,6 @@ def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -
     )
 
 
-def repaired_ref_provenance(
-    root: Path, *, ref: str, old: str, new: str
-) -> dict[str, object] | None:
-    """Recognize an exact ref repair beneath the proposed native history."""
-    if old == new:
-        return None
-    _, attestations = read_attestation_set(root)
-    matches = []
-    for record in attestations:
-        if record.predicate != RESULT:
-            continue
-        coordinates = record.payload.body.get("coordinates")
-        refs = coordinates.get("refs") if isinstance(coordinates, Mapping) else None
-        replacement = record.payload.body.get("replacement")
-        if (
-            not isinstance(refs, Mapping)
-            or refs.get(ref) != old
-            or not isinstance(replacement, str)
-            or not is_ancestor(root, replacement, new)
-        ):
-            continue
-        repair = completed_signature_repair(root, new=replacement, attestations=attestations)
-        if repair is not None:
-            matches.append(repair)
-    _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
-    return matches[0] if matches else None
-
-
 def repaired_object_provenance(
     root: Path, *, old: str, new: str, ref: str | None = None
 ) -> dict[str, object] | None:

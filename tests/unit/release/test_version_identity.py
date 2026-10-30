@@ -79,7 +79,8 @@ def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     selected = cache / "node" / supply.version / supply.target
     selected.mkdir(parents=True)
     archive = supply.cache(root) / supply.archive
-    supply.verify_archive(archive)
+    with archive.open("rb") as stream:
+        assert hashlib.file_digest(stream, "sha256").hexdigest() == supply.sha256
     shutil.copyfile(archive, selected / supply.archive)
     for name in ("vale", "cue"):
         native = NativeSupply.read(root, name)

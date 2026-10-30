@@ -5,7 +5,6 @@ from datetime import date
 import pytest
 
 from ethos.repository.openspec.identifiers import active_change_root
-from ethos.repository.openspec.identifiers import active_change_scope
 from ethos.repository.openspec.identifiers import archived_change_root
 from ethos.repository.openspec.identifiers import archived_change_root_matches
 from ethos.repository.openspec.identifiers import parse_archived_change_root
@@ -13,7 +12,6 @@ from ethos.repository.openspec.identifiers import parse_archived_change_root
 
 def test_active_change_projects_only_the_official_root() -> None:
     assert active_change_root("lineage-dag") == "openspec/changes/lineage-dag"
-    assert active_change_scope("lineage-dag") == "openspec/changes/lineage-dag/**"
 
 
 def test_archived_root_round_trips_exact_date_and_change() -> None:

@@ -219,8 +219,6 @@ def test_archive_bytes_are_verified_before_members_are_read(tmp_path: Path, faul
         archive.unlink()
     message = "native_node_archive_unavailable" if fault == "missing" else "checksum_mismatch"
     with pytest.raises(ValueError, match=message):
-        supply.verify_archive(archive)
-    with pytest.raises(ValueError, match=message):
         supply.project(archive, tmp_path / "native")
     assert not (tmp_path / "native").exists()
 

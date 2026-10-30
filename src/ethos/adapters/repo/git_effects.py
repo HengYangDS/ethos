@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import shutil
-from collections.abc import Callable
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -38,21 +37,6 @@ if TYPE_CHECKING:
     from typing import Any
 
     from ethos.contracts.semantic import Attestation
-
-
-def stage_git_paths(
-    root: Path,
-    paths: tuple[str, ...],
-    *,
-    runner: Callable[..., Any] = run_git,
-) -> None:
-    """Stage one exact non-empty path set through the sole Git effect owner."""
-    if not paths:
-        message = "git_effect_stage_paths_missing"
-        raise ValueError(message)
-    completed = runner(root, "add", *paths, check=False)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "git_effect_stage_failed")
 
 
 def stage_git_worktree(root: Path, *, previous: str) -> None:
@@ -109,42 +93,14 @@ def compensate_git_worktree(root: Path, *, head: str, untracked_path: str = "") 
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
     if untracked_path:
-        _remove_tree(root, untracked_path)
+        remove_untracked_tree(root, untracked_path)
     observed = run_git(root, "status", "--porcelain", "--untracked-files=all", check=False)
     if observed.returncode or observed.stdout.strip():
         raise ValueError(observed.stderr.strip() or "git_effect_compensation_residue")
 
 
-def compensate_created_paths(
-    root: Path,
-    *,
-    head: str,
-    paths: tuple[str, ...],
-    untracked_root: str,
-) -> None:
-    """Remove only newly created staged paths while preserving a prior overlay."""
-    completed = run_git(
-        root,
-        "restore",
-        "--source",
-        head,
-        "--staged",
-        "--",
-        *paths,
-        check=False,
-    )
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "git_effect_compensation_failed")
-    _remove_tree(root, untracked_root)
-
-
 def remove_untracked_tree(root: Path, path: str) -> None:
-    """Remove one newly created untracked directory through the Git effect owner."""
-    _remove_tree(root, path)
-
-
-def _remove_tree(root: Path, path: str) -> None:
-    """Apply the sole containment and type check for effect-owned tree removal."""
+    """Remove one newly created untracked directory after its containment and type check."""
     base = root.resolve()
     target = base / path
     try:

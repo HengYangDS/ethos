@@ -216,11 +216,3 @@ def _live_skill_contract_instances(root: Path) -> dict[str, SchemaInstanceValida
         "required_gaps": package_gaps,
     }
     return instances
-
-
-def validate_ethos_result(
-    payload: dict[str, Any],
-    *,
-    root: Path | None = None,
-) -> SchemaInstanceValidation:
-    return validate_schema_instance("result.schema.json", payload, root=root)

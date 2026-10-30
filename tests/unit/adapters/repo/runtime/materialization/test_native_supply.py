@@ -87,7 +87,7 @@ def test_product_native_supply_reads_locked_platform_without_mutation(
     assert selected.backend == "github:vale-cli/vale"
     assert selected.version_output == "vale version 3.24.0"
     assert selected.executable_name == ("vale.exe" if system == "Windows" else "vale")
-    assert selected.executable_bytes(archive) == body
+    assert selected.payload_bytes(archive)[selected.executable_name] == body
     assert {path: path.read_bytes() for path in original} == original
     assert not (root / "build").exists()
 
@@ -357,7 +357,7 @@ def test_native_archive_consumes_the_verified_descriptor(locked_vale, monkeypatc
 
     monkeypatch.setattr(tarfile, "open", replace_path)
 
-    assert selected.executable_bytes(archive) == body
+    assert selected.payload_bytes(archive)[selected.executable_name] == body
 
 
 def test_native_zip_requires_one_regular_executable(locked_vale) -> None:
@@ -378,7 +378,7 @@ def test_native_zip_requires_one_regular_executable(locked_vale) -> None:
     supply = import_module("ethos.adapters.repo.runtime.materialization.native_supply").NativeSupply
 
     with pytest.raises(ValueError, match="native_tool_archive_executable_invalid:vale"):
-        supply.read(root, "vale").executable_bytes(archive)
+        supply.read(root, "vale").payload_bytes(archive)
 
     assert archive.read_bytes() == original
 

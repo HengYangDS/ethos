@@ -107,7 +107,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     assert caches == (expected, expected)
     assert len(calls) == 1
     assert (expected / "gitleaks").read_bytes() == GITLEAKS_BODY
-    assert supply.executable_bytes(expected / package.name) == GITLEAKS_BODY
+    assert supply.payload_bytes(expected / package.name)[supply.executable_name] == GITLEAKS_BODY
     assert not (repo / "build/runtime/tool-cache/ci-tools").exists()
     assert not (linked / "build/runtime/tool-cache/ci-tools").exists()
     if cache_selector is not None:

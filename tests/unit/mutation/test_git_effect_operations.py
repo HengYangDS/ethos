@@ -25,20 +25,11 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-def test_stage_effects_reject_missing_paths_stale_heads_and_git_failures(
+def test_stage_effects_reject_stale_heads_and_git_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
-    with pytest.raises(ValueError, match="git_effect_stage_paths_missing"):
-        git_effects.stage_git_paths(repo, ())
-
-    def rejected(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(("git", "add"), 1, "", "index rejected")
-
-    with pytest.raises(ValueError, match="index rejected"):
-        git_effects.stage_git_paths(repo, ("README.md",), runner=rejected)
-
     commit_fixture_file(repo, "next.txt", "next\n", "advance")
     with pytest.raises(ValueError, match="git_effect_head_stale"):
         git_effects.stage_git_worktree(repo, previous=head)
@@ -252,7 +243,7 @@ def test_compensation_reports_unowned_residue_without_removing_it(tmp_path):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_created_path_compensation_reports_restore_failure(
+def test_compensation_reports_restore_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -264,13 +255,6 @@ def test_created_path_compensation_reports_restore_failure(
         ),
     )
 
-    with pytest.raises(ValueError, match="restore rejected"):
-        git_effects.compensate_created_paths(
-            repo,
-            head="a" * 40,
-            paths=("new/path",),
-            untracked_root="new",
-        )
     with pytest.raises(ValueError, match="restore rejected"):
         git_effects.compensate_git_worktree(repo, head="a" * 40)
 
@@ -293,34 +277,6 @@ def test_index_restore_preserves_working_bytes_and_rejects_an_unreadable_tree(
         git_effects.restore_git_index(repo, tree="f" * 40)
     assert git(repo, "write-tree") == original
     assert readme.read_text() == "unstaged content survives index recovery\n"
-
-
-def test_created_path_compensation_preserves_prior_index_and_unstaged_overlay(
-    tmp_path: Path,
-) -> None:
-    """Remove only newly owned paths while retaining both kinds of prior edits."""
-    repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-    readme = repo / "README.md"
-    readme.write_text("prior staged edit\n")
-    git(repo, "add", "README.md")
-    readme.write_text("prior unstaged edit\n")
-    index = git(repo, "write-tree")
-    created = repo / "new/artifact"
-    created.parent.mkdir()
-    created.write_text("failed effect output\n")
-    git_effects.stage_git_paths(repo, ("new/artifact",))
-
-    git_effects.compensate_created_paths(
-        repo, head=head, paths=("new/artifact",), untracked_root="new"
-    )
-
-    assert git(repo, "write-tree") == index
-    assert readme.read_text() == "prior unstaged edit\n"
-    assert git(repo, "show", ":README.md") == "prior staged edit"
-    assert not created.parent.exists()
-    git_effects.remove_untracked_tree(repo, "new")
-    assert git(repo, "rev-parse", "HEAD") == head
 
 
 def test_compensation_refuses_deletion_when_native_index_observation_fails(

@@ -412,45 +412,6 @@ def committed_file_bytes(
     return completed.stdout if completed.returncode == 0 else b""
 
 
-def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
-    """Return the sole exact rename target, validating the complete native Git edge."""
-    completed = run_git(
-        root,
-        "diff",
-        "--no-ext-diff",
-        "--name-status",
-        "-z",
-        "--find-renames=100%",
-        "--find-copies=100%",
-        "--find-copies-harder",
-        "--diff-filter=RC",
-        old_ref,
-        new_ref,
-        check=False,
-        text=False,
-        observation=True,
-    )
-    if completed.returncode != 0:
-        return ""
-    fields = completed.stdout.split(b"\0")
-    targets: list[str] = []
-    index = 0
-    while index < len(fields) and fields[index]:
-        status = fields[index]
-        index += 1
-        if status not in {b"R100", b"C100"} or index + 2 > len(fields):
-            return ""
-        paths = fields[index : index + 2]
-        index += 2
-        try:
-            previous, target = (path.decode() for path in paths)
-            if previous == source:
-                targets.append(target)
-        except UnicodeDecodeError:
-            return ""
-    return targets[0] if len(targets) == 1 else ""
-
-
 def remote_tracking_sync(root: Path, branch: str, remote: str) -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()

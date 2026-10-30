@@ -142,7 +142,6 @@ def test_storage_observation_and_exact_cas_fail_closed(tmp_path) -> None:
             ("work/example", SOURCE, 1, "not-a-time"),
         )
     assert lease_projection.observe_lease(unknown, "work/example").state == "unknown"
-    assert lease_projection.active_leases(unknown) == []
     assert lease_projection.observe_lease(unknown, "work/example").record()["error"]
     with pytest.raises(ValueError, match="lease_unknown:work/example"):
         lease_projection.lease_record(("work/example", SOURCE, 1, "not-a-time"))
@@ -175,7 +174,6 @@ def test_storage_observation_and_exact_cas_fail_closed(tmp_path) -> None:
         ("work/expired", "expired"),
         ("work/valid", "valid"),
     ]
-    assert [item["subject"] for item in lease_projection.active_leases(unknown)] == ["work/valid"]
 
     database = tmp_path / "cas.sqlite"
     lease_storage.acquire_lease(database, lease=lease)

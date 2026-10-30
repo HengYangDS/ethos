@@ -53,11 +53,6 @@ def invoking_build_identity() -> BuildIdentity:
     return _invoking_build(include_overlay=True)
 
 
-def invoking_source_commit() -> str:
-    """Return the commit the invoking checkout or installed package was built from."""
-    return _invoking_build(include_overlay=False).source_commit
-
-
 def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None) -> RuntimeBuild:
     """Keep accepted self-hosted authority distinct from explicit adopter supply."""
     package_source = Path(__file__).resolve().parents[5]

@@ -168,16 +168,6 @@ class NodeSupply:
         """Use the native cache owner, shared across source worktrees."""
         return native_tool_cache(root) / "node" / self.version / self.target
 
-    def verify_archive(self, archive: Path) -> None:
-        """Verify complete official bytes before interpreting their members."""
-        if archive.is_symlink() or not archive.is_file():
-            message = "native_node_archive_unavailable"
-            raise ValueError(message)
-        with archive.open("rb") as stream:
-            if hashlib.file_digest(stream, "sha256").hexdigest() != self.sha256:
-                message = "native_node_archive_checksum_mismatch"
-                raise ValueError(message)
-
     def project(self, archive: Path, destination: Path, *, bootstrap_npm: bool = True) -> Path:
         """Project Node, its complete bundled modules and license, not unused SDK headers."""
         if archive.is_symlink() or archive.is_junction() or not archive.is_file():

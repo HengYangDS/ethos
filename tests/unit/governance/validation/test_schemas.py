@@ -16,7 +16,6 @@ from ethos.repository.audit import REQUIRED_SCHEMAS
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.schema import load_schema
 from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.result import EthosResult
@@ -135,7 +134,7 @@ def test_result_payload_validates_native_governance_context(with_context) -> Non
     result = EthosResult(
         command="status", verdict="pass", state="ready", governance_context=context
     )
-    validation = validate_ethos_result(result.to_dict())
+    validation = validate_schema_instance("result.schema.json", result.to_dict())
     assert validation["verdict"] == "pass"
     assert "ok" not in validation
     json.dumps(validation)

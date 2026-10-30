@@ -24,7 +24,6 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.system.contracts import SYSTEM_CONTRACTS
-from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contract_file
 from ethos.contracts.system.contracts import system_contracts_report
@@ -141,7 +140,6 @@ def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: 
     assert any(
         str(gap).startswith("system_contract_schema_violation:evidence_boundaries:") for gap in gaps
     )
-    assert load_system_contract(tmp_path, "formats") == {"schema": "schemas/formats.json"}
 
 
 def test_system_contracts_report_owns_surface_identity_uniqueness(tmp_path: Path) -> None:

@@ -31,11 +31,6 @@ def active_change_root(change: str) -> str:
     return f"openspec/changes/{change}"
 
 
-def active_change_scope(change: str) -> str:
-    """Return the recursive path projection for one official Change root."""
-    return f"{active_change_root(change)}/**"
-
-
 def archived_change_root(change: str, archived_on: date) -> str:
     """Return the dated immutable OpenSpec root for one logical Change."""
     if logical_change_identifier_issue(change):

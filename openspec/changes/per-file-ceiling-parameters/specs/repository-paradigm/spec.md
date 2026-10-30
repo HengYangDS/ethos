@@ -2,7 +2,12 @@
 
 ### Requirement: Python files stay within the common size ceiling
 
-Every tracked Python file SHALL have at most as many effective lines, counted without blank lines, comments and docstrings, as its repository's effective Python ceiling. The paradigm contract SHALL hold the default of each per-file ceiling, 500 for Python files and 500 for the Markdown documentation ceiling, and one bound of 1000 for both. A repository binding MAY declare its own value for either ceiling in `.ethos/rules.toml` under `[paradigm.size]`, and that value applies to every file the ceiling measures. A lower value SHALL apply. A higher value SHALL apply only when it is within the bound and `[paradigm.size.reasons]` states a reason for it, and the paradigm SHALL report it as a deviation from the default. A value equal to the default, a higher value without a reason, a value above the bound, a value that is not a positive integer and an unknown key SHALL each be reported, and the default SHALL apply. No binding SHALL set a ceiling for one file, a path or a class of files.
+Every tracked Python file SHALL have at most as many effective lines, counted without blank
+lines, comments and docstrings, as its repository's Python ceiling. The paradigm contract SHALL
+hold both per-file ceilings' default of 500 and bound of 1000. A repository binding MAY declare
+its own whole-tree value in `.ethos/rules.toml` `[paradigm.size]`; an invalid declaration SHALL
+be reported and leave the default in force. No binding SHALL set a ceiling for one file, path or
+class of files.
 
 #### Scenario: A Python file outgrows the ceiling
 
@@ -20,9 +25,10 @@ Every tracked Python file SHALL have at most as many effective lines, counted wi
 - **THEN** a tracked Python file with 650 effective lines passes
 - **AND** the paradigm report lists the declared value and its reason as a deviation from the default.
 
-#### Scenario: A higher ceiling lacks its reason or exceeds the bound
+#### Scenario: An invalid declaration leaves the default in force
 
-- **WHEN** `[paradigm.size]` declares `python_effective_lines = 700` without a reason, or declares `1200`
+- **WHEN** `[paradigm.size]` declares `python_effective_lines = 700` without a reason, declares
+  `1200`, declares a value that is not a positive integer or names an unknown key
 - **THEN** the paradigm reports the declaration
 - **AND** a tracked Python file with 650 effective lines is reported against the 500-line ceiling.
 

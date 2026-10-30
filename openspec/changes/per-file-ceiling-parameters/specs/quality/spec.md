@@ -2,7 +2,11 @@
 
 ### Requirement: Current Markdown stays within one navigable topic
 
-Every tracked, current, hand-authored Markdown documentation file in ETHOS or a governed repository, including an active OpenSpec Change's proposal, design, tasks and delta specs, SHALL contain at most as many nonblank physical lines as its repository's effective Markdown ceiling, which the repository paradigm holds with a default of 500. The release-contract changelog, accepted OpenSpec specifications, the immutable OpenSpec archive and declared generated output SHALL retain their own carrier-specific checks.
+Every tracked, current, hand-authored Markdown documentation file in ETHOS or a governed
+repository, including an active OpenSpec Change's proposal, design, tasks and delta specs, SHALL
+contain at most as many nonblank physical lines as its repository's effective Markdown ceiling,
+500 by default. The release-contract changelog, accepted OpenSpec specifications, the immutable
+OpenSpec archive and declared generated output SHALL retain their own carrier-specific checks.
 
 #### Scenario: A current topic exceeds the ceiling
 

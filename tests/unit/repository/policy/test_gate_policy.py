@@ -12,7 +12,6 @@ import tomli_w
 import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
-from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
@@ -544,37 +543,6 @@ def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None
         resolve_gate_policy(repo)
 
 
-def test_quality_observation_retains_committed_roles_and_explicit_test_identity(
-    tmp_path: Path,
-) -> None:
-    """Policy compilation and native observation share the same committed roles."""
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / "test_entry.js").write_text("export const answer = 42;\n")
-    (repo / ".gitattributes").write_text("test_entry.js ethos-role=code\n")
-    head = commit_fixture(repo, "declare production subject")
-    tree, (subject,) = observe_quality_subjects(repo, language="javascript")
-    assert tree == git(repo, "rev-parse", f"{head}^{{tree}}")
-    assert subject.role == "code"
-    assert not subject.is_test
-    assert subject.requires_behavior
-    (repo / ".gitattributes").write_text("test_entry.js ethos-role=test\n")
-    assert observe_quality_subjects(repo)[1] == (subject,)
-
-
 def test_rootless_policy_compiles_only_the_product_declaration() -> None:
     """Without a repository, the product registry compiles without observing materials."""
     assert resolve_gate_policy(full=True) == compile_gate_policy(full=True)
-
-
-@pytest.mark.parametrize("fault", ["profile", "tree"])
-def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: str) -> None:
-    """An invalid committed profile or another expected tree never yields quality subjects."""
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / "answer.py").write_text("VALUE = 42\n")
-    if fault == "profile":
-        (repo / ".ethos").mkdir()
-        (repo / ".ethos/profile.toml").write_text("profile_id = 1\n")
-    commit_fixture(repo, "record source")
-    message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
-    with pytest.raises(ValueError, match=message):
-        observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")

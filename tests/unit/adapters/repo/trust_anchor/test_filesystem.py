@@ -18,7 +18,7 @@ from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from ethos.adapters.repo.trust_anchor.verification import trust_anchor
-from tools.ci.delivery.acceptance.effect import independent_host_environment
+from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 
 if TYPE_CHECKING:
     from pathlib import Path

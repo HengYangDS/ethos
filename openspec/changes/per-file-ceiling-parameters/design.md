@@ -114,8 +114,11 @@ source budget. That decision belongs to the sink; this Change records the eviden
 
 When this Change lands, the incumbent package judges ETHOS's tree with 512. The release that
 carries it judges the next proof with 500, and ETHOS is one member of every fleet preview, so ETHOS
-splits its 13 Python files above 500 here: seven in `src/`, four in `tests/` and two in `tools/`.
-Each split follows semantic ownership; none shortens a file by compressing it.
+brings its 13 Python files above 500 within the default here: seven in `src/`, four in `tests/`
+and two in `tools/`. Twelve are split by semantic ownership. `adapters/repo/git.py` instead loses
+`exact_rename_target`, which nothing called, in `retire-unreachable-product-code`; that Change also
+pays for the imports the splits add to the product source budget. None shortens a file by
+compressing it.
 
 ### 7. Values follow the running package
 

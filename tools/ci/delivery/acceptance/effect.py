@@ -24,7 +24,6 @@ import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
@@ -36,6 +35,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
     require_python_image_source,
 )
 from ethos.adapters.repo.runtime.selection import current_runtime
+from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.acceptance.receipt import package_failure_evidence
@@ -87,60 +87,6 @@ def _run(
         message = f"command failed ({completed.returncode}): {rendered}\n{detail}"
         raise RuntimeError(message)
     return completed.stdout.strip()
-
-
-def independent_host_environment() -> tuple[dict[str, str], str]:
-    """Retain native OS context and signing tools without agent control planes."""
-    tools = {}
-    for name in ("git", "ssh-keygen"):
-        executable = shutil.which(name)
-        if executable is None:
-            message = f"required executable is unavailable: {name}"
-            raise RuntimeError(message)
-        tools[name] = Path(executable).resolve()
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if key
-        in {
-            "ALLUSERSPROFILE",
-            "APPDATA",
-            "COMMONPROGRAMFILES",
-            "COMSPEC",
-            "HOME",
-            "HOMEDRIVE",
-            "HOMEPATH",
-            "LOCALAPPDATA",
-            "PATHEXT",
-            "PROGRAMDATA",
-            "PROGRAMFILES",
-            "SYSTEMDRIVE",
-            "SYSTEMROOT",
-            "TEMP",
-            "TMP",
-            "TMPDIR",
-            "USER",
-            "USERPROFILE",
-            "USERNAME",
-            "UV_PYTHON_INSTALL_DIR",
-            "WINDIR",
-        }
-    }
-    native_dirs = tuple(path.parent for path in tools.values())
-    if os.name == "nt":
-        powershell = Path(windows_powershell())
-        native_dirs += (powershell.parents[2], powershell.parents[3])
-    env["PATH"] = os.pathsep.join(dict.fromkeys(str(path) for path in native_dirs))
-    for name in tools:
-        if shutil.which(name, path=env["PATH"]) is None:
-            message = f"minimal host environment cannot resolve {name}"
-            raise RuntimeError(message)
-    unavailable = [name for name in ("workstation", "wcp") if shutil.which(name, path=env["PATH"])]
-    if unavailable:
-        raise RuntimeError(
-            "external governance executable leaked into package smoke: " + ", ".join(unavailable)
-        )
-    return env, tools["git"].as_posix()
 
 
 def observe_independent_command_plane(

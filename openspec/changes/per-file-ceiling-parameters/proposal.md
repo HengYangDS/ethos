@@ -40,7 +40,9 @@ switch the check off. A per-file or per-role value would bring exemptions back.
   The measures do not change.
 - The retired `[quality.code_size]` table is still reported, now with the repair to declare
   `[paradigm.size]`.
-- ETHOS splits its 13 Python files above 500 effective lines by semantic ownership.
+- ETHOS brings its 13 Python files above 500 effective lines within the default: twelve split by
+  semantic ownership, and `adapters/repo/git.py` through `retire-unreachable-product-code`, which
+  removes code that nothing calls.
 - **BREAKING** for governed repositories: after they rebind, 17 Python files and 10 Markdown
   documents in five repositories exceed the default (the preview is in the design).
 
@@ -61,7 +63,7 @@ None.
 - `src/ethos/contracts/paradigm/paradigm.toml` and `declaration.py`: the default and the bound.
 - `src/ethos/repository/paradigm/`: one owner resolves the effective ceilings and reports
   declarations; the paradigm report and docs health read it.
-- 13 ETHOS Python files split across `src/`, `tests/` and `tools/`, with their tests.
+- 13 ETHOS Python files across `src/`, `tests/` and `tools/` brought within 500, with their tests.
 - Out of scope: measuring other languages (Go, JavaScript, TypeScript). That belongs to the
   shared-ownership design's sink of business-free checks into the base, with its own fleet preview.
   The design records the instrument comparison that sink starts from.

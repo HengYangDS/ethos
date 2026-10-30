@@ -18,6 +18,8 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
+from tools.ci.delivery.acceptance.adopter_content import ADOPTER_FILES
+from tools.ci.delivery.acceptance.adopter_content import SMOKE_CHANGE
 from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
@@ -28,65 +30,6 @@ if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
 CommandRunner = Callable[..., str]
-
-# The adopted repository's authored files, written as LF bytes on every host.
-_SMOKE_CHANGE = "openspec/changes/smoke-change"
-_ADOPTER_FILES = {
-    ".ethos/profile.toml": (
-        'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n'
-    ),
-    ".ethos/release.toml": """[publication]
-local_verification_command = "git fsck --no-reflogs"
-local_installation_command = "git --version"
-
-[[publication.peers]]
-id = "file"
-provider = "git"
-role = "package_smoke"
-git_remote = "file"
-capabilities = ["repository", "publication"]
-""",
-    ".gitattributes": "* text=auto eol=lf\nline-ending-*.txt -text\n",
-    f"{_SMOKE_CHANGE}/.openspec.yaml": "schema: spec-driven\n",
-    f"{_SMOKE_CHANGE}/proposal.md": (
-        "## Why\n\nExercise the installed package lifecycle.\n\n"
-        "## What Changes\n\n- Add one package-smoke change.\n\n"
-        "## Capabilities\n\n### New Capabilities\n\n"
-        "- `package-smoke`: installed governance of one official Change.\n\n"
-        "### Modified Capabilities\n\n- None.\n\n"
-        "## Impact\n\n- Disposable package-smoke fixture.\n\n"
-        "## Out of Scope\n\n- Product behavior.\n"
-    ),
-    f"{_SMOKE_CHANGE}/design.md": (
-        "## Context\n\nPackage-only lifecycle proof.\n\n"
-        "## Goals / Non-Goals\n\nGovern one Change without product behavior.\n\n"
-        "## Decisions\n\nUse only official OpenSpec artifacts.\n\n"
-        "## Risks / Trade-offs\n\nNone beyond the disposable fixture.\n"
-    ),
-    f"{_SMOKE_CHANGE}/tasks.md": "## 1. Package smoke\n\n- [x] 1.1 Exercise installed lifecycle.\n",
-    f"{_SMOKE_CHANGE}/specs/package-smoke/spec.md": (
-        "## Purpose\n\n"
-        "Verify installed governance of native repository changes without source access.\n\n"
-        "## ADDED Requirements\n\n"
-        "### Requirement: Installed lifecycle\n\n"
-        "The installed package SHALL govern an official OpenSpec Change.\n\n"
-        "#### Scenario: Package smoke runs\n\n"
-        "- **WHEN** the installed lifecycle executes\n"
-        "- **THEN** no parallel intent carrier is required\n"
-    ),
-    "README.md": "# installed CLI adopter\n",
-    "AGENTS.md": "# Agents\n",
-    ".editorconfig": (
-        "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
-    ),
-    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
-    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
-    ".config/mise/config.toml": (
-        '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "git --version"\n'
-        'check = "git fsck --no-reflogs"\nfix = "git add --renormalize ."\n'
-    ),
-    ".config/mise/mise.lock": "",
-}
 
 
 def _required_executable(name: str) -> str:
@@ -162,13 +105,13 @@ def materialize_adopter(
     ):
         run(git, "config", name, value, cwd=root)
 
-    authored = dict(_ADOPTER_FILES)
+    authored = dict(ADOPTER_FILES)
     if retained:
         authored = {
-            relative.replace(_SMOKE_CHANGE, f"{_SMOKE_CHANGE}-20261008"): content
+            relative.replace(SMOKE_CHANGE, f"{SMOKE_CHANGE}-20261008"): content
             for relative, content in authored.items()
         }
-        authored[f"{_SMOKE_CHANGE}-20261008/tasks.md"] += "- [ ] 1.2 Verify retained authoring.\n"
+        authored[f"{SMOKE_CHANGE}-20261008/tasks.md"] += "- [ ] 1.2 Verify retained authoring.\n"
         authored[".ethos/workspace.toml"] = (
             '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
             'candidate_branch = "candidate/dev"\nwork_branch_prefix = "task/"\n'

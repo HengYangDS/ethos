@@ -22,6 +22,7 @@ from tests.support.windows_host import translate_like_windows
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect
+from tools.ci.delivery.acceptance import host_environment
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
 
@@ -31,17 +32,17 @@ ROOT = Path(__file__).resolve().parents[4]
 @pytest.mark.parametrize("missing", ["", "git", "ssh-keygen"])
 def test_independent_host_requires_its_signed_fixture_tools(monkeypatch, missing):
     """Supply both native prerequisites without inheriting unrelated host tooling."""
-    which = effect.shutil.which
+    which = host_environment.shutil.which
     monkeypatch.setattr(
-        effect.shutil,
+        host_environment.shutil,
         "which",
         lambda name, **kwargs: None if name == missing else which(name, **kwargs),
     )
     if missing:
         with pytest.raises(RuntimeError, match=f"required executable is unavailable: {missing}"):
-            effect.independent_host_environment()
+            host_environment.independent_host_environment()
     else:
-        environment, _git = effect.independent_host_environment()
+        environment, _git = host_environment.independent_host_environment()
         assert all(which(name, path=environment["PATH"]) for name in ("git", "ssh-keygen"))
 
 
@@ -80,7 +81,7 @@ def test_brownfield_conformance_checks_authored_content(
         return 0, {"verdict": "pass"}, ""
 
     monkeypatch.setattr(brownfield_fixture, "invoke", invoke)
-    environment, _git = effect.independent_host_environment()
+    environment, _git = host_environment.independent_host_environment()
     arguments = (tmp_path / "ethos", tmp_path)
     if gap:
         with pytest.raises(RuntimeError, match=gap):
@@ -244,7 +245,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
     _guide, _origin, status = installed_guidance(package)
     executed: list[tuple[str, ...]] = []
     environments: list[object] = []
-    environment, _git = effect.independent_host_environment()
+    environment, _git = host_environment.independent_host_environment()
     environment["XDG_DATA_HOME"] = str(tmp_path / "host-data")
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "ambient-data"))
 
@@ -308,7 +309,7 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
         else ""
     )
     global_config.write_text(global_identity, encoding="utf-8")
-    environment, git = effect.independent_host_environment()
+    environment, git = host_environment.independent_host_environment()
     environment.update(
         HOME=str(home),
         USERPROFILE=str(home),
@@ -431,7 +432,7 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     commands: list[tuple[str, ...]] = []
     head = "a" * 40
 
-    environment, _git = effect.independent_host_environment()
+    environment, _git = host_environment.independent_host_environment()
 
     def run_command(_root: Path, command: tuple[str, ...], **_kwargs: object):
         commands.append(command)

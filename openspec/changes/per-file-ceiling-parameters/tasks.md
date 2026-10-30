@@ -19,22 +19,27 @@
 
 ## 2. ETHOS meets the default
 
-- [ ] 2.1 Split the seven `src/` files above 500 effective lines by semantic ownership:
+- [x] 2.1 Split the seven `src/` files above 500 effective lines by semantic ownership:
       `adapters/repo/git.py`, `domain/publication/inspection.py`,
       `repository/policy/references/commands.py`,
       `adapters/mutation/lane_lifecycle/work_lane_refresh.py`, `domain/publication/operation.py`,
       `adapters/admission/current/resolution.py` and `adapters/mutation/lane_lifecycle/merge.py`.
       Done when each module is at most 500 effective lines and the test modules of every importer
-      pass.
-- [ ] 2.2 Split the four test modules and the two `tools/ci/delivery/acceptance/` modules above
-      500 effective lines. Done when each is at most 500 and the moved tests still run.
-- [ ] 2.3 Keep the product and test source budgets within their terminal totals. Done when the
-      source-budget measurement of the lane head reports both within budget.
+      pass. (Six modules split by concern, 1616 tests of their importers and the architecture
+      suite pass; `git.py` fell to 473 when `retire-unreachable-product-code` removed
+      `exact_rename_target`.)
+- [x] 2.2 Split the four test modules and the two `tools/ci/delivery/acceptance/` modules above
+      500 effective lines. Done when each is at most 500 and the moved tests still run. (No
+      Python file in the tree exceeds 500; the moved tests and their importers pass, 946 tests.)
+- [x] 2.3 Keep the product and test source budgets within their terminal totals. Done when the
+      source-budget measurement of the lane head reports both within budget. (`python_product`
+      69,862 of 70,000 and `python_tests` 89,575 of 90,000.)
 
 ## 3. Verification
 
-- [ ] 3.1 Run the paradigm report and docs health over ETHOS's tree with the candidate contract.
-      Done when neither reports a size gap.
+- [x] 3.1 Run the paradigm report and docs health over ETHOS's tree with the candidate contract.
+      Done when neither reports a size gap. (At 500, the paradigm report finds no size gap and
+      docs health no length gap.)
 
 ## Workflow follow-up
 

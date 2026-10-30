@@ -65,21 +65,29 @@ class PythonManifest(BaseModel):
 
     def declarations(self, observed: dict[str, set[str]]) -> None:
         """Project native package and executable identities from valid values."""
-        requirements = list(self.project.dependencies) + self.build_system.requires
+        requirements = [*self._dependencies(), *self.build_system.requires]
         if self.project.name is not None:
             requirements.append(self.project.name)
-        for values in self.project.optional_dependencies.values():
-            requirements.extend(values)
-        for values in self.dependency_groups.values():
-            requirements.extend(value for value in values if isinstance(value, str))
-        for requirement in requirements:
-            if match := re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement):
-                observed["distribution"].add(normalized_distribution(match.group()))
+        observed["distribution"].update(_distributions(requirements))
         observed["executable"].update(self.project.scripts)
         observed["executable"].update(self.project.gui_scripts)
         # As devEngines declares npm, requires-python declares the interpreter the project runs.
         if self.project.requires_python is not None:
             observed["executable"].add("python")
+
+    def dependency_distributions(self) -> frozenset[str]:
+        """Return the distributions the code and tests run with, never the project itself."""
+        own = normalized_distribution(self.project.name or "")
+        return frozenset(_distributions(self._dependencies()) - {own})
+
+    def _dependencies(self) -> list[str]:
+        """List the requirements the code and tests run with; build requirements stay apart."""
+        requirements = list(self.project.dependencies)
+        for values in self.project.optional_dependencies.values():
+            requirements.extend(values)
+        for values in self.dependency_groups.values():
+            requirements.extend(value for value in values if isinstance(value, str))
+        return requirements
 
 
 class NativePackageManager(BaseModel):
@@ -195,3 +203,12 @@ def npm_script_commands(files: dict[str, str]) -> dict[str, set[str]]:
 def normalized_distribution(value: str) -> str:
     """Normalize a native package identity with the PEP 503 name relation."""
     return re.sub(r"[-_.]+", "-", value).lower()
+
+
+def _distributions(requirements: list[str]) -> set[str]:
+    """Normalize the distribution name each requirement string starts with."""
+    return {
+        normalized_distribution(match.group())
+        for requirement in requirements
+        if (match := re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement))
+    }

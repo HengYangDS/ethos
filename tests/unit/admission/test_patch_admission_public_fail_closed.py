@@ -202,3 +202,26 @@ def test_deleted_python_input_retains_import_identity(source, path, replacement,
     gaps, unknown = deleted_input_gaps(files, frozenset({"src/pkg/owner.py"}))
     assert bool(gaps) is (expected == "block")
     assert bool(unknown) is (expected == "unknown")
+
+
+_OWNER_GAP = "deleted_input:src/pkg/owner.py:tests/test_owner.py:import"
+
+
+@pytest.mark.parametrize(
+    ("manifest", "expected"),
+    [
+        ('[project]\nname = "film"\ndependencies = ["Pkg>=1"]\n', "pass"),
+        ('[project]\nname = "film"\n[project.optional-dependencies]\nrun = ["pkg"]\n', "pass"),
+        ('[dependency-groups]\ntest = ["pkg"]\n', "pass"),
+        ('[project]\nname = "pkg"\ndependencies = ["pkg"]\n', "block"),
+        ('[project]\nname = "film"\ndependencies = ["pkg-tools"]\n', "block"),
+        ('[build-system]\nrequires = ["pkg"]\n', "block"),
+        ("[project\n", "block"),
+    ],
+    ids=["dependency", "optional", "group", "own-name", "other-name", "build-only", "malformed"],
+)
+def test_declared_dependency_replaces_a_deleted_package(manifest, expected):
+    """A dependency of the same name serves imports of the vendored copy a patch deletes."""
+    files = {"pyproject.toml": manifest, "tests/test_owner.py": "from pkg.owner import item\n"}
+    gaps, _unknown = deleted_input_gaps(files, frozenset({"src/pkg/owner.py"}))
+    assert gaps == ([] if expected == "pass" else [_OWNER_GAP])

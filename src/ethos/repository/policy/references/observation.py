@@ -27,6 +27,7 @@ from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
+from ethos.repository.policy.references.manifests import PythonManifest
 from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
@@ -341,8 +342,20 @@ def deleted_input_gaps(
 
     This bounded observation does not claim whole-program reference coverage.
     Unknown native input expressions stay distinct from known dangling inputs.
+    A deleted module whose top-level package a declared dependency of the same
+    normalized name provides is served by that dependency, not dangling.
     """
-    gaps, unknown = python_references.deleted_python_input_gaps(files, deleted)
+    manifest = PythonManifest.read(files["pyproject.toml"]) if "pyproject.toml" in files else None
+    provided = manifest.dependency_distributions() if manifest is not None else frozenset()
+    gaps, unknown = python_references.deleted_python_input_gaps(
+        files,
+        frozenset(
+            path
+            for path in deleted
+            if normalized_distribution(python_references.module_name(path).partition(".")[0])
+            not in provided
+        ),
+    )
     if not deleted:
         return gaps, unknown
     for path, text in files.items():

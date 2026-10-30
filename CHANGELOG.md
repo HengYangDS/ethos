@@ -22,6 +22,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   value without a reason, a value above the bound and an unknown key are gaps that leave the
   default in force. The retired `[quality.code_size]` table is still reported.
 
+### Fixed
+
+- Deletion admission admits a patch that replaces a vendored Python package with a dependency of
+  the same name: when the root `pyproject.toml` declares such a dependency, imports of the deleted
+  modules are not reported as `deleted_input` gaps. Deleting the project's own package, or a
+  package that only a dependency of another name or a build requirement declares, still blocks.
+
 ## [0.2.0-alpha.21] - 2026-10-30
 
 ### Added

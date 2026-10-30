@@ -38,11 +38,14 @@
 
 ## 3. Contract Texts
 
-- [ ] 3.1 Modify `distribution`'s launcher, boundary and version requirements, and add
+- [x] 3.1 Modify `distribution`'s launcher, boundary and version requirements, and add
       `repository-governance`'s release mirror requirement. Done when strict validation passes and
       the simulated archive leaves every spec valid.
-- [ ] 3.2 Record both repairs under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown-lint` and
+      (At `a582654b3` the `openspec` gate passed, and the simulated archive applied 3 modified and
+      1 added requirement and validated all 12 specs.)
+- [x] 3.2 Record both repairs under `[Unreleased]` in `CHANGELOG.md`. Done when `markdown-lint` and
       `prose` pass.
+      (`markdown-lint` and `prose` passed at `a582654b3`.)
 
 ## Workflow follow-up
 

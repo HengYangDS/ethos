@@ -10,12 +10,14 @@ import ethos.repository.release.configuration as release_core
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
+from ethos.repository.release.identity import product_version
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from tests.support.literal_cases import literal_case
 
 _LOCAL = literal_case("release.test_policy_attestation:assign:_LOCAL:0")
+_PRODUCT = product_version(Path(__file__).resolve().parents[3])
 _PUBLICATION = {
     "local_verification_command": "uv run --frozen --offline python -m nox -s local_ci",
     "local_installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
@@ -172,10 +174,10 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     )
     _fields(
         manifest,
-        version="0.2.0-alpha.20",
-        tag="v0.2.0-alpha.20",
+        version=_PRODUCT,
+        tag=f"v{_PRODUCT}",
         all_package_versions_match=True,
-        packages={"ethos": "0.2.0-alpha.20"},
+        packages={"ethos": _PRODUCT},
     )
     _fields(
         report,

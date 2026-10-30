@@ -143,7 +143,7 @@ def wheel_build_identity(wheel: Path) -> BuildIdentity:
 
 
 def projected_package_versions(root: Path) -> dict[str, str]:
-    """Validate tracked npm projections against the product-version owner."""
+    """Validate the launcher's version projection; no lock records the product version."""
     expected = product_version(root)
     package = _json_object(
         root / "distributions/npm/package.json", "distributions/npm/package.json"
@@ -152,22 +152,20 @@ def projected_package_versions(root: Path) -> dict[str, str]:
     lock = _json_object(root / "package-lock.json", "root")
     raw_packages = lock.get("packages")
     packages = cast("dict[str, object]", raw_packages) if isinstance(raw_packages, dict) else {}
-    locked = packages.get("distributions/npm")
     root_locked = packages.get("")
-    projections = {
-        "distributions/npm/package.json": package.get("version"),
-        "package-lock.json#packages/distributions/npm": locked.get("version")
-        if isinstance(locked, dict)
-        else None,
-    }
-    drift = next((label for label, value in projections.items() if value != expected), "")
-    if drift:
-        _fail(f"package_version_projection_drift:{drift}")
+    if package.get("version") != expected:
+        _fail("package_version_projection_drift:distributions/npm/package.json")
     if "version" in root_package:
         _fail("package_version_parallel_owner:package.json")
-    if "version" in lock or not isinstance(root_locked, dict) or "version" in root_locked:
+    # A launcher workspace would put the version into the lock that hosted supply hashes.
+    if (
+        "version" in lock
+        or not isinstance(root_locked, dict)
+        or "version" in root_locked
+        or "distributions/npm" in packages
+    ):
         _fail("package_version_parallel_owner:package-lock.json")
-    return dict.fromkeys(projections, expected)
+    return {"distributions/npm/package.json": expected}
 
 
 def _canonical_semver(raw: str) -> str:

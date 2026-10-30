@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.mutation.accepted.promotion as accepted
 from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -45,7 +46,7 @@ def _prime(monkeypatch: pytest.MonkeyPatch) -> dict[str, Mock]:
         "sync_ref_worktrees": {"worktrees": [{"state": "synced"}]},
         "sync_linked_ref_worktree": {"mode": "accepted_ff", "worktree_sync": "synced"},
         "compile_observed_git_effect": object(),
-        "run_git": SimpleNamespace(stdout=CURRENT),
+        "ref_head": CURRENT,
     }.items():
         boundaries[name] = Mock(return_value=result)
         monkeypatch.setattr(accepted, name, boundaries[name])
@@ -154,24 +155,29 @@ def test_candidate_promotion_reports_post_effect_worktree_compensation_state(
     assert report["attestation"]["predicate"] == "effect:git-ref"
 
 
-@pytest.mark.parametrize(
-    ("release_head", "ancestor", "error"),
-    [
-        ("", True, "release_mirror_release_branch_missing"),
-        ("c" * 40, False, "release_mirror_diverged"),
-    ],
-)
-def test_candidate_promotion_rejects_invalid_release_mirror_before_effect(
-    tmp_path,
-    monkeypatch: pytest.MonkeyPatch,
-    release_head: str,
-    ancestor: object,
-    error: str,
+def test_candidate_promotion_rejects_a_diverged_release_mirror_before_effect(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     boundaries = _prime(monkeypatch)
-    boundaries["run_git"].return_value = SimpleNamespace(stdout=release_head)
-    boundaries["is_ancestor"].side_effect = lambda _root, old, _new: old == CURRENT or ancestor
+    boundaries["ref_head"].return_value = "c" * 40
+    boundaries["is_ancestor"].side_effect = lambda _root, old, _new: old == CURRENT
     report = _promote(tmp_path, mirror="accepted_ff")
 
     assert report["required_gaps"] == ["accepted_transition_invalid"]
-    assert report["stderr"] == error
+    assert report["stderr"] == "release_mirror_diverged"
+    boundaries["execute_git_effect"].assert_not_called()
+
+
+def test_candidate_promotion_creates_an_absent_release_mirror(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An absent release branch reads as the zero ID, which the one transaction expects."""
+    boundaries = _prime(monkeypatch)
+    boundaries["ref_head"].return_value = "0" * 40
+    report = _promote(tmp_path, mirror="accepted_ff")
+
+    effect = boundaries["compile_observed_git_effect"].call_args.args[2]
+    assert report["verdict"] == "pass"
+    assert effect.updates["refs/heads/main"] == GitRefUpdate(expected="0" * 40, desired=CANDIDATE)
+    assert boundaries["ref_head"].call_args.args[1:] == ("refs/heads/main", "0" * 40)
+    assert all(call.args[1] != "0" * 40 for call in boundaries["is_ancestor"].call_args_list)

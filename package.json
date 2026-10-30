@@ -2,9 +2,6 @@
   "name": "ethos-product-monorepo",
   "private": true,
   "packageManager": "npm@12.2.1",
-  "workspaces": [
-    "distributions/npm"
-  ],
   "scripts": {
     "ethos": "node distributions/npm/bin/ethos.mjs",
     "test:npm": "node --test tests/architecture/npm-package.test.mjs"

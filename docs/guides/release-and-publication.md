@@ -16,7 +16,7 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
 
 ## Cut A Release
 
-1. **Open a release Change** in its own Work Lane. Move the product version in `VERSION`, `distributions/npm/package.json` and its `package-lock.json` entry. Then curate the release entry in `CHANGELOG.md` from the Unreleased notes and every user-visible change since the previous tag. The distribution specification owns the version, stage and entry rules.
+1. **Open a release Change** in its own Work Lane. Move the product version in `VERSION` and `distributions/npm/package.json`; no lock records it. Then curate the release entry in `CHANGELOG.md` from the Unreleased notes and every user-visible change since the previous tag. The distribution specification owns the version, stage and entry rules.
 2. **Archive, prove and land.** Archive the Change with `ethos lane archive-change`, then prove the archived head once with `ethos prove --execute --full --expect-head <HEAD> --json`. If that proof fails, `ethos lane archive-change --compensate` returns the lane to its pre-archive head. Then land, close out and bootstrap the accepted root.
 3. **Publish the branches.** Publish `dev`, then `main`, to each declared peer with `ethos publish --probe-remote --ref <ref> --peer <id> --expect-head <HEAD> --json`, followed by the receipt action it returns.
 4. **Tag.** When the landed head's hosted runs pass on every supported platform (the practised order; the distribution specification states what each stage requires), create the signed annotated tag: preview `ethos land --release --expect-head <accepted-head> --release-head <main> --tag v<version> --json`, then apply it with `--apply --authorize`. Publish the tag with the same publish probe and receipt.

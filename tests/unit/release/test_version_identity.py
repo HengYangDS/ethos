@@ -37,20 +37,18 @@ from tools.ci import sessions
 from tools.ci.delivery import pipeline
 from tools.ci.toolchain.environment import ProjectRuntime
 
+_RELEASE = Version(product_version(Path(__file__).resolve().parents[3]))
+
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
     root = Path.cwd()
     product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert product == "0.2.0-alpha.20"
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
     assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
-    assert projected_package_versions(root) == {
-        "distributions/npm/package.json": product,
-        "package-lock.json#packages/distributions/npm": product,
-    }
+    assert projected_package_versions(root) == {"distributions/npm/package.json": product}
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
@@ -110,8 +108,8 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     assert first.source_commit != second.source_commit
     assert first.source_tree != second.source_tree
     assert first.distribution_version != second.distribution_version
-    assert Version(first.distribution_version) < Version("0.2.0a20")
-    assert Version(second.distribution_version) < Version("0.2.0a20")
+    assert Version(first.distribution_version) < _RELEASE
+    assert Version(second.distribution_version) < _RELEASE
 
     source_head = second.source_commit
     monkeypatch.setattr(pipeline, "accepted_release_source", lambda _root, head: {"head": head})
@@ -131,7 +129,7 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     )
     sessions.build(BuildSession())
     released = wheel_build_identity(next((repo / "build/artifacts/release/python").glob("*.whl")))
-    assert released.distribution_version == "0.2.0a20"
+    assert released.distribution_version == str(_RELEASE)
     assert released.source_commit == source_head
     assert released.source_tree == second.source_tree
     candidate = pipeline.prepare_release_candidate(repo, source_head)
@@ -226,7 +224,7 @@ def test_environment_cannot_promote_a_source_build_to_release(
 
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a20")
+    assert Version(identity.distribution_version) < _RELEASE
 
 
 def test_release_identity_uses_exact_product_projection_only_when_explicit() -> None:
@@ -267,7 +265,7 @@ def test_development_distribution_identity_uses_the_complete_source_coordinates(
 def test_accepted_checkout_remains_a_development_build() -> None:
     identity = source_build_identity(Path.cwd())
 
-    assert Version(identity.distribution_version) < Version("0.2.0a20")
+    assert Version(identity.distribution_version) < _RELEASE
 
 
 @pytest.mark.parametrize("raw", ["1", "1.2", "v1.2.3", "1.2.3a1", "1.2.3-alpha"])
@@ -277,10 +275,19 @@ def test_product_version_rejects_noncanonical_semver(tmp_path: Path, raw: str) -
         product_version(tmp_path)
 
 
-def test_projected_package_version_drift_is_reported(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("root_package", "packages", "owner"),
+    [
+        ('{"version":"1.2.2"}', {"": {}}, "package.json"),
+        ("{}", {"": {}, "distributions/npm": {"version": "1.2.3"}}, "package-lock.json"),
+    ],
+)
+def test_projected_package_versions_refuse_parallel_owners(
+    tmp_path: Path, root_package: str, packages: dict[str, object], owner: str
+) -> None:
+    """A launcher workspace would record the version in the lock that hosted supply hashes."""
     (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
-    (tmp_path / "package.json").write_text('{"version":"1.2.2"}\n', encoding="utf-8")
-    packages = {"": {}, "distributions/npm": {"version": "1.2.3"}}
+    (tmp_path / "package.json").write_text(root_package + "\n", encoding="utf-8")
     (tmp_path / "package-lock.json").write_text(
         json.dumps({"packages": packages}), encoding="utf-8"
     )
@@ -288,7 +295,7 @@ def test_projected_package_version_drift_is_reported(tmp_path: Path) -> None:
     package.parent.mkdir(parents=True)
     package.write_text('{"version":"1.2.3"}\n', encoding="utf-8")
 
-    with pytest.raises(ValueError, match=r"package_version_parallel_owner:package\.json"):
+    with pytest.raises(ValueError, match=f"package_version_parallel_owner:{owner}$"):
         projected_package_versions(tmp_path)
 
 

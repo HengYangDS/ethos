@@ -11,7 +11,7 @@ from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -48,8 +48,7 @@ def current_acceptance(
         return None
     if (
         policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
-        and run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
-        != candidate_head
+        and ref_head(root, f"refs/heads/{policy.release_branch}") != candidate_head
     ):
         return None
     try:
@@ -415,14 +414,14 @@ def _promotion_effect(root, policy, current_head, candidate_head):
             updates=updates,
             assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
         ), None
-    release_old = run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
-    if not release_old:
-        message = "release_mirror_release_branch_missing"
-        raise ValueError(message)
-    if not is_ancestor(root, release_old, candidate_head):
+    release_ref = f"refs/heads/{policy.release_branch}"
+    # A declared mirror without its branch is created in this transaction; a present one must
+    # still be an ancestor of the candidate head.
+    release_old = ref_head(root, release_ref, "0" * len(candidate_head))
+    if release_old.strip("0") and not is_ancestor(root, release_old, candidate_head):
         message = "release_mirror_diverged"
         raise ValueError(message)
-    updates[f"refs/heads/{policy.release_branch}"] = GitRefUpdate(
+    updates[release_ref] = GitRefUpdate(
         expected=release_old,
         desired=candidate_head,
     )

@@ -59,11 +59,11 @@ def _archive_change(repo: Path, head: str) -> dict[str, Any]:
 
 
 def _closeout_repo(
-    tmp_path: Path, *, changed: bool = False, mirror: str = "independent"
+    tmp_path: Path, *, changed: bool = False, mirror: str = "independent", release: bool = True
 ) -> tuple[Path, Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo, release_mirror=mirror)
-    if mirror == "accepted_ff":
+    if mirror == "accepted_ff" and release:
         git(repo, "branch", "main")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     accepted_head = git(repo, "rev-parse", "HEAD")
@@ -455,6 +455,22 @@ def test_current_closeout_preserves_proven_or_unattested_state(
         assert result["next_action"] == "ethos publish"
         assert git(repo, "show-ref") == refs
         assert git(repo, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_accepted_ff_closeout_creates_an_absent_release_branch(
+    tmp_path: Path, *, changed: bool
+) -> None:
+    """A created repository's first mirrored closeout creates `main` in the same transaction."""
+    repo, candidate, accepted, head = _closeout_repo(
+        tmp_path, changed=changed, mirror="accepted_ff", release=False
+    )
+    seed_executed_proof(candidate, head)
+
+    result = _closeout(repo, "--apply", "--authorize", expect_head=accepted)
+
+    assert (result["verdict"], result["required_gaps"]) == ("pass", [])
+    assert git(repo, "rev-parse", "refs/heads/main") == git(repo, "rev-parse", "dev") == head
 
 
 def test_land_closeout_observes_completed_active_openspec_change(

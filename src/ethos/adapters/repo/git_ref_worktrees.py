@@ -55,7 +55,8 @@ def worktree_sync_gap(
         text=False,
         observation=True,
     )
-    if changed.returncode:
+    # Without a worktree there is nothing to compare, as for a release branch not yet created.
+    if paths and changed.returncode:
         return "worktree_diff_unreadable"
     changed_paths = set(changed.stdout.split(b"\0")) - {b""}
     common_dir = git_common_dir(root)

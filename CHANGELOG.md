@@ -28,9 +28,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Each release leg declares the host platform it qualifies, and its archive and Mise platform are
   named for that host. Only a host that runs the runtime natively publishes a wheel or counts as a
   required platform.
+- The npm launcher under `distributions/npm` is a standalone package, no longer a workspace of the
+  root package, so `package-lock.json` records no product version and a release changes no lock.
+  The version check refuses a lock that records it.
 
 ### Fixed
 
+- Closeout under an `accepted_ff` release mirror creates an absent release branch at the candidate
+  head in the same transaction, so a repository formed by `ethos adopt --create` can make its first
+  release. It no longer reports the absent branch as `release_mirror_diverged`.
 - An x64 interpreter that Windows on Arm emulates now selects its own runtime and builds an
   installable wheel. CPython on Windows reports the native CPU, so ETHOS reads the machine the
   interpreter executes from its build platform. Every native host observes the same values as

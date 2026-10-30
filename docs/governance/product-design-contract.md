@@ -465,43 +465,33 @@ still exact, reviewed, auditable, and Attested.
 
 ### Documentation, Evidence, And Operational Resources
 
-Documentation follows reader purpose and semantic ownership:
-`docs/README.md` is its entrypoint, `docs/guides/quickstart.md` the first-run
-route, and a directory README explains a real boundary or navigates multiple
-substantive children. `docs/decisions/` keeps only irreducible cross-Change
-alternatives, consequences and revisit conditions. Decision names are lowercase
-and semantic; each record has an owner and retirement condition. Evidence
-survives only with a producer, consumer, exact binding and retention lifecycle.
-Attestations retain results while a reader can still select them, custody
-retains the files they bind until release, Git retains history, and current
-owners retain still-valid obligations.
+Documentation follows reader purpose and semantic ownership; the [Docs Registry](docs-registry.md)
+owns its entrypoints, directory routes and Decision Records. Evidence survives only with a producer,
+consumer, exact binding and retention lifecycle. Attestations retain results while a reader can
+still select them, custody retains the files they bind until release, Git retains history, and
+current owners retain still-valid obligations.
 
-[Module Layout Rules](../../rules/module-layout.md) own physical source shape.
-Each quality property has one executable owner, using native tools where they
-suffice. Documentation explains contracts and reasons rather than copying
-policy. Configuration lives in the configuration plane, grouped by consuming
-tool, and the root carries only the repository paradigm's protocol entries.
-Commands, editors, hooks and CI evaluate the same policy and base.
+[Module Layout Rules](../../rules/module-layout.md) own physical source shape. Each quality property
+has one executable owner, using native tools where they suffice. Documentation explains contracts
+and reasons rather than copying policy. Configuration lives in the configuration plane, grouped by
+consuming tool, and the root carries only the repository paradigm's protocol entries. Commands,
+editors, hooks and CI evaluate the same policy and base.
 
-Quality requirements precede observed results. Combined Python line-and-branch
-coverage is at least 95 percent over the declared product surface, enforced by
-default and full proof and local CI on current-HEAD evidence. Debt fails; tests
-must distinguish independently chosen outcomes rather than mirror settings.
-Formatting, lint, schema, links, security, portability and source budgets apply
-to each meaningful admitted carrier. Narrow-owner budgets cannot be offset by
-other source classes; generated outputs and archived OpenSpec records are
-reported separately from maintained generators, active intent, config and docs.
-Size constrains maintenance cost, not correctness; relabeling, cosmetic
-compression, removed necessary tests or automatic limit increases are invalid
-repairs. Supported modern Python and native macOS/Linux/Windows behavior retain
-their declared floor.
+Quality requirements precede observed results. Combined Python line-and-branch coverage is at least
+95 percent over the declared product surface, enforced by default and full proof and local CI on
+current-HEAD evidence. Debt fails; tests must distinguish independently chosen outcomes rather than
+mirror settings. Formatting, lint, schema, links, security, portability and source budgets apply to
+each meaningful admitted carrier. Narrow-owner budgets cannot be offset by other source classes;
+generated outputs and archived OpenSpec records are reported separately from maintained generators,
+active intent, config and docs. Size constrains maintenance cost, not correctness; relabeling,
+cosmetic compression, removed necessary tests or automatic limit increases are invalid repairs.
+Supported modern Python and native macOS/Linux/Windows behavior retain their declared floor.
 
-Every temporary, runtime, supply, test and generated tree has one owner and a
-bounded liveness fact. Normal completion finalizes it; crash recovery scavenges
-only exact owned roots while protecting live users. Tests share read-only,
-content-addressed supply instead of full per-case copies. Cleanup budgets count
-items, inodes, latency and indexing pressure as well as bytes; broad deletion,
-global monkeypatches, generic retries and longer TTLs are not correctness.
+Every temporary, runtime, supply, test and generated tree has one owner and a bounded liveness fact.
+Normal completion finalizes it; crash recovery scavenges only exact owned roots while protecting
+live users. Tests share read-only, content-addressed supply instead of full per-case copies. Cleanup
+budgets count items, inodes, latency and indexing pressure as well as bytes; broad deletion, global
+monkeypatches, generic retries and longer TTLs are not correctness.
 
 ### Evidence Planes And Completion Claims
 

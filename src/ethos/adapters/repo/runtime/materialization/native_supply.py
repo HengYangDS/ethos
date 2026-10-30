@@ -10,6 +10,7 @@ import re
 import stat
 import sys
 import tarfile
+import time
 import tomllib
 import zipfile
 from dataclasses import dataclass
@@ -43,6 +44,8 @@ NATIVE_BACKENDS = {
     "syft": "github:anchore/syft",
     "vale": "github:vale-cli/vale",
 }
+# Windows can keep a just-run executable open briefly, so moving it may be refused.
+_WINDOWS = os.name == "nt"
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,7 +378,15 @@ def _materialize_native(supply: NativeSupply, archive: Path, cache: Path, scratc
     else:
         supply.verify(prepared / supply.executable_name)
         for member in members:
-            member.replace(cache / member.name)
+            # Qualification stays first; a Windows hold on the run image ends within seconds.
+            for remaining in range(50, 0, -1):
+                try:
+                    member.replace(cache / member.name)
+                    break
+                except PermissionError:
+                    if not _WINDOWS or remaining == 1:
+                        raise
+                    time.sleep(0.1)
 
 
 def _materialize_node(supply: NodeSupply, archive: Path, cache: Path, scratch: Path) -> Path:

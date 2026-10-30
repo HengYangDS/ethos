@@ -105,9 +105,11 @@ def test_worktree_ref_holder_timeout_releases_owned_git_process(tmp_path: Path) 
     entered = Event()
 
     def expire() -> None:
-        with hold_worktree_refs(repo, refs, timeout_seconds=2):
+        # The deadline starts before the transaction is prepared, which can take seconds under
+        # proof load; a hold that outlasts the whole deadline from entry always expires it.
+        with hold_worktree_refs(repo, refs, timeout_seconds=5):
             entered.set()
-            Event().wait(2.1)
+            Event().wait(5.1)
 
     with pytest.raises(ValueError, match="worktree_effect_ref_lock_timeout"):
         expire()

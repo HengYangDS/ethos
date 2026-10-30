@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -52,6 +53,22 @@ def _payload(tmp_path: Path, name: str = DIGEST) -> Path:
     return runtime
 
 
+def _await_later_ctime(directory: Path, recorded: int) -> None:
+    """Wait until this filesystem stamps a later ctime, as the product's racy window ensures.
+
+    The fixture records files at once, so a write in the same timestamp tick, as on Linux's coarse
+    clock, would keep the recorded ctime.
+    """
+    probe = directory / "ctime-probe"
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        probe.touch()
+        if probe.stat().st_ctime_ns > recorded:
+            return
+        time.sleep(0.001)
+    pytest.fail("the filesystem stamped no later ctime within 5 seconds")
+
+
 @pytest.mark.usefixtures("memo_directory")
 def test_repeated_inventory_of_an_unchanged_payload_hashes_no_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -75,6 +92,7 @@ def test_changed_bytes_under_a_restored_mtime_are_hashed_again(
     first = runtime_file_inventory(runtime)
     module = runtime / "python/lib/module.py"
     times = module.stat()
+    _await_later_ctime(tmp_path, times.st_ctime_ns)
     module.write_text("VALUE = 9\n")
     os.utime(module, ns=(times.st_atime_ns, times.st_mtime_ns))
     hashes = _Hashes(monkeypatch)

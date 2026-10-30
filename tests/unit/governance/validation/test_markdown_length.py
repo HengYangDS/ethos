@@ -36,6 +36,20 @@ if TYPE_CHECKING:
 _CEILING = load_repository_paradigm().size.markdown_nonblank_lines
 
 
+def _write_topic(root: Path, relative: str, state: str, count: int) -> None:
+    """Write and track one Markdown topic with exactly count nonblank lines."""
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    base = (
+        f"---\nsubject: sample:topic\nrole: reference\nstate: {state}\nrelations: {{}}\n"
+        "---\n\n# Topic\n\nPurpose: exercise length.\n"
+        if relative.startswith("docs/")
+        else "# Topic\n"
+    )
+    path.write_text(base + "record\n\n" * (count - sum(bool(x.strip()) for x in base.splitlines())))
+    git(root, "add", "--", relative)
+
+
 @pytest.mark.parametrize(
     ("relative", "state", "count"),
     [
@@ -51,22 +65,41 @@ def test_current_markdown_uses_physical_nonblank_limit(
 ) -> None:
     """Blank lines and metadata relabeling cannot evade the portable limit."""
     root = init_git_repo(tmp_path / "repo")
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    base = (
-        f"---\nsubject: sample:topic\nrole: reference\nstate: {state}\nrelations: {{}}\n"
-        "---\n\n# Topic\n\nPurpose: exercise length.\n"
-        if relative.startswith("docs/")
-        else "# Topic\n"
-    )
-    path.write_text(base + "record\n\n" * (count - sum(bool(x.strip()) for x in base.splitlines())))
-    git(root, "add", "--", relative)
+    _write_topic(root, relative, state, count)
 
     report = docs_registry_report(root)
 
     expected = [] if count == _CEILING else [f"docs_length_exceeded:{relative}:{count}>{_CEILING}"]
     assert report["required_gaps"] == expected
     assert report["verdict"] == ("pass" if count == _CEILING else "block")
+
+
+_REASONED = (
+    'markdown_nonblank_lines = 700\n[paradigm.size.reasons]\nmarkdown_nonblank_lines = "Whole."\n'
+)
+
+
+@pytest.mark.parametrize(
+    ("declared", "count", "expected"),
+    [
+        ("markdown_nonblank_lines = 400\n", 401, ["docs_length_exceeded:docs/topic.md:401>400"]),
+        (_REASONED, 700, []),
+    ],
+    ids=["lower", "higher-with-reason"],
+)
+def test_current_markdown_uses_the_repository_ceiling(
+    tmp_path: Path, declared: str, count: int, expected: list[str]
+) -> None:
+    """A repository's own Markdown ceiling replaces the default for every current document."""
+    root = init_git_repo(tmp_path / "repo")
+    (root / ".ethos").mkdir()
+    (root / ".ethos/rules.toml").write_text("[paradigm.size]\n" + declared)
+    git(root, "add", "--", ".ethos/rules.toml")
+    _write_topic(root, "docs/topic.md", "canonical", count)
+
+    gaps = docs_registry_report(root)["required_gaps"]
+
+    assert [gap for gap in gaps if gap.startswith("docs_length_exceeded:")] == expected
 
 
 def test_release_history_is_not_bounded_by_document_length(tmp_path: Path) -> None:

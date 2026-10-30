@@ -12,6 +12,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The per-file ceilings default to 500: 500 effective lines for each tracked Python file and 500
+  nonblank lines for each current authored Markdown document. A governed repository may declare
+  its own value for its whole tree in `.ethos/rules.toml` `[paradigm.size]`. A lower value
+  applies; a higher one applies up to the bound of 1000 when `[paradigm.size.reasons]` states
+  why, and the paradigm report lists it as a deviation. A value equal to the default, a higher
+  value without a reason, a value above the bound and an unknown key are gaps that leave the
+  default in force. The retired `[quality.code_size]` table is still reported.
+
 ## [0.2.0-alpha.21] - 2026-10-30
 
 ### Added

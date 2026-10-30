@@ -58,12 +58,14 @@ tag_pattern = "v*"
 changelog = "CHANGELOG.md"
 changelog_heading = '^## \[(?P<version>Unreleased|[^\]\r\n]+)\](?: - (?P<date>\d{4}-\d{2}-\d{2}))?$'
 
-# Per-file ceilings every governed repository shares; no binding restates them.
-# Exceeding one needs semantic consolidation, never compression, exemptions or a
-# raised ceiling.
+# Per-file ceilings. A governed repository keeps these defaults unless its binding declares
+# its own value in .ethos/rules.toml [paradigm.size]: a lower one, or a higher one up to the
+# bound with a reason in [paradigm.size.reasons]. A value covers the whole repository, never one
+# file; exceeding a ceiling needs semantic consolidation, never compression.
 [size]
-python_effective_lines = 512
-markdown_nonblank_lines = 512
+python_effective_lines = 500
+markdown_nonblank_lines = 500
+bound = 1000
 
 # Documents under the profile docs root begin with plain YAML front matter.
 # A repository that keeps numbered decision records names each with one grammar.

@@ -328,13 +328,68 @@ def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, damage: byte
     assert report["required_gaps"] == expected
 
 
-def test_a_binding_cannot_restate_the_size_ceiling(tmp_path: Path) -> None:
-    """The ceiling has one owner, so a repository-declared limit is a gap, not a setting."""
-    rules = "[quality.code_size]\ndefault_effective_max_lines = 900\n"
-    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/rules.toml": rules})
-    assert report["required_gaps"] == [
-        "repository_paradigm_binding_restatement:.ethos/rules.toml:quality.code_size"
+_RULES = ".ethos/rules.toml"
+_REASON = '[paradigm.size.reasons]\npython_effective_lines = "Parser tables stay whole."\n'
+_DECLARED = f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.python_effective_lines"
+_OVER = f"repository_paradigm_python_size:{_MODULE}"
+
+
+@pytest.mark.parametrize(
+    ("rules", "lines", "gaps"),
+    [
+        ("[paradigm.size]\npython_effective_lines = 400\n", 401, [_OVER]),
+        ("[paradigm.size]\npython_effective_lines = 700\n" + _REASON, 700, []),
+        ("[paradigm.size]\npython_effective_lines = 700\n", 700, [_DECLARED, _OVER]),
+        ("[paradigm.size]\npython_effective_lines = 1200\n" + _REASON, 700, [_DECLARED, _OVER]),
+        ("[paradigm.size]\npython_effective_lines = true\n", 1, [_DECLARED]),
+        (
+            "[paradigm.size]\nfiles = 400\n",
+            1,
+            [f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.files"],
+        ),
+        (
+            "[paradigm.size]\npython_effective_lines = 500\n",
+            1,
+            [_DECLARED.replace("size_declaration", "binding_restatement")],
+        ),
+        (
+            "[quality.code_size]\ndefault_effective_max_lines = 900\n",
+            1,
+            [f"repository_paradigm_binding_restatement:{_RULES}:quality.code_size"],
+        ),
+    ],
+    ids=[
+        "lower",
+        "higher-with-reason",
+        "higher-without-reason",
+        "above-bound",
+        "not-an-integer",
+        "unknown-key",
+        "restates-default",
+        "retired-table",
+    ],
+)
+def test_a_binding_declares_its_ceiling_within_the_contract(
+    tmp_path: Path, rules: str, lines: int, gaps: list[str]
+) -> None:
+    """A repository value applies within the contract's law; any other leaves the default."""
+    files = {**CONFORMING, _RULES: rules, _MODULE: _statements(lines)}
+    assert paradigm_report(tmp_path, files)["required_gaps"] == gaps
+
+
+def test_a_reasoned_higher_ceiling_is_reported_as_a_deviation(tmp_path: Path) -> None:
+    """Only a value above the default, with its reason, is listed beside the gaps."""
+    rules = "[paradigm.size]\npython_effective_lines = 700\nmarkdown_nonblank_lines = 400\n"
+    report = paradigm_report(tmp_path, {**CONFORMING, _RULES: rules + _REASON})
+    assert report["deviations"] == [
+        {
+            "ceiling": "python_effective_lines",
+            "value": 700,
+            "default": 500,
+            "reason": "Parser tables stay whole.",
+        }
     ]
+    assert paradigm_report(tmp_path / "plain", CONFORMING)["deviations"] == []
 
 
 @pytest.mark.parametrize(

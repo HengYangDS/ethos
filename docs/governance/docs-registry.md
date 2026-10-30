@@ -174,9 +174,12 @@ Check the largest independently readable section and whether readers can find
 a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
-The portable hard ceiling is the repository paradigm's 512 nonblank physical
-lines per tracked, current, authored Markdown document, including root
-entrypoints, rules, Skills and a repository's native documentation root.
+The portable ceiling is the repository paradigm's Markdown ceiling: by default
+500 nonblank physical lines per tracked, current, authored Markdown document,
+including root entrypoints, rules, Skills and a repository's native
+documentation root. A repository may declare its own value for the whole
+repository in `.ethos/rules.toml` `[paradigm.size]`, within the paradigm's
+bound; a higher value needs its reason. No value applies to one document.
 Frontmatter, tables, code fences and quotes count; blank-line padding and a
 metadata state of `archived` do not exempt an otherwise current document.
 The release contract's root `CHANGELOG.md` is cumulative release history:

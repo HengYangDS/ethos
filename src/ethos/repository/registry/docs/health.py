@@ -11,8 +11,8 @@ from urllib.parse import unquote
 
 from markdown_it import MarkdownIt
 
-from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.paradigm.size import repository_ceilings
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -172,7 +172,7 @@ def current_document_length_gaps(
     """Bound authored Markdown, not official intent or owned generated output."""
     paths = authored_document_paths(registry, tracked_documents, generated_outputs)
     readable = set(paths) | {str(entry["path"]) for entry in registry if entry.get("origin")}
-    ceiling = load_repository_paradigm().size.markdown_nonblank_lines
+    ceiling = repository_ceilings(root)["markdown_nonblank_lines"]
     gaps: list[str] = []
     for relative in sorted(readable):
         owner = intent_document_owner(relative)

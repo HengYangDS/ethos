@@ -2,18 +2,20 @@
 
 ## 1. Contract and effective ceilings
 
-- [ ] 1.1 Set both `[size]` defaults to 500 and add the bound 1000 in
+- [x] 1.1 Set both `[size]` defaults to 500 and add the bound 1000 in
       `src/ethos/contracts/paradigm/paradigm.toml` and its model. Done when
       `tests/unit/contracts/test_repository_paradigm.py` asserts 500, 500 and 1000.
-- [ ] 1.2 Resolve the effective ceilings from `.ethos/rules.toml` `[paradigm.size]` in one owner
+- [x] 1.2 Resolve the effective ceilings from `.ethos/rules.toml` `[paradigm.size]` in one owner
       under `src/ethos/repository/paradigm/`, reporting a restatement, a higher value without a
       reason, a value above the bound, a value that is not a positive integer, an unknown key and
       the retired `[quality.code_size]` table, and listing each reasoned deviation. Done when a test
       in `tests/unit/repository/test_paradigm_report.py` covers each row of design decision 1.
-- [ ] 1.3 Judge Python files in the paradigm report and current Markdown in docs health against the
+- [x] 1.3 Judge Python files in the paradigm report and current Markdown in docs health against the
       effective ceilings. Done when a declared lower value and a reasoned higher value change the
       verdicts in `test_paradigm_report.py` and
       `tests/unit/governance/validation/test_markdown_length.py`.
+      (The 11 new cases failed before the change and pass after it, with the 109 existing cases
+      of the three modules; the 21 test modules that import the changed modules pass, 658 tests.)
 
 ## 2. ETHOS meets the default
 

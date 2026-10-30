@@ -34,8 +34,9 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert owners[".config/checks/vale"][1] is True
     assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
-    assert paradigm.size.python_effective_lines == 512
-    assert paradigm.size.markdown_nonblank_lines == 512
+    assert paradigm.size.python_effective_lines == 500
+    assert paradigm.size.markdown_nonblank_lines == 500
+    assert paradigm.size.bound == 1000
     assert paradigm.documents.decision_record_name.startswith("^dr-")
     grammar = paradigm.commit.subject_pattern(("cli",))
     assert grammar.startswith("^(build|chore|ci|docs|feat|fix|perf|refactor|revert|test)")

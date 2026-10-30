@@ -118,12 +118,13 @@ class ReleaseConventions(BaseModel):
 
 
 class SizeCeilings(BaseModel):
-    """Per-file ceilings that every governed repository shares."""
+    """Per-file ceiling defaults and the bound that a repository's own value stays within."""
 
     model_config = _DECLARATION
 
     python_effective_lines: int = Field(gt=0)
     markdown_nonblank_lines: int = Field(gt=0)
+    bound: int = Field(gt=0)
 
 
 class DocumentConventions(BaseModel):

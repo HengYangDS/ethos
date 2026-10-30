@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import stat
+import sysconfig
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -85,7 +86,7 @@ def runtime_environment(
         python_implementation,
         dependency_lock_sha256,
         platform_name or platform.system().lower(),
-        canonical_architecture(architecture_name or platform.machine()),
+        canonical_architecture(architecture_name or process_machine()),
     )
     if not all(environment) or not _valid_digest(environment.dependency_lock_sha256):
         raise ValueError(_ENVIRONMENT_INVALID)
@@ -292,6 +293,24 @@ def canonical_architecture(value: str) -> str:
         "amd64": "x86_64",
         "x64": "x86_64",
     }.get(normalized, normalized)
+
+
+# CPython names a Windows interpreter's build, while `platform.machine()` there names the CPU.
+_WINDOWS_BUILDS = {"win-amd64": "AMD64", "win-arm64": "ARM64"}
+
+
+def interpreter_machine(build_platform: str, machine: str) -> str:
+    """Name the machine an interpreter executes, as `platform.machine()` spells it natively.
+
+    POSIX `uname` reports the process's own view. CPython on Windows reports the native CPU, so
+    an x64 interpreter that Windows on Arm emulates would name ARM64, while its build names AMD64.
+    """
+    return _WINDOWS_BUILDS.get(build_platform, machine)
+
+
+def process_machine() -> str:
+    """Name the machine this interpreter executes."""
+    return interpreter_machine(sysconfig.get_platform(), platform.machine())
 
 
 def _valid_inventory_path(value: str) -> bool:

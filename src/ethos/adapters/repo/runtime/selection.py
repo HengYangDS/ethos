@@ -20,6 +20,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
+from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import release_identity_admission_gaps
@@ -302,7 +303,7 @@ def require_selected_runtime(
     if (
         identity.digest != digest
         or identity.environment.platform != platform.system().lower()
-        or identity.environment.architecture != canonical_architecture(platform.machine())
+        or identity.environment.architecture != canonical_architecture(process_machine())
         or (expected_build is not None and identity.build != expected_build)
     ):
         raise ValueError(_MANIFEST_INVALID)

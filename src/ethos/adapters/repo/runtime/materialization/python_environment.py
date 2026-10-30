@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import NoReturn
 
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
+from ethos.adapters.repo.runtime.manifest import interpreter_machine
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         "'python_abi':sys.implementation.cache_tag or '',"
         "'python_version':platform.python_version(),"
         "'python_implementation':sys.implementation.name,"
-        "'architecture':platform.machine(),"
+        "'architecture':platform.machine(),'build_platform':sysconfig.get_platform(),"
         "'python_framework':sysconfig.get_config_var('PYTHONFRAMEWORK') or '',"
         "'prefix':sys.prefix,'base_prefix':sys.base_prefix}))"
     )
@@ -46,6 +47,9 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         facts = {key: str(value) for key, value in json.loads(completed.stdout).items()}
     except (AttributeError, TypeError, ValueError) as error:
         _fail("hook_runtime_python_abi_invalid", error)
+    # Its build names the machine that interpreter executes, as for this process.
+    build = facts.pop("build_platform", "")
+    facts["architecture"] = interpreter_machine(build, facts.get("architecture", ""))
     required = (
         "executable",
         "base_executable",

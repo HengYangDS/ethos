@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import platform
+import sysconfig
 import tarfile
 import zipfile
 from typing import TYPE_CHECKING
@@ -157,6 +158,16 @@ def test_locked_supply_selects_one_exact_platform_identity(
     _host(monkeypatch, system, machine, libc)
     supply = NodeSupply.read(_locked_supply(tmp_path))
     assert (supply.target, supply.tag, supply.sha256) == (target, tag, "a" * 64)
+
+
+def test_an_emulated_x64_interpreter_reads_the_x64_archive_and_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows on Arm reports ARM64, while its emulated x64 interpreter installs only win_amd64."""
+    _host(monkeypatch, "Windows", "ARM64", ("", ""))
+    monkeypatch.setattr(sysconfig, "get_platform", lambda: "win-amd64")
+    supply = NodeSupply.read(_locked_supply(tmp_path))
+    assert (supply.target, supply.tag) == ("windows-x64", "py3-none-win_amd64")
 
 
 @pytest.mark.parametrize(

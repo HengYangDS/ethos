@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import sysconfig
 from pathlib import Path
 
 import pytest
@@ -66,12 +67,16 @@ def _serve(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> list[tuple[str, .
     return requests
 
 
+@pytest.mark.parametrize("cpu", ["AMD64", "ARM64"])
 def test_mise_publishes_only_the_bound_official_executable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cpu: str
 ) -> None:
     payload = _executable()
     _source(tmp_path, x64=hashlib.sha256(payload).hexdigest())
     requests = _serve(monkeypatch, payload)
+    # Windows on Arm reports its CPU; the emulated x64 interpreter still runs the x64 executable.
+    monkeypatch.setattr(native.platform, "machine", lambda: cpu)
+    monkeypatch.setattr(sysconfig, "get_platform", lambda: "win-amd64")
 
     executable = native.prepare_mise(tmp_path)
 

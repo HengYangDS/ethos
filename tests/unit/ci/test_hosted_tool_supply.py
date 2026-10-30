@@ -23,6 +23,7 @@ from filelock import Timeout
 import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
@@ -53,7 +54,7 @@ def _native_supply(
         "#!/bin/sh\necho forbidden-ambient-or-system >&2\nexit 99\n",
     )
     system = platform.system()
-    arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x86_64"
+    arch = "arm64" if process_machine() in {"arm64", "aarch64"} else "x86_64"
     version = {"scc": "4.1.0", "gitleaks": "8.30.1", "syft": "1.52.0"}[tool]
     outputs = {"scc": f"scc version {version}", "syft": json.dumps({"version": version})}
     expected = outputs.get(tool, version)
@@ -233,7 +234,7 @@ def _bootstrap_source(root: Path, payload: bytes = b"", version: str = "2026.9.1
     write_reference_source(root, ".config/mise/config.toml", f'min_version = "{version}"')
     write_reference_source(root, ".config/mise/mise.lock", "lockfile_version = 2")
     target = f"{native.MISE_SYSTEMS[platform.system()]}-"
-    target += native.MISE_ARCHITECTURES[platform.machine().lower()]
+    target += native.MISE_ARCHITECTURES[process_machine().lower()]
     digests = {
         f"{system}-{arch}": "0" * 64
         for system in native.MISE_SYSTEMS.values()
@@ -413,7 +414,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     if source == "persistent-cache":
         home, source = tmp_path / "supply", "cache"
         monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(home))
-    target = home / "mise" / version / f"{platform.system()}_{platform.machine()}" / "bin/mise"
+    target = home / "mise" / version / f"{platform.system()}_{process_machine()}" / "bin/mise"
     target.parent.mkdir(parents=True)
     target.write_text("retained" if source == "bootstrap" else body)
     target.chmod(0o600 if source == "bootstrap" else 0o700)

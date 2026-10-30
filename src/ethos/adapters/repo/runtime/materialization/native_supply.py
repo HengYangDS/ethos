@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
@@ -66,7 +67,7 @@ class NativeSupply:
     @classmethod
     def read(cls, root: Path, name: str) -> NativeSupply:
         """Resolve one supported native backend against its exact Mise declaration and lock."""
-        system, machine = platform.system(), platform.machine()
+        system, machine = platform.system(), process_machine()
         arch = {"aarch64": "arm64", "arm64": "arm64", "amd64": "x86_64", "x86_64": "x86_64"}.get(
             machine.lower()
         )

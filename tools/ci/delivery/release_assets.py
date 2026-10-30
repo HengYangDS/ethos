@@ -3,10 +3,13 @@
 The ETHOS wheel carries its platform's Node and Vale, so each platform job builds its own
 release wheel from the signed tag, and its release install smoke qualifies that wheel and
 retains the runtime archive it built. The smoke evidence records the archive's SHA-256,
-runtime, wheel and platform. This module checks those records against each job's bytes,
-names each archive for its Mise platform, and writes the checksums, the Mise declaration
-and the release notes that publication uploads. It uses only the standard library, so the
-publication job runs it with uv's Python and without the project environment.
+runtime, wheel and platform. Each job uploads that qualification as `release-runtime-<host>`
+for the one host platform its leg declares. This module checks those records against each
+job's bytes, names each archive for its host's Mise platform, and writes the checksums, the
+Mise declaration and the release notes that publication uploads. A host whose operating
+system emulates the runtime's architecture publishes that archive alone; only a native host
+publishes its wheel or stands in for a required platform. It uses only the standard library,
+so the publication job runs it with uv's Python and without the project environment.
 """
 
 from __future__ import annotations
@@ -22,6 +25,8 @@ from pathlib import PureWindowsPath
 _SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
 _REQUIRED = frozenset({"linux-arm64", "linux-x64", "macos-arm64"})
+_HOSTS = frozenset(f"{os}-{cpu}" for os in _SYSTEMS.values() for cpu in _MACHINES.values())
+_JOB = "release-runtime-"
 _PRERELEASE = re.compile(r"v\d+\.\d+\.\d+-(?:alpha|beta|rc)\.\d+")
 
 
@@ -34,10 +39,13 @@ def assemble(
         raise ValueError(message)
     version = tag.removeprefix("v")
     archives = {}
-    for evidence in sorted(source.glob("*/evidence/local-install/release-smoke.json")):
+    for evidence in sorted(source.glob(f"{_JOB}*/evidence/local-install/release-smoke.json")):
         job = evidence.parents[2]
+        # The leg declares its host, so an emulated interpreter's reports cannot rename it.
+        platform = job.name.removeprefix(_JOB)
         distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
-        platform = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
+        runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
+        native = platform == runtime
         # Each runner records its own path syntax; Windows rules read both separators.
         name = PureWindowsPath(distribution["path"]).name
         wheel = _single(
@@ -48,17 +56,19 @@ def assemble(
             job.glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
             f"release_assets_archive_invalid:{platform}",
         )
+        published_wheels = {other.name for _archive, other, own in archives.values() if own}
         if (
-            platform in archives
-            or any(wheel.name == other.name for _archive, other in archives.values())
+            platform not in _HOSTS
+            or runtime.partition("-")[0] != platform.partition("-")[0]
+            or (native and wheel.name in published_wheels)
             or _sha256(archive) != distribution["sha256"]
             or _sha256(wheel) != distribution["wheel_sha256"]
             or distribution["product_version"] != version
         ):
             message = f"release_assets_distribution_mismatch:{platform}"
             raise ValueError(message)
-        archives[platform] = (archive, wheel)
-    if missing := sorted(_REQUIRED - set(archives)):
+        archives[platform] = (archive, wheel, native)
+    if missing := sorted(_REQUIRED - {name for name, (*_, own) in archives.items() if own}):
         message = "release_assets_platform_missing:" + ",".join(missing)
         raise ValueError(message)
     notes = _release_notes(changelog, version)
@@ -66,9 +76,10 @@ def assemble(
     assets.mkdir(parents=True)
     sums = {}
     declaration = [f'[tools."http:ethos"]\nversion = "{version}"\n\n[tools."http:ethos".platforms]']
-    for platform, (archive, wheel) in sorted(archives.items()):
-        shutil.copy2(wheel, assets / wheel.name)
-        sums[wheel.name] = _sha256(assets / wheel.name)
+    for platform, (archive, wheel, native) in sorted(archives.items()):
+        if native:
+            shutil.copy2(wheel, assets / wheel.name)
+            sums[wheel.name] = _sha256(assets / wheel.name)
         published = f"ethos-{version}-{platform}.tar.gz"
         shutil.copy2(archive, assets / published)
         sums[published] = _sha256(assets / published)

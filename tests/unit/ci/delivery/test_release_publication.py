@@ -7,16 +7,16 @@ import json
 import shutil
 import subprocess
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.support.fixture_signer import configure_fixture_signer
 from tools.ci.delivery import pipeline
 from tools.ci.delivery import release_assets
 
-if TYPE_CHECKING:
-    from pathlib import Path
+_ROOT = Path(__file__).resolve().parents[4]
 
 _TAG = "v0.2.0-alpha.5"
 _ENTRY = "## [0.2.0-alpha.5] - 2026-10-21\n\n### Added\n\n- Hosted release.\n"
@@ -90,15 +90,16 @@ def test_hosted_release_source_refuses_every_other_tag(tmp_path, monkeypatch, ca
         pipeline.prepare_release_candidate(repo, head, tag=tag)
 
 
-def _qualified(inputs: Path, job: str, platform: str, machine: str, tag: str) -> tuple[Path, ...]:
-    """Lay out one platform job's artifact as its upload roots it: wheel, archive, evidence."""
-    runtime = hashlib.sha256(job.encode()).hexdigest()
+def _qualified(inputs: Path, host: str, platform: str, machine: str, tag: str) -> tuple[Path, ...]:
+    """Lay out one leg's upload for its declared host: wheel, archive and evidence."""
+    job = f"release-runtime-{host}"
+    runtime = hashlib.sha256(host.encode()).hexdigest()
     wheel = inputs / job / "artifacts/release/python" / f"ethos-0.2.0a5-py3-none-{tag}.whl"
     wheel.parent.mkdir(parents=True)
-    wheel.write_bytes(f"wheel {job}".encode())
+    wheel.write_bytes(f"wheel {host}".encode())
     archive = inputs / job / "artifacts/native" / runtime / "ethos-0.2.0a5.tar.gz"
     archive.parent.mkdir(parents=True)
-    archive.write_bytes(job.encode())
+    archive.write_bytes(host.encode())
     evidence = inputs / job / "evidence/local-install/release-smoke.json"
     evidence.parent.mkdir(parents=True)
     # Each runner records the archive in its own path syntax; Windows separates with backslashes.
@@ -106,7 +107,7 @@ def _qualified(inputs: Path, job: str, platform: str, machine: str, tag: str) ->
     runner = separator.join(("D:" if platform == "windows" else "", "a", "build/artifacts/native"))
     distribution = {
         "path": separator.join((runner, runtime, archive.name)),
-        "sha256": hashlib.sha256(job.encode()).hexdigest(),
+        "sha256": hashlib.sha256(host.encode()).hexdigest(),
         "runtime_digest": runtime,
         "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
         "platform": platform,
@@ -117,6 +118,14 @@ def _qualified(inputs: Path, job: str, platform: str, machine: str, tag: str) ->
     return wheel, archive
 
 
+_NATIVE = {
+    "linux-x64": ("linux", "x86_64", "linux_x86_64"),
+    "linux-arm64": ("linux", "arm64", "linux_aarch64"),
+    "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
+    "windows-x64": ("windows", "x86_64", "win_amd64"),
+}
+
+
 def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     """Each platform publishes the wheel it built and the archive its smoke qualified.
 
@@ -124,13 +133,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     """
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    jobs = {
-        "ubuntu-latest": ("linux", "x86_64", "linux_x86_64"),
-        "ubuntu-24.04-arm": ("linux", "arm64", "linux_aarch64"),
-        "macos-latest": ("darwin", "arm64", "macosx_14_0_arm64"),
-        "windows-latest": ("windows", "x86_64", "win_amd64"),
-    }
-    qualified = {job: _qualified(inputs, job, *platform) for job, platform in jobs.items()}
+    qualified = {host: _qualified(inputs, host, *leg) for host, leg in _NATIVE.items()}
     options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
     unreleased = tmp_path / "UNRELEASED.md"
     unreleased.write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
@@ -140,7 +143,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     ):
         with pytest.raises(ValueError, match=gap):
             release_assets.assemble(inputs, tmp_path / "refused", **(options | change))
-    for tampered in qualified["windows-latest"]:
+    for tampered in qualified["windows-x64"]:
         original = tampered.read_bytes()
         tampered.write_bytes(b"changed")
         with pytest.raises(ValueError, match="release_assets_distribution_mismatch:windows-x64"):
@@ -161,7 +164,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
         "ethos-0.2.0a5-py3-none-macosx_14_0_arm64.whl",
         "ethos-0.2.0a5-py3-none-win_amd64.whl",
     ]
-    wheel = hashlib.sha256(b"wheel ubuntu-latest").hexdigest()
+    wheel = hashlib.sha256(b"wheel linux-x64").hexdigest()
     assert sums["ethos-0.2.0a5-py3-none-linux_x86_64.whl"] == wheel
     declared = tomllib.loads((assets / "ethos-0.2.0-alpha.5.mise.toml").read_text())
     linux = declared["tools"]["http:ethos"]["platforms"]["linux-x64"]
@@ -170,10 +173,63 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     platforms = declared["tools"]["http:ethos"]["platforms"].values()
     assert {platform["bin_path"] for platform in platforms} == {"ethos/bin"}
     assert (tmp_path / "out/notes.md").read_text() == "### Added\n\n- Hosted release.\n"
-    shutil.rmtree(inputs / "windows-latest")
+    shutil.rmtree(inputs / "release-runtime-windows-x64")
     assert "ethos-0.2.0a5-py3-none-win_amd64.whl" not in release_assets.assemble(
         inputs, tmp_path / "optional", **options
     )
-    shutil.rmtree(inputs / "ubuntu-24.04-arm")
+    shutil.rmtree(inputs / "release-runtime-linux-arm64")
     with pytest.raises(ValueError, match="release_assets_platform_missing:linux-arm64"):
         release_assets.assemble(inputs, tmp_path / "partial", **options)
+
+
+def test_an_emulating_host_publishes_the_archive_it_qualified(tmp_path):
+    """Windows on Arm serves its platform with the x64 runtime it built, but no wheel of its own.
+
+    Only a native leg publishes a wheel or stands in for a required platform, and a leg's
+    runtime runs the operating system its host declares.
+    """
+    inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
+    changelog.write_text(_CHANGELOG, encoding="utf-8")
+    for host, leg in (_NATIVE | {"windows-arm64": ("windows", "x86_64", "win_amd64")}).items():
+        _qualified(inputs, host, *leg)
+    options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
+    sums = release_assets.assemble(inputs, tmp_path / "out", **options)
+    declared = tomllib.loads((tmp_path / "out/assets/ethos-0.2.0-alpha.5.mise.toml").read_text())
+    platforms = declared["tools"]["http:ethos"]["platforms"]
+    emulated = hashlib.sha256(b"windows-arm64").hexdigest()
+    assert set(platforms) == {*_NATIVE, "windows-arm64"}
+    assert sums["ethos-0.2.0-alpha.5-windows-arm64.tar.gz"] == emulated
+    assert platforms["windows-arm64"]["checksum"] == f"sha256:{emulated}"
+    native = hashlib.sha256(b"wheel windows-x64").hexdigest()
+    assert sums["ethos-0.2.0a5-py3-none-win_amd64.whl"] == native
+    assert len([name for name in sums if name.endswith(".whl")]) == 4
+    shutil.rmtree(inputs / "release-runtime-windows-arm64")
+    _qualified(inputs, "windows-arm64", "linux", "x86_64", "linux_x86_64")
+    with pytest.raises(ValueError, match="release_assets_distribution_mismatch:windows-arm64"):
+        release_assets.assemble(inputs, tmp_path / "foreign", **options)
+    shutil.rmtree(inputs / "release-runtime-windows-arm64")
+    shutil.rmtree(inputs / "release-runtime-linux-arm64")
+    _qualified(inputs, "linux-arm64", "linux", "x86_64", "linux_x86_64")
+    with pytest.raises(ValueError, match="release_assets_platform_missing:linux-arm64"):
+        release_assets.assemble(inputs, tmp_path / "emulated", **options)
+
+
+def test_each_release_leg_declares_the_host_its_runner_provides():
+    """A leg's host is declared, since Windows reports its CPU to an emulated interpreter."""
+    jobs = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
+    release = jobs["release-platforms"]
+    included = release["strategy"]["matrix"]["include"]
+    legs = {leg["host"]: (leg["os"], leg["python"]) for leg in included}
+    emulated = ("windows-11-arm", "cpython-3.14-windows-x86_64-none")
+    assert legs == {
+        "linux-x64": ("ubuntu-latest", "3.14"),
+        "linux-arm64": ("ubuntu-24.04-arm", "3.14"),
+        "macos-arm64": ("macos-latest", "3.14"),
+        "windows-x64": ("windows-latest", "3.14"),
+        "windows-arm64": emulated,
+    }
+    steps = release["steps"]
+    uploads = [step["with"]["name"] for step in steps if "upload-artifact" in step.get("uses", "")]
+    assert uploads == ["release-runtime-${{ matrix.host }}"]
+    conformance = jobs["host-conformance"]["strategy"]["matrix"]["include"]
+    assert conformance == [dict(zip(("os", "python"), emulated, strict=True))]

@@ -24,6 +24,7 @@ from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
@@ -165,6 +166,46 @@ def test_runtime_identity_distinguishes_canonical_architectures() -> None:
     assert runtime_digest(**inputs, environment=arm, repository_private=True) != runtime_digest(
         **inputs, environment=arm, repository_private=False
     )
+
+
+@pytest.mark.parametrize(
+    ("build", "cpu", "machine"),
+    [
+        ("win-amd64", "ARM64", "AMD64"),
+        ("win-arm64", "ARM64", "ARM64"),
+        ("linux-aarch64", "aarch64", "aarch64"),
+    ],
+)
+def test_runtime_identity_names_the_machine_its_interpreter_executes(
+    monkeypatch: pytest.MonkeyPatch, build: str, cpu: str, machine: str
+) -> None:
+    """Windows reports its CPU, so an emulated x64 interpreter's build names what it executes."""
+    monkeypatch.setattr(runtime_manifest.sysconfig, "get_platform", lambda: build)
+    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: cpu)
+    environment = runtime_environment(
+        python_abi="cpython-314",
+        python_version="3.14.7",
+        python_implementation="cpython",
+        dependency_lock_sha256="d" * 64,
+    )
+
+    assert runtime_manifest.interpreter_machine(build, cpu) == machine
+    assert environment.architecture == runtime_manifest.canonical_architecture(machine)
+
+
+def test_selection_compares_the_interpreter_not_the_cpu_a_host_reports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An emulating host reports another CPU than the one its runtime's interpreter executes."""
+    _repo, venv = materialize_runtime_case(tmp_path, monkeypatch)
+    recorded = load_runtime_manifest_bytes((venv.parent / "manifest.json").read_bytes())
+    build, cpu = {"arm64": ("win-arm64", "AMD64"), "x86_64": ("win-amd64", "ARM64")}[
+        recorded.environment.architecture
+    ]
+    monkeypatch.setattr(runtime_manifest.sysconfig, "get_platform", lambda: build)
+    monkeypatch.setattr(runtime_manifest.platform, "machine", lambda: cpu)
+
+    assert require_selected_runtime(venv.parent).root == venv.parent
 
 
 @pytest.mark.parametrize("manifest_kind", ["legacy", "private"])

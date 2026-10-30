@@ -108,6 +108,18 @@ let regularRun = "!inputs.supply_image && !inputs.release_tag"
 let releaseRun = "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != ''"
 let releaseArguments = "--release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}"
 
+// Windows on Arm executes the x64 runtime through its emulation; CEL ships no win_arm64 wheel.
+let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
+
+// Each release leg qualifies the one host platform it declares, on the runner that provides it.
+let releaseLegs = [
+	{host: "linux-x64", os: "ubuntu-latest", python: "3.14"},
+	{host: "linux-arm64", os: "ubuntu-24.04-arm", python: "3.14"},
+	{host: "macos-arm64", os: "macos-latest", python: "3.14"},
+	{host: "windows-x64", os: "windows-latest", python: "3.14"},
+	windowsArmLeg & {host: "windows-arm64"},
+]
+
 // The host-conformance supply order that every hosted OS proves: checkout, Python image,
 // build-only dependencies, native and npm supply, then the project environment.
 let githubHostSupplyAt = {
@@ -247,6 +259,7 @@ github: {
 				matrix: {
 					os: ["ubuntu-latest", "windows-latest", "macos-latest"]
 					python: ["3.12", "3.13", "3.14"]
+					include: [windowsArmLeg]
 				}
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
@@ -360,20 +373,23 @@ github: {
 		// its platform's Node and Vale, so every platform builds and qualifies its own wheel and
 		// retains it beside the archive its release smoke built.
 		"release-platforms": {
-			name:      "release runtime ${{ matrix.os }}"
+			name:      "release runtime ${{ matrix.host }}"
 			"runs-on": "${{ matrix.os }}"
 			if:        "${{ \(releaseRun) }}"
-			// Windows remains an optional platform until its delivered artifact qualifies.
-			"continue-on-error": "${{ matrix.os == 'windows-latest' }}"
+			// Windows hosts remain optional platforms until their delivered artifacts qualify.
+			"continue-on-error": "${{ startsWith(matrix.host, 'windows') }}"
 			env: {
 				ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 				UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
 			}
 			strategy: {
 				"fail-fast": false
-				matrix: os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]
+				matrix: {
+					host: [for leg in releaseLegs {leg.host}]
+					include: releaseLegs
+				}
 			}
-			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "3.14"}).out, [{
+			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}"}).out, [{
 				name: "Bind operator commit trust"
 				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
 			}, {
@@ -385,7 +401,7 @@ github: {
 			}, {
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
-					name: "release-runtime-${{ matrix.os }}"
+					name: "release-runtime-${{ matrix.host }}"
 					path: """
 						build/artifacts/release/python/
 						build/artifacts/native/

@@ -16,14 +16,25 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 - An adopter's proof reports the repository's semantic reference closure beside the audit reports:
   each latent gap with its carriers, without changing the proof verdict.
+- Releases can serve `windows-arm64`. Its release leg builds and qualifies the x64 runtime on a
+  Windows ARM64 host, which runs it through Windows on Arm's emulation, and the release declares
+  that leg's archive for the platform. No `windows-arm64` wheel is published: `cel-expr-python`
+  ships no native build for it. Host conformance and the release add a `windows-11-arm` leg.
 
 ### Changed
 
 - Commands that run inside double-quoted `$(…)` and backticks are now read. A patch that touches
   such a carrier must own them, as it owns the carrier's other commands.
+- Each release leg declares the host platform it qualifies, and its archive and Mise platform are
+  named for that host. Only a host that runs the runtime natively publishes a wheel or counts as a
+  required platform.
 
 ### Fixed
 
+- An x64 interpreter that Windows on Arm emulates now selects its own runtime and builds an
+  installable wheel. CPython on Windows reports the native CPU, so ETHOS reads the machine the
+  interpreter executes from its build platform. Every native host observes the same values as
+  before.
 - Prewrite no longer refuses a governed repository's patch for references that no executor runs or
   that a declaration supplies:
   - Shell lines follow POSIX nesting. Quotes pair within each `$(…)`, backtick and `$((…))`,

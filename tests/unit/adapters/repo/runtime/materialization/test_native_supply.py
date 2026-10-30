@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.manifest import process_machine
 
 
 @pytest.fixture
@@ -159,7 +160,7 @@ def test_package_projection_does_not_require_execution_only_dependencies(
     locked_vale, tmp_path: Path
 ) -> None:
     """A native artifact build reads locked bytes without loading the mutable installer."""
-    system, machine = platform.system(), platform.machine()
+    system, machine = platform.system(), process_machine()
     targets = {
         ("Darwin", "arm64"): ("macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"),
         ("Darwin", "x86_64"): ("macos-x64", "vale_3.24.0_macOS_64-bit.tar.gz"),

@@ -15,6 +15,8 @@ from filelock import Timeout
 from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.mutation.lane_lifecycle.merge_actions import merge_command
+from ethos.adapters.mutation.lane_lifecycle.merge_actions import merge_recovery_action
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.selection import incoming_change_gaps
 from ethos.adapters.process import ProcessExecutionError
@@ -44,34 +46,6 @@ MergeMode = Literal["inspect", "start", "continue", "abort"]
 
 def _fail(message: str) -> NoReturn:
     raise ValueError(message)
-
-
-def _command(
-    root: Path, mode: str, head: str, token: str, message: str, source_ref: str | None = None
-) -> str:
-    return shlex.join(
-        (
-            "ethos",
-            "lane",
-            "refresh-base",
-            "--strategy",
-            "merge",
-            *(("--source-ref", source_ref) if source_ref is not None else ()),
-            "--mode",
-            mode,
-            "--expect-head",
-            head,
-            "--expect-state",
-            token,
-            "--subject",
-            message,
-            "--root",
-            str(root.resolve()),
-            "--apply",
-            "--authorize",
-            "--json",
-        )
-    )
 
 
 def _authority(root: Path, observed: MergeObservation) -> tuple[dict[str, object], str]:
@@ -396,7 +370,9 @@ def _preview(
         observation=observed.projection(),
         state_digest=token,
         incoming=context.incoming,
-        next_action=_command(root, selected, head, token, message, context.explicit_source_ref),
+        next_action=merge_command(
+            root, selected, head, token, message, context.explicit_source_ref
+        ),
         user_decision_required=True,
     )
 
@@ -503,7 +479,7 @@ def merge_work_lane(
             observed.head if observed else "",
             "blocked",
             [gap],
-            next_action=_recovery_action(root, mode, gap),
+            next_action=merge_recovery_action(root, mode, gap),
             boundary="native merge continuation",
             why=gap,
             observation=observed.projection() if observed else {},
@@ -515,36 +491,3 @@ def merge_work_lane(
             user_decision_required=True,
         )
         return report | {"verdict": "unknown", "state": "unknown"} if unknown else report
-
-
-def _recovery_action(root: Path, mode: MergeMode, gap: str) -> str:
-    """Derive a fresh coordinate request or name the exact external prerequisite."""
-    if gap in {
-        "authorization_required",
-        "merge_exact_request_required",
-        "expect_head_mismatch",
-        "merge_state_stale",
-        "merge_runtime_changed",
-        "merge_candidate_changed",
-    }:
-        return shlex.join(
-            (
-                "ethos",
-                "lane",
-                "refresh-base",
-                "--strategy",
-                "merge",
-                "--mode",
-                mode,
-                "--root",
-                str(root.resolve()),
-                "--json",
-            )
-        )
-    if gap.startswith("merge_ignored_content_collision:"):
-        return "Preserve the reported ignored content, then request a new merge preview."
-    if gap == "merge_operation_busy":
-        return "Wait for the current merge operation to finish, then replay the exact request."
-    if gap == "merge_unstaged_resolution":
-        return "Admit and stage the intended resolution, then request a fresh continue preview."
-    return "Resolve the reported authority/native-state boundary; retain recovery material."

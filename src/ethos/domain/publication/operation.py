@@ -4,10 +4,7 @@ import shlex
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import cast
 
-import ethos.adapters.repo.git as git
-from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.publication.execution import apply_remote_publication_effect
@@ -17,7 +14,6 @@ from ethos.adapters.mutation.publication.request import observe_publication_requ
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.mutation.publication.request import persist_remote_publication_request
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_followup
-from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.publication import PublicationEffect
@@ -26,6 +22,7 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.publication.inspection import observe_publication
 from ethos.domain.publication.inspection import publication_readiness_result
+from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.publication import select_publication_peers
 from ethos.result import EthosResult
@@ -35,100 +32,9 @@ if TYPE_CHECKING:
     from ethos.domain.publication.inspection import PublicationContext
 from ethos.domain.execution import application_result
 from ethos.domain.execution import profile_failure_result
+from ethos.domain.publication.request_gaps import publication_admission_gaps
+from ethos.domain.publication.request_gaps import publication_request_gaps
 from ethos.repository.profile import load_repository_profile
-
-
-def _object_mapping(value: object) -> dict[str, object]:
-    """Return a JSON object mapping or a safe empty projection."""
-    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
-
-
-def _remote_ref_observation(
-    observations: Mapping[str, Mapping[str, object]], peer_id: str, target_ref: str
-) -> dict[str, object]:
-    """Return one nested peer ref observation without leaking storage shape."""
-    peer = _object_mapping(observations.get(peer_id))
-    refs = _object_mapping(peer.get("refs"))
-    return _object_mapping(refs.get(target_ref))
-
-
-def _publication_admission_gaps(
-    *,
-    repo: Path,
-    target_refs: tuple[str, ...],
-    source_object_oid: str,
-    remotes: Mapping[str, str],
-    observations: Mapping[str, Mapping[str, object]],
-    effect_gaps: tuple[str, ...],
-    proof_admission: Mapping[str, object],
-    retire: bool = False,
-) -> tuple[tuple[str, ...], dict[str, dict[str, object]]]:
-    reports: dict[str, dict[str, object]] = {}
-    for peer_id, remote in remotes.items():
-        for target_ref in target_refs:
-            observation = _remote_ref_observation(observations, peer_id, target_ref)
-            object_oid = observation.get("object_oid")
-            if (
-                observation.get("state") not in {"present", "absent"}
-                or not isinstance(object_oid, str)
-                or (not object_oid)
-            ):
-                continue
-            reports[f"{peer_id}:{target_ref}"] = push_admission_report(
-                root=repo,
-                target_ref=target_ref,
-                pushed_head=zero_oid(repo) if retire else source_object_oid,
-                remote_head=object_oid,
-                remote_name=remote,
-                proof_admission=proof_admission,
-            )
-    proof_gaps = set(string_sequence(proof_admission.get("required_gaps")))
-    gaps = tuple(
-        dict.fromkeys(
-            (
-                *effect_gaps,
-                *(
-                    gap if gap in proof_gaps else f"{gap}:{peer_id}"
-                    for peer_id, report in reports.items()
-                    for gap in string_sequence(report.get("required_gaps"))
-                ),
-            )
-        )
-    )
-    return (gaps, reports)
-
-
-def _publication_request_gaps(
-    *,
-    repo: Path,
-    current_head: str,
-    target_refs: tuple[str, ...],
-    remotes: Mapping[str, str],
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    receipt: str | None,
-    probe_remote: bool,
-) -> list[str]:
-    """Return invocation and source facts required before publication effects."""
-    conditions = (
-        (expect_head is None, "expect_head_required"),
-        (apply and (not authorize), "authorization_required"),
-        (expect_head is not None and expect_head != current_head, "expect_head_mismatch"),
-        (receipt is not None and (not apply), "remote_publication_receipt_apply_required"),
-        (receipt is None and (not probe_remote), "publication_remote_probe_required"),
-        (not target_refs, "publication_target_ref_required"),
-        (len(target_refs) != len(set(target_refs)), "publication_target_ref_duplicate"),
-        (not remotes, "publication_peers_missing"),
-    )
-    gaps = [gap for blocked, gap in conditions if blocked]
-    gaps.extend(
-        f"publication_target_ref_invalid:{target_ref}"
-        for target_ref in target_refs
-        if not target_ref.startswith(("refs/heads/", "refs/tags/"))
-        or git.run_git(repo, "check-ref-format", target_ref, check=False).returncode != 0
-    )
-    return gaps
 
 
 def _publication_effect_observation(
@@ -160,7 +66,7 @@ def _publication_effect_observation(
         ref_admissions=ref_admissions,
         retire=retire,
     )
-    admission_gaps, reports = _publication_admission_gaps(
+    admission_gaps, reports = publication_admission_gaps(
         repo=repo,
         target_refs=target_refs,
         source_object_oid=effect.source.object_oid if effect is not None else current_head,
@@ -226,7 +132,7 @@ def _publish_projection(
     selected_remotes, selection_gaps = select_publication_peers(context.remotes, selected_ids)
     if replay and peer_ids:
         selection_gaps.append("publication_peer_selection_receipt_conflict")
-    request_gaps = _publication_request_gaps(
+    request_gaps = publication_request_gaps(
         repo=repo,
         apply=apply,
         authorize=authorize,
@@ -254,7 +160,7 @@ def _publish_projection(
         )
         gaps.extend(admission_gaps)
         if effect is not None:
-            proof = _object_mapping(context.proof_admission.get("attestation"))
+            proof = string_mapping(context.proof_admission.get("attestation"))
             if proof:
                 proof = {**proof, "selection": str(context.proof_admission.get("selection") or "")}
             plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)

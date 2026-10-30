@@ -7,6 +7,16 @@ import shlex
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ethos.repository.policy.references.shell_vocabulary import ENV_OPTIONS_WITH_VALUE
+from ethos.repository.policy.references.shell_vocabulary import NPM_OPTIONS_WITH_VALUE
+from ethos.repository.policy.references.shell_vocabulary import NPX_OPTIONS_WITH_VALUE
+from ethos.repository.policy.references.shell_vocabulary import PREFIX_OPTIONS
+from ethos.repository.policy.references.shell_vocabulary import PYTHON_STOPS
+from ethos.repository.policy.references.shell_vocabulary import SHELL_NON_EXECUTABLES
+from ethos.repository.policy.references.shell_vocabulary import SHELL_PREFIXES
+from ethos.repository.policy.references.shell_vocabulary import UV_RUN_OPTIONS_WITH_VALUE
+from ethos.repository.policy.references.shell_vocabulary import UVX_OPTIONS_WITH_VALUE
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -165,7 +175,7 @@ def _shell_segment_command(tokens: tuple[str, ...]) -> tuple[str, ...]:
     command = _command_tokens(tokens, shell_context=True)
     return (
         command
-        if command and command[0] not in _SHELL_NON_EXECUTABLES and not command[0].startswith("$")
+        if command and command[0] not in SHELL_NON_EXECUTABLES and not command[0].startswith("$")
         else ()
     )
 
@@ -210,20 +220,20 @@ def _command_tokens(tokens: tuple[str, ...], *, shell_context: bool = False) -> 
         if tokens[index] == "env":
             return _command_tokens(
                 _tokens_after_options(
-                    tokens[index + 1 :], _ENV_OPTIONS_WITH_VALUE, skip_assignments=True
+                    tokens[index + 1 :], ENV_OPTIONS_WITH_VALUE, skip_assignments=True
                 ),
                 shell_context=shell_context,
             )
-        if shell_context and (name := tokens[index].rsplit("/", 1)[-1]) in _PREFIX_OPTIONS:
+        if shell_context and (name := tokens[index].rsplit("/", 1)[-1]) in PREFIX_OPTIONS:
             return _command_tokens(
-                _tokens_after_options(tokens[index + 1 :], _PREFIX_OPTIONS[name]),
+                _tokens_after_options(tokens[index + 1 :], PREFIX_OPTIONS[name]),
                 shell_context=True,
             )
         if shell_context and (
             _SHELL_ASSIGNMENT.fullmatch(tokens[index])
             or tokens[index].startswith("-")
             or tokens[index].isdigit()
-            or tokens[index] in _SHELL_PREFIXES
+            or tokens[index] in SHELL_PREFIXES
         ):
             index += 1
         else:
@@ -243,7 +253,7 @@ def python_module(tokens: tuple[str, ...]) -> str:
             return tokens[index + 1] if index + 1 < len(tokens) else ""
         if option.startswith("-m"):
             return option[2:]
-        if not option.startswith("-") or option.startswith("-c") or option in _PYTHON_STOPS:
+        if not option.startswith("-") or option.startswith("-c") or option in PYTHON_STOPS:
             return ""
         index += 2 if option in {"-W", "-X", "--check-hash-based-pycs"} else 1
     return ""
@@ -255,9 +265,9 @@ def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[s
         return tokens[tokens.index("--") + 1 :] if "--" in tokens[2:] else ()
     if executable == "uv":
         run = tokens.index("run", 1) if "run" in tokens[1:] else 0
-        return _tokens_after_options(tokens[run + 1 :], _UV_RUN_OPTIONS_WITH_VALUE) if run else ()
+        return _tokens_after_options(tokens[run + 1 :], UV_RUN_OPTIONS_WITH_VALUE) if run else ()
     if executable in {"npx", "uvx"}:
-        value_options = _NPX_OPTIONS_WITH_VALUE if executable == "npx" else _UVX_OPTIONS_WITH_VALUE
+        value_options = NPX_OPTIONS_WITH_VALUE if executable == "npx" else UVX_OPTIONS_WITH_VALUE
         child = _tokens_after_options(tokens[1:], value_options)
         package_command = _package_command(child[0]) if child else ""
         return (package_command, *child[1:]) if package_command else ()
@@ -295,10 +305,10 @@ def _package_command(argument: str) -> str:
 
 
 def _npm_script_name(tokens: tuple[str, ...]) -> str:
-    args = _tokens_after_options(tokens[1:], _NPM_OPTIONS_WITH_VALUE)
+    args = _tokens_after_options(tokens[1:], NPM_OPTIONS_WITH_VALUE)
     if not args or args[0] not in {"run", "run-script"}:
         return ""
-    script = _tokens_after_options(args[1:], _NPM_OPTIONS_WITH_VALUE)
+    script = _tokens_after_options(args[1:], NPM_OPTIONS_WITH_VALUE)
     return script[0] if script else ""
 
 
@@ -443,92 +453,6 @@ _SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
 _FUNCTION = re.compile(r"\s*(?:function\s+)?([A-Za-z_]\w*)\s*\(\)\s*\{")
 # Openers with their closers, longest first, so arithmetic is not read as a command substitution.
 _SUBSTITUTIONS = (("$((", "))"), ("$(", ")"), ("`", "`"))
-# The options that take a value for each prefix command that runs the command after it.
-_PREFIX_OPTIONS = {
-    "nice": frozenset({"-n", "--adjustment"}),
-    "nohup": frozenset(),
-    "sudo": frozenset({"-u", "--user", "-g", "--group", "-p", "--prompt", "-h", "--host"}),
-}
-_PYTHON_STOPS = frozenset({"--", "-h", "--help", "-V", "--version"})
-
-_SHELL_PREFIXES = {
-    "!",
-    "command",
-    "do",
-    "elif",
-    "else",
-    "exec",
-    "if",
-    "then",
-    "time",
-}
-
-_SHELL_NON_EXECUTABLES = {
-    "[",
-    "[[",
-    "break",
-    "case",
-    "cd",
-    "continue",
-    "declare",
-    "done",
-    "echo",
-    "esac",
-    "eval",
-    "exit",
-    "export",
-    "false",
-    "fi",
-    "for",
-    "local",
-    "printf",
-    "read",
-    "readonly",
-    "return",
-    "set",
-    "shift",
-    "shopt",
-    "source",
-    "test",
-    "trap",
-    "true",
-    "typeset",
-    "ulimit",
-    "umask",
-    "unset",
-    "until",
-    "wait",
-    "while",
-}
-
-_UV_RUN_OPTIONS_WITH_VALUE = frozenset(
-    {
-        "--cache-dir",
-        "--config-file",
-        "--config-setting",
-        "--directory",
-        "--env-file",
-        "--exclude-newer",
-        "--group",
-        "--index",
-        "--link-mode",
-        "--package",
-        "--project",
-        "--python",
-        "--resolution",
-        "--with",
-    }
-)
-
-_NPX_OPTIONS_WITH_VALUE = frozenset({"--cache", "--call", "--package", "-c", "-p"})
-
-_UVX_OPTIONS_WITH_VALUE = frozenset(
-    {"--from", "--index", "--python", "--refresh-package", "--with"}
-)
-
-_NPM_OPTIONS_WITH_VALUE = frozenset({"--prefix", "--workspace", "-w"})
-
-_ENV_OPTIONS_WITH_VALUE = frozenset({"--chdir", "--unset", "-C", "-u"})
 
 
 def shell_configuration_inputs(text: str) -> tuple[set[str], bool]:

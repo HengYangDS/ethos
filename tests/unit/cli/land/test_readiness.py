@@ -10,7 +10,7 @@ import tomli_w
 
 import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.inspection import local_ci_owner_scripts
+from ethos.domain.publication.fallback import local_ci_owner_scripts
 from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked

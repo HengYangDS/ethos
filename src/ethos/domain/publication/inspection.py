@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import json
-import re
-import shlex
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -29,6 +25,8 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import repository_audit_after_admission
+from ethos.domain.publication.fallback import fallback_action
+from ethos.domain.publication.fallback import local_ci_fallback_package
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
@@ -42,112 +40,7 @@ from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
-
-
-def local_ci_fallback_evidence_status(
-    repo: Path,
-    *,
-    current_head: str,
-    command: str,
-) -> dict[str, object]:
-    """Project whether local-ci fallback evidence is bound to the current HEAD."""
-    relative = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
-    try:
-        payload = json.loads((repo / LOCAL_CI_FALLBACK_EVIDENCE_PATH).read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return _evidence_status("missing", relative, current_head, command)
-    except json.JSONDecodeError:
-        return _evidence_status("invalid", relative, current_head, command)
-    if not isinstance(payload, dict):
-        return _evidence_status("invalid", relative, current_head, command)
-    evidence_head = str(payload.get("head") or "")
-    evidence_command = str(payload.get("command") or "")
-    current = (
-        bool(current_head)
-        and evidence_head == current_head
-        and evidence_command == command
-        and report_verdict(payload) == "pass"
-    )
-    return {
-        "state": "current" if current else "stale",
-        "path": relative,
-        "current_head": current_head,
-        "evidence_head": evidence_head,
-        "verdict": "pass" if current else "block",
-        "command": evidence_command,
-        "next_action": (
-            "local-ci fallback evidence is current at HEAD"
-            if current
-            else _fallback_action(command)
-        ),
-    }
-
-
-def _evidence_status(state: str, path: str, current_head: str, command: str) -> dict[str, object]:
-    """Render a missing or invalid fallback-evidence status."""
-    return {
-        "state": state,
-        "path": path,
-        "current_head": current_head,
-        "evidence_head": "",
-        "verdict": "block",
-        "next_action": _fallback_action(command, refresh=state not in {"missing", "not_checked"}),
-    }
-
-
-def local_ci_fallback_package(
-    *,
-    root: Path | None = None,
-    current_head: str = "",
-    command: str = "",
-) -> dict[str, object]:
-    """Describe local fallback evidence without claiming hosted CI success."""
-    status = (
-        local_ci_fallback_evidence_status(
-            root,
-            current_head=current_head,
-            command=command,
-        )
-        if root
-        else _evidence_status(
-            "not_checked",
-            LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix(),
-            current_head,
-            command,
-        )
-    )
-    return {
-        "kind": "local_ci_fallback",
-        "evidence_class": "local_fallback",
-        "boundary": "local-ci evidence; hosted CI status unclaimed",
-        "hosted_ci_status_claimed": False,
-        "command": command,
-        "owner_scripts": local_ci_owner_scripts(root=root, command=command),
-        "evidence_status": status,
-    }
-
-
-def local_ci_owner_scripts(*, root: Path | None = None, command: str = "") -> list[str]:
-    """Project repository scripts invoked by a repository-local command owner."""
-    try:
-        argv = shlex.split(command)
-    except ValueError:
-        return []
-    if not argv:
-        return []
-    script = (root or Path.cwd()) / argv[0]
-    if script.is_file():
-        return list(
-            dict.fromkeys(
-                re.findall(
-                    r"tools/ci/scripts/[A-Za-z0-9_.-]+\.sh",
-                    script.read_text(encoding="utf-8"),
-                )
-            )
-        )
-    return []
+    from pathlib import Path
 
 
 def publication_readiness(
@@ -200,9 +93,9 @@ def publication_readiness(
         if synchronized
         else probe_action
         if available
-        else str(evidence.get("next_action") or _fallback_action(fallback_command))
+        else str(evidence.get("next_action") or fallback_action(fallback_command))
         if isinstance(evidence, dict)
-        else _fallback_action(fallback_command)
+        else fallback_action(fallback_command)
     )
     return {
         "mode": "local_readiness",
@@ -221,16 +114,6 @@ def publication_readiness(
 def _object(value: object) -> dict[str, object]:
     """Return a JSON-object mapping or an empty observation."""
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
-
-
-def _fallback_action(command: str, *, refresh: bool = False) -> str:
-    if not command:
-        return "declare .ethos/release.toml [publication].local_verification_command"
-    return (
-        f"rerun {command} to refresh local fallback evidence"
-        if refresh
-        else f"run {command} as local fallback evidence"
-    )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

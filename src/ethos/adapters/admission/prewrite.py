@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.current.authority import observe_current_authority
-from ethos.adapters.admission.current.resolution import non_openspec_prewrite_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.admission.patch_admission import patch_repair_action
@@ -40,8 +39,22 @@ if TYPE_CHECKING:
 
     from ethos.adapters.admission.current.authority import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
+    from ethos.contracts.value import JsonObject
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
+
+
+def non_openspec_prewrite_scope(requested: tuple[str, ...]) -> JsonObject:
+    """Keep non-OpenSpec write scope distinct from accepted intent."""
+    return {
+        "verdict": "pass",
+        "state": "not_applicable",
+        "changed_paths": list(requested),
+        "material_patterns": [],
+        "material_paths": [],
+        "uncovered_paths": [],
+        "required_gaps": [],
+    }
 
 
 def prewrite_guard(

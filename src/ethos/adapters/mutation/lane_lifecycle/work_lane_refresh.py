@@ -15,7 +15,10 @@ from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import Pend
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import clear_pending_refresh
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import read_pending_refresh
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import write_pending_refresh
-from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import exact_refresh_command
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import process_failure
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import refresh_report
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import with_refresh_action
 from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -59,27 +62,6 @@ def _candidate_worktree_gap(candidate: dict[str, object], candidate_path: str) -
         if changed_paths(Path(candidate_path))
         else ""
     )
-
-
-def _report(
-    context: tuple[str, str, str, str],
-    head: str,
-    state: str,
-    gaps: list[str],
-    **details: object,
-) -> dict[str, object]:
-    branch, candidate_branch, candidate_head, candidate_path = context
-    return {
-        "verdict": "block" if gaps else "pass",
-        "state": state,
-        "branch": branch,
-        "head": head,
-        "required_gaps": gaps,
-        "candidate_branch": candidate_branch,
-        "candidate_head": candidate_head,
-        "candidate_path": candidate_path,
-        **details,
-    }
 
 
 def refresh_work_lane_base(
@@ -129,18 +111,18 @@ def refresh_work_lane_base(
                 candidate_path,
                 dirty=bool(status.get("dirty")),
             )
-            return _with_action(root, result, apply=apply)
+            return with_refresh_action(root, result, apply=apply)
         except ValueError as error:
             context = ("detached", policy.candidate_branch, candidate_head, candidate_path)
-            return _with_action(
+            return with_refresh_action(
                 root,
-                _report(context, current_head, "blocked", [str(error)]),
+                refresh_report(context, current_head, "blocked", [str(error)]),
                 apply=apply,
             )
     context = (branch, policy.candidate_branch, candidate_head, candidate_path)
 
     if status.get("dirty") and pending_merge_heads(root):
-        return _report(
+        return refresh_report(
             context,
             current_head,
             "blocked",
@@ -171,21 +153,21 @@ def refresh_work_lane_base(
         if present
     )
     if gaps:
-        return _with_action(
+        return with_refresh_action(
             root,
-            _report(context, current_head, "blocked", gaps),
+            refresh_report(context, current_head, "blocked", gaps),
             apply=apply,
         )
     if is_ancestor(root, candidate_head, current_head):
-        result = _report(context, current_head, "base_current", [])
+        result = refresh_report(context, current_head, "base_current", [])
     elif admission := _write_admission_gaps(root):
         gaps, action = admission
-        result = _report(context, current_head, "blocked", gaps, next_action=action)
+        result = refresh_report(context, current_head, "blocked", gaps, next_action=action)
     elif not apply:
-        result = _report(context, current_head, "ready_to_refresh_base", [])
+        result = refresh_report(context, current_head, "ready_to_refresh_base", [])
     else:
         result = _refresh_work_lane(root, context, current_head)
-    return _with_action(root, result, apply=apply)
+    return with_refresh_action(root, result, apply=apply)
 
 
 def _write_admission_gaps(root: Path) -> tuple[list[str], str] | None:
@@ -193,41 +175,6 @@ def _write_admission_gaps(root: Path) -> tuple[list[str], str] | None:
     runtime = hook_runtime_binding(root)
     gaps = list(string_sequence(runtime.get("required_gaps")))
     return (gaps, str(runtime.get("next_action") or "")) if gaps else None
-
-
-def _process_failure(error: Exception) -> dict[str, object]:
-    """Keep native refusal evidence instead of reducing it to its code."""
-    return {"process_failure": error.evidence()} if isinstance(error, ProcessExecutionError) else {}
-
-
-def _exact_refresh(root: Path, head: str) -> str:
-    return (
-        "ethos lane refresh-base --apply --authorize "
-        f"--expect-head {head} --root {shlex.quote(root.resolve().as_posix())} --json"
-    )
-
-
-def _with_action(root: Path, report: dict[str, object], *, apply: bool) -> dict[str, object]:
-    """Attach the operation-owned continuation before CLI projection."""
-    gaps = tuple(str(item) for item in cast("list[object]", report.get("required_gaps", [])))
-    state = str(report.get("state") or "")
-    exact_refresh = _exact_refresh(root, str(report.get("head") or ""))
-    if report.get("next_action"):
-        action = str(report["next_action"])
-    elif not gaps and state == "ready_to_refresh_base":
-        action = exact_refresh
-    elif not gaps:
-        action = f"ethos land --root {shlex.quote(root.resolve().as_posix())} --json"
-    elif "authorization_required" in gaps:
-        action = exact_refresh
-    else:
-        action = f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"
-    return report | {
-        "next_action": action,
-        "user_decision_required": (
-            (not apply and state == "ready_to_refresh_base") or "authorization_required" in gaps
-        ),
-    }
 
 
 def _refresh_work_lane(
@@ -238,7 +185,7 @@ def _refresh_work_lane(
     branch, candidate_branch, candidate_head, _candidate_path = context
     snapshot_gaps = _refresh_snapshot_gaps(root, current_head, candidate_branch, candidate_head)
     if snapshot_gaps:
-        return _report(context, current_head, "blocked", snapshot_gaps)
+        return refresh_report(context, current_head, "blocked", snapshot_gaps)
     try:
         commit_policy = commit_policy_from_text(
             committed_file_text(root, candidate_head, ".ethos/workspace.toml")
@@ -251,7 +198,7 @@ def _refresh_work_lane(
             ),
         )
     except (OSError, TypeError, ValueError) as error:
-        return _report(context, current_head, "blocked", [str(error)])
+        return refresh_report(context, current_head, "blocked", [str(error)])
     completed = run_git(
         root,
         "-c",
@@ -265,7 +212,7 @@ def _refresh_work_lane(
     )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
-        return _report(
+        return refresh_report(
             context,
             current_tracked_head(root),
             "blocked",
@@ -275,7 +222,7 @@ def _refresh_work_lane(
     rebased_head = current_tracked_head(root)
     if not is_ancestor(root, candidate_head, rebased_head):
         restore_gaps = _restore_original_work_lane(root, branch, current_head)
-        return _report(
+        return refresh_report(
             context,
             current_tracked_head(root),
             "blocked",
@@ -288,7 +235,7 @@ def _refresh_work_lane(
         root, baseline_commit=candidate_head, proposed_commit=rebased_head, policy=commit_policy
     )
     if policy_gaps:
-        return _report(
+        return refresh_report(
             context,
             current_tracked_head(root),
             "blocked",
@@ -366,7 +313,7 @@ def _complete_refresh(
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
-        return _report(
+        return refresh_report(
             context,
             current_tracked_head(root),
             "blocked",
@@ -377,7 +324,7 @@ def _complete_refresh(
             plan_digest=plan.digest,
             previous_head=current_head,
             stderr=str(error),
-            **_process_failure(error),
+            **process_failure(error),
         )
     attachment_attestation = None
     attachment_error = ""
@@ -395,13 +342,13 @@ def _complete_refresh(
         if invalid
     ]
     if post_gaps:
-        return _report(
+        return refresh_report(
             context,
             refreshed_head,
             "blocked",
             post_gaps,
             previous_head=current_head,
-            next_action=_exact_refresh(root, refreshed_head) if attachment_error else "",
+            next_action=exact_refresh_command(root, refreshed_head) if attachment_error else "",
             stderr=attachment_error
             or (
                 "work-lane branch advanced after refresh compare-and-swap"
@@ -410,7 +357,7 @@ def _complete_refresh(
             ),
         )
     clear_pending_refresh(root)
-    return _report(
+    return refresh_report(
         context,
         refreshed_head,
         "base_refreshed",
@@ -487,7 +434,7 @@ def _recover_work_lane(
     )
     _attach_work_lane(root, branch, head)
     clear_pending_refresh(root)
-    return _report(
+    return refresh_report(
         (branch, candidate_branch, candidate_head, candidate_path),
         head,
         "base_refreshed",
@@ -516,13 +463,13 @@ def _restore_interrupted_refresh(
         raise ValueError(msg)
     if gaps := _restore_original_work_lane(root, pending.branch, pending.previous_head):
         raise ValueError(gaps[0])
-    return _report(
+    return refresh_report(
         (pending.branch, *candidate),
         pending.previous_head,
         "base_restored",
         [],
         previous_head=head,
-        next_action=_exact_refresh(root, pending.previous_head),
+        next_action=exact_refresh_command(root, pending.previous_head),
     )
 
 

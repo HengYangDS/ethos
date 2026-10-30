@@ -2,9 +2,11 @@
 
 ## 1. Deadline
 
-- [ ] 1.1 Raise the npm seed deadline in `tools/ci/toolchain/npm.py` from 120 to 600 seconds. Done
+- [x] 1.1 Raise the npm seed deadline in `tools/ci/toolchain/npm.py` from 120 to 600 seconds. Done
       when the module bounds every npm command at 600 seconds and the supply contract tests in
       `tests/architecture/ci/test_supply_contract.py` pass.
+      (On `c4b70c007` plus the change, `TIMEOUT_SECONDS` is 600, Ruff check and format pass on the
+      module and the 6 supply contract tests pass.)
 
 ## Workflow follow-up
 

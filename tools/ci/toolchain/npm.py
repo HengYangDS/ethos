@@ -15,7 +15,8 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 
-TIMEOUT_SECONDS = 120
+# Ends a hung npm; the emulated windows-11-arm seed alone takes about two minutes.
+TIMEOUT_SECONDS = 600
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -96,6 +96,7 @@ packages = ["src/ethos"]
 "docs/concepts/kernel-model.md" = "ethos/resources/docs/concepts/kernel-model.md"
 "docs/reference/glossary.md" = "ethos/resources/docs/reference/glossary.md"
 "docs/reference/command-plane.md" = "ethos/resources/docs/reference/command-plane.md"
+"docs/reference/operational-roots.md" = "ethos/resources/docs/reference/operational-roots.md"
 "docs/guides/quickstart.md" = "ethos/resources/docs/guides/quickstart.md"
 "rules" = "ethos/resources/rules"
 
@@ -115,6 +116,7 @@ only-include = [
   "docs/concepts/kernel-model.md",
   "docs/reference/glossary.md",
   "docs/reference/command-plane.md",
+  "docs/reference/operational-roots.md",
   "docs/guides/quickstart.md",
   "rules",
   "README.md",

@@ -1,6 +1,6 @@
 {
   "name": "@agentic-workflow/ethos",
-  "version": "0.2.0-alpha.20",
+  "version": "0.2.0-alpha.21",
   "description": "Node launcher for the ETHOS command plane.",
   "license": "MIT",
   "type": "module",

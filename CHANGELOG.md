@@ -12,8 +12,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.22] - 2026-10-31
+
 ### Changed
 
+- The per-file ceilings default to 500: 500 effective lines for each tracked Python file and 500
+  nonblank lines for each current authored Markdown document. A governed repository may declare
+  its own value for its whole tree in `.ethos/rules.toml` `[paradigm.size]`. A lower value
+  applies; a higher one applies up to the bound of 1000 when `[paradigm.size.reasons]` states
+  why, and the paradigm report lists it as a deviation. A value equal to the default, a higher
+  value without a reason, a value above the bound and an unknown key are gaps that leave the
+  default in force. The retired `[quality.code_size]` table is still reported.
 - The locked supply moves to the latest stable releases that ETHOS's constraints allow: mise
   2026.10.24, which ETHOS's own repository now requires and its CI bootstraps, Node 26.13.0, the
   first Node 26 LTS release, Python 3.14.10, OpenSpec 1.16.0, ESLint 10.14.0 and the latest stable
@@ -26,34 +35,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
-- The dependency audit resolves npm findings through dependency cycles. A peer dependency, such as
-  ESLint's on `@eslint-community/eslint-utils`, names each package in the other's `via`, and the
-  audit refused every such cycle as `finding_identity_unavailable` instead of naming the advisory.
-  A finding that reaches no advisory is still refused.
-
-### Security
-
-- The product npm lock overrides minimatch with 11.0.3 and glob with 14.0.3, which fix
-  GHSA-g3hv-75wg-m249 and GHSA-3g3m-2fjr-6pw4. The latest ESLint, `@eslint/config-array` and
-  `test-exclude` still declare minimatch 10 and glob 13.
-- npm 12.2.1, still the latest npm release, bundles minimatch 10.2.5 and glob 13.0.6, which carry
-  those two advisories. Like its bundled undici and ip-address, the dependency gate reports them
-  without blocking while no npm release bundles a fix.
-
-## [0.2.0-alpha.22] - 2026-10-31
-
-### Changed
-
-- The per-file ceilings default to 500: 500 effective lines for each tracked Python file and 500
-  nonblank lines for each current authored Markdown document. A governed repository may declare
-  its own value for its whole tree in `.ethos/rules.toml` `[paradigm.size]`. A lower value
-  applies; a higher one applies up to the bound of 1000 when `[paradigm.size.reasons]` states
-  why, and the paradigm report lists it as a deviation. A value equal to the default, a higher
-  value without a reason, a value above the bound and an unknown key are gaps that leave the
-  default in force. The retired `[quality.code_size]` table is still reported.
-
-### Fixed
-
 - Deletion admission admits a patch that replaces a vendored Python package with a dependency of
   the same name: when the root `pyproject.toml` declares such a dependency, imports of the deleted
   modules are not reported as `deleted_input` gaps. Deleting the project's own package, or a
@@ -61,19 +42,26 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - On Windows, publishing a native tool that ETHOS has just qualified no longer fails with
   `WinError 32` while Windows still holds the tool's image. The move into the cache is retried
   every 100 ms for up to 5 seconds, and a lasting refusal still fails.
+- The dependency audit resolves npm findings through dependency cycles. A peer dependency, such as
+  ESLint's on `@eslint-community/eslint-utils`, names each package in the other's `via`, and the
+  audit refused every such cycle as `finding_identity_unavailable` instead of naming the advisory.
+  A finding that reaches no advisory is still refused.
 
 ### Security
 
-- The wheels and installed runtimes still ship uv 0.13.5, whose embedded rustls 0.23.45 carries the
-  four advisories that the `0.2.0-alpha.18` entry lists; uv 0.13.6, the latest release, embeds the
-  same rustls.
+- The wheels and installed runtimes ship uv 0.13.6, the latest release, which still embeds rustls
+  0.23.45 with the four advisories that the `0.2.0-alpha.18` entry lists.
 - They also ship npm 12.2.1, the latest npm release. Its bundled undici 6.29.0 carries
   GHSA-4qv8-2p9j-2685 (medium), GHSA-xjj6-f33q-929c (high), GHSA-2m5v-pch6-74hx (high),
-  GHSA-qrxm-fqhp-jwvm (high) and GHSA-9fm3-97px-rjf6 (medium), and its bundled ip-address 10.7.2
-  carries GHSA-rxp7-6hxx-x8q5 (medium). undici 6.29.1 and ip-address 10.7.4 fix them, but no npm
-  release bundles those yet, so the dependency gate reports them without blocking, as its policy
-  requires while the bundling package is its latest release. The npm launcher package does not
-  contain them.
+  GHSA-qrxm-fqhp-jwvm (high) and GHSA-9fm3-97px-rjf6 (medium); its bundled ip-address 10.7.2
+  carries GHSA-rxp7-6hxx-x8q5 (medium); and its bundled minimatch 10.2.5 and glob 13.0.6 carry
+  GHSA-g3hv-75wg-m249 and GHSA-3g3m-2fjr-6pw4 (both medium). undici 6.29.1, ip-address 10.7.4,
+  minimatch 11.0.1 and glob 14.0.2 fix them, but no npm release bundles those yet, so the
+  dependency gate reports them without blocking, as its policy requires while the bundling package
+  is its latest release. The npm launcher package does not contain them.
+- The product npm lock overrides minimatch with 11.0.3 and glob with 14.0.3, which fix
+  GHSA-g3hv-75wg-m249 and GHSA-3g3m-2fjr-6pw4 outside npm's own bundle. The latest ESLint,
+  `@eslint/config-array` and `test-exclude` still declare minimatch 10 and glob 13.
 
 ## [0.2.0-alpha.21] - 2026-10-30
 

@@ -20,6 +20,7 @@ import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
@@ -367,21 +368,7 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     if mode == "selected":
         executable = str(runtime_filesystem.runtime_python(python))
         expected = [
-            (
-                executable,
-                [
-                    executable,
-                    "-B",
-                    "-I",
-                    "-X",
-                    "utf8",
-                    "-m",
-                    "ethos.cli",
-                    *args,
-                    "--root",
-                    str(repo),
-                ],
-            )
+            (executable, [executable, *PYTHON_FLAGS, "-m", "ethos.cli", *args, "--root", str(repo)])
         ]
     assert calls == expected
 
@@ -416,7 +403,7 @@ def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypat
         cli.console_main()
 
     assert exited.value.code == exit_code
-    assert calls == [([str(selected), "-B", "-I", "-X", "utf8", "-m", "ethos.cli", *args], False)]
+    assert calls == [([str(selected), *PYTHON_FLAGS, "-m", "ethos.cli", *args], False)]
 
 
 @pytest.mark.parametrize("failure", ["write", "replace", "archive"])

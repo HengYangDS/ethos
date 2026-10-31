@@ -2,8 +2,8 @@
 
 ## 1. Ceiling
 
-- [ ] 1.1 Name the moved Mise floor in the bootstrap-version fault. Done when the module measures
-      500 effective lines and its focused tests pass.
+- [x] 1.1 Name the moved Mise floor in the bootstrap-version fault. Done when the module measures
+      500 effective lines and its focused tests pass. (500 effective lines; its 31 tests passed.)
 
 ## Workflow follow-up
 

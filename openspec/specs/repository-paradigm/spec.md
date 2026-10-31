@@ -410,9 +410,10 @@ Every configured formatter SHALL use a line width of 100, including Prettier, Ta
 
 Every tracked file of a registry language SHALL have at most `code_effective_lines` effective lines,
 the lines that hold a token that is not whitespace, a comment or documentation, unless Git
-attributes mark it vendored or generated. The contract SHALL hold a default of 500 and a bound of
-1000 for both per-file ceilings. A binding MAY declare one whole-tree value in `.ethos/rules.toml`
-`[paradigm.size]`; an invalid one SHALL leave the default in force.
+attributes mark it vendored or generated or it is a declared byte-bound carrier. The contract SHALL
+hold a default of 500 and a bound of 1000 for both per-file ceilings. A binding MAY declare one
+whole-tree value in `.ethos/rules.toml` `[paradigm.size]`; an invalid one SHALL leave the default in
+force.
 
 #### Scenario: A Python file outgrows the ceiling
 
@@ -442,6 +443,13 @@ attributes mark it vendored or generated. The contract SHALL hold a default of 5
 - **WHEN** the repository's `.gitattributes` marks a tracked JavaScript file with 900 effective
   lines `linguist-generated`
 - **THEN** the paradigm reports no code size gap for it.
+
+#### Scenario: A byte-bound carrier is not measured
+
+- **WHEN** the repository's format selection declares a tracked JavaScript file with 900 effective
+  lines an immutable carrier whose bytes one of its proof gates verifies
+- **THEN** the paradigm reports no code size gap for it
+- **AND** an invalid carrier declaration leaves the file measured.
 
 #### Scenario: A repository declares a lower ceiling
 

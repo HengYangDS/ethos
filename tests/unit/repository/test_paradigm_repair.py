@@ -220,7 +220,7 @@ def test_gaps_without_a_deterministic_repair_stay_report_only(tmp_path: Path) ->
     """A gap that needs judgment, or a carrier the plan cannot read, keeps its repair text."""
     (tmp_path / ".gitattributes").write_bytes(b"\xff\xfe")
     gaps = [
-        ParadigmGap("python-size", "src/sample/module.py", "split it"),
+        ParadigmGap("code-size", "src/sample/module.py", "split it"),
         ParadigmGap("text-normalization", ".gitattributes", "declare it"),
         ParadigmGap("formatter-binding", ".config/checks/eslint/eslint.config.mjs", "bind it"),
         ParadigmGap("formatter-binding", ".config/checks/unknown/unknown.toml", "bind it"),

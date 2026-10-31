@@ -24,7 +24,7 @@ from ethos.repository.paradigm.openspec import openspec_gaps
 from ethos.repository.paradigm.orchestration import orchestration_gaps
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.scripts import tracked_script_gaps
-from ethos.repository.paradigm.size import python_size_gaps
+from ethos.repository.paradigm.size import code_size_gaps
 from ethos.repository.paradigm.size import size_resolution
 from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
@@ -76,7 +76,7 @@ def repository_paradigm_report(
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
         *size.gaps,
-        *python_size_gaps(root, tracked, size.ceilings["python_effective_lines"]),
+        *code_size_gaps(paradigm, root, tracked - received, size.ceilings["code_effective_lines"]),
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
         *openspec_gaps(paradigm, root, tracked),

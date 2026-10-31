@@ -16,7 +16,7 @@ from tests.support.paradigm import paradigm_report
 if TYPE_CHECKING:
     from pathlib import Path
 
-_PYTHON_CEILING = load_repository_paradigm().size.python_effective_lines
+_CODE_CEILING = load_repository_paradigm().size.code_effective_lines
 _MODULE = "src/sample/module.py"
 _PRETTIER = ".config/checks/prettier/prettier.toml"
 _TAPLO = ".config/checks/taplo/taplo.toml"
@@ -303,10 +303,10 @@ def _statements(count: int) -> str:
 @pytest.mark.parametrize(
     ("source", "gaps"),
     [
-        (_statements(_PYTHON_CEILING), []),
-        (_statements(_PYTHON_CEILING + 1), [f"repository_paradigm_python_size:{_MODULE}"]),
-        ('"""' + "documentation\n" * 600 + '"""\n' + _statements(_PYTHON_CEILING), []),
-        ("def invalid(\n", [f"repository_paradigm_python_size:{_MODULE}"]),
+        (_statements(_CODE_CEILING), []),
+        (_statements(_CODE_CEILING + 1), [f"repository_paradigm_code_size:{_MODULE}"]),
+        ('"""' + "documentation\n" * 600 + '"""\n' + _statements(_CODE_CEILING), []),
+        ("def invalid(\n", [f"repository_paradigm_code_size:{_MODULE}"]),
     ],
     ids=["at-ceiling", "over-ceiling", "docstring-uncounted", "invalid"],
 )
@@ -324,31 +324,31 @@ def test_every_python_file_shares_one_effective_line_ceiling(
 def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, damage: bytes | None) -> None:
     """Undecodable source is a gap; a tracked file deleted from the worktree is not measured."""
     report = _damaged_report(tmp_path, {**CONFORMING, _MODULE: "value = 1\n"}, _MODULE, damage)
-    expected = [f"repository_paradigm_python_size:{_MODULE}"] if damage else []
+    expected = [f"repository_paradigm_code_size:{_MODULE}"] if damage else []
     assert report["required_gaps"] == expected
 
 
 _RULES = ".ethos/rules.toml"
-_REASON = '[paradigm.size.reasons]\npython_effective_lines = "Parser tables stay whole."\n'
-_DECLARED = f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.python_effective_lines"
-_OVER = f"repository_paradigm_python_size:{_MODULE}"
+_REASON = '[paradigm.size.reasons]\ncode_effective_lines = "Parser tables stay whole."\n'
+_DECLARED = f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.code_effective_lines"
+_OVER = f"repository_paradigm_code_size:{_MODULE}"
 
 
 @pytest.mark.parametrize(
     ("rules", "lines", "gaps"),
     [
-        ("[paradigm.size]\npython_effective_lines = 400\n", 401, [_OVER]),
-        ("[paradigm.size]\npython_effective_lines = 700\n" + _REASON, 700, []),
-        ("[paradigm.size]\npython_effective_lines = 700\n", 700, [_DECLARED, _OVER]),
-        ("[paradigm.size]\npython_effective_lines = 1200\n" + _REASON, 700, [_DECLARED, _OVER]),
-        ("[paradigm.size]\npython_effective_lines = true\n", 1, [_DECLARED]),
+        ("[paradigm.size]\ncode_effective_lines = 400\n", 401, [_OVER]),
+        ("[paradigm.size]\ncode_effective_lines = 700\n" + _REASON, 700, []),
+        ("[paradigm.size]\ncode_effective_lines = 700\n", 700, [_DECLARED, _OVER]),
+        ("[paradigm.size]\ncode_effective_lines = 1200\n" + _REASON, 700, [_DECLARED, _OVER]),
+        ("[paradigm.size]\ncode_effective_lines = true\n", 1, [_DECLARED]),
         (
             "[paradigm.size]\nfiles = 400\n",
             1,
             [f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.files"],
         ),
         (
-            "[paradigm.size]\npython_effective_lines = 500\n",
+            "[paradigm.size]\ncode_effective_lines = 500\n",
             1,
             [_DECLARED.replace("size_declaration", "binding_restatement")],
         ),
@@ -379,17 +379,69 @@ def test_a_binding_declares_its_ceiling_within_the_contract(
 
 def test_a_reasoned_higher_ceiling_is_reported_as_a_deviation(tmp_path: Path) -> None:
     """Only a value above the default, with its reason, is listed beside the gaps."""
-    rules = "[paradigm.size]\npython_effective_lines = 700\nmarkdown_nonblank_lines = 400\n"
+    rules = "[paradigm.size]\ncode_effective_lines = 700\ndocument_nonblank_lines = 400\n"
     report = paradigm_report(tmp_path, {**CONFORMING, _RULES: rules + _REASON})
     assert report["deviations"] == [
         {
-            "ceiling": "python_effective_lines",
+            "ceiling": "code_effective_lines",
             "value": 700,
             "default": 500,
             "reason": "Parser tables stay whole.",
         }
     ]
     assert paradigm_report(tmp_path / "plain", CONFORMING)["deviations"] == []
+
+
+_OTHER_LANGUAGES = {
+    "src/channel.go": ("package main\n// Doc.\n", "var v{index} = {index}\n"),
+    "src/lib.rs": ("/// Docs.\n#[allow(dead_code)]\n", "const V{index}: u8 = 1;\n"),
+    "web/app.mjs": ("#!/usr/bin/env node\n/* a */\n", "const v{index} = {index};\n"),
+}
+
+
+@pytest.mark.parametrize("path", sorted(_OTHER_LANGUAGES))
+@pytest.mark.parametrize("extra", [0, 1], ids=["at-ceiling", "over-ceiling"])
+def test_every_registered_language_shares_the_code_ceiling(
+    tmp_path: Path, path: str, extra: int
+) -> None:
+    """Comments and documentation never count; a Go, Rust or JavaScript line of code does."""
+    head, line = _OTHER_LANGUAGES[path]
+    body = "".join(line.format(index=index) for index in range(_CODE_CEILING - 1 + extra))
+    report = paradigm_report(tmp_path, {**CONFORMING, path: head + body})
+    assert report["required_gaps"] == ([f"repository_paradigm_code_size:{path}"] if extra else [])
+
+
+def test_received_code_and_data_carriers_stay_outside_the_code_ceiling(tmp_path: Path) -> None:
+    """Generated code and data of any length are not measured; the same code authored is."""
+    rows = range(900)
+    files = {
+        **CONFORMING,
+        "web/bundle.js": "var v = 1;\n" * 900,
+        "data/table.yaml": "".join(f"key{index}: {index}\n" for index in rows),
+        "data/table.toml": "".join(f"key{index} = {index}\n" for index in rows),
+        "data/table.json": "[\n" + "".join(f"{index},\n" for index in rows) + "0\n]\n",
+        "data/table.cue": "".join(f"key{index}: {index}\n" for index in rows),
+    }
+    assert paradigm_report(tmp_path, files, received=("web/bundle.js",))["required_gaps"] == []
+    assert paradigm_report(tmp_path / "authored", files)["required_gaps"] == [
+        "repository_paradigm_code_size:web/bundle.js"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("key", "renamed"),
+    [
+        ("python_effective_lines", "code_effective_lines"),
+        ("markdown_nonblank_lines", "document_nonblank_lines"),
+    ],
+)
+def test_a_retired_key_names_its_rename(tmp_path: Path, key: str, renamed: str) -> None:
+    """A 0.2.0-alpha.22 key leaves the default in force and names the class key."""
+    files = {**CONFORMING, _RULES: f"[paradigm.size]\n{key} = 400\n", _MODULE: _statements(450)}
+    report = paradigm_report(tmp_path, files)
+    carrier = f"{_RULES}:paradigm.size.{key}"
+    assert report["required_gaps"] == [f"repository_paradigm_size_declaration:{carrier}"]
+    assert report["next_action"] == f"rename {key} to {renamed}"
 
 
 @pytest.mark.parametrize(

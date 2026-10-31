@@ -81,6 +81,7 @@ def test_a_nonconforming_directory_is_reported_once(tmp_path: Path) -> None:
         "src/sample_package/module_name.py",
         "src/sample/py.typed",
         "internal/sample_package/handler_test.go",
+        "crates/channel_solver/src/flow_graph.rs",
         "content/guide/README.md",
         "third/party/LICENSE",
         ".agents/skills/sample-skill/SKILL.md",

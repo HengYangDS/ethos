@@ -1,9 +1,10 @@
-"""Per-file size ceilings: the contract's defaults and a repository's own values.
+"""Per-file size ceilings: the contract's defaults, a repository's own values and the measure.
 
 A repository binding may declare a ceiling in `.ethos/rules.toml` `[paradigm.size]`: a lower
 value applies, and a higher one applies within the contract's bound when
 `[paradigm.size.reasons]` states why. Any other declaration is a gap and leaves the default in
-force, so a malformed value never widens a ceiling.
+force, so a malformed value never widens a ceiling. The code ceiling bounds every authored file
+of a registered language.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from typing import NamedTuple
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.measure import effective_code_lines_for_source
+from ethos.measure import lexed_effective_lines
 from ethos.repository.paradigm.gap import ParadigmGap
 
 if TYPE_CHECKING:
@@ -33,7 +35,7 @@ class SizeResolution(NamedTuple):
 
 def size_resolution(rules: str | None, paradigm: RepositoryParadigm) -> SizeResolution:
     """Resolve each ceiling from the contract default and the binding's `rules.toml` text."""
-    ceilings = paradigm.size.model_dump(exclude={"bound"})
+    ceilings = paradigm.size.model_dump(exclude={"bound", "retired"})
     carrier = f"{paradigm.binding.root}/rules.toml"
     try:
         table = tomllib.loads(rules or "")
@@ -53,7 +55,9 @@ def size_resolution(rules: str | None, paradigm: RepositoryParadigm) -> SizeReso
         reason = reasons.get(key)
         place = f"{carrier}:paradigm.size.{key}"
         if default is None:
-            gaps.append(ParadigmGap("size-declaration", place, f"remove {key}"))
+            renamed = paradigm.size.retired.get(key)
+            repair = f"rename {key} to {renamed}" if renamed else f"remove {key}"
+            gaps.append(ParadigmGap("size-declaration", place, repair))
         elif type(value) is not int or value <= 0:
             repair = f"declare {key} as a positive integer"
             gaps.append(ParadigmGap("size-declaration", place, repair))
@@ -82,24 +86,35 @@ def repository_ceilings(root: Path) -> dict[str, int]:
     return size_resolution(rules, paradigm).ceilings
 
 
-def python_size_gaps(
-    root: Path, tracked_paths: Iterable[str], ceiling: int
+def code_size_gaps(
+    paradigm: RepositoryParadigm,
+    root: Path,
+    authored_paths: Iterable[str],
+    ceiling: int,
 ) -> tuple[ParadigmGap, ...]:
-    """Measure every tracked Python file against the repository's effective-line ceiling."""
+    """Measure every authored file of a registered language against the code ceiling."""
     gaps: list[ParadigmGap] = []
-    for path in sorted(entry for entry in set(tracked_paths) if entry.endswith(".py")):
+    for path in sorted(set(authored_paths)):
+        language = paradigm.language_of(path)
         carrier = root / path
-        if not carrier.is_file():
+        if language is None or not carrier.is_file():
             continue
         try:
-            effective = effective_code_lines_for_source(carrier.read_text(encoding="utf-8"))
+            source = carrier.read_text(encoding="utf-8")
+            if language.measure == "lexer":
+                effective = lexed_effective_lines(source, language.lexer)
+            else:
+                effective = effective_code_lines_for_source(source)
         except (OSError, UnicodeError, SyntaxError, ValueError):
-            repair = f"make {path} readable UTF-8 Python so it can be measured"
-            gaps.append(ParadigmGap("python-size", path, repair))
+            repair = f"make {path} readable UTF-8 {language.id} source so it can be measured"
+            gaps.append(ParadigmGap("code-size", path, repair))
             continue
         if effective > ceiling:
-            repair = f"split {path} by semantic ownership to at most {ceiling} effective lines"
-            gaps.append(ParadigmGap("python-size", path, repair))
+            repair = (
+                f"split {path} by semantic ownership into a subdirectory of modules, "
+                f"each at most {ceiling} effective lines"
+            )
+            gaps.append(ParadigmGap("code-size", path, repair))
     return tuple(gaps)
 
 

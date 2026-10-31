@@ -58,14 +58,113 @@ tag_pattern = "v*"
 changelog = "CHANGELOG.md"
 changelog_heading = '^## \[(?P<version>Unreleased|[^\]\r\n]+)\](?: - (?P<date>\d{4}-\d{2}-\d{2}))?$'
 
-# Per-file ceilings. A governed repository keeps these defaults unless its binding declares
-# its own value in .ethos/rules.toml [paradigm.size]: a lower one, or a higher one up to the
-# bound with a reason in [paradigm.size.reasons]. A value covers the whole repository, never one
-# file; exceeding a ceiling needs semantic consolidation, never compression.
+# Per-file ceilings, keyed by class of file. A governed repository keeps these defaults unless
+# its binding declares its own value in .ethos/rules.toml [paradigm.size]: a lower one, or a
+# higher one up to the bound with a reason in [paradigm.size.reasons]. A value covers the whole
+# repository, never one file, path or language; exceeding a ceiling needs semantic
+# consolidation, never compression. A retired key is reported with the key that replaced it.
 [size]
-python_effective_lines = 500
-markdown_nonblank_lines = 500
+code_effective_lines = 500
+document_nonblank_lines = 500
 bound = 1000
+
+[size.retired]
+python_effective_lines = "code_effective_lines"
+markdown_nonblank_lines = "document_nonblank_lines"
+
+# Code languages. A tracked file whose suffix a language lists is code: it stays within the
+# code ceiling unless Git attributes mark it vendored or generated. Python is measured by its
+# syntax tree and every other language by the named Pygments lexer. `module_names` keeps the
+# names a language's toolchain fixes for its module files and their directories, and `script`
+# marks the languages whose files conform only as a catalogued generator's recorded output.
+[[language]]
+id = "python"
+suffixes = [".py", ".pyi"]
+measure = "python-syntax"
+module_names = true
+
+[[language]]
+id = "go"
+suffixes = [".go"]
+measure = "lexer"
+lexer = "go"
+module_names = true
+
+[[language]]
+id = "rust"
+suffixes = [".rs"]
+measure = "lexer"
+lexer = "rust"
+module_names = true
+
+[[language]]
+id = "javascript"
+suffixes = [".js", ".mjs", ".cjs"]
+measure = "lexer"
+lexer = "javascript"
+
+[[language]]
+id = "jsx"
+suffixes = [".jsx"]
+measure = "lexer"
+lexer = "jsx"
+
+[[language]]
+id = "typescript"
+suffixes = [".ts", ".mts", ".cts"]
+measure = "lexer"
+lexer = "typescript"
+
+[[language]]
+id = "tsx"
+suffixes = [".tsx"]
+measure = "lexer"
+lexer = "tsx"
+
+[[language]]
+id = "css"
+suffixes = [".css"]
+measure = "lexer"
+lexer = "css"
+
+[[language]]
+id = "scss"
+suffixes = [".scss"]
+measure = "lexer"
+lexer = "scss"
+
+[[language]]
+id = "html"
+suffixes = [".html", ".htm"]
+measure = "lexer"
+lexer = "html"
+
+[[language]]
+id = "shell"
+suffixes = [".sh", ".bash", ".zsh"]
+measure = "lexer"
+lexer = "bash"
+script = true
+
+[[language]]
+id = "powershell"
+suffixes = [".ps1", ".psm1"]
+measure = "lexer"
+lexer = "powershell"
+script = true
+
+[[language]]
+id = "batch"
+suffixes = [".bat", ".cmd"]
+measure = "lexer"
+lexer = "batch"
+script = true
+
+[[language]]
+id = "sql"
+suffixes = [".sql"]
+measure = "lexer"
+lexer = "sql"
 
 # Documents under the profile docs root begin with plain YAML front matter.
 # A repository that keeps numbered decision records names each with one grammar.
@@ -73,11 +172,11 @@ bound = 1000
 decision_record_name = '^dr-\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$'
 
 # Repository-authored names are lowercase kebab-case words, after an optional leading
-# `.` or `_` marker and with dot-separated suffixes. Python and Go files and the
-# directories that hold them, entry documents, catalogued tool names and the basenames a
-# tool requires keep their names, and immutable roots keep their captured names.
+# `.` or `_` marker and with dot-separated suffixes. The module files of a language with
+# `module_names` and the directories that hold them, entry documents, catalogued tool names
+# and the basenames a tool requires keep their names, and immutable roots keep their
+# captured names.
 [names]
-module_suffixes = [".go", ".py", ".pyi"]
 tool_basenames = [
   "Cargo.lock",               # Cargo
   "Cargo.toml",               # Cargo
@@ -151,11 +250,10 @@ tasks = [
 [toolchain]
 verbs = ["bootstrap", "check", "fix"]
 
-# A tracked file with a shell or PowerShell suffix or interpreter line conforms only as
+# A tracked file of a `script` language, or with an interpreter line, conforms only as
 # the recorded output of a catalogued official generator. Its record names the output,
 # the generator, its version and the output's SHA-256; `check` regenerates and compares.
 [scripts]
-suffixes = [".bash", ".bat", ".cmd", ".ps1", ".psm1", ".sh", ".zsh"]
 interpreters = ["bash", "dash", "ksh", "pwsh", "sh", "zsh"]
 
 [[scripts.generator]]

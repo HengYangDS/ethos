@@ -15,7 +15,7 @@ its own language list, `[names] module_suffixes = [".go", ".py", ".pyi"]`, so mo
 directories that hold them keep the names their toolchain fixes. Rust, whose module names Cargo
 derives from file paths, is missing from that list.
 
-Pygments 2.21.0 is in ETHOS's runtime closure through cyclopts and rich. The per-file-ceiling design
+Pygments 2.21.0 is in ETHOS's runtime closure through Cyclopts and Rich. The per-file-ceiling design
 (decision 5) compared it with scc: all 721 Go files of aigw-cli agree, and 5 of 107 JavaScript and
 TypeScript files differ by at most 3 lines, none flipping a verdict at 500.
 
@@ -55,8 +55,10 @@ them `Comment.Preproc`, `Comment.PreprocFile` and `Comment.Hashbang`, and they c
 ### 2. One language registry
 
 The contract gains `[[language]]` entries: an id, its suffixes, its measure (`python-syntax`, or
-`lexer` with the Pygments lexer name) and `module_names`, which says that the language's toolchain
-fixes the names of its module files and of the directories that hold them.
+`lexer` with the Pygments lexer name), `module_names`, which says that the language's toolchain
+fixes the names of its module files and of the directories that hold them, and `script`, which marks
+the languages whose files conform only as a catalogued generator's recorded output. Shell,
+PowerShell and batch carry `script`.
 
 | Language   | Suffixes               | Lexer        | Module names |
 | ---------- | ---------------------- | ------------ | ------------ |
@@ -86,6 +88,8 @@ preview is where it becomes visible.
 - The size obligation measures a file when one row lists its suffix.
 - The names obligation keeps the names of module files and their directories for the rows with
   `module_names`; `[names] module_suffixes` is removed. Rust gains what Python and Go have.
+- The scripts obligation recognizes a script by the suffixes of the rows with `script`, or by its
+  interpreter line; `[scripts] suffixes`, which listed exactly those suffixes, is removed.
 - HTML, CSS and SCSS count as code: markup and style grow in one file as code does, and a generated
   page is marked generated.
 
@@ -121,9 +125,13 @@ it in the repository's own `.gitattributes`, where review sees it.
 
 ### 6. The obligation is `code-size`
 
-The gap names the obligation, not the language: `repository_paradigm_code_size:<path>`, with the
-repair to split the file by semantic ownership to at most the effective ceiling. An unmeasurable
-file has the repair to make it readable UTF-8, or parsable Python.
+The gap names the obligation, not the language: `repository_paradigm_code_size:<path>`. Its repair
+is to split the file by semantic ownership into a subdirectory of modules, each within the effective
+ceiling: the subdirectory names the subject, and each module one responsibility. Flat siblings that
+differ only by a suffix, such as `film-scenes.js` beside `film-labels.js`, or numbered parts, move
+the lines without the structure. An unmeasurable file has the repair to make it readable UTF-8, or
+parsable Python. Deciding the layout itself, for every file and not only a split one, belongs to the
+semantic-layout obligation that a later Change adds to the base.
 
 ### 7. Pygments is a declared dependency
 
@@ -145,19 +153,20 @@ Change; until then its installed ETHOS judges only its Python files.
   (`build/runtime/work/cross-language-size/fleet-preview-500.json`). 23 files in other languages
   exceed 500 effective lines:
 
-  | Repository              | Files                     | Largest                                          |
-  | ----------------------- | ------------------------- | ------------------------------------------------ |
-  | aigw-cli                | 10 Go tests, 501 to 509   | `internal/domain/model_test.go` 509              |
-  | architecture-publisher  | 2 JavaScript, 511 each    | `packages/publisher/src/poster/compose.mjs`      |
-  | ddwg-film               | 1 JavaScript              | `picture/film.js` 6413                           |
-  | ethos-introduction-film | 1 TypeScript              | `src/motion/introduction.ts` 869                 |
-  | filmkit                 | 4 JavaScript, 580 to 1359 | `tests/picture/picture.test.mjs` 1359            |
-  | ddwg-introduction-film  | 5 JavaScript, 580 to 6413 | `src/ddwg_film/picture/composition/film.js` 6413 |
+  | Repository                | Files                     | Largest                                          |
+  | ------------------------- | ------------------------- | ------------------------------------------------ |
+  | `aigw-cli`                | 10 Go tests, 501 to 509   | `internal/domain/model_test.go` 509              |
+  | `architecture-publisher`  | 2 JavaScript, 511 each    | `packages/publisher/src/poster/compose.mjs`      |
+  | `ddwg-film`               | 1 JavaScript              | `picture/film.js` 6413                           |
+  | `ethos-introduction-film` | 1 TypeScript              | `src/motion/introduction.ts` 869                 |
+  | `filmkit`                 | 4 JavaScript, 580 to 1359 | `tests/picture/picture.test.mjs` 1359            |
+  | `ddwg-introduction-film`  | 5 JavaScript, 580 to 6413 | `src/ddwg_film/picture/composition/film.js` 6413 |
 
   ETHOS (876 measured files), architecture-publications, DDWG, openai-responses-proxy (whose four
   Python files above 500 0.2.0-alpha.22 already reports) and web-ingestion-benchmark have none in
-  other languages. `film.js` needs real module boundaries; a reasoned repository value cannot
-  exceed 1000. ddwg-introduction-film is headed for a private archive.
+  other languages. `film.js` needs real module boundaries, a subdirectory of modules by
+  responsibility; a reasoned repository value cannot exceed 1000. `ddwg-introduction-film` is headed
+  for a private archive.
 
 - **Lexer precision.** A lexer is not a parser: a misread construct can shift a count. The
   comparison with scc bounds the observed difference at 3 lines, and an `Error` token only adds.

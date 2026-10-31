@@ -7,6 +7,7 @@ from importlib import resources
 
 import pytest
 from pydantic import ValidationError
+from pygments.lexers import get_lexer_by_name
 
 from ethos.contracts.paradigm.declaration import RepositoryParadigm
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -34,8 +35,8 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert owners[".config/checks/vale"][1] is True
     assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
-    assert paradigm.size.python_effective_lines == 500
-    assert paradigm.size.markdown_nonblank_lines == 500
+    assert paradigm.size.code_effective_lines == 500
+    assert paradigm.size.document_nonblank_lines == 500
     assert paradigm.size.bound == 1000
     assert paradigm.documents.decision_record_name.startswith("^dr-")
     grammar = paradigm.commit.subject_pattern(("cli",))
@@ -95,7 +96,7 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
             }
         )
     elif mutation == "size-not-positive":
-        payload["size"] = {**payload["size"], "python_effective_lines": 0}
+        payload["size"] = {**payload["size"], "code_effective_lines": 0}
     elif mutation.startswith("retention-"):
         pipelines = payload["pipelines"]
         assert isinstance(pipelines, dict)
@@ -126,6 +127,20 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         RepositoryParadigm.model_validate(payload)
 
 
+@pytest.mark.parametrize("mutation", ["duplicate-suffix", "lexer-mismatch"])
+def test_language_registry_fails_closed(mutation: str) -> None:
+    """A suffix in two languages, or a lexer the measure does not use, never loads."""
+    payload = _packaged()
+    languages = payload["language"]
+    assert isinstance(languages, list)
+    if mutation == "duplicate-suffix":
+        languages.append({**languages[1], "id": "copy"})
+    else:
+        languages[0] = {**languages[0], "lexer": "go"}
+    with pytest.raises(ValidationError):
+        RepositoryParadigm.model_validate(payload)
+
+
 @pytest.mark.parametrize(
     "commit",
     [
@@ -142,3 +157,40 @@ def test_commit_grammar_fails_closed(commit: dict[str, object]) -> None:
     payload["commit"] = {**payload["commit"], **commit}
     with pytest.raises(ValidationError):
         RepositoryParadigm.model_validate(payload)
+
+
+def test_the_language_registry_owns_every_language_fact() -> None:
+    """Each code language names a lexer the locked Pygments provides, or the Python measure."""
+    paradigm = load_repository_paradigm()
+    measures = {language.id: language.lexer or language.measure for language in paradigm.language}
+    assert measures == {
+        "python": "python-syntax",
+        "go": "go",
+        "rust": "rust",
+        "javascript": "javascript",
+        "jsx": "jsx",
+        "typescript": "typescript",
+        "tsx": "tsx",
+        "css": "css",
+        "scss": "scss",
+        "html": "html",
+        "shell": "bash",
+        "powershell": "powershell",
+        "batch": "batch",
+        "sql": "sql",
+    }
+    assert all(
+        get_lexer_by_name(language.lexer) for language in paradigm.language if language.lexer
+    )
+    assert set(paradigm.module_suffixes) == {".py", ".pyi", ".go", ".rs"}
+    assert set(paradigm.script_suffixes) == {
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".ps1",
+        ".psm1",
+        ".bat",
+        ".cmd",
+    }
+    assert paradigm.language_of("src/lib.rs").id == "rust"
+    assert paradigm.language_of("data/table.yaml") is None

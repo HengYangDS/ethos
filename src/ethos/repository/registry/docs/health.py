@@ -172,7 +172,7 @@ def current_document_length_gaps(
     """Bound authored Markdown, not official intent or owned generated output."""
     paths = authored_document_paths(registry, tracked_documents, generated_outputs)
     readable = set(paths) | {str(entry["path"]) for entry in registry if entry.get("origin")}
-    ceiling = repository_ceilings(root)["markdown_nonblank_lines"]
+    ceiling = repository_ceilings(root)["document_nonblank_lines"]
     gaps: list[str] = []
     for relative in sorted(readable):
         owner = intent_document_owner(relative)

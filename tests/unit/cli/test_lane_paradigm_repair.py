@@ -156,7 +156,7 @@ def test_a_gap_that_needs_judgment_leads_the_next_action(
     data = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
     assert data["state"] == "report_only"
     assert data["edits"] == []
-    assert [gap["obligation"] for gap in data["report_only"]] == ["python-size"]
+    assert [gap["obligation"] for gap in data["report_only"]] == ["code-size"]
     assert data["next_action"] == data["report_only"][0]["repair"]
 
 

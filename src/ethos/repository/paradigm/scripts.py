@@ -77,7 +77,7 @@ def _recorded_outputs(
 
 def is_script(paradigm: RepositoryParadigm, root: Path, path: str) -> bool:
     """Recognize a script by its suffix or by the interpreter its first line names."""
-    if path.endswith(paradigm.scripts.suffixes):
+    if path.endswith(paradigm.script_suffixes):
         return True
     try:
         with (root / path).open("rb") as carrier:

@@ -33,7 +33,7 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CEILING = load_repository_paradigm().size.markdown_nonblank_lines
+_CEILING = load_repository_paradigm().size.document_nonblank_lines
 
 
 def _write_topic(root: Path, relative: str, state: str, count: int) -> None:
@@ -75,14 +75,14 @@ def test_current_markdown_uses_physical_nonblank_limit(
 
 
 _REASONED = (
-    'markdown_nonblank_lines = 700\n[paradigm.size.reasons]\nmarkdown_nonblank_lines = "Whole."\n'
+    'document_nonblank_lines = 700\n[paradigm.size.reasons]\ndocument_nonblank_lines = "Whole."\n'
 )
 
 
 @pytest.mark.parametrize(
     ("declared", "count", "expected"),
     [
-        ("markdown_nonblank_lines = 400\n", 401, ["docs_length_exceeded:docs/topic.md:401>400"]),
+        ("document_nonblank_lines = 400\n", 401, ["docs_length_exceeded:docs/topic.md:401>400"]),
         (_REASONED, 700, []),
     ],
     ids=["lower", "higher-with-reason"],

@@ -1,8 +1,10 @@
-"""Measure Python source consistently for per-file and aggregate budgets.
+"""Measure source consistently for per-file and aggregate budgets.
 
 Count physical lines occupied by meaningful tokens, including literal data.
-Exclude comments, whitespace and standalone string expressions (including
-docstrings), without removing other code on those lines. Invalid Python has no
+Exclude comments, whitespace and documentation: in Python, standalone string
+expressions (including docstrings), without removing other code on those lines;
+in every other language, what its Pygments lexer types as a comment or
+documentation, except directives, attributes and shebangs. Invalid Python has no
 measurement. Formatting remains a separate native-tool obligation.
 """
 
@@ -12,6 +14,13 @@ import ast
 import io
 import tokenize
 from functools import lru_cache
+
+from pygments.lexers import get_lexer_by_name
+from pygments.token import Comment
+from pygments.token import String
+from pygments.token import Whitespace
+
+_CODE_COMMENTS = (Comment.Preproc, Comment.PreprocFile, Comment.Hashbang)
 
 
 def _without_string_expressions(source: str, tree: ast.AST) -> str:
@@ -51,4 +60,19 @@ def effective_code_lines_for_source(source: str) -> int:
         if token.type in excluded or (token.type == tokenize.OP and token.string == ";"):
             continue
         occupied.update(range(token.start[0], token.end[0] + bool(token.end[1])))
+    return len(occupied)
+
+
+@lru_cache(maxsize=4_096)
+def lexed_effective_lines(source: str, lexer: str) -> int:
+    """Count physical lines that hold a token which is not whitespace, comment or documentation."""
+    occupied: set[int] = set()
+    line = 1
+    for token, value in get_lexer_by_name(lexer, stripnl=False, ensurenl=False).get_tokens(source):
+        excluded = token in Whitespace or token in String.Doc
+        excluded |= token in Comment and not any(token in kind for kind in _CODE_COMMENTS)
+        for index, part in enumerate(value.split("\n")):
+            line += bool(index)
+            if part.strip() and not excluded:
+                occupied.add(line)
     return len(occupied)

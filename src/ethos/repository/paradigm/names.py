@@ -116,10 +116,10 @@ def _fixed_names(paradigm: RepositoryParadigm) -> frozenset[str]:
 
 
 def _module_directories(paradigm: RepositoryParadigm, paths: Iterable[str]) -> frozenset[str]:
-    """Return every directory that holds a Python or Go file, whose language fixes its name."""
+    """Return every directory that holds a module file, whose language fixes its name."""
     directories: set[str] = set()
     for path in paths:
-        directory = posixpath.dirname(path) if path.endswith(paradigm.names.module_suffixes) else ""
+        directory = posixpath.dirname(path) if path.endswith(paradigm.module_suffixes) else ""
         while directory and directory not in directories:
             directories.add(directory)
             directory = posixpath.dirname(directory)
@@ -136,7 +136,7 @@ def _conforms(
 ) -> bool:
     if _NAME.fullmatch(name) or name in admitted:
         return True
-    return name.endswith(paradigm.names.module_suffixes) if is_file else holds_modules
+    return name.endswith(paradigm.module_suffixes) if is_file else holds_modules
 
 
 def _owned_elsewhere(

@@ -12,6 +12,22 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The code ceiling bounds every authored code file, not only Python: Go, Rust, JavaScript, JSX,
+  TypeScript, TSX, CSS, SCSS, HTML, shell, PowerShell, batch and SQL files count too. An effective
+  line holds a token that is not whitespace, a comment or documentation; directives, attributes
+  and shebangs are code. Python keeps its syntax-tree measure, and every other language is
+  measured with its Pygments lexer, now a declared dependency. Files that Git attributes mark
+  vendored or generated are not measured.
+- One language registry in the paradigm contract names each code language's suffixes and measure,
+  the languages whose module file names the names obligation keeps, now including Rust, and the
+  script languages. `[names] module_suffixes` and `[scripts] suffixes` are removed.
+- The `[paradigm.size]` keys name the class: `code_effective_lines` and `document_nonblank_lines`.
+  A declaration of the 0.2.0-alpha.22 keys `python_effective_lines` and `markdown_nonblank_lines`
+  is reported with its rename, and the default stays in force. The size gap is now
+  `repository_paradigm_code_size:<path>`.
+
 ## [0.2.0-alpha.22] - 2026-10-31
 
 ### Changed

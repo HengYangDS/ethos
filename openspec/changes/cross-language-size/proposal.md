@@ -18,9 +18,10 @@ evidence this Change starts from: an in-process Pygments lexer agrees with scc o
 of aigw-cli and differs by at most 3 lines on 5 of 107 JavaScript and TypeScript files, none
 flipping a verdict.
 
-A second list repeats the language facts: the names obligation keeps the module suffixes `.go`,
-`.py` and `.pyi` in its own table, so a Rust module file, whose name Cargo derives from the module
-path, is judged as a kebab-case name.
+Two more lists repeat language facts. The names obligation keeps the module suffixes `.go`, `.py`
+and `.pyi` in its own table, so a Rust module file, whose name Cargo derives from the module path,
+is judged as a kebab-case name. The scripts obligation keeps the shell, PowerShell and batch
+suffixes in another.
 
 ## What Changes
 
@@ -29,8 +30,8 @@ path, is judged as a kebab-case name.
   code. Python keeps its syntax-tree measure; every other language uses the Pygments lexer that the
   paradigm contract names for it.
 - The paradigm contract gains one language registry. It names each code language's suffixes, its
-  measure and whether its toolchain fixes module file names. The size obligation and the names
-  obligation both read it; the separate module-suffix list is removed.
+  measure, whether its toolchain fixes module file names and whether its files are scripts. The
+  size, names and scripts obligations read it; their separate suffix lists are removed.
 - The two ceilings are keyed by class, not language: `code_effective_lines` for every registered
   code file, tests and tools included, and `document_nonblank_lines` for current authored documents.
   Both keep the default 500 and the bound 1000, and the same repository-value law.
@@ -61,7 +62,7 @@ None.
 - `src/ethos/contracts/paradigm/paradigm.toml` and `declaration.py`: the registry, the class keys
   and the removed module-suffix list.
 - `src/ethos/measure.py`: the lexer measure beside the Python measure.
-- `src/ethos/repository/paradigm/size.py`, `report.py` and `names.py`, and
+- `src/ethos/repository/paradigm/size.py`, `report.py`, `names.py` and `scripts.py`, and
   `src/ethos/repository/registry/docs/health.py`.
 - `pyproject.toml` and `uv.lock`: Pygments as a direct dependency. The lock is an input of the
   GitLab supply image, so the image is rebuilt and bound after this Change lands.

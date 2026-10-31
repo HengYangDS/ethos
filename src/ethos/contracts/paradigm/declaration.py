@@ -122,9 +122,31 @@ class SizeCeilings(BaseModel):
 
     model_config = _DECLARATION
 
-    python_effective_lines: int = Field(gt=0)
-    markdown_nonblank_lines: int = Field(gt=0)
+    code_effective_lines: int = Field(gt=0)
+    document_nonblank_lines: int = Field(gt=0)
     bound: int = Field(gt=0)
+    retired: FrozenMapping[str]
+
+
+class Language(BaseModel):
+    """One code language: its suffixes, its measure and the names and scripts it fixes."""
+
+    model_config = _DECLARATION
+
+    id: str
+    suffixes: FrozenTuple[str] = Field(min_length=1)
+    measure: Literal["python-syntax", "lexer"]
+    lexer: str = ""
+    module_names: bool = False
+    script: bool = False
+
+    @model_validator(mode="after")
+    def require_named_lexer(self) -> Self:
+        """Name a lexer exactly when the language is measured by one."""
+        if (self.measure == "lexer") != bool(self.lexer):
+            message = "a lexer measure names its lexer, and only a lexer measure does"
+            raise ValueError(message)
+        return self
 
 
 class DocumentConventions(BaseModel):
@@ -140,7 +162,6 @@ class NameConventions(BaseModel):
 
     model_config = _DECLARATION
 
-    module_suffixes: FrozenTuple[str]
     tool_basenames: FrozenTuple[str]
 
 
@@ -247,7 +268,6 @@ class ScriptConventions(BaseModel):
 
     model_config = _DECLARATION
 
-    suffixes: FrozenTuple[str] = Field(min_length=1)
     interpreters: FrozenTuple[str] = Field(min_length=1)
     generator: FrozenTuple[ScriptGenerator]
 
@@ -294,6 +314,7 @@ class RepositoryParadigm(BaseModel):
     formatter: FrozenTuple[FormatterBinding]
     release: ReleaseConventions
     size: SizeCeilings
+    language: FrozenTuple[Language] = Field(min_length=1)
     documents: DocumentConventions
     names: NameConventions
     pipelines: PipelineModel
@@ -306,9 +327,11 @@ class RepositoryParadigm(BaseModel):
 
     @model_validator(mode="after")
     def require_unique_identities(self) -> Self:
-        """Reject duplicate module or tool identities and ambiguous root names."""
+        """Reject duplicate identities and suffixes and ambiguous root names."""
         groups = (
             [module.id for module in self.module],
+            [language.id for language in self.language],
+            [suffix for language in self.language for suffix in language.suffixes],
             [formatter.tool for formatter in self.formatter],
             [suffix for formatter in self.formatter for suffix in formatter.suffixes],
             [tool.id for tool in self.tool],
@@ -320,6 +343,22 @@ class RepositoryParadigm(BaseModel):
             message = "repository paradigm identities must be unique"
             raise ValueError(message)
         return self
+
+    @property
+    def module_suffixes(self) -> tuple[str, ...]:
+        """Return the suffixes of the languages whose toolchain fixes module names."""
+        languages = (language for language in self.language if language.module_names)
+        return tuple(suffix for language in languages for suffix in language.suffixes)
+
+    @property
+    def script_suffixes(self) -> tuple[str, ...]:
+        """Return the suffixes of the languages whose files are scripts."""
+        languages = (language for language in self.language if language.script)
+        return tuple(suffix for language in languages for suffix in language.suffixes)
+
+    def language_of(self, path: str) -> Language | None:
+        """Return the code language whose suffix ends the path, if one does."""
+        return next((item for item in self.language if path.endswith(item.suffixes)), None)
 
     def canonical_carrier(self, root_name: str) -> str:
         """Return the canonical carrier of a root name that a catalogued tool discovers."""

@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.23] - 2026-10-31
+
 ### Changed
 
 - The code ceiling bounds every authored code file, not only Python: Go, Rust, JavaScript, JSX,
@@ -19,7 +21,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   line holds a token that is not whitespace, a comment or documentation; directives, attributes
   and shebangs are code. Python keeps its syntax-tree measure, and every other language is
   measured with its Pygments lexer, now a declared dependency. Files that Git attributes mark
-  vendored or generated are not measured.
+  vendored or generated are not measured. A file above the ceiling is split by semantic ownership
+  into a subdirectory of modules.
 - One language registry in the paradigm contract names each code language's suffixes and measure,
   the languages whose module file names the names obligation keeps, now including Rust, and the
   script languages. `[names] module_suffixes` and `[scripts] suffixes` are removed.
@@ -27,6 +30,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   A declaration of the 0.2.0-alpha.22 keys `python_effective_lines` and `markdown_nonblank_lines`
   is reported with its rename, and the default stays in force. The size gap is now
   `repository_paradigm_code_size:<path>`.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.22] - 2026-10-31
 

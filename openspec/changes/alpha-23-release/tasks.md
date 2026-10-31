@@ -2,17 +2,17 @@
 
 ## 1. Release Entry
 
-- [ ] 1.1 Move the product version to 0.2.0-alpha.23 in `VERSION` and
+- [x] 1.1 Move the product version to 0.2.0-alpha.23 in `VERSION` and
       `distributions/npm/package.json`. Done when the lane's `ethos --version` reports
       0.2.0-alpha.23, the version tests pass unchanged and no lock changes.
-- [ ] 1.2 Curate the `0.2.0-alpha.23` entry from the Unreleased notes and the advisories that the
+- [x] 1.2 Curate the `0.2.0-alpha.23` entry from the Unreleased notes and the advisories that the
       release build's audit reports on the lane head. Done when the changelog validates with
       0.2.0-alpha.23 as its release target, the Unreleased section is empty, and the entry names
       every advisory that audit reports.
 
 ## 2. Supply Binding
 
-- [ ] 2.1 Bind the published supply digest through the CUE owner and regenerate the projections.
+- [x] 2.1 Bind the published supply digest through the CUE owner and regenerate the projections.
       Done when `lane project --check` reports the projections conforming and every GitLab supply
       job selects the new digest and none the previous one.
 

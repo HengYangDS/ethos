@@ -21,8 +21,8 @@ attributes mark it vendored or generated. The contract SHALL hold a default of 5
 
 #### Scenario: A file in another language outgrows the ceiling
 
-- **WHEN** a governed repository that declares no code ceiling tracks a Go, Rust or JavaScript
-  file with 501 effective lines
+- **WHEN** a governed repository that declares no code ceiling tracks a Go, Rust or JavaScript file
+  with 501 effective lines
 - **THEN** the paradigm reports the file and the 500-line ceiling.
 
 #### Scenario: Comments and documentation do not count

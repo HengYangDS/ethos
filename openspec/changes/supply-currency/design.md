@@ -36,6 +36,12 @@ GitLab checks that manifest against every checkout.
 - **re2js takes 2.9.1.** markdownlint 0.42.0, still the latest, pins 2.8.6, which
   GHSA-gg6h-894w-4m9c affects; the override already lifts it past that pin, and 2.9.1 is the latest
   release.
+- **minimatch and glob cross the majors that their consumers declare.** The fixes exist only in
+  minimatch 11 and glob 14, while the latest ESLint, `@eslint/config-array` and `test-exclude`
+  declare minimatch 10 and glob 13. Those consumers call only `minimatch()`, `Minimatch#match`,
+  `glob()` and `globSync()`, which both majors keep; glob 13 relies on minimatch internals that 11
+  removes, so the two move together. npm's own bundled copies cannot be overridden and stay
+  reported, as its bundled undici and ip-address are.
 - **OpenSpec 1.16.0 is checked against the governed repositories first.** Its strict validation
   reported no finding that 1.15.0 does not report, in ETHOS or in the ten governed repositories with
   OpenSpec content.
@@ -53,5 +59,8 @@ GitLab checks that manifest against every checkout.
   before the proof, and a fixable finding blocks it.
 - [hatchling 1.33.0 changes the built wheel] → The package and reproducibility gates rebuild and
   check it.
+- [minimatch 11 or glob 14 matches differently for a consumer, for example a trailing empty segment
+  or an ignore pattern that starts with `/`] → ESLint, the JavaScript coverage gate and the test
+  report run on the overridden packages in the proof.
 - [The operator's Mise is older than the new floor] → Mise refuses a configuration whose floor it
   does not meet; Homebrew ships 2026.10.24.

@@ -35,8 +35,8 @@ Reopening a packed object reader for every query can regress. Retain native
 effects, hooks, signatures and CAS; no production object-library choice follows
 from this microbenchmark. Full reftable behavior and Windows remain unqualified.
 
-The then-locked OpenSpec 1.13.0 package exported its Commander program; the lock
-is now 1.15.0 (`package.json`). An awaited sequential batch reuses that official
+The then-locked OpenSpec 1.13.0 package exported its Commander program;
+`package.json` now locks a later release. An awaited sequential batch reuses that official
 parser and command implementation, rather than constructing a parallel API. Eight
 reads measured approximately 0.94 seconds individually and 0.136 seconds batched.
 Output differs only in native validation duration fields; native failure exits

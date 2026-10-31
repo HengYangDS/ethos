@@ -12,12 +12,33 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The locked supply moves to the latest stable releases that ETHOS's constraints allow: mise
+  2026.10.24, which ETHOS's own repository now requires and its CI bootstraps, Node 26.13.0, the
+  first Node 26 LTS release, Python 3.14.10, OpenSpec 1.16.0, ESLint 10.14.0 and the latest stable
+  releases in the Python lock, among them uv 0.13.6, Ruff 0.17.3, ty 0.0.95, pytest 9.2.0 and
+  Pydantic 2.14.2. The supported Python versions remain 3.12 through 3.14. The CI model pins
+  setup-uv 10.3.3 and jdx/mise-action 5.2.4 by commit.
+- With OpenSpec 1.16.0, `openspec validate --strict`, which ETHOS runs, fails a scenario without a
+  WHEN or GIVEN step or without a THEN step, and `openspec validate` fails when
+  `openspec/config.yaml` cannot be read or is not valid YAML.
+
 ### Fixed
 
 - The dependency audit resolves npm findings through dependency cycles. A peer dependency, such as
   ESLint's on `@eslint-community/eslint-utils`, names each package in the other's `via`, and the
   audit refused every such cycle as `finding_identity_unavailable` instead of naming the advisory.
   A finding that reaches no advisory is still refused.
+
+### Security
+
+- The product npm lock overrides minimatch with 11.0.3 and glob with 14.0.3, which fix
+  GHSA-g3hv-75wg-m249 and GHSA-3g3m-2fjr-6pw4. The latest ESLint, `@eslint/config-array` and
+  `test-exclude` still declare minimatch 10 and glob 13.
+- npm 12.2.1, still the latest npm release, bundles minimatch 10.2.5 and glob 13.0.6, which carry
+  those two advisories. Like its bundled undici and ip-address, the dependency gate reports them
+  without blocking while no npm release bundles a fix.
 
 ## [0.2.0-alpha.22] - 2026-10-31
 

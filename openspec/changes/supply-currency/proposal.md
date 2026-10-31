@@ -11,16 +11,19 @@ Node 26.13.0, the first LTS release of Node 26. Python stays within `>=3.12,<3.1
 ## What Changes
 
 - Python: `uv lock --upgrade` moves `uv.lock` and the quality sample's lock to the latest admitted
-  releases, among them uv 0.13.6, Ruff 0.17.3, ty 0.0.95, pytest 9.2.0, pydantic 2.14.2 and
+  releases, among them uv 0.13.6, Ruff 0.17.3, ty 0.0.95, pytest 9.2.0, Pydantic 2.14.2 and
   hatchling 1.33.0. Each direct floor in `pyproject.toml` rises to its locked version, as the
   dependency declaration check requires.
-- npm: ESLint 10.14.0, OpenSpec 1.16.0 and the re2js override 2.9.1.
+- npm: ESLint 10.14.0, OpenSpec 1.16.0 and the re2js override 2.9.1. New overrides lift minimatch to
+  11.0.3 and glob to 14.0.3, their latest releases, which fix GHSA-g3hv-75wg-m249 and
+  GHSA-3g3m-2fjr-6pw4, first reported by the release audit on 2026-10-31; follow-redirects moves
+  within its range to 1.16.2, which fixes GHSA-mrwp-f3q8-3g9p.
 - Mise: Node 26.13.0, CPython 3.14.10 from python-build-standalone 20261026, and the floor
   2026.10.24 with the six official executable digests that CI bootstraps.
 - CI: setup-uv 10.3.3 selecting uv 0.13.6, and mise-action 5.2.4 in the shipped adopter CI model,
   each pinned by commit.
 - Supply image: the base `uv:0.13.6-python3.14-trixie-slim` by index digest, and ca-certificates
-  `20250419+deb13u1` from trixie-security.
+  `20250419+deb13u1` from `trixie-security`.
 
 ## Capabilities
 

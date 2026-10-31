@@ -27,6 +27,7 @@ from tools.ci.ci_projection import emulator_declaration
 from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
+MISE_FLOOR = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())["min_version"]
 
 
 @pytest.fixture(scope="module")
@@ -459,7 +460,7 @@ def _offline_generation(root, command, **kwargs):
         ("missing", "model", None, None),
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
         ("missing-output", "output", None, None),
-        ("bootstrap-version", "mise", "2026.10.19", "0.0.0"),
+        ("bootstrap-version", "mise", f'min_version = "{MISE_FLOOR}"', 'min_version = "0.0.0"'),
         ("bootstrap-lock", "declaration", "linux-arm64 =", "linux-unsupported ="),
     ],
 )

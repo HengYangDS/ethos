@@ -88,9 +88,9 @@ let githubPythonBootstrap = list.Concat([[{
 		ref:           githubSourceSHA
 	}
 }, {
-	uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
+	uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 	with: {
-		version:          "0.13.5"
+		version:          "0.13.6"
 		"python-version": "3.14"
 	}
 }, {
@@ -132,9 +132,9 @@ let githubHostSupplyAt = {
 			ref:           checkout
 		}
 	}, {
-		uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
+		uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 		with: {
-			version:          "0.13.5"
+			version:          "0.13.6"
 			"python-version": python
 		}
 	}, {
@@ -422,9 +422,9 @@ github: {
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 				with: ref: releaseTagRef
 			}, {
-				uses: "astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e"
+				uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 				with: {
-					version:          "0.13.5"
+					version:          "0.13.6"
 					"python-version": "3.14"
 				}
 			}, {

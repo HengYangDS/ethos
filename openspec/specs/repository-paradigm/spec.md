@@ -406,42 +406,75 @@ Every configured formatter SHALL use a line width of 100, including Prettier, Ta
 - **WHEN** a repository's Ruff configuration sets or defaults to a line length of 88
 - **THEN** the paradigm reports a non-common formatter width.
 
-### Requirement: Python files stay within the common size ceiling
+### Requirement: Code files stay within the common size ceiling
 
-Every tracked Python file SHALL have at most as many effective lines, counted without blank
-lines, comments and docstrings, as its repository's Python ceiling. The paradigm contract SHALL
-hold both per-file ceilings' default of 500 and bound of 1000. A repository binding MAY declare
-its own whole-tree value in `.ethos/rules.toml` `[paradigm.size]`; an invalid declaration SHALL
-be reported and leave the default in force. No binding SHALL set a ceiling for one file, path or
-class of files.
+Every tracked file of a registry language SHALL have at most `code_effective_lines` effective lines,
+the lines that hold a token that is not whitespace, a comment or documentation, unless Git
+attributes mark it vendored or generated. The contract SHALL hold a default of 500 and a bound of
+1000 for both per-file ceilings. A binding MAY declare one whole-tree value in `.ethos/rules.toml`
+`[paradigm.size]`; an invalid one SHALL leave the default in force.
 
 #### Scenario: A Python file outgrows the ceiling
 
-- **WHEN** a governed repository that declares no Python ceiling tracks a Python file with 501 effective lines
+- **WHEN** a governed repository that declares no code ceiling tracks a Python file with 501
+  effective lines
 - **THEN** the paradigm reports the file and the 500-line ceiling.
+
+#### Scenario: A file in another language outgrows the ceiling
+
+- **WHEN** a governed repository that declares no code ceiling tracks a Go, Rust or JavaScript file
+  with 501 effective lines
+- **THEN** the paradigm reports the file and the 500-line ceiling.
+
+#### Scenario: Comments and documentation do not count
+
+- **WHEN** a tracked Rust file holds 450 lines of code, 20 attribute lines and 100 lines of `///`
+  documentation and `//` comments
+- **THEN** it has 470 effective lines and passes the default ceiling.
+
+#### Scenario: The registry decides what is code
+
+- **WHEN** a repository tracks TOML, JSON, YAML, CUE and Markdown files with 800 lines each
+- **THEN** the code ceiling measures none of them.
+
+#### Scenario: A received file is not measured
+
+- **WHEN** the repository's `.gitattributes` marks a tracked JavaScript file with 900 effective
+  lines `linguist-generated`
+- **THEN** the paradigm reports no code size gap for it.
 
 #### Scenario: A repository declares a lower ceiling
 
-- **WHEN** `[paradigm.size]` declares `python_effective_lines = 400` and a tracked Python file has 450 effective lines
+- **WHEN** `[paradigm.size]` declares `code_effective_lines = 400` and a tracked Go file has 450
+  effective lines
 - **THEN** the paradigm reports the file and the 400-line ceiling.
 
 #### Scenario: A repository declares a higher ceiling with its reason
 
-- **WHEN** `[paradigm.size]` declares `python_effective_lines = 700` and `[paradigm.size.reasons]` states why
-- **THEN** a tracked Python file with 650 effective lines passes
-- **AND** the paradigm report lists the declared value and its reason as a deviation from the default.
+- **WHEN** `[paradigm.size]` declares `code_effective_lines = 700` and `[paradigm.size.reasons]`
+  states why
+- **THEN** a tracked code file with 650 effective lines passes
+- **AND** the paradigm report lists the declared value and its reason as a deviation from the
+  default.
 
 #### Scenario: An invalid declaration leaves the default in force
 
-- **WHEN** `[paradigm.size]` declares `python_effective_lines = 700` without a reason, declares
+- **WHEN** `[paradigm.size]` declares `code_effective_lines = 700` without a reason, declares
   `1200`, declares a value that is not a positive integer or names an unknown key
 - **THEN** the paradigm reports the declaration
-- **AND** a tracked Python file with 650 effective lines is reported against the 500-line ceiling.
+- **AND** a tracked code file with 650 effective lines is reported against the 500-line ceiling.
 
 #### Scenario: A binding restates a ceiling
 
-- **WHEN** `[paradigm.size]` declares `python_effective_lines = 500`
+- **WHEN** `[paradigm.size]` declares `code_effective_lines = 500`
 - **THEN** the paradigm reports a binding that restates a paradigm value.
+
+#### Scenario: A binding declares a retired key
+
+- **WHEN** `[paradigm.size]` declares `python_effective_lines` or `markdown_nonblank_lines`
+- **THEN** the paradigm reports the declaration with the repair to rename it `code_effective_lines`
+  or `document_nonblank_lines`
+- **AND** the default stays in force.
 
 #### Scenario: A binding keeps the retired table
 
@@ -563,7 +596,11 @@ A repository that runs CI on more than one Forge SHALL define its pipelines once
 
 ### Requirement: Repository-authored names use lowercase kebab-case
 
-Repository-authored file and directory names SHALL use lowercase kebab-case, except where an ecosystem or tool fixes the name, such as Python modules, Go packages, entry documents and tool-required basenames. A leading `.` or `_` marker and dot-separated suffixes are not word separators, and names inside immutable record roots keep their captured form.
+Repository-authored file and directory names SHALL use lowercase kebab-case, except where an
+ecosystem or tool fixes the name: the module files of a registry language whose toolchain fixes
+module names, such as Python, Go and Rust, and the directories that hold them, entry documents and
+tool-required basenames. A leading `.` or `_` marker and dot-separated suffixes are not word
+separators, and names inside immutable record roots keep their captured form.
 
 #### Scenario: A rule file uses snake_case
 
@@ -572,7 +609,9 @@ Repository-authored file and directory names SHALL use lowercase kebab-case, exc
 
 #### Scenario: An ecosystem or tool fixes the name
 
-- **WHEN** a repository tracks `src/sample_package/module_name.py`, `.github/PULL_REQUEST_TEMPLATE.md` and `docs/_meta/taxonomy.toml`
+- **WHEN** a repository tracks `src/sample_package/module_name.py`,
+  `crates/channel_solver/src/flow_graph.rs`, `.github/PULL_REQUEST_TEMPLATE.md` and
+  `docs/_meta/taxonomy.toml`
 - **THEN** no name is reported.
 
 #### Scenario: A new snake_case file is requested

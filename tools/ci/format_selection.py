@@ -30,7 +30,7 @@ def _strings(value: object) -> TypeGuard[list[str]]:
 
 
 def _tracked_files() -> list[str]:
-    return subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines()
+    return subprocess.check_output(["git", "ls-files"], cwd=ROOT, encoding="utf-8").splitlines()
 
 
 def _load_config() -> dict[str, object]:

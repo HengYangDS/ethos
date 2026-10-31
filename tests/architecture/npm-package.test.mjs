@@ -72,7 +72,14 @@ test("a source checkout runs the command through uv", posix, (t) => {
 test("an installed package runs the command through Python", posix, (t) => {
   const result = launch(t, { python3: 'if [ "$2" = -c ]; then exit 0; fi; printf "%s\\n" "$@"' });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.stdout.trimEnd().split("\n"), ["-P", "-m", "ethos.cli", "--version"]);
+  assert.deepEqual(result.stdout.trimEnd().split("\n"), [
+    "-P",
+    "-X",
+    "utf8",
+    "-m",
+    "ethos.cli",
+    "--version",
+  ]);
 });
 
 test("without a command plane the launcher names what is missing", posix, (t) => {

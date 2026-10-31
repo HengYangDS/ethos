@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 
 
 def compose_starter(
@@ -40,8 +41,7 @@ def _run_python_library_generator(candidate: Path, purpose: str) -> tuple[str, s
     """Run only the locked native uv initializer with fixed inert flags."""
     command = (
         sys.executable,
-        "-B",
-        "-I",
+        *PYTHON_FLAGS,
         "-m",
         "uv",
         "init",

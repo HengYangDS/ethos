@@ -31,6 +31,7 @@ from ethos.adapters.repo.content.source import SourceTargetUnavailableError
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -352,8 +353,7 @@ def prose_report(root: Path) -> dict[str, object]:
                 tool=sys.executable,
                 command=[
                     sys.executable,
-                    "-B",
-                    "-I",
+                    *PYTHON_FLAGS,
                     "-m",
                     "codespell_lib",
                     "--toml",

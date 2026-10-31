@@ -27,6 +27,7 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -68,8 +69,7 @@ def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[s
     candidate = plan_from_statement(proof)
     command = [
         selected.python.as_posix(),
-        "-B",
-        "-I",
+        *PYTHON_FLAGS,
         "-m",
         "ethos.cli",
         "prove",

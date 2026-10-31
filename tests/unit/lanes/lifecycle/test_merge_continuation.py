@@ -46,7 +46,7 @@ def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
     assert (work / "personal.txt").read_bytes() == b"untracked unchanged\n"
     assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
     recovery = result["data"]["recovery"]
-    payload = json.loads(Path(recovery["path"]).read_text())
+    payload = json.loads(Path(recovery["path"]).read_text(encoding="utf-8"))
     assert payload["observation"]["conflicts"] == ["README.md"]
     assert payload["files"]["README.md"]["content"]
     again = apply_merge(work, preview)
@@ -343,7 +343,7 @@ def test_merge_start_cannot_overwrite_ignored_local_content(tmp_path):
     commit_fixture(candidate, "feat: add incoming tracked data")
     exclude = Path(git(work, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
     exclude.parent.mkdir(exist_ok=True)
-    with exclude.open("a") as stream:
+    with exclude.open("a", encoding="utf-8") as stream:
         stream.write("\npersonal-cache.bin\n")
     local = work / "personal-cache.bin"
     local.write_bytes(b"valuable ignored local data\n")
@@ -400,7 +400,7 @@ def test_abort_material_reconstructs_conflict_index_and_unique_staged_bytes(tmp_
     # Native abort refuses staged + unstaged divergence; it must expose preservation.
     assert result["verdict"] == "unknown"
     saved = result["data"]["process_failure"]["observation"]["recovery"]
-    recovery = json.loads(Path(saved["path"]).read_text())
+    recovery = json.loads(Path(saved["path"]).read_text(encoding="utf-8"))
     for oid, encoded in recovery["stage_blobs"].items():
         decoded = base64.b64decode(encoded)
         assert merge_effect.run_git(work, "cat-file", "blob", oid, text=False).stdout == decoded

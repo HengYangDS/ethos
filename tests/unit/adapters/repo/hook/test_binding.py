@@ -494,7 +494,17 @@ def test_predeclaration_runtime_derives_successor_install_not_old_reinstall(
     assert observed["current"] is False
     assert observed["required_gaps"] == ["write_admission_not_armed:runtime_hook_contract_missing"]
     command = shlex.split(observed["next_action"])
-    assert command[:7] == [sys.executable, "-B", "-I", "-m", "ethos.cli", "hook", "install"]
+    assert command[:9] == [
+        sys.executable,
+        "-B",
+        "-I",
+        "-X",
+        "utf8",
+        "-m",
+        "ethos.cli",
+        "hook",
+        "install",
+    ]
     assert command[0] != observed["python"]
 
 

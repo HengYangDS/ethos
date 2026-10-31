@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
 from ethos.adapters.repo.runtime.materialization.python_image import render_windows_console_script
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -270,7 +271,7 @@ cask "ethos" do
     end
     set_permissions "{runtime}", "a-w"
     run "{runtime}/python/bin/python", base: :staged_path,
-        args: ["-B", "-I", "-c",
+        args: [{", ".join(map(json.dumps, PYTHON_FLAGS))}, "-c",
                "from pathlib import Path; import sys; " \\
                "from ethos.adapters.repo.runtime.selection import require_selected_runtime; " \\
                "require_selected_runtime(Path(sys.prefix).parent, carrier=True)"]
@@ -474,7 +475,7 @@ def prove_shared_supply(
             raise RuntimeError(message)
     with observe_stage("shared_target_validation"):
         pinned = require_selected_runtime(pinned_root)
-    prefix = (str(pinned.python), "-B", "-I", "-m", "ethos.cli")
+    prefix = (str(pinned.python), *PYTHON_FLAGS, "-m", "ethos.cli")
     original = selectors[0].read_bytes()
     if (
         databases[0].samefile(databases[1])

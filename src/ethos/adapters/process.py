@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import locale
 import os
 import shutil
 import signal
 import subprocess
-import sys
 from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
@@ -35,6 +33,11 @@ if TYPE_CHECKING:
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
+# Windows PowerShell writes redirected text in the console code page. A script that starts with
+# this statement writes UTF-8 like every other command; a host without a console keeps its page.
+WINDOWS_POWERSHELL_UTF8 = (
+    "try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}\n"
+)
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
 _GROUP_REAPING_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
@@ -253,7 +256,7 @@ def windows_powershell(*, environment: Mapping[str, str] | None = None) -> str:
 
 def process_listing_command(*, platform_name: str | None = None) -> tuple[str, ...]:
     """Observe full native command text, independent of PATH or display width."""
-    windows = "Get-CimInstance Win32_Process | % CommandLine"
+    windows = WINDOWS_POWERSHELL_UTF8 + "Get-CimInstance Win32_Process | % CommandLine"
     if (platform_name or os.name) == "nt":
         return (
             windows_powershell(),
@@ -277,7 +280,7 @@ def run_command(
     command: tuple[str, ...],
     *,
     text: bool = True,
-    output_encoding: str | None = None,
+    output_encoding: str = "utf-8",
     check: bool = False,
     timeout: float | None = None,
     env: Mapping[str, str] | None = None,
@@ -289,7 +292,8 @@ def run_command(
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command and preserve process-creation evidence.
 
-    Text output uses the locale encoding unless the command declares the one it always writes.
+    Text input and output are UTF-8 unless the command declares the encoding it always writes;
+    the host locale never selects it.
     """
     resolved_root = root.resolve()
     if not root.is_dir():
@@ -346,7 +350,10 @@ def _execute_command(
         finite_input = None
         if stdin is not None:
             finite_input = resources.enter_context(
-                TemporaryFile(mode="w+" if kwargs["text"] else "w+b")
+                TemporaryFile(
+                    mode="w+" if kwargs["text"] else "w+b",
+                    encoding=encoding if kwargs["text"] else None,
+                )
             )
             finite_input.write(stdin)
             finite_input.seek(0)
@@ -402,11 +409,10 @@ def _written(output: BinaryIO) -> bytes:
     return output.read()
 
 
-def _decoded(data: bytes, *, text: bool, encoding: str | None) -> str | bytes:
+def _decoded(data: bytes, *, text: bool, encoding: str) -> str | bytes:
     """Decode captured output exactly as a text-mode pipe with that encoding would."""
     if not text:
         return data
-    encoding = encoding or ("utf-8" if sys.flags.utf8_mode else locale.getencoding())
     return data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
 
 

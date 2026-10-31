@@ -18,6 +18,7 @@ from pydantic import Field
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeEvidence
@@ -191,8 +192,7 @@ class PythonRuntime(BaseModel):
             raise ValueError(msg)
         command = (
             sys.executable,
-            "-B",
-            "-I",
+            *PYTHON_FLAGS,
             "-m",
             "uv",
             "sync",

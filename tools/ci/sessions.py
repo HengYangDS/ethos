@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from tools.ci.toolchain.environment import ProjectRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -379,7 +380,7 @@ def external_links(session) -> None:
     with report.open("wb") as stream:
         completed = subprocess.run(
             (
-                *(sys.executable, "-B", "-I", "-m", "ethos.cli", "prove", "--host", "--execute"),
+                *(sys.executable, *PYTHON_FLAGS, "-m", "ethos.cli", "prove", "--host", "--execute"),
                 *("--gate", "external-links", "--expect-head", head, "--json"),
             ),
             cwd=ROOT,

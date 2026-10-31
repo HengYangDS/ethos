@@ -21,6 +21,7 @@ from ethos.adapters.repo.hook.binding import HookContract
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import inspection_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
@@ -193,8 +194,7 @@ def hook_runtime_binding(
             shlex.join(
                 (
                     selected.python.as_posix(),
-                    "-B",
-                    "-I",
+                    *PYTHON_FLAGS,
                     "-m",
                     "ethos.cli",
                     "status",
@@ -411,8 +411,7 @@ def _repair_action(
         return shlex.join(
             (
                 Path(sys.executable).absolute().as_posix(),
-                "-B",
-                "-I",
+                *PYTHON_FLAGS,
                 "-m",
                 "ethos.cli",
                 "hook",
@@ -428,8 +427,7 @@ def _repair_action(
         return shlex.join(
             (
                 python.as_posix(),
-                "-B",
-                "-I",
+                *PYTHON_FLAGS,
                 "-m",
                 "ethos.cli",
                 "hook",
@@ -444,7 +442,7 @@ def _repair_action(
     return shlex.join(
         (
             Path(sys.executable).resolve().as_posix(),
-            "-I",
+            *PYTHON_FLAGS,
             "-m",
             "ethos.cli",
             "hook",

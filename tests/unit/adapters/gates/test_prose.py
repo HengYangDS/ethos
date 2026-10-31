@@ -221,8 +221,8 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
         report = gate_tool.prose_report(tmp_path)
         assert (report["verdict"], document.read_text()) == (verdict, source), report
         spelling = [result for result in report["native"] if result["tool"] == sys.executable]
-        assert [result["command"][:4] for result in spelling] == [
-            [sys.executable, "-B", "-I", "-m"]
+        assert [result["command"][:6] for result in spelling] == [
+            [sys.executable, "-B", "-I", "-X", "utf8", "-m"]
         ] * 2
     assert [result["exit_code"] != 0 for result in spelling] == [True, False]
     local.write_text("[tool.codespell]\nwrite-changes = true\n")

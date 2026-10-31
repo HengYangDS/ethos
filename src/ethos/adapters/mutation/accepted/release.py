@@ -252,7 +252,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
 def _existing_plan(selection: _Selection) -> TransitionPlan | None:
     if not selection.stored.exists():
         return None
-    payload = json.loads(selection.stored.read_text())
+    payload = json.loads(selection.stored.read_text(encoding="utf-8"))
     require_release(isinstance(payload, dict), "release_request_invalid")
     require_release(payload.get("request") == selection.request(), "release_request_collision")
     plan = TransitionPlan.model_validate(payload["plan"])

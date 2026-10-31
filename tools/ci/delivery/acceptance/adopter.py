@@ -15,6 +15,7 @@ from ethos.adapters.openspec.cli import archive_result
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
@@ -343,8 +344,7 @@ def prove_formation(
                 target,
                 (
                     str(python),
-                    "-B",
-                    "-I",
+                    *PYTHON_FLAGS,
                     "-c",
                     (
                         "from pathlib import Path; import ethos; "

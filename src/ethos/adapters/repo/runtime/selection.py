@@ -18,6 +18,7 @@ from filelock import FileLock
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import process_machine
@@ -226,7 +227,7 @@ def runtime_selection_transaction(
 def runtime_command(root: Path, *arguments: str) -> str:
     """Render one shell command through the repository's selected runtime."""
     selected = current_runtime(Path(git_common_dir(root.resolve())).resolve())
-    return shlex.join((selected.python.as_posix(), "-B", "-I", "-m", "ethos.cli", *arguments))
+    return shlex.join((selected.python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli", *arguments))
 
 
 def legacy_runtime_migration_source(common: Path) -> tuple[str, str] | None:

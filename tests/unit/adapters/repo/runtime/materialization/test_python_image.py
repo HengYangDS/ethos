@@ -132,8 +132,8 @@ def test_console_script_discovery_binds_target_and_rejects_invalid_entries(
         _fails(gap, python_image.console_script_entries, python)
     else:
         assert python_image.console_script_entries(python) == {"ethos": "ethos.cli:main"}
-    assert execute.call_args.args[0][:4] == (str(python), "-B", "-I", "-c")
-    assert execute.call_args.kwargs == {"capture_output": True, "check": False, "text": True}
+    assert execute.call_args.args[0][:6] == (str(python), "-B", "-I", "-X", "utf8", "-c")
+    assert execute.call_args.kwargs == {"capture_output": True, "check": False, "encoding": "utf-8"}
 
 
 def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(monkeypatch, tmp_path):
@@ -152,7 +152,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     launcher = (scripts / "ethos.cmd").read_bytes()
     assert not trampoline.exists()
     assert root_decoy.exists()
-    assert launcher.startswith(b'@"%~dp0..\\python.exe" -B -I -c "import sys;')
+    assert launcher.startswith(b'@"%~dp0..\\python.exe" -B -I -X utf8 -c "import sys;')
     assert launcher.endswith(b'"ethos" %*\r\n')
     assert str(tmp_path).encode() not in launcher
     _refuses_absent_entry(launcher.decode().split(' -c "', 1)[1].rsplit('" "', 1)[0])
@@ -190,7 +190,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
         check=True,
     )
     arguments = executed.stdout.splitlines()
-    assert arguments[:3] == ["-B", "-I", "-c"]
+    assert arguments[:5] == ["-B", "-I", "-X", "utf8", "-c"]
     assert arguments[-2:] == ["ethos", "argument with spaces"]
 
 

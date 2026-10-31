@@ -126,7 +126,7 @@ def test_commit_trust_binds_only_the_one_supplied_input(
         assert f"gpg.ssh.allowedsignersfile={anchor}" in settings
     else:
         selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-        assert selected.read_text() == anchor.read_text().rstrip("\n")
+        assert selected.read_text(encoding="utf-8") == anchor.read_text().rstrip("\n")
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires the Windows ACL authority")

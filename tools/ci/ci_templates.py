@@ -67,7 +67,9 @@ EVIDENCE_FIELDS = (
 
 
 def _git_output(*args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        ["git", *args], cwd=ROOT, capture_output=True, encoding="utf-8", check=False
+    )
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
@@ -194,7 +196,7 @@ def _tool_version(tool: str) -> str:
     if executable is None:
         return ""
     result = subprocess.run(
-        [executable, "--version"], cwd=ROOT, capture_output=True, text=True, check=False
+        [executable, "--version"], cwd=ROOT, capture_output=True, encoding="utf-8", check=False
     )
     return next((line for line in (result.stdout or result.stderr).splitlines() if line), "")
 
@@ -206,7 +208,7 @@ def _docker_context_endpoint() -> str:
         ["docker", "context", "inspect"],
         cwd=ROOT,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=False,
     )
     if result.returncode != 0:
@@ -246,7 +248,7 @@ def _emulator_command(
             paths["projected_file"],
         ]
         if mode == "run":
-            workflow = yaml.safe_load((ROOT / paths["projected_file"]).read_text())
+            workflow = yaml.safe_load((ROOT / paths["projected_file"]).read_text(encoding="utf-8"))
             runner = workflow["jobs"][emulation["emulator_job"]]["runs-on"]
             return [
                 *command,
@@ -350,9 +352,9 @@ def emulator_evidence(
     paths = {
         "config": CONFIG_RELATIVE_PATH,
         "projected_file": str(entry["projection"]),
-        "source_file": tomllib.loads((ROOT / CONFIG_RELATIVE_PATH).read_text())["compiler"][
-            "source"
-        ],
+        "source_file": tomllib.loads((ROOT / CONFIG_RELATIVE_PATH).read_text(encoding="utf-8"))[
+            "compiler"
+        ]["source"],
     }
     kind = f"local_{provider}_emulator"
     output_path = output or ROOT / "build/evidence/local-ci" / provider / f"{mode}.json"

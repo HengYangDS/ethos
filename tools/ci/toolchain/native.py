@@ -45,8 +45,10 @@ def mise_executables(root: Path) -> dict[str, str]:
     """Read the bound official executable digest of every supported platform."""
     message = "mise_executable_record_invalid"
     try:
-        version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
-        record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
+        version = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8"))["min_version"]
+        record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text(encoding="utf-8"))[
+            "bootstrap"
+        ]
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(message) from error
     executables = record.get("executables") if isinstance(record, dict) else None
@@ -100,7 +102,7 @@ def _stage_mise(root: Path, version: str, candidate: Path) -> None:
 def prepare_mise(root: Path) -> Path:
     """Reuse operator supply or stage the official executable before atomic publication."""
     root = root.resolve(strict=True)
-    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
+    version = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8"))["min_version"]
 
     def verify(executable: Path, *, exact: bool = True) -> None:
         observed = run_command(
@@ -153,7 +155,7 @@ def prepare_mise(root: Path) -> Path:
 
 def declared_go_version(root: Path) -> str | None:
     """Read the one project declaration without inferring an ambient Go tool."""
-    declared = tomllib.loads((root / MISE_CONFIG).read_text()).get("tools", {})
+    declared = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8")).get("tools", {})
     version = declared.get("go")
     if version is not None and not isinstance(version, str):
         msg = "native_tool_policy_invalid:go"
@@ -214,7 +216,7 @@ def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
     `materialize_tool` places in the tool cache serves the product runtime and npm.
     """
     go_version = declared_go_version(root)
-    tools = tomllib.loads((root / MISE_CONFIG).read_text()).get("tools", {})
+    tools = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8")).get("tools", {})
     node = ("node",) if "node" in tools else ()
     if native_supply_is_offline():
         require_cached_mise_tools(root, mise, node)

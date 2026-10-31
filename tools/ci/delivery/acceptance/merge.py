@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from tools.ci.delivery.acceptance.invocation import invoke
 
@@ -102,7 +103,7 @@ def prove_native_merge(
     """Execute start, preserved abort, replay and signed continue using only package CLI."""
     actor = "agent:test:package-only:merge"
     env = {**environment, "ETHOS_ACTOR": actor}
-    prefix = (str(python), "-B", "-I", "-m", "ethos.cli")
+    prefix = (str(python), *PYTHON_FLAGS, "-m", "ethos.cli")
 
     def command(root: Path, *args: str) -> dict[str, object]:
         code, result, diagnostic = invoke(root, (*prefix, *args), environment=env)
@@ -120,7 +121,7 @@ def prove_native_merge(
     if not isinstance(activation, dict) or not activation.get("python"):
         message = "package_merge_runtime_missing"
         raise TypeError(message)
-    prefix = (str(activation["python"]), "-B", "-I", "-m", "ethos.cli")
+    prefix = (str(activation["python"]), *PYTHON_FLAGS, "-m", "ethos.cli")
     lease = command(
         work,
         "lane",
@@ -146,7 +147,7 @@ def prove_native_merge(
     if not isinstance(data, dict) or not isinstance(data.get("recovery"), dict):
         message = "package_merge_recovery_missing"
         raise TypeError(message)
-    material = json.loads(Path(str(data["recovery"]["path"])).read_text())
+    material = json.loads(Path(str(data["recovery"]["path"])).read_text(encoding="utf-8"))
     if base64.b64decode(material["files"]["README.md"]["content"]) != unique:
         message = "package_merge_recovery_content_mismatch"
         raise RuntimeError(message)

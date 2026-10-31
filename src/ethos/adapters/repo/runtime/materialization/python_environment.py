@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NoReturn
 
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import interpreter_machine
 from ethos.adapters.repo.runtime.manifest import runtime_environment
@@ -38,10 +39,10 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         "'prefix':sys.prefix,'base_prefix':sys.base_prefix}))"
     )
     completed = subprocess.run(
-        (python.as_posix(), "-B", "-I", "-c", script),
+        (python.as_posix(), *PYTHON_FLAGS, "-c", script),
         capture_output=True,
         check=False,
-        text=True,
+        encoding="utf-8",
     )
     try:
         facts = {key: str(value) for key, value in json.loads(completed.stdout).items()}
@@ -221,8 +222,7 @@ def _installed_python_candidates(
     environment.pop("VIRTUAL_ENV", None)
     command = (
         invoked_python.as_posix(),
-        "-B",
-        "-I",
+        *PYTHON_FLAGS,
         "-m",
         "uv",
         "python",
@@ -241,7 +241,7 @@ def _installed_python_candidates(
             command,
             capture_output=True,
             check=False,
-            text=True,
+            encoding="utf-8",
             env=environment,
             cwd=directory,
         )

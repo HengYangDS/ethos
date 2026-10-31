@@ -47,7 +47,7 @@ def _config(root: Path, name: str) -> str:
         (str(Path(git).absolute()), "config", "--get", name),
         cwd=root,
         check=False,
-        text=True,
+        encoding="utf-8",
         capture_output=True,
         env=environment | {"LC_ALL": "C", "GIT_NO_REPLACE_OBJECTS": "1"},
         shell=False,
@@ -364,7 +364,7 @@ def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str
         user_name, user_email = identity.rsplit(" <", 1)
         for key, value in (("user.name", user_name), ("user.email", user_email.removesuffix(">"))):
             run_git(staging, "config", key, value)
-        with attempt.open("x") as stream:
+        with attempt.open("x", encoding="utf-8") as stream:
             stream.write(tagger + "\n")
             stream.flush()
             os.fsync(stream.fileno())

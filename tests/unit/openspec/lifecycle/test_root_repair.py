@@ -65,7 +65,7 @@ def _relocation(root: Path, *, target: str = TARGET) -> dict[str, tuple[str, str
 
 
 def _prewrite(root: Path, postimages: dict[str, tuple[str, str]], patch_file: Path):
-    patch_file.write_text(_patch(postimages))
+    patch_file.write_text(_patch(postimages), encoding="utf-8")
     result = run_ethos_raw(
         "lane",
         "prewrite",

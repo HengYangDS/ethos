@@ -96,7 +96,7 @@ class DependencyPolicy(BaseModel):
 def _policy_arguments() -> tuple[str, ...]:
     """Project validated configuration to Deptry's native argument protocol."""
     policy = DependencyPolicy.model_validate(
-        tomllib.loads((ROOT / ".config/checks/deptry/policy.toml").read_text())
+        tomllib.loads((ROOT / ".config/checks/deptry/policy.toml").read_text(encoding="utf-8"))
     )
     package = policy.package[0]
     for value in (package.root, package.config):

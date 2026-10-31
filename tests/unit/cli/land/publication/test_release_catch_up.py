@@ -156,13 +156,13 @@ def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_pa
     git(peers["gitlab"], "update-ref", "-d", TAG_REF)
 
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    trust = anchor.read_text()
-    anchor.write_text("")
+    trust = anchor.read_text(encoding="utf-8")
+    anchor.write_text("", encoding="utf-8")
     try:
         code, gaps = _pre_push(repo, tag, zero)
         assert (code, "release_tag_source_untrusted" in gaps) == (1, True), gaps
     finally:
-        anchor.write_text(trust)
+        anchor.write_text(trust, encoding="utf-8")
 
     detached = tmp_path / "detached"
     git(repo, "worktree", "add", "--detach", str(detached), f"{head}^")

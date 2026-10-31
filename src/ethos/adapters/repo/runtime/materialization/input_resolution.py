@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import NoReturn
 from urllib.parse import urlparse
 
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -170,10 +171,10 @@ def run_runtime_tool(
     if args[:1] == ("build",) and (source / "package-lock.json").is_file():
         environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
     completed = subprocess.run(
-        (executable.as_posix(), "-B", "-I", "-m", "uv", *args),
+        (executable.as_posix(), *PYTHON_FLAGS, "-m", "uv", *args),
         cwd=source,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=False,
         env=environment,
     )

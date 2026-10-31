@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import NoReturn
 
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.input_resolution import run_runtime_tool
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
@@ -155,10 +156,10 @@ def project_dependency_supply(source_python: Path, target_python: Path) -> None:
 def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str], ...]]:
     """Observe one Python prefix and every file owned by its installed distributions."""
     completed = subprocess.run(
-        (python.as_posix(), "-B", "-I", "-c", _SUPPLY_OBSERVATION),
+        (python.as_posix(), *PYTHON_FLAGS, "-c", _SUPPLY_OBSERVATION),
         capture_output=True,
         check=False,
-        text=True,
+        encoding="utf-8",
     )
     try:
         payload = json.loads(completed.stdout)

@@ -360,7 +360,7 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
             cwd=root,
             check=False,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
         )
     except OSError:
         return ()

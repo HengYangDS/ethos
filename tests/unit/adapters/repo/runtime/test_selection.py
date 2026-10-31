@@ -74,7 +74,7 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
     assert not locks[-1].is_locked
     assert shlex.split(runtime_command(repo, "status", "--json")) == [
         selected.python.as_posix(),
-        *shlex.split("-B -I -m ethos.cli status --json"),
+        *shlex.split("-B -I -X utf8 -m ethos.cli status --json"),
     ]
     selector = common / "ethos/runtime/CURRENT"
     original = selector.read_bytes()
@@ -367,7 +367,21 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     if mode == "selected":
         executable = str(runtime_filesystem.runtime_python(python))
         expected = [
-            (executable, [executable, "-B", "-I", "-m", "ethos.cli", *args, "--root", str(repo)])
+            (
+                executable,
+                [
+                    executable,
+                    "-B",
+                    "-I",
+                    "-X",
+                    "utf8",
+                    "-m",
+                    "ethos.cli",
+                    *args,
+                    "--root",
+                    str(repo),
+                ],
+            )
         ]
     assert calls == expected
 
@@ -402,7 +416,7 @@ def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypat
         cli.console_main()
 
     assert exited.value.code == exit_code
-    assert calls == [([str(selected), "-B", "-I", "-m", "ethos.cli", *args], False)]
+    assert calls == [([str(selected), "-B", "-I", "-X", "utf8", "-m", "ethos.cli", *args], False)]
 
 
 @pytest.mark.parametrize("failure", ["write", "replace", "archive"])
@@ -549,7 +563,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
         assert result["homebrew_cask"] is None
         assert not (tmp_path / "homebrew").exists()
     else:
-        cask = Path(str(result["homebrew_cask"])).read_text()
+        cask = Path(str(result["homebrew_cask"])).read_text(encoding="utf-8")
         assert all(token in cask for token in ('"/usr/bin/codesign"', '"=notarized"'))
         assert "spctl" not in cask
     if native:

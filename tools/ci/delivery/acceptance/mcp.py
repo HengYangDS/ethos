@@ -34,7 +34,7 @@ def _run(
         env=env,
         stdin=subprocess.DEVNULL,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         timeout=30,
         check=False,
     )
@@ -286,7 +286,7 @@ async def _observations(
     profile = root / ".ethos/profile.toml"
     original = profile.read_bytes()
     try:
-        profile.write_text("not valid TOML [")
+        profile.write_text("not valid TOML [", encoding="utf-8")
         before = profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns
         for name in ("status", "plan", "adopt", "land", "publish"):
             refused = await _call("sdk", client, command, root, name, {}, env)

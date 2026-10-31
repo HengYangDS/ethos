@@ -32,6 +32,6 @@ def test_recovery_inventory_preserves_kinds_and_rejects_unsafe_or_stale_bytes(tm
         artifact = preserve_merge(work, observed)
         artifact_path = artifact["path"]
         assert isinstance(artifact_path, str)
-        data = json.loads(Path(artifact_path).read_text())
+        data = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
         assert data["files"]["README.md"]["kind"] == ("absent" if case == "absent" else "symlink")
         assert preserve_merge(work, observed) == artifact

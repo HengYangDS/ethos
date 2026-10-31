@@ -419,7 +419,7 @@ def test_eval_metadata_remains_evidence_and_never_progress_state(
     manifest = Path(write_skill_package(tmp_path / ".agents" / "skills", "sample-skill"))
     relative = manifest.relative_to(tmp_path).as_posix()
     assert validate_skill_package_manifest(tmp_path, relative)["eval"] == {}
-    payload = tomllib.loads(manifest.read_text())
+    payload = tomllib.loads(manifest.read_text(encoding="utf-8"))
     payload["eval"] = {
         "treatment_id": "candidate",
         "metrics": ["pass_at_k", "pass_power_k", "instability_gap"],
@@ -429,7 +429,7 @@ def test_eval_metadata_remains_evidence_and_never_progress_state(
         "evidence_refs": ["evidence/attestations/workflow-eval.json"],
         **({} if declared else {"undeclared": "forbidden"}),
     }
-    manifest.write_text(tomli_w.dumps(payload))
+    manifest.write_text(tomli_w.dumps(payload), encoding="utf-8")
 
     result = validate_skill_package_manifest(tmp_path, relative)
     assert result["verdict"] == ("pass" if declared else "block")

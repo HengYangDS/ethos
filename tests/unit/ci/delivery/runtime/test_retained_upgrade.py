@@ -124,7 +124,7 @@ def lane_start_transport(monkeypatch):
     calls = []
 
     def start(repository, command, *, environment):
-        assert command[4:8] == ("ethos.cli", "lane", "start", "retained-upgrade-fixture")
+        assert command[6:10] == ("ethos.cli", "lane", "start", "retained-upgrade-fixture")
         holder = environment["ETHOS_ACTOR"]
         assert command[command.index("--holder-ref") + 1] == holder
         branch = "work/retained-upgrade-fixture"

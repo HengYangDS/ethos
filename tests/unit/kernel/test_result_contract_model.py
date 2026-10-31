@@ -42,7 +42,9 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
     assert schema["properties"]["command"]["type"] == "string"
     assert "ok" not in schema["properties"]
     assert schema["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
-    assert json.loads(Path("system/schemas/kernel/result.schema.json").read_text()) == (
+    assert json.loads(
+        Path("system/schemas/kernel/result.schema.json").read_text(encoding="utf-8")
+    ) == (
         schema
         | {
             "$schema": "https://json-schema.org/draft/2020-12/schema",

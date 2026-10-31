@@ -147,9 +147,9 @@ def test_npm_launcher_fallback_is_interpreter_selective_and_trust_bound(
         assert result.returncode == 0
         assert result.stdout.strip() == "0.1.0a1"
         assert log.read_text(encoding="utf-8").splitlines() == (
-            ["-P -m ethos.cli --version"]
+            ["-P -X utf8 -m ethos.cli --version"]
             if mode == "python3"
-            else ["python:-P -m ethos.cli --version"]
+            else ["python:-P -X utf8 -m ethos.cli --version"]
         )
 
 

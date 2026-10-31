@@ -218,6 +218,8 @@ def test_image_source_discovery_is_read_only_and_uses_the_invoking_python(
             invoked.as_posix(),
             "-B",
             "-I",
+            "-X",
+            "utf8",
             "-m",
             "uv",
             "python",

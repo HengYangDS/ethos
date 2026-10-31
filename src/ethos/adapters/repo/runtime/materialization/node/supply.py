@@ -126,11 +126,13 @@ class NodeSupply:
             if family == "linux":
                 _require_linux_host()
             arch = architectures[process_machine().lower()]
-            version = tomllib.loads((root / MISE_CONFIG).read_text())["tools"]["node"]
+            version = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8"))["tools"][
+                "node"
+            ]
             if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
                 message = "native_node_version_invalid"
                 raise ValueError(message)
-            lock = tomllib.loads((root / MISE_LOCK).read_text())
+            lock = tomllib.loads((root / MISE_LOCK).read_text(encoding="utf-8"))
             records = [row for row in lock["tools"]["node"] if row["version"] == version]
             if lock["lockfile_version"] != 3 or len(records) != 1:
                 message = "native_node_lock_mismatch"

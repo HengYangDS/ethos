@@ -109,7 +109,9 @@ def test_accepted_advance_after_removal_keeps_progress_and_continues(
     assert result["state"] == "partial_transition"
     assert result["completed_effects"] == ["remove_worktree"]
     assert result["remaining_effects"] == ["delete_ref", "revoke_lease"]
-    persisted = json.loads(Path(str(result["progress_receipt"]["path"])).read_text())
+    persisted = json.loads(
+        Path(str(result["progress_receipt"]["path"])).read_text(encoding="utf-8")
+    )
     assert (persisted["state"], persisted["completed_effects"]) == (
         "partial_transition",
         ["remove_worktree"],

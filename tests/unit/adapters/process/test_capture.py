@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import locale
 import os
 import signal
 import socket
@@ -10,11 +11,15 @@ import sys
 from contextlib import ExitStack
 from contextlib import suppress
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.process as process_adapter
 from tests.support.subprocesses import ready_descendant
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.mark.timeout(30)
@@ -355,3 +360,29 @@ def test_nested_scope_cancels_all_registered_groups_with_one_budget(
                 if marker.exists():
                     with suppress(ProcessLookupError):
                         os.killpg(int(marker.read_text()), signal.SIGKILL)
+
+
+@pytest.fixture
+def gbk_locale() -> Iterator[None]:
+    """Select a host locale whose encoding is GBK, as on a Windows code page 936 host."""
+    previous = locale.setlocale(locale.LC_CTYPE)
+    for name in ("zh_CN.GBK", "zh_CN.gbk", "zh_CN.GB18030", "zh_CN.gb18030"):
+        with suppress(locale.Error):
+            locale.setlocale(locale.LC_CTYPE, name)
+            break
+    else:
+        pytest.skip("this host has no GBK locale")
+    try:
+        yield
+    finally:
+        locale.setlocale(locale.LC_CTYPE, previous)
+
+
+@pytest.mark.usefixtures("gbk_locale")
+def test_process_text_is_utf8_whatever_the_host_locale(tmp_path: Path) -> None:
+    """A command's UTF-8 input and output keep their text under a GBK host locale."""
+    body = "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read() + 'b \u2014 c'.encode())"
+    result = process_adapter.run_command(
+        tmp_path, (sys.executable, "-c", body), stdin="a \u2014 ", check=True, timeout=20
+    )
+    assert result.stdout == "a \u2014 b \u2014 c"

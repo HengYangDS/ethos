@@ -10,6 +10,9 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 [lint]
+# Preview rules apply only when selected by exact code; PLW1514 is preview in Ruff 0.17.
+preview = true
+explicit-preview-rules = true
 select = [
   "D",
   "E",
@@ -51,6 +54,7 @@ select = [
   "PLE",
   "PLC",
   "PLW",
+  "PLW1514",
   "PLR0911",
   "PLR0912",
   "PLR0915",

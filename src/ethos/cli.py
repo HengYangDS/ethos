@@ -14,6 +14,7 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
@@ -46,7 +47,7 @@ def console_main() -> None:
             selected = current_runtime(Path(common))
             if Path(sys.executable).absolute() != selected.python.absolute():
                 executable = str(selected.python)
-                commandline = [executable, "-B", "-I", "-m", "ethos.cli", *argv]
+                commandline = [executable, *PYTHON_FLAGS, "-m", "ethos.cli", *argv]
                 if sys.platform == "win32":
                     raise SystemExit(subprocess.run(commandline, check=False).returncode)
                 os.execv(executable, commandline)

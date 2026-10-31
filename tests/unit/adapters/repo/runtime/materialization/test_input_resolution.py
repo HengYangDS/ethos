@@ -160,6 +160,8 @@ def test_source_wheel_resolution_preserves_output_and_failure_contract(
         str(python),
         "-B",
         "-I",
+        "-X",
+        "utf8",
         "-m",
         "uv",
         "build",
@@ -298,7 +300,7 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(
     runtime_inputs.run_runtime_tool(source, *operation)
     assert len(observed) == 1
     command, env = observed[0]
-    assert command == (str(python), "-B", "-I", "-m", "uv", *operation)
+    assert command == (str(python), "-B", "-I", "-X", "utf8", "-m", "uv", *operation)
     assert {key: env[key] for key in ("UV_LINK_MODE", "UV_NO_CACHE", "UV_PYTHON")} == {
         "UV_LINK_MODE": "copy",
         "UV_NO_CACHE": "1",
@@ -319,7 +321,7 @@ def test_runtime_tool_targets_a_selected_environment_on_the_invoking_interpreter
     targets: list[str] = []
 
     def run(command, **kwargs):
-        if tuple(command[1:5]) != ("-B", "-I", "-m", "uv"):
+        if tuple(command[1:7]) != ("-B", "-I", "-X", "utf8", "-m", "uv"):
             return native(command, **kwargs)
         targets.append(kwargs["env"]["VIRTUAL_ENV"])
         return _completed(0)

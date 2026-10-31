@@ -407,7 +407,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     def download(command: tuple[str, ...], **_options: object) -> None:
         if fault == "failure":
             raise native.subprocess.CalledProcessError(23, command, stderr="bootstrap-failed")
-        Path(command[command.index("--output") + 1]).write_text(body)
+        Path(command[command.index("--output") + 1]).write_text(body, encoding="utf-8")
 
     monkeypatch.setattr(native, "download_tool", download)
     home = tmp_path / "build/runtime/tool-cache/ci-tools"

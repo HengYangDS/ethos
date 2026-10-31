@@ -21,6 +21,7 @@ from ethos.adapters.repo.runtime.filesystem import require_no_junctions
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.host_store import record_consumer
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -208,7 +209,11 @@ def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
 def _reuse_installation(installation: Path, selected: SelectedRuntime) -> Path:
     """Admit the existing installation of exactly this runtime and restore its seal."""
     owner = installation / "OWNER"
-    if owner.is_symlink() or not owner.is_file() or owner.read_text() != selected.digest + "\n":
+    if (
+        owner.is_symlink()
+        or not owner.is_file()
+        or owner.read_text(encoding="utf-8") != selected.digest + "\n"
+    ):
         _fail("hook_runtime_host_store_conflict")
     try:
         pinned = require_selected_runtime(
@@ -368,7 +373,8 @@ def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
         and _runtime_supply_wheel(selected) is not None
         and (
             os.name == "nt"
-            or selected.python.with_name("ethos").read_text() == render_console_script("ethos")
+            or selected.python.with_name("ethos").read_text(encoding="utf-8")
+            == render_console_script("ethos")
         )
     )
 
@@ -567,13 +573,8 @@ def require_runtime_execution(text: str, *, smoke: bool = False) -> None:
     if not all(same_python_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
         _fail("hook_runtime_python_not_relocatable")
     if smoke:
-        command = (python, "-B", "-I", "-m", "ethos.cli", "--version")
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            check=False,
-            text=True,
-        )
+        command = (python, *PYTHON_FLAGS, "-m", "ethos.cli", "--version")
+        completed = subprocess.run(command, capture_output=True, check=False, encoding="utf-8")
         if completed.returncode or not completed.stdout.strip():
             detail = ":".join(
                 (

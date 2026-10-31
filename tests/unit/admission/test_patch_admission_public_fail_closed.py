@@ -110,7 +110,11 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
     temporary = process.TemporaryFile
     crlf = {"newline": "\r\n"}
     monkeypatch.setattr(
-        process, "TemporaryFile", lambda mode: temporary(mode, **(crlf if mode == "w+" else {}))
+        process,
+        "TemporaryFile",
+        lambda mode, encoding=None: temporary(
+            mode, encoding=encoding, **(crlf if mode == "w+" else {})
+        ),
     )
     repo = init_git_repo(tmp_path / "repo")
     commit_active_change(repo)

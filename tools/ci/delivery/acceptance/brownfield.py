@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.store.state.lease.projection import LeaseRow
 from ethos.adapters.store.state.lease.projection import lease_row
 from ethos.adapters.store.state.lease.projection import lease_rows
@@ -148,8 +149,7 @@ def seed_retained_state(
         repository,
         (
             str(python),
-            "-B",
-            "-I",
+            *PYTHON_FLAGS,
             "-m",
             "ethos.cli",
             "lane",
@@ -228,7 +228,7 @@ def prove_retained_authoring(
     target = "work/" + source.partition("/")[2]
     env = {**environment, "ETHOS_ACTOR": lease.holder_ref}
     env.pop("ETHOS_CHANGE", None)
-    prefix = (str(python), "-B", "-I", "-m", "ethos.cli")
+    prefix = (str(python), *PYTHON_FLAGS, "-m", "ethos.cli")
     repair = (*prefix, "lane", "repair-paradigm", "--root", str(lane))
     if source != target:
         for options, state in (((), "ready_to_rename"), (("--apply",), "topic_identity_migrated")):

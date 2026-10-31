@@ -80,7 +80,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
     head = git(target, "rev-parse", "HEAD")
     blocked = inspect_repository(target)
     assert blocked.verdict == "block"
-    assert " -I -m ethos.cli hook install --root " in blocked.next_action
+    assert " -I -X utf8 -m ethos.cli hook install --root " in blocked.next_action
     assert str(target) in blocked.next_action
 
     monkeypatch.setattr(

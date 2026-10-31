@@ -258,7 +258,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
             return (smoke / "site-packages/ethos/__init__.py").as_posix()
         if "status" in command:
             return json.dumps(status)
-        if len(command) > 3 and Path(command[3]).name == "mcp.py":
+        if len(command) > 5 and Path(command[5]).name == "mcp.py":
             return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
 
@@ -283,11 +283,11 @@ def test_installed_observation_runs_shared_isolated_conformance(
     probe = executed[-1]
     assert Path(probe[0]).is_relative_to(smoke)
     assert Path(probe[0]).stem == "python"
-    assert probe[1:3] == ("-B", "-I")
-    assert probe[3] == str(Path(effect.__file__).with_name("mcp.py"))
-    assert Path(probe[4]).is_relative_to(smoke)
-    assert Path(probe[4]).stem == "ethos"
-    assert probe[5] == str(effect.WORK)
+    assert probe[1:5] == ("-B", "-I", "-X", "utf8")
+    assert probe[5] == str(Path(effect.__file__).with_name("mcp.py"))
+    assert Path(probe[6]).is_relative_to(smoke)
+    assert Path(probe[6]).stem == "ethos"
+    assert probe[7] == str(effect.WORK)
 
 
 @pytest.mark.parametrize("ambient_identity", [False, True])

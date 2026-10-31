@@ -140,7 +140,9 @@ def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[st
     }
     if not execute or state != "not_executed":
         return record
-    run = subprocess.run(record["command"], cwd=ROOT, capture_output=True, text=True, check=False)
+    run = subprocess.run(
+        record["command"], cwd=ROOT, capture_output=True, encoding="utf-8", check=False
+    )
     try:
         stdout_json = json.loads(run.stdout) if run.stdout.strip() else None
     except json.JSONDecodeError:

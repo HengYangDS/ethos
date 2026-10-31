@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.protocol import blocked_report
 from ethos.adapters.repo.hook.protocol import passed_report
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -430,8 +431,7 @@ def _candidate_report(
         candidate,
         (
             python.as_posix(),
-            "-B",
-            "-I",
+            *PYTHON_FLAGS,
             "-m",
             "ethos.cli",
             "hook",

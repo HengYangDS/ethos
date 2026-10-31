@@ -83,7 +83,7 @@ for (const python of ["python3", "python"]) {
   if (!pythonHasEthos(python)) {
     continue;
   }
-  const result = run(python, ["-P", "-m", "ethos.cli", ...ARGS]);
+  const result = run(python, ["-P", "-X", "utf8", "-m", "ethos.cli", ...ARGS]);
   process.exit(result.status);
 }
 

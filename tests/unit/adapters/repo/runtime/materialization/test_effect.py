@@ -293,7 +293,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
     commands.assert_called_once()
     command = commands.call_args.args[0]
     assert command[0] == materialization.runtime_python(command[0].parent.parent)
-    assert command[1:] == ("-B", "-I", "-m", "ethos.cli", "--version")
+    assert command[1:] == ("-B", "-I", "-X", "utf8", "-m", "ethos.cli", "--version")
     assert len(observed) == 2
     assert observed[0].name.startswith(".runtime-build-")
     assert observed[1] == target
@@ -355,7 +355,7 @@ def test_failed_runtime_verification_removes_only_its_new_generation(
 
     monkeypatch.setattr(materialization.subprocess, "run", failed_verification)
     pattern = (
-        r"hook_runtime_module_smoke_failed:command=.*python -B -I -m ethos\.cli "
+        r"hook_runtime_module_smoke_failed:command=.*python -B -I -X utf8 -m ethos\.cli "
         "--version:returncode=7:stdout=out:stderr=failed"
     )
     with pytest.raises(failure, match=pattern if failure is ValueError else None):

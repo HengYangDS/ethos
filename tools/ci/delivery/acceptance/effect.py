@@ -26,6 +26,7 @@ from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
@@ -207,8 +208,7 @@ def observe_installed_package(
     )
     origin = _run(
         str(python),
-        "-B",
-        "-I",
+        *PYTHON_FLAGS,
         "-c",
         "from pathlib import Path; import ethos,json,sys; "
         "from ethos.result import EthosResult; "
@@ -240,8 +240,7 @@ def observe_installed_package(
     command_plane = json.loads(
         _run(
             str(python),
-            "-B",
-            "-I",
+            *PYTHON_FLAGS,
             str(Path(__file__).with_name("mcp.py")),
             str(ethos),
             str(WORK),

@@ -83,7 +83,7 @@ class _ReviewedContent(BaseModel):
                 or path.as_posix() != name
                 or (path.name == ".git" and name != ".git")
                 or (
-                    path.parent != PurePosixPath(".")
+                    path.parent != PurePosixPath()
                     and (parent is None or parent.kind != "directory")
                 )
             ):

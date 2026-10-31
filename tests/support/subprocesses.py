@@ -78,7 +78,7 @@ def kill_after_marker(
                 child.kill()
             child.communicate(timeout=10)
     assert child.returncode != 0
-    return marker.read_text()
+    return marker.read_text(encoding="utf-8")
 
 
 def pause_after_effect(

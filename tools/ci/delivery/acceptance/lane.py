@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -27,7 +28,7 @@ def prove_lifecycle(
     environment: Mapping[str, str],
 ) -> dict[str, dict[str, object]]:
     """Start and recover one Work Lane solely through the installed command plane."""
-    prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+    prefix = (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
     holder = "agent:test:package-only:bootstrap"
     lane_environment = {**environment, "ETHOS_ACTOR": holder}
     command = (
@@ -126,7 +127,7 @@ def _prove_retirement_recovery(
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Recover one public receipt after its worktree effect completed separately."""
-    prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli", "lane", "retire")
+    prefix = (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli", "lane", "retire")
     lane_environment = {**environment, "ETHOS_ACTOR": actor}
     derive = (
         *prefix,
@@ -239,7 +240,7 @@ def prove_signature_repair(
     old = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     candidate = run_git(repo, "rev-parse", "candidate/dev").stdout.strip()
     remote_refs = run_git(repo, "ls-remote", "file").stdout
-    prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+    prefix = (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
     command = (
         *prefix,
         "lane",

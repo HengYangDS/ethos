@@ -27,7 +27,10 @@ def _declare_unlocked_dependency(project: Path, dependency: str) -> None:
     dependencies.append(dependency)
     project.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     assert project.read_bytes() != preimage
-    assert tomllib.loads(project.read_text())["dependency-groups"]["dev"] == dependencies
+    assert (
+        tomllib.loads(project.read_text(encoding="utf-8"))["dependency-groups"]["dev"]
+        == dependencies
+    )
 
 
 @pytest.mark.parametrize(

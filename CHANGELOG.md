@@ -12,6 +12,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- ETHOS decodes every command's text output and encodes its text input as UTF-8 whatever the host
+  locale, and every Python process it starts runs in UTF-8 mode (`-X utf8`). On a Windows host whose
+  code page is 936, `ethos prove` stopped with "'gbk' codec can't decode byte 0x94" because Git's
+  UTF-8 output was decoded with the locale. The Windows PowerShell observations write UTF-8 too.
+
+### Changed
+
+- The managed Ruff policy selects `unspecified-encoding` (`PLW1514`), a preview rule enabled by its
+  exact code, so a text read or write without an explicit encoding fails lint in ETHOS and in every
+  governed Python repository.
+
 ## [0.2.0-alpha.24] - 2026-10-31
 
 ### Fixed

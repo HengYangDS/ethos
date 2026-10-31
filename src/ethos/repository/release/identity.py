@@ -184,7 +184,7 @@ def _canonical_semver(raw: str) -> str:
 
 def _json_object(path: Path, label: str) -> dict[str, object]:
     try:
-        value = json.loads(path.read_text())
+        value = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(value, dict):
             return value
     except (OSError, TypeError, UnicodeError, ValueError):

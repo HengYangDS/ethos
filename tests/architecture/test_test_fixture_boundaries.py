@@ -132,8 +132,8 @@ def test_runtime_mutation_fixture_observes_native_prerequisites_before_return(
     _repo, runtime = runtime_scenarios.materialize_runtime_case(tmp_path, monkeypatch)
     python = runtime_scenarios.runtime_executable(runtime, "python")
 
-    assert any(command[:4] == (str(python), "-B", "-I", "-c") for command in observed)
-    assert (str(python), "-B", "-I", "-m", "ethos.cli", "--version") in observed
+    assert any(command[:6] == (str(python), "-B", "-I", "-X", "utf8", "-c") for command in observed)
+    assert (str(python), "-B", "-I", "-X", "utf8", "-m", "ethos.cli", "--version") in observed
     assert python.stat().st_nlink == 1
     assert not python.samefile(sys.executable)
 

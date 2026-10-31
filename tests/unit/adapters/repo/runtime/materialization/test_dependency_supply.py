@@ -257,8 +257,16 @@ def test_dependency_observation_validates_native_result(
             supply.observe_dependency_supply(python)
     assert calls == [
         (
-            (python.as_posix(), "-B", "-I", "-c", vars(supply)["_SUPPLY_OBSERVATION"]),
-            {"capture_output": True, "check": False, "text": True},
+            (
+                python.as_posix(),
+                "-B",
+                "-I",
+                "-X",
+                "utf8",
+                "-c",
+                vars(supply)["_SUPPLY_OBSERVATION"],
+            ),
+            {"capture_output": True, "check": False, "encoding": "utf-8"},
         )
     ]
 

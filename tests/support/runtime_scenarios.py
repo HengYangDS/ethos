@@ -23,6 +23,7 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
 from ethos.adapters.repo.runtime.filesystem import runtime_python
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
@@ -297,7 +298,7 @@ def materialize_runtime_case(
         assert same_python_identity(facts, python_facts), facts
         if smoke:
             completed = subprocess.run(
-                (str(python), "-B", "-I", "-m", "ethos.cli", "--version"),
+                (str(python), *PYTHON_FLAGS, "-m", "ethos.cli", "--version"),
                 capture_output=True,
                 text=True,
                 check=False,

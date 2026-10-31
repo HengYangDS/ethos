@@ -422,7 +422,7 @@ def _assert_retained_distribution(case, payload, *, work: Path, root: Path) -> N
     assert archive == packages[1].args[2]
     assert archive.is_relative_to(root / "build/artifacts/native" / ("f" * 64))
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == distribution["sha256"]
-    assert Path(distribution["homebrew_cask"]).read_text() == archive.as_uri()
+    assert Path(distribution["homebrew_cask"]).read_text(encoding="utf-8") == archive.as_uri()
     assert distribution["runtime_digest"] == "f" * 64
     assert distribution["shared_supply"] == {"state": "passed"}
     assert distribution["retained"] is True

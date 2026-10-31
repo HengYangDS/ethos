@@ -223,7 +223,7 @@ def test_retained_topic_retirement_binds_the_surviving_ref(
         ) == (True, source, accepted)
         return
     assert (planned["verdict"], planned["required_gaps"]) == ("pass", [])
-    operation = json.loads(Path(planned["data"]["receipt"]["path"]).read_text())
+    operation = json.loads(Path(planned["data"]["receipt"]["path"]).read_text(encoding="utf-8"))
     assert operation["git_plan"]["commitment"] is None
     assert operation["git_plan"]["facts"]["values"]["assertions"][retained] == survivor
     if boundary == "moved":

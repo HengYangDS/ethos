@@ -526,7 +526,8 @@ def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platf
 
     monkeypatch.setattr(process_adapter.shutil, "which", resolve)
     expected = (
-        "-NoLogo -NoProfile -NonInteractive -Command Get-CimInstance Win32_Process | % CommandLine"
+        "-NoLogo -NoProfile -NonInteractive -Command "
+        f"{process_adapter.WINDOWS_POWERSHELL_UTF8}Get-CimInstance Win32_Process | % CommandLine"
         if platform == "nt"
         else "-axww -o command="
     )

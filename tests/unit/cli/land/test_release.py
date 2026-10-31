@@ -107,9 +107,9 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
         assert code == 1
         assert gap in json.loads(stream.getvalue())["required_gaps"]
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-    original = anchor.read_text()
+    original = anchor.read_text(encoding="utf-8")
     try:
-        anchor.write_text("")
+        anchor.write_text("", encoding="utf-8")
         stream = StringIO()
         with redirect_stderr(stream):
             code = execute_hook(
@@ -121,7 +121,7 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
         assert code == 1
         assert "release_tag_source_untrusted" in json.loads(stream.getvalue())["required_gaps"]
     finally:
-        anchor.write_text(original)
+        anchor.write_text(original, encoding="utf-8")
 
 
 def native_failed_result(effect, args, options, *, scope, boundary, root):
@@ -278,8 +278,8 @@ def test_release_rechecks_exact_inputs_after_signing(
             write_release_mirror(repo, "accepted_ff")
         else:
             anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-            assert anchor.read_text()
-            anchor.write_text("")
+            assert anchor.read_text(encoding="utf-8")
+            anchor.write_text("", encoding="utf-8")
         before_effect.append(git(repo, "show-ref"))
         return oid
 

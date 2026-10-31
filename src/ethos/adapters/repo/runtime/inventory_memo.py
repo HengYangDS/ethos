@@ -76,7 +76,12 @@ class InventoryMemo:
         with contextlib.suppress(OSError):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(
-                "w", dir=self._path.parent, prefix=".", suffix=".tmp", delete=False
+                "w",
+                encoding="utf-8",
+                dir=self._path.parent,
+                prefix=".",
+                suffix=".tmp",
+                delete=False,
             ) as stream:
                 temporary = Path(stream.name)
                 try:

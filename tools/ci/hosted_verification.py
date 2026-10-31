@@ -17,12 +17,13 @@ from typing import Any
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
 
 PROVE = (
     *("uv", "run", "--frozen", "--offline", "--no-sync"),
-    *("python", "-B", "-I", "-m", "ethos.cli", "prove"),
+    *("python", *PYTHON_FLAGS, "-m", "ethos.cli", "prove"),
     *("--host", "--execute", "--full"),
 )
 DIAGNOSTIC_LINES = 200
@@ -31,7 +32,9 @@ DIAGNOSTIC_LINES = 200
 def run(root: Path, head: str | None = None) -> int:
     """Prove head, defaulting to HEAD, write its receipt and return the exit status."""
     root = root.resolve()
-    observed = subprocess.check_output(("git", "rev-parse", "HEAD"), cwd=root, text=True).strip()
+    observed = subprocess.check_output(
+        ("git", "rev-parse", "HEAD"), cwd=root, encoding="utf-8"
+    ).strip()
     expected = head or observed
     out = root / "build/evidence/quality/proof"
     reports = root / os.environ.get("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")

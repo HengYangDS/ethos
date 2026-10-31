@@ -306,7 +306,7 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
             if case == "trust":
                 Path(
                     git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile")
-                ).write_text("")
+                ).write_text("", encoding="utf-8")
             elif case in {"proof", "mixed-proof"}:
                 git(repo, "update-ref", "-d", "refs/ethos/attestations-set")
             elif case == "policy":

@@ -247,7 +247,10 @@ class PythonTestGate:
     def render_report(self) -> Path:
         """Rebuild Allure 3 views from this exact test attempt without executing tests."""
         remove_owned_path(self.allure_report)
-        if self.allure_head.is_file() and self.allure_head.read_text().strip() != self.s.head:
+        if (
+            self.allure_head.is_file()
+            and self.allure_head.read_text(encoding="utf-8").strip() != self.s.head
+        ):
             message = "allure_source_stale"
             raise RuntimeError(message)
         directories = self._allure_result_dirs()
@@ -283,8 +286,10 @@ class PythonTestGate:
             message = f"allure_render_failed:{result.returncode}:{result.stderr[-500:]}"
             raise RuntimeError(message)
         try:
-            manifest = json.loads((self.allure_report / "manifest/human-report.json").read_text())
-            run = json.loads((self.allure_report / "manifest/run.json").read_text())
+            manifest = json.loads(
+                (self.allure_report / "manifest/human-report.json").read_text(encoding="utf-8")
+            )
+            run = json.loads((self.allure_report / "manifest/run.json").read_text(encoding="utf-8"))
             total, _ = junit_report(sorted(self.pytest.glob("junit*.xml")))
             if (
                 manifest["status"] != "generated"

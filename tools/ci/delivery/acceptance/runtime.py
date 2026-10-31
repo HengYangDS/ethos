@@ -16,6 +16,7 @@ from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
@@ -59,7 +60,7 @@ def activate_from_runtime(
 ) -> dict[str, object]:
     """Activate exact supplied bytes without implying a predecessor upgrade."""
     return _activate(
-        (python.as_posix(), "-B", "-I", "-m", "ethos.cli"),
+        (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli"),
         repo,
         environment=environment,
         installed_runtime=installed_runtime,
@@ -207,7 +208,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
 """
     completed = run_command(
         python.parent,
-        (python.as_posix(), "-B", "-I", "-c", probe),
+        (python.as_posix(), *PYTHON_FLAGS, "-c", probe),
         env=environment,
         inherit_environment=False,
         timeout=120,
@@ -236,7 +237,7 @@ def require_version_identity(
 ) -> dict[str, object]:
     """Require the public version surface to expose the complete immutable identity."""
     prefix = (
-        (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+        (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
         if os.name == "nt"
         else (python.with_name("ethos").as_posix(),)
     )
@@ -265,7 +266,7 @@ def prove_repair(
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Prove the relocated runtime detects and repairs one stale hook generation."""
-    prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
+    prefix = (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
     status = (*prefix, "status", "--root", repo.as_posix(), "--json")
     returncode, payload, diagnostic = invoke(repo, status, environment=environment)
     data = payload.get("data")

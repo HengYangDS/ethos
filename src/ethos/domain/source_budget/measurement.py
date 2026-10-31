@@ -350,7 +350,7 @@ def _scc_counts(
         completed = subprocess.run(
             [executable, *config.args],
             cwd=root,
-            text=True,
+            encoding="utf-8",
             capture_output=True,
             check=False,
             timeout=config.timeout_seconds,

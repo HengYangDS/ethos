@@ -106,7 +106,7 @@ def test_signer_authorization_preserves_anchor_on_public_failure(
     )
     native_read = Path.read_bytes
     if invalid_key:
-        Path(git(repo, "config", "--get", "user.signingkey")).write_text(failure)
+        Path(git(repo, "config", "--get", "user.signingkey")).write_text(failure, encoding="utf-8")
     elif failure in {"initial-cas", "final-cas"}:
         reads = iter([b""] * (1 if failure == "initial-cas" else 2) + [b"drift", b"drift"])
         monkeypatch.setattr(

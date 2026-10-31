@@ -298,13 +298,13 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
         for report in dry_run["data"]["push_admission"].values()
     } == {"accepted_effect"}
     receipt = dry_run["data"]["request_receipt"]
-    trust = anchor.read_text()
+    trust = anchor.read_text(encoding="utf-8")
     for name, signing, gap in (
         ("lightweight", (), "not_annotated_tag:refs/tags/lightweight"),
         ("v1.2.3", None, "signature_untrusted:refs/tags/v1.2.3"),
     ):
         if signing is None:
-            anchor.write_text("")
+            anchor.write_text("", encoding="utf-8")
         else:
             git(repo, "tag", *signing, name, head)
         ref = f"refs/tags/{name}"
@@ -321,7 +321,7 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
         git(peer, "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
         for peer in peers.values()
     )
-    anchor.write_text(trust)
+    anchor.write_text(trust, encoding="utf-8")
     git(repo, "tag", "-s", "-m", "different version", "v9.9.9", head)
     wrong_version = branch_publication(repo, head, target_ref="refs/tags/v9.9.9", blocked=True)
     assert any("version" in gap for gap in wrong_version["required_gaps"]), wrong_version

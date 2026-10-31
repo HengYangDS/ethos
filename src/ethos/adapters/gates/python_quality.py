@@ -24,6 +24,7 @@ from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
@@ -68,8 +69,7 @@ def _static_execution(
     """
     command = (
         sys.executable,
-        "-B",
-        "-I",
+        *PYTHON_FLAGS,
         "-m",
         "ruff",
         "check",

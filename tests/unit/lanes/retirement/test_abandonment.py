@@ -145,7 +145,7 @@ def _assert_retired_receipt(recovered, request, removing):
     assert recovered["open_file_observation"] == removing
     terminal = recovered["terminal_receipt"]
     assert isinstance(terminal, dict)
-    payload = json.loads(Path(terminal["path"]).read_text())
+    payload = json.loads(Path(terminal["path"]).read_text(encoding="utf-8"))
     assert payload["kind"] == "lane-retirement-receipt"
     assert payload["request"] == request.model_dump(mode="json")
     assert payload["progress"]["completed_effects"] == [

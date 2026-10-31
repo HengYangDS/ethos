@@ -68,7 +68,7 @@ def _write_frame(stream: TextIO, frame: str) -> None:
         delivery_gap = "output_unavailable"
     if delivery_gap:
         try:
-            with Path(os.devnull).open("w") as sink:
+            with Path(os.devnull).open("w", encoding="utf-8") as sink:
                 os.dup2(sink.fileno(), stream.fileno())
         except (AttributeError, OSError, ValueError):
             pass

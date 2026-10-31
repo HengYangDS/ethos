@@ -49,7 +49,7 @@ def test_accepted_dev_reuse_retains_independent_admission(tmp_path: Path, missin
         record_attestations(repo, tuple(item for item in records if item.predicate != predicate))
     elif missing == "trust":
         anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-        anchor.write_text("")
+        anchor.write_text("", encoding="utf-8")
     else:
         git(
             repo,

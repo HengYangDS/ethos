@@ -12,6 +12,7 @@ from typing import NoReturn
 from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.dependency_supply import project_dependency_supply
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
@@ -72,6 +73,9 @@ def materialize_python_image(
     _rewrite_console_scripts(target)
 
 
+_FLAGS = " ".join(PYTHON_FLAGS)
+
+
 def render_console_script(name: str, interpreter: str = "python") -> str:
     """Render a location-independent console-script launcher.
 
@@ -81,7 +85,7 @@ def render_console_script(name: str, interpreter: str = "python") -> str:
         "#!/bin/sh\n"
         'SCRIPT_DIR=${0%/*}; [ "$SCRIPT_DIR" = "$0" ] && SCRIPT_DIR=.\n'
         'SCRIPT_DIR=$(CDPATH= cd "$SCRIPT_DIR" && pwd)\n'
-        f'exec "$SCRIPT_DIR/{interpreter}" -B -I -c '
+        f'exec "$SCRIPT_DIR/{interpreter}" {_FLAGS} -c '
         "'import sys;from importlib.metadata import entry_points;"
         'name=sys.argv.pop(1);matches=tuple(entry_points(group="console_scripts",name=name));'
         'len(matches)==1 or (sys.stderr.write(f"{name}: {len(matches)} console entry points\\n"),'
@@ -96,7 +100,8 @@ def render_windows_console_script(name: str, interpreter: str = "..\\python.exe"
     ``interpreter`` locates the runtime's Python relative to the launcher's own directory.
     """
     return (
-        f'@"%~dp0{interpreter}" -B -I -c "import sys;from importlib.metadata import entry_points;'
+        f'@"%~dp0{interpreter}" {_FLAGS} -c "import sys;'
+        "from importlib.metadata import entry_points;"
         "name=sys.argv.pop(1);matches=tuple(entry_points(group='console_scripts',name=name));"
         "len(matches)==1 or (sys.stderr.write(f'{name}: {len(matches)} console entry points\\n'),"
         'sys.exit(127));sys.argv[0]=name;sys.exit(matches[0].load()())" '
@@ -196,10 +201,10 @@ def console_script_entries(python: Path) -> dict[str, str]:
     )
     try:
         completed = subprocess.run(
-            (python.as_posix(), "-B", "-I", "-c", script),
+            (python.as_posix(), *PYTHON_FLAGS, "-c", script),
             capture_output=True,
             check=False,
-            text=True,
+            encoding="utf-8",
         )
         rows = json.loads(completed.stdout)
     except (OSError, TypeError, ValueError) as error:

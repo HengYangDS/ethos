@@ -41,7 +41,9 @@ EMULATOR_REQUIRED_FIELDS = (
 
 
 def _git_output(*args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        ["git", *args], cwd=ROOT, capture_output=True, encoding="utf-8", check=False
+    )
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
@@ -277,7 +279,9 @@ def emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
     image = entry.get("emulator_image")
     if image is None:
         try:
-            projected = yaml.safe_load((ROOT / str(entry["projection"])).read_text())
+            projected = yaml.safe_load(
+                (ROOT / str(entry["projection"])).read_text(encoding="utf-8")
+            )
             jobs = projected.get("jobs", projected)
             selected = jobs[entry["emulator_job"]]["image"]
             image = selected.get("name") if isinstance(selected, dict) else selected

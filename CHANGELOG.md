@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.24] - 2026-10-31
+
 ### Fixed
 
 - The release archive names its runtime directory with the first 16 hexadecimal digits of the
@@ -23,6 +25,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The paradigm receives a byte-bound carrier that format selection freezes under a proof gate, as it
   receives vendored and generated files: the code ceiling does not measure it and its name keeps its
   form.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.23] - 2026-10-31
 

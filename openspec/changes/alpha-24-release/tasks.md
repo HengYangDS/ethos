@@ -2,10 +2,10 @@
 
 ## 1. Release Entry
 
-- [ ] 1.1 Move the product version to 0.2.0-alpha.24 in `VERSION` and
+- [x] 1.1 Move the product version to 0.2.0-alpha.24 in `VERSION` and
       `distributions/npm/package.json`. Done when the lane's `ethos --version` reports
       0.2.0-alpha.24, the version tests pass unchanged and no lock changes.
-- [ ] 1.2 Curate the `0.2.0-alpha.24` entry from the Unreleased notes and the advisories that the
+- [x] 1.2 Curate the `0.2.0-alpha.24` entry from the Unreleased notes and the advisories that the
       release build's audit reports on the lane head. Done when the changelog validates with
       0.2.0-alpha.24 as its release target, the Unreleased section is empty, and the entry names
       every advisory that audit reports.

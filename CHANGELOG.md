@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- The dependency audit resolves npm findings through dependency cycles. A peer dependency, such as
+  ESLint's on `@eslint-community/eslint-utils`, names each package in the other's `via`, and the
+  audit refused every such cycle as `finding_identity_unavailable` instead of naming the advisory.
+  A finding that reaches no advisory is still refused.
+
 ## [0.2.0-alpha.22] - 2026-10-31
 
 ### Changed

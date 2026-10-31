@@ -185,16 +185,15 @@ def _npm_roots(raw: dict) -> dict[str, set[tuple[str, str]]]:
             else:
                 message = "unresolved npm aggregate reference"
                 raise ValueError(message)
+    # A peer dependency makes via cyclic, so each aggregate takes every advisory it reaches.
     resolved: dict[str, set[tuple[str, str]]] = {}
-    pending = set(aggregates)
-    while pending:
-        ready = {name for name in pending if references[name] <= resolved.keys()}
-        if not ready:
-            message = "cyclic npm aggregate references"
-            raise ValueError(message)
-        for name in ready:
-            resolved[name] = direct[name].union(*(resolved[item] for item in references[name]))
-        pending -= ready
+    for name in aggregates:
+        reached, frontier = {name}, [name]
+        while frontier:
+            unseen = references[frontier.pop()] - reached
+            reached |= unseen
+            frontier.extend(unseen)
+        resolved[name] = set().union(*(direct[item] for item in reached))
     return resolved
 
 

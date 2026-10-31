@@ -34,11 +34,15 @@ from tools.ci import dependency_audit as audit
 from tools.ci import sessions
 
 
+@pytest.mark.parametrize("cycle", [False, True])
 def test_local_disposition_preserves_native_findings_and_strict_release(
-    repository, monkeypatch, capsys
+    repository, monkeypatch, capsys, cycle
 ):
     """Exact local permission never converts six native aggregates into clean release proof."""
     raw = npm_advisories(repository)
+    if cycle:
+        # A peer dependency names each package in the other's via, as ESLint and its utilities do.
+        raw["vulnerabilities"]["micromatch"]["via"].append("markdownlint-cli2")
     output = json.dumps(raw)
     authorize_fixture(repository)
     npm_transport(monkeypatch, output, "native")
@@ -188,8 +192,10 @@ def test_unresolved_npm_aggregate_identity_is_not_an_authorized_finding(
     braces = raw["vulnerabilities"]["braces"]
     lock = repository / "package-lock.json"
     packages = json.loads(lock.read_text())["packages"]
-    if fault in {"dangling", "cycle"}:
-        braces["via"].append("absent" if fault == "dangling" else "micromatch")
+    if fault == "dangling":
+        braces["via"].append("absent")
+    elif fault == "cycle":
+        braces["via"] = ["micromatch"]
     elif fault == "name":
         braces["name"] = "Braces"
     elif fault == "advisory":

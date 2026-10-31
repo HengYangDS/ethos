@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import sys
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +23,7 @@ import pytest
 from ethos.adapters.process import CommandScope
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
@@ -397,3 +399,32 @@ def test_predecessor_preflight_preserves_existing_work_and_evidence(
             cast("nox.Session", object()), artifact=artifact, evidence=output, predecessor=previous
         )
     assert {path: path.read_bytes() for path in retained} == before
+
+
+def test_repair_continuation_matches_the_whole_runtime_prefix(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    python = tmp_path / "python"
+    prefix = (python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
+    repair = shlex.join((*prefix, "hook", "install", "--authorize", "--root", tmp_path.as_posix()))
+    replies = iter(
+        (
+            {"data": {"hook_runtime": {"current": True}}},
+            {"data": {"hook_runtime": {"current": False, "next_action": repair}}},
+            {"verdict": "pass"},
+            {"command": "prove"},
+        )
+    )
+    commands: list[tuple[str, ...]] = []
+
+    def invoke(_repo: Path, command: tuple[str, ...], **_options: object) -> object:
+        commands.append(command)
+        return 0, next(replies), ""
+
+    monkeypatch.setattr(runtime_acceptance, "invoke", invoke)
+    (tmp_path / "hooks").mkdir()
+    result = runtime_acceptance.prove_repair(
+        python, tmp_path, hooks_path=tmp_path / "hooks", environment={}
+    )
+    assert result == {"state": "passed", "repair_command": repair}
+    assert commands[2] == tuple(shlex.split(repair))

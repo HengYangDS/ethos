@@ -9,6 +9,9 @@
       release build's audit reports on the lane head. Done when the changelog validates with
       0.2.0-alpha.25 as its release target, the Unreleased section is empty, and the entry names
       every advisory that audit reports.
+- [x] 1.3 Make the packaged runtime acceptance compare the hook repair continuation with the whole
+      runtime prefix. Done when a unit test pins the comparison and the lane's `install_smoke`
+      session passes.
 
 ## Workflow follow-up
 

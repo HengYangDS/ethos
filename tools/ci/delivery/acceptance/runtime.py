@@ -280,7 +280,7 @@ def prove_repair(
     stale_runtime = stale_data.get("hook_runtime") if isinstance(stale_data, dict) else {}
     repair = str(stale_runtime.get("next_action") or "") if isinstance(stale_runtime, dict) else ""
     arguments = tuple(shlex.split(repair))
-    if arguments[:5] != prefix or not arguments:
+    if arguments[: len(prefix)] != prefix:
         message = "package_runtime_repair_continuation_invalid"
         raise RuntimeError(message)
     repaired_code, repaired, repaired_diagnostic = invoke(repo, arguments, environment=environment)

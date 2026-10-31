@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -9,15 +11,20 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.archive.compensation as compensation
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Attestation
     from tests.support.openspec_lifecycle import OpenSpecLifecycle
+
+_PROPOSAL = "refs/heads/proposal/fixture-change"
 
 
 def _compensate(lifecycle: OpenSpecLifecycle, expect_head: str) -> dict[str, object]:
@@ -27,6 +34,20 @@ def _compensate(lifecycle: OpenSpecLifecycle, expect_head: str) -> dict[str, obj
         expect_head=expect_head,
         apply=True,
         compensate=True,
+    )
+
+
+def _publication(desired: str, *, hour: int) -> Attestation:
+    """Record what the executor records when it publishes or retires the proposal on one peer."""
+    update = {"expected": "0" * 40, "desired": desired, "target_ref": _PROPOSAL}
+    return attestation_fixture(
+        predicate="publication:remote-effect",
+        verifier="ethos:remote-publication-executor",
+        subject=f"git:commit:{desired}",
+        issued_at=datetime(2026, 10, 31, hour, tzinfo=UTC),
+        payload_kind="publication:remote-effect",
+        payload_body={"plan": {"effect": {"targets": [{"id": "github", "updates": [update]}]}}},
+        evidence_refs=(f"git:github:{_PROPOSAL}:{desired}",),
     )
 
 
@@ -85,6 +106,30 @@ def test_compensation_refuses_an_inexact_archive(
     assert (report["state"], report["required_gaps"]) == ("blocked", [gap])
     assert report["effect_state"] == "zero_effect"
     assert [git(lifecycle.worktree, *args) for args in observe] == before
+
+
+def test_a_published_archive_waits_for_its_proposal_retirement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A proposal that selects the archived head is retired first, while the lane retains it."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    source = lifecycle.head
+    archived = str(lifecycle.archive()["head"])
+    record_attestations(lifecycle.worktree, (_publication(archived, hour=1),))
+
+    refused = _compensate(lifecycle, archived)
+
+    assert (refused["state"], refused["required_gaps"], refused["effect_state"]) == (
+        "blocked",
+        ["openspec_archive_published:fixture-change"],
+        "zero_effect",
+    )
+    assert refused["next_action"] == (
+        f"ethos publish --retire --ref {_PROPOSAL} --probe-remote --expect-head {archived} --json"
+    )
+    assert lifecycle.head == archived
+    record_attestations(lifecycle.worktree, (_publication("0" * 40, hour=2),))
+    assert (_compensate(lifecycle, archived)["state"], lifecycle.head) == ("compensated", source)
 
 
 def test_an_interrupted_compensation_finishes_its_restore(

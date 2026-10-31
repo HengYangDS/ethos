@@ -5,11 +5,11 @@ from __future__ import annotations
 import difflib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.mutation.branch_roles import rename_retained_topic
 from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.git import tracked_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
-from ethos.adapters.repo.git_attributes import received_paths
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
@@ -31,7 +31,7 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
     if renamed := rename_retained_topic(repo, apply=apply):
         return renamed
     tracked = tracked_paths(repo)
-    received = received_paths(repo, tracked)
+    received = paradigm_received_paths(repo, tracked)
     report = repository_paradigm_report(
         repo,
         tracked_paths=tracked,

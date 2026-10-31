@@ -275,7 +275,7 @@ def _require_package_runtime_source(
     python_facts: dict[str, str],
 ) -> None:
     runtime = Path(python_facts["prefix"]).parent
-    selected = require_selected_runtime(runtime)
+    selected = require_selected_runtime(runtime, carrier=True)
     if selected.python.resolve() != interpreter.resolve():
         _fail("hook_runtime_package_interpreter_stale")
     if selected.wheel_sha256 != file_sha256(wheel):

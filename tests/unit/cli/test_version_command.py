@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from packaging.version import Version
@@ -46,9 +47,7 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     assert f"OpenSpec {version_module.OFFICIAL_VERSION}" in completed.stdout
     assert "{" not in completed.stdout
     monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
-    monkeypatch.setattr(
-        version_module, "require_selected_runtime", lambda _root: (_ for _ in ()).throw(ValueError)
-    )
+    monkeypatch.setattr(version_module, "require_selected_runtime", Mock(side_effect=ValueError))
     assert version_module.version_text().startswith(f"ethos {_PRODUCT} ")
 
 

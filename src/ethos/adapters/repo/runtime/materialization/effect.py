@@ -47,9 +47,9 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
+from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
-from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
@@ -76,8 +76,7 @@ def materialize_runtime(
     package_source = build_source or invoking_source
     if installed_runtime is not None:
         common = Path(git_common_dir(repo))
-        runtime_selection_bytes(common, installed_runtime)
-        selected = require_selected_runtime(installed_runtime, expected_build=expected_build)
+        selected = require_installed_runtime(installed_runtime, expected_build=expected_build)
         require_runtime_selection_scope(common, selected)
         valid_supply = (
             _runtime_supply_current(selected, build_source)

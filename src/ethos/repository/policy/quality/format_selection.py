@@ -5,12 +5,16 @@ from __future__ import annotations
 import fnmatch
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import NotRequired
 from typing import TypedDict
 from typing import TypeGuard
 from typing import cast
 
 from ethos.repository.policy.projections import observe_projections
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
 # A repository increment may only declare byte-bound carriers: it forbids formatting and names
@@ -163,6 +167,14 @@ def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
         "semantic_companions": declaration.get("semantic_companions", []),
         "mutation_policy": mutation_policy,
     }
+
+
+def declared_paths(
+    paths: Iterable[str], declarations: Iterable[OwnerDeclaration]
+) -> frozenset[str]:
+    """Return the paths that any of the declarations selects."""
+    selected = tuple(declarations)
+    return frozenset(path for path in paths if any(_owner_matches(path, item) for item in selected))
 
 
 def repository_carriers(root: Path, *, gate_ids: frozenset[str]) -> list[OwnerDeclaration]:

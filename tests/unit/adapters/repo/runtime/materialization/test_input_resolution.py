@@ -119,9 +119,9 @@ def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tu
     monkeypatch.setattr(
         runtime_inputs,
         "require_selected_runtime",
-        lambda candidate: (
+        lambda candidate, *, carrier: (
             SimpleNamespace(root=runtime, wheel_sha256=wheel_sha256)
-            if candidate == runtime
+            if candidate == runtime and carrier
             else None
         ),
     )

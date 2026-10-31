@@ -16,6 +16,7 @@ from ethos.adapters.gates.configuration import configuration_report
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.gates.native.inputs import authored_text_files
 from ethos.adapters.gates.native.inputs import authored_text_gaps
+from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -224,6 +225,21 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
     assert (code, applied["data"]["changed_paths"]) == (0, ["docs/new.md"]), applied
     assert all((lane / path).read_text() == content for path, content in bound.items())
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
+
+
+@pytest.mark.parametrize(
+    ("policy", "frozen"),
+    [(_CARRIER, {"content/data.json"}), (_CARRIER.replace("openspec-baseline", "none"), set())],
+    ids=["verified", "unverified"],
+)
+def test_only_verified_byte_bound_carriers_are_received(
+    lane: Path, policy: str, frozen: set
+) -> None:
+    """Besides Git's vendored and generated paths, the paradigm receives verified carriers only."""
+    files = {"content/data.json": "{}\n", "docs/new.md": "# New\n", "web/app.js": "var v;\n"}
+    _write(lane, {**files, _CARRIERS: policy, ".gitattributes": "web/app.js linguist-generated\n"})
+
+    assert paradigm_received_paths(lane, tuple(files)) == {"web/app.js", *frozen}
 
 
 @pytest.mark.parametrize(

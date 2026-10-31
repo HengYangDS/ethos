@@ -32,8 +32,9 @@ Governed repositories reported three counterexamples on 2026-10-31, each measure
 - Archive compensation refuses while a recorded publication selects the archived head, with
   `openspec_archive_published:<change>` and the proposal retirement as the next action, which still
   succeeds because the Work Lane retains the head.
-- The code ceiling does not measure a tracked file that the repository's format selection declares a
-  byte-bound carrier verified by one of its proof gates. An invalid declaration exempts nothing.
+- The paradigm receives a tracked file that the repository's format selection declares a byte-bound
+  carrier verified by one of its proof gates, as it receives vendored and generated files: the code
+  ceiling does not measure it and its name keeps its form. An invalid declaration receives nothing.
 
 ## Capabilities
 

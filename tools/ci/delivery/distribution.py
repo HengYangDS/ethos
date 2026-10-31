@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import io
 import json
+import posixpath
 import re
 import shlex
 import shutil
@@ -33,6 +34,15 @@ if TYPE_CHECKING:
 
 # The only archive directory a package manager puts on PATH; it holds the ETHOS console alone.
 CONSOLE_DIRECTORY = "ethos/bin"
+
+
+def archive_runtime(selected: SelectedRuntime) -> str:
+    """Name the archive's runtime directory by the digest index that the host store also uses.
+
+    The manifest keeps the full digest. The short name leaves a deep install prefix room for the
+    Windows interpreter path, which Windows starts only within its path limit.
+    """
+    return f"ethos/runtime/{selected.digest[:16]}"
 
 
 def package_runtime(
@@ -67,12 +77,12 @@ def package_runtime(
         archive_path = Path(work) / destination.name
         if disk_image:
             payload_root = Path(work) / "payload"
-            copied = payload_root / "ethos/runtime" / selected.digest
+            copied = payload_root / archive_runtime(selected)
             shutil.copytree(runtime, copied, symlinks=True)
             package = payload_root / "ethos/packages" / selected.wheel_sha256 / wheel.name
             package.parent.mkdir(parents=True)
             shutil.copy2(wheel, package)
-            if require_selected_runtime(copied).digest != selected.digest:
+            if require_selected_runtime(copied, carrier=True).digest != selected.digest:
                 message = "distribution_inputs_changed"
                 raise ValueError(message)
             _disk_image(payload_root, archive_path)
@@ -84,7 +94,7 @@ def package_runtime(
             ):
                 archive.add(
                     runtime,
-                    arcname=f"ethos/runtime/{selected.digest}",
+                    arcname=archive_runtime(selected),
                     filter=_metadata,
                 )
                 archive.add(
@@ -204,7 +214,7 @@ def _add_console(archive: tarfile.TarFile, selected: SelectedRuntime) -> None:
     directory = tarfile.TarInfo(CONSOLE_DIRECTORY)
     directory.type, directory.mode = tarfile.DIRTYPE, 0o555
     archive.addfile(_metadata(directory))
-    runtime = f"../runtime/{selected.digest}/python"
+    runtime = posixpath.relpath(f"{archive_runtime(selected)}/python", CONSOLE_DIRECTORY)
     if selected.platform == "windows":
         interpreter = runtime.replace("/", "\\") + "\\python.exe"
         name = "ethos.cmd"
@@ -236,6 +246,7 @@ def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
         if is_release_build(selected.build)
         else selected.build.distribution_version
     )
+    runtime = archive_runtime(selected)
     return f'''# Generated from exact package acceptance; not a separate version authority.
 cask "ethos" do
   version {json.dumps(version)}
@@ -254,19 +265,19 @@ cask "ethos" do
       run "/usr/bin/codesign",
           args: ["--verify", "--strict", "--all-architectures", "--check-notarization",
                  "--test-requirement", "=notarized",
-                 "{{{{staged_path}}}}/ethos/runtime/{selected.digest}/python/bin/python"],
+                 "{{{{staged_path}}}}/{runtime}/python/bin/python"],
           network_access: true
     end
-    set_permissions "ethos/runtime/{selected.digest}", "a-w"
-    run "ethos/runtime/{selected.digest}/python/bin/python", base: :staged_path,
+    set_permissions "{runtime}", "a-w"
+    run "{runtime}/python/bin/python", base: :staged_path,
         args: ["-B", "-I", "-c",
                "from pathlib import Path; import sys; " \\
                "from ethos.adapters.repo.runtime.selection import require_selected_runtime; " \\
-               "require_selected_runtime(Path(sys.prefix).parent)"]
+               "require_selected_runtime(Path(sys.prefix).parent, carrier=True)"]
   end
 
   command_wrapper "ethos",
-                  executable: "#{{staged_path}}/ethos/runtime/{selected.digest}/python/bin/ethos"
+                  executable: "#{{staged_path}}/{runtime}/python/bin/ethos"
 end
 '''
 
@@ -366,7 +377,7 @@ def _install_with_mise(
         manifests = [
             name
             for name in packed.getnames()
-            if re.fullmatch(r"ethos/runtime/[0-9a-f]{64}/manifest\.json", name)
+            if re.fullmatch(r"ethos/runtime/[0-9a-f]{16}/manifest\.json", name)
         ]
         if len(manifests) != 1:
             message = "shared_supply_generation_ambiguous"
@@ -434,7 +445,7 @@ def prove_shared_supply(
         message = "shared_supply_generation_ambiguous"
         raise ValueError(message)
     with observe_stage("shared_source_validation"):
-        selected = require_selected_runtime(generations[0])
+        selected = require_selected_runtime(generations[0], carrier=True)
     scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
     pinned_root = (
         work / "host-data/ethos/installations" / selected.digest[:16] / "runtime" / selected.digest

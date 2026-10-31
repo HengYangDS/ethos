@@ -13,8 +13,8 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_fact
+from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
-from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.profile import load_repository_profile
@@ -68,7 +68,7 @@ def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None)
         return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)
     if profile is None or profile.profile_id != "ethos":
         if installed_runtime is not None:
-            selected = require_selected_runtime(installed_runtime)
+            selected = require_installed_runtime(installed_runtime)
             require_runtime_selection_scope(Path(git_common_dir(repo)), selected)
             return RuntimeBuild(selected.build, None, invoking=True)
         return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)

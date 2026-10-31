@@ -12,6 +12,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- The release archive names its runtime directory with the first 16 hexadecimal digits of the
+  runtime digest, as the host store does, so the Windows interpreter path inside the archive is 48
+  characters instead of 96. Windows refused to start the interpreter under a deep install root,
+  which GitLab Windows jobs reported as "exit status 6".
+- `ethos lane archive-change --compensate` refuses while a recorded publication selects the archived
+  head, and names the proposal retirement as the next action, instead of orphaning the proposal.
+- The paradigm receives a byte-bound carrier that format selection freezes under a proof gate, as it
+  receives vendored and generated files: the code ceiling does not measure it and its name keeps its
+  form.
+
 ## [0.2.0-alpha.23] - 2026-10-31
 
 ### Changed

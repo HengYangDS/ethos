@@ -489,6 +489,14 @@ def test_retained_distribution_binds_acceptance_before_publication(tmp_path, mon
     assert not list(destination.parent.glob(".ethos-distribution-*"))
 
 
+def _archived(root, selected):
+    """Select the runtime a package lays out, which only a carrier may name by digest index."""
+    runtime = root / distribution.archive_runtime(selected)
+    with pytest.raises(ValueError, match="hook_runtime_current_target_invalid"):
+        require_selected_runtime(runtime)
+    return require_selected_runtime(runtime, carrier=True)
+
+
 @pytest.mark.parametrize("producer", ["archive", "wheel", "diskutil", "hdiutil", "failed"])
 def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypatch, producer):
     """One source-bound workload covers archive and native-envelope success and refusal."""
@@ -502,10 +510,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
 
     def invoke(root, command, **options):
         calls.append(command)
-        assert (
-            require_selected_runtime(root / "ethos/runtime" / selected.digest).digest
-            == selected.digest
-        )
+        assert _archived(root, selected).digest == selected.digest
         assert 0 < options["timeout"] <= 180
         if command[-1] == "--help":
             return subprocess.CompletedProcess(command, int(producer == "hdiutil"))
@@ -553,10 +558,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     assert distribution.package_runtime(selected.root, wheel, destination) == result
     with tarfile.open(destination) as archive:
         archive.extractall(tmp_path / "relocated", filter="tar")
-    assert (
-        require_selected_runtime(tmp_path / "relocated/ethos/runtime" / selected.digest).digest
-        == selected.digest
-    )
+    assert _archived(tmp_path / "relocated", selected).digest == selected.digest
     assert (
         tmp_path / "relocated/ethos/packages" / selected.wheel_sha256 / wheel.name
     ).read_bytes() == wheel.read_bytes()

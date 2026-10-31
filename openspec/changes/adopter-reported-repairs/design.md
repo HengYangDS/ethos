@@ -54,11 +54,14 @@ paths, the files Git attributes mark vendored or generated.
    latest recorded publication of any ref selects the archived head. It needs no network, so a
    compensation still refuses or proceeds deterministically, and the next action names
    `ethos publish --retire` for the selecting ref while the Work Lane still retains the head.
-3. **Only proven byte-bound carriers leave the code ceiling.** The paradigm receives the paths that
-   the repository's validated carrier declarations select, and the code ceiling skips them as it
-   skips received paths. The declarations are read with the same validation the format gate uses,
-   including the proof-gate check of the validation owner; any invalid increment yields no exemption
-   and the format gate reports it. Names and every other obligation still apply.
+3. **A proven byte-bound carrier is received, like a vendored or generated file.** Its bytes and
+   name belong to the evidence that binds them, not to authoring here, so one classifier,
+   `paradigm_received_paths`, joins Git's vendored and generated paths with the paths that the
+   repository's validated carrier declarations select, and the paradigm report reads only that set:
+   the code ceiling does not measure them and their names keep their form. The declarations are read
+   with the validation the format gate uses, including the proof-gate check of the validation owner;
+   an invalid increment receives nothing and the format gate reports it. A separate carrier
+   parameter beside the received set was rejected as a second classification of the same fact.
 
 ## Risks / Trade-offs
 
@@ -68,5 +71,8 @@ paths, the files Git attributes mark vendored or generated.
   157-character root above, the deepest product modules exceed 259 characters, so such a host also
   needs long paths enabled, which Python honours; that is host configuration, not a product change.
 - A publication made outside ETHOS leaves no record, so the guard cannot see it.
+- Prewrite still admits a created path's name by Git attributes only: its hook-reachable code may
+  not load the gate policy. File classification has several readers today; one classifier for every
+  reader is design work outside this Change.
 - The product source budget had 62 effective lines of headroom before this Change; the additions
   stay within it or are offset in the same modules.

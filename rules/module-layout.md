@@ -223,6 +223,9 @@ _root`). That is compatibility residue — it exists only to preserve old
 The single effective-LOC ceiling for every code file is a repository paradigm
 value, enforced by the paradigm report in the repository audit, which names a breach
 the `code-size` obligation for every tracked file of a registered language.
+Received files are not measured: those that Git attributes mark vendored or
+generated, and the byte-bound carriers that format selection freezes under a
+proof gate.
 Roles describe ownership without granting capacity. Unavailable inventory or
 invalid syntax cannot certify a passing measurement.
 A breach requires semantic review, but only a distinct concept, invariant,

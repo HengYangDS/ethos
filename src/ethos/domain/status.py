@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.repository.audit as repository_audit_module
+from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
@@ -13,7 +14,6 @@ from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import tracked_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
-from ethos.adapters.repo.git_attributes import received_paths
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,7 +41,7 @@ def audit_for_root(
         tracked_documents=tuple(git_files(root, "*.md")),
         tracked_paths=tracked,
         retained_origins=observed_document_origins(root),
-        received_paths=received_paths(root, tracked),
+        received_paths=paradigm_received_paths(root, tracked),
         line_endings=checkout_line_endings(root, tracked),
     )
 

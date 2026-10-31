@@ -56,7 +56,7 @@ def _runtime_artifacts() -> tuple[str, str]:
     if Path(sys.prefix).name != "python" or runtime.parent.name != "runtime":
         return "", ""
     try:
-        selected = require_selected_runtime(runtime)
+        selected = require_selected_runtime(runtime, carrier=True)
     except (OSError, ValueError):
         return "", ""
     return selected.digest, selected.wheel_sha256

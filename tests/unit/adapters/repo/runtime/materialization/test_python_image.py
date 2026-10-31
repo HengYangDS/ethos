@@ -233,7 +233,8 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         wheel_sha256=file_sha256(wheel),
         dependency_lock_sha256=file_sha256(lock),
     )
-    monkeypatch.setattr(python_image, "require_selected_runtime", lambda _root: selected)
+    select = Mock(return_value=selected)
+    monkeypatch.setattr(python_image, "require_selected_runtime", select)
     monkeypatch.setattr(python_image, "console_script_entries", lambda _p: entries)
     before = _snapshot(home)
     facts = _facts(home)
@@ -283,6 +284,8 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
     if fault in {"none", "package"}:
         materialize(lock if fault == "none" else None)
         _assert_materialized_image(target, fault, project)
+        # Only the package path selects its invoking runtime, which a carrier may name by index.
+        assert select.call_args_list == [call(home.parent, carrier=True)] * (fault == "package")
     else:
         gap = {
             "supply": "dependency_supply_missing",

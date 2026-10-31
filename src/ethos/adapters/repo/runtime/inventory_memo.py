@@ -89,9 +89,13 @@ class InventoryMemo:
 
 
 def open_inventory_memo(root: Path) -> InventoryMemo | None:
-    """Open the memo of one digest-named payload root, or None where a memo cannot serve."""
+    """Open the memo of one runtime root, or None where a memo cannot serve.
+
+    A runtime root is named by its digest, or in a package carrier by the digest's 16-digit index.
+    """
     directory = _memo_directory()
-    if not _SUPPORTED or not _valid_digest(root.name) or directory is None:
+    name = root.name
+    if not _SUPPORTED or len(name) not in {16, 64} or set(name) - _HEX or directory is None:
         return None
     path = directory / f"{hashlib.sha256(os.fsencode(root)).hexdigest()[:32]}.json"
     recorded: dict[str, object] = {}

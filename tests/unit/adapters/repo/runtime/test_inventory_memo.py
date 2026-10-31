@@ -70,11 +70,15 @@ def _await_later_ctime(directory: Path, recorded: int) -> None:
 
 
 @pytest.mark.usefixtures("memo_directory")
+@pytest.mark.parametrize("name", [DIGEST, DIGEST[:16]])
 def test_repeated_inventory_of_an_unchanged_payload_hashes_no_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """A second selection of the same sealed payload reuses every recorded digest."""
-    runtime = _payload(tmp_path)
+    """A second selection of the same sealed payload reuses every recorded digest.
+
+    A package carrier may name the payload root by its digest's index instead of the digest.
+    """
+    runtime = _payload(tmp_path, name)
     hashes = _Hashes(monkeypatch)
 
     first = runtime_file_inventory(runtime)

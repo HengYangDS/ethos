@@ -174,6 +174,11 @@ def latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
 
     A deletion stays the latest publication of its ref, but its zero object selects no commit.
     """
+    return frozenset(desired for desired in published_refs(members).values() if desired.strip("0"))
+
+
+def published_refs(members: Sequence[Attestation]) -> dict[tuple[str, str], str]:
+    """The object of each declared peer's latest publication of each ref, keyed by peer and ref."""
     latest: dict[tuple[str, str], tuple[datetime, str]] = {}
     for member in members:
         if member.predicate != "publication:remote-effect":
@@ -187,7 +192,7 @@ def latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
                 desired = _text(update, "desired")
                 if desired and (key not in latest or latest[key][0] < member.issued_at):
                     latest[key] = (member.issued_at, desired)
-    return frozenset(desired for _issued, desired in latest.values() if desired.strip("0"))
+    return {key: desired for key, (_issued, desired) in latest.items()}
 
 
 def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:

@@ -140,12 +140,8 @@ def selected_runtime_path(common: Path) -> Path:
 
 def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
     """Encode one exact local or externally installed runtime without granting authority."""
-    if (
-        not runtime.is_absolute()
-        or runtime != runtime.resolve()
-        or not _valid_digest(runtime.name)
-        or any(character in runtime.as_posix() for character in ("\r", "\n", "\0"))
-    ):
+    _require_runtime_location(runtime)
+    if not _valid_digest(runtime.name):
         raise ValueError(_CURRENT_TARGET_INVALID)
     location = (
         "" if runtime.parent == common.resolve() / "ethos/runtime" else f"{runtime.as_posix()}\n"
@@ -277,17 +273,34 @@ def legacy_runtime_migration_source(common: Path) -> tuple[str, str] | None:
     return source if observed == files and valid_source else None
 
 
+def require_installed_runtime(
+    runtime: Path, *, expected_build: BuildIdentity | None = None
+) -> SelectedRuntime:
+    """Validate one explicitly named runtime, which a package carrier may name by its index.
+
+    Its path follows the selector's location rule, so the scope check judges where it really is.
+    """
+    _require_runtime_location(runtime)
+    return require_selected_runtime(runtime, carrier=True, expected_build=expected_build)
+
+
 def require_selected_runtime(
     runtime: Path,
     *,
+    carrier: bool = False,
     expected_root: Path | None = None,
     expected_build: BuildIdentity | None = None,
 ) -> SelectedRuntime:
-    """Validate one immutable package runtime and return its executable identity."""
-    digest = (expected_root or runtime).name
+    """Validate one immutable package runtime and return its executable identity.
+
+    Stores name a runtime by its digest. A package carrier may name it by the digest's first 16
+    hexadecimal digits, the index the host store also uses, which keeps a Windows interpreter path
+    short; the manifest's digest must begin with that index and is the identity returned.
+    """
+    name = (expected_root or runtime).name
     if (
-        not _valid_digest(digest)
-        or (expected_root is None and runtime.name != digest)
+        len(name) not in ({16, 64} if carrier else {64})
+        or set(name) - set("0123456789abcdef")
         or runtime.is_symlink()
         or not runtime.is_dir()
     ):
@@ -301,7 +314,7 @@ def require_selected_runtime(
         raise ValueError(_MANIFEST_INVALID) from error
     python = runtime_python(runtime / "python")
     if (
-        identity.digest != digest
+        not identity.digest.startswith(name)
         or identity.environment.platform != platform.system().lower()
         or identity.environment.architecture != canonical_architecture(process_machine())
         or (expected_build is not None and identity.build != expected_build)
@@ -312,7 +325,7 @@ def require_selected_runtime(
         raise ValueError(_PAYLOAD_MISMATCH)
     return SelectedRuntime(
         runtime,
-        digest,
+        identity.digest,
         python,
         manifest,
         identity.wheel_sha256,
@@ -398,6 +411,16 @@ def _require_release_runtime_closure_unique(
         ):
             message = "release_runtime_identity_conflict"
             raise ValueError(message)
+
+
+def _require_runtime_location(runtime: Path) -> None:
+    """Refuse a relative or redirected runtime path, or one that a selector line cannot hold."""
+    if (
+        not runtime.is_absolute()
+        or runtime != runtime.resolve()
+        or any(character in runtime.as_posix() for character in ("\r", "\n", "\0"))
+    ):
+        raise ValueError(_CURRENT_TARGET_INVALID)
 
 
 def _valid_digest(value: str) -> bool:

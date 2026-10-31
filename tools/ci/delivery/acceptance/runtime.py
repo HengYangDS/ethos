@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tools.ci.delivery.acceptance import adopter as adopter_fixture
@@ -297,7 +298,7 @@ def require_upgrade_predecessor(
     path: Path, *, build: BuildIdentity, common: Path
 ) -> SelectedRuntime:
     """Validate immutable prior bytes and destination scope before acceptance work."""
-    selected = require_selected_runtime(path)
+    selected = require_installed_runtime(path)
     if selected.build == build:
         message = "package_upgrade_predecessor_not_distinct"
         raise ValueError(message)

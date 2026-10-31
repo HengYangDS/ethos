@@ -63,17 +63,30 @@ def _pin(repo: Path, build: BuildIdentity, **options: Path) -> Path:
     )
 
 
+@pytest.mark.parametrize("name", ["digest", "index", "foreign index"])
 def test_explicit_installed_supply_is_pinned_before_repository_selection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """Removing the package carrier cannot delete a repository's selected bytes."""
+    """Removing the package carrier cannot delete a repository's selected bytes.
+
+    A carrier names its runtime by the digest or by the digest's index, and the store pins it by
+    the digest. An index that the manifest's digest does not begin with is refused before any pin.
+    """
     repo, selected, store = _host_case(tmp_path, monkeypatch)
-    package = tmp_path / "package"
-    shutil.copytree(Path(git_common_dir(repo)) / "ethos", package / "ethos", symlinks=True)
-    supplied = package / "ethos/runtime" / selected.digest
+    index = selected.digest[:16]
+    carrier = {"digest": selected.digest, "index": index}.get(name, f"{int(index, 16) ^ 1:016x}")
+    package = tmp_path / "package/ethos"
+    shutil.copytree(Path(git_common_dir(repo)) / "ethos/packages", package / "packages")
+    supplied = package / "runtime" / carrier
+    shutil.copytree(selected.root, supplied, symlinks=True)
+    if name == "foreign index":
+        with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+            _pin(repo, selected.build, installed_runtime=supplied)
+        assert not store.exists()
+        return
 
     pinned_python = _pin(repo, selected.build, installed_runtime=supplied)
-    installation = store / selected.digest[:16]
+    installation = store / index
     expected = installation / "runtime" / selected.digest
     assert pinned_python == expected / "python"
     assert {item.name for item in installation.iterdir()} == {

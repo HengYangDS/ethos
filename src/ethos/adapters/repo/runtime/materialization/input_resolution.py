@@ -231,4 +231,4 @@ def selected_runtime_source(source: Path) -> SelectedRuntime | None:
         return None
     if prefix.name != "python" or runtime.parent.name != "runtime":
         return None
-    return require_selected_runtime(runtime)
+    return require_selected_runtime(runtime, carrier=True)

@@ -16,6 +16,7 @@ from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.quality.format_selection import POLICY_PATH
 from ethos.repository.policy.quality.format_selection import audit
+from ethos.repository.policy.quality.format_selection import declared_paths
 from ethos.repository.policy.quality.format_selection import repository_carriers
 from ethos.repository.policy.quality.source_budget import policy_for_root
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.repository.policy.quality.format_selection import CarrierAudit
+    from ethos.repository.policy.quality.format_selection import OwnerDeclaration
 
 
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
@@ -138,14 +140,29 @@ def authored_text_report(root: Path, files: Sequence[str]) -> dict[str, object]:
 def format_ownership(root: Path, paths: tuple[str, ...]) -> CarrierAudit:
     """Join the shipped format ownership with the repository's byte-bound carriers once."""
     product = canonical_resource(POLICY_PATH.as_posix())
+    return audit(root, paths=paths, configuration=product, carriers=_carriers(root, product))
+
+
+def paradigm_received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
+    """Return the paths whose bytes and names are owned outside authoring here.
+
+    Git attributes mark vendored and generated paths, and the repository's verified byte-bound
+    carriers freeze theirs. An invalid carrier increment freezes nothing; its gate reports it.
+    """
+    try:
+        carriers = _carriers(root, canonical_resource(POLICY_PATH.as_posix()))
+    except (OSError, ValueError):
+        carriers = ()
+    return received_paths(root, paths) | declared_paths(paths, carriers)
+
+
+def _carriers(root: Path, product: Path) -> tuple[OwnerDeclaration, ...]:
+    """Read the repository's own byte-bound carriers, which the shipped policy never declares."""
     increment = root / POLICY_PATH
-    carriers = (
-        tuple(repository_carriers(root, gate_ids=_proof_gate_ids(root)))
-        if (increment.is_file() or increment.is_symlink())
-        and increment.resolve() != product.resolve()
-        else ()
-    )
-    return audit(root, paths=paths, configuration=product, carriers=carriers)
+    owned = increment.is_file() or increment.is_symlink()
+    if not owned or increment.resolve() == product.resolve():
+        return ()
+    return tuple(repository_carriers(root, gate_ids=_proof_gate_ids(root)))
 
 
 def _proof_gate_ids(root: Path) -> frozenset[str]:

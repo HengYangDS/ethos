@@ -15,24 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-def archive_projection_updates(
-    root: Path,
-    *,
-    source_head: str,
-    tree: str,
-    changed_paths: tuple[str, ...],
-    environment: Mapping[str, str] | None = None,
-) -> dict[str, bytes]:
-    """Derive only permitted reference relocation for the native archive."""
-    return archive_relocation(
-        root,
-        source_head=source_head,
-        tree=tree,
-        changed_paths=changed_paths,
-        environment=environment,
-    )[0]
-
-
 def archive_projection_scope(
     root: Path,
     *,

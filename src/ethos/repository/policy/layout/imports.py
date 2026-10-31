@@ -1,8 +1,10 @@
-"""Resolve concrete Python import targets and enforce semantic visibility."""
+"""Resolve concrete Python import targets to their defining owners and enforce visibility."""
 
 from __future__ import annotations
 
 import ast
+import symtable
+from contextlib import suppress
 from importlib.util import resolve_name
 from typing import TYPE_CHECKING
 from typing import Any
@@ -40,9 +42,9 @@ def private_import_findings(
     policy: dict[str, Any],
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
-    """Check module and symbol visibility for every governed Python consumer."""
+    """Check visibility and the defining owner of every governed Python import."""
     sources = semantic_python_files(root, policy, files=files)
-    modules = {module_name(root, path) for path in sources}
+    modules = {module_name(root, path): module_bindings(root, path)[1] for path in sources}
     findings: list[dict[str, object]] = []
     for path in sources:
         rel = path.relative_to(root).as_posix()
@@ -70,19 +72,41 @@ def private_import_findings(
                 violation = _private_boundary(target, package)
                 if not violation and consumer != target and _private_name(symbol):
                     violation = "symbol"
-                if violation:
+                owner = modules.get(target, {}).get(symbol)
+                if violation or owner:
+                    kind = "private_import" if violation else "indirect_import"
                     findings.append(
                         {
-                            "gap": f"module_layout_private_import:{rel}:{target}->{symbol}",
+                            "gap": f"module_layout_{kind}:{rel}:{target}->{symbol}",
                             "path": rel,
                             "line": node.lineno,
-                            "module": target,
+                            "module": target if violation else owner,
                             "name": symbol,
                             "consumer": consumer,
-                            "boundary": violation,
+                            "boundary": violation or "definition",
                         }
                     )
     return findings
+
+
+def module_bindings(root: Path, path: Path) -> tuple[frozenset[str], dict[str, str]]:
+    """Return a module's assigned names and the origin of each name it only imports."""
+    source = path.read_text(encoding="utf-8")
+    module = module_name(root, path)
+    package = module if path.name == "__init__.py" else module.rpartition(".")[0]
+    symbols = symtable.symtable(source, path.name, "exec").get_symbols()
+    defined = frozenset(symbol.get_name() for symbol in symbols if symbol.is_assigned())
+    origins: dict[str, str] = {}
+    for node in ast.walk(ast.parse(source, filename=path.name)):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                origin = alias.name if alias.asname else alias.name.split(".")[0]
+                origins[alias.asname or origin] = origin
+        elif isinstance(node, ast.ImportFrom):
+            with suppress(ImportError, ValueError):
+                origin = resolve_name("." * node.level + (node.module or ""), package)
+                origins |= {alias.asname or alias.name: origin for alias in node.names}
+    return defined, {name: origin for name, origin in origins.items() if name not in defined}
 
 
 def _private_name(name: str) -> bool:

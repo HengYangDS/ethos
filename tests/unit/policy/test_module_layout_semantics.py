@@ -286,6 +286,63 @@ def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize(
+    ("statement", "owner"),
+    [
+        ("from ethos.facade import Result", "ethos.api"),
+        ("from ethos.facade import codec", "json"),
+        ("from ethos.facade import VALUE", None),
+        ("from ethos.facade import Fallback", None),
+        ("from ethos.api import Result", None),
+        ("from ethos import facade", None),
+        ("from yaml import safe_load", None),
+    ],
+)
+def test_import_policy_names_the_defining_module_of_an_indirect_import(
+    tmp_path, statement, owner
+) -> None:
+    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
+    _write(
+        tmp_path,
+        "src/ethos/facade.py",
+        "import json as codec\nfrom ethos.api import Result\nfrom ...... import lost\n"
+        "try:\n    from ethos.api import Fallback\nexcept ImportError:\n    Fallback = None\n"
+        "VALUE = Result\n",
+    )
+    _write(tmp_path, "src/ethos/use.py", statement + "\n")
+
+    findings = layout_imports.private_import_findings(tmp_path, {"semantic_paths": ["src"]})
+
+    assert [item["module"] for item in findings if "indirect" in str(item["gap"])] == (
+        [owner] if owner else []
+    )
+
+
+@pytest.mark.parametrize(
+    ("statement", "gap"),
+    [
+        ("from ethos.api import Result as Stable", "import_rename:{}:ethos.api.Result->Stable"),
+        ("from ethos.facade import Result", "indirect_import:{}:ethos.facade->Result"),
+        ("from ethos.api import Result as Base\nclass Result(Base):\n    pass", ""),
+        ("from ethos.api import Result", ""),
+    ],
+)
+def test_public_layout_gate_refuses_renaming_aliases_and_indirect_imports(tmp_path, statement, gap):
+    """An import names a symbol canonically at its definer unless a collision needs `as`."""
+    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
+    _write(tmp_path, "src/ethos/facade.py", "from ethos.api import Result\n\nVALUE = Result\n")
+    _write(tmp_path, "src/ethos/use.py", statement + "\nprint('consumer')\n")
+
+    report = module_layout_report(tmp_path)
+
+    found = [*report["private_alias_findings"], *report["private_import_findings"]]
+    expected = [f"module_layout_{gap.format('src/ethos/use.py')}"] * bool(gap)
+    assert report["required_gaps"] == expected
+    assert [(item["path"], item["line"], item["module"]) for item in found] == [
+        ("src/ethos/use.py", 1, "ethos.api")
+    ] * bool(gap)
+
+
+@pytest.mark.parametrize(
     ("consumer", "statement", "blocked"),
     [
         ("src/ethos/other/use.py", "from ethos.owner._engine import run", True),

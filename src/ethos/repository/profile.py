@@ -235,10 +235,6 @@ class RepositoryProfileDeclaration(_ProfileModel):
     )
     adoption_boundary: AdoptionBoundaryPolicy = Field(default_factory=AdoptionBoundaryPolicy)
 
-    @classmethod
-    def bootstrap(cls, profile_id: str) -> RepositoryProfileDeclaration:
-        return cls(profile_id=profile_id)
-
 
 class RepositoryProfile(_ProfileModel):
     root: Path

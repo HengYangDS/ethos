@@ -14,7 +14,7 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_effect_attestation import declares_transition
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
-from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
+from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect

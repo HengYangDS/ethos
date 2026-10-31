@@ -39,18 +39,41 @@ def test_private_alias_audit_reports_direct_and_from_import_compatibility_aliase
     ]
 
 
-def test_private_alias_audit_allows_public_aliases_and_relative_imports_without_module(
+def test_private_alias_audit_allows_namespace_aliases_and_relative_imports_without_module(
     tmp_path: Path,
 ) -> None:
     carrier = _write(
         tmp_path,
         "src/ethos/consumer.py",
-        "import public_api as stable\n"
-        "from ethos.api import Result as StableResult\n"
-        "from . import sibling as _sibling\n",
+        "import public_api as stable\nfrom . import sibling as _sibling\n",
     )
 
     assert private_alias_findings(tmp_path, {"semantic_paths": ["src"]}, files=(carrier,)) == []
+
+
+@pytest.mark.parametrize(
+    ("source", "renamed"),
+    [
+        ("from ethos.api import Result as Stable\n", True),
+        ("from ethos.api import Result as Stable\ndef use(Result):\n    return Stable\n", True),
+        ("from yaml import loader as yaml_loader\n", True),
+        ("from ethos.api import Result as Stable\nclass Result(Stable):\n    pass\n", False),
+        ("from ethos.api import Result as Stable\nif FLAG:\n    from other import Result\n", False),
+        ("from ethos import api as owner\nfrom ethos.api import Result as Result\n", False),
+    ],
+)
+def test_alias_audit_reports_renames_that_no_collision_or_module_namespace_needs(
+    tmp_path: Path, source: str, *, renamed: bool
+) -> None:
+    """A from-import keeps the canonical name unless the module already binds that name."""
+    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
+    _write(tmp_path, "src/ethos/consumer.py", source)
+
+    findings = private_alias_findings(tmp_path, {"semantic_paths": ["src"]})
+
+    assert [item["gap"].split(":")[0] for item in findings] == (
+        ["module_layout_import_rename"] if renamed else []
+    )
 
 
 @pytest.mark.parametrize(

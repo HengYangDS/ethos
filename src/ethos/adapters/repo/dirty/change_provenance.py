@@ -29,7 +29,17 @@ _PORCELAIN_PATH_OFFSET = 3
 
 def dirty_content_sha256(root: Path) -> str:
     """Bind tracked and untracked working content without normalizing bytes."""
-    return _working_content_sha256(root, baseline="HEAD", drift_gap="dirty_content_snapshot_drift")
+    snapshot = _working_content_snapshot(root)
+    parts = _working_content_parts(root, *snapshot)
+    repeated = _working_content_snapshot(root)
+    if repeated != snapshot or parts != _working_content_parts(root, *repeated):
+        message = "dirty_content_snapshot_drift"
+        raise ValueError(message)
+    digest = hashlib.sha256()
+    for part in parts:
+        digest.update(len(part).to_bytes(8, "big"))
+        digest.update(part)
+    return digest.hexdigest()
 
 
 def index_content_sha256(root: Path) -> str:
@@ -54,24 +64,8 @@ def untracked_content_sha256(root: Path) -> str:
     return digest.hexdigest()
 
 
-def _working_content_sha256(root: Path, *, baseline: str | None, drift_gap: str) -> str:
-    first_patch, first_inventory = _working_content_snapshot(root, baseline=baseline)
-    first = _working_content_parts(root, first_patch, first_inventory)
-    second_patch, second_inventory = _working_content_snapshot(root, baseline=baseline)
-    if (first_patch, first_inventory) != (second_patch, second_inventory):
-        raise ValueError(drift_gap)
-    if first != _working_content_parts(root, second_patch, second_inventory):
-        raise ValueError(drift_gap)
-    digest = hashlib.sha256()
-    for part in first:
-        digest.update(len(part).to_bytes(8, "big"))
-        digest.update(part)
-    return digest.hexdigest()
-
-
-def _working_content_snapshot(root: Path, *, baseline: str | None) -> tuple[bytes, bytes]:
-    diff_args = ("diff", "--binary", *((baseline,) if baseline else ()), "--")
-    patch = run_git(root, *diff_args, text=False, observation=True).stdout
+def _working_content_snapshot(root: Path) -> tuple[bytes, bytes]:
+    patch = run_git(root, "diff", "--binary", "HEAD", "--", text=False, observation=True).stdout
     inventory = run_git(
         root,
         "ls-files",

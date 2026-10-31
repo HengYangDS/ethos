@@ -7,10 +7,10 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
+import hypothesis.strategies as st
 import pytest
 from hypothesis import given
 from hypothesis import settings
-from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from ethos.contracts.semantic import Attestation

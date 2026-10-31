@@ -150,7 +150,7 @@ def test_archive_reference_destinations_preserve_other_bytes(
                 "changed_paths": observed.changed_paths,
                 "environment": observed.environment,
             }
-            updates = projection.archive_projection_updates(root, **arguments)
+            updates = relocation.archive_relocation(root, **arguments)[0]
             assert projection.archive_projection_scope(root, **arguments, allow_pending=True) == (
                 tuple(updates),
                 tuple(updates),
@@ -277,7 +277,7 @@ def test_archive_selection_requires_one_original_document_owner(tmp_path: Path, 
         }
         if reason:
             with pytest.raises(ValueError, match=reason):
-                projection.archive_projection_updates(root, **arguments)
+                relocation.archive_relocation(root, **arguments)
         else:
-            assert projection.archive_projection_updates(root, **arguments) == {}
+            assert relocation.archive_relocation(root, **arguments)[0] == {}
     assert git(root, "rev-parse", "HEAD") == head

@@ -9,7 +9,6 @@ from typing import cast
 
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.mutation.proof_admission import proof_attestation
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
@@ -17,6 +16,7 @@ from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.proof.plan import proof_acceptance_purpose
@@ -120,7 +120,7 @@ def require_effect_proof(root: Path, plan: TransitionPlan) -> None:
         root,
         head,
         repository_transition=True,
-        store=proof_artifact_root(root),
+        store=local_state_root(root),
         attestation_id=proof.id,
         acceptance_purpose=purpose,
     )

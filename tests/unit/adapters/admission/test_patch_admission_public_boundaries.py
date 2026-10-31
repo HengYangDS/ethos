@@ -203,7 +203,7 @@ def test_native_proof_gate_owner_binds_immutable_document_admission(
     baseline = git(repo, "write-tree")
     # Mutable profile edits cannot create or withdraw baseline command ownership.
     binding.write_text(
-        render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-reference"))
+        render_repository_profile(RepositoryProfileDeclaration(profile_id="native-reference"))
         if owner != "undeclared"
         else render_repository_profile(
             RepositoryProfileDeclaration(profile_id="native-reference", proof=inline)

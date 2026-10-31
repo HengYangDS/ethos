@@ -22,8 +22,8 @@ from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import maintenance_release_fixture
 from tests.unit.cli.land.publication.support import publication_peers
+from tests.unit.cli.land.publication.support import release_cli
 from tests.unit.cli.land.test_release import native_failed_result
-from tests.unit.cli.land.test_release import release_cli
 
 
 @pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])

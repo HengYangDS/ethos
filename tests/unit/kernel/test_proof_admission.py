@@ -20,6 +20,7 @@ import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
@@ -399,7 +400,7 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
         proof_admission.proof_attestation,
         repo,
         head,
-        store=proof_module.proof_artifact_root(repo),
+        store=local_state_root(repo),
         repository_transition=True,
     )
     persist_proof_attestation(repo, first)
@@ -462,6 +463,6 @@ def test_proof_gaps_preserves_nonrepository_and_store_failure_distinction(
     if gap == "git_common_directory_unavailable":
         assert proof_gaps(tmp_path, "a" * 40) == ["attestation_set_repository_invalid"]
     else:
-        monkeypatch.setattr(proof_module, "proof_artifact_root", Mock(side_effect=ValueError(gap)))
+        monkeypatch.setattr(proof_module, "local_state_root", Mock(side_effect=ValueError(gap)))
         with pytest.raises(ValueError, match=gap):
             proof_gaps(tmp_path, "a" * 40)

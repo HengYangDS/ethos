@@ -9,7 +9,6 @@ from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.mutation.proof_admission import proof_attestation
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.commit.signature import validate_signature_result
@@ -18,6 +17,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -133,14 +133,14 @@ def candidate_destination_gaps(
         repo,
         update.desired,
         repository_transition=True,
-        store=proof_artifact_root(repo),
+        store=local_state_root(repo),
     )
     if gaps == ["proof_acceptance_purpose_mismatch"]:
         _proof, gaps = proof_attestation(
             repo,
             update.desired,
             repository_transition=True,
-            store=proof_artifact_root(repo),
+            store=local_state_root(repo),
             acceptance_purpose="local-source",
         )
     return gaps

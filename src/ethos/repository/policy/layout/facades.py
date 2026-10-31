@@ -6,6 +6,8 @@ import ast
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.policy.layout.imports import module_bindings
+from ethos.repository.policy.layout.policy import module_name
 from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
@@ -18,16 +20,20 @@ def private_alias_findings(
     policy: dict[str, Any],
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
-    """Find imports renamed to private compatibility aliases."""
+    """Find imports renamed to private aliases or away from their canonical names."""
+    sources = semantic_python_files(root, policy, files=files)
+    modules = {module_name(root, path) for path in sources}
     findings: list[dict[str, object]] = []
-    for path in semantic_python_files(root, policy, files=files):
+    for path in sources:
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+        defined, imported = module_bindings(root, path)
+        bound = {*defined, *imported}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 findings.extend(_import_private_aliases(rel, node.names))
             elif isinstance(node, ast.ImportFrom) and node.module:
-                findings.extend(_from_import_private_aliases(rel, node.module, node.names))
+                findings.extend(_from_import_aliases(rel, node, bound, modules))
     return findings
 
 
@@ -198,16 +204,31 @@ def _import_private_aliases(rel: str, aliases: list[ast.alias]) -> list[dict[str
     return findings
 
 
-def _from_import_private_aliases(
+def _from_import_aliases(
     rel: str,
-    module: str,
-    aliases: list[ast.alias],
+    node: ast.ImportFrom,
+    bound: set[str],
+    modules: set[str],
 ) -> list[dict[str, object]]:
+    """Admit a public rename only for a name the module binds or a module namespace."""
     findings: list[dict[str, object]] = []
-    for alias in aliases:
-        if not alias.asname or not alias.asname.startswith("_"):
+    for alias in node.names:
+        source = f"{node.module}.{alias.name}"
+        renamed = alias.asname not in {None, alias.name} and alias.name not in bound
+        if alias.asname and alias.asname.startswith("_"):
+            kind = "private_import_alias"
+        elif renamed and source not in modules:
+            kind = "import_rename"
+        else:
             continue
-        source = f"{module}.{alias.name}"
-        gap = f"module_layout_private_import_alias:{rel}:{source}->{alias.asname}"
-        findings.append({"gap": gap, "path": rel, "source": source, "alias": alias.asname})
+        findings.append(
+            {
+                "gap": f"module_layout_{kind}:{rel}:{source}->{alias.asname}",
+                "path": rel,
+                "line": node.lineno,
+                "module": node.module,
+                "source": source,
+                "alias": alias.asname,
+            }
+        )
     return findings

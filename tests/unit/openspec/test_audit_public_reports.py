@@ -171,7 +171,7 @@ def test_governed_branch_report_preserves_partial_knowledge_and_unique_intent(
             else active,
         ),
     }
-    report = audit.governed_branch_intent_report(
+    report = audit.compile_governed_branch_intent_report(
         tmp_path, current_branch=current, branch_observations=observations
     )
     records = (
@@ -250,7 +250,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
     }
     gaps = cast(
         "list[str]",
-        audit.openspec_shape_report(
+        audit.compile_openspec_shape_report(
             tmp_path,
             branch_intent=residue,
             spec_diff="",
@@ -269,7 +269,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
     (absent / "openspec/specs").write_text("not a directory", encoding="utf-8")
     absent_gaps = cast(
         "list[str]",
-        audit.openspec_shape_report(
+        audit.compile_openspec_shape_report(
             absent,
             branch_intent=residue,
             spec_diff="",
@@ -284,7 +284,7 @@ def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
     _write(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
     branch_intent = {"verdict": "pass", "advisory_gaps": [], "required_gaps": []}
 
-    report = audit.openspec_shape_report(
+    report = audit.compile_openspec_shape_report(
         tmp_path,
         branch_intent=branch_intent,
         spec_diff="",
@@ -301,7 +301,7 @@ def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
         (linked / "openspec/specs").symlink_to(existing, target_is_directory=True)
     except OSError:
         pytest.skip("directory symlinks unavailable")
-    linked_report = audit.openspec_shape_report(
+    linked_report = audit.compile_openspec_shape_report(
         linked,
         branch_intent=branch_intent,
         spec_diff="",

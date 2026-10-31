@@ -21,7 +21,7 @@ from ethos.adapters.store.custody import require_custody
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import validate_attestation_selector
 from ethos.result import EthosResult
-from ethos.surface.cli.application import app as root_app
+from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
@@ -31,7 +31,7 @@ _app = App(
     name="attestation",
     help="Record or query the sole Git-native Attestation set.",
 )
-root_app.command(_app)
+app.command(_app)
 
 
 def _input_attestation(path: Path) -> Attestation:

@@ -29,7 +29,7 @@ from ethos.adapters.openspec.template_conformance import STATUS_ALL
 from ethos.adapters.openspec.template_conformance import active_change_graphs
 from ethos.adapters.openspec.template_conformance import template_conformance_gaps
 from ethos.adapters.openspec.template_conformance import template_reads
-from ethos.adapters.repo.git import current_branch as git_current_branch
+from ethos.adapters.repo.git import current_branch
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
@@ -139,11 +139,7 @@ def _openspec_governance_report(
     base_command: tuple[str, ...] | None,
 ) -> dict[str, Any]:
     official_config = official_config_report(root)
-    current_branch = git_current_branch(root)
-    branch_intent = governed_branch_intent_report(
-        root,
-        current_branch=current_branch,
-    )
+    branch_intent = governed_branch_intent_report(root, current_branch=current_branch(root))
     advisory_gaps = [str(gap) for gap in cast("list[object]", branch_intent["advisory_gaps"])]
     scope_binding = lifecycle_report(
         root,

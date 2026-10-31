@@ -29,7 +29,6 @@ from ethos.repository.policy.boundary.catalog import PRIVATE_INFRA_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_REFERENCE_PATTERNS
 from ethos.repository.policy.boundary.catalog import SESSION_SURFACE_PATTERNS
 from ethos.repository.policy.surfaces import HISTORICAL_SURFACE_PREFIXES
-from ethos.repository.policy.surfaces import RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
 from ethos.repository.policy.surfaces import SKIPPED_PRODUCT_DIR_PARTS
 from ethos.repository.policy.surfaces import TEXT_FILENAMES
 from ethos.repository.policy.surfaces import TEXT_SUFFIXES
@@ -57,12 +56,12 @@ def _is_text_release_visible_historical_file(path: Path, *, root: Path) -> bool:
         return False
     if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name in TEXT_FILENAMES)):
         return False
-    return any(rel.startswith(prefix) for prefix in RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES)
+    return any(rel.startswith(prefix) for prefix in HISTORICAL_SURFACE_PREFIXES)
 
 
 def release_visible_historical_files(root: Path) -> list[Path]:
     files: list[Path] = []
-    for prefix in RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES:
+    for prefix in HISTORICAL_SURFACE_PREFIXES:
         base = root / prefix
         if base.is_file() and _is_text_release_visible_historical_file(base, root=root):
             files.append(base)
@@ -249,9 +248,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         "policy": {
             "product_surfaces": list(declared_product_surface_roots(root)),
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
-            "release_visible_historical_surface_prefixes": list(
-                RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
-            ),
+            "release_visible_historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
             "package_metadata_files": list(PACKAGE_METADATA_FILES),
             "distribution_manifest_files": list(DISTRIBUTION_MANIFEST_FILES),
             "distribution_boundary": (

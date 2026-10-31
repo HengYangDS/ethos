@@ -162,7 +162,7 @@ def git(root: Path, *args: str) -> str:
 
 def write_test_profile(root: Path, **updates: object) -> Path:
     """Write one strict profile fixture through the production declaration."""
-    payload = RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_dump(mode="python")
+    payload = RepositoryProfileDeclaration(profile_id=root.resolve().name).model_dump(mode="python")
     payload.update(updates)
     profile = root / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True, exist_ok=True)

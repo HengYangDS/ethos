@@ -14,7 +14,6 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_repo
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
-from ethos.adapters.openspec.archive_projection import archive_projection_updates
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.governance import openspec_validation_report
@@ -22,6 +21,7 @@ from ethos.adapters.openspec.lifecycle.archive_transition import archive_postima
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
 from ethos.adapters.openspec.lifecycle.validation import validation_issue_diagnostics
 from ethos.adapters.openspec.lifecycle.validation import validation_items
+from ethos.adapters.openspec.relocation import archive_relocation
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -276,7 +276,7 @@ def _complete_pending_archive_projection(
     """Capture derived preimages before completing the optional archive projection."""
     if not scope.get("pending_projection_paths"):
         return staged_tree
-    updates = archive_projection_updates(
+    updates, _preimages = archive_relocation(
         root,
         source_head=previous_head,
         tree=staged_tree,

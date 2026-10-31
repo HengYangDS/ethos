@@ -17,6 +17,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
+from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from tools.ci import dependency_audit as audit
 
 if TYPE_CHECKING:
@@ -154,5 +155,5 @@ def authorize_fixture(root: Path, **changes) -> None:
             continue
         text = value.isoformat() if isinstance(value, datetime) else json.dumps(value)
         rendered.append(f"{key} = {text}")
-    policy = root / audit.POLICY
+    policy = root / AUDIT_POLICY_PATH
     policy.write_text(policy.read_text().replace("dispositions = []\n", "") + "\n".join(rendered))

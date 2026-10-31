@@ -170,7 +170,7 @@ def test_declared_runners_own_only_their_forge_pipelines(
     git(repo, "init", "-b", "dev")
     files = {
         ".ethos/profile.toml": render_repository_profile(
-            RepositoryProfileDeclaration.bootstrap("adopter")
+            RepositoryProfileDeclaration(profile_id="adopter")
         ),
         ".ethos/release.toml": RELEASE,
         ".config/ci/runners.toml": runners,
@@ -260,7 +260,7 @@ def test_patch_admission_owns_glue_its_baseline_record_names(
     git(repo, "init", "-b", "dev")
     files = {
         ".ethos/profile.toml": render_repository_profile(
-            RepositoryProfileDeclaration.bootstrap("adopter")
+            RepositoryProfileDeclaration(profile_id="adopter")
         ),
         ".ethos/release.toml": RELEASE,
         RECORD: _retention(GLUE),

@@ -85,7 +85,7 @@ def _assert_invalid_profile(root: Path, text: str) -> None:
 
 
 def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> None:
-    declaration = RepositoryProfileDeclaration.bootstrap('sample<repo&"')
+    declaration = RepositoryProfileDeclaration(profile_id='sample<repo&"')
 
     rendered = render_repository_profile(declaration)
 

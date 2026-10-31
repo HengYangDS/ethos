@@ -18,6 +18,7 @@ import ethos.adapters.gates.verification as gate_verification
 import ethos.adapters.mutation.proof_artifacts as proof_artifacts
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.gates.verification import classify_action_result
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.surface.cli.proof.report import summarize_checks
@@ -183,7 +184,7 @@ def test_quality_tool_complete_streams_survive_native_proof_custody(
         "pass" if exit_code == 0 else "block",
         exit_code,
     )
-    store = proof_artifacts.proof_artifact_root(repo)
+    store = local_state_root(repo)
     assert not store.exists()
     check = {
         "action_id": "quality",

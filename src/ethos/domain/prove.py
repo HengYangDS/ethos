@@ -11,13 +11,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def command_data_validation(
-    repo: Path,
-    *,
-    schema_name: str,
-    payload: dict[str, object],
-) -> dict[str, object]:
-    """Validate a command's data payload against a named schema."""
+def workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
+    """Validate a workspace-status payload against its schema."""
+    schema_name = "workspace-status.schema.json"
     validation = validate_schema_instance(schema_name, payload, root=repo)
     return {
         "kind": "schema_validation",
@@ -26,13 +22,6 @@ def command_data_validation(
         "verdict": validation["verdict"],
         "required_gaps": list(cast("list[object]", validation["required_gaps"])),
     }
-
-
-def workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
-    """Validate a workspace-status payload against its schema."""
-    return command_data_validation(
-        repo, schema_name="workspace-status.schema.json", payload=payload
-    )
 
 
 def workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:

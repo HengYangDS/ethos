@@ -31,14 +31,14 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
-from ethos.surface.cli.application import app as root_app
+from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="hook", help="Hook admission and guard reports.", show=False)
-root_app.command(_app)
+app.command(_app)
 
 _LANE_PREWRITE_ACTION = "ethos lane prewrite <path>"
 _ADMISSION_OPTIONS = Group("Admission")

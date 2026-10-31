@@ -6,9 +6,9 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
+import hypothesis.strategies as st
 import pytest
 from hypothesis import given
-from hypothesis import strategies as st
 
 import ethos.contracts.artifacts.topology as topology_contract
 from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration

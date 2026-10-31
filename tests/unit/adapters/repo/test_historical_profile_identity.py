@@ -285,7 +285,7 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
     )
 
     def replay() -> None:
-        attest.validate(
+        attest.validate_git_effect_attestation(
             case.repo,
             value,
             record,
@@ -298,7 +298,9 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
         replay()
         _reject(
             "git_effect_attestation_content_mismatch",
-            lambda: attest.validate(case.repo, value, record, issuer=ISSUER, plan=carried),
+            lambda: attest.validate_git_effect_attestation(
+                case.repo, value, record, issuer=ISSUER, plan=carried
+            ),
         )
     else:
         _reject("git_effect_repository_identity_mismatch", replay)

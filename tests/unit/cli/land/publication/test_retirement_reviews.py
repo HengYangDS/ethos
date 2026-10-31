@@ -10,8 +10,8 @@ import pytest
 
 import ethos.adapters.mutation.publication.retirement as retirement
 from ethos.repository.release.publication import publication_topology
+from tests.support.governed_repository import git
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
-from tests.unit.cli.land.publication.support import git
 from tests.unit.cli.land.publication.test_retirement import retirement_fixture
 
 if TYPE_CHECKING:

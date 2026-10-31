@@ -15,8 +15,8 @@ import ethos.adapters.mutation.landing as landing
 import ethos.adapters.repo.dependency_acceptance as acceptance
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.mutation.proof_admission import proof_attestation
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
@@ -49,7 +49,7 @@ def _expired_recovery(work: Path, args: tuple[str, ...], proof: Attestation, mon
         selected, gaps = proof_attestation(
             work,
             proof.subject.removeprefix("git:commit:"),
-            store=proof_artifact_root(work),
+            store=local_state_root(work),
             attestation_id=proof.id,
             acceptance_purpose="local-source",
         )
@@ -231,7 +231,7 @@ def test_public_native_source_acceptance(
     selected, gaps = proof_attestation(
         work,
         head,
-        store=proof_artifact_root(work),
+        store=local_state_root(work),
         attestation_id=proof["id"],
         acceptance_purpose="local-source",
     )

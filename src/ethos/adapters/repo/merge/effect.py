@@ -17,7 +17,7 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effect_attestation import validate as validate_ref_attestation
+from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.merge.observation import MERGE_METADATA
@@ -203,7 +203,9 @@ def _recover_prepared(
         attestation = execute_git_effect(
             root, plan, issuer=str(plan.facts["values"]["lease_generation"]["holder_ref"])
         )
-        validate_ref_attestation(root, effect, attestation, issuer=attestation.verifier, plan=plan)
+        validate_git_effect_attestation(
+            root, effect, attestation, issuer=attestation.verifier, plan=plan
+        )
         recheck()
         _finish_metadata(root, cast("dict[str, object]", mutable_json(before)))
         result = {

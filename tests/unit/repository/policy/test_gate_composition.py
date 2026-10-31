@@ -13,7 +13,7 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import bind_gate_source_digests
-from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.quality.gate_composition import select_gate_declaration
 from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.sources import source_paths_for_gate

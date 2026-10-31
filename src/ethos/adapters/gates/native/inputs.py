@@ -11,7 +11,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import received_paths
-from ethos.repository.policy.gates import resolve_gate_declaration
+from ethos.repository.policy.gates import compile_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.quality.format_selection import POLICY_PATH
@@ -170,7 +170,7 @@ def _proof_gate_ids(root: Path) -> frozenset[str]:
     profile = load_repository_profile(root)
     registry = profile.declaration.proof.gate_registry if profile.declaration else None
     source = root / registry if registry else None
-    declaration, _profile = resolve_gate_declaration(
+    declaration, _profile = compile_gate_declaration(
         profile,
         gate_registry_source=source.read_bytes()
         if source is not None and source.is_file() and not source.is_symlink()

@@ -88,19 +88,27 @@ def docstring_issues(
     issues: list[DocstringStyleIssue] = []
     summary = docstring.strip().splitlines()[0].strip() if docstring.strip() else ""
     if not summary:
-        issues.append(issue(rel, qualified_name, line, "empty", "docstring must have a summary"))
+        issues.append(
+            DocstringStyleIssue(rel, qualified_name, line, "empty", "docstring must have a summary")
+        )
     elif summary.endswith(":"):
         issues.append(
-            issue(rel, qualified_name, line, "summary_colon", "summary must be a sentence")
+            DocstringStyleIssue(
+                rel, qualified_name, line, "summary_colon", "summary must be a sentence"
+            )
         )
     if weak_summary(summary):
-        issues.append(issue(rel, qualified_name, line, "weak_summary", "summary is too generic"))
+        issues.append(
+            DocstringStyleIssue(rel, qualified_name, line, "weak_summary", "summary is too generic")
+        )
     issues.extend(
-        issue(rel, qualified_name, line, "legacy_style", f"legacy docstring marker: {marker}")
+        DocstringStyleIssue(
+            rel, qualified_name, line, "legacy_style", f"legacy docstring marker: {marker}"
+        )
         for marker in legacy_docstring_markers(docstring)
     )
     issues.extend(
-        issue(
+        DocstringStyleIssue(
             rel,
             qualified_name,
             line,
@@ -129,7 +137,7 @@ def signature_issues(
     issues: list[DocstringStyleIssue] = []
     if missing:
         issues.append(
-            issue(
+            DocstringStyleIssue(
                 rel,
                 qualified_name,
                 node.lineno,
@@ -139,7 +147,7 @@ def signature_issues(
         )
     if extra:
         issues.append(
-            issue(
+            DocstringStyleIssue(
                 rel,
                 qualified_name,
                 node.lineno,
@@ -213,19 +221,3 @@ def legacy_docstring_markers(docstring: str) -> tuple[str, ...]:
 def weak_summary(summary: str) -> bool:
     normalized = summary.strip().rstrip(".").lower()
     return normalized in {"helper", "utility", "todo", "tbd"}
-
-
-def issue(
-    rel: str,
-    qualified_name: str,
-    line: int,
-    code: str,
-    message: str,
-) -> DocstringStyleIssue:
-    return DocstringStyleIssue(
-        path=rel,
-        qualified_name=qualified_name,
-        line=line,
-        code=code,
-        message=message,
-    )

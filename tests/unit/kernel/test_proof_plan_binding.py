@@ -20,9 +20,9 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
@@ -252,11 +252,11 @@ def test_proof_artifact_binding_drift_fails_closed(tmp_path: Path, case: str) ->
             body=valid.payload.body
             | {"artifact": descriptor | {"media_type": "text/plain", "extra": "unbound"}},
         )
-        assert artifact_checks(proof_artifact_root(repo), forged)[1] == [
+        assert artifact_checks(local_state_root(repo), forged)[1] == [
             "proof_attestation_artifact_binding_mismatch"
         ]
     else:
-        (proof_artifact_root(repo) / str(descriptor["path"])).write_text("tampered")
+        (local_state_root(repo) / str(descriptor["path"])).write_text("tampered")
         assert_selected_proof(repo, head, gap="proof_attestation_artifact_digest_mismatch")
 
 

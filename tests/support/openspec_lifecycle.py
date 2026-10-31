@@ -440,7 +440,7 @@ def stub_archive_public(
         "run_json",
         lambda *_args: result or official_archive_result(root),
     )
-    monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
+    monkeypatch.setattr(archive, "changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(

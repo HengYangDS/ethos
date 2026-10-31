@@ -259,7 +259,7 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     )
 
 
-def resolve_gate_declaration(
+def compile_gate_declaration(
     profile: RepositoryProfile | None,
     *,
     gate_registry_source: bytes | None = None,
@@ -327,7 +327,7 @@ def bind_gate_source_digests(
     return tuple(bound), tuple(dict.fromkeys(gaps))
 
 
-def resolve_gate_policy(
+def compile_gate_policy(
     *,
     profile: RepositoryProfile | None = None,
     gate_registry_source: bytes | None = None,
@@ -344,7 +344,7 @@ def resolve_gate_policy(
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
     selected_obligations = selected_obligations and bool(gate_ids) and not full
-    declaration, profile = resolve_gate_declaration(
+    declaration, profile = compile_gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
     )

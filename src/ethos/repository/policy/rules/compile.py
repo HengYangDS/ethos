@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.rules.config import configured_rules
 from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.rules.config import resolve_profile_stack
@@ -140,7 +140,7 @@ def _gate_policy(root: Path, *, gate_ids: tuple[str, ...]) -> ResolvedGatePolicy
                 registry_source = path.read_bytes()
         except (OSError, RuntimeError, ValueError):
             pass  # The native resolver rejects an unavailable declared registry.
-    return resolve_gate_policy(
+    return compile_gate_policy(
         profile=profile, gate_registry_source=registry_source, gate_ids=gate_ids
     )
 

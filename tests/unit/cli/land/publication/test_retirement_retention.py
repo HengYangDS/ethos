@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.publication.retirement as retirement
+from tests.support.governed_repository import git
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
-from tests.unit.cli.land.publication.support import git
 from tests.unit.cli.land.publication.support import proposal_ref
 from tests.unit.cli.land.publication.test_retirement import retirement_fixture
 

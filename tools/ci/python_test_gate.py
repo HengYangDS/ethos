@@ -24,7 +24,7 @@ from filelock import Timeout
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.repository.policy.quality_reports import junit_report
 from tools.ci import python_test_bytecode
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -246,7 +246,7 @@ class PythonTestGate:
 
     def render_report(self) -> Path:
         """Rebuild Allure 3 views from this exact test attempt without executing tests."""
-        remove_generated_path(self.allure_report)
+        remove_owned_path(self.allure_report)
         if self.allure_head.is_file() and self.allure_head.read_text().strip() != self.s.head:
             message = "allure_source_stale"
             raise RuntimeError(message)
@@ -276,10 +276,10 @@ class PythonTestGate:
         try:
             result = run_command(ROOT, command, timeout=180)
         except (OSError, ValueError):
-            remove_generated_path(self.allure_report)
+            remove_owned_path(self.allure_report)
             raise
         if result.returncode:
-            remove_generated_path(self.allure_report)
+            remove_owned_path(self.allure_report)
             message = f"allure_render_failed:{result.returncode}:{result.stderr[-500:]}"
             raise RuntimeError(message)
         try:
@@ -291,11 +291,11 @@ class PythonTestGate:
                 or run["summary"]["stats"]["total"] != total["total"]
                 or not (self.allure_report / "awesome/index.html").is_file()
             ):
-                remove_generated_path(self.allure_report)
+                remove_owned_path(self.allure_report)
                 message = "allure_report_incomplete"
                 raise RuntimeError(message)
         except (OSError, ValueError, KeyError, TypeError) as error:
-            remove_generated_path(self.allure_report)
+            remove_owned_path(self.allure_report)
             message = "allure_report_invalid"
             raise RuntimeError(message) from error
         self._stable_head()
@@ -347,7 +347,7 @@ class PythonTestGate:
 
     def _prepare(self) -> None:
         self._cleanup()
-        remove_generated_path(self.allure_report)
+        remove_owned_path(self.allure_report)
         for path in (self.coverage, self.pytest, self.s.basetemp):
             path.mkdir(parents=True, exist_ok=True)
         try:
@@ -366,9 +366,9 @@ class PythonTestGate:
             ROOT / "coverage.xml",
             ROOT / "junit.xml",
         ):
-            remove_generated_path(path)
+            remove_owned_path(path)
         if self.s.basetemp_owned:
-            remove_generated_path(self.s.basetemp)
+            remove_owned_path(self.s.basetemp)
 
     def _stable_head(self) -> None:
         if (current := _head()) != self.s.head:
@@ -452,7 +452,7 @@ class PythonTestGate:
             self.pytest,
             self.allure_results,
         ):
-            remove_generated_path(path)
+            remove_owned_path(path)
         self.pytest.mkdir(parents=True)
         self._allure_started = True
         self._run(
@@ -481,7 +481,7 @@ class PythonTestGate:
                 shard_dir,
                 self.allure_results,
             ):
-                remove_generated_path(path)
+                remove_owned_path(path)
             shard_dir.mkdir(parents=True)
             head.write_text(key + "\n", encoding="utf-8")
         nodeids_path = self.pytest / "nodeids.txt"
@@ -520,9 +520,9 @@ class PythonTestGate:
                 or marker.read_text(encoding="utf-8").strip() != key
                 or not any(allure_dir.glob("*-result.json"))
             ):
-                remove_generated_path(data)
-                remove_generated_path(marker)
-                remove_generated_path(allure_dir)
+                remove_owned_path(data)
+                remove_owned_path(marker)
+                remove_owned_path(allure_dir)
                 self._allure_started = True
                 self._run(
                     session,

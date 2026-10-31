@@ -102,7 +102,7 @@ def test_native_package_manager_alternatives_and_legacy_declaration() -> None:
 
 def test_valid_repository_binding_inherits_product_console_ownership() -> None:
     """Governed content consumes the product's console and runtime without a duplicate package."""
-    profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-docs"))
+    profile = render_repository_profile(RepositoryProfileDeclaration(profile_id="native-docs"))
     surfaces = tomllib.loads(canonical_resource("system/surfaces.toml").read_text(encoding="utf-8"))
 
     owned = native_owned_references_from_files({".ethos/profile.toml": profile})

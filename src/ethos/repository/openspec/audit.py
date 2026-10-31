@@ -57,7 +57,7 @@ def active_change_identifier_violations(openspec_root: Path) -> list[str]:
     ]
 
 
-def governed_branch_intent_report(
+def compile_governed_branch_intent_report(
     root: Path,
     *,
     current_branch: str,
@@ -258,7 +258,7 @@ def _valid_metadata(path: Path) -> bool:
         return False
 
 
-def openspec_shape_report(
+def compile_openspec_shape_report(
     root: Path,
     *,
     branch_intent: dict[str, object],

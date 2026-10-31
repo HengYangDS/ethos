@@ -11,8 +11,8 @@ from tempfile import TemporaryDirectory
 from typing import Any
 from typing import override
 
-from yamllint import config as yamllint_config
-from yamllint import linter as yamllint_linter
+import yamllint.config as yamllint_config
+import yamllint.linter as yamllint_linter
 
 from ethos.adapters.gates.formatting import source_format_report
 from ethos.adapters.gates.native.inputs import authored_source_files

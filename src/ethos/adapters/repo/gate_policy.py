@@ -19,8 +19,8 @@ from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
 from ethos.repository.policy.gates import ResolvedGatePolicy
-from ethos.repository.policy.gates import resolve_gate_declaration as compile_gate_declaration
-from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.gates import compile_gate_declaration
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.quality.sources import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.quality.sources import source_paths_for_gates
 from ethos.repository.profile import INVALID_PROFILE_ERROR

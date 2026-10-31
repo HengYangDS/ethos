@@ -29,7 +29,6 @@ from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 from tests.support.runtime_scenarios import runtime_executable
-from tools.ci.python_test_gate import remove_generated_path
 
 
 @pytest.mark.parametrize("source", ["current", "alternate", "package"])
@@ -101,7 +100,7 @@ def test_governance_fixture_reuses_owned_binary_but_not_environment(
     first.unlink()
     assert second.read_bytes() == original
     assert shared.stat().st_mode & 0o222 == 0
-    remove_generated_path(second.parent.parent)
+    runtime_filesystem.remove_owned_path(second.parent.parent)
     assert shared.read_bytes() == original
     assert shared.stat().st_mode & 0o222 == 0
     assert shared.stat().st_nlink == 1

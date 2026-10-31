@@ -220,7 +220,7 @@ def test_unresolved_npm_aggregate_identity_is_not_an_authorized_finding(
 def test_local_approval_cannot_replace_observation_and_valid_policy(repository, monkeypatch, fault):
     """Approved findings cannot cover another failure, source drift or an invalid expiry."""
     raw = npm_advisories(repository)
-    unapproved = (repository / audit.POLICY).read_bytes()
+    unapproved = (repository / AUDIT_POLICY_PATH).read_bytes()
     authorize_fixture(
         repository,
         **(
@@ -251,7 +251,7 @@ def test_local_approval_cannot_replace_observation_and_valid_policy(repository, 
 
         def revoke(data, **options):
             policy = validate(data, **options)
-            (repository / audit.POLICY).write_bytes(unapproved)
+            (repository / AUDIT_POLICY_PATH).write_bytes(unapproved)
             return policy
 
         monkeypatch.setattr(audit.AuditPolicy, "model_validate", revoke)

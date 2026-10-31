@@ -18,7 +18,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_list
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.release.resources import canonical_resource
 
@@ -41,10 +41,6 @@ class SchemaValidationReport(TypedDict):
     instances: dict[str, SchemaInstanceValidation]
 
 
-def _repo_root() -> Path:
-    return Path.cwd()
-
-
 def _schema_dir(root: Path) -> Path:
     return root / "system" / "schemas" / "kernel"
 
@@ -62,7 +58,7 @@ def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
 def schema_validation_report(
     root: Path | None = None, *, retained_origins: DocumentOrigins | None = None
 ) -> SchemaValidationReport:
-    repo = root or _repo_root()
+    repo = root or Path.cwd()
     gaps: list[str] = []
     schemas: dict[str, dict[str, str]] = {}
     local_schema_dir = _schema_dir(repo)
@@ -108,7 +104,7 @@ def validate_schema_instance(
     *,
     root: Path | None = None,
 ) -> SchemaInstanceValidation:
-    schema_root = root or _repo_root()
+    schema_root = root or Path.cwd()
     schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(payload), key=lambda item: item.json_path)
@@ -151,7 +147,7 @@ def _instance_validation_report(
             gate.to_dict(),
             root=root,
         )
-        for gate in resolve_gate_policy().registry.values()
+        for gate in compile_gate_policy().registry.values()
     ]
     gate_gaps = [
         gap

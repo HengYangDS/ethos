@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.content_addressed import write_content_addressed
-from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 
@@ -24,11 +23,6 @@ _ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
 _ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
 _CHECKS_REQUIRED = "proof_attestation_checks_required"
-
-
-def proof_artifact_root(root: Path) -> Path:
-    """Return the ignored root containing only digest-bound proof artifacts."""
-    return local_state_root(root)
 
 
 def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]:

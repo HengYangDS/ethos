@@ -49,7 +49,6 @@ HISTORICAL_SURFACE_PREFIXES = (
     "openspec/changes/archive/",
     "docs/history/",
 )
-RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES = HISTORICAL_SURFACE_PREFIXES
 SKIPPED_PRODUCT_DIR_PARTS = {
     ".git",
     ".mypy_cache",

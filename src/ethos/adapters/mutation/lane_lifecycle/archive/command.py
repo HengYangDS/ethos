@@ -21,7 +21,7 @@ from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
 from ethos.adapters.repo.commit.admission import commit_subject_gap
-from ethos.adapters.repo.dirty.change_provenance import changed_paths as dirty_changed_paths
+from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git_effects import compensate_git_worktree
@@ -395,7 +395,7 @@ def _apply_archive(
             **({"archive_collision": collision._asdict()} if collision else {}),
         )
     try:
-        normalize_projected_specs(repo, paths=dirty_changed_paths(repo))
+        normalize_projected_specs(repo, paths=changed_paths(repo))
         observed = archive_postimage(repo, head=head, change=change)
     except (OSError, TypeError, ValueError) as error:
         return archive_failure_report(

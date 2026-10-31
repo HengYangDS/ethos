@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from ethos.repository.policy.quality.dependency_acceptance import AuditSubject
 
 ROOT = Path(__file__).resolve().parents[2]
-POLICY = AUDIT_POLICY_PATH
 EVIDENCE = "build/evidence/quality/security"
 # npm never retries POST, so a dropped bulk advisory request is observed again here.
 _ATTEMPTS = 3
@@ -93,7 +92,7 @@ def _inputs(
             raise ValueError(message)
         data = (
             policy_bytes
-            if name == POLICY and policy_bytes is not None
+            if name == AUDIT_POLICY_PATH and policy_bytes is not None
             else (root / path).read_bytes()
         )
         hashes[name] = hashlib.sha256(data).hexdigest()
@@ -274,7 +273,7 @@ def _run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-re
     _write(summary, payload)
     try:
         requested_scope(("--scope", scope))
-        policy_bytes = (root / POLICY).read_bytes()
+        policy_bytes = (root / AUDIT_POLICY_PATH).read_bytes()
         policy = AuditPolicy.model_validate(tomllib.loads(policy_bytes.decode("utf-8")))
         timeout = policy.timeout_seconds
         head, before = current_tracked_head(root), _inputs(root, policy_bytes=policy_bytes)

@@ -37,14 +37,14 @@ from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
-from ethos.surface.cli.application import app as root_app
+from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
-root_app.command(lane_app)
+app.command(lane_app)
 
 
 class LaneCommandOptions(BaseModel):

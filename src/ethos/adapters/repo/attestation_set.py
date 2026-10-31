@@ -41,11 +41,6 @@ _MAX_CAS_ATTEMPTS = 16
 MEMBER_BYTES_LIMIT: Final = 1024 * 1024
 
 
-def _validated_member(raw: bytes) -> Attestation:
-    """Decode one selected member; its bytes arrive with every read."""
-    return Attestation.model_validate_json(raw)
-
-
 def _attestation_member_path(identity: str) -> str:
     return f"{_MEMBER_ROOT}/{identity[:2]}/{identity}.json"
 
@@ -161,7 +156,7 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(files, raw_members, strict=True):
         try:
-            attestation = _validated_member(raw)
+            attestation = Attestation.model_validate_json(raw)
         except ValueError as error:
             message = f"attestation_set_member_invalid:{path}"
             raise ValueError(message) from error

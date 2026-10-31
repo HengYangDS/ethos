@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.git import current_branch
@@ -24,6 +23,7 @@ from ethos.adapters.repo.profile import repository_identities
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.admission import RepositoryIdentityTransition
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
@@ -389,7 +389,7 @@ def _require_transition_proof(
     proof_plan = plan_from_statement(proof)
     head = str(proof_plan.facts.get("head") or "")
     generation = string_mapping(plan.facts.get("values")).get("lease_generation")
-    checks, gaps = artifact_checks(proof_artifact_root(root), proof)
+    checks, gaps = artifact_checks(local_state_root(root), proof)
     if (
         not proof.commitment_digest
         or not isinstance(generation, Mapping)

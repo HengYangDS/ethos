@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import ethos.domain.source_budget.measurement as source_budget
 from tests.support.governed_repository import git
-from tests.support.subprocesses import completed as cp
+from tests.support.subprocesses import completed
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -139,14 +139,14 @@ def fake_scc[Location: str | None](
     which = source_budget.shutil.which
 
     def payload() -> str:
-        completed = run(
+        listed = run(
             ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
             cwd=root,
             text=True,
             capture_output=True,
             check=True,
         )
-        paths: list[str | None] = [*completed.stdout.splitlines()]
+        paths: list[str | None] = [*listed.stdout.splitlines()]
         if not include_all:
             paths = list(expected)
         return json.dumps(
@@ -169,7 +169,7 @@ def fake_scc[Location: str | None](
     def dispatch(command, **kwargs):
         if command[0] == "/fake-scc":
             assert "--exclude-file=__never__" in command
-            return cp(stdout=payload(), command="scc")
+            return completed(stdout=payload(), command="scc")
         return run(command, **kwargs)
 
     monkeypatch.setattr(

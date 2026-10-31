@@ -96,7 +96,7 @@ def test_git_effect_attestation_binds_exact_plan_effect_and_observations(
     )
     git(repo, "update-ref", "refs/heads/dev", update.desired, update.expected)
 
-    attest.validate(repo, effect, record, issuer=ISSUER, plan=plan)
+    attest.validate_git_effect_attestation(repo, effect, record, issuer=ISSUER, plan=plan)
 
     assert attest.plan_from_attestation(record) == plan
     assert record.subject == f"git-effect:{effect.digest()}"
@@ -168,7 +168,7 @@ def test_git_effect_attestation_rejects_invalid_observation(tmp_path, monkeypatc
         monkeypatch.setattr(attest, "resolve_revisions", unavailable)
     git(repo, "update-ref", "refs/heads/dev", after["head"], before["head"])
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
-        attest.validate(repo, effect, record, issuer=ISSUER, plan=plan)
+        attest.validate_git_effect_attestation(repo, effect, record, issuer=ISSUER, plan=plan)
 
 
 @pytest.mark.parametrize("mode", ["plan", "statement"])

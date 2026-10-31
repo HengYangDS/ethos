@@ -15,7 +15,7 @@ from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
-from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.profile import ProofPolicy

@@ -12,7 +12,6 @@ import ethos.adapters.mutation.proof_admission
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
@@ -30,6 +29,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
@@ -141,7 +141,7 @@ def assert_proof_execution_source(
         return
     if not checks:
         raise ValueError(gap) from cause
-    artifact = write_proof_artifact(proof_artifact_root(root), head, checks)
+    artifact = write_proof_artifact(local_state_root(root), head, checks)
     raise ProcessExecutionError(
         gap,
         reason="execution_source_correspondence_failed",
@@ -239,7 +239,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if quality_gaps := policy.result_gaps(
         normalized, source_tree=str(plan.facts.get("tree") or "")
     ):
-        artifact = write_proof_artifact(proof_artifact_root(root), head, normalized)
+        artifact = write_proof_artifact(local_state_root(root), head, normalized)
         raise ProcessExecutionError(
             quality_gaps[0],
             reason="proof_quality_observation_failed",
@@ -253,7 +253,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if verdict == "pass" and (required_gaps or not checks_pass):
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)
-    artifact = write_proof_artifact(proof_artifact_root(root), head, normalized)
+    artifact = write_proof_artifact(local_state_root(root), head, normalized)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
@@ -314,7 +314,7 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
     ):
         msg = "proof_attestation_binding_missing"
         raise ValueError(msg)
-    checks, artifact_gaps = artifact_checks(proof_artifact_root(root), attestation)
+    checks, artifact_gaps = artifact_checks(local_state_root(root), attestation)
     gaps = artifact_gaps if checks is None else proof_statement_gaps(attestation, checks)
     structural_gaps = [
         gap
@@ -406,7 +406,7 @@ def proof_plan(
 def proof_attestation(root: Path, head: str) -> Attestation | None:
     """Return one resolved generic proof Attestation for one exact HEAD."""
     attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=proof_artifact_root(root)
+        root, head, store=local_state_root(root)
     )
     return attestation if not gaps else None
 
@@ -422,7 +422,7 @@ def proof_for_repository_transition(
         root,
         head,
         repository_transition=True,
-        store=proof_artifact_root(root),
+        store=local_state_root(root),
         attestation_id=attestation_id,
     )
 
@@ -436,7 +436,7 @@ def proof_gaps(
 ) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     try:
-        store = proof_artifact_root(root)
+        store = local_state_root(root)
     except ValueError as error:
         if str(error) == "git_common_directory_unavailable":
             return ["attestation_set_repository_invalid"]
@@ -461,7 +461,7 @@ def proof_admission_report(
         else ethos.adapters.mutation.proof_admission.proof_attestation(
             root,
             head,
-            store=proof_artifact_root(root),
+            store=local_state_root(root),
             attestation_id=attestation_id,
         )
     )

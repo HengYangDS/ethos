@@ -6,7 +6,6 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.start as lane_start
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
-from ethos.adapters.mutation.proof import proof_artifact_root
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
@@ -22,6 +21,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
@@ -425,7 +425,7 @@ def test_process_intent_carries_product_work_through_native_integration(
     assert query_proof(
         work,
         head,
-        store=proof_artifact_root(work),
+        store=local_state_root(work),
         attestation_id=other_id,
         change_id="second-local",
     ) == (None, ["proof_attestation_intent_mismatch"])

@@ -22,7 +22,7 @@ from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.docs.health import docs_health_report
-from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
+from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES
 from ethos.repository.release.configuration import release_role_policy_report
 
 if TYPE_CHECKING:
@@ -76,8 +76,6 @@ REQUIRED_SCHEMAS = (
     "workspace-status.schema.json",
     "host-capability.schema.json",
 )
-
-REQUIRED_RELEASE_FILES = PRODUCT_RELEASE_FILES
 
 REQUIRED_SKILL_FILES = (
     ".agents/skills/README.md",

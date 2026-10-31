@@ -8,10 +8,8 @@ from ethos.adapters.openspec.configuration import official_config_report
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import active_change_names_from_paths
-from ethos.repository.openspec.audit import (
-    governed_branch_intent_report as compile_branch_intent_report,
-)
-from ethos.repository.openspec.audit import openspec_shape_report as compile_openspec_shape_report
+from ethos.repository.openspec.audit import compile_governed_branch_intent_report
+from ethos.repository.openspec.audit import compile_openspec_shape_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,7 +39,7 @@ def governed_branch_intent_report(root: Path, *, current_branch: str) -> dict[st
         for branch in branches
         if branch and branch != current_branch
     }
-    return compile_branch_intent_report(
+    return compile_governed_branch_intent_report(
         root,
         current_branch=current_branch,
         branch_observations=observations,

@@ -11,8 +11,8 @@ import pytest
 
 import ethos.adapters.mutation.proof_artifacts as proof_artifacts
 from ethos.adapters.mutation.proof import persist_proof_attestation
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.store.state.schema import local_state_root
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import issue_conformant_proof
@@ -107,7 +107,7 @@ def test_public_proof_artifact_binding_fails_closed(
     raw_descriptor = record.payload.body["artifact"]
     assert isinstance(raw_descriptor, Mapping)
     descriptor = dict(raw_descriptor)
-    store = proof_artifact_root(candidate)
+    store = local_state_root(candidate)
     path = store / str(descriptor["path"])
 
     forged = record
@@ -144,7 +144,7 @@ def test_poisoned_local_attestation_copy_cannot_block_selected_set(
     _repo, candidate = start_adopted_candidate(tmp_path)
     head = git(candidate, "rev-parse", "HEAD")
     record = issue_conformant_proof(candidate, head)
-    poison = proof_artifact_root(candidate) / f"{record.id}.json"
+    poison = local_state_root(candidate) / f"{record.id}.json"
     poison.parent.mkdir(parents=True, exist_ok=True)
     poison.write_text("{}", encoding="utf-8")
 

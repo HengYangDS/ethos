@@ -20,7 +20,7 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.commit.signature import signature_coordinates
 from ethos.adapters.repo.commit.signature import signature_plan
-from ethos.adapters.repo.git_effect_attestation import issue as issue_git_effect
+from ethos.adapters.repo.git_effect_attestation import issue
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import canonical_json_digest
@@ -437,7 +437,7 @@ def test_completed_provenance_cannot_reissue_invented_source_coordinates(tmp_pat
         "head": new,
         "refs": dict.fromkeys(refs, new),
     }
-    observed = issue_git_effect(
+    observed = issue(
         effect,
         plan=plan,
         issuer=os.environ["ETHOS_ACTOR"],

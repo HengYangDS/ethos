@@ -58,8 +58,8 @@ def adoption_plan(
         else root.resolve().name
     )
     profile = render_repository_profile(
-        RepositoryProfileDeclaration.bootstrap(profile_id).model_copy(
-            update={"openspec": OpenSpecPolicy(material_paths=("**",))}
+        RepositoryProfileDeclaration(
+            profile_id=profile_id, openspec=OpenSpecPolicy(material_paths=("**",))
         )
     )
     openspec = str(configuration["default_content"])

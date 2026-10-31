@@ -18,10 +18,10 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.adapters.store.state.schema import local_state_root
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -151,7 +151,7 @@ def proof_repository(path: Path) -> tuple[Path, str]:
 
 
 def store_proof(root: Path, record: Attestation, *, selected: bool = True) -> None:
-    store = proof_artifact_root(root)
+    store = local_state_root(root)
     store.mkdir(parents=True, exist_ok=True)
     (store / f"{record.id}.json").write_text(record.canonical_json(), encoding="utf-8")
     if selected:

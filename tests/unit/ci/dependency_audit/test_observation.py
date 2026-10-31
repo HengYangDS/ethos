@@ -86,7 +86,7 @@ def test_invalid_policy_replaces_previous_success(repository, monkeypatch, fault
     """An invalid declaration cannot inherit an older clean receipt."""
     native_transport(monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem))
     assert invoke_audit(repository)["verdict"] == "pass"
-    policy = repository / audit.POLICY
+    policy = repository / AUDIT_POLICY_PATH
     if fault == "missing":
         policy.unlink()
     else:
@@ -153,7 +153,7 @@ def test_active_evidence_is_preserved_and_interruption_recovers(repository, monk
 
 
 @pytest.mark.parametrize(
-    "path", ["uv.lock", "package.json", audit.POLICY, "tools/ci/sessions.py", "python", "npm"]
+    "path", ["uv.lock", "package.json", AUDIT_POLICY_PATH, "tools/ci/sessions.py", "python", "npm"]
 )
 def test_native_input_drift_invalidates_result(repository, monkeypatch, path):
     """Root and local-workspace inputs belong to the same native freshness closure."""

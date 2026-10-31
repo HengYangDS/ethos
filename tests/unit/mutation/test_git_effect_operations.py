@@ -16,7 +16,7 @@ from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from tests.support.git_effect import fixture
-from tests.support.git_effect import plan as effect_plan
+from tests.support.git_effect import plan
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -339,7 +339,7 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
 ) -> None:
     case = fixture(tmp_path)
     repo, old, new, effect = case.repo, case.old, case.new, case.effect
-    plan = effect_plan(repo, effect)
+    transition = plan(repo, effect)
     observe = git_effects.observe_git_effect
     injected = False
 
@@ -356,7 +356,7 @@ def test_exact_ref_cas_compensates_a_failed_postcondition(
     monkeypatch.setattr(git_effects, "observe_git_effect", stale_once)
 
     with pytest.raises(ValueError, match="git_effect_postcondition_failed"):
-        git_effects.execute_git_effect(repo, plan, issuer="agent:test:case:one")
+        git_effects.execute_git_effect(repo, transition, issuer="agent:test:case:one")
 
     assert git(repo, "rev-parse", "dev") == old
     assert effect.updates["refs/heads/dev"].desired == new

@@ -19,7 +19,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
-from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
+from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import equivalent_commit_identity

@@ -19,7 +19,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import declares_transition
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
-from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
+from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Commitment

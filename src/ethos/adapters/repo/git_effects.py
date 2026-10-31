@@ -159,7 +159,7 @@ def execute_git_effect(
     )
     if attestation := next(iter(recorded), None):
         require_effect_proof(root, plan)
-        ethos.adapters.repo.git_effect_attestation.validate(
+        ethos.adapters.repo.git_effect_attestation.validate_git_effect_attestation(
             root, effect, attestation, issuer=issuer, plan=plan, environment=environment
         )
         require_lease_generation(

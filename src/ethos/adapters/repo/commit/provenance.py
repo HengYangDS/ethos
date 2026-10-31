@@ -12,7 +12,7 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_effect_attestation import compensated
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
-from ethos.adapters.repo.git_effect_attestation import validate
+from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import git_effect_from_plan
@@ -101,7 +101,7 @@ def _validated_acceptance(
         try:
             plan = plan_from_attestation(attestation)
             effect = git_effect_from_plan(plan)
-            validate(
+            validate_git_effect_attestation(
                 root,
                 effect,
                 attestation,
@@ -159,7 +159,7 @@ def lane_creation_boundary(root: Path, revision: str) -> str:
             continue
         plan = plan_from_attestation(record)
         effect = git_effect_from_plan(plan)
-        validate(
+        validate_git_effect_attestation(
             root, effect, record, issuer=record.verifier, plan=plan, current_postconditions=False
         )
         update = effect.updates.get(ref)

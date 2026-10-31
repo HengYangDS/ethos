@@ -306,8 +306,8 @@ def test_archive_projection_completion_rejects_drift_and_preserves_caller_bytes(
     )
     monkeypatch.setattr(
         archive_effect,
-        "archive_projection_updates",
-        lambda *_args, **_kwargs: {"projection.json": b"after"},
+        "archive_relocation",
+        lambda *_args, **_kwargs: ({"projection.json": b"after"}, {}),
     )
     monkeypatch.setattr(
         archive_effect,

@@ -11,7 +11,6 @@ import ethos.adapters.mutation.remediation.guidance as remediation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.mutation.proof_admission import proof_attestation
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.openspec.commitment import admissible_openspec_commitments
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import current_branch
@@ -27,6 +26,7 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.worktree_effects import sync_worktree
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
@@ -257,7 +257,7 @@ def _candidate_plan(
     proof, proof_required = proof_attestation(
         root,
         current_head,
-        store=proof_artifact_root(root),
+        store=local_state_root(root),
         acceptance_purpose=purpose,
     )
     if proof is None:

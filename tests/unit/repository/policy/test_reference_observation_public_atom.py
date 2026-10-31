@@ -11,7 +11,7 @@ import pytest
 import ethos.repository.policy.references.declarations as reference_declarations
 import ethos.repository.policy.references.markdown as reference_markdown
 from ethos.repository.policy.references.closure import repository_semantic_closure
-from ethos.repository.policy.references.observation import npm_script_commands
+from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files

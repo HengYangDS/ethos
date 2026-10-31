@@ -13,7 +13,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.repository.policy.gates import ResolvedGatePolicy
-from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration

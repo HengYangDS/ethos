@@ -10,7 +10,7 @@ import pytest
 import ethos.domain.source_budget.measurement as source_budget
 from tests.support.source_budget import budget_repository
 from tests.support.source_budget import write_budget_selection
-from tests.support.subprocesses import completed as cp
+from tests.support.subprocesses import completed
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -131,7 +131,7 @@ def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fau
         source_budget.subprocess,
         "run",
         lambda command, **kwargs: (
-            cp(
+            completed(
                 stdout=payload,
                 stderr="warn" if fault == "warning" else "",
                 returncode=2 if fault == "nonzero" else 0,

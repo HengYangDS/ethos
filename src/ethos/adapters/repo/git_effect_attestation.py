@@ -130,7 +130,7 @@ def issue(
     )
 
 
-def validate(
+def validate_git_effect_attestation(
     root: Path,
     effect: GitEffect,
     attestation: Attestation,
@@ -286,7 +286,7 @@ def compensated(
             if _observed_time(candidate, "before") < completed:
                 continue
             plan = plan_from_attestation(candidate)
-            validate(
+            validate_git_effect_attestation(
                 root,
                 git_effect_from_plan(plan),
                 candidate,
@@ -334,7 +334,7 @@ def validated_plan_attestation(
     if attestation.verifier != issuer:
         raise ValueError(_CONTENT_MISMATCH)
     plan = plan_from_attestation(attestation)
-    validate(
+    validate_git_effect_attestation(
         root,
         git_effect_from_plan(plan),
         attestation,
@@ -383,7 +383,7 @@ def recover_plan(
         try:
             plan = plan_from_attestation(attestation)
             effect = git_effect_from_plan(plan)
-            validate(
+            validate_git_effect_attestation(
                 root,
                 effect,
                 attestation,
@@ -418,7 +418,9 @@ def records(
             raise ValueError(message)
         return existing
     plan_from_attestation(record)
-    validate(root, effect, record, issuer=record.verifier, plan=plan, environment=environment)
+    validate_git_effect_attestation(
+        root, effect, record, issuer=record.verifier, plan=plan, environment=environment
+    )
     existing = _matching_plan_attestations(root, plan.digest)
     if existing:
         if existing[0].canonical_json() != record.canonical_json():

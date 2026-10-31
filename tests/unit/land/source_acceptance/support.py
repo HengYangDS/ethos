@@ -18,10 +18,10 @@ import tests
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
-from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.dependency_acceptance import product_audit_snapshot
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.semantic import Attestation
@@ -302,7 +302,7 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
     proof = Attestation.model_validate(proved["data"]["attestation"])
     assert proof.subject == f"git:commit:{head}"
     assert proof.payload.body["plan"]["policy"]["acceptance_purpose"] == "local-source"
-    store = proof_artifact_root(work)
+    store = local_state_root(work)
     checks, gaps = artifact_checks(store, proof)
     assert not gaps
     assert checks is not None

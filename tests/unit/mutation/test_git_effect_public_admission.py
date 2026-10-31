@@ -11,7 +11,7 @@ import ethos.adapters.repo.git_effect_admission as admission
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from tests.support.git_effect import fixture as effect_fixture
+from tests.support.git_effect import fixture
 from tests.support.git_effect import plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -134,7 +134,7 @@ def test_effect_identity_is_resolved_before_expensive_proof(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, identity_changed: bool
 ) -> None:
     """Reject known identity conflicts early while still requiring proof for valid state."""
-    case = effect_fixture(tmp_path)
+    case = fixture(tmp_path)
     if identity_changed:
         write_test_profile(case.repo, profile_id="different")
         git(case.repo, "add", ".ethos/profile.toml")

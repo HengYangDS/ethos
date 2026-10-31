@@ -12,6 +12,7 @@ import pytest
 
 import tools.ci.python_test_gate as python_test_gate
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.contracts.gates import GateRegistryDeclaration
 from tests.support.registries import repository_registry_path
 from tests.support.runtime_scenarios import empty_node_package_supply
@@ -378,12 +379,12 @@ def test_python_cleanup_changes_only_required_directory_permissions(
         return chmod(path, mode, **kwargs)
 
     monkeypatch.setattr(type(target), "chmod", observe)
-    python_test_gate.remove_generated_path(target)
+    remove_owned_path(target)
 
     assert not target.exists()
     if os.name == "posix":
         assert changed == ([] if mode == 0o755 else [runtime])
-    python_test_gate.remove_generated_path(target)
+    remove_owned_path(target)
 
 
 @pytest.mark.parametrize("relation", ["root-link", "nested-link", "hardlink"])
@@ -405,7 +406,7 @@ def test_python_cleanup_preserves_external_content_and_permissions(tmp_path, rel
     payload.chmod(0o444)
     before = payload.stat()
 
-    python_test_gate.remove_generated_path(target)
+    remove_owned_path(target)
 
     assert not target.exists()
     assert not target.is_symlink()
@@ -435,7 +436,6 @@ def test_python_attempt_revokes_previous_success_before_any_work(
     stale_results.mkdir(parents=True)
     (stale_results / "old-result.json").write_text("{}")
     gate.allure_head.write_text(gate.s.head + "\n")
-    remove = python_test_gate.remove_generated_path
 
     def execute(*_args, **_kwargs) -> None:
         assert not gate.head_file.exists()
@@ -452,9 +452,9 @@ def test_python_attempt_revokes_previous_success_before_any_work(
             if (failure == "prepare" and calls == 1) or (failure == "cleanup" and calls == 2):
                 message = f"{failure} failed"
                 raise RuntimeError(message)
-        remove(path)
+        remove_owned_path(path)
 
-    monkeypatch.setattr(python_test_gate, "remove_generated_path", clean)
+    monkeypatch.setattr(python_test_gate, "remove_owned_path", clean)
     with pytest.raises(KeyboardInterrupt if failure == "test" else RuntimeError):
         gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
 

@@ -13,7 +13,7 @@ from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import NativeOutput
 from ethos.repository.audit import REQUIRED_SCHEMAS
-from ethos.repository.policy.gates import resolve_gate_policy
+from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.schema import load_schema
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_schema_instance
@@ -52,7 +52,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert "evidence-boundaries.schema.json" in report["schemas"]
     assert "container-contract" not in report["schemas"]
     assert "container-contract" not in report["instances"]
-    profile = RepositoryProfileDeclaration.bootstrap("example").model_dump(mode="python")
+    profile = RepositoryProfileDeclaration(profile_id="example").model_dump(mode="python")
     profile["container_contract"] = {"schema_version": 1, "manifest": ".ethos/container.toml"}
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate(profile)
@@ -142,7 +142,7 @@ def test_result_payload_validates_native_governance_context(with_context) -> Non
 
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     """Validate the real descriptor plus the supported command-adapter variation."""
-    payload = resolve_gate_policy().registry["markdown-links"].to_dict()
+    payload = compile_gate_policy().registry["markdown-links"].to_dict()
     payload.pop("providers")
     payload.update(
         command=["lychee", "--offline", "docs"],
@@ -193,7 +193,7 @@ def test_native_gate_schema_preserves_runtime_selection(groups: tuple[str, ...])
 
 def test_common_gate_applicability_is_bound_in_native_schema_and_declaration() -> None:
     """The same shipped contract owns applicability, execution and proof membership."""
-    selected = resolve_gate_policy().registry["markdown-lint"]
+    selected = compile_gate_policy().registry["markdown-lint"]
     payload = selected.to_dict()
     assert payload["required_for_paths"] == ["*.md"]
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
@@ -209,7 +209,7 @@ def test_gate_schema_matches_declared_native_tools_contract() -> None:
         load_schema("gate.schema.json")["properties"]["tools"]
         == (Gate.model_json_schema()["properties"]["tools"])
     )
-    payload = resolve_gate_policy().registry["markdown-links"].to_dict()
+    payload = compile_gate_policy().registry["markdown-links"].to_dict()
     payload["tools"] = ["lychee"]
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
     payload["tools"] = ["lychee", "lychee"]

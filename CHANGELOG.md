@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.25] - 2026-11-01
+
+### Changed
+
+- The managed Ruff policy selects `unspecified-encoding` (`PLW1514`), a preview rule enabled by its
+  exact code, so a text read or write without an explicit encoding fails lint in ETHOS and in every
+  governed Python repository.
+
 ### Fixed
 
 - ETHOS decodes every command's text output and encodes its text input as UTF-8 whatever the host
@@ -19,11 +27,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   code page is 936, `ethos prove` stopped with "'gbk' codec can't decode byte 0x94" because Git's
   UTF-8 output was decoded with the locale. The Windows PowerShell observations write UTF-8 too.
 
-### Changed
+### Security
 
-- The managed Ruff policy selects `unspecified-encoding` (`PLW1514`), a preview rule enabled by its
-  exact code, so a text read or write without an explicit encoding fails lint in ETHOS and in every
-  governed Python repository.
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.24] - 2026-10-31
 

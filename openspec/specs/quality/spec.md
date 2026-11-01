@@ -2975,9 +2975,8 @@ the shipped probe fails ETHOS's own proof.
 
 The Python behavior probe SHALL run pytest with the repository's paradigm pytest carrier and the
 repository root as rootdir, and SHALL measure coverage with its paradigm coverage carrier, when the
-repository declares them. It SHALL bound the run by the gate's declared timeout, otherwise 600
-seconds. A repository without these carriers keeps pytest's native discovery and coverage of the
-whole tree.
+repository declares them. It SHALL run within its gate's deadline. A repository without these
+carriers keeps pytest's native discovery and coverage of the whole tree.
 
 #### Scenario: The paradigm carriers are declared
 
@@ -2998,7 +2997,8 @@ whole tree.
 
 - **WHEN** the gate that runs the probe declares `timeout_seconds` above 600
 - **THEN** that value bounds the pytest run
-- **AND** a gate that declares none keeps the 600-second bound
+- **AND** a gate that declares none runs within the repository's `timeout.gate_seconds`, 600 seconds
+  unless the binding declares another value
 
 ### Requirement: Probe reports belong to one attempt
 
@@ -3149,3 +3149,30 @@ function name. A refusal SHALL name the cases that differ.
 - **WHEN** one executed case has no Allure result
 - **THEN** admission refuses the results
 - **AND** the refusal names that case.
+
+### Requirement: Every gate runs under a recorded deadline
+
+Each gate SHALL run under a deadline: its declared `timeout_seconds`, which SHALL stay within the
+`timeout` group's bound, otherwise the repository's `timeout.gate_seconds`. A command inside a gate
+SHALL run within that deadline. A proof SHALL record each gate's effective timeout with its source,
+and every repository value looser than its default with the stated reason.
+
+#### Scenario: An undeclared gate runs too long
+
+- **WHEN** a gate without its own timeout runs longer than the repository's `timeout.gate_seconds`
+- **THEN** it fails as `gate_timeout` with the timeout, its source and the elapsed time.
+
+#### Scenario: A command inside a gate hangs
+
+- **WHEN** a command inside a gate does not finish
+- **THEN** the gate's deadline ends it, and the gate fails as `gate_timeout`.
+
+#### Scenario: A gate declares a timeout beyond the bound
+
+- **WHEN** a gate declares `timeout_seconds` above the `timeout.gate_seconds` bound
+- **THEN** the repository profile reports the gate, and no proof runs it.
+
+#### Scenario: A repository loosens a value
+
+- **WHEN** a binding declares a higher value with a reason
+- **THEN** the proof summary lists the parameter, its value, its default and the reason.

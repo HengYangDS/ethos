@@ -136,6 +136,7 @@ class DeliveryPipeline:
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
         # The platform cases run in one process, as they were verified; workers only add start-up.
+        # Every case reports, so one hosted run shows each of a platform's failures.
         session.run(
             str(self.runtime.python),
             "-m",
@@ -145,6 +146,7 @@ class DeliveryPipeline:
             str(self.runtime.root / ".config/checks/pytest/pytest.toml"),
             "-n",
             "0",
+            "--maxfail=0",
             *HOST_CASES,
         )
         self.build(session)

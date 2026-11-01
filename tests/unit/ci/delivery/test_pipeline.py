@@ -104,6 +104,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         str(ROOT / ".config/checks/pytest/pytest.toml"),
         "-n",
         "0",
+        "--maxfail=0",
         *pipeline.HOST_CASES,
     )
     delivery.prove_host(session)

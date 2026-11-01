@@ -130,13 +130,19 @@ def _security_descriptor(path: Path) -> tuple[str, tuple[AccessEntry, ...] | Non
 
 
 def _grant_exclusive(path: Path, grantees: tuple[str, ...]) -> None:
-    """Own a file as the first grantee and protect a DACL of full access for each grantee."""
+    """Own a path as the first grantee and protect a DACL of full access for each grantee.
+
+    Setting a directory's DACL makes Windows recompute the inherited entries of everything it
+    holds, so a directory's entries are inheritable: a file inside it keeps the access that lets
+    its owner protect it in turn, and a file created later starts protected.
+    """
     security = _security_api()
+    inherit = security.OBJECT_INHERIT_ACE | security.CONTAINER_INHERIT_ACE if path.is_dir() else 0
     try:
         sids = [security.ConvertStringSidToSid(grantee) for grantee in grantees]
         dacl = security.ACL()
         for sid in sids:
-            dacl.AddAccessAllowedAce(security.ACL_REVISION, _FILE_ALL_ACCESS, sid)
+            dacl.AddAccessAllowedAceEx(security.ACL_REVISION, inherit, _FILE_ALL_ACCESS, sid)
         security.SetNamedSecurityInfo(
             str(path),
             security.SE_FILE_OBJECT,

@@ -54,6 +54,11 @@ the stderr reader thread without a bound, as CPython's own `subprocess.run` does
   before, because they only remove authority. An entry type pywin32 cannot decode, such as a
   conditional callback entry, makes the observation unavailable; .NET silently skipped callback
   entries.
+- **A protected directory passes its entries on.** `SetNamedSecurityInfo` recomputes the inherited
+  entries of a directory's existing children when it sets the directory's DACL. Entries that only
+  the directory held left its file with an empty DACL, so the file's own protection, which takes its
+  owner, was refused (hosted run 41338070143, `winerror=5`). A directory's exclusive entries are
+  therefore object- and container-inheritable, and a file's are not.
 - **WMI on a bounded worker thread.** `win32com.client.GetObject("winmgmts:")` queries
   `Win32_Process.CommandLine` on a daemon thread that initializes COM for itself; the caller waits
   at most the existing 10 seconds. A query error or the bound is `hook_runtime_consumers_unknown`; a
@@ -73,7 +78,8 @@ the stderr reader thread without a bound, as CPython's own `subprocess.run` does
 - **Hosted Windows runs the cases.** The host proof ran one ACL case on Windows; every other Windows
   branch ran nowhere. Its selection is declared once, as `HOST_CASES` in
   `tools/ci/delivery/pipeline.py`, and adds the trust-anchor file, the timed-out command with a
-  descendant, WMI listing and the shared temporary root, so each Windows job proves them.
+  descendant, WMI listing and the shared temporary root, so each Windows job proves them. The cases
+  run without the stop after the first failure, so one hosted run reports each platform failure.
 - **Native test fixtures.** Windows-only tests plant a foreign writer with `icacls`, a native
   program that takes the path and grant as arguments and starts no shell.
 

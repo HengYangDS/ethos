@@ -4,7 +4,7 @@
 
 See [proposal.md](proposal.md). `locked_environment` builds a child `PATH` from the selected mise,
 `mise bin-paths` and the host command baseline, and nothing else from the caller's `PATH`
-(`src/ethos/adapters/toolchain/mise.py`). ETHOS's native supply downloads gitleaks, scc, syft, Vale
+(`src/ethos/adapters/toolchain/mise.py`). ETHOS's native supply downloads gitleaks, scc, Syft, Vale
 and CUE with an isolated mise and keeps the verified payload in its own cache (`materialize_tool`,
 `NativeSupply.cache`), so mise's installs never hold them. Before `test-runner-unification`, the
 test gate inherited the hosted proof's `PATH`, to which hosted verification prepends the prepared

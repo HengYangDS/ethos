@@ -7,7 +7,7 @@ on both peers, and the Windows host proof failed on every Windows job.
 
 - The shipped Python probe runs pytest in mise's locked environment, whose `PATH` lists only the
   tools mise itself installed: `mise bin-paths` omits a declared tool that it has not installed,
-  with no warning. Hosted verification prepares gitleaks, scc, syft and Vale through ETHOS's native
+  with no warning. Hosted verification prepares gitleaks, scc, Syft and Vale through ETHOS's native
   supply instead (`tools/ci/toolchain/native.py`), so the staged-secret hook cases found no gitleaks
   and failed with `staged_secret_gitleaks_missing` (GitHub runs 41287150978 and 41287323997, GitLab
   pipeline 13555). The requirement that hosted verification owns its native test prerequisites no

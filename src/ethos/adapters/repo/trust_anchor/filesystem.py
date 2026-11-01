@@ -4,16 +4,12 @@ from __future__ import annotations
 
 import os
 import stat
-import sys
+from importlib import import_module
 from typing import TYPE_CHECKING
-
-if sys.platform == "win32":
-    import pywintypes
-    import win32api
-    import win32security
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from types import ModuleType
 
 _SYSTEM_SID = "S-1-5-18"
 _ADMINISTRATORS_SID = "S-1-5-32-544"
@@ -79,32 +75,37 @@ def _posix_protected(path: Path) -> bool:
     return mode & 0o022 == 0
 
 
+def _security_api() -> ModuleType:
+    """Import pywin32's security module, which only Windows installs, when a call needs it."""
+    try:
+        return import_module("win32security")
+    except ImportError as error:
+        raise OSError(_API_MISSING) from error
+
+
 def _current_identity() -> str:
     """Return the string SID of the user this process runs as."""
-    if sys.platform != "win32":
-        raise OSError(_API_MISSING)
+    security = _security_api()
     try:
-        token = win32security.OpenProcessToken(
-            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY
-        )
-        user, _attributes = win32security.GetTokenInformation(token, win32security.TokenUser)
-        identity = win32security.ConvertSidToStringSid(user)
-    except pywintypes.error as error:
+        process = import_module("win32api").GetCurrentProcess()
+        token = security.OpenProcessToken(process, security.TOKEN_QUERY)
+        user, _attributes = security.GetTokenInformation(token, security.TokenUser)
+        identity = security.ConvertSidToStringSid(user)
+    except security.error as error:
         raise OSError(_native_failure(error)) from error
     return identity
 
 
 def _security_descriptor(path: Path) -> tuple[str, tuple[AccessEntry, ...] | None]:
     """Return a file's owner and DACL entries, or no entries for a null or absent DACL."""
-    if sys.platform != "win32":
-        raise OSError(_API_MISSING)
+    security = _security_api()
     try:
-        descriptor = win32security.GetNamedSecurityInfo(
+        descriptor = security.GetNamedSecurityInfo(
             str(path),
-            win32security.SE_FILE_OBJECT,
-            win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION,
+            security.SE_FILE_OBJECT,
+            security.OWNER_SECURITY_INFORMATION | security.DACL_SECURITY_INFORMATION,
         )
-        owner = win32security.ConvertSidToStringSid(descriptor.GetSecurityDescriptorOwner())
+        owner = security.ConvertSidToStringSid(descriptor.GetSecurityDescriptorOwner())
         dacl = descriptor.GetSecurityDescriptorDacl()
         # A plain entry is (header, mask, sid); an object entry holds two GUIDs before its SID.
         # pywin32 packs the mask as a signed 32-bit integer.
@@ -116,39 +117,38 @@ def _security_descriptor(path: Path) -> tuple[str, tuple[AccessEntry, ...] | Non
                     header[0],
                     header[1],
                     mask & 0xFFFFFFFF,
-                    win32security.ConvertSidToStringSid(rest[-1]),
+                    security.ConvertSidToStringSid(rest[-1]),
                 )
                 for header, mask, *rest in map(dacl.GetAce, range(dacl.GetAceCount()))
             )
         )
     except NotImplementedError as error:
         raise OSError(_UNSUPPORTED_ENTRY) from error
-    except pywintypes.error as error:
+    except security.error as error:
         raise OSError(_native_failure(error)) from error
     return owner, entries
 
 
 def _grant_exclusive(path: Path, grantees: tuple[str, ...]) -> None:
     """Own a file as the first grantee and protect a DACL of full access for each grantee."""
-    if sys.platform != "win32":
-        raise OSError(_API_MISSING)
+    security = _security_api()
     try:
-        sids = [win32security.ConvertStringSidToSid(grantee) for grantee in grantees]
-        dacl = win32security.ACL()
+        sids = [security.ConvertStringSidToSid(grantee) for grantee in grantees]
+        dacl = security.ACL()
         for sid in sids:
-            dacl.AddAccessAllowedAce(win32security.ACL_REVISION, _FILE_ALL_ACCESS, sid)
-        win32security.SetNamedSecurityInfo(
+            dacl.AddAccessAllowedAce(security.ACL_REVISION, _FILE_ALL_ACCESS, sid)
+        security.SetNamedSecurityInfo(
             str(path),
-            win32security.SE_FILE_OBJECT,
-            win32security.OWNER_SECURITY_INFORMATION
-            | win32security.DACL_SECURITY_INFORMATION
-            | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            security.SE_FILE_OBJECT,
+            security.OWNER_SECURITY_INFORMATION
+            | security.DACL_SECURITY_INFORMATION
+            | security.PROTECTED_DACL_SECURITY_INFORMATION,
             sids[0],
             None,
             dacl,
             None,
         )
-    except pywintypes.error as error:
+    except security.error as error:
         raise OSError(_native_failure(error)) from error
 
 

@@ -6,12 +6,12 @@ import os
 import shutil
 import signal
 import subprocess
-import sys
 from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
 from functools import partial
+from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Event
@@ -23,11 +23,6 @@ from time import monotonic
 from time import sleep
 from typing import TYPE_CHECKING
 from typing import Any
-
-if sys.platform == "win32":
-    import pythoncom
-    import pywintypes
-    import win32com.client
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -282,19 +277,20 @@ def windows_command_lines(*, timeout: float) -> tuple[str, ...]:
     complete = Event()
 
     def query() -> None:
-        if sys.platform != "win32":
-            return
-        pythoncom.CoInitialize()
+        # pywin32 is imported where it is used: only Windows installs it.
         try:
-            rows = win32com.client.GetObject("winmgmts:").ExecQuery(
-                "SELECT CommandLine FROM Win32_Process"
-            )
+            com, client = (import_module(name) for name in ("pythoncom", "win32com.client"))
+        except ImportError:
+            return
+        com.CoInitialize()
+        try:
+            rows = client.GetObject("winmgmts:").ExecQuery("SELECT CommandLine FROM Win32_Process")
             lines.extend(str(row.CommandLine) for row in rows if row.CommandLine)
             complete.set()
-        except pywintypes.com_error:
+        except com.com_error:
             return
         finally:
-            pythoncom.CoUninitialize()
+            com.CoUninitialize()
 
     worker = Thread(target=query, name="process-command-lines", daemon=True)
     worker.start()

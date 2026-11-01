@@ -111,6 +111,7 @@ def test_windows_protection_failure_keeps_the_native_reason(tmp_path, monkeypatc
         protect_for_current_identity(_anchor(tmp_path), platform_name="nt")
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
 def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
     anchor = _anchor(tmp_path)
 

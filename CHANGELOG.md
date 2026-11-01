@@ -12,7 +12,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
-## [0.2.0-alpha.26] - 2026-11-01
+## [0.2.0-alpha.26] - 2026-11-02
 
 ### Changed
 
@@ -63,9 +63,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   unknown with its bound and elapsed seconds instead of `gate_provider_error` (GitLab issue #2).
 - Hosted verification passes again on both peers: the Python test probe finds the native tools that
   ETHOS prepares outside mise, such as gitleaks for the staged-secret hook cases, after mise's own
-  installs and before the host baseline. The Windows host proof runs its four platform cases in one
-  process, the ACL case bounds its PowerShell call at 60 seconds, and pytest writes every thread's
-  stack at 540 seconds, before the 600-second bound ends a worker.
+  installs and before the host baseline. Report admission names each Allure result as allure-pytest
+  does, so a parametrized case whose id contains `::` no longer refuses the attempt, and pytest
+  writes every thread's stack at 540 seconds, before the 600-second bound ends a worker.
+- Windows trust anchors and process listing use the operating system's security API and WMI in
+  process through pywin32, which is now a direct Windows dependency, so ETHOS starts no PowerShell.
+  On Windows a command's stderr is captured in a file, as its stdout already was, so a timed-out
+  command no longer waits for a descendant that keeps its pipe open; every hosted Windows host
+  proof hung there (GitHub issue #25).
 
 ### Security
 

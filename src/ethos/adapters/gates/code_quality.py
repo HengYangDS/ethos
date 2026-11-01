@@ -327,10 +327,11 @@ def _python_observation(
     subjects: tuple[CodeSubject, ...],
     axis: str,
     execution: NativeExecution | None,
+    timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     """Bind a native Python result to the exact scope selected by the common classifier."""
     report = (
-        python_behavior_report(root, execution=execution)
+        python_behavior_report(root, execution=execution, timeout_seconds=timeout_seconds)
         if axis == "behavior"
         else python_static_report(root, execution=execution)
     )
@@ -414,7 +415,11 @@ def _report(
                     if subject.requires_authored_analysis
                 )
                 if language == "python":
-                    native.append(_python_observation(root, language_subjects, axis, execution))
+                    native.append(
+                        _python_observation(
+                            root, language_subjects, axis, execution, timeout_seconds
+                        )
+                    )
                 elif language == "go":
                     native.append(
                         _go_behavior(root, language_subjects, tool_environment)

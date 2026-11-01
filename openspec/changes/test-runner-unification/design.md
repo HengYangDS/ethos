@@ -140,8 +140,12 @@ carriers.
    teardown cannot skew it. `--max-worker-restart=0` stays the no-replay rule, and its regression is
    re-targeted.
 10. **`strict = true`.** pytest 9.2 enables `strict_config`, `strict_markers`, `strict_xfail` and
-    `strict_parametrization_ids` with it (`_pytest/main.py:94-117`). The suite has no `xfail`; any
-    duplicate parametrization id is renamed in task 2.2.
+    `strict_parametrization_ids` with it (`_pytest/main.py:94-117`). The suite has no `xfail`. Two
+    parametrizations relied on pytest's numbered `<lambda>` ids
+    (`test_mutable_or_interpreted_reads_are_observed_every_time` and
+    `test_relocated_tasks_still_refuse_body_and_task_changes`); they get explicit ids, so their 12
+    node identities change and task 5.6 maps them. Stable ids are what identity completeness and
+    selection by recorded facts key on.
 11. **Deletion follows disposition (V2).** Each removed case is superseded by a named case or
     rejected with its reason, in the table below.
 12. **Hosted verification consumes the probe's evidence.** Test and coverage figures come from the

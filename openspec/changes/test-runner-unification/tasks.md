@@ -2,33 +2,41 @@
 
 ## 1. Failing evidence first
 
-- [ ] 1.1 Add `tests/unit/gates/test_single_test_runner.py`: in the default and full proof sets the
-      behavior axis maps to one gate, a provider row of
-      `ethos.adapters.gates.python_quality:behavior_report`, and no Nox session that a selected gate
-      runs has a `-m pytest` argv. Done when it fails at the lane's base on `unit-architecture`
-      (`nox -s tests`) and on `architecture_projection` (`tools/ci/sessions.py:252-266`).
-- [ ] 1.2 Add probe cases to `tests/unit/adoption/quality/test_python_quality.py`: a fixture whose
-      `.config/checks/pytest/pytest.toml` collects only `check_*` functions, and one whose
-      `.config/checks/coverage/coverage.toml` declares `fail_under = 100` over a partly covered
-      module. Done when, against the current probe, the first blocks with no case collected and the
-      second passes, so both miss their new expectations.
-- [ ] 1.3 Add probe cases for the bound and the reports: `timeout_seconds=1200` reaches
-      `run_command` as 1200 and the default stays 600; with `ETHOS_NATIVE_OUTPUT_DIR` set, the
-      attempt's `pytest/junit.xml`, `pytest/events.jsonl` and `coverage/coverage.xml` appear there,
-      and without it nothing remains outside scratch; the fixture's sources gain no `__pycache__`.
-      Done when they fail against the current probe.
+- [x] 1.1 Add `tests/architecture/test_single_test_runner.py`: in the default and full proof sets
+      exactly one gate is a provider row of `ethos.adapters.gates.python_quality:behavior_report`,
+      and no selected gate command, Nox session it runs or module that session imports by name has a
+      `-m pytest` argv. Done when it fails at the lane's base on `unit-architecture`
+      (`nox -s tests`) and on `architecture_projection` (`tools/ci/sessions.py:252-266`). (At the
+      base both proof sets select no probe row, and the scan names `architecture-projection` and
+      `unit-architecture`.)
+- [x] 1.2 Add probe cases to `tests/unit/adoption/quality/test_python_native_configuration.py`: a
+      fixture whose `.config/checks/pytest/pytest.toml` collects only `check_*` functions, and one
+      whose `.config/checks/coverage/coverage.toml` declares `fail_under = 100` over a partly
+      covered module. Done when, against the current probe, the first blocks with no case collected
+      and the second passes, so both miss their new expectations. (Before the probe change the first
+      blocked with `quality_behavior_pytest_empty` and the second passed at 77.78 percent.)
+- [x] 1.3 Add probe cases for the bound and the reports in the same module: `timeout_seconds=1200`
+      reaches `run_command` as 1200 through both providers and the default stays 600; with
+      `ETHOS_NATIVE_OUTPUT_DIR` set, the attempt's `pytest/junit.xml`, `pytest/events.jsonl`,
+      `coverage/coverage.xml` and the results the suite wrote appear there, and without it nothing
+      remains outside scratch; the fixture's worktree gains no `__pycache__` or other untracked or
+      ignored path. Done when they fail against the current probe. (Before the probe change the
+      timeout cases failed with 600 and an unknown keyword, and the report cases blocked.)
 
 ## 2. The shipped probe applies native configuration
 
-- [ ] 2.1 Make the probe pass the paradigm pytest carrier with `--rootdir`, the coverage carrier
+- [x] 2.1 Make the probe pass the paradigm pytest carrier with `--rootdir`, the coverage carrier
       with a bare `--cov`, the gate's `timeout_seconds` (through `code_quality.py` as well), the
       attempt's report root as `ETHOS_NATIVE_OUTPUT_DIR`, the copy to the runner's native output
       root, `PYTHONPYCACHEPREFIX` under the scratch, and scratch removal through
-      `remove_owned_path`. Done when 1.2 and 1.3 pass and `tests/unit/adoption/quality` passes.
-- [ ] 2.2 Add `-n auto --maxprocesses=12 --dist=load --maxschedchunk=1 --durations=20` to
+      `remove_owned_path`. Done when 1.2 and 1.3 pass and `tests/unit/adoption/quality` passes. (The
+      eight probe cases pass, and 695 cases of the 27 modules that import either provider pass.)
+- [x] 2.2 Add `-n auto --maxprocesses=12 --dist=load --maxschedchunk=1 --durations=20` to
       `.config/checks/pytest/pytest.toml` and replace `--strict-config --strict-markers` with
       `strict = true`. Done when collection under the file reports no error, after renaming any
-      duplicate parametrization id, and `PYTEST_XDIST_AUTO_NUM_WORKERS=4` starts four workers.
+      duplicate parametrization id, and `PYTEST_XDIST_AUTO_NUM_WORKERS=4` starts four workers. (Two
+      duplicate-id parametrizations got explicit ids; 7,793 cases collected with no error; the
+      variable started `4/4 workers`.)
 - [ ] 2.3 After refreshing the lane onto the landed `probe-supply` binding, run ETHOS's suite once
       through the probe with `timeout_seconds=7200` (a direct provider call in the lane, not a
       proof) and record in design.md's Context each refusal and each test that needs an executable

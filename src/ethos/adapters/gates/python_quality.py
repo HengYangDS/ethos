@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tomllib
 from contextlib import ExitStack
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import mkdtemp
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -24,10 +25,12 @@ from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
+from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
 
 # The shared formatter width of governed repositories; isolation keeps it product-owned.
 _FLEET_LINE_LENGTH = 100
+# The test run's bound when its gate declares none.
+_DEFAULT_TIMEOUT_SECONDS = 600
 
 
 def _failure(axis: str, reason: str) -> dict[str, object]:
@@ -207,20 +212,38 @@ def _interpreter_pin(root: Path) -> tuple[str, ...]:
     return ("--python", sys.executable)
 
 
+def _native_configuration(root: Path) -> tuple[str, ...]:
+    """Apply the paradigm pytest and coverage carriers that the repository declares."""
+    tests, coverage = (root / NATIVE_TOOL_LOCATIONS[tool] for tool in ("pytest", "coverage"))
+    return (
+        *(("-c", str(tests), f"--rootdir={root}") if tests.is_file() else ()),
+        *(("--cov", f"--cov-config={coverage}") if coverage.is_file() else ("--cov=.",)),
+    )
+
+
 def _behavior_evidence(
-    root: Path, source: tuple[str, ...], tests: tuple[str, ...], bindable: tuple[str, ...]
+    root: Path,
+    output: Path,
+    source: tuple[str, ...],
+    tests: tuple[str, ...],
+    bindable: tuple[str, ...],
+    timeout_seconds: float | None,
 ) -> dict[str, object]:
-    """Observe one locked native test run and its fresh reports."""
-    with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
-        output = Path(temporary)
-        junit = output / "junit.xml"
-        events = output / "events.jsonl"
-        coverage = output / "coverage.xml"
+    """Run pytest once in its scratch, copy its reports to a named native root, judge its own."""
+    with ExitStack() as scope:
+        reports = output / "reports"
+        junit = reports / "pytest/junit.xml"
+        events = reports / "pytest/events.jsonl"
+        coverage = reports / "coverage/coverage.xml"
+        junit.parent.mkdir(parents=True)
+        coverage.parent.mkdir(parents=True)
         targets = tuple(sorted({path.partition("/")[0] for path in tests}))
         mise_files = repository_mise_files(root)
         environment = {
             "COVERAGE_FILE": str(output / ".coverage"),
             "UV_PROJECT_ENVIRONMENT": str(output / "venv"),
+            "ETHOS_NATIVE_OUTPUT_DIR": str(reports),
+            "PYTHONPYCACHEPREFIX": str(output / "pycache"),
         }
         if mise_files is not None:
             environment = {
@@ -250,7 +273,7 @@ def _behavior_evidence(
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
             f"--report-log={events}",
-            "--cov=.",
+            *_native_configuration(root),
             "--cov-branch",
             f"--cov-report=xml:{coverage}",
             *targets,
@@ -265,7 +288,7 @@ def _behavior_evidence(
         result = run_command(
             root,
             command,
-            timeout=600,
+            timeout=timeout_seconds or _DEFAULT_TIMEOUT_SECONDS,
             env=environment,
             remove_env=removed,
             remove_env_prefixes=("MISE_",),
@@ -284,6 +307,8 @@ def _behavior_evidence(
             )
         }
         try:
+            if native_root := os.environ.get("ETHOS_NATIVE_OUTPUT_DIR"):
+                shutil.copytree(reports, native_root, symlinks=True, dirs_exist_ok=True)
             missing = next(
                 (
                     name
@@ -327,8 +352,10 @@ def _behavior_evidence(
         return {**evidence, "verdict": "pass", "state": "verified", "required_gaps": []}
 
 
-def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
-    """Run locked pytest and verify fresh JUnit and source coverage evidence."""
+def behavior_report(
+    root: Path, *, execution: NativeExecution | None = None, timeout_seconds: float | None = None
+) -> dict[str, object]:
+    """Run locked pytest within its gate's bound; verify fresh JUnit and source coverage."""
     if execution is not None and execution.evidence is None:
         return {
             **_failure("behavior", "python_native_evidence_unavailable"),
@@ -342,7 +369,11 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
         source, tests = _behavior_scope(root, subjects)
         # Coverage may measure any committed Python subject; only product source owes coverage.
         bindable = tuple(subject.path for subject in subjects)
-        evidence = _behavior_evidence(root, source, tests, bindable)
+        output = Path(mkdtemp(prefix="ethos-python-quality-"))
+        try:
+            evidence = _behavior_evidence(root, output, source, tests, bindable, timeout_seconds)
+        finally:
+            remove_owned_path(output)
         observe_quality_subjects(root, language="python", expected_tree=tree)
     except ProcessExecutionError as error:
         return {**evidence, **_failure("behavior", error.code), "diagnostics": [error.evidence()]}

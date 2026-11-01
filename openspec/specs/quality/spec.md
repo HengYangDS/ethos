@@ -1974,11 +1974,10 @@ drift SHALL block expensive work; the same owner SHALL check post-execution drif
 
 ### Requirement: Hosted supply preparation precedes expensive verification
 
-Hosted verification SHALL prepare its declared scanner, budget and SBOM supply
-through the existing supply owners before starting proof. Preparation failure
-SHALL preserve native diagnostics and exit status, invalidate previous attempt
-reports, and produce a failed hosted observation without executing proof.
-Package execution SHALL still validate supply in its own current environment.
+Hosted verification SHALL prepare its declared scanner, budget and SBOM supply through the existing
+supply owners before starting proof. Preparation failure SHALL preserve native diagnostics and exit
+status, invalidate previous attempt reports, and produce a failed hosted observation without
+executing proof. Package execution SHALL still validate supply in its own current environment.
 
 #### Scenario: A declared tool cannot be prepared
 
@@ -1998,17 +1997,28 @@ Package execution SHALL still validate supply in its own current environment.
 
 - **WHEN** a new GitLab checkout begins on a cold ARM64 runner
 - **THEN** its image is selected by published OCI digest, not a mutable tag or local cache hit
-- **AND** the image's input hashes match the checkout's Python and Node locks before provisioning or proof
+- **AND** the image's input hashes match the checkout's Python and Node locks before provisioning or
+  proof
 - **AND** APT, PyPI and npm registry access are not required by the quality job
 - **AND** missing or mismatched supply fails before any quality result is issued
+
+#### Scenario: A Change alters a supply input
+
+- **WHEN** a lane changes a file that the supply image's input manifest hashes, such as `uv.lock`
+- **THEN** the lane binds an image built from its own proposal commit before it lands
+- **AND** GitLab verifies the landed head with that image instead of refusing it
 
 #### Scenario: One selected Forge remains executable without its peer
 
 - **GIVEN** two selected Forges project the same exact source and required CI graph
-- **WHEN** one Forge's registry and release endpoints are unavailable and the other's runner has no local image or tool cache
-- **THEN** the available Forge executes every required job from its own verified supply or independent sources
-- **AND** the selected source, supply materials and resulting evidence remain bound to that Forge's run
-- **AND** missing bytes or a peer-dependent fetch blocks before proof rather than accepting a warm-cache or other-Forge result
+- **WHEN** one Forge's registry and release endpoints are unavailable and the other's runner has no
+  local image or tool cache
+- **THEN** the available Forge executes every required job from its own verified supply or
+  independent sources
+- **AND** the selected source, supply materials and resulting evidence remain bound to that Forge's
+  run
+- **AND** missing bytes or a peer-dependent fetch blocks before proof rather than accepting a
+  warm-cache or other-Forge result
 
 #### Scenario: Unqualified image is not published
 
@@ -2110,11 +2120,10 @@ request or require repeating execution.
 
 ### Requirement: Interrupted commands retain effect and process ownership boundaries
 
-A synchronous command interrupted while its caller remains alive SHALL stop its
-owned descendants before reporting completed cleanup. The original failure and
-available output SHALL remain observable. Process-group control SHALL identify
-its platform and containment limits; it SHALL NOT imply recovery after loss of
-the supervisor or containment of deliberately detached processes.
+A synchronous command interrupted while its caller remains alive SHALL stop its owned descendants
+before reporting completed cleanup. The original failure and available output SHALL remain
+observable. Process-group control SHALL identify its platform and containment limits; it SHALL NOT
+imply recovery after loss of the supervisor or containment of deliberately detached processes.
 
 #### Scenario: POSIX command timeout or caller cancellation
 
@@ -2123,6 +2132,13 @@ the supervisor or containment of deliberately detached processes.
 - **THEN** the group is terminated without signalling the caller's group
 - **AND** inherited output pipes do not leave the descendant running
 - **AND** the original exception and captured timeout output remain available
+
+#### Scenario: Windows command timeout with a descendant holding its output
+
+- **WHEN** a Windows command times out while a descendant it started keeps its output open
+- **THEN** the command ends and its caller returns within the cleanup bound
+- **AND** the output the command wrote before it ended remains available
+- **AND** the descendant is outside containment, which the result does not report as stopped
 
 #### Scenario: Native executable verification times out
 
@@ -2538,10 +2554,10 @@ committed execution SHALL retain its independent source-correspondence check.
 
 ### Requirement: Native tool supply has one declaration and bounded bootstrap
 
-Development and CI SHALL consume the same mise tool selections and platform
-locks. Ecosystem dependency locks SHALL remain with their package managers.
-Observation SHALL NOT install tools. Provisioning SHALL preserve current
-executables on failure, retain native diagnostics, and remove owned scratch.
+Development and CI SHALL consume the same mise tool selections and platform locks. Ecosystem
+dependency locks SHALL remain with their package managers. Observation SHALL NOT install tools.
+Provisioning SHALL preserve current executables on failure, retain native diagnostics, and remove
+owned scratch.
 
 #### Scenario: A clean runner has no mise installation
 
@@ -2549,7 +2565,8 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 - **THEN** the version-bound official installer runs in owned staged storage with a deadline
 - **AND** only a successfully verified executable is published
 - **AND** preparation of locked gate tools completes before gate execution
-- **AND** every same-invocation consumer uses that exact prepared executable without rediscovering PATH or an obsolete cache directory
+- **AND** every same-invocation consumer uses that exact prepared executable without rediscovering
+  PATH or an obsolete cache directory
 
 #### Scenario: Operator-managed mise is newer than the declared minimum
 
@@ -2560,8 +2577,9 @@ executables on failure, retain native diagnostics, and remove owned scratch.
 
 #### Scenario: Native Windows observation inherits another PowerShell's modules
 
-- **WHEN** ACL or process observation starts native Windows PowerShell through an intermediate process
-- **THEN** its child environment excludes the inherited module search path
+- **WHEN** ACL or process observation runs on Windows under an intermediate process that exports
+  another PowerShell edition's module path
+- **THEN** it starts no PowerShell child
 - **AND** the parent environment, native error and timeout boundaries remain intact
 
 #### Scenario: Native preparation fails or is interrupted

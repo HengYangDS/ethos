@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.26] - 2026-11-01
+
 ### Changed
 
 - ETHOS proves its Python suite through the behavior probe it ships: `unit-architecture` is a
@@ -64,6 +66,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   installs and before the host baseline. The Windows host proof runs its four platform cases in one
   process, the ACL case bounds its PowerShell call at 60 seconds, and pytest writes every thread's
   stack at 540 seconds, before the 600-second bound ends a worker.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.25] - 2026-11-01
 

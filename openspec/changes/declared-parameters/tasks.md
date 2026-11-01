@@ -13,7 +13,7 @@
 
 ## 2. Timeouts
 
-- [ ] 2.1 Give every gate a deadline from its own `timeout_seconds` or `timeout.gate_seconds`, hold
+- [x] 2.1 Give every gate a deadline from its own `timeout_seconds` or `timeout.gate_seconds`, hold
       a declared value to the bound, and declare `local-install-smoke`'s. Done when an undeclared
       gate stops at the repository's value, a gate above the bound is a profile gap, and the full
       proof passes.

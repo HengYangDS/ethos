@@ -12,6 +12,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The locked supply moves to the latest stable releases of cachetools 7.2.8, filelock 4.2.6,
+  nodeenv 1.12.0, platformdirs 4.14.2 and python-multipart 0.0.33; npm and Mise report nothing newer
+  within ETHOS's constraints.
+
 ## [0.2.0-alpha.25] - 2026-11-01
 
 ### Changed

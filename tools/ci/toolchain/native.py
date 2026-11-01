@@ -212,18 +212,19 @@ def require_cached_mise_tools(root: Path, mise: Path, declared: tuple[str, ...] 
 def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
     """Prepare declared tools online or verify the image's existing supply.
 
-    Shared quality checks resolve a declared Node through mise; the Node that
-    `materialize_tool` places in the tool cache serves the product runtime and npm.
+    Shared quality checks resolve a declared Node through mise, and the shipped Python probe a
+    declared Python and uv; the Node that `materialize_tool` places in the tool cache serves the
+    product runtime and npm.
     """
     go_version = declared_go_version(root)
     tools = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8")).get("tools", {})
-    node = ("node",) if "node" in tools else ()
+    declared = tuple(name for name in ("node", "python", "uv") if name in tools)
     if native_supply_is_offline():
-        require_cached_mise_tools(root, mise, node)
+        require_cached_mise_tools(root, mise, declared)
     else:
         result = run_mise(
             root,
-            ("install", "--locked", "cue", "github:rhysd/actionlint", *node)
+            ("install", "--locked", "cue", "github:rhysd/actionlint", *declared)
             + (("go",) if go_version is not None else ()),
             executable=mise,
             timeout=300,

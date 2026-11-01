@@ -449,3 +449,32 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     assert (captured.err == "") is accepted
     assert target.read_bytes() == (body.encode() if accepted else before)
     assert not list(target.parent.glob(".bootstrap-*"))
+
+
+@pytest.mark.parametrize("offline", [False, True])
+def test_mise_supply_prepares_every_declared_interpreter_tool(tmp_path, monkeypatch, offline):
+    """Node, Python and uv are installed online and required offline when Mise declares them."""
+    write_reference_source(
+        tmp_path,
+        native.MISE_CONFIG,
+        '[tools]\ncue = "0.17.1"\nnode = "26.13.0"\npython = "3.14.10"\nuv = "0.13.6"\n',
+    )
+    executable = tmp_path / "tool"
+    executable.write_text("", encoding="utf-8")
+    calls: list[tuple[str, ...]] = []
+
+    def mise(_root: Path, arguments: tuple[str, ...], **_options: object) -> object:
+        calls.append(arguments)
+        found = f"{executable}\n" if arguments[0] == "which" else ""
+        return native.subprocess.CompletedProcess(arguments, 0, found, "")
+
+    monkeypatch.setattr(native, "run_mise", mise)
+    monkeypatch.setattr(native, "native_supply_is_offline", lambda: offline)
+    monkeypatch.setattr(native, "materialize_tool", lambda *_args, **_options: tmp_path)
+    native.mise_tool_paths(tmp_path, tmp_path / "mise")
+    declared = ("node", "python", "uv")
+    assert calls == (
+        [("which", name) for name in ("cue", "actionlint", *declared)]
+        if offline
+        else [("install", "--locked", "cue", "github:rhysd/actionlint", *declared)]
+    )

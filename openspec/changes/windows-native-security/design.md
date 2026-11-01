@@ -80,8 +80,11 @@ the stderr reader thread without a bound, as CPython's own `subprocess.run` does
   `tools/ci/delivery/pipeline.py`, and adds the trust-anchor file, the timed-out command with a
   descendant, WMI listing and the shared temporary root, so each Windows job proves them. The cases
   run without the stop after the first failure, so one hosted run reports each platform failure.
-- **Native test fixtures.** Windows-only tests plant a foreign writer with `icacls`, a native
-  program that takes the path and grant as arguments and starts no shell.
+- **Native test fixtures.** Windows-only tests plant a foreign writer natively and start no shell:
+  `icacls` grants a builtin group on the shared temporary root, and the trust-anchor case adds its
+  entry through the security API, because `icacls` maps every grantee to an account and refuses an
+  unmapped SID with error 1332 (hosted run 41341527693), while the trust decision reads SIDs, not
+  names.
 
 ## Risks / Trade-offs
 

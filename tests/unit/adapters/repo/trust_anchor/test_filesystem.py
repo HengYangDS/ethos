@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +15,9 @@ from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_iden
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from ethos.adapters.repo.trust_anchor.verification import trust_anchor
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _CURRENT = "S-1-5-21-1000"
 _FULL = 0x1F01FF
@@ -130,6 +133,7 @@ def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
 def test_windows_native_acl_protection_rejects_foreign_writer(
     tmp_path: Path, foreign_sid: str
 ) -> None:
+    """A builtin group's or an unmapped account's write entry makes a protected anchor untrusted."""
     anchor = _anchor(tmp_path)
     protect_for_current_identity(anchor.parent)
     protect_for_current_identity(anchor)
@@ -142,9 +146,17 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
         assert provider.returncode == 0, provider.stderr
         assert protected_from_untrusted_write(anchor)
 
-    icacls = Path(os.environ["SYSTEMROOT"]) / "System32/icacls.exe"
-    grant = (str(icacls), str(anchor), "/grant", f"*{foreign_sid}:W")
-    run_command(anchor.parent, grant, check=True, timeout=60)
+    # icacls maps every grantee to an account and refuses an unmapped SID (error 1332), so the
+    # writer is added through the security API, which takes the SID itself.
+    security = pytest.importorskip("win32security")
+    selected = security.DACL_SECURITY_INFORMATION
+    descriptor = security.GetNamedSecurityInfo(str(anchor), security.SE_FILE_OBJECT, selected)
+    dacl = descriptor.GetSecurityDescriptorDacl()
+    writer = security.ConvertStringSidToSid(foreign_sid)
+    dacl.AddAccessAllowedAce(security.ACL_REVISION, 0x2, writer)
+    security.SetNamedSecurityInfo(
+        str(anchor), security.SE_FILE_OBJECT, selected, None, None, dacl, None
+    )
 
     with patch.dict(os.environ, isolated, clear=True):
         assert not protected_from_untrusted_write(anchor)

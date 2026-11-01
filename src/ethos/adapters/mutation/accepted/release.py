@@ -393,7 +393,7 @@ def promote_release(
         if apply and authorized and (tag or previous != head):
             lock_path = selection.stored.parent / ".lock"
             lock_path.parent.mkdir(parents=True, exist_ok=True)
-            lock = FileLock(lock_path, timeout=0, mode=0o600, preserve_lock_file=True)
+            lock = FileLock(lock_path, mode=0o600, blocking=False, preserve_lock_file=True)
         with lock:
             plan = _existing_plan(selection)
             accepted, proof, observed, paths, version, preview = _observe(

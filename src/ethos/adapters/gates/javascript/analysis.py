@@ -106,7 +106,6 @@ def static_observation(
             str(Path(__file__).with_suffix(".mjs")),
             str(supply / "package.json"),
         ),
-        timeout=60,
         stdin=json.dumps(entries),
         remove_env=("NODE_OPTIONS", "NODE_PATH"),
         env=native,

@@ -15,6 +15,7 @@ from ethos.adapters.repo.runtime.materialization.native_supply import resolve_na
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import locked_tool
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.projections import projection_input_bindings
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
@@ -43,7 +44,7 @@ def compile_projections(
     }
     source = files[compiler["source"]]
     common, selected, version = _compiler_supply(root, declaration, compiler, files, executable)
-    observed = run_command(root, (str(selected), "version"), timeout=10, check=True)
+    observed = run_command(root, (str(selected), "version"), timeout=seconds("probe"), check=True)
     if not observed.stdout.startswith(f"cue version v{version}\n"):
         message = "cue_version_mismatch"
         raise ValueError(message)
@@ -55,7 +56,7 @@ def compile_projections(
                 isolated,
                 (str(selected), "fmt", "-"),
                 stdin=source,
-                timeout=30,
+                timeout=seconds("tool"),
                 env={"CUE_REGISTRY": "none", "CUE_EXPERIMENT": "", "CUE_DEBUG": ""},
             )
             if formatted.returncode or formatted.stdout != source:
@@ -137,7 +138,7 @@ def _export(executable: Path, root: Path, source: str, *, common: str = "") -> d
             root,
             (str(executable), "export", *sources, "-e", "compiled", "--out", "json"),
             stdin=source,
-            timeout=30,
+            timeout=seconds("tool"),
             env={"CUE_REGISTRY": "none", "CUE_EXPERIMENT": "", "CUE_DEBUG": ""},
         )
     except (OSError, subprocess.SubprocessError) as error:

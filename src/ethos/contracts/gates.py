@@ -29,6 +29,7 @@ _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 _GATE_RESOURCES_INVALID = "gate resources invalid"
 _GATE_TOOLS_INVALID = "gate tools invalid"
+_GATE_TIMEOUT_ABOVE_BOUND = "gate timeout above the timeout.gate_seconds bound"
 _RESOURCE_NAME = re.compile(r"^(?:\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$")
 
 
@@ -232,6 +233,14 @@ class Gate(BaseModel):
         known = {tool.id for tool in load_repository_paradigm().tool}
         if len(set(self.tools)) != len(self.tools) or not set(self.tools) <= known:
             raise ValueError(_GATE_TOOLS_INVALID)
+        return self
+
+    @model_validator(mode="after")
+    def validate_timeout(self) -> Self:
+        """Hold a declared timeout within the bound of the paradigm's gate parameter."""
+        bound = load_repository_paradigm().parameter_row("timeout", "gate_seconds").bound
+        if self.timeout_seconds is not None and self.timeout_seconds > bound:
+            raise ValueError(_GATE_TIMEOUT_ABOVE_BOUND)
         return self
 
     def conflicts_with(self, other: Self) -> bool:

@@ -37,6 +37,7 @@ from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import active_resolution
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -145,6 +146,8 @@ def _gate_progress(
             exit_code=result.exit_code,
             started_after_seconds=result.started_after_seconds,
             duration_seconds=result.duration_seconds,
+            timeout_seconds=result.timeout_seconds,
+            timeout_source=result.timeout_source,
             diagnostics=list(result.diagnostics),
         )
         if result.verdict != "pass":
@@ -440,6 +443,7 @@ def prove(
         "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
         "artifact_reference": dict(artifact) if isinstance(artifact, Mapping) else {},
         "checks": check_summaries,
+        "parameter_deviations": list(active_resolution().deviations),
         "expected_head": {
             "expected": options.expect_head or "",
             "current": current_head,

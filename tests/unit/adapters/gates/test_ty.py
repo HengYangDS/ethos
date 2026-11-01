@@ -104,7 +104,7 @@ def test_ty_gate_classifies_tool_and_diagnostic_outcomes(
         assert "--frozen" in command
         assert "--offline" in command
         assert "--no-sync" in command
-        assert kwargs["timeout"] == 120
+        assert "timeout" not in kwargs  # the gate deadline bounds it
         if isinstance(output, Exception):
             raise output
         return subprocess.CompletedProcess(command, exit_code, output, "informational output")

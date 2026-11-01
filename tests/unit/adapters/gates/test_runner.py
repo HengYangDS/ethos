@@ -17,6 +17,7 @@ import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.gates.verification as gate_verification
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
+from ethos.repository.paradigm.parameters import repository_parameters
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
@@ -483,26 +484,32 @@ def test_provider_only_runner_transports_explicit_candidate_context(
     assert observed == [(tmp_path, candidate)]
 
 
-@pytest.mark.parametrize("fault", ["timeout", "failure"])
+@pytest.mark.parametrize("fault", ["gate", "repository", "failure"])
 def test_a_provider_keeps_its_native_outcome(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
-    """An expired provider deadline is unknown with its bound; a failed command keeps its output."""
+    """An expired deadline is unknown with its bound and source; a failure keeps its output."""
 
     def report(_root: Path, *, timeout_seconds: float | None = None) -> dict[str, object]:
-        if fault == "timeout":
+        if fault != "failure":
             raise subprocess.TimeoutExpired(("pytest",), timeout_seconds or 0, output=b"partial")
         raise subprocess.CalledProcessError(2, ("ruff", "check"), "o" * 2140, "e" * 2140)
 
-    providers = {"providers": ("ethos.test:report",)}
-    gate = Gate.model_validate({"id": "bounded", "kind": "test", "timeout_seconds": 5, **providers})
-    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+    declared = {} if fault == "repository" else {"timeout_seconds": 5}
+    providers = {"providers": ("ethos.test:report",), **declared}
+    gate = Gate.model_validate({"id": "bounded", "kind": "test", **providers})
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos/rules.toml").write_text("[paradigm.timeout]\ngate_seconds = 5\n")
+    with repository_parameters(tmp_path):
+        result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+        source = gate_runner.gate_timeout(gate)
     (diagnostic,) = result.diagnostics
-    if fault == "timeout":
-        assert (result.verdict, diagnostic["kind"], diagnostic["timeout_seconds"]) == (
+    if fault != "failure":
+        assert (result.verdict, diagnostic["kind"], diagnostic["timeout_seconds"], source) == (
             "unknown",
             "gate_timeout",
             5,
+            (5, fault),
         )
         assert diagnostic["required_gaps"] == ["gate_timeout:bounded"]
         assert diagnostic["stdout"] == "partial"

@@ -27,6 +27,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import canonical_resource
 
 _SUFFIXES = frozenset(
@@ -125,7 +126,7 @@ def _run(
         command,
         stdin=content,
         text=False,
-        timeout=30,
+        timeout=seconds("tool"),
         env={"NODE_DISABLE_COMPILE_CACHE": "1"},
         remove_env=("NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
     )
@@ -438,7 +439,7 @@ def _checked_paths(
             root,
             command,
             text=False,
-            timeout=30,
+            timeout=seconds("tool"),
             env={"NODE_DISABLE_COMPILE_CACHE": "1"},
             remove_env=("NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
         )

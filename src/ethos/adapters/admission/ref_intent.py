@@ -23,6 +23,7 @@ from pydantic import model_validator
 
 from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -115,7 +116,7 @@ def _locked_intents(directory: Path) -> Generator[None]:
     # One stable inode per intent directory, not per transaction.
     lock = FileLock(
         directory / ".lock",
-        timeout=1,
+        timeout=seconds("lock"),
         mode=0o600,
         fallback_to_soft=False,
         preserve_lock_file=True,

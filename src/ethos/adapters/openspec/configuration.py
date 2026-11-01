@@ -14,6 +14,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.audit import configuration_policy_gaps
+from ethos.repository.paradigm.parameters import seconds
 
 
 def official_config_report(root: Path, *, initialize: bool = False) -> dict[str, object]:
@@ -60,7 +61,7 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
                 ),
                 env=environment,
                 inherit_environment=False,
-                timeout=30,
+                timeout=seconds("tool"),
             )
         payload = json.loads(completed.stdout)
         if (

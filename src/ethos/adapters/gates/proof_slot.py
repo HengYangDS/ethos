@@ -32,6 +32,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.repository.paradigm import parameters
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -42,7 +43,6 @@ LOAD_LIMIT_VARIABLE = "ETHOS_PROOF_HOST_LOAD_LIMIT"
 CONTENDED = "proof_admission_contended"
 STALE = "candidate_base_stale"
 _LIMIT_INVALID = "proof_host_load_limit_invalid"
-_ADMISSION_SECONDS = 3600.0
 _POLL_SECONDS = 15.0
 
 
@@ -122,11 +122,12 @@ def admitted_full_proof(
     load: Callable[[], float | None] = host_load,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-    seconds: float = _ADMISSION_SECONDS,
+    seconds: float | None = None,
     report: Callable[[dict[str, object]], None] = _report,
 ) -> Generator[SlotAdmission]:
     """Hold the repository's proof slot once host load allows; release it when the proof ends."""
     admitted_limit = limit()
+    seconds = parameters.seconds("admission", seconds)
     base_current = current or candidate_current(root, head=head)
     state = local_state_root(root)
     state.mkdir(parents=True, exist_ok=True)
@@ -141,7 +142,7 @@ def admitted_full_proof(
                 raise ValueError(STALE)
             if not acquired:
                 with suppress(Timeout):
-                    slot.acquire(timeout=0)
+                    slot.acquire(blocking=False)
                     acquired = True
                     record = {"pid": os.getpid(), "head": head, "since": datetime.now(UTC)}
                     holder.write_text(json.dumps(record, default=str), encoding="utf-8")

@@ -8,6 +8,7 @@ from time import monotonic
 
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import run_git
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import load_build_identity_bytes
@@ -17,7 +18,6 @@ from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 
 _SOURCE_BUILD_IDENTITY = SDIST_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE
 _HEX = frozenset("0123456789abcdef")
-_SOURCE_OBSERVATION_SECONDS = 30.0
 
 
 def source_build_identity(root: Path, *, include_overlay: bool = True) -> BuildIdentity:
@@ -48,7 +48,7 @@ def source_distribution_version() -> str:
 
 def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[str, str]:
     """Return exact HEAD and the effective non-ignored source-build overlay."""
-    deadline = monotonic() + _SOURCE_OBSERVATION_SECONDS
+    deadline = monotonic() + seconds("git")
     commit, committed = _source_coordinates(root, "HEAD", deadline=deadline)
     tree = committed
     if include_overlay:

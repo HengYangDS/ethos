@@ -20,6 +20,7 @@ import ethos.adapters.process as process_adapter
 from ethos.adapters.repo.invocation_facts import retain
 from ethos.adapters.repo.invocation_facts import reuse_key
 from ethos.adapters.repo.invocation_facts import reused
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -518,7 +519,7 @@ def tracked_paths(root: Path) -> tuple[str, ...]:
 
 
 def remote_availability(
-    root: Path, remote: str, *, timeout_seconds: float = 3.0
+    root: Path, remote: str, *, timeout_seconds: float | None = None
 ) -> dict[str, object]:
     """Probe whether a configured Git remote is reachable without mutating state."""
     result = remote_availability_not_probed(root, remote)
@@ -530,7 +531,7 @@ def remote_availability(
             "ls-remote",
             "--exit-code",
             remote,
-            timeout=timeout_seconds,
+            timeout=seconds("git", timeout_seconds),
         )
     except subprocess.TimeoutExpired as exc:
         return result | {

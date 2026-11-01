@@ -15,6 +15,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -23,15 +24,16 @@ if TYPE_CHECKING:
 
 @contextmanager
 def isolated_git_objects(
-    root: Path, *, timeout: float = 30
+    root: Path, *, timeout: float | None = None
 ) -> Generator[Callable[..., subprocess.CompletedProcess[Any]]]:
     """Expose one temporary native object store with source objects read-only."""
-    deadline = monotonic() + timeout
+    bound = seconds("git", timeout)
+    deadline = monotonic() + bound
 
     def remaining_seconds() -> float:
         remaining = deadline - monotonic()
         if remaining <= 0:
-            raise subprocess.TimeoutExpired(("git",), timeout)
+            raise subprocess.TimeoutExpired(("git",), bound)
         return remaining
 
     coordinates = run_git(

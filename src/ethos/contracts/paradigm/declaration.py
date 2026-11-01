@@ -376,6 +376,10 @@ class RepositoryParadigm(BaseModel):
         """Return each declared key of one parameter group with its default."""
         return {row.key: row.default for row in self.parameter if row.group == group}
 
+    def parameter_row(self, group: str, key: str) -> Parameter:
+        """Return one declared parameter."""
+        return next(row for row in self.parameter if (row.group, row.key) == (group, key))
+
     def canonical_carrier(self, root_name: str) -> str:
         """Return the canonical carrier of a root name that a catalogued tool discovers."""
         return next((tool.carrier for tool in self.tool if root_name in tool.root_names), "")

@@ -384,7 +384,7 @@ def test_official_batch_rejects_unbound_output_and_preserves_failure_evidence(
     error = "native error" if fault in {"stderr", "timeout"} else ""
 
     def native(*_args, **kwargs):
-        assert kwargs["timeout"] == cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS
+        assert kwargs["timeout"] == 60
         assert json.loads(kwargs["stdin"]) == [list(args)]
         if fault == "timeout":
             raise subprocess.TimeoutExpired((), 60, output=output.encode(), stderr=error.encode())

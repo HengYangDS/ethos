@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.registry.docs.registry import DocumentOrigins
 from ethos.repository.registry.docs.registry import docs_root
 from ethos.repository.registry.docs.registry import retained_document_origins
@@ -334,7 +335,7 @@ def _retained_tree_members(
             *paths,
             text=False,
             check=False,
-            timeout=30,
+            timeout=seconds("git"),
             observation=True,
         )
         records = {}

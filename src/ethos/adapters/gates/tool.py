@@ -84,7 +84,6 @@ def quality_tool_report(
         completed = run_command(
             cwd or root,
             tuple(command),
-            timeout=120,
             remove_env=("NODE_OPTIONS", "NODE_PATH"),
         )
     except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
@@ -192,12 +191,11 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool, candidate: bool) -
                     source.root,
                     (*command, *mode, "--dump", "--", *literal),
                     output_encoding="utf-8",
-                    timeout=60,
                 )
                 _require_native_link_output(dumped)
                 _qualify_local_targets(source, dumped.stdout)
             result = run_command(
-                source.root, (*command, *mode, "--", *literal), output_encoding="utf-8", timeout=90
+                source.root, (*command, *mode, "--", *literal), output_encoding="utf-8"
             )
             gaps = (
                 []
@@ -256,7 +254,6 @@ def _require_native_link_selection(
             root,
             (*command, "--dump-inputs", "--", *_native_link_inputs(group)),
             text=False,
-            timeout=60,
         )
         _require_native_link_output(selected)
         expected = tuple(os.fsencode(path) for path in group)

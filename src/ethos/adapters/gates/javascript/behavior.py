@@ -53,7 +53,7 @@ def _observe_test(
     environment: dict[str, str],
     removed: tuple[str, ...],
     observed: dict[str, object],
-    timeout: float = 600,
+    timeout: float | None = None,
 ) -> list[str]:
     """Retain one native journal and its diagnostics independently of coverage success."""
     tested = run_command(
@@ -152,7 +152,7 @@ def _observe_coverage(
     environment: dict[str, str],
     removed: tuple[str, ...],
     observed: dict[str, object],
-    timeout: float = 120,
+    timeout: float | None = None,
 ) -> list[str]:
     """Report exactly the test-owned raw files without starting another collector."""
     production = tuple(subject.path for subject in subjects if not subject.is_test)

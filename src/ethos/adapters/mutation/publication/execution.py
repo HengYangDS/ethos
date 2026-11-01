@@ -23,6 +23,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_topology
@@ -32,8 +33,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.plan import TransitionPlan
-
-_PUSH_TRANSFER_SECONDS = 120.0
 
 
 def _transaction_refs(observation: Mapping[str, object]) -> dict[str, dict[str, object]]:
@@ -65,7 +64,7 @@ def _push_remote_ref_set_exact(
             *leases,
             remote,
             *refspecs,
-            timeout=_PUSH_TRANSFER_SECONDS + 2 * admission_seconds,
+            timeout=seconds("git_history") + 2 * admission_seconds,
         )
     except (subprocess.TimeoutExpired, git.GitExecutionError) as error:
         return {"state": "unknown", "exit_code": None, "stdout": "", "stderr": str(error)}

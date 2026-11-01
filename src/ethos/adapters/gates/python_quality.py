@@ -31,6 +31,7 @@ from ethos.adapters.repo.runtime.materialization.native_supply import prepared_t
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
@@ -43,7 +44,6 @@ if TYPE_CHECKING:
 # The shared formatter width of governed repositories; isolation keeps it product-owned.
 _FLEET_LINE_LENGTH = 100
 # The test run's bound when its gate declares none.
-_DEFAULT_TIMEOUT_SECONDS = 600
 
 
 def _native_fields(execution: NativeExecution) -> dict[str, object]:
@@ -87,7 +87,7 @@ def _static_execution(
         *paths,
     )
     if execution is None:
-        result = run_command(root, command, timeout=180, remove_env=("PYTHONPATH",))
+        result = run_command(root, command, remove_env=("PYTHONPATH",))
         return NativeExecution(
             declared_identity=command,
             argv=command,
@@ -285,7 +285,7 @@ def _behavior_evidence(
         result = run_command(
             root,
             command,
-            timeout=timeout_seconds or _DEFAULT_TIMEOUT_SECONDS,
+            timeout=seconds("gate", timeout_seconds),
             env=environment,
             remove_env=removed,
             remove_env_prefixes=("MISE_",),

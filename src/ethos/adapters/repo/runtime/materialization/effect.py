@@ -54,6 +54,7 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -166,7 +167,10 @@ def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
         _fail("hook_runtime_host_store_invalid")
     store.mkdir(parents=True, mode=0o700, exist_ok=True)
     with FileLock(
-        store / "install.lock", timeout=10, fallback_to_soft=False, preserve_lock_file=True
+        store / "install.lock",
+        timeout=seconds("lock"),
+        fallback_to_soft=False,
+        preserve_lock_file=True,
     ):
         _recover_pin_staging(store)
         if installation.exists():

@@ -17,6 +17,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.contracts.retirement import OpenFileBoundary
 from ethos.contracts.retirement import UninspectableProcess
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -73,7 +74,6 @@ _UNREADABLE = "file_observation_unreadable"
 # taken again up to this bound within one timeout; a record that stays unreadable fails
 # closed.
 _FILE_OBSERVATION_SCANS = 3
-_FILE_OBSERVATION_SECONDS = 30.0
 
 
 def _entry_record(fields: dict[bytes, bytes]) -> bytes:
@@ -176,7 +176,7 @@ def _file_identities(
 def _scan(root: Path, command: tuple[str, ...]) -> OpenFileObservation:
     """Take the native scan, and again while an unreadable record leaves it incomplete."""
     scans = _FILE_OBSERVATION_SCANS
-    deadline = monotonic() + _FILE_OBSERVATION_SECONDS
+    deadline = monotonic() + seconds("tool")
     while True:
         scans -= 1
         remaining = deadline - monotonic()

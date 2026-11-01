@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
-_GROUP_REAPING_SECONDS = 0.5
+_GROUP_REAPING_GRACE_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
 
 
@@ -494,7 +494,7 @@ def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None
             # Darwin refuses to signal a group whose members exited but await their reaper.
             # Only observed absence within the bound resolves it; a lasting refusal or a
             # signalable member is a survivor, which must not be ignored.
-            bound = max(deadline or 0.0, monotonic() + _GROUP_REAPING_SECONDS)
+            bound = max(deadline or 0.0, monotonic() + _GROUP_REAPING_GRACE_SECONDS)
             while True:
                 try:
                     os.killpg(process.pid, 0)

@@ -28,6 +28,7 @@ from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -46,7 +47,10 @@ def retire_unused_installations(
     if not store.is_dir() or store.is_symlink():
         return {"retired": retired, "retained": retained, "unrecorded": unrecorded}
     with FileLock(
-        store / "install.lock", timeout=10, fallback_to_soft=False, preserve_lock_file=True
+        store / "install.lock",
+        timeout=seconds("lock"),
+        fallback_to_soft=False,
+        preserve_lock_file=True,
     ):
         for installation in sorted(store.iterdir()):
             if not _index(installation.name) or installation.is_symlink():
@@ -135,7 +139,10 @@ def legacy_supply(
     if not store.is_dir() or store.is_symlink():
         return _legacy_report([], [], retired)
     with FileLock(
-        store / "install.lock", timeout=10, fallback_to_soft=False, preserve_lock_file=True
+        store / "install.lock",
+        timeout=seconds("lock"),
+        fallback_to_soft=False,
+        preserve_lock_file=True,
     ):
         rows = _legacy_rows(store, consumers, in_use, grace_seconds)
         retirable = [installation for installation, reason, _named in rows if not reason]

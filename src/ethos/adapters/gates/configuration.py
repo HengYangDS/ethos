@@ -56,7 +56,6 @@ def _configuration_inventory(root: Path) -> tuple[Path, ...]:
             *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES - {".txt"})),
             *(VALE_VOCABULARIES + name for name in ("accept.txt", "reject.txt")),
         ),
-        timeout=30,
         check=True,
     ).stdout
     return tuple(Path(item) for item in output.split("\0") if item)
@@ -150,7 +149,6 @@ def _toml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
             str(canonical_resource(".config/checks/taplo/taplo.toml")),
             *map(str, paths),
         ),
-        timeout=60,
         remove_env=("NODE_OPTIONS", "NODE_PATH"),
     )
     if completed.returncode:
@@ -247,7 +245,6 @@ def _vale_section_vocabulary_failures(
             root,
             (str(executable), f"--config={config}", "--no-global", "--ext=.md", "--output=JSON"),
             stdin="",
-            timeout=30,
         )
         if completed.returncode or completed.stderr.strip():
             return [
@@ -265,7 +262,7 @@ def _vale_failures(
     try:
         executable = resolve_native_tool("vale")
         command = (str(executable), f"--config={root / VALE_CONFIG}", "--no-global")
-        observed = run_command(root, (*command, "ls-config"), stdin="", timeout=30, check=True)
+        observed = run_command(root, (*command, "ls-config"), stdin="", check=True)
         if observed.stderr.strip():
             return [observed.stderr.strip()]
         configuration = json.loads(observed.stdout)
@@ -277,9 +274,7 @@ def _vale_failures(
         ]
         if failures:
             return failures
-        completed = run_command(
-            root, (*command, "--ext=.md", "--output=JSON"), stdin="", timeout=30
-        )
+        completed = run_command(root, (*command, "--ext=.md", "--output=JSON"), stdin="")
         if completed.returncode or completed.stderr.strip():
             return [
                 (completed.stdout + completed.stderr).strip()

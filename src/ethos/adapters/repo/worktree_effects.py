@@ -29,6 +29,7 @@ from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -36,6 +37,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from ethos.contracts.semantic import Attestation
+
+# Git releases a prepared ref transaction's locks when its input ends; the stop follows this grace.
+_ABORT_GRACE_SECONDS = 5
 
 
 def _fail(message: str) -> NoReturn:
@@ -64,7 +68,7 @@ def _abort_ref_input(process: subprocess.Popen[bytes]) -> None:
 def _release_ref_transaction(scope: CommandScope, process: subprocess.Popen[bytes]) -> None:
     _abort_ref_input(process)
     try:
-        process.wait(timeout=5)
+        process.wait(timeout=_ABORT_GRACE_SECONDS)
     except subprocess.TimeoutExpired:
         scope.terminate(process)
         process.wait()
@@ -72,9 +76,10 @@ def _release_ref_transaction(scope: CommandScope, process: subprocess.Popen[byte
 
 @contextmanager
 def hold_worktree_refs(
-    root: Path, assertions: Mapping[str, str], *, timeout_seconds: float = 120
+    root: Path, assertions: Mapping[str, str], *, timeout_seconds: float | None = None
 ) -> Generator[None]:
     """Hold exact native ref assertions through a worktree effect without moving refs."""
+    timeout_seconds = seconds("git_history", timeout_seconds)
     _ref_assertions(root, assertions, timeout_seconds)
     deadline = monotonic() + timeout_seconds
     environment = git_environment()

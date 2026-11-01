@@ -33,6 +33,7 @@ from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -152,7 +153,9 @@ def _reject_noncanonical_policy(root: Path, *, index_env: Mapping[str, str] | No
     names = tuple(
         name for tool in paradigm.tool if tool.carrier in carriers for name in tool.root_names
     )
-    retained = run_git(root, "ls-files", "--", *names, timeout=30, env=index_env).stdout.split()
+    retained = run_git(
+        root, "ls-files", "--", *names, timeout=seconds("git"), env=index_env
+    ).stdout.split()
     if retained:
         message = f"pre_commit_native_policy_noncanonical:{retained[0]}"
         raise RuntimeError(message)
@@ -164,7 +167,7 @@ def _native_hook_configuration(
 ) -> Generator[Path]:
     """Project incumbent native policy and its include closure without working-tree reads."""
     tools = import_module("ethos.repository.policy.quality.tool_configuration")
-    observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
+    observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=seconds("git"))
     head = observed.stdout.strip() if not observed.returncode else ""
     _reject_noncanonical_policy(root, index_env=index_env)
     incumbent = _git_paths(root, "ls-tree", "-r", "--name-only", head) if head else ()
@@ -187,7 +190,13 @@ def _native_hook_configuration(
                 visited.add(path)
                 selected = f"{head}:{path}" if name in incumbent else f":{path}"
                 source = run_git(
-                    root, "show", selected, check=False, text=False, timeout=30, env=index_env
+                    root,
+                    "show",
+                    selected,
+                    check=False,
+                    text=False,
+                    timeout=seconds("git"),
+                    env=index_env,
                 )
                 if source.returncode:
                     message = f"pre_commit_native_policy_unavailable:{path}"
@@ -199,7 +208,9 @@ def _native_hook_configuration(
                 if dependency is not None:
                     pending.append(dependency)
         yield configuration
-        current = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
+        current = run_git(
+            root, "rev-parse", "--verify", "HEAD", check=False, timeout=seconds("git")
+        )
         if (current.stdout.strip() if not current.returncode else "") != head:
             message = "pre_commit_native_policy_head_changed"
             raise RuntimeError(message)
@@ -216,9 +227,11 @@ def _scan_staged_secrets(
     if executable is None:
         message = "staged_secret_gitleaks_missing"
         raise RuntimeError(message)
-    git_dir = run_git(root, "rev-parse", "--absolute-git-dir", timeout=30).stdout.strip()
+    git_dir = run_git(
+        root, "rev-parse", "--absolute-git-dir", timeout=seconds("git")
+    ).stdout.strip()
     index_path = run_git(
-        root, "rev-parse", "--path-format=absolute", "--git-path", "index", timeout=30
+        root, "rev-parse", "--path-format=absolute", "--git-path", "index", timeout=seconds("git")
     ).stdout.strip()
     selected_env = {
         "GIT_DIR": git_dir,
@@ -278,7 +291,7 @@ def _check_staged_python_format(
         raise RuntimeError(message) from error
     for path in paths:
         source = run_git(
-            root, "show", f":{path}", check=False, text=False, timeout=30, env=index_env
+            root, "show", f":{path}", check=False, text=False, timeout=seconds("git"), env=index_env
         )
         if source.returncode:
             message = f"pre_commit_python_index_unavailable:{path}"
@@ -299,7 +312,7 @@ def _check_staged_python_format(
                 ),
                 stdin=source.stdout,
                 text=False,
-                timeout=120,
+                timeout=seconds("tool"),
                 remove_env_prefixes=("GIT_",),
             )
         except subprocess.TimeoutExpired as error:

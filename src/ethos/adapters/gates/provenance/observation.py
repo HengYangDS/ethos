@@ -129,7 +129,6 @@ def _native_archives(
         snapshot.root,
         (str(node), str(Path(__file__).with_name("archive.mjs")), str(npm)),
         stdin=payload,
-        timeout=60,
         remove_env=("NODE_OPTIONS", "NODE_PATH"),
     )
     if result.returncode:

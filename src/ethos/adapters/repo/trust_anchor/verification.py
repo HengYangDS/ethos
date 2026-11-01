@@ -14,6 +14,7 @@ from typing import cast
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
+from ethos.repository.paradigm.parameters import seconds
 
 _ANCHOR = "gpg.ssh.allowedsignersfile"
 _REVOCATION = "gpg.ssh.revocationfile"
@@ -153,7 +154,7 @@ def _diagnose_batch_refusal(
     failed, statuses = {}, []
     for object_oid in selected:
         diagnostic = run_git(
-            root, *arguments, verifier, "--raw", object_oid, check=False, timeout=30
+            root, *arguments, verifier, "--raw", object_oid, check=False, timeout=seconds("git")
         )
         detail = diagnostic.stderr.strip() or diagnostic.stdout.strip()
         statuses.append(detail)
@@ -200,7 +201,13 @@ def verify_git_object_trust(
             for start in range(0, len(revisions), 128):
                 selected = revisions[start : start + 128]
                 completed = run_git(
-                    root, *arguments, verifier, "--raw", *selected, check=False, timeout=30
+                    root,
+                    *arguments,
+                    verifier,
+                    "--raw",
+                    *selected,
+                    check=False,
+                    timeout=seconds("git"),
                 )
                 status = completed.stderr.strip() or completed.stdout.strip()
                 found = list(_SSH_STATUS.finditer(status))

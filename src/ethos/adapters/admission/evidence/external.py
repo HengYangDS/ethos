@@ -23,6 +23,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
@@ -217,7 +218,7 @@ def verify_independent_receipt_signature(
                 text=False,
                 capture_output=True,
                 check=False,
-                timeout=5,
+                timeout=seconds("probe"),
             )
     except (OSError, subprocess.TimeoutExpired):
         return False

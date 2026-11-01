@@ -20,10 +20,10 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 from ethos.repository.openspec.identifiers import LOGICAL_CHANGE_ID_PATTERN
 from ethos.repository.openspec.identifiers import archived_change_root_matches
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import packaged_resource
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
-OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
 _SOURCE_COMMAND_LENGTH = 2
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
@@ -239,10 +239,11 @@ def _run_official(
     command: tuple[str, ...],
     *,
     stdin: str | None = None,
-    timeout: float = OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Own native invocation, environment isolation and the bounded process lifetime."""
-    if not 0 < timeout <= OPENSPEC_COMMAND_TIMEOUT_SECONDS:
+    timeout = seconds("tool", timeout)
+    if not 0 < timeout <= seconds("tool"):
         message = "openspec_command_timeout_invalid"
         raise ValueError(message)
     return run_command(
@@ -269,7 +270,7 @@ def run_json(
     base_command: tuple[str, ...],
     args: tuple[str, ...],
     *,
-    timeout: float = OPENSPEC_COMMAND_TIMEOUT_SECONDS,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     command = (*base_command, *args)
     try:
@@ -404,7 +405,7 @@ def run_json_batch(
         base_command[0],
         str(Path(__file__).with_name("batch.mjs")),
         base_command[1],
-        str(OPENSPEC_COMMAND_TIMEOUT_SECONDS),
+        str(seconds("tool")),
         OFFICIAL_VERSION,
     )
     gap = ""

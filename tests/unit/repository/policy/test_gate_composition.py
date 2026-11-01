@@ -230,15 +230,24 @@ def test_declared_tools_bind_their_native_policy_carriers(
     assert carrier not in dict(dict(bound)[gate.id])
 
 
-@pytest.mark.parametrize("tools", [("lychee", "lychee"), ("undeclared-tool",)])
-def test_gate_tools_name_each_paradigm_tool_once(tools: tuple[str, ...]) -> None:
-    """A gate cannot bind a repeated native owner or one the paradigm does not declare."""
-    with pytest.raises(ValidationError, match="gate tools invalid"):
-        Gate(
-            id="markdown-links",
-            kind="lint",
-            providers=("ethos.adapters.gates.tool:markdown_links_report",),
-            tools=tools,
+@pytest.mark.parametrize(
+    ("declared", "error"),
+    [
+        ({"tools": ("lychee", "lychee")}, "gate tools invalid"),
+        ({"tools": ("undeclared-tool",)}, "gate tools invalid"),
+        ({"timeout_seconds": 7201}, "gate timeout above the timeout.gate_seconds bound"),
+    ],
+)
+def test_gate_tools_name_each_paradigm_tool_once(declared: dict[str, object], error: str) -> None:
+    """A gate cannot bind a repeated or undeclared native owner, or a timeout beyond the bound."""
+    with pytest.raises(ValidationError, match=error):
+        Gate.model_validate(
+            {
+                "id": "markdown-links",
+                "kind": "lint",
+                "providers": ("ethos.adapters.gates.tool:markdown_links_report",),
+                **declared,
+            }
         )
 
 

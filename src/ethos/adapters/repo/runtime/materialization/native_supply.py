@@ -30,6 +30,7 @@ from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import carried_trust
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
 from ethos.repository.release.resources import require_packaged_resource
@@ -181,7 +182,7 @@ class NativeSupply:
             if self.name == "syft"
             else (self.version_argument,)
         )
-        observed = run_command(Path.cwd(), (str(executable), *arguments), timeout=10)
+        observed = run_command(Path.cwd(), (str(executable), *arguments), timeout=seconds("probe"))
         version = (
             json.loads(observed.stdout).get("version")
             if self.name == "syft"
@@ -275,14 +276,14 @@ def download_tool(
     command: tuple[str, ...],
     *,
     root: Path,
-    timeout: float = 180,
+    timeout: float | None = None,
     trust: Mapping[str, str] | None = None,
 ) -> None:
     """Run the native provisioner through the existing bounded process owner."""
     result = run_command(
         root,
         command,
-        timeout=timeout,
+        timeout=seconds("download", timeout),
         remove_env_prefixes=("MISE_",),
         env={
             "MISE_SAFE": "1",
@@ -316,7 +317,7 @@ def prepared_tool_directories(root: Path) -> tuple[Path, ...]:
 
 
 def materialize_tool(
-    root: Path, name: str, *, lock_timeout: float = 30, mise: Path | None = None
+    root: Path, name: str, *, lock_timeout: float | None = None, mise: Path | None = None
 ) -> Path:
     """Converge the sole product-owned native supply for source, CI and packaging."""
     root = root.resolve(strict=True)
@@ -327,7 +328,8 @@ def materialize_tool(
     if lock.is_symlink() or (lock.exists() and not lock.is_file()):
         message = f"native_tool_cache_path_unsafe:{lock}"
         raise ValueError(message)
-    with import_module("filelock").FileLock(lock, timeout=lock_timeout):
+    # The holder may be downloading the archive, so a waiter allows the download bound.
+    with import_module("filelock").FileLock(lock, timeout=seconds("download", lock_timeout)):
         ensure_native_directory(cache)
         archive = cache / supply.archive
         with TemporaryDirectory(prefix=".prepare-", dir=cache) as scratch:
@@ -415,7 +417,7 @@ def _materialize_node(supply: NodeSupply, archive: Path, cache: Path, scratch: P
     else:
         prepared.replace(runtime)
     executable = NodeRuntime.read(runtime, windows=supply.target.startswith("windows-")).executable
-    observed = run_command(scratch, (str(executable), "--version"), timeout=15)
+    observed = run_command(scratch, (str(executable), "--version"), timeout=seconds("probe"))
     if observed.returncode or observed.stderr or observed.stdout.strip() != f"v{supply.version}":
         message = "native_node_cached_runtime_invalid"
         raise ValueError(message)

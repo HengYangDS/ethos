@@ -56,7 +56,7 @@ def test_review_observation_is_bound_and_does_not_default_unknown_to_closed(
         assert command[command.index("--repo") + 1] == target
         assert branch in command
         assert kwargs["stdin"] == ""
-        assert kwargs["timeout"] == 30
+        assert kwargs["timeout"] == 60
         assert kwargs["env"]["GH_PROMPT_DISABLED"] == "1"
         assert kwargs["env"]["GLAB_NO_PROMPT"] == "1"
         if case == "timeout":

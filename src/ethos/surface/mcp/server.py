@@ -21,6 +21,7 @@ from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
+from ethos.repository.paradigm.parameters import seconds
 
 
 class _BoundCalls(Middleware):
@@ -67,9 +68,10 @@ class _BoundCalls(Middleware):
 
 
 def create_server(
-    root: Path, *, create_target: bool = False, timeout_seconds: float = 180.0
+    root: Path, *, create_target: bool = False, timeout_seconds: float | None = None
 ) -> FastMCP:
     """Bind one repository or an explicit absent formation target without effects."""
+    timeout_seconds = seconds("request", timeout_seconds)
     if not 0 < timeout_seconds < math.inf:
         message = "MCP timeout must be finite and positive."
         raise ValueError(message)

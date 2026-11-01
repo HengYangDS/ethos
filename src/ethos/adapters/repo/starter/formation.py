@@ -26,6 +26,7 @@ from ethos.adapters.repo.starter.generation import compose_starter
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 
@@ -276,7 +277,7 @@ def _prepare_history(
         (("add", "--", *outputs), "formation_git_add_failed"),
         (("write-tree",), "formation_git_commit_failed"),
     ):
-        result = run_git(candidate, *args, check=False, env=identity, timeout=30)
+        result = run_git(candidate, *args, check=False, env=identity, timeout=seconds("git"))
         if result.returncode:
             return "", gap, result.stderr.strip()
         tree = result.stdout.strip()
@@ -292,7 +293,7 @@ def _prepare_history(
     if (
         not head
         or run_git(
-            candidate, "update-ref", "refs/heads/dev", head, "", check=False, timeout=10
+            candidate, "update-ref", "refs/heads/dev", head, "", check=False, timeout=seconds("git")
         ).returncode
     ):
         return "", "formation_git_commit_failed", str(created.stderr or "").strip()
@@ -344,7 +345,9 @@ def _activate(
 ) -> dict[str, object]:
     """Observe copied bytes, then delegate candidate and runtime activation."""
     try:
-        current = run_git(target, "rev-parse", "HEAD", check=False, timeout=10).stdout.strip()
+        current = run_git(
+            target, "rev-parse", "HEAD", check=False, timeout=seconds("git")
+        ).stdout.strip()
         unchanged = all(
             (target / path).is_file()
             and hashlib.sha256((target / path).read_bytes()).hexdigest() == digest

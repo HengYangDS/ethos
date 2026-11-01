@@ -76,7 +76,6 @@ def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
     result = run_command(
         root,
         (_executable(root, "go"), "list", "-json", "./..."),
-        timeout=120,
         env=_go_environment(native),
         remove_env_prefixes=("MISE_",),
     )
@@ -169,7 +168,6 @@ def _go_zero_statement_source(root: Path, path: str, output: Path, native: dict[
             str(output),
             path,
         ),
-        timeout=60,
         env=_go_environment(native),
         remove_env_prefixes=("MISE_",),
     )
@@ -211,7 +209,6 @@ def _go_behavior(
         result = run_command(
             root,
             command,
-            timeout=300,
             env=_go_environment(native),
             remove_env_prefixes=("MISE_",),
         )
@@ -267,7 +264,6 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     formatted = run_command(
         root,
         (_executable(root, "gofmt"), "-l", *paths),
-        timeout=60,
         env=native,
         remove_env_prefixes=("MISE_",),
     )
@@ -276,7 +272,6 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     vetted = run_command(
         root,
         (_executable(root, "go"), "vet", "./..."),
-        timeout=300,
         env=_go_environment(native),
         remove_env_prefixes=("MISE_",),
     )
@@ -288,7 +283,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
 def _script_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> dict[str, object]:
     """Observe supported script dialects with native ShellCheck, without running source."""
     command = (_executable(root, "shellcheck"), "--norc", "--format=json1", "--", *paths)
-    result = run_command(root, command, timeout=60, env=native)
+    result = run_command(root, command, env=native)
     document = json.loads(result.stdout)
     if not isinstance(document, dict) or not isinstance(document.get("comments"), list):
         _invalid("script_static_report_invalid")

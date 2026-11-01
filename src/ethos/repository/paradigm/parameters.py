@@ -16,6 +16,7 @@ from contextvars import ContextVar
 from functools import cached_property
 from importlib import import_module
 from typing import TYPE_CHECKING
+from typing import Literal
 from typing import NamedTuple
 
 from ethos.repository.paradigm.gap import ParadigmGap
@@ -149,6 +150,22 @@ def active_resolution() -> ParameterResolution:
 def parameter(group: str, key: str) -> int:
     """Return one declared parameter's value for the invocation's repository."""
     return active_resolution().values[group][key]
+
+
+type TimeoutKind = Literal[
+    "gate", "tool", "git", "git_history", "probe", "lock", "download", "request", "admission"
+]
+
+
+def seconds(kind: TimeoutKind, given: float | None = None) -> float:
+    """Return a caller's explicit value, else the invocation's `timeout.<kind>_seconds`."""
+    return parameter("timeout", f"{kind}_seconds") if given is None else given
+
+
+def parameter_source(group: str, key: str) -> str:
+    """Return `repository` when the invocation's binding set the value, otherwise `default`."""
+    declared = parameter(group, key) != _paradigm().parameter_row(group, key).default
+    return "repository" if declared else "default"
 
 
 def _paradigm() -> RepositoryParadigm:

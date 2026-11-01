@@ -11,6 +11,7 @@ from filelock import FileLock
 
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
 
 CUSTODY_PREFIX: Final = "custody:sha256:"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
-_LOCK_SECONDS: Final = 300
 
 
 def binds_custody(attestation: Attestation) -> bool:
@@ -50,7 +50,8 @@ def custody_lock(repo: Path) -> FileLock:
     """Serialize custody stores and deletions with the set swaps that bind or unbind them."""
     path = local_state_root(repo) / "custody" / "lock"
     path.parent.mkdir(parents=True, exist_ok=True)
-    return FileLock(path, timeout=_LOCK_SECONDS, mode=0o600, preserve_lock_file=True)
+    # The holder swaps the attestation set, so a waiter allows a Git history operation.
+    return FileLock(path, timeout=seconds("git_history"), mode=0o600, preserve_lock_file=True)
 
 
 def store_custody(repo: Path, payload: bytes) -> str:

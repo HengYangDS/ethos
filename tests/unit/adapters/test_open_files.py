@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.open_files as open_files
 from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.retirement import UninspectableProcess
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -265,7 +266,7 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         assert command == (str(executable), *_COMMAND)
         timeout = kwargs["timeout"]
         assert isinstance(timeout, float)
-        assert 0 < timeout <= 30
+        assert 0 < timeout <= 60
         assert kwargs["text"] is False
         assert kwargs["env"] == {"LC_ALL": "C"}
         if fault == "timeout":
@@ -349,7 +350,7 @@ def test_vanished_records_captured_from_the_pinned_image_are_admitted(
 
 def test_scans_share_one_observer_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A rescan never extends the observation past the observer's one timeout."""
-    clock = iter((0.0, 0.0, 31.0))
+    clock = iter((0.0, 0.0, seconds("tool") + 1.0))
     monkeypatch.setattr(open_files, "monotonic", lambda: next(clock))
     scans, observe = _scanner(tmp_path, monkeypatch, [_VALID + _DENIED_DESCRIPTOR] * 3)
     with pytest.raises(ProcessExecutionError) as error:

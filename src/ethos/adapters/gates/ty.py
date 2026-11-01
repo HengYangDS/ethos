@@ -55,7 +55,6 @@ def _diagnostic_report(root: Path) -> dict[str, object]:
         completed = run_command(
             root,
             tuple(command),
-            timeout=120,
             remove_env=("VIRTUAL_ENV",),
             env={"UV_PROJECT_ENVIRONMENT": str(root / ".venv")},
         )

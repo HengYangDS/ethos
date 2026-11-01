@@ -35,6 +35,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.publication import LEGACY_ROLE_REF
 from ethos.repository.release.publication import PROPOSAL_REF
@@ -142,7 +143,7 @@ def observe_proposal_review(
             root,
             command,
             stdin="",
-            timeout=30,
+            timeout=seconds("tool"),
             env=environment,
         )
         result["exit_code"] = run.returncode
@@ -229,7 +230,7 @@ def _provider_rows(
         parsed = urlsplit(url)
         environment["GITLAB_HOST"] = f"{parsed.scheme}://{parsed.netloc}"
     try:
-        run = process.run_command(root, command, stdin="", timeout=30, env=environment)
+        run = process.run_command(root, command, stdin="", timeout=seconds("tool"), env=environment)
         rows = None if run.returncode else json.loads(run.stdout)
     except (ValueError, OSError, subprocess.TimeoutExpired):
         return None

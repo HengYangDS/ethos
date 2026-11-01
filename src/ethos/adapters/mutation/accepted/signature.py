@@ -242,7 +242,7 @@ def repair_signature(
             }
         lock = local_state_root(root) / "signature-repair.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
-        with FileLock(str(lock), timeout=0, mode=0o600):
+        with FileLock(str(lock), mode=0o600, blocking=False):
             attempt, result = _records(root, expect_head, actor)
             _require(
                 attempt is not None or not replacement,

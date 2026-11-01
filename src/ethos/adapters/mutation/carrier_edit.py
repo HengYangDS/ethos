@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from ethos.repository.paradigm.repair import CarrierEdit
@@ -287,7 +288,7 @@ def _apply(
             stdin=patch.encode("utf-8"),
             text=False,
             check=False,
-            timeout=30,
+            timeout=seconds("git"),
         )
         diagnostics = {
             "exit_code": completed.returncode,

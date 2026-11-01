@@ -40,6 +40,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -91,7 +92,9 @@ def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[s
     if change:
         command.extend(("--change", change))
     try:
-        completed = run_command(root, tuple(command), timeout=60, remove_env_prefixes=("GIT_",))
+        completed = run_command(
+            root, tuple(command), timeout=seconds("tool"), remove_env_prefixes=("GIT_",)
+        )
     except subprocess.TimeoutExpired:
         return ["predecessor_policy_probe_timeout"]
     except (OSError, ValueError):

@@ -26,5 +26,6 @@ default in force. Product code SHALL read each value through the declaration, ne
 
 #### Scenario: Product code restates a timeout
 
-- **WHEN** product code passes a numeric literal as a command timeout or names a timeout constant
+- **WHEN** product code binds a numeric literal to a wait, as a timeout argument or a duration
+  constant
 - **THEN** ETHOS's architecture check reports the file and line.

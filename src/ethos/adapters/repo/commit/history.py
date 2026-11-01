@@ -16,6 +16,7 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import unsigned_commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
+from ethos.repository.paradigm.parameters import seconds
 
 
 class PreparedHistoryRepair(TypedDict):
@@ -245,7 +246,7 @@ def _existing_signed_payloads(root: Path) -> dict[bytes, list[str]]:
         "--batch-all-objects",
         "--unordered",
         "--batch-check=%(objectname) %(objecttype)",
-        timeout=120,
+        timeout=seconds("git_history"),
     )
     commits = tuple(
         line.split()[0] for line in inventory.stdout.splitlines() if line.endswith(" commit")
@@ -359,5 +360,5 @@ def _verify_backup_recovery(root: Path, old: str, backup: Path) -> None:
             ("bundle", "unbundle", str(backup)),
             ("fsck", "--full", "--no-dangling", old),
         ):
-            restored = run_git(recovery, *command, check=False, timeout=120)
+            restored = run_git(recovery, *command, check=False, timeout=seconds("git_history"))
             _require(restored.returncode == 0, "history_repair_backup_not_recoverable")

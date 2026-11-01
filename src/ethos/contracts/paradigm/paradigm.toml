@@ -87,8 +87,9 @@ retired = ["markdown_nonblank_lines"]
 
 # Timeouts. A gate without its own timeout_seconds runs within gate_seconds, and every command
 # inside a gate runs within its gate's deadline. The other rows bound one native wait outside a
-# gate: a tool run, a Git command, a long Git history operation, a version or identity probe and a
-# lock held by another process.
+# gate: a tool run, a Git command, a long Git history operation, a version or identity probe, a
+# lock held by another process, a native tool download, one MCP request and a proof's wait for
+# the repository's proof slot.
 [[parameter]]
 group = "timeout"
 key = "gate_seconds"
@@ -130,6 +131,27 @@ key = "lock_seconds"
 default = 10
 unit = "seconds"
 bound = 100
+
+[[parameter]]
+group = "timeout"
+key = "download_seconds"
+default = 180
+unit = "seconds"
+bound = 1800
+
+[[parameter]]
+group = "timeout"
+key = "request_seconds"
+default = 180
+unit = "seconds"
+bound = 1800
+
+[[parameter]]
+group = "timeout"
+key = "admission_seconds"
+default = 3600
+unit = "seconds"
+bound = 36000
 
 # Code languages. A tracked file whose suffix a language lists is code: it stays within the
 # code ceiling unless Git attributes mark it vendored or generated. Python is measured by its

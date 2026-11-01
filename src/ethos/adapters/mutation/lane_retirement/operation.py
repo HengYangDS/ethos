@@ -475,7 +475,7 @@ def apply_operation(
     lock = local_state_root(control_root) / "operations" / "lane-retirement.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     try:
-        acquired = FileLock(str(lock)).acquire(timeout=0)
+        acquired = FileLock(str(lock)).acquire(blocking=False)
     except Timeout as error:
         return report(None, failure=retirement_failure(error))
     with acquired:

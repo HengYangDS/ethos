@@ -391,7 +391,7 @@ def _execute(
         _fail("authorization_required")
     if mode == "inspect" or not expect_head or not expect_state:
         _fail("merge_exact_request_required")
-    with FileLock(str(git_path(root, "ethos-merge.lock")), timeout=0):
+    with FileLock(str(git_path(root, "ethos-merge.lock")), blocking=False):
         context.recheck()
         previous = recognized_merge(
             root,

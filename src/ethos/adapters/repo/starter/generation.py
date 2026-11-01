@@ -12,6 +12,7 @@ from pathlib import Path
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
+from ethos.repository.paradigm.parameters import seconds
 
 
 def compose_starter(
@@ -68,7 +69,7 @@ def _run_python_library_generator(candidate: Path, purpose: str) -> tuple[str, s
         result = run_command(
             candidate,
             command,
-            timeout=30,
+            timeout=seconds("tool"),
             env={"UV_NO_CACHE": "1"},
             remove_env=("VIRTUAL_ENV",),
             remove_env_prefixes=("UV_",),

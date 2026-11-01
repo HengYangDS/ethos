@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.observation import read_regular_bytes
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     import subprocess
@@ -153,7 +154,7 @@ def _mise_declaration_paths(
     discovered = run_command(
         root,
         (str(executable or mise_executable()), "config", "ls", "--json"),
-        timeout=15,
+        timeout=seconds("probe"),
         remove_env_prefixes=("MISE_",),
         env=environment,
     )
@@ -211,7 +212,7 @@ def _root_trusted(root: Path, executable: Path | None) -> bool:
         shown = run_command(
             root,
             (str(executable or mise_executable()), "--cd", str(root), "trust", "--show"),
-            timeout=15,
+            timeout=seconds("probe"),
             env={"MISE_SAFE": "1"},
         )
         rows = (line.rpartition(": ") for line in shown.stdout.splitlines())
@@ -257,7 +258,7 @@ def run_mise(
     *,
     files: Mapping[str, str] | None = None,
     executable: Path | None = None,
-    timeout: float = 15,
+    timeout: float | None = None,
     offline: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
@@ -299,7 +300,7 @@ def run_mise(
         return run_command(
             isolated,
             (str(selected), *arguments),
-            timeout=timeout,
+            timeout=seconds("probe", timeout),
             remove_env_prefixes=("MISE_",),
             env=environment,
         )

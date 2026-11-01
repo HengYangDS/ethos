@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import observe_commit
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -279,7 +280,7 @@ def configured_signer_fingerprint(root: Path) -> str:
     if not executable:
         gap = "git_effect_signing_program_invalid"
         raise ValueError(gap)
-    observed = run_command(root, (executable, "-lf", public), timeout=15)
+    observed = run_command(root, (executable, "-lf", public), timeout=seconds("probe"))
     fields = observed.stdout.split()
     if observed.returncode or len(fields) < 2 or not fields[1].startswith("SHA256:"):
         gap = "git_effect_signing_key_invalid"
@@ -322,7 +323,7 @@ def _sign_payload(root: Path, payload: bytes) -> bytes:
                 str(material),
             ),
             text=False,
-            timeout=30,
+            timeout=seconds("tool"),
             env={"GIT_TERMINAL_PROMPT": "0", "SSH_ASKPASS_REQUIRE": "never"},
             remove_env_prefixes=("GIT_",),
         )
@@ -378,7 +379,7 @@ def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str
             head,
             env={**environment, "GIT_COMMITTER_DATE": f"{timestamp} {timezone}"},
             check=False,
-            timeout=30,
+            timeout=seconds("git"),
         )
         if completed.returncode:
             raise ValueError("release_tag_signing_failed:" + completed.stderr.strip())

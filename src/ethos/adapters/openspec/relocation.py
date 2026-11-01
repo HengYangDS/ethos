@@ -20,6 +20,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.repository.openspec.identifiers import TEMPORAL_SUFFIX_PATTERN
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -293,7 +294,7 @@ def _observe(root: Path, inputs: dict[str, object]) -> dict[str, object]:
             root,
             (command[0], str(Path(__file__).with_suffix(".mjs")), command[1]),
             stdin=json.dumps(inputs),
-            timeout=60,
+            timeout=seconds("tool"),
         )
     except TimeoutExpired as error:
         message = "archive_reference_observation_timeout"

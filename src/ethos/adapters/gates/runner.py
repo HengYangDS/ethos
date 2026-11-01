@@ -40,6 +40,8 @@ from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import reduce_verdicts
+from ethos.repository.paradigm.parameters import parameter_source
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
 
@@ -63,6 +65,8 @@ class ActionRunResult:
     verification: dict[str, object] | None = None
     started_after_seconds: float | None = None
     duration_seconds: float | None = None
+    timeout_seconds: int | None = None
+    timeout_source: str | None = None
 
 
 class DryRunRunner:
@@ -109,7 +113,7 @@ class LocalGateRunner:
     def _run(
         self, node: PlanNode, gate: Gate, *, root: Path, attempt_scope: ExitStack
     ) -> ActionRunResult:
-        deadline = monotonic() + gate.timeout_seconds if gate.timeout_seconds else None
+        deadline = monotonic() + gate_timeout(gate)[0]
         if node.command != gate_execution_identity(gate):
             return ActionRunResult(
                 action_id=node.id,
@@ -147,7 +151,7 @@ class LocalGateRunner:
                 root,
                 gate,
                 execution_command,
-                timeout=max(0, deadline - monotonic()) if deadline else None,
+                timeout=max(0, deadline - monotonic()),
                 env=node_attempt.environment() if node_attempt is not None else None,
                 remove_env=("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE")
                 if node_attempt is not None
@@ -265,7 +269,7 @@ class LocalGateRunner:
                 gate.id,
                 gate.verification_providers,
                 root,
-                timeout_seconds=max(0, deadline - monotonic()) if deadline else None,
+                timeout_seconds=max(0, deadline - monotonic()),
                 execution=replace(native, node_attempt=node_attempt),
             )
             verdict = reduce_verdicts(execution.verdict, verdict)
@@ -493,18 +497,28 @@ def _run_ready_gate(
         )
     started = monotonic()
     result = runner.run(node, gate, root=root)
-    return (
-        result
-        if isinstance(runner, DryRunRunner)
-        else replace(
-            result, started_after_seconds=started - epoch, duration_seconds=monotonic() - started
-        )
+    if isinstance(runner, DryRunRunner):
+        return result
+    timeout, source = gate_timeout(gate)
+    return replace(
+        result,
+        started_after_seconds=started - epoch,
+        duration_seconds=monotonic() - started,
+        timeout_seconds=timeout,
+        timeout_source=source,
     )
+
+
+def gate_timeout(gate: Gate) -> tuple[float, str]:
+    """Return a gate's deadline and its source: the gate, its repository or the default."""
+    if gate.timeout_seconds:
+        return gate.timeout_seconds, "gate"
+    return seconds("gate"), parameter_source("timeout", "gate_seconds")
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path, *, candidate: bool) -> ActionRunResult:
     reports, verdict, diagnostics = provider_reports(
-        gate.id, gate.providers, root, timeout_seconds=gate.timeout_seconds, candidate=candidate
+        gate.id, gate.providers, root, timeout_seconds=gate_timeout(gate)[0], candidate=candidate
     )
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(

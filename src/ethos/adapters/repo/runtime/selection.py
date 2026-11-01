@@ -23,6 +23,7 @@ from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import is_release_build
@@ -371,7 +372,7 @@ def runtime_selection_lock(common: Path) -> FileLock:
     """
     return FileLock(
         common.resolve() / "ethos" / "runtime-selection.lock",
-        timeout=10,
+        timeout=seconds("probe"),
         fallback_to_soft=False,
         preserve_lock_file=True,
         is_singleton=True,

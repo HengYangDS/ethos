@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING
 import ethos.adapters.repo.git as git
 from ethos.adapters.process import stream_text
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-REMOTE_REF_OBSERVATION_TIMEOUT_SECONDS = 30
 
 
 def observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
@@ -31,8 +30,9 @@ def observe_remote_refs(
     patterns = (*refs, *(f"{ref}^{{}}" for ref in refs if ref.startswith("refs/tags/")))
     args = ("ls-remote", remote, *patterns)
     failure: dict[str, object]
+    bound = seconds("git")
     try:
-        completed = git.run_network_git(root, *args, timeout=REMOTE_REF_OBSERVATION_TIMEOUT_SECONDS)
+        completed = git.run_network_git(root, *args, timeout=bound)
     except subprocess.TimeoutExpired as error:
         failure = {
             "reason": "timeout",
@@ -68,7 +68,7 @@ def observe_remote_refs(
             "peeled_commit": "",
             "tree_oid": "",
             "cwd": root.resolve().as_posix(),
-            "timeout_seconds": REMOTE_REF_OBSERVATION_TIMEOUT_SECONDS,
+            "timeout_seconds": bound,
             **failure,
         }
         for ref in refs

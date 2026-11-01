@@ -21,6 +21,7 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -87,7 +88,9 @@ def _source_inputs(
         for digest in old_files.values()
     ):
         _fail("starter_evolution_baseline_digest_invalid", verdict="block")
-    observed = run_git(root, "rev-parse", "HEAD", observation=True, check=False, timeout=10)
+    observed = run_git(
+        root, "rev-parse", "HEAD", observation=True, check=False, timeout=seconds("git")
+    )
     if observed.returncode or observed.stdout.strip() != current:
         _fail("starter_evolution_head_changed", verdict="block")
     ancestor = run_git(
@@ -98,7 +101,7 @@ def _source_inputs(
         current,
         observation=True,
         check=False,
-        timeout=10,
+        timeout=seconds("git"),
     )
     if ancestor.returncode == 1:
         _fail("starter_evolution_baseline_not_ancestor", verdict="block")
@@ -222,7 +225,9 @@ def compose_starter_evolution(
         with isolated_git_objects(root) as git:
             tree, template = _template_candidate(root, git, baseline, old_files, new_files)
             candidate = _merged_candidate(git, baseline, current, tree, template)
-        observed = run_git(root, "rev-parse", "HEAD", observation=True, check=False, timeout=10)
+        observed = run_git(
+            root, "rev-parse", "HEAD", observation=True, check=False, timeout=seconds("git")
+        )
         if observed.returncode or observed.stdout.strip() != current:
             _fail("starter_evolution_head_changed", verdict="block")
     except _CompositionError as error:
@@ -300,7 +305,7 @@ def _formation_source(root: Path) -> tuple[str, dict[str, str], str, str]:
         text=False,
         check=False,
         observation=True,
-        timeout=10,
+        timeout=seconds("git"),
     )
     if baseline_project.returncode:
         detail = baseline_project.stderr.decode(errors="replace").strip()
@@ -324,9 +329,17 @@ def plan_starter_evolution(root: Path, *, purpose: str) -> dict[str, object]:
         if not purpose.strip():
             _fail("starter_evolution_purpose_missing", verdict="block")
         baseline, old_files, old_version, project_name = _formation_source(root)
-        head = run_git(root, "rev-parse", "HEAD", check=False, observation=True, timeout=10)
+        head = run_git(
+            root, "rev-parse", "HEAD", check=False, observation=True, timeout=seconds("git")
+        )
         state = run_git(
-            root, "status", "--porcelain", "-z", check=False, observation=True, timeout=10
+            root,
+            "status",
+            "--porcelain",
+            "-z",
+            check=False,
+            observation=True,
+            timeout=seconds("git"),
         )
         if head.returncode or state.returncode:
             _fail("starter_evolution_repository_unavailable")

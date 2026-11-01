@@ -27,7 +27,10 @@ See [proposal.md](proposal.md). Four facts shape the design.
 | A lock wait                  | 4 (`runtime/materialization/*`, `ref_intent.py`)                                                                                                                                         | 1, 10       | how long to wait for another holder              |
 | A protocol constant          | 6 (`FileLock(..., timeout=0)`, `slot.acquire(timeout=0)`, `worktree_effects.py`)                                                                                                         | 0, 5        | try once, or a fixed abort grace                 |
 
-`tools/` holds 29 further literals, mostly in the delivery acceptance; they run outside a governed
+Beside them, nine function parameters default to a literal wait, from 3 to 600 seconds, and five
+module constants name one with a `_SECONDS` suffix instead of `TIMEOUT`: the push transfer, the
+custody lock, the proof slot's admission, the open-file scan and the source observation. `tools/`
+holds 31 further literal waits, mostly in the delivery acceptance; they run outside a governed
 repository's proof and keep their values until their own owners migrate them.
 
 ## Goals / Non-Goals
@@ -65,20 +68,30 @@ repository's proof and keep their values until their own owners migrate them.
   composition root sets from the target repository's resolution
   (`with repository_parameters(root):`, in `ethos.cli.main` and the hook protocol), and falls back
   to the declared defaults where no repository is bound. Adapters do not take the repository root to
-  read a value.
+  read a value. `seconds(kind, given)` is the typed form for the `timeout` group: a call site names
+  its class, and a function whose timeout had a literal default now defaults to `None` and passes
+  its argument as `given`, so an explicit value, zero included, still wins and is validated as
+  before.
 - **Gates own their budget.** Every gate runs under a deadline: its declared `timeout_seconds`, or
   the repository's `timeout.gate_seconds` (default 600, bound 7,200). A command inside a gate
   declares no timeout of its own and runs within that deadline, so the class-A literals and
-  `python_quality.py`'s 600-second default go; a caller that runs gate code outside a gate, such as
-  `lane format` or the archive projection, opens the deadline that gate would have. A declared
-  `timeout_seconds` above the bound is a profile gap. ETHOS declares `local-install-smoke`'s, the
-  one undeclared gate measured above half the default (617 to 712 seconds). Rejected: keeping
-  per-tool budgets inside the gate, which made the release-tests limit unreachable for Ordo.
-- **Five host parameters.** `timeout.tool_seconds` (60) bounds a native tool outside a gate,
-  `timeout.git_seconds` (30) and `timeout.git_history_seconds` (120) bound Git, and
-  `timeout.probe_seconds` (15) bounds a version or identity probe, each with a bound of ten times
-  its default; `timeout.lock_seconds` (10, bound 100) bounds a lock wait. A Git observation that
-  used 10 seconds takes the Git value: the class bounds a hang, it is not a speed budget.
+  `python_quality.py`'s 600-second default go. The formatter's commands also serve `lane format` and
+  the archive projection, which run outside any gate, so they take `timeout.tool_seconds` and inside
+  the format gate still run within its deadline. A declared `timeout_seconds` above the bound is a
+  profile gap. ETHOS declares `local-install-smoke`'s, the one undeclared gate measured above half
+  the default (617 to 712 seconds). Rejected: keeping per-tool budgets inside the gate, which made
+  the release-tests limit unreachable for Ordo.
+- **Eight wait parameters.** `timeout.tool_seconds` (60) bounds a native tool outside a gate,
+  `timeout.git_seconds` (30) and `timeout.git_history_seconds` (120) bound Git,
+  `timeout.probe_seconds` (15) bounds a version or identity probe, `timeout.lock_seconds` (10) a
+  lock wait, `timeout.download_seconds` (180) a native tool download, `timeout.request_seconds`
+  (180) one MCP tool call and `timeout.admission_seconds` (3,600) a proof's wait for the
+  repository's proof slot; each bound is ten times its default. A Git observation that used 10
+  seconds takes the Git value: the class bounds a hang, it is not a speed budget.
+- **A lock wait follows its holder's work.** A waiter allows what the holder may legitimately take:
+  a short critical section `timeout.lock_seconds`, a native supply preparation, which may be
+  downloading, `timeout.download_seconds`, and the custody lock, whose holder swaps the attestation
+  set, `timeout.git_history_seconds`.
 - **Protocol constants are native arguments or named.** A non-blocking acquisition becomes
   `blocking=False`, which filelock 4.2 accepts in the constructor and in `acquire`. The update-ref
   abort grace keeps a named constant beside the protocol that fixes it. A repository cannot change
@@ -86,10 +99,13 @@ repository's proof and keep their values until their own owners migrate them.
 - **Evidence.** Each `gate_completed` event carries `timeout_seconds` and its source (`gate`,
   `repository` or `default`), and the proof summary lists every deviation of the invocation's
   resolution with its reason, as the paradigm report lists size deviations today.
-- **The check.** An architecture test parses `src/` and `tools/` and counts keyword arguments and
-  parameter defaults named `timeout` or `timeout_seconds` whose value is a numeric literal, and
-  module constants named `*TIMEOUT*` assigned one. `src/` is 0 when this Change lands; the recorded
-  `tools/` count only falls. Positional timeouts are outside the count.
+- **The check.** An architecture test parses `src/` and `tools/` and counts numeric literals bound
+  to a wait: a keyword argument, parameter default or field named `timeout` or ending in `_timeout`
+  or `timeout_seconds`, and an upper-case constant whose name contains `TIMEOUT` or ends in
+  `_SECONDS`. Timing that ETHOS fixes for its own protocol, a grace after a stop or a polling
+  interval, is a constant named `*_GRACE_SECONDS` or `*_POLL_SECONDS` and is not counted. `src/` is
+  0 when this Change lands; the recorded `tools/` count only falls. Positional timeouts are outside
+  the count.
 
 ## Risks / Trade-offs
 
@@ -112,5 +128,8 @@ repository's proof and keep their values until their own owners migrate them.
 ## Migration Plan
 
 One lane. Without a repository value every parameter keeps today's behaviour, except that class-A
-commands share their gate's deadline, undeclared gates are bounded at 600 seconds, and Git
-observations wait 30 instead of 10 seconds.
+commands share their gate's deadline and undeclared gates are bounded at 600 seconds; Git
+observations wait 30 instead of 10 seconds and the remote reachability probe 30 instead of 3; a
+native tool outside a gate waits 60 instead of 30 seconds, and the staged-file format check 60
+instead of 120; a version probe waits 15 instead of 5 or 10; the ref-intent lock 10 instead of 1, a
+native supply preparation 180 instead of 30, and the custody lock 120 instead of 300.

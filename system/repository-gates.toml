@@ -228,6 +228,7 @@ tool_adapter = "uv-local-install-smoke"
 writes_files = true
 cpu_reservation = 2
 resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "artifacts/native" = "exclusive", "evidence/install" = "exclusive", "scratch/install" = "exclusive" }
+timeout_seconds = 1800
 network_policy = "offline"
 version_source = "locked-toolchain"
 

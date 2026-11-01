@@ -2,88 +2,36 @@
 
 from __future__ import annotations
 
-import json
 import os
 import stat
-import subprocess
-from pathlib import Path
-from typing import Any
-from typing import cast
+import sys
+from typing import TYPE_CHECKING
 
-from ethos.adapters.process import NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE
-from ethos.adapters.process import WINDOWS_POWERSHELL_UTF8
-from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_powershell
+if sys.platform == "win32":
+    import pywintypes
+    import win32api
+    import win32security
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _SYSTEM_SID = "S-1-5-18"
 _ADMINISTRATORS_SID = "S-1-5-32-544"
-_WINDOWS_MODULES = (
-    WINDOWS_POWERSHELL_UTF8
-    + r"""
-$ErrorActionPreference = 'Stop'
-foreach ($name in @('Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Utility')) {
-  $module = [System.IO.Path]::Combine($PSHOME, 'Modules', $name, "$name.psd1")
-  Import-Module -Name $module -ErrorAction Stop
-}
-"""
-)
-_WINDOWS_OBSERVE = r"""
-$path = $env:ETHOS_TRUST_ANCHOR_PATH
-$current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$sidType = [System.Security.Principal.SecurityIdentifier]
-$writeMask = [int64](
-  [System.Security.AccessControl.FileSystemRights]::WriteData -bor
-  [System.Security.AccessControl.FileSystemRights]::AppendData -bor
-  [System.Security.AccessControl.FileSystemRights]::WriteExtendedAttributes -bor
-  [System.Security.AccessControl.FileSystemRights]::WriteAttributes -bor
-  [System.Security.AccessControl.FileSystemRights]::Delete -bor
-  [System.Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor
-  [System.Security.AccessControl.FileSystemRights]::ChangePermissions -bor
-  [System.Security.AccessControl.FileSystemRights]::TakeOwnership
-)
-$results = foreach ($candidate in @($path, [System.IO.Path]::GetDirectoryName($path))) {
-  $acl = Get-Acl -LiteralPath $candidate
-  $owner = $acl.GetOwner($sidType).Value
-  $writers = @(
-    $acl.GetAccessRules($true, $true, $sidType) | Where-Object {
-      $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-      (([int64]$_.FileSystemRights -band $writeMask) -ne 0)
-    } | ForEach-Object {
-      $_.IdentityReference.Value
-    } | Sort-Object -Unique
-  )
-  [pscustomobject]@{
-    current_sid = $current
-    owner_sid = $owner
-    write_allow_sids = $writers
-  }
-}
-ConvertTo-Json -InputObject @($results) -Compress
-"""
-_WINDOWS_PROTECT = r"""
-$path = $env:ETHOS_TRUST_ANCHOR_PATH
-$acl = Get-Acl -LiteralPath $path
-$acl.SetAccessRuleProtection($true, $false)
-@($acl.Access) | ForEach-Object { [void]$acl.RemoveAccessRuleSpecific($_) }
-$full = [System.Security.AccessControl.FileSystemRights]::FullControl
-$allow = [System.Security.AccessControl.AccessControlType]::Allow
-$current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-$acl.SetOwner($current)
-@($current.Value, 'S-1-5-18', 'S-1-5-32-544') | ForEach-Object {
-  $sid = [System.Security.Principal.SecurityIdentifier]::new($_)
-  $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, $full, $allow)
-  [void]$acl.AddAccessRule($rule)
-}
-Set-Acl -LiteralPath $path -AclObject $acl
-"""
+# Write or append data, write extended attributes or attributes, delete, delete a child, change
+# permissions or owner, and generic write or all.
+_WRITE_MASK = 0x500D0156
+_INHERIT_ONLY = 0x08
+# Access-allowed entries, plain and object. Deny entries only remove authority.
+_ALLOW = frozenset({0, 5})
+_FILE_ALL_ACCESS = 0x1F01FF
+_API_MISSING = "native_security_api_missing"
+_UNSUPPORTED_ENTRY = "unsupported_access_entry"
+
+type AccessEntry = tuple[int, int, int, str]
+"""One DACL entry: its type, flags, access mask and the grantee's string SID."""
 
 
-def protected_from_untrusted_write(
-    path: Path,
-    *,
-    platform_name: str | None = None,
-) -> bool:
+def protected_from_untrusted_write(path: Path, *, platform_name: str | None = None) -> bool:
     """Return whether the path and parent exclude untrusted write authority."""
     try:
         target = path.resolve(strict=True)
@@ -91,7 +39,24 @@ def protected_from_untrusted_write(
         return False
     if (platform_name or os.name) != "nt":
         return all(_posix_protected(candidate) for candidate in (target, target.parent))
-    return _windows_protected(target)
+    try:
+        current = _current_identity()
+        descriptors = [_security_descriptor(candidate) for candidate in (target, target.parent)]
+    except OSError as error:
+        message = f"git_object_trust_anchor_observation_unavailable:{error}"
+        raise ValueError(message) from error
+    trusted = {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
+    return all(
+        owner == current
+        and entries is not None
+        and {
+            grantee
+            for kind, flags, mask, grantee in entries
+            if kind in _ALLOW and not flags & _INHERIT_ONLY and mask & _WRITE_MASK
+        }
+        <= trusted
+        for owner, entries in descriptors
+    )
 
 
 def protect_for_current_identity(path: Path, *, platform_name: str | None = None) -> None:
@@ -100,17 +65,10 @@ def protect_for_current_identity(path: Path, *, platform_name: str | None = None
         path.chmod(0o700 if path.is_dir() else 0o600)
         return
     try:
-        completed = _run_windows(path, _WINDOWS_PROTECT)
-    except ProcessExecutionError as error:
-        message = f"git_object_trust_anchor_protection_failed:{error.reason}"
+        _grant_exclusive(path, (_current_identity(), _SYSTEM_SID, _ADMINISTRATORS_SID))
+    except OSError as error:
+        message = f"git_object_trust_anchor_protection_failed:{error}"
         raise OSError(message) from error
-    if completed.returncode:
-        stderr = " ".join(completed.stderr.split())[:512]
-        message = (
-            "git_object_trust_anchor_protection_failed:"
-            f"exit_code={completed.returncode}:stderr={stderr}"
-        )
-        raise OSError(message)
 
 
 def _posix_protected(path: Path) -> bool:
@@ -121,68 +79,82 @@ def _posix_protected(path: Path) -> bool:
     return mode & 0o022 == 0
 
 
-def _windows_protected(path: Path) -> bool:
-    message = "git_object_trust_anchor_observation_unavailable"
-    invalid_output = f"{message}:invalid_native_output"
+def _current_identity() -> str:
+    """Return the string SID of the user this process runs as."""
+    if sys.platform != "win32":
+        raise OSError(_API_MISSING)
     try:
-        completed = _run_windows(path, _WINDOWS_OBSERVE)
-    except ProcessExecutionError as error:
-        diagnostic = f"{message}:{error.reason}"
-        raise ValueError(diagnostic) from error
-    if completed.returncode:
-        detail = " ".join(completed.stderr.split())[:512]
-        diagnostic = f"{message}:exit_code={completed.returncode}:stderr={detail}"
-        raise ValueError(diagnostic)
-    try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError as error:
-        raise ValueError(invalid_output) from error
-    if not isinstance(payload, list) or len(payload) != 2:
-        raise ValueError(invalid_output)
-    try:
-        reports = cast("list[dict[str, Any]]", payload)
-        protected = []
-        for report in reports:
-            current = str(report["current_sid"])
-            owner = str(report["owner_sid"])
-            writers = {str(value) for value in cast("list[object]", report["write_allow_sids"])}
-            protected.append(
-                owner == current and writers <= {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
-            )
-    except (KeyError, TypeError, ValueError) as error:
-        raise ValueError(invalid_output) from error
-    return all(protected)
-
-
-def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str]:
-    executable = windows_powershell()
-    native = Path(executable)
-    command = (
-        executable,
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        _WINDOWS_MODULES + script,
-    )
-    try:
-        return run_command(
-            path.parent,
-            command,
-            check=False,
-            env={
-                "ETHOS_TRUST_ANCHOR_PATH": str(path),
-                "PATH": os.pathsep.join(str(native.parents[index]) for index in (0, 2, 3)),
-            },
-            remove_env=("PSModulePath",),
-            remove_env_prefixes=("GIT_",),
-            timeout=30,
+        token = win32security.OpenProcessToken(
+            win32api.GetCurrentProcess(), win32security.TOKEN_QUERY
         )
-    except subprocess.TimeoutExpired as error:
-        raise ProcessExecutionError(
-            NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE,
-            reason="timeout",
-            command=command,
-            cwd=str(path.parent),
-            observation={"timeout_seconds": error.timeout},
-        ) from error
+        user, _attributes = win32security.GetTokenInformation(token, win32security.TokenUser)
+        identity = win32security.ConvertSidToStringSid(user)
+    except pywintypes.error as error:
+        raise OSError(_native_failure(error)) from error
+    return identity
+
+
+def _security_descriptor(path: Path) -> tuple[str, tuple[AccessEntry, ...] | None]:
+    """Return a file's owner and DACL entries, or no entries for a null or absent DACL."""
+    if sys.platform != "win32":
+        raise OSError(_API_MISSING)
+    try:
+        descriptor = win32security.GetNamedSecurityInfo(
+            str(path),
+            win32security.SE_FILE_OBJECT,
+            win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION,
+        )
+        owner = win32security.ConvertSidToStringSid(descriptor.GetSecurityDescriptorOwner())
+        dacl = descriptor.GetSecurityDescriptorDacl()
+        # A plain entry is (header, mask, sid); an object entry holds two GUIDs before its SID.
+        # pywin32 packs the mask as a signed 32-bit integer.
+        entries = (
+            None
+            if dacl is None
+            else tuple(
+                (
+                    header[0],
+                    header[1],
+                    mask & 0xFFFFFFFF,
+                    win32security.ConvertSidToStringSid(rest[-1]),
+                )
+                for header, mask, *rest in map(dacl.GetAce, range(dacl.GetAceCount()))
+            )
+        )
+    except NotImplementedError as error:
+        raise OSError(_UNSUPPORTED_ENTRY) from error
+    except pywintypes.error as error:
+        raise OSError(_native_failure(error)) from error
+    return owner, entries
+
+
+def _grant_exclusive(path: Path, grantees: tuple[str, ...]) -> None:
+    """Own a file as the first grantee and protect a DACL of full access for each grantee."""
+    if sys.platform != "win32":
+        raise OSError(_API_MISSING)
+    try:
+        sids = [win32security.ConvertStringSidToSid(grantee) for grantee in grantees]
+        dacl = win32security.ACL()
+        for sid in sids:
+            dacl.AddAccessAllowedAce(win32security.ACL_REVISION, _FILE_ALL_ACCESS, sid)
+        win32security.SetNamedSecurityInfo(
+            str(path),
+            win32security.SE_FILE_OBJECT,
+            win32security.OWNER_SECURITY_INFORMATION
+            | win32security.DACL_SECURITY_INFORMATION
+            | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            sids[0],
+            None,
+            dacl,
+            None,
+        )
+    except pywintypes.error as error:
+        raise OSError(_native_failure(error)) from error
+
+
+def _native_failure(error: Exception) -> str:
+    """Name a failed Win32 call by its function, error number and bounded message."""
+    funcname, winerror, strerror = (
+        getattr(error, name, "") for name in ("funcname", "winerror", "strerror")
+    )
+    return f"{funcname}:winerror={winerror}:{' '.join(str(strerror).split())[:256]}"

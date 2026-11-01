@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import tomllib
 from datetime import UTC
@@ -12,6 +11,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
 
+from packaging.requirements import InvalidRequirement
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -31,7 +33,6 @@ OUTPUT = ROOT / "build/evidence/quality/dependency/deptry-ethos.json"
 SUMMARY = ROOT / "build/evidence/quality/dependency/summary.json"
 PROJECT = ROOT / "pyproject.toml"
 RUNTIME = ProjectRuntime.discover(ROOT)
-LOWER_BOUND = re.compile(r"^(?P<name>[A-Za-z0-9_.-]+)>=(?P<version>[^,;\s]+)$")
 
 
 def _declared_requirements() -> list[str]:
@@ -46,7 +47,7 @@ def _declared_requirements() -> list[str]:
 def _locked_versions() -> dict[str, str]:
     lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
     return {
-        str(package["name"]).lower().replace("_", "-"): str(package["version"])
+        canonicalize_name(str(package["name"])): str(package["version"])
         for package in lock.get("package", [])
         if isinstance(package, dict) and "name" in package and "version" in package
     }
@@ -55,16 +56,29 @@ def _locked_versions() -> dict[str, str]:
 def declaration_gaps() -> list[str]:
     gaps = []
     locked = _locked_versions()
-    for requirement in _declared_requirements():
-        match = LOWER_BOUND.fullmatch(requirement)
-        if match is None:
-            gaps.append(f"direct_dependency_not_single_lower_bound:{requirement}")
+    for declared in _declared_requirements():
+        bound = _single_lower_bound(declared)
+        if bound is None:
+            gaps.append(f"direct_dependency_not_single_lower_bound:{declared}")
             continue
-        name = match.group("name").lower().replace("_", "-")
-        version = match.group("version")
+        name, version = bound
         if locked.get(name) != version:
             gaps.append(f"direct_dependency_lock_mismatch:{name}:{version}:{locked.get(name, '')}")
     return gaps
+
+
+def _single_lower_bound(declared: str) -> tuple[str, str] | None:
+    """Return the name and version of `name>=version`, which may carry an environment marker."""
+    try:
+        requirement = Requirement(declared)
+    except InvalidRequirement:
+        return None
+    specifiers = tuple(requirement.specifier)
+    if requirement.url or requirement.extras or len(specifiers) != 1:
+        return None
+    if specifiers[0].operator != ">=":
+        return None
+    return canonicalize_name(requirement.name), specifiers[0].version
 
 
 PolicyText = Annotated[str, Field(pattern=r"^\S(?:.*\S)?$")]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -71,14 +70,6 @@ def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
     sentinel = needed / "payload"
     original = sentinel.read_bytes()
     active = False
-    native = retirement.process_listing_command()
-    run = retirement.run_command
-
-    def observe(root, command, **kwargs):
-        if command == native:
-            return subprocess.CompletedProcess(command, 0, needed.as_posix() if active else "", "")
-        return run(root, command, **kwargs)
-
     binding = hook_activation.hook_runtime_binding
 
     def observe_activated(*args, **kwargs):
@@ -87,7 +78,9 @@ def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
         active = True
         return result
 
-    monkeypatch.setattr(retirement, "run_command", observe)
+    monkeypatch.setattr(
+        retirement, "process_commands", lambda _root: needed.as_posix() if active else ""
+    )
     monkeypatch.setattr(hook_activation, "hook_runtime_binding", observe_activated)
 
     result = install_hook_launchers(repo)

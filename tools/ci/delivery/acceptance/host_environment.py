@@ -6,8 +6,6 @@ import os
 import shutil
 from pathlib import Path
 
-from ethos.adapters.process import windows_powershell
-
 
 def independent_host_environment() -> tuple[dict[str, str], str]:
     """Retain native OS context and signing tools without agent control planes."""
@@ -48,8 +46,11 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
     }
     native_dirs = tuple(path.parent for path in tools.values())
     if os.name == "nt":
-        powershell = Path(windows_powershell())
-        native_dirs += (powershell.parents[2], powershell.parents[3])
+        system_root = os.environ.get("SYSTEMROOT")
+        if not system_root:
+            message = "minimal host environment requires SYSTEMROOT"
+            raise RuntimeError(message)
+        native_dirs += (Path(system_root) / "System32", Path(system_root))
     env["PATH"] = os.pathsep.join(dict.fromkeys(str(path) for path in native_dirs))
     for name in tools:
         if shutil.which(name, path=env["PATH"]) is None:

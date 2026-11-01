@@ -93,6 +93,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     )
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
+    assert "startsWith(github.ref, 'refs/heads/proposal/')" in github["jobs"]["supply-image"]["if"]
     supply = [step.get("run", "") for step in github["jobs"]["supply-image"]["steps"]]
     assert any("--target smoke --build-context workspace=." in command for command in supply)
     # A build check reads every stage, so the smoke stage's named context must resolve too.

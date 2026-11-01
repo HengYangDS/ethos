@@ -16,7 +16,6 @@ from uv import find_uv_bin
 import tools.ci.toolchain.environment as ci_environment
 import tools.ci.toolchain.fixture_supply as fixture_supply
 from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from tests.support.governed_repository import git
@@ -139,27 +138,9 @@ def test_ci_trust_material_is_protected_under_a_shared_temporary_root(
     repo = init_git_repo(tmp_path / "repo")
     shared = tmp_path / "shared-temporary-root"
     shared.mkdir()
-    run_command(
-        shared,
-        (
-            windows_powershell(),
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            (
-                "$acl=Get-Acl -LiteralPath $env:ETHOS_SHARED_ROOT;"
-                "$sid=[System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-545');"
-                "$rule=New-Object System.Security.AccessControl.FileSystemAccessRule("
-                "$sid,'Write','ContainerInherit,ObjectInherit','None','Allow');"
-                "[void]$acl.AddAccessRule($rule);"
-                "Set-Acl -LiteralPath $env:ETHOS_SHARED_ROOT -AclObject $acl"
-            ),
-        ),
-        check=True,
-        env={"ETHOS_SHARED_ROOT": str(shared)},
-        remove_env=("PSModulePath",),
-    )
+    icacls = Path(os.environ["SYSTEMROOT"]) / "System32/icacls.exe"
+    grant = (str(icacls), str(shared), "/grant", "*S-1-5-32-545:(OI)(CI)W")
+    run_command(shared, grant, check=True, timeout=60)
     monkeypatch.setattr(tempfile, "tempdir", str(shared))
 
     anchor = ci_environment.bind_commit_trust_material(repo, "operator public trust\n")

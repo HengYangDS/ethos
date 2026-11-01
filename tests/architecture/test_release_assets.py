@@ -17,6 +17,7 @@ import pytest
 
 import ethos.adapters.gates.runner as gate_execution
 import ethos.repository.policy.gates as gate_policy
+import tools.ci.dependency_hygiene as dependency_hygiene
 import tools.ci.local_ci as local_ci
 import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.runner import ActionRunResult
@@ -29,7 +30,6 @@ from ethos.repository.policy.references.observation import reference_consumer_so
 from tests.support.architecture import isolated_path
 from tests.support.runtime_scenarios import empty_node_package_supply
 from tools.ci.delivery.pipeline import DeliveryPipeline
-from tools.ci.dependency_hygiene import declaration_gaps
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -82,8 +82,14 @@ def test_ci_supply_provides_the_declared_linux_signing_tool() -> None:
     assert "openssh-client=" in dockerfile
 
 
-def test_direct_python_bounds_equal_the_locked_resolution() -> None:
-    assert declaration_gaps() == []
+def test_direct_python_bounds_equal_the_locked_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each direct requirement is one lower bound, with any marker, equal to its locked version."""
+    assert dependency_hygiene.declaration_gaps() == []
+    declared = ["pywin32>=312; sys_platform == 'win32'", "pywin32>=312,<313"]
+    monkeypatch.setattr(dependency_hygiene, "_declared_requirements", lambda: declared)
+    assert dependency_hygiene.declaration_gaps() == [
+        "direct_dependency_not_single_lower_bound:pywin32>=312,<313"
+    ]
 
 
 def test_local_ci_logs_use_declared_disposable_runtime_home() -> None:

@@ -210,8 +210,10 @@ github: {
 	}
 	jobs: {
 		"supply-image": {
-			name:      "locked Linux ARM64 supply"
-			if:        "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.supply_image }}"
+			name: "locked Linux ARM64 supply"
+			// A lane that changes a hashed supply input builds its image from its proposal ref, so the
+			// binding lands with that input and GitLab never verifies a head without its supply.
+			if:        "${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}"
 			"runs-on": "ubuntu-24.04-arm"
 			permissions: {
 				contents: "read"

@@ -16,5 +16,6 @@ package_module_name_map = [
   "markdown-it-py=markdown_it",
   "pillow=PIL",
   "pytest-cov=pytest_cov|coverage",
+  "pywin32=pythoncom|pywintypes|win32api|win32com|win32security",
   "pyyaml=yaml",
 ]

@@ -498,19 +498,14 @@ def test_repository_cleanup_preserves_external_supply(tmp_path):
     assert (external / "selected").read_bytes() == original
 
 
-@pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platform):
-    """Native observation excludes ambient executable and incompatible module paths."""
-    relative = "System32/WindowsPowerShell/v1.0/powershell.exe" if platform == "nt" else "bin/ps"
-    native = tmp_path / relative
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process observer")
+def test_process_observer_resolves_native_authority(tmp_path, monkeypatch):
+    """Native observation excludes ambient executables and the caller's Git environment."""
+    native = tmp_path / "bin/ps"
     native.parent.mkdir(parents=True)
-    native.write_text(
-        '#!/bin/sh\n[ -z "${PSModulePath+x}${GIT_INDEX_FILE+x}" ] || exit 91\nprintf "%s\\n" "$*"\n'
-    )
+    native.write_text('#!/bin/sh\n[ -z "${GIT_INDEX_FILE+x}" ] || exit 91\nprintf "%s\\n" "$*"\n')
     native.chmod(0o700)
-    monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
     monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
-    monkeypatch.setenv("PSModulePath", "foreign-powershell-modules")
     monkeypatch.setenv("GIT_INDEX_FILE", "foreign-index")
     native_run = retirement.run_command
 
@@ -525,16 +520,18 @@ def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platf
         return native.as_posix()
 
     monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-    expected = (
-        "-NoLogo -NoProfile -NonInteractive -Command "
-        f"{process_adapter.WINDOWS_POWERSHELL_UTF8}Get-CimInstance Win32_Process | % CommandLine"
-        if platform == "nt"
-        else "-axww -o command="
-    )
-    assert retirement.process_commands(tmp_path, platform_name=platform).strip() == expected
-    if platform == "nt":
-        monkeypatch.delenv("SYSTEMROOT")
-        with pytest.raises(process_adapter.ProcessExecutionError) as caught:
-            process_adapter.windows_powershell()
-        assert caught.value.code == "native_windows_powershell_unavailable"
-        assert caught.value.reason == "system_root_missing"
+    assert retirement.process_commands(tmp_path).strip() == "-axww -o command="
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows provides the management interface")
+def test_windows_process_observation_without_its_interface_fails_closed(tmp_path):
+    """Without the native management interface, process observation is unknown, not empty."""
+    with pytest.raises(ValueError, match="hook_runtime_consumers_unknown"):
+        retirement.process_commands(tmp_path, platform_name="nt")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires the Windows management interface")
+def test_windows_process_observation_lists_this_process(tmp_path):
+    """WMI lists every visible command line, this test process's own among them."""
+    listed = retirement.process_commands(tmp_path)
+    assert Path(sys.executable).name.casefold() in listed.casefold()

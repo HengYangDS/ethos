@@ -173,7 +173,7 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
                 "cli.test_invalid_profile_boundary:parametrize:test_git_execution_failures_emit_structured_json_without_traceback:2"
             ),
         ),
-        ("native_windows_powershell_unavailable", "native_executable_missing"),
+        ("native_process_observer_unavailable", "native_executable_missing"),
     ],
 )
 @pytest.mark.parametrize("arguments", [("status",), ("mcp",), ("hook", "install")])
@@ -189,11 +189,7 @@ def test_native_execution_failures_preserve_evidence_and_transport(
 ) -> None:
     git_failure = code.startswith("git_")
     error_type = GitExecutionError if git_failure else ProcessExecutionError
-    executed = (
-        ("/usr/bin/git", "status")
-        if git_failure
-        else ("C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",)
-    )
+    executed = ("/usr/bin/git", "status") if git_failure else ("/bin/ps",)
     cause = "OSError: denied" if git_failure else "FileNotFoundError: missing"
 
     def fail(_root: Path | None) -> Path:

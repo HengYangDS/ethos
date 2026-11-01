@@ -2,39 +2,23 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
-from contextlib import nullcontext
-from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import ethos.adapters.repo.trust_anchor.filesystem as trust_anchor_filesystem
 from ethos.adapters.process import run_command
-from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
 from ethos.adapters.repo.trust_anchor.verification import trust_anchor
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
-def _fake_powershell(tmp_path: Path, payload: dict[str, object] | list[dict[str, object]]) -> Path:
-    executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
-    executable.parent.mkdir(parents=True)
-    observations = payload if isinstance(payload, list) else [payload, payload]
-    executable.write_bytes(
-        f"#!/bin/sh\nprintf '%s\\n' '{json.dumps(observations, separators=(',', ':'))}'\n".encode(
-            "ascii"
-        )
-    )
-    executable.chmod(0o755)
-    return executable
+_CURRENT = "S-1-5-21-1000"
+_FULL = 0x1F01FF
+_TRUSTED = ((0, 0, _FULL, _CURRENT), (0, 0, _FULL, "S-1-5-18"), (0, 0, _FULL, "S-1-5-32-544"))
 
 
 def _anchor(tmp_path: Path) -> Path:
@@ -45,96 +29,86 @@ def _anchor(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    ("owner", "writers", "parent_foreign", "expected"),
+    ("file", "parent", "expected"),
     [
-        ("S-1-5-21-1000", ["S-1-5-21-1000", "S-1-5-18", "S-1-5-32-544"], False, True),
-        ("S-1-5-21-1000", ["S-1-5-21-1000", "S-1-5-32-545"], False, False),
-        ("S-1-5-21-2000", ["S-1-5-21-1000"], False, False),
-        ("S-1-5-21-1000", ["S-1-5-21-1000"], True, False),
+        pytest.param((_CURRENT, _TRUSTED), None, True, id="trusted"),
+        pytest.param(
+            (_CURRENT, (*_TRUSTED, (0, 0, 0x116, "S-1-5-32-545"))), None, False, id="writer"
+        ),
+        pytest.param(
+            (_CURRENT, (*_TRUSTED, (5, 0, 0x2, "S-1-5-32-545"))), None, False, id="object"
+        ),
+        pytest.param(
+            (_CURRENT, (*_TRUSTED, (0, 0x08, 0x10000000, "S-1-3-0"))), None, True, id="io"
+        ),
+        pytest.param((_CURRENT, (*_TRUSTED, (1, 0, 0x116, "S-1-5-32-545"))), None, True, id="deny"),
+        pytest.param((_CURRENT, (*_TRUSTED, (0, 0, 0x120089, "S-1-1-0"))), None, True, id="reader"),
+        pytest.param(("S-1-5-21-2000", _TRUSTED), None, False, id="foreign-owner"),
+        pytest.param((_CURRENT, None), None, False, id="null-dacl"),
+        pytest.param(
+            (_CURRENT, _TRUSTED),
+            (_CURRENT, (*_TRUSTED, (0, 0x10, 0x2, "S-1-1-0"))),
+            False,
+            id="foreign-parent",
+        ),
     ],
 )
-def test_windows_protection_distinguishes_owner_and_write_authority(
-    tmp_path, monkeypatch, owner, writers, parent_foreign, expected
+def test_windows_protection_decides_from_owner_and_write_entries(
+    tmp_path, monkeypatch, file, parent, expected
 ):
-    """Real payload consumers distinguish safe ACLs from foreign owner or writer."""
-    payload = {
-        "current_sid": "S-1-5-21-1000",
-        "owner_sid": owner,
-        "write_allow_sids": writers,
-    }
-    parent = (
-        payload | {"write_allow_sids": [*writers, "S-1-5-32-545"]} if parent_foreign else payload
-    )
-    _fake_powershell(tmp_path, [payload, parent])
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    anchor = _anchor(tmp_path)
-    observed = Mock(wraps=trust_anchor_filesystem.run_command)
-    monkeypatch.setattr(trust_anchor_filesystem, "run_command", observed)
-    assert protected_from_untrusted_write(anchor, platform_name="nt") is expected
-    assert observed.call_count == 1
+    """Owner and effective write-like allow entries decide; inherit-only, deny and read do not."""
+    facts = {"allowed-signers": file, "trust": parent or file}
+    monkeypatch.setattr(trust_anchor_filesystem, "_current_identity", lambda: _CURRENT)
+    monkeypatch.setattr(trust_anchor_filesystem, "_security_descriptor", lambda p: facts[p.name])
+    assert protected_from_untrusted_write(_anchor(tmp_path), platform_name="nt") is expected
 
 
 @pytest.mark.parametrize(
-    "failure", ["missing", "root-missing", "native-error", "malformed", "creation"]
+    "failure",
+    [
+        pytest.param(
+            "missing",
+            marks=pytest.mark.skipif(sys.platform == "win32", reason="pywin32 is present"),
+        ),
+        "native-error",
+    ],
 )
 def test_windows_observation_failure_is_not_an_unprotected_acl(tmp_path, monkeypatch, failure):
     """Public trust admission retains unavailable-observer reasons without accepting."""
     anchor = _anchor(tmp_path)
-    executable = _fake_powershell(tmp_path, {})
-    if failure == "missing":
-        executable.unlink()
-    elif failure == "creation":
-        executable.write_bytes(b"invalid executable")
-    elif failure == "native-error":
-        executable.write_text("#!/bin/sh\necho 'Get-Acl: module unavailable' >&2\nexit 7\n")
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    if failure == "root-missing":
-        monkeypatch.delenv("SYSTEMROOT")
+    if failure == "native-error":
+
+        def refuse(_path: Path) -> object:
+            message = "GetNamedSecurityInfo:winerror=5:Access is denied."
+            raise OSError(message)
+
+        monkeypatch.setattr(trust_anchor_filesystem, "_current_identity", lambda: _CURRENT)
+        monkeypatch.setattr(trust_anchor_filesystem, "_security_descriptor", refuse)
     native = protected_from_untrusted_write
     monkeypatch.setattr(
         "ethos.adapters.repo.trust_anchor.verification.protected_from_untrusted_write",
         lambda path: native(path, platform_name="nt"),
     )
     _resolved, gaps = trust_anchor(tmp_path / "repo", str(anchor))
+    reason = {"missing": "native_security_api_missing", "native-error": "winerror=5"}[failure]
     assert len(gaps) == 1
-    assert gaps[0].startswith("git_object_trust_anchor_observation_unavailable")
-    if failure in {"missing", "root-missing"}:
-        assert {"missing": "native_executable_missing", "root-missing": "system_root_missing"}[
-            failure
-        ] in gaps[0]
-    if failure == "native-error":
-        assert "exit_code=7" in gaps[0]
-        assert "module unavailable" in gaps[0]
+    assert gaps[0].startswith("git_object_trust_anchor_observation_unavailable:")
+    assert reason in gaps[0]
     assert anchor.read_text() == "unchanged"
 
 
-@pytest.mark.parametrize("native_exit", [0, 5, None])
-def test_windows_protection_preserves_native_result_and_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_exit: int | None
-) -> None:
-    executable = _fake_powershell(tmp_path, {})
-    body = {
-        0: 'case "$PATH" in *System32*) exit 0 ;; *) exit 92 ;; esac',
-        5: "echo 'Set-Acl: Access is denied.' >&2; exit 5",
-        None: "exec /bin/sleep 1",
-    }[native_exit]
-    executable.write_text('#!/bin/sh\n[ -z "${PSMODULEPATH+x}" ] || exit 91\n' + body + "\n")
-    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
-    monkeypatch.setenv("PSMODULEPATH", "foreign-powershell-modules")
-    if native_exit is None:
-        monkeypatch.setattr(
-            trust_anchor_filesystem,
-            "run_command",
-            lambda *args, **kwargs: run_command(*args, **(kwargs | {"timeout": 0.2})),
-        )
-    reason = "timeout" if native_exit is None else "exit_code=5:stderr=Set-Acl: Access is denied\\."
-    with (
-        pytest.raises(OSError, match=f"git_object_trust_anchor_protection_failed:{reason}")
-        if native_exit != 0
-        else nullcontext()
-    ):
+def test_windows_protection_failure_keeps_the_native_reason(tmp_path, monkeypatch):
+    """A refused DACL write fails closed with the failed call and its error number."""
+
+    def refuse(_path: Path, _grantees: tuple[str, ...]) -> None:
+        message = "SetNamedSecurityInfo:winerror=5:Access is denied."
+        raise OSError(message)
+
+    monkeypatch.setattr(trust_anchor_filesystem, "_current_identity", lambda: _CURRENT)
+    monkeypatch.setattr(trust_anchor_filesystem, "_grant_exclusive", refuse)
+    expected = "git_object_trust_anchor_protection_failed:SetNamedSecurityInfo:winerror=5"
+    with pytest.raises(OSError, match=expected):
         protect_for_current_identity(_anchor(tmp_path), platform_name="nt")
-    assert os.environ["PSMODULEPATH"] == "foreign-powershell-modules"
 
 
 def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
@@ -167,28 +141,9 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
         assert provider.returncode == 0, provider.stderr
         assert protected_from_untrusted_write(anchor)
 
-    run_command(
-        anchor.parent,
-        (
-            windows_powershell(),
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            (
-                "$acl=Get-Acl -LiteralPath $env:ETHOS_TRUST_ANCHOR_PATH;"
-                f"$sid=[System.Security.Principal.SecurityIdentifier]::new('{foreign_sid}');"
-                "$rule=New-Object System.Security.AccessControl.FileSystemAccessRule("
-                "$sid,'Write','Allow');"
-                "[void]$acl.AddAccessRule($rule);"
-                "Set-Acl -LiteralPath $env:ETHOS_TRUST_ANCHOR_PATH -AclObject $acl"
-            ),
-        ),
-        check=True,
-        timeout=60,
-        env={"ETHOS_TRUST_ANCHOR_PATH": str(anchor)},
-        remove_env=("PSModulePath",),
-    )
+    icacls = Path(os.environ["SYSTEMROOT"]) / "System32/icacls.exe"
+    grant = (str(icacls), str(anchor), "/grant", f"*{foreign_sid}:W")
+    run_command(anchor.parent, grant, check=True, timeout=60)
 
     with patch.dict(os.environ, isolated, clear=True):
         assert not protected_from_untrusted_write(anchor)

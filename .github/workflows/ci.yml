@@ -33,7 +33,7 @@ env:
 jobs:
   supply-image:
     name: locked Linux ARM64 supply
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.supply_image }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read

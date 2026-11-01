@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
@@ -15,12 +16,18 @@ from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Event
 from threading import Lock
+from threading import Thread
 from threading import current_thread
 from threading import main_thread
 from time import monotonic
 from time import sleep
 from typing import TYPE_CHECKING
 from typing import Any
+
+if sys.platform == "win32":
+    import pythoncom
+    import pywintypes
+    import win32com.client
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -31,13 +38,7 @@ if TYPE_CHECKING:
     from typing import BinaryIO
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
-NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
-# Windows PowerShell writes redirected text in the console code page. A script that starts with
-# this statement writes UTF-8 like every other command; a host without a console keeps its page.
-WINDOWS_POWERSHELL_UTF8 = (
-    "try { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) } catch {}\n"
-)
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
 _GROUP_REAPING_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
@@ -164,8 +165,6 @@ class CommandScope:
                     process, grace_seconds=0.5 if isinstance(exc, KeyboardInterrupt) else 1
                 )
             try:
-                if os.name == "nt" and isinstance(exc, subprocess.TimeoutExpired):
-                    exc.stdout, exc.stderr = process.communicate()
                 process.__exit__(None, None, None)
             finally:
                 self.discard(process)
@@ -266,37 +265,8 @@ def command_scope(
         _COMMAND_SCOPE.reset(token)
 
 
-def windows_powershell(*, environment: Mapping[str, str] | None = None) -> str:
-    """Resolve native Windows PowerShell without consulting ambient PATH."""
-    values = os.environ if environment is None else environment
-    system_root = values.get("SYSTEMROOT", "")
-    if not system_root:
-        raise ProcessExecutionError(
-            NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE,
-            reason="system_root_missing",
-        )
-    executable = Path(system_root) / "System32/WindowsPowerShell/v1.0/powershell.exe"
-    if not executable.is_file():
-        raise ProcessExecutionError(
-            NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE,
-            reason="native_executable_missing",
-            command=(executable.as_posix(),),
-        )
-    return executable.resolve().as_posix()
-
-
-def process_listing_command(*, platform_name: str | None = None) -> tuple[str, ...]:
-    """Observe full native command text, independent of PATH or display width."""
-    windows = WINDOWS_POWERSHELL_UTF8 + "Get-CimInstance Win32_Process | % CommandLine"
-    if (platform_name or os.name) == "nt":
-        return (
-            windows_powershell(),
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            windows,
-        )
+def process_listing_command() -> tuple[str, ...]:
+    """Observe full native command text on POSIX, independent of PATH or display width."""
     executable = shutil.which("ps", path=os.defpath)
     if executable is None or not Path(executable).is_file():
         raise ProcessExecutionError(
@@ -304,6 +274,36 @@ def process_listing_command(*, platform_name: str | None = None) -> tuple[str, .
             reason="native_executable_missing",
         )
     return (Path(executable).resolve().as_posix(), "-axww", "-o", "command=")
+
+
+def windows_command_lines(*, timeout: float) -> tuple[str, ...]:
+    """Read every visible process's command line from WMI on a worker thread within a bound."""
+    lines: list[str] = []
+    complete = Event()
+
+    def query() -> None:
+        if sys.platform != "win32":
+            return
+        pythoncom.CoInitialize()
+        try:
+            rows = win32com.client.GetObject("winmgmts:").ExecQuery(
+                "SELECT CommandLine FROM Win32_Process"
+            )
+            lines.extend(str(row.CommandLine) for row in rows if row.CommandLine)
+            complete.set()
+        except pywintypes.com_error:
+            return
+        finally:
+            pythoncom.CoUninitialize()
+
+    worker = Thread(target=query, name="process-command-lines", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if not complete.is_set():
+        raise ProcessExecutionError(
+            NATIVE_PROCESS_OBSERVER_UNAVAILABLE, reason="management_query_unavailable"
+        )
+    return tuple(lines)
 
 
 def run_command(
@@ -376,7 +376,7 @@ def _execute_command(
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with (
         ExitStack() as resources,
-        _finite_output(enabled=spool_stdout and os.name == "posix") as (output, diagnostic),
+        _finite_output(enabled=spool_stdout or os.name == "nt") as (output, diagnostic),
     ):
         finite_input = None
         if stdin is not None:
@@ -421,7 +421,11 @@ def _execute_command(
 
 @contextmanager
 def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO | None]]:
-    """Snapshot timeout bytes before cleanup; preserve optional stderr pipe semantics."""
+    """Capture stdout, and stderr when enabled, in files; snapshot both before timeout cleanup.
+
+    Windows always captures stderr in a file: a descendant that keeps a pipe open makes its reader
+    wait for the pipe's end, while a file is read as soon as the leader exits.
+    """
     with ExitStack() as resources:
         output = resources.enter_context(TemporaryFile(mode="w+b"))
         diagnostic = resources.enter_context(TemporaryFile(mode="w+b")) if enabled else None

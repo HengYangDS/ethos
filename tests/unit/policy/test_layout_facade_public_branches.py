@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.repository.policy.layout.facades import dynamic_compat_facade_findings
-from ethos.repository.policy.layout.facades import module_facade_findings
-from ethos.repository.policy.layout.facades import package_init_facade_findings
+from ethos.repository.policy.layout.facades import facade_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_SRC = {"semantic_paths": ["src"]}
 
 
 def _write(root: Path, relative: str, source: str) -> Path:
@@ -91,7 +91,7 @@ def test_package_init_audit_classifies_public_runtime_facades(
 ) -> None:
     carrier = _write(tmp_path, "src/ethos/sample/__init__.py", source)
 
-    findings = package_init_facade_findings(tmp_path, {"semantic_paths": ["src"]}, files=(carrier,))
+    findings = facade_findings(tmp_path, _SRC, files=(carrier,))["package_init_facade_findings"]
 
     assert ([item["reasons"] for item in findings] if findings else []) == (
         [reasons] if reasons else []
@@ -121,7 +121,7 @@ def test_module_facade_audit_distinguishes_import_shells_from_owned_runtime(
 ) -> None:
     carrier = _write(tmp_path, "src/ethos/sample.py", source)
 
-    findings = module_facade_findings(tmp_path, {"semantic_paths": ["src"]}, files=(carrier,))
+    findings = facade_findings(tmp_path, _SRC, files=(carrier,))["module_facade_findings"]
 
     assert len(findings) == expected_count
 
@@ -142,9 +142,7 @@ def test_dynamic_compatibility_audit_exposes_lazy_module_exports(
 ) -> None:
     carrier = _write(tmp_path, "src/ethos/sample.py", source)
 
-    findings = dynamic_compat_facade_findings(
-        tmp_path, {"semantic_paths": ["src"]}, files=(carrier,)
-    )
+    findings = facade_findings(tmp_path, _SRC, files=(carrier,))["dynamic_compat_facade_findings"]
 
     assert ([item["reasons"] for item in findings] if findings else []) == (
         [reasons] if reasons else []
@@ -159,5 +157,5 @@ def test_ordinary_module_audits_skip_package_initializers(tmp_path: Path) -> Non
     )
     policy = {"semantic_paths": ["src"]}
 
-    assert module_facade_findings(tmp_path, policy, files=(carrier,)) == []
-    assert dynamic_compat_facade_findings(tmp_path, policy, files=(carrier,)) == []
+    findings = facade_findings(tmp_path, policy, files=(carrier,))
+    assert findings["module_facade_findings"] == findings["dynamic_compat_facade_findings"] == []

@@ -24,6 +24,12 @@ def test_test_level_timeouts_only_tighten_the_declared_hang_bound() -> None:
     assert {site: seconds for site, seconds in marks.items() if seconds >= bound} == {}
 
 
+def test_a_stuck_test_writes_its_stacks_before_the_bound_ends_it() -> None:
+    """A Windows bound ends the worker process, so the stacks must reach the log first."""
+    config = tomllib.loads(PYTEST_CONFIG.read_text(encoding="utf-8"))["pytest"]
+    assert 0 < float(config["faulthandler_timeout"]) < float(config["timeout"])
+
+
 def _timeout_mark(call: ast.Call) -> float | None:
     """Return the seconds of a ``pytest.mark.timeout`` call; a non-literal value is unbounded."""
     match call.func:

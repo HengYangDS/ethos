@@ -302,6 +302,19 @@ def download_tool(
     result.check_returncode()
 
 
+def prepared_tool_directories(root: Path) -> tuple[Path, ...]:
+    """Name the prepared native supply of the tools a repository declares; nothing is installed."""
+    prepared = []
+    for name in NATIVE_BACKENDS:
+        try:
+            supply = NativeSupply.read(root, name)
+        except ValueError:
+            continue
+        if os.access((cache := supply.cache(root)) / supply.executable_name, os.X_OK):
+            prepared.append(cache)
+    return tuple(prepared)
+
+
 def materialize_tool(
     root: Path, name: str, *, lock_timeout: float = 30, mise: Path | None = None
 ) -> Path:

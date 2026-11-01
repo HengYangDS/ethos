@@ -185,6 +185,7 @@ def test_windows_native_acl_protection_rejects_foreign_writer(
             ),
         ),
         check=True,
+        timeout=60,
         env={"ETHOS_TRUST_ANCHOR_PATH": str(anchor)},
         remove_env=("PSModulePath",),
     )

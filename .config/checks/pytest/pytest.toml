@@ -8,6 +8,7 @@ testpaths = ["tests"]
 pythonpath = ["../../..", "../../../src"]
 required_plugins = ["allure-pytest", "pytest-timeout", "pytest-cov", "pytest-xdist"]
 timeout = "600"
+faulthandler_timeout = "540"
 markers = [
   "unit: unit tests for deterministic product logic.",
   "architecture: repository architecture and boundary tests.",

@@ -8,7 +8,7 @@ import pytest
 
 import ethos.repository.policy.layout.imports as layout_imports
 from ethos.adapters.gates.tool import module_layout_gate_report
-from ethos.repository.policy.layout.facades import module_facade_findings
+from ethos.repository.policy.layout.facades import facade_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
 from ethos.repository.policy.layout.policy import empty_package_findings
@@ -31,9 +31,8 @@ def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:
         'from ethos.result import EthosResult\n\n__all__ = ["EthosResult"]\n',
     )
 
-    assert module_facade_findings(tmp_path, {"semantic_paths": ["."]})[0]["reasons"] == [
-        "import_only"
-    ]
+    findings = facade_findings(tmp_path, {"semantic_paths": ["."]})["module_facade_findings"]
+    assert findings[0]["reasons"] == ["import_only"]
 
 
 def test_empty_package_shell_without_consumers_is_blocked(tmp_path) -> None:

@@ -27,12 +27,14 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
+from ethos.adapters.repo.runtime.materialization.native_supply import prepared_tool_directories
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
+from ethos.repository.policy.quality_reports import unproven
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.python_target import PythonTarget
@@ -42,14 +44,6 @@ if TYPE_CHECKING:
 _FLEET_LINE_LENGTH = 100
 # The test run's bound when its gate declares none.
 _DEFAULT_TIMEOUT_SECONDS = 600
-
-
-def _failure(axis: str, reason: str) -> dict[str, object]:
-    return {
-        "verdict": "block",
-        "state": "unproven",
-        "required_gaps": [f"quality_{axis}_{reason}"],
-    }
 
 
 def _native_fields(execution: NativeExecution) -> dict[str, object]:
@@ -146,7 +140,7 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
             execution = _static_execution(root, authored, target, execution)
             native = _native_fields(execution)
         elif execution is not None:
-            return {**_failure("static", "python_native_selection_invalid"), "native": native}
+            return {**unproven("static", "python_native_selection_invalid"), "native": native}
         observe_quality_subjects(root, language="python", expected_tree=tree)
         if execution is not None:
             _static_diagnostics(execution)
@@ -156,7 +150,7 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
             if isinstance(error, ValueError)
             else f"tool_unavailable:{type(error).__name__}"
         )
-        return {**_failure("static", reason), "native": native}
+        return {**unproven("static", reason), "native": native}
     return {
         "verdict": "pass",
         "state": "verified",
@@ -247,8 +241,10 @@ def _behavior_evidence(
             "HYPOTHESIS_STORAGE_DIRECTORY": str(output / "hypothesis"),
         }
         if mise_files is not None:
+            # Tests reach the native tools ETHOS prepared outside mise, never the caller's PATH.
+            prepared = prepared_tool_directories(root)
             environment = {
-                **scope.enter_context(locked_environment(root, mise_files)),
+                **scope.enter_context(locked_environment(root, mise_files, prepared=prepared)),
                 **environment,
             }
             prefix = (
@@ -320,7 +316,7 @@ def _behavior_evidence(
             )
             if missing:
                 reason = "test_command_failed" if result.returncode else f"{missing}_missing"
-                return {**evidence, **_failure("behavior", reason)}
+                return {**evidence, **unproven("behavior", reason)}
             counts, failed = junit_stream_report(
                 junit.read_text(encoding="utf-8"),
                 pytest_events=events.read_text(encoding="utf-8"),
@@ -328,7 +324,7 @@ def _behavior_evidence(
             evidence["tests"] = counts
             if not coverage.is_file():
                 reason = "test_command_failed" if result.returncode else "coverage_report_missing"
-                return {**evidence, **_failure("behavior", reason)}
+                return {**evidence, **unproven("behavior", reason)}
             measured = coverage_report(
                 coverage,
                 include_files=True,
@@ -346,10 +342,10 @@ def _behavior_evidence(
             else:
                 reason = ""
             if reason:
-                return {**evidence, **_failure("behavior", reason)}
+                return {**evidence, **unproven("behavior", reason)}
         except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
             reason = str(error) if isinstance(error, ValueError) else type(error).__name__
-            return {**evidence, **_failure("behavior", reason)}
+            return {**evidence, **unproven("behavior", reason)}
         return {**evidence, "verdict": "pass", "state": "verified", "required_gaps": []}
 
 
@@ -359,7 +355,7 @@ def behavior_report(
     """Run locked pytest within its gate's bound; verify fresh JUnit and source coverage."""
     if execution is not None and execution.evidence is None:
         return {
-            **_failure("behavior", "python_native_evidence_unavailable"),
+            **unproven("behavior", "python_native_evidence_unavailable"),
             "native": _native_fields(execution),
         }
     evidence: dict[str, object] = {}
@@ -377,7 +373,7 @@ def behavior_report(
             remove_owned_path(output)
         observe_quality_subjects(root, language="python", expected_tree=tree)
     except ProcessExecutionError as error:
-        return {**evidence, **_failure("behavior", error.code), "diagnostics": [error.evidence()]}
+        return {**evidence, **unproven("behavior", error.code), "diagnostics": [error.evidence()]}
     except (
         OSError,
         TypeError,
@@ -385,7 +381,7 @@ def behavior_report(
         subprocess.TimeoutExpired,
     ) as error:
         reason = str(error) if isinstance(error, ValueError) else type(error).__name__
-        return {**evidence, **_failure("behavior", reason)}
+        return {**evidence, **unproven("behavior", reason)}
     if evidence["verdict"] != "pass":
         return evidence
     return {

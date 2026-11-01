@@ -66,7 +66,7 @@ def test_generic_provider_uses_real_locked_python_evidence(
         monkeypatch.setattr(
             python_quality,
             "locked_environment",
-            lambda _root, _files: nullcontext({"UV_PROJECT_ENVIRONMENT": str(repo / ".venv")}),
+            lambda *_a, **_k: nullcontext({"UV_PROJECT_ENVIRONMENT": str(repo / ".venv")}),
         )
         monkeypatch.setattr(python_quality, "locked_tool", selected_tool)
     repo = committed_source_repo(tmp_path, files)

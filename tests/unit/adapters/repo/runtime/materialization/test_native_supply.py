@@ -211,9 +211,11 @@ def test_product_materializer_consumes_complete_cached_supply_without_download(
     cache.mkdir(parents=True)
     shutil.copyfile(archive, cache / selected.archive)
     monkeypatch.setattr(owner.NativeSupply, "verify", lambda _self, _executable: None)
+    assert owner.prepared_tool_directories(root) == ()
 
     assert owner.materialize_tool(root, "vale") == cache
 
+    assert owner.prepared_tool_directories(root) == (cache,)
     assert (cache / selected.executable_name).read_bytes() == body
     assert (cache / "LICENSE").read_bytes() == b"Publisher license\n"
     assert not list(cache.glob(".prepare-*"))

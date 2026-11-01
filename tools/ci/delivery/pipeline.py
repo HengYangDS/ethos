@@ -115,6 +115,7 @@ class DeliveryPipeline:
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
+        # The platform cases run in one process, as they were verified; workers only add start-up.
         session.run(
             str(self.runtime.python),
             "-m",
@@ -122,6 +123,8 @@ class DeliveryPipeline:
             "-q",
             "-c",
             str(self.runtime.root / ".config/checks/pytest/pytest.toml"),
+            "-n",
+            "0",
             "tests/architecture/test_portable_toolchain.py",
             "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
             "::test_windows_native_acl_protection_rejects_foreign_writer",

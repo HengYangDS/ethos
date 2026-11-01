@@ -351,8 +351,14 @@ def _host_git_directory() -> Path | None:
 
 
 @contextmanager
-def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[str, str]]:
-    """Expose locked tools and the selected mise only for the child lifetime."""
+def locked_environment(
+    root: Path, files: Mapping[str, str], *, prepared: tuple[Path, ...] = ()
+) -> Generator[dict[str, str]]:
+    """Expose locked tools and the selected mise only for the child lifetime.
+
+    `prepared` names locked tools that another owner prepared outside mise's installs; they follow
+    mise's own and precede the host baseline.
+    """
     executable = mise_executable()
     selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
     if selected.returncode or selected.stderr:
@@ -401,5 +407,7 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
         yield {
             **environment,
             **_mise_environment(Path(directory), offline=True, files=files, execution=True),
-            "PATH": os.pathsep.join((directory, *(str(path) for path in paths), *baseline)),
+            "PATH": os.pathsep.join(
+                (directory, *(str(path) for path in (*paths, *prepared)), *baseline)
+            ),
         }

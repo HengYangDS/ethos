@@ -26,6 +26,7 @@ from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.quality_reports import go_covered_paths
+from ethos.repository.policy.quality_reports import unproven
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
@@ -42,14 +43,6 @@ _CHECKED = {
 def _invalid(reason: str) -> Never:
     """Reject an unproved native quality observation."""
     raise ValueError(reason)
-
-
-def _failure(axis: str, reason: str) -> dict[str, object]:
-    return {
-        "verdict": "block",
-        "state": "unproven",
-        "required_gaps": [f"quality_{axis}_{reason}"],
-    }
 
 
 def _executable(root: Path, name: str) -> str:
@@ -448,9 +441,9 @@ def _report(
                     native.append(_script_static(root, authored, tool_environment))
             observe_quality_subjects(root, expected_tree=tree)
     except ProcessExecutionError as error:
-        return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
+        return {**unproven(axis, error.code), "diagnostics": [error.evidence()]}
     except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
-        return _failure(axis, str(error) if isinstance(error, ValueError) else type(error).__name__)
+        return unproven(axis, str(error) if isinstance(error, ValueError) else type(error).__name__)
     if any(report.get("verdict") in {"block", "unknown"} for report in native):
         gaps = tuple(
             gap for report in native for gap in string_sequence(report.get("required_gaps"))

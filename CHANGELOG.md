@@ -54,6 +54,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   reads as unobserved, and in the package acceptance's terminal evidence for a failed Mise call
   (GitHub issues #16 and #19). A provider gate whose deadline expires reports `gate_timeout` as
   unknown with its bound and elapsed seconds instead of `gate_provider_error` (GitLab issue #2).
+- Hosted verification passes again on both peers: the Python test probe finds the native tools that
+  ETHOS prepares outside mise, such as gitleaks for the staged-secret hook cases, after mise's own
+  installs and before the host baseline. The Windows host proof runs its four platform cases in one
+  process, the ACL case bounds its PowerShell call at 60 seconds, and pytest writes every thread's
+  stack at 540 seconds, before the 600-second bound ends a worker.
 
 ## [0.2.0-alpha.25] - 2026-11-01
 

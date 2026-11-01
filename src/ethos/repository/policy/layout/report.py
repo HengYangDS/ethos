@@ -5,9 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.contracts.verdict import close_verdict
-from ethos.repository.policy.layout.facades import dynamic_compat_facade_findings
-from ethos.repository.policy.layout.facades import module_facade_findings
-from ethos.repository.policy.layout.facades import package_init_facade_findings
+from ethos.repository.policy.layout.facades import facade_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
 from ethos.repository.policy.layout.imports import package_root_submodule_import_findings
 from ethos.repository.policy.layout.imports import private_import_findings
@@ -46,12 +44,10 @@ def module_layout_report(
         "empty_package_findings": empty_package_findings(root, policy, files),
         "multiple_command_owner_findings": multiple_command_owner_findings(root, policy, files),
         "private_alias_findings": private_alias_findings(root, policy, files),
-        "package_init_facade_findings": package_init_facade_findings(root, policy, files),
-        "module_facade_findings": module_facade_findings(root, policy, files),
+        **facade_findings(root, policy, files),
         "package_root_submodule_import_findings": package_root_submodule_import_findings(
             root, policy, files
         ),
-        "dynamic_compat_facade_findings": dynamic_compat_facade_findings(root, policy, files),
         "private_import_findings": private_import_findings(root, policy, files),
     }
     gaps = [str(finding["gap"]) for findings in finding_groups.values() for finding in findings]

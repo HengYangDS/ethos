@@ -40,11 +40,12 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     for executable in (selected, sibling):
         executable.write_bytes(b"selected executable")
         executable.chmod(0o755)
-    locked_bin = tmp_path / "locked-bin"
-    locked_bin.mkdir()
+    locked_bin, prepared = tmp_path / "locked-bin", tmp_path / "prepared"
+    for directory, name in ((locked_bin, "go"), (prepared, "gitleaks")):
+        directory.mkdir()
+        (directory / f"{name}{suffix}").write_bytes(b"locked tool")
+        (directory / f"{name}{suffix}").chmod(0o755)
     locked_go = locked_bin / f"go{suffix}"
-    locked_go.write_bytes(b"locked go")
-    locked_go.chmod(0o755)
     files = {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
 
     def observe(
@@ -75,11 +76,13 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     monkeypatch.delenv("MISE_SAFE", raising=False)
     monkeypatch.delenv("MISE_STATE_DIR", raising=False)
     expected = pytest.raises(RuntimeError) if interrupt else nullcontext()
-    with expected, mise.locked_environment(tmp_path, files) as environment:
+    with expected, mise.locked_environment(tmp_path, files, prepared=(prepared,)) as environment:
         alias = shutil.which("mise", path=environment["PATH"])
         assert alias is not None
         assert Path(alias).read_bytes() == selected.read_bytes()
         assert shutil.which("go", path=environment["PATH"]) == str(locked_go)
+        # Prepared supply follows mise's own installs and precedes the host baseline.
+        assert environment["PATH"].split(os.pathsep)[1:3] == [str(locked_bin), str(prepared)]
         assert shutil.which("unrelated", path=environment["PATH"]) is None
         assert str(operator) not in environment["PATH"].split(os.pathsep)
         alias_root = Path(alias).parent

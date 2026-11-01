@@ -82,6 +82,11 @@ def _invalid(code: str, error: Exception | None = None) -> NoReturn:
     raise ValueError(code) from error
 
 
+def unproven(axis: str, reason: str) -> dict[str, object]:
+    """Block a quality axis that its native evidence does not prove, naming why as its gap."""
+    return {"verdict": "block", "state": "unproven", "required_gaps": [f"quality_{axis}_{reason}"]}
+
+
 def junit_stream_report(
     text: str, *, pytest_events: str | None = None
 ) -> tuple[dict[str, int], bool]:

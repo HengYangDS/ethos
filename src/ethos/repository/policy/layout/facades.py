@@ -37,73 +37,29 @@ def private_alias_findings(
     return findings
 
 
-def package_init_facade_findings(
+def facade_findings(
     root: Path,
     policy: dict[str, Any],
     files: tuple[Path, ...] | None = None,
-) -> list[dict[str, object]]:
-    """Find package `__init__.py` files that act as runtime facades."""
-    return _facade_findings(
-        root,
-        policy,
-        files,
-        include=lambda path: path.name == "__init__.py",
-        reasons=package_init_facade_reasons,
-        gap="module_layout_package_init_facade",
-    )
+) -> dict[str, list[dict[str, object]]]:
+    """Find runtime package initializers, import-only modules and `__getattr__` export shells.
 
-
-def module_facade_findings(
-    root: Path,
-    policy: dict[str, Any],
-    files: tuple[Path, ...] | None = None,
-) -> list[dict[str, object]]:
-    """Find ordinary modules that only re-export imported symbols."""
-    return _facade_findings(
-        root,
-        policy,
-        files,
-        include=lambda path: path.name != "__init__.py",
-        reasons=module_facade_reasons,
-        gap="module_layout_module_facade",
-    )
-
-
-def dynamic_compat_facade_findings(
-    root: Path,
-    policy: dict[str, Any],
-    files: tuple[Path, ...] | None = None,
-) -> list[dict[str, object]]:
-    """Find modules that hide compatibility exports behind module `__getattr__`."""
-    return _facade_findings(
-        root,
-        policy,
-        files,
-        include=lambda path: path.name != "__init__.py",
-        reasons=dynamic_compat_facade_reasons,
-        gap="module_layout_dynamic_compat_facade",
-    )
-
-
-def _facade_findings(
-    root: Path,
-    policy: dict[str, Any],
-    files: tuple[Path, ...] | None,
-    *,
-    include: Callable[[Path], bool],
-    reasons: Callable[[ast.Module], list[str]],
-    gap: str,
-) -> list[dict[str, object]]:
-    findings: list[dict[str, object]] = []
+    Each selected file is parsed once. A package `__init__.py` is judged as an initializer, any
+    other module as an import facade and a dynamic-export shell.
+    """
+    kinds: dict[str, tuple[bool, Callable[[ast.Module], list[str]]]] = {
+        "package_init_facade": (True, package_init_facade_reasons),
+        "module_facade": (False, module_facade_reasons),
+        "dynamic_compat_facade": (False, dynamic_compat_facade_reasons),
+    }
+    findings: dict[str, list[dict[str, object]]] = {f"{kind}_findings": [] for kind in kinds}
     for path in semantic_python_files(root, policy, files=files):
-        if not include(path):
-            continue
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        found = reasons(tree)
-        if not found:
-            continue
-        findings.append({"gap": f"{gap}:{rel}", "path": rel, "reasons": found})
+        for kind, (initializer, reasons) in kinds.items():
+            if (path.name == "__init__.py") == initializer and (found := reasons(tree)):
+                gap = f"module_layout_{kind}:{rel}"
+                findings[f"{kind}_findings"].append({"gap": gap, "path": rel, "reasons": found})
     return findings
 
 

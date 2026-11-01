@@ -10,14 +10,14 @@ from pathlib import PurePosixPath
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 
+import pytest
+
 import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import materialize_runtime_case
 
 if TYPE_CHECKING:
-    import pytest
-
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 # CreateProcess starts python.exe only within MAX_PATH; adopters' install prefixes need the rest.
@@ -69,3 +69,16 @@ def test_archive_keeps_its_windows_interpreter_path_within_budget(
         }
     interpreter = PureWindowsPath(*runtime.parts, "python", "python.exe")
     assert len(str(interpreter)) <= _WINDOWS_INTERPRETER_BUDGET, interpreter
+
+
+def test_a_failed_mise_call_keeps_both_whole_streams(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bounded message names the call; its chained native failure keeps the whole result."""
+    failed = subprocess.CompletedProcess(("mise", "install"), 23, "o" * 2140, "e" * 2140)
+    monkeypatch.setattr(distribution, "run_command", lambda *_args, **_options: failed)
+    with pytest.raises(RuntimeError, match="package_manager_failed:install:exit=23") as failure:
+        vars(distribution)["_mise"](tmp_path / "mise", tmp_path, ("install",), {})
+    cause = failure.value.__cause__
+    assert isinstance(cause, subprocess.CalledProcessError)
+    assert (cause.returncode, cause.stdout, cause.stderr) == (23, "o" * 2140, "e" * 2140)

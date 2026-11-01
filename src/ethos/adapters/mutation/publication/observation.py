@@ -6,6 +6,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.git_object import zero_oid
 
 if TYPE_CHECKING:
@@ -33,15 +34,10 @@ def observe_remote_refs(
     try:
         completed = git.run_network_git(root, *args, timeout=REMOTE_REF_OBSERVATION_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as error:
-        stderr = (
-            error.stderr.decode(errors="replace")
-            if isinstance(error.stderr, bytes)
-            else error.stderr
-        )
         failure = {
             "reason": "timeout",
             "command": list(error.cmd),
-            "stderr": (stderr or "").strip(),
+            "stderr": stream_text(error.stderr).strip(),
         }
     except git.GitExecutionError as error:
         failure = {"reason": error.code, "command": ["git", *args], "stderr": error.reason}

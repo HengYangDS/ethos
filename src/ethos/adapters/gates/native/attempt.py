@@ -20,6 +20,7 @@ from ethos.adapters.gates.native.python import PythonRuntime
 from ethos.adapters.gates.verification import NativeEvidence
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import run_command
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
@@ -154,17 +155,8 @@ def native_attempt(
                 remove_env=(*remove_env, OBSERVER_REQUIREMENT),
             )
         except subprocess.TimeoutExpired as error:
-            stdout = (
-                error.stdout.decode(errors="replace")
-                if isinstance(error.stdout, bytes)
-                else error.stdout or ""
-            )
-            stderr = (
-                error.stderr.decode(errors="replace")
-                if isinstance(error.stderr, bytes)
-                else error.stderr or ""
-            )
-            completed = subprocess.CompletedProcess(argv, 124, stdout, stderr)
+            streams = stream_text(error.stdout), stream_text(error.stderr)
+            completed = subprocess.CompletedProcess(argv, 124, *streams)
             gaps.append("native_execution_timeout")
         for output in gate.native_outputs:
             try:

@@ -48,8 +48,8 @@ def binary_content_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] |
     Gates read worktree bytes, so the staged copy does not decide. `git ls-files --eol`
     reports this classification apart from the `text` and `eol` attributes, which govern
     line-ending conversion: content such as a NUL byte reads `-text`, while a valid document
-    that an attribute marks `-text` keeps its own reading. None means Git did not classify
-    every path.
+    that an attribute marks `-text` keeps its own reading. Git's own refusal raises its
+    `CalledProcessError` with both streams; None means a successful Git classified fewer paths.
     """
     if not paths:
         return frozenset()
@@ -65,13 +65,14 @@ def binary_content_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] |
         text=False,
         observation=True,
     )
+    completed.check_returncode()
     classified: dict[str, bool] = {}
     for record in completed.stdout.split(b"\0")[:-1]:
         info, separator, path = record.partition(b"\t")
         if not separator:
             return None
         classified[_text(path)] = _BINARY_WORKTREE in info.split()
-    if completed.returncode or not set(paths) <= set(classified):
+    if not set(paths) <= set(classified):
         return None
     return frozenset(path for path in paths if classified[path])
 

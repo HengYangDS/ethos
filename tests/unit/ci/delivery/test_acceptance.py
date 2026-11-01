@@ -8,6 +8,8 @@ import os
 import signal
 import subprocess
 import sys
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -488,3 +490,28 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, outp
         )
     assert payload["wheels"][0]["sha256"] == hashlib.sha256(selected.read_bytes()).hexdigest()
     assert (" -- --release --expect-head " in payload["command"]) == bool(artifact)
+
+
+def test_terminal_evidence_keeps_each_native_command_outcome() -> None:
+    """The failure chain keeps its types and every chained command's whole result."""
+    native = subprocess.CalledProcessError(23, ("mise", "install"), "o" * 2140, "e" * 2140)
+    failure = RuntimeError("shared_supply_package_manager_failed:install:exit=23")
+    failure.__cause__ = native
+    evidence = receipt.package_failure_evidence(
+        head="0" * 40,
+        wheel_sha256="1" * 64,
+        error=failure,
+        owned_work_absent=True,
+        acceptance_written=False,
+        generated_at=datetime.now(UTC),
+    )
+    assert evidence["error_types"] == ["RuntimeError", "CalledProcessError"]
+    assert evidence["command_failures"] == [
+        {
+            "command": ["mise", "install"],
+            "cwd": "",
+            "exit_code": 23,
+            "stdout": "o" * 2140,
+            "stderr": "e" * 2140,
+        }
+    ]

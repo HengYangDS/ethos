@@ -19,6 +19,7 @@ from ethos.adapters.gates.javascript.execution import node_test_environment
 from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
@@ -351,12 +352,8 @@ def behavior_observation(
             observed["process_failure"] = {
                 "argv": error.cmd,
                 "timeout": error.timeout,
-                "stdout": error.stdout.decode(errors="replace")
-                if isinstance(error.stdout, bytes)
-                else error.stdout,
-                "stderr": error.stderr.decode(errors="replace")
-                if isinstance(error.stderr, bytes)
-                else error.stderr,
+                "stdout": stream_text(error.stdout),
+                "stderr": stream_text(error.stderr),
             }
             gaps.append("javascript_native_attempt_timeout")
         finally:

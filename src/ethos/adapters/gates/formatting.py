@@ -21,6 +21,7 @@ from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
+from ethos.adapters.process import command_outcome
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
@@ -501,17 +502,5 @@ def source_format_failure(root: Path, error: Exception) -> dict[str, object]:
     ):
         result.update(quality_inventory_failure(root, "source-format", error))
     elif isinstance(error, subprocess.CalledProcessError):
-        result["errors"] = [
-            {
-                "command": list(error.cmd),
-                "cwd": str(root),
-                "exit_code": error.returncode,
-                "stdout": error.stdout.decode(errors="replace")
-                if isinstance(error.stdout, bytes)
-                else error.stdout or "",
-                "stderr": error.stderr.decode(errors="replace")
-                if isinstance(error.stderr, bytes)
-                else error.stderr or "",
-            }
-        ]
+        result["errors"] = [command_outcome(error, cwd=root)]
     return result

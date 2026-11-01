@@ -481,3 +481,40 @@ def test_provider_only_runner_transports_explicit_candidate_context(
     runner = gate_runner.LocalGateRunner(candidate=candidate)
     assert runner.run(_node(gate), gate, root=tmp_path).verdict == "pass"
     assert observed == [(tmp_path, candidate)]
+
+
+@pytest.mark.parametrize("fault", ["timeout", "failure"])
+def test_a_provider_keeps_its_native_outcome(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    """An expired provider deadline is unknown with its bound; a failed command keeps its output."""
+
+    def report(_root: Path, *, timeout_seconds: float | None = None) -> dict[str, object]:
+        if fault == "timeout":
+            raise subprocess.TimeoutExpired(("pytest",), timeout_seconds or 0, output=b"partial")
+        raise subprocess.CalledProcessError(2, ("ruff", "check"), "o" * 2140, "e" * 2140)
+
+    providers = {"providers": ("ethos.test:report",)}
+    gate = Gate.model_validate({"id": "bounded", "kind": "test", "timeout_seconds": 5, **providers})
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+    (diagnostic,) = result.diagnostics
+    if fault == "timeout":
+        assert (result.verdict, diagnostic["kind"], diagnostic["timeout_seconds"]) == (
+            "unknown",
+            "gate_timeout",
+            5,
+        )
+        assert diagnostic["required_gaps"] == ["gate_timeout:bounded"]
+        assert diagnostic["stdout"] == "partial"
+        assert 0 <= diagnostic["elapsed_seconds"] < 5
+    else:
+        assert (result.verdict, diagnostic["kind"], diagnostic["exit_code"]) == (
+            "block",
+            "gate_provider_error",
+            2,
+        )
+        assert (diagnostic["command"], diagnostic["stdout"], diagnostic["stderr"]) == (
+            ["ruff", "check"],
+            "o" * 2140,
+            "e" * 2140,
+        )

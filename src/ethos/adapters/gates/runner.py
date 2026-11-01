@@ -29,6 +29,7 @@ from ethos.adapters.gates.verification import classify_action_result
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
@@ -153,16 +154,7 @@ class LocalGateRunner:
                 else (),
             )
         except subprocess.TimeoutExpired as exc:
-            stdout = (
-                exc.stdout.decode(errors="replace")
-                if isinstance(exc.stdout, bytes)
-                else exc.stdout or ""
-            )
-            stderr = (
-                exc.stderr.decode(errors="replace")
-                if isinstance(exc.stderr, bytes)
-                else exc.stderr or ""
-            )
+            stdout, stderr = stream_text(exc.stdout), stream_text(exc.stderr)
             observation: dict[str, object] = {}
             if node_attempt is not None:
                 observed = {

@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import pytest
+
 import ethos.adapters.repo.git_attributes as git_attributes
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
@@ -14,8 +16,6 @@ from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def test_received_paths_follow_native_linguist_attributes(tmp_path: Path) -> None:
@@ -99,4 +99,9 @@ def test_attribute_observations_conclude_nothing_when_git_refuses(
         monkeypatch.setattr(git_attributes, "run_git", lambda *_args, _c=completed, **_o: _c)
         assert received_paths(tmp_path, ("assets/fonts/OFL.txt",)) == frozenset()
         assert checkout_line_endings(tmp_path, ("assets/fonts/OFL.txt",)) is None
-        assert binary_content_paths(tmp_path, ("assets/fonts/OFL.txt",)) is None
+    # Git's own refusal keeps its result; a successful short listing stays unobserved.
+    assert binary_content_paths(tmp_path, ("assets/fonts/OFL.txt",)) is None
+    monkeypatch.setattr(git_attributes, "run_git", lambda *_args, **_options: refused)
+    with pytest.raises(subprocess.CalledProcessError) as refusal:
+        binary_content_paths(tmp_path, ("assets/fonts/OFL.txt",))
+    assert (refusal.value.returncode, refusal.value.stderr) == (128, b"fatal: not a git repository")

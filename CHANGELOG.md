@@ -49,6 +49,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `authored_text_path_invalid`. A focused proof refused only because axes it did not select are
   unproven names `ethos prove --execute --json`, and a JavaScript test-scope refusal names each file
   that the runner did not enter or entered unselected.
+- A failed or timed-out native command keeps its argv, exit status or bound and both whole
+  streams: in a provider gate's diagnostic, in a refused Git text classification, which no longer
+  reads as unobserved, and in the package acceptance's terminal evidence for a failed Mise call
+  (GitHub issues #16 and #19). A provider gate whose deadline expires reports `gate_timeout` as
+  unknown with its bound and elapsed seconds instead of `gate_provider_error` (GitLab issue #2).
 
 ## [0.2.0-alpha.25] - 2026-11-01
 

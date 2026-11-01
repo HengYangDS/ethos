@@ -5,6 +5,7 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import command_outcome
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.repo.git import GitExecutionError
@@ -191,17 +192,7 @@ def quality_inventory_failure(
     evidence = (
         error.evidence()
         if isinstance(error, GitExecutionError)
-        else {
-            "command": list(error.cmd),
-            "cwd": str(root),
-            "exit_code": error.returncode,
-            "stdout": error.stdout.decode(errors="replace")
-            if isinstance(error.stdout, bytes)
-            else error.stdout or "",
-            "stderr": error.stderr.decode(errors="replace")
-            if isinstance(error.stderr, bytes)
-            else error.stderr or "",
-        }
+        else command_outcome(error, cwd=root)
     )
     return {
         "id": gate_id,

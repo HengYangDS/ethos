@@ -552,3 +552,37 @@ def test_a_running_leader_that_refuses_its_interrupt_still_fails_cleanup(monkeyp
     terminate = vars(process_adapter)["_terminate_commands"]
     with pytest.raises(ExceptionGroup):
         terminate((_leader(exits_after_check=False),), grace_seconds=0.05)
+
+
+@pytest.mark.parametrize(
+    ("error", "ending", "streams"),
+    [
+        (
+            subprocess.CalledProcessError(23, ("mise", "install"), b"o" * 2140, b"e" * 2140),
+            {"exit_code": 23},
+            ("o" * 2140, "e" * 2140),
+        ),
+        (
+            subprocess.CalledProcessError(128, ["git", "ls-files"], None, "fatal: broken\n"),
+            {"exit_code": 128},
+            ("", "fatal: broken\n"),
+        ),
+        (
+            subprocess.TimeoutExpired(("pytest",), 1.5, output=b"partial\xff", stderr=None),
+            {"timeout_seconds": 1.5},
+            ("partial\ufffd", ""),
+        ),
+    ],
+    ids=["both-streams", "empty-stream", "timeout"],
+)
+def test_a_failed_command_keeps_its_complete_outcome(
+    error: subprocess.SubprocessError, ending: dict[str, object], streams: tuple[str, str]
+) -> None:
+    """Argv, exit status or bound and both whole streams survive; an absent stream reads empty."""
+    assert process_adapter.command_outcome(error, cwd="/work") == {
+        "command": list(error.cmd),
+        "cwd": "/work",
+        **ending,
+        "stdout": streams[0],
+        "stderr": streams[1],
+    }

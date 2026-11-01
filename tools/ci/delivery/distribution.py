@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.process import command_failure
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
@@ -365,7 +366,8 @@ def _mise(
         output = (completed.stderr.strip() or completed.stdout.strip())[-2000:]
         detail = f"{shlex.join(arguments)}:exit={completed.returncode}:{output}"
         message = f"shared_supply_package_manager_failed:{detail}"
-        raise RuntimeError(message)
+        # The bounded message names the call; the chained native failure keeps both whole streams.
+        raise RuntimeError(message) from command_failure(completed)
     return completed.stdout
 
 
@@ -410,9 +412,7 @@ def _install_with_mise(
         "MISE_GLOBAL_CONFIG_FILE": str(home / "absent-global.toml"),
         "MISE_SYSTEM_CONFIG_DIR": str(home / "absent-system"),
         "MISE_TRUSTED_CONFIG_PATHS": str(declaration),
-        "MISE_DISABLE_UPDATE_WARNING": "1",
-        "MISE_OFFLINE": "1",
-        "MISE_YES": "1",
+        **dict.fromkeys(("MISE_DISABLE_UPDATE_WARNING", "MISE_OFFLINE", "MISE_YES"), "1"),
     }
     for arguments in (("lock",), ("install", "--locked")):
         _mise(mise, project, arguments, scoped)

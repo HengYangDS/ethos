@@ -16,6 +16,7 @@ from typing import cast
 
 import ethos
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_outcome
 from ethos.adapters.process import command_scope
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import current_head
@@ -132,10 +133,9 @@ def provider_reports(
     verdicts: list[Verdict] = []
     deadline = monotonic() + timeout_seconds if timeout_seconds is not None else None
     for reference in references:
+        started = monotonic()
         try:
-            remaining = max(0, deadline - monotonic()) if deadline is not None else None
-            if remaining is not None and remaining <= 0:
-                raise subprocess.TimeoutExpired(reference, remaining)
+            remaining = _time_left(deadline, reference, timeout_seconds)
             with command_scope(timeout_seconds=remaining):
                 report = _provider_report(
                     reference,
@@ -144,8 +144,22 @@ def provider_reports(
                     timeout_seconds=remaining,
                     candidate=candidate,
                 )
-            if deadline is not None and monotonic() >= deadline:
-                raise subprocess.TimeoutExpired(reference, timeout_seconds or 0)
+            _time_left(deadline, reference, timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            # The provider did not decide, as a command gate's exit 124 does not.
+            reports.append({"provider": reference, "report": {"verdict": "unknown"}})
+            verdicts.append("unknown")
+            diagnostics.append(
+                {
+                    **command_outcome(exc),
+                    "kind": "gate_timeout",
+                    "provider": reference,
+                    "timeout_seconds": timeout_seconds or exc.timeout,
+                    "elapsed_seconds": monotonic() - started,
+                    "required_gaps": [f"gate_timeout:{gate_id}"],
+                }
+            )
+            continue
         except (
             AttributeError,
             ImportError,
@@ -157,6 +171,7 @@ def provider_reports(
         ) as exc:
             diagnostics.append(
                 {
+                    **command_outcome(exc),
                     "kind": "gate_provider_error",
                     "provider": reference,
                     "error": f"{type(exc).__name__}: {exc}",
@@ -193,6 +208,15 @@ def provider_reports(
             )
     verdict = reduce_verdicts(*verdicts) if len(reports) == len(references) else "block"
     return reports, verdict, tuple(diagnostics)
+
+
+def _time_left(deadline: float | None, reference: str, bound: float | None) -> float | None:
+    """Return a provider's remaining time, raising the native timeout once its deadline passed."""
+    if deadline is None:
+        return None
+    if (remaining := deadline - monotonic()) <= 0:
+        raise subprocess.TimeoutExpired(reference, bound or 0)
+    return remaining
 
 
 def diagnostic_gaps_for(value: object, prefix: str) -> tuple[str, ...]:

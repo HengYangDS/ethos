@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import command_outcome
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
@@ -131,13 +133,15 @@ def package_failure_evidence(
     acceptance_written: bool,
     generated_at: datetime,
 ) -> dict[str, object]:
-    """Keep the original failure chain without exposing runtime error messages."""
+    """Keep the original failure chain and each native command's whole outcome, not messages."""
     error_types: list[str] = []
+    commands: list[dict[str, object]] = []
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
         seen.add(id(current))
         error_types.append(type(current).__name__)
+        commands.extend([outcome] if (outcome := command_outcome(current)) else [])
         current = current.__cause__ or current.__context__
     return {
         "schema_version": 1,
@@ -148,6 +152,7 @@ def package_failure_evidence(
         "generated_at": generated_at.isoformat(),
         "error_type": type(error).__name__,
         "error_types": error_types,
+        "command_failures": commands,
         "owned_work_absent": owned_work_absent,
         "acceptance_written": acceptance_written,
     }

@@ -76,6 +76,37 @@ class ProcessExecutionError(ValueError):
         }
 
 
+def stream_text(value: str | bytes | None) -> str:
+    """Decode one captured stream whole; undecodable bytes are replaced and absence is empty."""
+    return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
+
+
+def command_failure(completed: subprocess.CompletedProcess[Any]) -> subprocess.CalledProcessError:
+    """Carry a completed nonzero command as the native error that keeps its whole result."""
+    return subprocess.CalledProcessError(
+        completed.returncode, completed.args, completed.stdout, completed.stderr
+    )
+
+
+def command_outcome(error: BaseException, *, cwd: Path | str = "") -> dict[str, object]:
+    """Keep a failed or timed-out command's result: argv, exit status or bound and both streams."""
+    if not isinstance(error, subprocess.CalledProcessError | subprocess.TimeoutExpired):
+        return {}
+    command = error.cmd if isinstance(error.cmd, list | tuple) else (error.cmd,)
+    ending = (
+        {"exit_code": error.returncode}
+        if isinstance(error, subprocess.CalledProcessError)
+        else {"timeout_seconds": error.timeout}
+    )
+    return {
+        "command": [str(item) for item in command],
+        "cwd": str(cwd),
+        **ending,
+        "stdout": stream_text(error.stdout),
+        "stderr": stream_text(error.stderr),
+    }
+
+
 class CommandScope:
     """Own commands across one caller and its context-propagating worker threads.
 

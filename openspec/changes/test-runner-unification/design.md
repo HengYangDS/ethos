@@ -163,20 +163,25 @@ waits with the kernel's scratch roots (Decision 5).
    exceeds it only on a connection beyond loopback; a Unix-domain socket counts as local, and DNS
    lookups (`socket.getaddrinfo`) are not recorded. The hook appends `ethos.crossed` and
    `ethos.exceeds` to `item.user_properties`, which pytest writes into the case's JUnit properties
-   (`_pytest/junitxml.py:546-547`) and the report log. Rejected: a product plugin now (7 lines of
-   product headroom at `63deedc09`; an adopter rule needs contract 2); a separate JSON report
-   (another evidence file; V8).
+   (`_pytest/junitxml.py:546-547`) and the report log. Its cost is below run-to-run variance (task
+   7.2): on the 6,763 cases that a run without it completed, the run with it spent 12,701 summed
+   test-seconds and the run without it 13,572, on a host where another session reinstalled
+   Homebrew's mise at 14:37, which ended the run without it early. Rejected: a product plugin now (7
+   lines of product headroom at `63deedc09`; an adopter rule needs contract 2); a separate JSON
+   report (another evidence file; V8).
 8. **Distribution.** `-n auto --maxprocesses=12` reproduces today's default (`os.cpu_count()` is 18
    on the reference workstation, and psutil is not locked, so `auto` is 18 and the cap gives 12);
    hosted jobs set `PYTEST_XDIST_AUTO_NUM_WORKERS` instead of `ETHOS_TEST_WORKERS`
    (`xdist/plugin.py:15-28, 310-324`). A focused run inherits the workers; `-n 0` gives a serial
-   run. The mode starts as today's `--dist=load --maxschedchunk=1`; task 7.1 keeps it or switches to
-   `worksteal`, whichever cold run is faster (VD 3.4). The probe's pytest cache is per attempt
-   (`python_quality.py:248-249`), so longest-first ordering and `--failed-first` have no history
-   inside a proof; `fast-tier` owns selection from recorded facts (V6). Rejected: moving the
-   ordering plugin into `tests/support`, where it would be inert; keeping a cache under the Git
-   common directory for every repository, a new adopter store root where DD move 5 retires
-   `tool-cache`.
+   run. The mode stays today's `--dist=load --maxschedchunk=1`, the faster cold run of task 7.1 (VD
+   3.4): with it the suite took 1,139 seconds at `6de0eb72b`, and its largest process peaked at 836
+   MB. Under `worksteal`, at `b8305a1ec`, 6,529 of 7,765 cases had finished after 36 minutes, with
+   one worker running and eleven idle, so the run was stopped and its peak was not measured. The
+   probe's pytest cache is per attempt (`python_quality.py:248-249`), so longest-first ordering and
+   `--failed-first` have no history inside a proof; `fast-tier` owns selection from recorded facts
+   (V6). Rejected: moving the ordering plugin into `tests/support`, where it would be inert; keeping
+   a cache under the Git common directory for every repository, a new adopter store root where DD
+   move 5 retires `tool-cache`.
 9. **Report agreement replaces the count check.** ETHOS's run now carries the report-log agreement
    (`quality_reports.py:127-138`): case identities and outcomes must match JUnit, and a `rerun`
    outcome is invalid (`quality/pytest.py:29`). Hosted acceptance compares the multiset of Allure
@@ -265,8 +270,10 @@ waits with the kernel's scratch roots (Decision 5).
   cause; a distinct gap would be new product code.
 - [The test gate may get slower: no longest-first order, no shared bytecode (its Change measured
   about 40 percent of one 37-process test spent compiling), a scratch environment per attempt, the
-  guard] → Section 7 measures each against 895.1 s and records it; Decision 6 names the bytecode
-  fallback; the throughput Changes own the 900-second threshold.
+  guard] → Section 7 measured each: without shared bytecode the suite took 1,434 seconds, and with
+  the bytecode prefix of Decision 6 1,139 seconds, against the runner's 895.1; the guard's cost
+  stayed below run-to-run variance (Decision 7). The throughput Changes own the 900-second
+  threshold.
 - [Fail-left inside proofs weakens: failure history no longer reorders] → Recorded as a measured
   trade-off; `fast-tier` restores fail-left by selection from facts.
 - [Landing admission by the installed predecessor reads the new provider-row evidence] → The

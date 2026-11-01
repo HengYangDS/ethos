@@ -138,14 +138,22 @@
 
 ## 7. Measurement
 
-- [ ] 7.1 Measure the distribution mode cold, `load --maxschedchunk=1` against `worksteal`, one run
+- [x] 7.1 Measure the distribution mode cold, `load --maxschedchunk=1` against `worksteal`, one run
       each, and keep the faster in `.config/checks/pytest/pytest.toml`. Done when both wall times
-      and peak memory are recorded in design.md.
-- [ ] 7.2 Measure the guard's overhead and the retired shared bytecode with one run without each,
+      and peak memory are recorded in design.md. (`load` 1,139 s and 836 MB; `worksteal` stopped
+      after 36 minutes with 6,529 of 7,765 cases done, its peak unmeasured; `load` stays, Decision
+      8.)
+- [x] 7.2 Measure the guard's overhead and the retired shared bytecode with one run without each,
       and count cases per tier from a full run's JUnit. Done when design.md records all three and
-      states whether Decision 6's bytecode fallback applies.
-- [ ] 7.3 Measure the budgets. Done when product is at most 70,000, tests at most 90,000 and every
-      touched Python file at most 500 effective lines, with the values recorded.
+      states whether Decision 6's bytecode fallback applies. (Without shared bytecode 1,434 s, with
+      the prefix 1,139 s, so the fallback applies and is implemented; the guard stayed below
+      variance, 12,701 against 13,572 summed test-seconds on 6,763 common cases; 7,521 unit cases,
+      5,743 crossing and all of them beyond their tier, and 244 architecture cases, 212 crossing and
+      none beyond loopback.)
+- [x] 7.3 Measure the budgets. Done when product is at most 70,000, tests at most 90,000 and every
+      touched Python file at most 500 effective lines, with the values recorded. (At `b8305a1ec`
+      product 69,984, tests 89,804, and the largest of 26 touched Python files
+      `tests/architecture/test_ci_provider_projections.py` at 497.)
 
 ## Workflow follow-up
 

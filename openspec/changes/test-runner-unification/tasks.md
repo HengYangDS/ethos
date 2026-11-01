@@ -48,15 +48,17 @@
       `tests/conftest.py`, write Allure results into the attempt's report root, and remove
       `ETHOS_NATIVE_OUTPUT_DIR` inside each case. Done when a case asserting these values inside a
       test passes through the probe, where it failed before the move.
-- [ ] 3.2 Declare `fail_under = 95` in `.config/checks/coverage/coverage.toml`, delete
+- [x] 3.2 Declare `fail_under = 95` in `.config/checks/coverage/coverage.toml`, delete
       `.config/checks/coverage/policy.toml`, and add the boundary regression: the declared floor is
       at least 95, and coverage's own comparison rejects 94.99 and accepts 95.00 at the declared
       precision. Done when the regression fails against `fail_under = 94` and passes against 95.
-- [ ] 3.3 Move the retained runner cases (worker loss without replay, bounded failure, warm and
+      (Against 94 both comparisons fail; against 95 the regression passes.)
+- [x] 3.3 Move the retained runner cases (worker loss without replay, bounded failure, warm and
       empty failure history, tmp-path retention, bounded failure report) to
       `tests/architecture/test_pytest_configuration.py` against the configuration, and the two
       owned-removal cases to `tests/unit/adapters/repo/runtime/test_filesystem.py`. Done when they
-      pass without importing `tools.ci`.
+      pass without importing `tools.ci`. (14 cases pass in the two modules; the worker-loss case
+      runs two workers under the carrier.)
 
 ## 4. Report-only tier guard
 

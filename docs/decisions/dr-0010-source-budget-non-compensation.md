@@ -13,7 +13,7 @@ relations:
 Status: canonical rationale. Executable thresholds are owned by quality
 configuration.
 
-Date: 2026-09-02 (record established); revised 2026-10-21.
+Date: 2026-09-02 (record established); revised 2026-11-02.
 
 Purpose: preserve why unrelated source classes cannot compensate for one
 another and why size remains a tripwire rather than a design target.
@@ -116,6 +116,18 @@ coverage and all other quality obligations remain unchanged.
   regressions, such as native-supply-and-configuration 11.4.2 and
   quality-evidence-admission 11.9.2.6 to 11.9.2.8, need the space, and 16 test
   files are within 31 ELOC of the per-file limit.
+- The November 2 necessity review, under the owner's 2026-11-01 rule for 5,000-ELOC steps, took
+  the first product step to 75,000 ELOC at 70,079 of 70,000 and a third test step to 95,000 ELOC
+  at 90,055 of 90,000, for `declared-parameters` on base `e5f2f1942`. The Change adds 166 product
+  ELOC: one parameter resolution that replaces the size rule (+124 for `parameters.py`, -59 for
+  `size.py`), every gate's deadline with its evidence, and the waits of 36 modules routed through
+  `seconds(kind, given)`, most of them one import and a wrapped call. Its 127 test ELOC are the
+  resolution's cases and the literal-wait architecture check. Rejected first: bounding every Git
+  command by `timeout.git_seconds` by default, which would drop the 23 explicit Git timeouts but
+  also bound 78 unbounded Git observations, history walks among them, without a measurement;
+  per-module wrappers, a zero-benefit indirection; and merging the 14 same-shape test pairs (about
+  128 lines), which would merge distinct named obligations. No dead top-level function remains in
+  `src/`.
 - [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 

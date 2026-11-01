@@ -12,14 +12,18 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from allure_pytest.utils import ParsedPytestNodeId
+
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
-from ethos.repository.policy.quality_reports import coverage_report
-from ethos.repository.policy.quality_reports import junit_report
+from tools.ci.toolchain.environment import ProjectRuntime
 
 PROVE = (
     *("uv", "run", "--frozen", "--offline", "--no-sync"),
@@ -27,6 +31,9 @@ PROVE = (
     *("--host", "--execute", "--full"),
 )
 DIAGNOSTIC_LINES = 200
+# The Python test gate's native output root; the shipped probe copies its attempt's reports here.
+REPORTS = Path("build/evidence/quality/tests")
+PROBE = "ethos.adapters.gates.python_quality:behavior_report"
 
 
 def run(root: Path, head: str | None = None) -> int:
@@ -37,7 +44,7 @@ def run(root: Path, head: str | None = None) -> int:
     ).strip()
     expected = head or observed
     out = root / "build/evidence/quality/proof"
-    reports = root / os.environ.get("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests")
+    reports = root / REPORTS
     proof, diagnostics = out / "executed-proof.json", out / "executed-proof.stderr.log"
     out.mkdir(parents=True, exist_ok=True)
     stale = (
@@ -46,13 +53,13 @@ def run(root: Path, head: str | None = None) -> int:
         out / "hosted-verification.json",
         out / "hosted-verification.json.tmp",
     )
-    for path in (*stale, *(reports / "pytest").glob("junit*.xml")):
+    for path in stale:
         path.unlink(missing_ok=True)
-    for name in ("coverage.xml", "head.txt"):
-        (reports / "coverage" / name).unlink(missing_ok=True)
-    supply_exit, proof_exit = _prove(root, expected, proof, diagnostics)
+    remove_owned_path(reports)
+    reports.mkdir(parents=True)
+    supply_exit, proof_exit = _prove(root, expected, proof, diagnostics, reports)
     report, checks = _receipt(root, proof, expected, observed, proof_exit, supply_exit)
-    summary = _report_tests(report, reports, supply_exit)
+    summary = _report_tests(root, report, checks, supply_exit)
     receipt_exit = _publish(proof, report, checks, summary)
     if proof_exit or receipt_exit:
         lines = diagnostics.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -64,7 +71,9 @@ def run(root: Path, head: str | None = None) -> int:
     return 0
 
 
-def _prove(root: Path, expected: str, proof: Path, diagnostics: Path) -> tuple[int, int]:
+def _prove(
+    root: Path, expected: str, proof: Path, diagnostics: Path, reports: Path
+) -> tuple[int, int]:
     """Prepare the proof tools, then execute the full hosted proof of the expected head."""
     native = str(root / "tools/ci/toolchain/native.py")
     with diagnostics.open("wb") as stderr:
@@ -95,7 +104,7 @@ def _prove(root: Path, expected: str, proof: Path, diagnostics: Path) -> tuple[i
                 cwd=root,
                 stdout=stdout,
                 stderr=stderr,
-                env={**os.environ, "PATH": path},
+                env={**os.environ, "PATH": path, "ETHOS_NATIVE_OUTPUT_DIR": str(reports)},
                 check=False,
             )
     return 0, completed.returncode
@@ -177,35 +186,101 @@ def _require_check_objects(checks: object) -> None:
         raise ValueError(message)
 
 
-def _report_tests(report: dict[str, Any], evidence: Path, supply_exit: int) -> list[str]:
-    """Record the test and coverage reports the executed proof produced; return their lines."""
+def _report_tests(
+    root: Path, report: dict[str, Any], checks: list[Any], supply_exit: int
+) -> list[str]:
+    """Record the probe's test and coverage evidence, render the Allure views; return lines."""
     lines: list[str] = []
-    if not supply_exit:
-        try:
-            tests, failed = junit_report(sorted((evidence / "pytest").glob("junit*.xml")))
-            report["tests"] = tests
-            lines.append(
-                f"Tests: {tests['total']}; failures: {tests['failures']}; "
-                f"errors: {tests['errors']}; skipped: {tests['skipped']}"
-            )
-            if failed:
-                report["required_gaps"].append("hosted_test_report_failed")
-        except (OSError, ValueError) as error:
-            reason = f":{error}" if isinstance(error, ValueError) else ""
-            report["required_gaps"].append(f"hosted_test_report_invalid{reason}")
-            lines.append(f"Tests: unavailable ({type(error).__name__})")
-        try:
-            coverage = coverage_report(evidence / "coverage/coverage.xml")
-            report["coverage"] = coverage
-            lines.append(
-                f"Coverage: {coverage['combined_percent']:.2f}% combined statements/branches"
-            )
-        except (OSError, ValueError) as error:
-            report["required_gaps"].append("hosted_coverage_report_invalid")
-            lines.append(f"Coverage: unavailable ({type(error).__name__})")
+    if supply_exit:
+        return lines
+    evidence = _probe_report(checks)
+    tests, coverage = evidence.get("tests"), evidence.get("coverage")
+    if isinstance(tests, dict):
+        report["tests"] = tests
+        lines.append(
+            f"Tests: {tests['total']}; failures: {tests['failures']}; "
+            f"errors: {tests['errors']}; skipped: {tests['skipped']}"
+        )
+        if tests["failures"] or tests["errors"] or tests["skipped"] >= tests["total"]:
+            report["required_gaps"].append("hosted_test_report_failed")
+    else:
+        report["required_gaps"].append("hosted_test_report_invalid")
+        lines.append("Tests: unavailable")
+    if isinstance(coverage, dict):
+        report["coverage"] = coverage
+        lines.append(f"Coverage: {coverage['combined_percent']:.2f}% combined statements/branches")
+    else:
+        report["required_gaps"].append("hosted_coverage_report_invalid")
+        lines.append("Coverage: unavailable")
+    try:
+        _render_allure(root, root / REPORTS)
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError) as error:
+        report["required_gaps"].append(f"hosted_allure_report_invalid:{error}")
     if report["required_gaps"]:
         report["verdict"] = "block"
     return lines
+
+
+def _probe_report(checks: list[Any]) -> dict[str, Any]:
+    """Read the shipped behavior probe's report from the executed proof's provider rows."""
+    for check in checks:
+        try:
+            providers = json.loads(check["stdout"])["providers"]
+        except (KeyError, TypeError, ValueError):
+            continue
+        for item in providers if isinstance(providers, list) else ():
+            if isinstance(item, dict) and item.get("provider") == PROBE:
+                report = item.get("report")
+                return report if isinstance(report, dict) else {}
+    return {}
+
+
+def _render_allure(root: Path, reports: Path) -> None:
+    """Refuse Allure results whose case identities differ from the execution's, then render."""
+    results = reports / "allure/results"
+    named = Counter(
+        json.loads(path.read_text(encoding="utf-8"))["fullName"]
+        for path in results.glob("*-result.json")
+    )
+    events = (reports / "pytest/events.jsonl").read_text(encoding="utf-8").splitlines()
+    executed = Counter(
+        _allure_name(event["nodeid"])
+        for event in map(json.loads, events)
+        if event.get("$report_type") == "TestReport" and event.get("when") == "setup"
+    )
+    if not executed or named != executed:
+        message = "allure_identities_differ"
+        raise ValueError(message)
+    runtime, output = ProjectRuntime.discover(root), reports / "allure/agent"
+    cli = runtime.node_package_supply() / "allure/cli.js"
+    command = (str(runtime.node_executable()), str(cli), "agent", "inspect", "--cwd")
+    result = run_command(
+        root,
+        (
+            *command,
+            str(reports / "allure"),
+            "--output",
+            str(output),
+            "--report",
+            "awesome",
+            str(results),
+        ),
+        timeout=180,
+    )
+    manifest = output / "manifest/human-report.json"
+    if (
+        result.returncode
+        or json.loads(manifest.read_text(encoding="utf-8"))["status"] != "generated"
+    ):
+        message = f"allure_render_failed:{result.returncode}"
+        raise RuntimeError(message)
+
+
+def _allure_name(nodeid: str) -> str:
+    """Name a case as allure-pytest's `fullName` does: package, classes and function."""
+    parsed = ParsedPytestNodeId(nodeid)
+    classes = "".join(f".{name}" for name in parsed.class_names)
+    return f"{parsed.package}{classes}#{parsed.test_function}"
 
 
 def _publish(proof: Path, report: dict[str, Any], checks: list[Any], summary: list[str]) -> int:

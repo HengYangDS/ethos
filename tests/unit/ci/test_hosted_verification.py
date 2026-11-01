@@ -36,9 +36,9 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         ".split()\n"
         "if sys.argv[1:13] != expected:\n"
         " print('unexpected lifecycle transport', file=sys.stderr); sys.exit(9)\n"
-        "for name, content in case['reports'].items():\n"
-        " path = pathlib.Path('build/evidence/quality/tests') / name\n"
-        " path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content)\n"
+        "import os\n"
+        "native = os.environ.get('ETHOS_NATIVE_OUTPUT_DIR', '')\n"
+        "pathlib.Path('native-root.txt').write_text(native)\n"
         "print(case['output'])\n"
         "print('exact-child-diagnostic', file=sys.stderr)\n"
         "sys.exit(case['exit_code'])\n"
@@ -64,33 +64,19 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return binary
 
 
-def _report_contents(reports: str) -> dict[str, str]:
-    """Keep per-case report data separate from the shared executable fixture."""
-    contents = {
-        "pytest/junit.xml": (
-            ('<testsuite tests="3">' if reports == "contradictory" else "<testsuite>")
-            + ("<testcase><skipped/></testcase>" if reports == "skipped" else "<testcase/>")
-            + (
-                "<testcase><failure/></testcase>"
-                if reports == "failed"
-                else "<testcase><skipped/></testcase>"
-                if reports == "skipped"
-                else "<testcase/>"
-            )
-            + "</testsuite>"
-        ),
-        "coverage/coverage.xml": (
-            '<coverage lines-covered="96" lines-valid="100" '
-            'branches-covered="95" branches-valid="100"/>'
-        ),
+def _probe_stdout(evidence: str) -> str:
+    """Render the Python test gate's provider report as the executed proof records it."""
+    tests = {
+        "total": 2,
+        "failures": int(evidence == "failed"),
+        "errors": 0,
+        "skipped": 2 * int(evidence == "skipped"),
     }
-    return (
-        {}
-        if reports == "missing"
-        else dict.fromkeys(contents, "{")
-        if reports == "malformed"
-        else contents
-    )
+    coverage = {"covered": 191, "total": 200, "combined_percent": 95.5}
+    report = {} if evidence == "missing" else {"tests": tests, "coverage": coverage}
+    providers = [{"provider": hosted_verification.PROBE, "report": report}]
+    payload = {"verdict": "pass", "gate": "behavior", "providers": providers}
+    return "{" if evidence == "malformed" else json.dumps(payload)
 
 
 def _hosted_supply(
@@ -132,7 +118,7 @@ def _run_hosted(
     return status, captured.out, captured.err
 
 
-def _observation_payload(expected: str, fault: str) -> dict[str, object]:
+def _observation_payload(expected: str, fault: str, evidence: str) -> dict[str, object]:
     """Build a complete result and corrupt only the boundary under test."""
     coordinates = {"expected": expected, "current": expected, "matches": True}
     checks = [
@@ -164,20 +150,17 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
         },
     }
     data = payload["data"]
+    checks[-1]["stdout"] = _probe_stdout(evidence)
     if fault == "head":
         coordinates["current"] = "1" * 40
     elif fault == "gate":
         checks[0]["verdict"] = "block"
     elif fault == "gap":
-        payload["required_gaps"] = ["gate_failed:coverage-floor"]
+        payload["required_gaps"] = ["gate_failed:unit-architecture"]
     elif fault == "empty":
         checks.clear()
     elif fault == "partial":
-        checks[:] = [
-            check
-            for check in checks
-            if check["action_id"] in {"unit-architecture", "coverage-floor"}
-        ]
+        checks[:] = checks[-1:]
     elif fault == "duplicate":
         checks.append(checks[0].copy())
     elif fault == "unknown-gate":
@@ -191,11 +174,8 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
 
 
 @pytest.mark.parametrize(
-    ("fault", "reports"),
-    [
-        ("none", report)
-        for report in ("missing", "malformed", "contradictory", "failed", "skipped", "valid")
-    ]
+    ("fault", "evidence"),
+    [("none", evidence) for evidence in ("missing", "malformed", "failed", "skipped", "valid")]
     + [
         (fault, "valid")
         for fault in (
@@ -211,13 +191,14 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
             "partial",
             "duplicate",
             "unknown-gate",
+            "allure",
         )
     ],
 )
 def test_hosted_receipt_requires_exact_executed_observation(
     tmp_path: Path,
     fault: str,
-    reports: str,
+    evidence: str,
     hosted_proof_transport: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -226,13 +207,12 @@ def test_hosted_receipt_requires_exact_executed_observation(
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     expected = "0" * 40 if fault == "checkout" else head
-    payload = _observation_payload(expected, fault)
+    payload = _observation_payload(expected, fault, evidence)
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
     (repo / "proof-case.json").write_text(
         json.dumps(
             {
-                "reports": _report_contents(reports),
                 "output": "{" if fault == "malformed" else json.dumps(payload),
                 "exit_code": 7 if fault == "process" else 0,
             }
@@ -245,19 +225,28 @@ def test_hosted_receipt_requires_exact_executed_observation(
         hosted_proof_transport.with_name("prepare")
     )
     summary_file = tmp_path / "summary.md"
-    if fault == "none" and reports == "valid":
-        monkeypatch.setenv("ETHOS_TEST_EVIDENCE_DIR", str(tmp_path / "outer-evidence"))
+    rendered: list[Path] = []
+
+    def render(root: Path, reports: Path) -> None:
+        rendered.append(reports.relative_to(root))
+        if fault == "allure":
+            message = "allure_identities_differ"
+            raise ValueError(message)
+
+    monkeypatch.setattr(hosted_verification, "_render_allure", render)
     status, out, err = _run_hosted(
         repo, binary.parent, monkeypatch, capsys, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )
-    expected_pass = fault == "none" and reports == "valid"
+    expected_pass = fault == "none" and evidence == "valid"
     assert (status == 0) is expected_pass, out + err
     receipt = json.loads(out)
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if expected_pass else "block")
-    if reports == "contradictory":
-        assert receipt["required_gaps"] == ["hosted_test_report_invalid:junit_suite_count_mismatch"]
+    if fault == "allure":
+        assert receipt["required_gaps"] == ["hosted_allure_report_invalid:allure_identities_differ"]
+    assert (repo / "native-root.txt").read_text() == str(repo / "build/evidence/quality/tests")
+    assert rendered == [Path("build/evidence/quality/tests")]
     (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())
     assert {"--host", "--execute", "--full"} <= set(command)
     assert "--gate" not in command
@@ -268,15 +257,15 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert expected in summary
     assert receipt["verdict"] in summary
     expected_tests = (
-        f"Tests: 2; failures: {int(reports == 'failed')}; errors: 0; "
-        f"skipped: {2 * int(reports == 'skipped')}"
-        if reports in {"valid", "failed", "skipped"}
+        f"Tests: 2; failures: {int(evidence == 'failed')}; errors: 0; "
+        f"skipped: {2 * int(evidence == 'skipped')}"
+        if evidence in {"valid", "failed", "skipped"} and fault not in {"malformed", "empty"}
         else "Tests: unavailable"
     )
     assert expected_tests in summary
     assert (
         "Coverage: 95.50%"
-        if reports in {"valid", "failed", "skipped", "contradictory"}
+        if evidence in {"valid", "failed", "skipped"} and fault not in {"malformed", "empty"}
         else "Coverage: unavailable"
     ) in summary
 
@@ -303,7 +292,8 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     evidence = repo / "build/evidence/quality"
     stale = (
         evidence / "proof/executed-proof.json",
-        *(evidence / "tests" / name for name in _report_contents("valid")),
+        evidence / "tests/pytest/junit.xml",
+        evidence / "tests/coverage/coverage.xml",
     )
     for path in stale:
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -59,8 +59,8 @@ whole tree.
 The behavior probe SHALL write the JUnit report, the pytest report log and the Cobertura report of
 one attempt into that attempt's report root, and SHALL name the root to the test process for further
 native results. When the runner names a native output root, the probe SHALL copy the attempt's
-reports there. Bytecode that its test processes write SHALL stay in the attempt's scratch, which the
-probe SHALL remove through the shared owned-removal owner.
+reports there. Bytecode and Hypothesis storage that its test processes write SHALL stay in the
+attempt's scratch, which the probe SHALL remove through the shared owned-removal owner.
 
 #### Scenario: The runner names a native output root
 
@@ -80,6 +80,12 @@ probe SHALL remove through the shared owned-removal owner.
 - **THEN** the bytecode lands under the attempt's scratch and is removed with it
 - **AND** no `__pycache__` directory appears beside the repository's sources
 
+#### Scenario: The test process writes Hypothesis storage
+
+- **WHEN** a test writes under the directory Hypothesis's `HYPOTHESIS_STORAGE_DIRECTORY` names
+- **THEN** the writes land under the attempt's scratch and are removed with it
+- **AND** the repository's worktree gains no tracked, untracked or ignored path
+
 #### Scenario: A test leaves a linked or sealed path in its scratch
 
 - **WHEN** the attempt's scratch contains a link to an external file or an owner-inaccessible
@@ -89,10 +95,11 @@ probe SHALL remove through the shared owned-removal owner.
 
 ### Requirement: ETHOS reports what each test case crosses
 
-ETHOS's test run SHALL record, for each case whose call opens or lists a file, starts a process,
-opens a database or connects a socket, which of these it crossed and whether that exceeds the tier
-its directory states. Recording SHALL NOT change a case's outcome. Module loading and the run's own
-report and Hypothesis roots SHALL NOT count as crossings.
+ETHOS's test run SHALL record, for each case whose setup, call or teardown opens, lists, removes or
+renames a file, starts a process, opens a database or connects a socket, which of these it crossed
+and whether that exceeds the tier its directory states. Recording SHALL NOT change a case's outcome.
+Module loading, the test tools' own work, the run's own report root and the setup of fixtures wider
+than function scope SHALL NOT count as crossings.
 
 #### Scenario: A unit case reads a file
 
@@ -105,6 +112,17 @@ report and Hypothesis roots SHALL NOT count as crossings.
 
 - **WHEN** a case's call imports a module that was not yet loaded
 - **THEN** the import machinery's file reads and directory listings are not recorded
+
+#### Scenario: A case's fixture crosses
+
+- **WHEN** a function-scoped fixture of a case writes a file during its setup or its teardown
+- **THEN** the crossing is recorded for that case
+
+#### Scenario: A test tool or a shared fixture crosses
+
+- **WHEN** Hypothesis or pytest reads or writes files for their own work, or a session-scoped
+  fixture is set up, while a case runs
+- **THEN** no crossing is recorded for that case
 
 #### Scenario: A case outside `tests/unit` connects
 

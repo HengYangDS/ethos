@@ -244,6 +244,7 @@ def _behavior_evidence(
             "UV_PROJECT_ENVIRONMENT": str(output / "venv"),
             "ETHOS_NATIVE_OUTPUT_DIR": str(reports),
             "PYTHONPYCACHEPREFIX": str(output / "pycache"),
+            "HYPOTHESIS_STORAGE_DIRECTORY": str(output / "hypothesis"),
         }
         if mise_files is not None:
             environment = {

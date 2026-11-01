@@ -16,7 +16,16 @@ leaves coverage data for a second gate (`tools/ci/python_test_gate.py`;
 `tools/ci/sessions.py:166-192`).
 
 Task 2.3 records here what ETHOS's suite does through the probe once it applies the repository's
-carriers.
+carriers. Its first run, at `5734e7dbe` with 12 workers, stopped after 205 cases in 46 seconds on
+the carrier's `--maxfail=1`, on removals this Change had not yet made: two
+`test_python_test_gate.py` floor cases read the deleted `policy.toml`, and the product-boundary
+closure reported the remaining `policy.toml` references and an `allure_pytest` import in hosted
+verification that the deptry module map (`allure-pytest=allure`) does not own. So task 2.3 observes
+again after task 5.4. One case skipped because no native checksum tool is on the probe's locked PATH
+(`tests/architecture/ci/test_supply_contract.py:162`). The run also wrote Hypothesis's constants
+cache, 5,340 files, into the lane's `build/runtime/tool-cache/hypothesis/gw0` to `gw11`: Hypothesis
+6.170.14 caches the constants of local source even without an example database
+(`hypothesis/internal/constants_ast.py:219-252`), which Decision 14 answers.
 
 ## Goals / Non-Goals
 
@@ -30,9 +39,22 @@ carriers.
 
 **Non-Goals:**
 
-- Identity completeness against the intended set, the order session, ty over tests, arming the
-  guard, the encoding rule, and Allure labels, history and publication (`allure-full`).
-- Changing any adopter's verdict.
+- The items of VD 5 row 2 that other owners carry, each on its route: identity completeness against
+  the intended set and arming the guard (`test-tiers`); the order session (`release-prepare`, its
+  first verification step, with argument variation from `probe-rows`); ty over tests
+  (`ty-over-tests`, the route row after this Change); the JUnit flaky-element refusal for every
+  repository (a contract-2 row), while ETHOS's own run refuses a `rerun` outcome through the
+  report-log agreement (task 5.5); the encoding rule (`unit-rewrite`, which first makes the 1,321
+  implicit encodings explicit); and Allure labels, history and publication (`allure-full`).
+- V1 for ETHOS's JavaScript Nox session (`javascript-probe`), the host-conformance node IDs and the
+  supply-image smoke (`platform-matrix`). This Change meets V1 for Python tests on the proof plane.
+- Changing any adopter's verdict through an ETHOS rule. The probe applies only carriers a repository
+  declares itself. On the owner's workstation the repositories with a `behavior_report` row are
+  aigw-cli, architecture-publications, architecture-publisher, web-ingestion-benchmark and
+  openai-responses-proxy; only the proxy declares the carriers, and its row judges its own Nox
+  outputs (`execution_mode = "subprocess"`, `.ethos/profile.toml:80`), which never reach the probe's
+  run (`python_quality.py:368-369`). No Python-running row declares `timeout_seconds`, and none of
+  them uses Hypothesis.
 - Recovering test time lost with longest-first ordering: the throughput Changes own the 900-second
   threshold (QS 1778-1791; verification design 3.8).
 
@@ -107,19 +129,22 @@ carriers.
    or the checked-hash compile step moved into `tests/support` restores it. Rejected: the probe
    passing `--alluredir`, which needs plugin detection and is visible to adopters.
 7. **The guard reports from ETHOS's test support.** `tests/support/tier_guard.py`, loaded from
-   `tests/conftest.py`, installs one audit hook per process (PEP 578). The hook acts only while a
-   case's call runs. It records `open`, `os.listdir`, `os.scandir`, `subprocess.Popen`,
-   `sqlite3.connect` and `socket.connect`. `sqlite3.connect` is added to VD 3.4's list because
-   SQLite opens its file without an `open` event and the Lease store is SQLite. Events whose calling
-   frame belongs to `_frozen_importlib*` or `importlib` are module loading (F11); paths under the
-   attempt's report root and `build/runtime/tool-cache/hypothesis` are the run's own output. A case
-   under `tests/unit/` exceeds its tier on any recorded event; any other case exceeds it only on a
-   connection beyond loopback; a Unix-domain socket counts as local, and DNS lookups
-   (`socket.getaddrinfo`) are not recorded. The hook appends `ethos.crossed` and `ethos.exceeds` to
-   `item.user_properties`, which pytest writes into the case's JUnit properties
-   (`_pytest/junitxml.py:546-547`) and the report log. Rejected: a product plugin now (7 lines of
-   product headroom at `63deedc09`; an adopter rule needs contract 2); a separate JSON report
-   (another evidence file; V8).
+   `tests/conftest.py`, installs one audit hook per process (PEP 578). The hook acts while a case's
+   setup, call and teardown run, so work moved into a fixture is still the case's (committee round
+   11). It records `open`, `os.listdir`, `os.scandir`, `os.remove`, `os.rename`, `subprocess.Popen`,
+   `os.system`, `os.posix_spawn`, `os.fork`, `sqlite3.connect` and `socket.connect`.
+   `sqlite3.connect` is added to VD 3.4's list because SQLite opens its file without an `open` event
+   and the Lease store is SQLite. An event is not the case's when the first frame outside the
+   standard library loads a module (`_frozen_importlib*`, `importlib`, `zipimport`; F11) or belongs
+   to a test tool (pytest, pluggy, Hypothesis, coverage, Allure, xdist, pytest-timeout), when its
+   path is under the attempt's report root, or while a fixture wider than function scope is set up,
+   which would otherwise charge whichever case requests it first. A case under `tests/unit/` exceeds
+   its tier on any recorded event; any other case exceeds it only on a connection beyond loopback; a
+   Unix-domain socket counts as local, and DNS lookups (`socket.getaddrinfo`) are not recorded. The
+   hook appends `ethos.crossed` and `ethos.exceeds` to `item.user_properties`, which pytest writes
+   into the case's JUnit properties (`_pytest/junitxml.py:546-547`) and the report log. Rejected: a
+   product plugin now (7 lines of product headroom at `63deedc09`; an adopter rule needs contract
+   2); a separate JSON report (another evidence file; V8).
 8. **Distribution.** `-n auto --maxprocesses=12` reproduces today's default (`os.cpu_count()` is 18
    on the reference workstation, and psutil is not locked, so `auto` is 18 and the cap gives 12);
    hosted jobs set `PYTEST_XDIST_AUTO_NUM_WORKERS` instead of `ETHOS_TEST_WORKERS`
@@ -149,14 +174,26 @@ carriers.
 11. **Deletion follows disposition (V2).** Each removed case is superseded by a named case or
     rejected with its reason, in the table below.
 12. **Hosted verification consumes the probe's evidence.** Test and coverage figures come from the
-    `unit-architecture` check's provider report in the executed proof, not from re-parsed files; the
-    files are kept for upload and for the GitLab reports. The Allure render moves from the runner
-    into hosted verification with the same Allure 3 command (TG:258-287).
+    probe's provider report in the executed proof, selected by its provider reference, not from
+    re-parsed files, and a run in which every case skipped is refused; the files are kept for upload
+    and for the GitLab reports. The Allure render moves from the runner into hosted verification
+    with the same Allure 3 command (TG:258-287).
 13. **Completeness is accepted once against the parent runner.** Until `test-tiers` arms the spine
     gate, the probe must execute exactly the node identities that the parent tree's runner executed
     in the base proof, minus the removed cases below and plus the cases this Change adds
     (verification design 5, committee round 10). Any other difference blocks the landing; an
     identity the probe no longer collects is never accepted silently.
+14. **Hypothesis is reproducible and its storage stays in the attempt.** `tests/conftest.py`
+    registers and loads a `proof` profile, derandomized with no deadline and no example database (VD
+    3.5), unless `--hypothesis-profile` selects another; Hypothesis's own `ci` profile no longer
+    differs from a local run. The probe points Hypothesis's native `HYPOTHESIS_STORAGE_DIRECTORY` at
+    the attempt's scratch, as it does `COVERAGE_FILE` and `PYTHONPYCACHEPREFIX`, and the conftest
+    chooses `build/runtime/tool-cache/hypothesis/<worker>` only when that variable is absent, so a
+    direct run keeps its cache and a probe run leaves nothing (Context). The guard's path exemption
+    for that cache goes: Hypothesis's work is a test tool's (Decision 7). The `deep` profile and its
+    per-worker database belong to the release (VD 3.5). Rejected: `TMPDIR` into scratch, which
+    lengthens every temporary path past macOS's 104-byte socket limit and Windows's path limit; a
+    database-free profile alone, which still writes the constants cache.
 
 ### Case dispositions
 
@@ -213,8 +250,9 @@ carriers.
   skips the deleted runner (`references/carriers.py:139-153`); the landing preview runs with the
   installed predecessor before apply.
 - [The guard's attribution has limits: a cached loader charges its first read to whichever case runs
-  first, child processes are outside the hook, SQLite is seen only at connect] → It reports and
-  never decides; `test-tiers` reads it with these limits.
+  first, a wider fixture's finalizers run inside the last case's teardown, child processes are
+  outside the hook, SQLite is seen only at connect] → It reports and never decides; `test-tiers`
+  reads it with these limits.
 - [QS 413-415 forbids "another wheel install" in Python tests, and the probe's scratch environment
   installs the project in editable mode] → The requirement constrains test content (no package
   acceptance replay), not the runner's environment preparation; if review reads it otherwise, this
@@ -237,7 +275,5 @@ adopters and may stay.
 
 ## Open Questions
 
-- V1's first clause stays true for the JavaScript Nox session, the host-conformance node IDs and the
-  supply-image smoke. Which Change moves ETHOS's JavaScript tests to the shipped JavaScript probe?
 - Should a probe keep a per-lane pytest cache with a declared owner, consumer and exit, as VD 3.5
   gives mutmut's cache? `fast-tier` decides with its selection design.

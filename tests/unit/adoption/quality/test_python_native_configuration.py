@@ -90,15 +90,18 @@ def test_probe_runs_within_the_gate_timeout(
 
 
 @pytest.mark.parametrize("named", [True, False], ids=["native-root", "no-native-root"])
-def test_probe_keeps_reports_and_bytecode_to_the_attempt(
+def test_probe_keeps_reports_and_tool_state_to_the_attempt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, named: bool
 ) -> None:
-    """Reports reach a named native root; nothing else outlives the attempt's scratch."""
+    """Reports reach a named native root; bytecode and Hypothesis storage stay in scratch."""
     suite = (
         "import os\nfrom pathlib import Path\n\nfrom sample import answer\n\n\n"
         "def test_answer() -> None:\n"
         "    result = Path(os.environ['ETHOS_NATIVE_OUTPUT_DIR']) / 'suite/result.txt'\n"
         "    result.parent.mkdir()\n    result.write_text('ok', encoding='utf-8')\n"
+        "    storage = Path(os.environ['HYPOTHESIS_STORAGE_DIRECTORY']) / 'constants'\n"
+        "    storage.mkdir(parents=True)\n"
+        "    (storage / 'cache').write_text('ok', encoding='utf-8')\n"
         "    assert answer() == 42\n"
     )
     repo = _sample(tmp_path, {"tests/test_sample.py": suite})
@@ -107,6 +110,7 @@ def test_probe_keeps_reports_and_bytecode_to_the_attempt(
     native = tmp_path / "native"
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
+    monkeypatch.delenv("HYPOTHESIS_STORAGE_DIRECTORY", raising=False)
     if named:
         monkeypatch.setenv("ETHOS_NATIVE_OUTPUT_DIR", str(native))
     else:

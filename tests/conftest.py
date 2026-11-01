@@ -24,17 +24,22 @@ from pathlib import Path
 
 import allure
 import pytest
+from hypothesis import settings
 from hypothesis.configuration import set_hypothesis_home_dir
 
 import tests.support.runtime_scenarios as runtime_scenarios
 import tests.support.tier_guard as tier_guard
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-set_hypothesis_home_dir(
-    _REPO_ROOT
-    / "build/runtime/tool-cache/hypothesis"
-    / os.environ.get("PYTEST_XDIST_WORKER", "local")
-)
+# A proof is reproducible: `--hypothesis-profile` selects another profile explicitly.
+settings.register_profile("proof", derandomize=True, deadline=None, database=None)
+settings.load_profile("proof")
+if "HYPOTHESIS_STORAGE_DIRECTORY" not in os.environ:
+    set_hypothesis_home_dir(
+        _REPO_ROOT
+        / "build/runtime/tool-cache/hypothesis"
+        / os.environ.get("PYTEST_XDIST_WORKER", "local")
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:

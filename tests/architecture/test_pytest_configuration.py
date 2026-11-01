@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import tomllib
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 from coverage.results import should_fail_under
+from hypothesis import settings
+from hypothesis.configuration import storage_directory
 
 from ethos.adapters.process import run_command
 
@@ -71,6 +74,23 @@ def test_the_coverage_floor_rejects_below_95_percent_at_its_precision() -> None:
     assert report["fail_under"] >= 95
     assert should_fail_under(94.99, report["fail_under"], report["precision"])
     assert not should_fail_under(95.00, report["fail_under"], report["precision"])
+
+
+def test_hypothesis_runs_the_reproducible_proof_profile(pytestconfig: pytest.Config) -> None:
+    """Unless a profile is selected, Hypothesis is derandomized with no deadline or database."""
+    proof = settings.get_profile("proof")
+    assert (proof.derandomize, proof.deadline, proof.database) == (True, None, None)
+    if pytestconfig.getoption("hypothesis_profile") is None:
+        current = settings()
+        assert (current.derandomize, current.deadline, current.database) == (True, None, None)
+
+
+def test_hypothesis_storage_defers_to_its_native_variable() -> None:
+    """A named `HYPOTHESIS_STORAGE_DIRECTORY` holds Hypothesis's storage, else the tool cache."""
+    named = os.environ.get("HYPOTHESIS_STORAGE_DIRECTORY")
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "local")
+    expected = Path(named) if named else ROOT / "build/runtime/tool-cache/hypothesis" / worker
+    assert storage_directory(intent_to_write=False).path == expected
 
 
 @pytest.mark.parametrize("failure", ["none", "cached", "crash", "assertion"])

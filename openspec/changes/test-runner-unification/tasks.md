@@ -40,7 +40,12 @@
 - [ ] 2.3 After refreshing the lane onto the landed `probe-supply` binding, run ETHOS's suite once
       through the probe with `timeout_seconds=7200` (a direct provider call in the lane, not a
       proof) and record in design.md's Context each refusal and each test that needs an executable
-      outside the probe's locked PATH. Done when the observed gaps are listed.
+      outside the probe's locked PATH. Done when the observed gaps are listed. (The first run, at
+      `5734e7dbe`, stopped after 205 cases on this Change's unfinished removals, design.md Context;
+      it runs again after 5.4.)
+- [x] 2.4 Point Hypothesis's native `HYPOTHESIS_STORAGE_DIRECTORY` at the attempt's scratch. Done
+      when the probe case whose suite writes there leaves nothing outside scratch and no path in the
+      fixture's worktree. (Before the change the suite's lookup failed and the probe blocked.)
 
 ## 3. ETHOS's runner values become native configuration
 
@@ -59,6 +64,11 @@
       owned-removal cases to `tests/unit/adapters/repo/runtime/test_filesystem.py`. Done when they
       pass without importing `tools.ci`. (14 cases pass in the two modules; the worker-loss case
       runs two workers under the carrier.)
+- [x] 3.4 Register and load the `proof` Hypothesis profile unless `--hypothesis-profile` selects
+      another, and choose the tool cache as Hypothesis's storage only when
+      `HYPOTHESIS_STORAGE_DIRECTORY` is absent (design Decision 14). Done when the two configuration
+      cases pass with and without the variable. (Before, the profile was not registered and the
+      storage ignored the variable.)
 
 ## 4. Report-only tier guard
 
@@ -69,6 +79,10 @@
       failed on the missing plugin.)
 - [ ] 4.2 Add `tests/support/tier_guard.py` and load it from `tests/conftest.py`. Done when 4.1
       passes and a full run's JUnit carries `ethos.crossed` and `ethos.exceeds` properties.
+- [x] 4.3 Watch setup, call and teardown, record design Decision 7's event table, and leave out
+      module loading, the test tools' own work, the report root and wider-scope fixture setups. Done
+      when the nested guard cases pass. (Before, a fixture's setup and teardown, a rename, a removal
+      and `os.system` went unrecorded, and Hypothesis's own reads were charged to the case.)
 
 ## 5. One runner
 
@@ -119,7 +133,6 @@
 
 ## Workflow follow-up
 
-- Refresh the lane onto `dev` once the `probe-supply` binding has landed, before task 2.3.
 - Archive, prove the archived head once, land, close out and publish; compare the proof's
   `unit-architecture` time with 895.1 s and confirm that both hosted planes upload JUnit, Cobertura
   and Allure.

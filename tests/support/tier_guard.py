@@ -1,10 +1,12 @@
 """Report what each test case crosses: files, processes, databases and sockets (PEP 578).
 
-The guard only reports; `test-tiers` arms it. While a case's call runs, one audit hook per process
-records the crossing events below. Module loading and the run's own report and Hypothesis roots are
-not crossings. A case under `tests/unit` exceeds its tier on any crossing; any other case only on a
-connection beyond loopback. Child processes, and reads a cached loader makes for a later case, are
-outside its view.
+The guard only reports; `test-tiers` arms it. While a case's setup, call and teardown run, one
+audit hook per process records the crossing events below. Module loading, the test tools' own work
+(pytest, Hypothesis, coverage, Allure, xdist), the run's report root and the setup of fixtures
+wider than function scope are not the case's crossings; a wider fixture's finalizers still run
+inside the last case's teardown. A case under `tests/unit` exceeds its tier on any crossing; any
+other case only on a connection beyond loopback. Child processes, and reads a cached loader makes
+for a later case, are outside its view.
 """
 
 from __future__ import annotations
@@ -20,22 +22,47 @@ import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from types import FrameType
 
 _EVENTS = frozenset(
-    {"open", "os.listdir", "os.scandir", "subprocess.Popen", "sqlite3.connect", "socket.connect"}
+    {
+        "open",
+        "os.listdir",
+        "os.scandir",
+        "os.remove",
+        "os.rename",
+        "subprocess.Popen",
+        "os.system",
+        "os.posix_spawn",
+        "os.fork",
+        "sqlite3.connect",
+        "socket.connect",
+    }
 )
-_PATH_EVENTS = frozenset({"open", "os.listdir", "os.scandir"})
-_LOADERS = ("_frozen_importlib", "importlib")
-_OWNED = tuple(
-    str(Path(root).absolute()) + os.sep
-    for root in (
-        os.environ.get("ETHOS_NATIVE_OUTPUT_DIR"),
-        str(Path(__file__).resolve().parents[2] / "build/runtime/tool-cache/hypothesis"),
-    )
-    if root
+_PATH_EVENTS = frozenset({"open", "os.listdir", "os.scandir", "os.remove", "os.rename"})
+_LOADERS = ("_frozen_importlib", "importlib", "zipimport")
+_TOOLS = frozenset(
+    {
+        "_pytest",
+        "pluggy",
+        "hypothesis",
+        "_hypothesis_pytestplugin",
+        "coverage",
+        "pytest_cov",
+        "allure",
+        "allure_commons",
+        "allure_pytest",
+        "xdist",
+        "execnet",
+        "pytest_timeout",
+    }
 )
-# The running call's crossings, each mapped to whether it left this host; empty between calls.
-_CALLS: list[dict[str, bool]] = []
+_OUTPUT = os.environ.get("ETHOS_NATIVE_OUTPUT_DIR")
+_OWNED = (str(Path(_OUTPUT).absolute()) + os.sep,) if _OUTPUT else ()
+# The running case's crossings, each mapped to whether it left this host; empty between cases.
+_CASES: list[dict[str, bool]] = []
+# One entry per wider-scope fixture setup in progress; its work is not the running case's.
+_SHARED: list[str] = []
 _INSTALLED: set[str] = set()
 
 
@@ -49,13 +76,24 @@ def _loopback(address: object) -> bool:
         return address[0] == "localhost"
 
 
+def _case_origin(frame: FrameType | None) -> bool:
+    """Whether the first frame outside the standard library is the case's own code."""
+    while frame is not None:
+        name = frame.f_globals.get("__name__", "")
+        if name.startswith(_LOADERS):
+            return False
+        if name.partition(".")[0] not in sys.stdlib_module_names:
+            return name.partition(".")[0] not in _TOOLS
+        frame = frame.f_back
+    return False
+
+
 def _audit(event: str, arguments: tuple[object, ...]) -> None:
-    """Record one crossing of the running call, ignoring module loading and the run's own output."""
-    if not _CALLS or event not in _EVENTS:
+    """Record one crossing of the running case, ignoring loading, the tools and the run's output."""
+    if not _CASES or _SHARED or event not in _EVENTS:
         return
     frame = inspect.currentframe()
-    caller = frame.f_back if frame is not None else None
-    if caller is not None and caller.f_globals.get("__name__", "").startswith(_LOADERS):
+    if not _case_origin(frame.f_back if frame is not None else None):
         return
     path = arguments[0] if event in _PATH_EVENTS else None
     if isinstance(path, str | bytes | os.PathLike) and str(
@@ -63,7 +101,7 @@ def _audit(event: str, arguments: tuple[object, ...]) -> None:
     ).startswith(_OWNED):
         return
     remote = event == "socket.connect" and not _loopback(arguments[1])
-    _CALLS[-1][event] = _CALLS[-1].get(event, False) or remote
+    _CASES[-1][event] = _CASES[-1].get(event, False) or remote
 
 
 @pytest.hookimpl(trylast=True)
@@ -75,13 +113,31 @@ def pytest_configure() -> None:
 
 
 @pytest.hookimpl(wrapper=True)
-def pytest_runtest_call(item: pytest.Item) -> Generator[None, None, None]:
-    """Attach the call's crossings and whether they exceed its tier to the case's properties."""
-    _CALLS.append({})
+def pytest_runtest_setup() -> Generator[None, None, None]:
+    """Start the case's record before any of its fixtures is set up."""
+    _CASES.append({})
+    return (yield)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_fixture_setup(fixturedef: pytest.FixtureDef[object]) -> Generator[None, object, object]:
+    """Leave a wider-scope fixture's setup out of the case that happens to request it first."""
+    if fixturedef.scope == "function":
+        return (yield)
+    _SHARED.append(fixturedef.argname)
     try:
         return (yield)
     finally:
-        crossed = _CALLS.pop()
+        _SHARED.pop()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item: pytest.Item) -> Generator[None, None, None]:
+    """Attach the case's crossings and whether they exceed its tier to its properties."""
+    try:
+        return (yield)
+    finally:
+        crossed = _CASES.pop() if _CASES else {}
         if crossed:
             unit = Path(item.path).is_relative_to(Path(item.config.rootpath) / "tests/unit")
             exceeds = unit or any(crossed.values())

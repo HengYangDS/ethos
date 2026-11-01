@@ -309,12 +309,23 @@ Each publication peer declared in `.ethos/release.toml` SHALL name its Git remot
 
 ### Requirement: Released products keep one version source
 
-A repository that publishes releases SHALL keep `VERSION` as its only version source and SHALL tag releases as `v` followed by a Semantic Versioning version. `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0 with an `[Unreleased]` section and bracketed version headings.
+A repository that publishes releases SHALL keep `VERSION` as its only version source and SHALL tag
+releases as `v` followed by a Semantic Versioning version. A root `package.json` `version` equal to
+`VERSION` SHALL count as a checked projection, since npm publishes only a literal version; any
+other manifest version SHALL count as a second source. `CHANGELOG.md` SHALL follow Keep a Changelog
+1.1.0 with an `[Unreleased]` section and bracketed version headings.
 
 #### Scenario: A second version source exists
 
-- **WHEN** a released repository keeps a literal version in `package.json` and in `VERSION`
+- **WHEN** a released repository keeps a literal version in `package.json` that differs from
+  `VERSION`
 - **THEN** the paradigm reports two version sources.
+
+#### Scenario: The npm manifest projects VERSION
+
+- **WHEN** a released repository's root `package.json` declares the version that `VERSION` holds
+- **THEN** the paradigm reports no version-source gap
+- **AND** the same manifest without `VERSION` reports the missing source.
 
 #### Scenario: A version heading is unbracketed
 
@@ -338,40 +349,6 @@ A repository that keeps decision records SHALL name each `dr-NNNN-<topic>.md`, w
 
 - **WHEN** a decision record is named `adr-0004-storage.md` or `DR-0004-storage.md`
 - **THEN** the paradigm reports a non-standard decision record name.
-
-### Requirement: Text formatting uses the common formatters
-
-Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure. The paradigm SHALL NOT add a layout rule of its own, so container structure that the formatter accepts conforms.
-
-#### Scenario: Markdown is only linted
-
-- **WHEN** a repository tracks Markdown and has no Prettier configuration in the configuration plane
-- **THEN** the paradigm reports a missing Markdown formatter binding.
-
-#### Scenario: Python is not formatted
-
-- **WHEN** a repository tracks Python and has no Ruff configuration in the configuration plane
-- **THEN** the paradigm reports a missing Python formatter binding.
-
-#### Scenario: Blank lines pad a document
-
-- **WHEN** a Markdown document separates two paragraphs with two blank lines
-- **THEN** the `check` verb fails, and `fix` leaves one blank line.
-
-#### Scenario: The formatter keeps a loose list
-
-- **WHEN** a Markdown list separates its one-paragraph items with blank lines
-- **THEN** `check` passes, two `fix` passes leave the document unchanged, its items still render as paragraphs, and the paradigm reports no gap.
-
-#### Scenario: A formatter setting differs
-
-- **WHEN** a repository's Prettier configuration sets `proseWrap` to `always`
-- **THEN** the paradigm reports the carrier and the common setting it must declare.
-
-#### Scenario: Only archived files use a carrier class
-
-- **WHEN** a repository's only Python files sit under its immutable OpenSpec archive
-- **THEN** the paradigm requires no Ruff binding.
 
 ### Requirement: Formatter inputs respect declared carrier ownership
 
@@ -764,3 +741,38 @@ Authored text SHALL be complete UTF-8 without NUL. One shared judgement SHALL va
 
 - **WHEN** binary, generated-projection, dependency or archived evidence bytes are present
 - **THEN** their existing owner controls verification and the authored-text judgement does not reinterpret or rewrite them.
+
+### Requirement: Text formatting uses the shipped common formatters
+
+Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff through the
+repository's `fix` and `check` verbs. ETHOS SHALL ship their common settings; a repository's own
+configuration under `.config/checks/` SHALL be optional and SHALL keep those settings. Blank lines
+SHALL be what the formatters write, and the paradigm SHALL add no layout rule of its own.
+
+#### Scenario: No local formatter configuration
+
+- **WHEN** a repository tracks Markdown, TOML and Python and keeps no Prettier, Taplo or Ruff
+  configuration in the configuration plane
+- **THEN** the paradigm reports no formatter gap and the formatters run on the shipped settings
+
+#### Scenario: Blank lines pad a document
+
+- **WHEN** a Markdown document separates two paragraphs with two blank lines
+- **THEN** the `check` verb fails, and `fix` leaves one blank line.
+
+#### Scenario: The formatter keeps a loose list
+
+- **WHEN** a Markdown list separates its one-paragraph items with blank lines
+- **THEN** `check` passes, two `fix` passes leave the document unchanged, its items still render as
+  paragraphs, and the paradigm reports no gap.
+
+#### Scenario: A formatter setting differs
+
+- **WHEN** a repository's Prettier configuration sets `proseWrap` to `always`
+- **THEN** the paradigm reports the carrier and the common setting it must declare.
+
+#### Scenario: Only archived files use a carrier class
+
+- **WHEN** a repository's only Python files sit under its immutable OpenSpec archive and it keeps a
+  Ruff configuration that differs from the common settings
+- **THEN** the paradigm reports no Ruff setting gap.

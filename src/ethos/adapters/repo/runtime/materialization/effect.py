@@ -166,12 +166,8 @@ def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
     if store.is_symlink() or installation.is_symlink():
         _fail("hook_runtime_host_store_invalid")
     store.mkdir(parents=True, mode=0o700, exist_ok=True)
-    with FileLock(
-        store / "install.lock",
-        timeout=seconds("lock"),
-        fallback_to_soft=False,
-        preserve_lock_file=True,
-    ):
+    lock = store / "install.lock"
+    with FileLock(lock, timeout=seconds("lock"), fallback_to_soft=False, preserve_lock_file=True):
         _recover_pin_staging(store)
         if installation.exists():
             pinned_root = _reuse_installation(installation, selected)

@@ -47,7 +47,8 @@ peer whose `git_remote` differs from its id.
 
 ## Risks / Trade-offs
 
-- [Four adopters gain a gap when they upgrade: architecture-publisher, ddwg-introduction-film,
-  ethos-film and ethos-introduction-film] → The gap names the file, and their owners have the list.
+- [Four adopters gain a gap when they upgrade: `architecture-publisher`, `ddwg-introduction-film`,
+  `ethos-film` and `ethos-introduction-film`] → The gap names the file, and their owners have the
+  list.
 - [A sole-peer repository renames its remote when it adds a second peer] → The paradigm reports the
   rename, and `git remote rename` moves its tracking references.

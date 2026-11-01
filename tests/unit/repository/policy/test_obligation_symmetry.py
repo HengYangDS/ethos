@@ -12,6 +12,7 @@ from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 
 _FLOOR_FIELDS = (
     "quality_floor_version",
@@ -61,9 +62,7 @@ def _fixture(
         "pyproject.toml": manifest,
         "src/app.py": "answer = 42\n",
     }
-    for relative, content in files.items():
-        (repo / relative).parent.mkdir(parents=True, exist_ok=True)
-        (repo / relative).write_text(content, encoding="utf-8")
+    write_tree(repo, files)
     return repo, commit_fixture(repo, "declare the obligation fixture")
 
 

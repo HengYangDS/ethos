@@ -14,6 +14,7 @@ from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.declarations import retained_ci_steps
 from ethos.repository.policy.references.observation import product_references_from_files
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -123,9 +124,7 @@ def test_a_retained_powershell_step_is_owned_as_a_whole(tmp_path: Path) -> None:
         )
     )
     files = {".gitlab-ci.yml": pipeline, _RECORD: record}
-    for relative, content in files.items():
-        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / relative).write_text(content, encoding="utf-8")
+    write_tree(tmp_path, files)
 
     gaps = list(orchestration_gaps(load_repository_paradigm(), tmp_path, frozenset(files)))
     observed = product_references_from_files(

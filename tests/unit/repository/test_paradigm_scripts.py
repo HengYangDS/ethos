@@ -9,6 +9,7 @@ import pytest
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.scripts import tracked_script_gaps
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,10 +27,7 @@ def _record(generator: str = "mise-bootstrap", digest: str = _DIGEST) -> str:
 
 
 def _gaps(root: Path, files: dict[str, str]) -> list[tuple[str, str]]:
-    for relative, content in files.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+    write_tree(root, files)
     gaps = tracked_script_gaps(load_repository_paradigm(), root, frozenset(files))
     return [(gap.required_gap, gap.repair) for gap in gaps]
 

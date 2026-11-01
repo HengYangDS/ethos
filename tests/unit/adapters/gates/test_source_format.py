@@ -25,17 +25,10 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_test_profile
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
-
-
-def _write(root: Path, files: Mapping[str, str]) -> None:
-    for relative, content in files.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
 
 
 def _command(root: Path, *arguments: str) -> tuple[int, dict[str, Any]]:
@@ -73,7 +66,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
         "openspec/changes/archive/old/spec.md": "# Captured\n\ntext   \n",
         "package-lock.json": '{"producer":[1,2]}\n',
     }
-    _write(
+    write_tree(
         lane,
         {
             **sources,
@@ -130,7 +123,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(
         "docs/projected.md": "# Projection\n\ntext   \n",
         "docs/archive/captured.md": "# Captured\n\ntext   \n",
     }
-    _write(
+    write_tree(
         root,
         {
             **preserved,
@@ -183,7 +176,7 @@ def test_official_openspec_keeps_its_owner_and_is_never_formatted(lane: Path) ->
     )
     metadata = "openspec/changes/fixture-change/.openspec.yaml"
     yaml = "schema:   spec-driven\ncreated: 2026-10-14\n"
-    _write(lane, {tasks: original, metadata: yaml})
+    write_tree(lane, {tasks: original, metadata: yaml})
     head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
     assert not any(item.path.startswith("openspec/") for item in prepare_source_format(lane))
     for relative in (tasks, metadata):
@@ -210,7 +203,7 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
     """Byte-bound carriers leave every formatter, yet every read-only check still reads them."""
     bound = {"content/data.json": '{"value":true}\n', "content/notes.md": "# B\n\nteh   \n"}
     bound["assets/a.svg"] = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1z"/></svg>\n'
-    _write(lane, {**bound, "docs/new.md": "# New\n\ntext   \n", _CARRIERS: _CARRIER})
+    write_tree(lane, {**bound, "docs/new.md": "# New\n\ntext   \n", _CARRIERS: _CARRIER})
     head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
 
     selected = {item.path for item in prepare_source_format(lane)}
@@ -238,7 +231,9 @@ def test_only_verified_byte_bound_carriers_are_received(
 ) -> None:
     """Besides Git's vendored and generated paths, the paradigm receives verified carriers only."""
     files = {"content/data.json": "{}\n", "docs/new.md": "# New\n", "web/app.js": "var v;\n"}
-    _write(lane, {**files, _CARRIERS: policy, ".gitattributes": "web/app.js linguist-generated\n"})
+    write_tree(
+        lane, {**files, _CARRIERS: policy, ".gitattributes": "web/app.js linguist-generated\n"}
+    )
 
     assert paradigm_received_paths(lane, tuple(files)) == {"web/app.js", *frozen}
 
@@ -303,7 +298,7 @@ def test_repository_carriers_cannot_take_or_weaken_product_ownership(
     """An increment is one owned table that only forbids formatting under a proven verifier."""
     sources = {"content/data.json": '{"value":true}\n', "openspec/changes/live/a.md": "# Live\n"}
     target = "carriers.toml" if policy is None else _CARRIERS
-    _write(lane, {**sources, target: policy or _CARRIER})
+    write_tree(lane, {**sources, target: policy or _CARRIER})
     if policy is None:
         (lane / _CARRIERS).parent.mkdir(parents=True, exist_ok=True)
         (lane / _CARRIERS).symlink_to(lane / target)
@@ -319,7 +314,7 @@ def test_public_fix_refuses_missing_or_stale_authority_without_writes(
     lane: Path, arguments: tuple[str, ...]
 ) -> None:
     relative, original = "src/product.py", "value=1\n"
-    _write(lane, {relative: original})
+    write_tree(lane, {relative: original})
     (lane / relative).chmod(0o640)
     code, result = _command(lane, relative, *arguments)
     assert (code, result["verdict"]) == (1, "block"), result
@@ -329,7 +324,7 @@ def test_public_fix_refuses_missing_or_stale_authority_without_writes(
 
 def test_native_parse_refusal_preserves_every_selected_file(lane: Path) -> None:
     sources = {"src/product.py": "value=1\n", "source.json": "{ broken }\n"}
-    _write(lane, sources)
+    write_tree(lane, sources)
     code, result = _command(
         lane,
         *sources,
@@ -346,7 +341,7 @@ def test_native_policy_warning_refuses_postimages_and_preserves_original_diagnos
     lane: Path,
 ) -> None:
     sources = {"src/product.py": "value=1\n", "source.json": '{"value":true}\n'}
-    _write(lane, {**sources, ".config/checks/prettier/prettier.toml": "unknownFormat = true\n"})
+    write_tree(lane, {**sources, ".config/checks/prettier/prettier.toml": "unknownFormat = true\n"})
     code, result = _command(
         lane,
         *sources,
@@ -367,7 +362,7 @@ def test_native_ignore_and_literal_pragma_preserve_original_bytes(lane: Path) ->
         "docs/untouched.md": "# Ignored\n\ntext   \n",
         "docs/example.md": "# Native\n\n<!-- prettier-ignore -->\n|a|b|\n|-|-|\n|1|2|\n",
     }
-    _write(
+    write_tree(
         lane, {**sources, ".config/checks/prettier/prettierignore": "../../../docs/untouched.md\n"}
     )
     code, result = _command(lane, *sources, "--check")
@@ -378,7 +373,7 @@ def test_native_ignore_and_literal_pragma_preserve_original_bytes(lane: Path) ->
 
 def test_ignore_file_outside_its_carrier_is_refused_without_writes(lane: Path) -> None:
     sources = {"docs/untouched.md": "# Ignored\n\ntext   \n"}
-    _write(lane, {**sources, ".prettierignore": "docs/untouched.md\n"})
+    write_tree(lane, {**sources, ".prettierignore": "docs/untouched.md\n"})
     code, result = _command(lane, *sources, "--check")
     assert (code, result["verdict"]) == (1, "block"), result
     assert "native_tool_configuration_location_invalid:prettier-ignore" in json.dumps(result)
@@ -388,7 +383,7 @@ def test_ignore_file_outside_its_carrier_is_refused_without_writes(lane: Path) -
 def test_protected_root_cannot_fix_authored_source(lane: Path) -> None:
     root = lane.parent / "repo"
     relative, original = "source.json", '{"value":true}\n'
-    _write(root, {relative: original})
+    write_tree(root, {relative: original})
     code, result = _command(
         root, relative, "--apply", "--authorize", "--expect-head", git(root, "rev-parse", "HEAD")
     )
@@ -398,7 +393,7 @@ def test_protected_root_cannot_fix_authored_source(lane: Path) -> None:
 
 def test_literal_input_without_final_newline_is_fixed_idempotently(lane: Path) -> None:
     relative = 'src/native "quote" \\ path.py'
-    _write(lane, {relative: "value=1"})
+    write_tree(lane, {relative: "value=1"})
     head = git(lane, "rev-parse", "HEAD")
     code, applied = _command(lane, relative, "--apply", "--authorize", "--expect-head", head)
     assert (code, applied["verdict"]) == (0, "pass"), applied
@@ -408,7 +403,7 @@ def test_literal_input_without_final_newline_is_fixed_idempotently(lane: Path) -
 
 
 def test_missing_required_input_remains_unknown_without_mutation(lane: Path) -> None:
-    _write(lane, {"src/valid.py": "value=1\n"})
+    write_tree(lane, {"src/valid.py": "value=1\n"})
     code, result = _command(
         lane,
         "src/valid.py",
@@ -424,7 +419,7 @@ def test_missing_required_input_remains_unknown_without_mutation(lane: Path) -> 
 
 @pytest.mark.parametrize("relative", ["../outside.py", "src/linked.py"])
 def test_escaping_or_linked_input_is_refused_before_any_write(lane: Path, relative: str) -> None:
-    _write(lane, {"src/valid.py": "value=1\n"})
+    write_tree(lane, {"src/valid.py": "value=1\n"})
     outside = lane.parent / "outside.py"
     outside.write_text("outside=1\n")
     if relative == "src/linked.py":
@@ -458,7 +453,7 @@ def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None
         "source.json": '{"nested":{"value":"' + "x" * 100 + '"}}\n',
         "src/valid.py": "value=1\n",
     }
-    _write(lane, {**sources, ".config/checks/prettier/prettier.toml": "tabWidth = 4\n"})
+    write_tree(lane, {**sources, ".config/checks/prettier/prettier.toml": "tabWidth = 4\n"})
     code, result = _command(lane, *sources, "--check")
     assert (code, result["verdict"]) == (1, "block"), result
     assert all((lane / path).read_text() == content for path, content in sources.items())
@@ -466,7 +461,7 @@ def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None
 
 def test_conflicting_python_formatter_increment_cannot_replace_shared_policy(lane: Path) -> None:
     content = 'value = {"native": "' + "x" * 90 + '"}\n'
-    _write(
+    write_tree(
         lane,
         {"src/valid.py": content, ".config/checks/ruff/ruff.toml": "line-length = 200\n"},
     )
@@ -481,7 +476,7 @@ def test_source_or_index_drift_blocks_the_native_fix(
     lane: Path, monkeypatch: pytest.MonkeyPatch, changed: str
 ) -> None:
     sources = {"src/first.py": "first=1\n", "src/second.py": "second=2\n"}
-    _write(lane, sources)
+    write_tree(lane, sources)
     native = mutation.prewrite_guard
 
     def drift(**arguments):

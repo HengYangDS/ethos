@@ -120,8 +120,19 @@ def test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun(tmp_path: 
     assert json.loads(query.stdout)["total_matches"] == 1
     assert before == {item.name: item.read_bytes() for item in raw}
     raw[0].unlink()
-    with pytest.raises(ValueError, match="allure_identities_differ"):
+    with pytest.raises(ValueError, match=r"allure_identities_differ:missing=\S*#test_"):
         hosted_verification.render_allure(ROOT, reports)
+
+
+def test_a_parameter_id_with_the_node_separator_keeps_its_identity(tmp_path: Path) -> None:
+    """A case whose parameter id holds `::` is named by its original function, as in Allure."""
+    target = (
+        "tests/unit/kernel/test_coordination_contract.py"
+        "::test_holder_ref_rejects_provider_only_or_ambiguous_values"
+    )
+    reports, returncode = _attempt(tmp_path, "-q", target)
+    assert returncode == 0
+    hosted_verification.render_allure(ROOT, reports)
 
 
 def test_binary_parameter_cases_remain_distinct_in_native_agent_report(tmp_path: Path) -> None:

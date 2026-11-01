@@ -11,6 +11,7 @@ from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.repo.git import run_git
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import write_tree
 from tests.support.paradigm import CONFORMING
 
 if TYPE_CHECKING:
@@ -32,10 +33,7 @@ def _repository(tmp_path: Path, changes: dict[str, str | None]) -> Path:
     files = {**CONFORMING, **{path: text for path, text in changes.items() if text is not None}}
     for path in (path for path, text in changes.items() if text is None):
         files.pop(path)
-    for relative, content in files.items():
-        target = repo / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+    write_tree(repo, files)
     subprocess.run(["git", "init", "-q", repo.as_posix()], check=True)
     subprocess.run(["git", "-C", repo.as_posix(), "add", "-A"], check=True)
     return repo

@@ -13,6 +13,7 @@ from ethos.repository.paradigm.orchestration import CiStep
 from ethos.repository.paradigm.orchestration import ci_steps
 from ethos.repository.paradigm.orchestration import inline_shell
 from ethos.repository.paradigm.orchestration import orchestration_gaps
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -92,10 +93,7 @@ def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
 
 
 def _gaps(root: Path, files: dict[str, str]) -> list[tuple[str, str]]:
-    for relative, content in files.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+    write_tree(root, files)
     gaps = orchestration_gaps(load_repository_paradigm(), root, frozenset(files))
     return [(gap.required_gap, gap.repair) for gap in gaps]
 

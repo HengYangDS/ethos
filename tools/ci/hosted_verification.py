@@ -249,7 +249,11 @@ def render_allure(root: Path, reports: Path) -> None:
         if event.get("$report_type") == "TestReport" and event.get("when") == "setup"
     )
     if not executed or named != executed:
-        message = "allure_identities_differ"
+        missing, unexpected = sorted(executed - named)[:3], sorted(named - executed)[:3]
+        message = (
+            f"allure_identities_differ:missing={','.join(missing)}"
+            f":unexpected={','.join(unexpected)}"
+        )
         raise ValueError(message)
     runtime, output = ProjectRuntime.discover(root), reports / "allure/agent"
     cli = runtime.node_package_supply() / "allure/cli.js"
@@ -277,10 +281,13 @@ def render_allure(root: Path, reports: Path) -> None:
 
 
 def _allure_name(nodeid: str) -> str:
-    """Name a case as allure-pytest's `fullName` does: package, classes and function."""
+    """Name a case as allure-pytest's `allure_full_name` does, also for an id that holds `::`.
+
+    Its parser supplies the package and classes, and the test is the original function name.
+    """
     parsed = ParsedPytestNodeId(nodeid)
     classes = "".join(f".{name}" for name in parsed.class_names)
-    return f"{parsed.package}{classes}#{parsed.test_function}"
+    return f"{parsed.package}{classes}#{nodeid.partition('[')[0].rpartition('::')[2]}"
 
 
 def _publish(proof: Path, report: dict[str, Any], checks: list[Any], summary: list[str]) -> int:

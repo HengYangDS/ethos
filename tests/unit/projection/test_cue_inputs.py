@@ -20,6 +20,7 @@ from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import projection_relations
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 from tools.ci.ci_projection import compile_providers
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -229,10 +230,7 @@ def test_public_template_input_selection_uses_the_same_typed_contract(tmp_path):
     files[MODEL] = run_command(
         tmp_path, (str(executable), "fmt", "-"), stdin=files[MODEL], timeout=15, check=True
     ).stdout
-    for relative, content in files.items():
-        target = tmp_path / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+    write_tree(tmp_path, files)
     before = {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
     expected = compile_projections(tmp_path, DECLARATION, files)
     assert compile_providers(tmp_path, observations=expected) == expected
@@ -350,10 +348,7 @@ def test_native_projection_preview_check_and_patch_share_complete_group(tmp_path
     files[MODEL] = run_command(
         tmp_path, (str(executable), "fmt", "-"), stdin=files[MODEL], timeout=15, check=True
     ).stdout
-    for relative, content in files.items():
-        target = root / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+    write_tree(root, files)
     commit_fixture(root, "bind exact projection inputs")
     snapshot = {path: path.read_bytes() for path in root.rglob("*") if path.is_file()}
     preview = projection.project_repository(root)
@@ -400,10 +395,7 @@ def test_native_projection_refuses_relation_change_during_compilation(tmp_path, 
     """A declaration edited after capture cannot redirect the original patch's target."""
     root = init_git_repo(tmp_path / "repository")
     files = _materials("package.toml")
-    for relative, content in files.items():
-        target = root / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+    write_tree(root, files)
     commit_fixture(root, "bind exact projection inputs")
     original = projection.render_projections
 

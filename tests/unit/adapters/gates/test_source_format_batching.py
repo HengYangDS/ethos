@@ -11,17 +11,10 @@ import pytest
 import ethos.adapters.gates.formatting as formatting_gate
 from ethos.adapters.gates.formatting import prepare_source_format
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
-
-
-def _write(root: Path, files: Mapping[str, str]) -> None:
-    for relative, content in files.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
 
 
 @pytest.fixture
@@ -50,7 +43,7 @@ def test_clean_selection_costs_the_same_native_checks_at_any_size(
             **{f"src/module{index}.py": f"VALUE = {index}\n" for index in range(size)},
             **{f"settings{index}.toml": f"value = {index}\n" for index in range(size)},
         }
-        _write(lane, sources)
+        write_tree(lane, sources)
         launched.clear()
         report = formatting_gate.source_format_report(lane, paths=tuple(sources))
         assert (report["verdict"], report["changed_paths"]) == ("pass", []), report
@@ -66,7 +59,7 @@ def test_drift_in_a_clean_selection_keeps_its_exact_native_postimage(lane: Path)
         "src/clean.py": "VALUE = 1\n",
         "src/drift.py": "value=2\n",
     }
-    _write(lane, sources)
+    write_tree(lane, sources)
     report = formatting_gate.source_format_report(lane, paths=tuple(sources))
     assert report["changed_paths"] == ["docs/drift.md", "src/drift.py"], report
     postimages = {
@@ -97,7 +90,7 @@ def test_listed_markdown_drift_renders_only_the_listed_file(
         **{f"docs/page{index}.md": f"# Page {index}\n\nText.\n" for index in range(4)},
         "docs/drift.md": "# Drift\n\ntext   \n",
     }
-    _write(lane, sources)
+    write_tree(lane, sources)
     report = formatting_gate.source_format_report(lane, paths=tuple(sources))
     assert report["changed_paths"] == ["docs/drift.md"], report
     assert rendered == ["docs/drift.md"]
@@ -111,6 +104,6 @@ def test_a_toml_path_taplo_does_not_collect_still_renders_alone(lane: Path) -> N
     collects none on Windows, where it joins every name onto the backslash working directory.
     """
     sources = {"settings/plain.toml": "value = 1\n", "settings/back\\slash.toml": "value   =   2\n"}
-    _write(lane, sources)
+    write_tree(lane, sources)
     report = formatting_gate.source_format_report(lane, paths=tuple(sources))
     assert report["changed_paths"] == ["settings/back\\slash.toml"], report

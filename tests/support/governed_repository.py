@@ -8,6 +8,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from ethos.adapters.gates.formatting import prepare_source_format
@@ -23,6 +24,9 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 # The root documents every governed repository keeps, as the paradigm declares them.
 ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
@@ -117,11 +121,16 @@ def lane_start_arguments(
     )
 
 
+def write_tree(root: Path, files: Mapping[str, str]) -> None:
+    """Write UTF-8 fixture files at their relative paths, creating their directories."""
+    for relative, content in files.items():
+        (root / relative).parent.mkdir(parents=True, exist_ok=True)
+        (root / relative).write_text(content, encoding="utf-8")
+
+
 def commit_fixture_file(root: Path, relative: str, content: str, message: str) -> str:
     """Write and commit a fixture file, returning the resulting HEAD."""
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    write_tree(root, {relative: content})
     git(root, "add", relative)
     empty_hooks = Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "test-hooks"))
     empty_hooks.mkdir(parents=True, exist_ok=True)

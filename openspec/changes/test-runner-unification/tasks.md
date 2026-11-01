@@ -91,16 +91,19 @@
 
 ## 5. One runner
 
-- [ ] 5.1 Make `unit-architecture` a provider row (`python_quality:behavior_report`,
+- [x] 5.1 Make `unit-architecture` a provider row (`python_quality:behavior_report`,
       `profile = "product-toolchain"`, `tool_adapter = "ethos"`, `timeout_seconds = 7200`) without
       native outputs, and remove `coverage-floor` from the registry and both proof sets. Done when
-      1.1 passes and the gate passes in the lane.
-- [ ] 5.2 Delete `tools/ci/python_test_gate.py`, `python_test_order.py` and
+      1.1 passes and the gate passes in the lane. (The provider row passed in the lane's full runs at `215af814b` and `6de0eb72b`, where 1.1
+      passes.)
+- [x] 5.2 Delete `tools/ci/python_test_gate.py`, `python_test_order.py` and
       `python_test_bytecode.py`; the `tests` and `coverage_floor` sessions and the pytest run in
       `architecture_projection`; `_pytest_runner_findings` and its carrier entry; `junit_report`;
       and the retired inputs in `system/surfaces.toml`. Done when `rg` finds none of these names
       outside archived Changes and the main specs this Change's deltas amend, and module layout,
-      semantic closure and generated artifacts pass.
+      semantic closure and generated artifacts pass. (Outside archived Changes, this Change, the amended main specifications and CHANGELOG, `rg`
+      finds them nowhere; no specification names them after the simulated archive; module layout,
+      product boundary with the product audit, generated artifacts and skills pass at `528c99ece`.)
 - [x] 5.3 Make hosted verification clear `build/evidence/quality/tests`, name it as the native
       output root, take test and coverage figures from the probe's evidence, refuse Allure results
       whose case identities differ from the execution's, and render the Allure views; rename
@@ -129,12 +132,14 @@
 
 ## 6. Specifications and documents
 
-- [ ] 6.1 Write the quality and repository-governance deltas. Done when strict OpenSpec validation
-      passes and a simulated archive leaves every spec valid.
-- [ ] 6.2 Update README.md's Development commands, `docs/reference/configuration.md`,
+- [x] 6.1 Write the quality and repository-governance deltas. Done when strict OpenSpec validation
+      passes and a simulated archive leaves every spec valid. (Strict validation passes; 12 specifications are valid after the simulated archive,
+      `build/evidence/test-runner-unification/archive-simulation.log`.)
+- [x] 6.2 Update README.md's Development commands, `docs/reference/configuration.md`,
       `docs/architecture/generated-artifact-topology.md`, the removal target named in
       `docs/research/foundations/execution.md:38`, the terminal plan's coverage-policy link and
-      CHANGELOG's `[Unreleased]`. Done when the documentation gates pass.
+      CHANGELOG's `[Unreleased]`. Done when the documentation gates pass. (The repository audit, external links, Markdown lint, prose and docstring coverage pass at
+      `528c99ece`.)
 
 ## 7. Measurement
 

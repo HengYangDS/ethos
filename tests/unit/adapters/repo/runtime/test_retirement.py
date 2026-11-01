@@ -297,7 +297,7 @@ def test_unknown_operational_observation_defers_cleanup(
 
         def observe(root, command, **kwargs):
             assert root == repo
-            assert kwargs["timeout"] == 10
+            assert kwargs["timeout"] == 15
             if fault == "timeout":
                 raise subprocess.TimeoutExpired(command, 10)
             return subprocess.CompletedProcess(
@@ -510,7 +510,7 @@ def test_process_observer_resolves_native_authority(tmp_path, monkeypatch):
     native_run = retirement.run_command
 
     def observe(root, command, **options):
-        assert (root, options["timeout"]) == (tmp_path, 10)
+        assert (root, options["timeout"]) == (tmp_path, 15)
         return native_run(root, command, **options)
 
     monkeypatch.setattr(retirement, "run_command", observe)

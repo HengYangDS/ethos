@@ -18,6 +18,7 @@ from ethos.adapters.gates.proof_slot import SlotAdmission
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
+from ethos.repository.paradigm.parameters import repository_parameters
 from tests.support.proof import conformant_proof_checks
 from tests.support.semantic import attestation_fixture
 from tests.support.semantic import commitment_fixture
@@ -484,7 +485,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
 
 
 def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_path) -> None:
-    """Gates start after admission, and the result reports how long the proof waited."""
+    """Gates start after admission; the result reports the wait and each reasoned looser value."""
     _repo, emitted = _arrange(monkeypatch, tmp_path)
     order: list[str] = []
 
@@ -503,10 +504,23 @@ def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_
     monkeypatch.setattr(proof_cli, "issue_proof_attestation", lambda *_a, **_k: _attestation())
     monkeypatch.setattr(proof_cli, "persist_proof_attestation", lambda *_a, **_k: None)
 
-    proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
+    binding = tmp_path / "binding"
+    (binding / ".ethos").mkdir(parents=True)
+    reason = 'reasons = { gate_seconds = "release tests run 580 seconds" }'
+    rules = f"[paradigm.timeout]\ngate_seconds = 1200\n{reason}\n"
+    (binding / ".ethos/rules.toml").write_text(rules)
+    with repository_parameters(binding):
+        proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
     assert order == [f"admitted:{'a' * 40}", "gates", "released"]
     assert emitted[-1].data["admission"] == {"waited_seconds": 4.0, "load": 3.0, "limit": 9.0}
+    (deviation,) = emitted[-1].data["parameter_deviations"]
+    assert dict(deviation) == {
+        "parameter": "timeout.gate_seconds",
+        "value": 1200,
+        "default": 600,
+        "reason": "release tests run 580 seconds",
+    }
 
 
 @pytest.mark.parametrize(

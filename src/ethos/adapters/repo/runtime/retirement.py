@@ -30,6 +30,7 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.admission import accepted_release_identities
 
 
@@ -74,12 +75,12 @@ def process_commands(root: Path, *, platform_name: str | None = None) -> str:
     """Observe native running commands within a bounded, fail-closed boundary."""
     if (platform_name or os.name) == "nt":
         try:
-            lines = windows_command_lines(timeout=10)
+            lines = windows_command_lines(timeout=seconds("probe"))
         except ProcessExecutionError:
             _fail("hook_runtime_consumers_unknown")
         return "\n".join(lines)
     completed = run_command(
-        root, process_listing_command(), timeout=10, remove_env_prefixes=("GIT_",)
+        root, process_listing_command(), timeout=seconds("probe"), remove_env_prefixes=("GIT_",)
     )
     if completed.returncode or completed.stderr:
         _fail("hook_runtime_consumers_unknown")

@@ -42,7 +42,9 @@ the stderr reader thread without a bound, as CPython's own `subprocess.run` does
   facts; the native functions run only on hosted Windows. Each imports pywin32 when it is called:
   only Windows installs it, and the build backend imports ETHOS modules, `ethos.adapters.process`
   among them, to compute the version, so a module-level import broke every Windows build. A missing
-  module is the native gap `native_security_api_missing`.
+  module is the native gap `native_security_api_missing`. Dependency hygiene cannot see an import by
+  name, so its policy exempts pywin32 from the unused-dependency rule beside the native executables
+  that are also used without an import.
 - **Process token.** The current identity is the process token's user. ETHOS never impersonates, so
   the thread token that `WindowsIdentity.GetCurrent()` would also consult adds nothing.
 - **Entries that apply to the object.** An inherit-only entry grants nothing on the object that

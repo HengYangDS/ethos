@@ -2,9 +2,10 @@
 
 ## 1. Dependency
 
-- [x] 1.1 Declare `pywin32>=312; sys_platform == 'win32'`, map its modules for deptry, and parse
-      requirements with `packaging` in the declaration check. Done when the check passes and a
-      requirement with two bounds is still refused.
+- [x] 1.1 Declare `pywin32>=312; sys_platform == 'win32'`, exempt it from deptry's unused-dependency
+      rule because it is imported by name, and parse requirements with `packaging` in the
+      declaration check. Done when the dependency hygiene gate passes and a requirement with two
+      bounds is still refused.
 - [x] 1.2 Admit the hosted `supply_image` build from a proposal ref. Done when the projected
       workflow's condition accepts `refs/heads/proposal/` and the projection check passes.
 - [ ] 1.3 Build the supply image from the lane's lock commit and bind its digest. Done when a GitLab

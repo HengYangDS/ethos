@@ -8,14 +8,14 @@ root = "src/ethos"
 config = "pyproject.toml"
 known_first_party = ["ethos", "noxfile"]
 # Native executables are selected and exercised by their bound gate owners,
-# not imported as Python modules. All other dependency checks remain enabled.
-per_rule_ignores = ["DEP002=codespell|lychee-bin|shfmt-py|uv"]
+# not imported as Python modules. pywin32 is imported by name where a Windows
+# call needs it, which deptry cannot see. All other dependency checks remain enabled.
+per_rule_ignores = ["DEP002=codespell|lychee-bin|pywin32|shfmt-py|uv"]
 package_module_name_map = [
   "allure-pytest=allure|allure_pytest",
   "cel-expr-python=cel_expr_python",
   "markdown-it-py=markdown_it",
   "pillow=PIL",
   "pytest-cov=pytest_cov|coverage",
-  "pywin32=pythoncom|pywintypes|win32api|win32com|win32security",
   "pyyaml=yaml",
 ]

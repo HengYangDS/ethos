@@ -41,8 +41,8 @@ Change.
   coverage's own `fail_under`. The suite's process environment and its Allure results move into
   `tests/conftest.py`.
 - **A report-only tier guard.** A PEP 578 audit hook records, for each case, the files, directories,
-  processes, databases and sockets its call crossed and whether that exceeds the tier its directory
-  states. It never changes an outcome; `test-tiers` arms it.
+  processes, databases and sockets its setup, call and teardown crossed and whether that exceeds the
+  tier its directory states. It never changes an outcome; `test-tiers` arms it.
 - **Hosted acceptance reads the same attempt.** Hosted verification names its evidence directory as
   the native output root, takes the test and coverage figures from the probe's evidence, refuses
   Allure results whose case identities differ from the execution's, which replaces the count check,
@@ -87,13 +87,15 @@ None.
 - Adopters: the probe changes alter a verdict only in a repository that declares the paradigm
   carriers or a gate timeout above 600 seconds for Python tests. Every other run is unchanged,
   except that its test process sees `ETHOS_NATIVE_OUTPUT_DIR`, as the test command of a gate with
-  native outputs already does, and writes its bytecode under the attempt's scratch. On the owner's
-  workstation (2026-11-01), of the four repositories that run the probe, only
-  web-ingestion-benchmark has Python, and it declares neither; other hosts are not verified.
+  native outputs already does, and writes its bytecode and Hypothesis's storage
+  (`HYPOTHESIS_STORAGE_DIRECTORY`) under the attempt's scratch; the `proof` Hypothesis profile is
+  ETHOS's own test configuration, not the probe's. On the owner's workstation (2026-11-01), of the
+  four repositories that run the probe, only web-ingestion-benchmark has Python, and it declares
+  neither; other hosts are not verified.
 - Builds on `probe-supply`, which declared uv in ETHOS's mise configuration, provisioned mise Python
   and uv on both hosted planes and rebound the GitLab supply image.
-- Out of scope: identity completeness against the intended set (`verification-spine`), the order
-  session at the release, ty over tests (`ty-over-tests`), arming the guard (`test-tiers`), the
-  encoding rule, the shared JUnit reader's flaky-element refusal (a contract-2 row), ETHOS's
-  JavaScript tests through the shipped JavaScript probe, and the host-conformance and supply-image
-  pytest smokes (`platform-matrix`).
+- Out of scope: identity completeness against the intended set and arming the guard (`test-tiers`),
+  the order session at the release (`release-prepare`, with `probe-rows`), ty over tests
+  (`ty-over-tests`), the encoding rule (`unit-rewrite`), the shared JUnit reader's flaky-element
+  refusal (a contract-2 row), ETHOS's JavaScript tests through the shipped JavaScript probe
+  (`javascript-probe`), and the host-conformance and supply-image pytest smokes (`platform-matrix`).

@@ -37,12 +37,13 @@
       duplicate parametrization id, and `PYTEST_XDIST_AUTO_NUM_WORKERS=4` starts four workers. (Two
       duplicate-id parametrizations got explicit ids; 7,793 cases collected with no error; the
       variable started `4/4 workers`.)
-- [ ] 2.3 After refreshing the lane onto the landed `probe-supply` binding, run ETHOS's suite once
+- [x] 2.3 After refreshing the lane onto the landed `probe-supply` binding, run ETHOS's suite once
       through the probe with `timeout_seconds=7200` (a direct provider call in the lane, not a
       proof) and record in design.md's Context each refusal and each test that needs an executable
       outside the probe's locked PATH. Done when the observed gaps are listed. (The first run, at
       `5734e7dbe`, stopped after 205 cases on this Change's unfinished removals, design.md Context;
-      it runs again after 5.4.)
+      it runs again after 5.4. The second, at `215af814b`, passed with one new skip outside the
+      locked PATH, recorded there.)
 - [x] 2.4 Point Hypothesis's native `HYPOTHESIS_STORAGE_DIRECTORY` at the attempt's scratch. Done
       when the probe case whose suite writes there leaves nothing outside scratch and no path in the
       fixture's worktree. (Before the change the suite's lookup failed and the probe blocked.)
@@ -78,8 +79,9 @@
       is recorded without exceeding; the outcome is unchanged. Done when they fail without the
       guard. (`tests/architecture/test_tier_guard.py` runs a nested pytest; without the module it
       failed on the missing plugin.)
-- [ ] 4.2 Add `tests/support/tier_guard.py` and load it from `tests/conftest.py`. Done when 4.1
-      passes and a full run's JUnit carries `ethos.crossed` and `ethos.exceeds` properties.
+- [x] 4.2 Add `tests/support/tier_guard.py` and load it from `tests/conftest.py`. Done when 4.1
+      passes and a full run's JUnit carries `ethos.crossed` and `ethos.exceeds` properties. (The
+      second full run's JUnit carries them for 5,955 of its 7,764 cases.)
 - [x] 4.3 Watch setup, call and teardown, record design Decision 7's event table, and leave out
       module loading, the test tools' own work, the report root and wider-scope fixture setups. Done
       when the nested guard cases pass. (Before, a fixture's setup and teardown, a rename, a removal
@@ -107,12 +109,16 @@
 - [x] 5.4 Apply the case dispositions in design.md. Done when every removed case has its disposition
       there and no test imports a deleted module. (`rg -w` finds the deleted names only in archived
       Changes, the main specifications this Change amends, this Change and CHANGELOG's removal.)
-- [ ] 5.5 Add the no-retry regression, pinning existing behavior: a report log with a `rerun`
+- [x] 5.5 Add the no-retry regression, pinning existing behavior: a report log with a `rerun`
       outcome is refused. Done when it passes.
-- [ ] 5.6 Compare the node identities that the probe executes in the lane with those the parent
+- [x] 5.6 Compare the node identities that the probe executes in the lane with those the parent
       tree's runner executed in the base proof (its JUnit, kept as
       `build/runtime/work/test-runner-unification/baseline/junit.xml`). Done when the difference is
-      exactly the removed cases of design.md's dispositions and the cases this Change adds.
+      exactly the removed cases of design.md's dispositions and the cases this Change adds. (Against
+      7,785 base identities the second run lacks 106 and adds 85: the removed and moved cases, the
+      12 strict-id renames, the 44 parallel-proof renames and one hosted re-parametrization, each
+      recorded in design.md;
+      `build/runtime/work/test-runner-unification/lane/completeness-p2.json`.)
 
 ## 6. Specifications and documents
 

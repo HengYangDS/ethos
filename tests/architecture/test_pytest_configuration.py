@@ -84,8 +84,13 @@ def test_each_case_inherits_the_suite_environment(pytestconfig: pytest.Config) -
     }
     assert overlay.keys() == {"core.fsmonitor", "init.templateDir"}
     assert overlay["core.fsmonitor"] == "false"
-    assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1"
-    assert sys.dont_write_bytecode
+    # Bytecode is shared under a named prefix, the probe's scratch, never beside the sources.
+    if os.environ.get("PYTHONPYCACHEPREFIX"):
+        assert "PYTHONDONTWRITEBYTECODE" not in os.environ
+        assert not sys.dont_write_bytecode
+    else:
+        assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1"
+        assert sys.dont_write_bytecode
     assert Path(os.environ["ETHOS_NODE_PACKAGE_SUPPLY"]).is_absolute()
     assert Path(os.environ.get("UV_CACHE_DIR", ROOT)).is_absolute()
     assert "ETHOS_NATIVE_OUTPUT_DIR" not in os.environ

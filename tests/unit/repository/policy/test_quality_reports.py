@@ -394,6 +394,13 @@ def test_pytest_events_refuse_incomplete_or_unordered_streams(text: str, code: s
         pytest_report(text)
 
 
+def test_pytest_events_refuse_a_rerun_outcome() -> None:
+    """A trust-bearing run never retries: a rerun outcome is no outcome it can report."""
+    rerun = _event("TestReport", nodeid=_NODE, when="call", outcome="rerun")
+    with pytest.raises(ValueError, match=r"^pytest_event_invalid$"):
+        pytest_report(_events(_SETUP, rerun))
+
+
 def test_pytest_failed_setup_is_an_error_outcome() -> None:
     """A failed setup is a parent error, not a failed test call."""
     report = pytest_report(

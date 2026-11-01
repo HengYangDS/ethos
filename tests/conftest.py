@@ -35,8 +35,8 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 # What every case and its children inherit, set once before xdist starts its workers: hidden Git
-# configuration with one overlay entry, no prompt, no bytecode writes, absolute tool supplies and
-# no inherited actor.
+# configuration with one overlay entry, no prompt, bytecode only under a named prefix, absolute tool
+# supplies and no inherited actor.
 for _name in [
     key for key in os.environ if key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
 ]:
@@ -49,7 +49,6 @@ os.environ.update(
         "GIT_CONFIG_KEY_0": "core.fsmonitor",
         "GIT_CONFIG_VALUE_0": "false",
         "GIT_TERMINAL_PROMPT": "0",
-        "PYTHONDONTWRITEBYTECODE": "1",
     }
 )
 os.environ.pop("ETHOS_ACTOR", None)
@@ -57,7 +56,14 @@ if _cache := os.environ.get("UV_CACHE_DIR"):
     os.environ["UV_CACHE_DIR"] = str((_REPO_ROOT / _cache).resolve())
 if "ETHOS_NODE_PACKAGE_SUPPLY" not in os.environ:
     os.environ["ETHOS_NODE_PACKAGE_SUPPLY"] = str(resolve_node_package_supply(_REPO_ROOT))
-sys.dont_write_bytecode = True
+# Under a named prefix, the probe's scratch, every process of the run shares one bytecode cache
+# that leaves with it; without one nothing is written beside the sources.
+if os.environ.get("PYTHONPYCACHEPREFIX"):
+    os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+    sys.dont_write_bytecode = False
+else:
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    sys.dont_write_bytecode = True
 # A proof is reproducible: `--hypothesis-profile` selects another profile explicitly.
 settings.register_profile("proof", derandomize=True, deadline=None, database=None)
 settings.load_profile("proof")

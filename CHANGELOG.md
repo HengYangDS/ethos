@@ -14,9 +14,28 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- ETHOS proves its Python suite through the behavior probe it ships: `unit-architecture` is a
+  provider row of `python_quality:behavior_report` bounded at 7,200 seconds, and the 95 percent
+  floor is coverage's own `fail_under` in `.config/checks/coverage/coverage.toml`.
+- The behavior probe applies a repository's `.config/checks/pytest/pytest.toml` and
+  `.config/checks/coverage/coverage.toml` when they exist, takes its gate's `timeout_seconds`,
+  keeps bytecode and Hypothesis storage in the attempt's scratch, and copies its reports to a
+  native output root the runner names.
+- ETHOS's suite sets its own process environment, loads a derandomized `proof` Hypothesis
+  profile, and reports what each case crosses (`ethos.crossed`, `ethos.exceeds` in JUnit).
+- Hosted CI sets `PYTEST_XDIST_AUTO_NUM_WORKERS`; hosted verification takes test and coverage
+  figures from the probe's evidence and renders the Allure views itself.
 - The locked supply moves to the latest stable releases of cachetools 7.2.8, filelock 4.2.6,
   nodeenv 1.12.0, platformdirs 4.14.2 and python-multipart 0.0.33; npm and Mise report nothing newer
   within ETHOS's constraints.
+
+### Removed
+
+- **Breaking for contributors:** the `tests` and `coverage_floor` Nox sessions, the
+  `coverage-floor` gate, `.config/checks/coverage/policy.toml`, `tools/ci/python_test_gate.py`
+  with its ordering and bytecode helpers, and the `ETHOS_TEST_*` and
+  `ETHOS_COVERAGE_LOCK_WAIT_SECONDS` runner variables. Run `ethos prove --gate unit-architecture`
+  or pytest with `-c .config/checks/pytest/pytest.toml` instead.
 
 ## [0.2.0-alpha.25] - 2026-11-01
 

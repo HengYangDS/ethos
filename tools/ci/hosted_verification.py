@@ -213,7 +213,7 @@ def _report_tests(
         report["required_gaps"].append("hosted_coverage_report_invalid")
         lines.append("Coverage: unavailable")
     try:
-        _render_allure(root, root / REPORTS)
+        render_allure(root, root / REPORTS)
     except (OSError, RuntimeError, ValueError, KeyError, TypeError) as error:
         report["required_gaps"].append(f"hosted_allure_report_invalid:{error}")
     if report["required_gaps"]:
@@ -235,7 +235,7 @@ def _probe_report(checks: list[Any]) -> dict[str, Any]:
     return {}
 
 
-def _render_allure(root: Path, reports: Path) -> None:
+def render_allure(root: Path, reports: Path) -> None:
     """Refuse Allure results whose case identities differ from the execution's, then render."""
     results = reports / "allure/results"
     named = Counter(

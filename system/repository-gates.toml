@@ -3,8 +3,8 @@ id = "repository-gate-registry"
 source_refs = ["system/repository-gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
+default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
+full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -108,50 +108,22 @@ depends_on = [
   "format-selection",
   "architecture-projection",
 ]
-command = ["{python}", "-m", "nox", "-s", "tests"]
-verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]
+providers = ["ethos.adapters.gates.python_quality:behavior_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
 asset_classes = ["python-code"]
 dimensions = ["test", "coverage"]
-execution_mode = "verified-command"
+execution_mode = "provider"
 evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "ethos"
 writes_files = true
 cpu_reservation = 2
-resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
+resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
-
-[[gates.native_outputs]]
-path = "junit.xml"
-format = "junit-xml"
-sessions = ["tests"]
-
-[[gates.native_outputs]]
-path = "coverage.xml"
-format = "cobertura-xml"
-sessions = ["tests"]
-
-[[gates]]
-id = "coverage-floor"
-kind = "test"
-command = ["{python}", "-m", "nox", "-s", "coverage_floor"]
-depends_on = ["unit-architecture"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["coverage"]
-execution_mode = "adapter"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "coverage.py"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
+timeout_seconds = 7200
 
 [[gates]]
 id = "ruff"

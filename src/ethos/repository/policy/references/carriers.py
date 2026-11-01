@@ -56,7 +56,6 @@ REFERENCE_CARRIERS = (
         entrypoints=(
             "tools/ci/ci_templates.py",
             "tools/ci/architecture_projection.py",
-            "tools/ci/python_test_gate.py",
         ),
     ),
     ReferenceCarrier(

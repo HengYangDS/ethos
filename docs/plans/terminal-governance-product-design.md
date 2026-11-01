@@ -118,7 +118,7 @@ cites it. Completed incidents remain regression boundaries, not a queue to repla
 - Numeric quality limits belong to
   [aggregate ownership](../../.config/checks/format-selection/policy.toml),
   the repository paradigm's [per-file ceilings](../../src/ethos/contracts/paradigm/paradigm.toml) and
-  [coverage policy](../../.config/checks/coverage/policy.toml).
+  [coverage carrier](../../.config/checks/coverage/coverage.toml).
   Superseded goal snapshots cannot override them. Tests assert required behavior,
   not framework absence or a universal uv/virtual-environment layout.
 - Measure task-relevant context and tokens per verified outcome alongside

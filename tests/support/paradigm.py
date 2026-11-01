@@ -49,7 +49,6 @@ CONFORMING = {
     ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
     ".config/checks/gitleaks/gitleaksignore": "",
     ".config/checks/coverage/coverage.toml": "",
-    ".config/checks/coverage/policy.toml": "",
     ".config/checks/architecture-projection/policy.toml": "",
     ".config/checks/vale/vale.ini": "",
     ".config/checks/vale/styles/plain/rule.yml": "",

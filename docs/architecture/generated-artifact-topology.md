@@ -151,15 +151,11 @@ happen to exist after a run. Provider CI projections, reusable owner scripts,
 package entrypoints, and tool configuration must route generated state before
 the command writes it:
 
-- `tools/ci/python_test_gate.py` must call pytest with the explicit
-  `.config/checks/pytest/pytest.toml` owner, route pytest cache to
-  `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
-  `build/evidence/quality/tests/`, use an explicit scratch temp directory, and
-  guard its generated coverage writer with a process-identity lock (PID plus
-  start fingerprint). A dead recorded owner may be reclaimed; an unknown or
-  live owner is never preempted and must fail after the bounded
-  `ETHOS_COVERAGE_LOCK_WAIT_SECONDS` interval rather than leaving a later proof
-  waiting forever.
+- The shipped behavior probe runs pytest in its own scratch: pytest's cache and
+  temporary directories, coverage data, bytecode and Hypothesis storage stay
+  there, and its JUnit, report log and coverage XML are copied only to a native
+  output root the runner names. Hosted verification names
+  `build/evidence/quality/tests/` and clears it before each proof.
 - Ruff entrypoints must set `--cache-dir` or `RUFF_CACHE_DIR` to
   `build/runtime/tool-cache/ruff`.
 - import-linter entrypoints must set `--cache-dir` or `IMPORT_LINTER_CACHE_DIR`

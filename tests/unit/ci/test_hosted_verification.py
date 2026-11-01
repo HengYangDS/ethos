@@ -233,7 +233,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
             message = "allure_identities_differ"
             raise ValueError(message)
 
-    monkeypatch.setattr(hosted_verification, "_render_allure", render)
+    monkeypatch.setattr(hosted_verification, "render_allure", render)
     status, out, err = _run_hosted(
         repo, binary.parent, monkeypatch, capsys, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )

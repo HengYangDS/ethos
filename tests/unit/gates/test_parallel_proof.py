@@ -188,7 +188,7 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
 @pytest.mark.parametrize("verdict", ["block", "unknown"])
 @pytest.mark.parametrize(
     ("execution_kind", "postexecution_dependency"),
-    [("test", "unit-architecture"), ("package", "coverage-floor")],
+    [("test", "unit-architecture"), ("package", "build")],
 )
 @pytest.mark.parametrize(
     "readiness_gate",
@@ -236,9 +236,7 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     assert passed is False
     assert readiness_gate in executed
-    assert not {"unit-architecture", "coverage-floor", "build", "local-install-smoke"}.intersection(
-        executed
-    )
+    assert not {"unit-architecture", "build", "local-install-smoke"}.intersection(executed)
     assert len(checks) == len(nodes)
     tests = next(check for check in checks if check["action_id"] == "unit-architecture")
     assert tests["exit_code"] is None

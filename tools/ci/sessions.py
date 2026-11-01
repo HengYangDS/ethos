@@ -26,8 +26,6 @@ PUBLIC_SESSIONS = (
     "format",
     "format_check",
     "fix",
-    "tests",
-    "coverage_floor",
     "build",
     "install_smoke",
     "host_conformance",
@@ -163,35 +161,6 @@ def lint(session) -> None:
     session.run(executable, "format", *common, "--check", *paths)
 
 
-def tests(session) -> None:
-    if session.posargs:
-        session.error(
-            "tests_session_selection_not_supported: tests runs the complete proof floor; "
-            "use pytest with the repository configuration for focused selection"
-        )
-    gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
-        node_package_supply=RUNTIME.node_package_supply()
-    )
-    gate.compile_bytecode()
-    try:
-        gate.run_tests(session)
-    except Exception:
-        try:
-            gate.render_report()
-        except (OSError, RuntimeError, ValueError) as error:
-            session.log(f"Allure report unavailable after failed tests: {error}")
-        raise
-    gate.render_report()
-    gate.publish_native_outputs()
-
-
-def coverage_floor(session) -> None:
-    gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
-        node_package_supply=RUNTIME.node_package_supply()
-    )
-    gate.enforce_floor(session)
-
-
 def build(session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
     head = owner.release_build_head(tuple(session.posargs))
@@ -249,21 +218,6 @@ def ci_templates(session) -> None:
 def architecture_projection(session) -> None:
     if import_module("tools.ci.architecture_projection").main():
         session.error("architecture projections differ from their owner")
-    with TemporaryDirectory(prefix="ethos-projection-check-") as temporary:
-        session.run(
-            str(RUNTIME.python),
-            "-m",
-            "pytest",
-            "-c",
-            ".config/checks/pytest/pytest.toml",
-            "--rootdir=.",
-            "tests/unit/projection",
-            "-q",
-            "-o",
-            "addopts=",
-            "--no-cov",
-            f"--basetemp={Path(temporary).resolve()}",
-        )
 
 
 def format_selection(session) -> None:

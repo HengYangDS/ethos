@@ -76,6 +76,23 @@ def test_the_coverage_floor_rejects_below_95_percent_at_its_precision() -> None:
     assert not should_fail_under(95.00, report["fail_under"], report["precision"])
 
 
+def test_each_case_inherits_the_suite_environment(pytestconfig: pytest.Config) -> None:
+    """The suite, not a runner, sets what each case and its children inherit."""
+    overlay = {
+        os.environ[f"GIT_CONFIG_KEY_{index}"]: os.environ[f"GIT_CONFIG_VALUE_{index}"]
+        for index in range(int(os.environ["GIT_CONFIG_COUNT"]))
+    }
+    assert overlay.keys() == {"core.fsmonitor", "init.templateDir"}
+    assert overlay["core.fsmonitor"] == "false"
+    assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert sys.dont_write_bytecode
+    assert Path(os.environ["ETHOS_NODE_PACKAGE_SUPPLY"]).is_absolute()
+    assert Path(os.environ.get("UV_CACHE_DIR", ROOT)).is_absolute()
+    assert "ETHOS_NATIVE_OUTPUT_DIR" not in os.environ
+    results = pytestconfig.option.allure_report_dir
+    assert results is None or Path(results).parts[-2:] == ("allure", "results")
+
+
 def test_hypothesis_runs_the_reproducible_proof_profile(pytestconfig: pytest.Config) -> None:
     """Unless a profile is selected, Hypothesis is derandomized with no deadline or database."""
     proof = settings.get_profile("proof")

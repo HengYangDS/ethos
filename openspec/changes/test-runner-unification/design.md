@@ -66,11 +66,12 @@ cache, 5,340 files, into the lane's `build/runtime/tool-cache/hypothesis/gw0` to
    (`quality/obligations.py:190-203`). It keeps `profile = "product-toolchain"`, so the provider
    source is bound to the lane's own `src/ethos` (`quality/sources.py:140-155`) and a proof run from
    another package is refused (`verification.py:245-274`, QS 2654). It keeps its dependencies,
-   `cpu_reservation`, `writes_files` and its `repository`, `supply` and `evidence/tests` locks. The
-   gate id stays, because the starter rule and the specifications name it
-   (`src/ethos/repository/policy/rules/compile.py:59`). Alternatives rejected: a command row running
-   pytest directly, which is a second runner; the code-quality provider, which would also run
-   ETHOS's JavaScript tests a second time beside `javascript-tests`.
+   `cpu_reservation`, `writes_files` and its `repository`, `supply` and `evidence/tests` locks; the
+   `scratch/tests` lock leaves with the runner's shared basetemp. The gate id stays, because the
+   starter rule and the specifications name it (`src/ethos/repository/policy/rules/compile.py:59`).
+   Alternatives rejected: a command row running pytest directly, which is a second runner; the
+   code-quality provider, which would also run ETHOS's JavaScript tests a second time beside
+   `javascript-tests`.
 2. **Carriers by location, with the root as rootdir.** The probe uses a carrier only when the file
    exists at the paradigm location (`NATIVE_TOOL_LOCATIONS`, `tool_configuration.py:9`). With `-c`
    it passes `--rootdir=<root>`, because pytest otherwise takes the configuration file's directory
@@ -197,34 +198,35 @@ cache, 5,340 files, into the lane's `build/runtime/tool-cache/hypothesis/gw0` to
 
 ### Case dispositions
 
-| Removed case                                                                                        | Disposition                                                                                                      |
-| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `test_python_test_gate.py::test_parallel_python_test_gate_bounds_failed_attempt_without_replay[4]`  | kept, moved to `test_pytest_configuration.py`; runs ETHOS's configuration directly (QS 224-233, 1907-1938)       |
-| `::test_coverage_gate_is_in_the_resolved_proof_closure[2]`                                          | superseded by `test_single_test_runner.py` (the test gate is in both proof sets)                                 |
-| `::test_coverage_floor_rejects_below_required_measurement[94, 95]`                                  | superseded by the floor boundary case (QS 235-243)                                                               |
-| `::test_native_outputs_reach_the_selected_root[2]`                                                  | superseded by the probe's report-root case                                                                       |
-| `::test_coverage_database_is_ready_before_selected_test_execution[2]`                               | rejected: it guarded the shared evidence home, which retires; a failing coverage database fails the run natively |
-| `::test_failed_python_attempt_observes_capacity_before_temp_cleanup`                                | rejected: diagnostic output of the retired runner; the probe keeps pytest's native stderr                        |
-| `::test_native_tmp_path_policy_reclaims_passed_case_before_next_case`                               | kept, moved (`pytest.toml:5`)                                                                                    |
-| `::test_native_failure_report_never_renders_frame_arguments`                                        | kept, moved (the bounded failure report, `pytest.toml:3`)                                                        |
-| `::test_python_cleanup_changes_only_required_directory_permissions[4]`                              | kept, moved to `test_filesystem.py` (QS 2233-2253)                                                               |
-| `::test_python_cleanup_preserves_external_content_and_permissions[3]`                               | kept, moved to `test_filesystem.py` (QS 2233-2253)                                                               |
-| `::test_python_attempt_revokes_previous_success_before_any_work[4]`                                 | rejected with the removed requirement "Test attempt completion is committed last"                                |
-| `::test_python_single_attempt_discards_partial_and_sharded_outputs`                                 | rejected, same requirement                                                                                       |
-| `::test_killed_python_attempt_cannot_reuse_previous_completion`                                     | rejected, same requirement                                                                                       |
-| `::test_python_basetemp_ownership[...]`                                                             | rejected with the removed RG requirement "Python test basetemp has one explicit owner"                           |
-| `test_python_test_bytecode.py::test_test_processes_reuse_gate_bytecode_without_stale_or_new_writes` | rejected: shared bytecode retires; the conftest keeps "write none" (`PYTHONDONTWRITEBYTECODE`); cost measured    |
-| `test_python_test_order.py` (3 cases)                                                               | rejected: a per-attempt cache has no recorded durations; the mode is measured (task 7.1)                         |
-| `test_allure_reporting.py::test_test_gate_replaces_stale_allure_results_in_the_same_attempt`        | superseded by hosted verification clearing its evidence directory (QS 2385-2389)                                 |
-| `::test_report_reconstruction_refuses_missing_and_stale_source`                                     | superseded by hosted verification refusing missing results                                                       |
-| `::test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun`                               | kept, re-targeted to hosted verification's render (QS 2379-2383)                                                 |
-| `::test_failing_test_session_still_renders_without_replacing_test_failure`                          | superseded by a hosted render-after-failure case                                                                 |
-| `::test_binary_parameter_cases_remain_distinct_in_native_agent_report`                              | kept, re-targeted (QS 2391-2395)                                                                                 |
-| `test_nox_toolchain.py::test_full_test_session_refuses_selectors_before_loading_supply`             | rejected: the session is gone                                                                                    |
-| `test_release_assets.py::test_python_test_sessions_receive_the_frozen_node_package_supply`          | superseded by the conftest environment case (QS 210-220)                                                         |
-| `::test_test_environment_freezes_locked_supply_as_absolute_paths[...]`                              | superseded by the conftest environment case and task 3.3's worker check                                          |
-| `test_artifacts.py::test_entrypoint_audit_reads_the_nox_python_test_owner`                          | rejected: the check it covered is deleted                                                                        |
-| `test_quality_reports.py::test_junit_requires_a_report`                                             | rejected: the path reader is deleted; the stream reader refuses empty input as `junit_invalid`                   |
+| Removed case                                                                                                     | Disposition                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `test_python_test_gate.py::test_parallel_python_test_gate_bounds_failed_attempt_without_replay[4]`               | kept, moved to `test_pytest_configuration.py`; runs ETHOS's configuration directly (QS 224-233, 1907-1938)                 |
+| `::test_coverage_gate_is_in_the_resolved_proof_closure[2]`                                                       | superseded by `test_single_test_runner.py` (the test gate is in both proof sets)                                           |
+| `::test_coverage_floor_rejects_below_required_measurement[94, 95]`                                               | superseded by the floor boundary case (QS 235-243)                                                                         |
+| `::test_native_outputs_reach_the_selected_root[2]`                                                               | superseded by the probe's report-root case                                                                                 |
+| `::test_coverage_database_is_ready_before_selected_test_execution[2]`                                            | rejected: it guarded the shared evidence home, which retires; a failing coverage database fails the run natively           |
+| `::test_failed_python_attempt_observes_capacity_before_temp_cleanup`                                             | rejected: diagnostic output of the retired runner; the probe keeps pytest's native stderr                                  |
+| `::test_native_tmp_path_policy_reclaims_passed_case_before_next_case`                                            | kept, moved (`pytest.toml:5`)                                                                                              |
+| `::test_native_failure_report_never_renders_frame_arguments`                                                     | kept, moved (the bounded failure report, `pytest.toml:3`)                                                                  |
+| `::test_python_cleanup_changes_only_required_directory_permissions[4]`                                           | kept, moved to `test_filesystem.py` (QS 2233-2253)                                                                         |
+| `::test_python_cleanup_preserves_external_content_and_permissions[3]`                                            | kept, moved to `test_filesystem.py` (QS 2233-2253)                                                                         |
+| `::test_python_attempt_revokes_previous_success_before_any_work[4]`                                              | rejected with the removed requirement "Test attempt completion is committed last"                                          |
+| `::test_python_single_attempt_discards_partial_and_sharded_outputs`                                              | rejected, same requirement                                                                                                 |
+| `::test_killed_python_attempt_cannot_reuse_previous_completion`                                                  | rejected, same requirement                                                                                                 |
+| `::test_python_basetemp_ownership[...]`                                                                          | rejected with the removed RG requirement "Python test basetemp has one explicit owner"                                     |
+| `test_python_test_bytecode.py::test_test_processes_reuse_gate_bytecode_without_stale_or_new_writes`              | rejected: shared bytecode retires; the conftest keeps "write none" (`PYTHONDONTWRITEBYTECODE`); cost measured              |
+| `test_python_test_order.py` (3 cases)                                                                            | rejected: a per-attempt cache has no recorded durations; the mode is measured (task 7.1)                                   |
+| `test_allure_reporting.py::test_test_gate_replaces_stale_allure_results_in_the_same_attempt`                     | superseded by hosted verification clearing its evidence directory (QS 2385-2389)                                           |
+| `::test_report_reconstruction_refuses_missing_and_stale_source`                                                  | superseded by hosted verification refusing missing results                                                                 |
+| `::test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun`                                            | kept, re-targeted to hosted verification's render (QS 2379-2383)                                                           |
+| `::test_failing_test_session_still_renders_without_replacing_test_failure`                                       | superseded by a hosted render-after-failure case                                                                           |
+| `::test_binary_parameter_cases_remain_distinct_in_native_agent_report`                                           | kept, re-targeted (QS 2391-2395)                                                                                           |
+| `test_nox_toolchain.py::test_full_test_session_refuses_selectors_before_loading_supply`                          | rejected: the session is gone                                                                                              |
+| `test_release_assets.py::test_python_test_sessions_receive_the_frozen_node_package_supply`                       | superseded by the conftest environment case (QS 210-220)                                                                   |
+| `::test_test_environment_freezes_locked_supply_as_absolute_paths[...]`                                           | superseded by the conftest environment case and task 3.3's worker check                                                    |
+| `test_artifacts.py::test_entrypoint_audit_reads_the_nox_python_test_owner`                                       | rejected: the check it covered is deleted                                                                                  |
+| `test_parallel_proof.py::test_public_proof_stops_heavy_work_after_readiness_failure[*-package-coverage-floor-*]` | renamed to `[*-package-build-*]`: the dependency after the test gate becomes `build`, as the `coverage-floor` gate retires |
+| `test_quality_reports.py::test_junit_requires_a_report`                                                          | rejected: the path reader is deleted; the stream reader refuses empty input as `junit_invalid`                             |
 
 ## Risks / Trade-offs
 

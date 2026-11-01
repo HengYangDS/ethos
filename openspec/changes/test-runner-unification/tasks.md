@@ -49,10 +49,11 @@
 
 ## 3. ETHOS's runner values become native configuration
 
-- [ ] 3.1 Move the suite's process environment from `tools/ci/python_test_gate.py:383-402` into
+- [x] 3.1 Move the suite's process environment from `tools/ci/python_test_gate.py:383-402` into
       `tests/conftest.py`, write Allure results into the attempt's report root, and remove
       `ETHOS_NATIVE_OUTPUT_DIR` inside each case. Done when a case asserting these values inside a
-      test passes through the probe, where it failed before the move.
+      test passes through the probe, where it failed before the move. (Before the move the case
+      failed with `KeyError: 'PYTHONDONTWRITEBYTECODE'` in the probe's environment.)
 - [x] 3.2 Declare `fail_under = 95` in `.config/checks/coverage/coverage.toml`, delete
       `.config/checks/coverage/policy.toml`, and add the boundary regression: the declared floor is
       at least 95, and coverage's own comparison rejects 94.99 and accepts 95.00 at the declared
@@ -96,14 +97,16 @@
       and the retired inputs in `system/surfaces.toml`. Done when `rg` finds none of these names
       outside archived Changes and the main specs this Change's deltas amend, and module layout,
       semantic closure and generated artifacts pass.
-- [ ] 5.3 Make hosted verification clear `build/evidence/quality/tests`, name it as the native
+- [x] 5.3 Make hosted verification clear `build/evidence/quality/tests`, name it as the native
       output root, take test and coverage figures from the probe's evidence, refuse Allure results
       whose case identities differ from the execution's, and render the Allure views; rename
       `ETHOS_TEST_WORKERS` to `PYTEST_XDIST_AUTO_NUM_WORKERS` in `.config/ci/pipeline.cue` and
       regenerate both projections. Done when `tests/unit/ci/test_hosted_verification.py`, the
-      re-targeted Allure cases and `tests/architecture/test_ci_provider_projections.py` pass.
-- [ ] 5.4 Apply the case dispositions in design.md. Done when every removed case has its disposition
-      there and no test imports a deleted module.
+      re-targeted Allure cases and `tests/architecture/test_ci_provider_projections.py` pass. (They
+      pass in the 49-module focused run; the render owner is public as `render_allure`.)
+- [x] 5.4 Apply the case dispositions in design.md. Done when every removed case has its disposition
+      there and no test imports a deleted module. (`rg -w` finds the deleted names only in archived
+      Changes, the main specifications this Change amends, this Change and CHANGELOG's removal.)
 - [ ] 5.5 Add the no-retry regression, pinning existing behavior: a report log with a `rerun`
       outcome is refused. Done when it passes.
 - [ ] 5.6 Compare the node identities that the probe executes in the lane with those the parent

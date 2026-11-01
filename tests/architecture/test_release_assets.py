@@ -18,7 +18,6 @@ import pytest
 import ethos.adapters.gates.runner as gate_execution
 import ethos.repository.policy.gates as gate_policy
 import tools.ci.local_ci as local_ci
-import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.process import run_command
@@ -116,21 +115,6 @@ def test_current_node_package_supply_read_has_one_observed_owner() -> None:
     )
 
 
-def test_python_test_sessions_receive_the_frozen_node_package_supply(tmp_path, monkeypatch) -> None:
-    supply, session = tmp_path / "node_modules", SimpleNamespace(posargs=())
-    factory = Mock()
-    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
-    monkeypatch.setattr(python_test_gate.PythonTestGate, "from_environment", factory)
-
-    ci_sessions.tests(session)
-    ci_sessions.coverage_floor(session)
-
-    assert factory.call_count == 2
-    assert all(call.kwargs == {"node_package_supply": supply} for call in factory.call_args_list)
-    factory.return_value.run_tests.assert_called_once_with(session)
-    factory.return_value.enforce_floor.assert_called_once_with(session)
-
-
 @pytest.mark.parametrize(
     "case",
     [
@@ -180,7 +164,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
 
         def run(self, node, _gate, **_context):
             observed.append(node.id)
-            verdict = "block" if case == "coverage" and node.id == "coverage-floor" else "pass"
+            verdict = "block" if case == "coverage" and node.id == "unit-architecture" else "pass"
             return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))
 
     def execute(*args, **kwargs):
@@ -232,44 +216,8 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     if case in {"dirty", "head-missing", "policy", "crash"}:
         assert not observed
     else:
-        assert observed.count("unit-architecture") == observed.count("coverage-floor") == 1
+        assert observed.count("unit-architecture") == 1
     assert len(observed) == len(set(observed))
-
-
-@pytest.mark.parametrize("workers", [None, 1, 8])
-@pytest.mark.parametrize(("cores", "expected_default"), [(3, 3), (18, 12)])
-def test_test_environment_freezes_locked_supply_as_absolute_paths(
-    tmp_path, monkeypatch, workers, cores, expected_default
-) -> None:
-    root = tmp_path / "repo"
-    supply = empty_node_package_supply(root)
-    monkeypatch.setattr(python_test_gate, "ROOT", root)
-    monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
-    monkeypatch.setenv("UV_CACHE_DIR", "build/runtime/tool-cache/uv")
-    monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
-    monkeypatch.delenv("ETHOS_TEST_WORKERS", raising=False)
-    monkeypatch.delenv("ETHOS_TEST_EVIDENCE_DIR", raising=False)
-    monkeypatch.setattr(python_test_gate.os, "cpu_count", lambda: cores)
-    assert python_test_gate.Settings.load(node_package_supply=supply).workers == expected_default
-
-    gate = python_test_gate.PythonTestGate.from_environment(node_package_supply=supply)
-    gate = python_test_gate.PythonTestGate(replace(gate.s, workers=workers))
-    monkeypatch.setenv("UV_CACHE_DIR", "another-cache")
-    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(tmp_path / "other-supply"))
-    for method in ("_prepare", "_cleanup", "_stable_head"):
-        monkeypatch.setattr(gate, method, lambda: None)
-    session = Mock()
-    gate.run_tests(session)
-    command, options = session.run.call_args
-    observed = options["env"]
-
-    assert observed["UV_CACHE_DIR"] == str(root / "build/runtime/tool-cache/uv")
-    assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
-
-    assert {"--dist=load", "--maxschedchunk=1"} <= set(command)
-    assert command[command.index("-p") + 1] == "tools.ci.python_test_order"
-    assert ("-n" in command) is (workers == 8)
-    assert set(python_test_gate.TARGETS) <= set(command)
 
 
 def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypatch) -> None:

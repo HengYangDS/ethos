@@ -104,9 +104,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         str(ROOT / ".config/checks/pytest/pytest.toml"),
         "-n",
         "0",
-        "tests/architecture/test_portable_toolchain.py",
-        "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
-        "::test_windows_native_acl_protection_rejects_foreign_writer",
+        *pipeline.HOST_CASES,
     )
     delivery.prove_host(session)
     assert calls.mock_calls == [

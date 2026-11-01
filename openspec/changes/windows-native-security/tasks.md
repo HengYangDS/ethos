@@ -26,6 +26,9 @@
       or tool code starts PowerShell, and only the paradigm's and the CI projection's shell
       vocabulary names it.
 
+- [ ] 2.6 Run the Windows cases in the hosted host proof. Done when `HOST_CASES` lists them and the
+      delivery pipeline test passes.
+
 ## 3. Specifications
 
 - [ ] 3.1 Write the `command-plane`, `runtime-activation` and `quality` deltas. Done when strict

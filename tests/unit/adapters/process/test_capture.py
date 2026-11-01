@@ -8,6 +8,7 @@ import signal
 import socket
 import subprocess
 import sys
+import time
 from contextlib import ExitStack
 from contextlib import suppress
 from pathlib import Path
@@ -94,7 +95,7 @@ def test_bulk_stdout_preserves_native_output_and_closes_capture(
             assert caught.value.returncode == 7
             assert caught.value.stdout == expected
             assert caught.value.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
-    assert len(opened) == (2 if os.name == "posix" else 0)
+    assert len(opened) == 2
     assert all(value.closed for value in opened)
 
 
@@ -112,6 +113,21 @@ def test_bulk_stdout_timeout_retains_closed_stderr(tmp_path: Path, *, text: bool
         )
     assert caught.value.stdout == b"output\r\n"
     assert caught.value.stderr == b"diagnostic\r\n"
+
+
+def test_a_timeout_returns_while_a_descendant_holds_the_output(tmp_path: Path) -> None:
+    """A timed-out command returns within its bound while its descendant keeps the output open."""
+    script = (
+        "import subprocess, sys, time\n"
+        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+        "print('started', flush=True)\n"
+        "time.sleep(60)\n"
+    )
+    began = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as expired:
+        process_adapter.run_command(tmp_path, (sys.executable, "-c", script), timeout=3)
+    assert time.monotonic() - began < 20
+    assert b"started" in expired.value.stdout
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")

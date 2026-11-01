@@ -40,6 +40,26 @@ if TYPE_CHECKING:
     from tools.ci.toolchain.environment import ProjectRuntime
 
 
+# The cases that only a real host proves: its toolchain, Windows ACLs, process listing and a
+# timed-out command whose descendant keeps its output open.
+HOST_CASES = (
+    "tests/architecture/test_portable_toolchain.py",
+    "tests/unit/adapters/repo/trust_anchor/test_filesystem.py",
+    (
+        "tests/unit/adapters/process/test_capture.py"
+        "::test_a_timeout_returns_while_a_descendant_holds_the_output"
+    ),
+    (
+        "tests/unit/adapters/repo/runtime/test_retirement.py"
+        "::test_windows_process_observation_lists_this_process"
+    ),
+    (
+        "tests/unit/ci/test_ci_bootstrap.py"
+        "::test_ci_trust_material_is_protected_under_a_shared_temporary_root"
+    ),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class DeliveryPipeline:
     """Own wheel materialization and its package-only acceptance sequence."""
@@ -125,9 +145,7 @@ class DeliveryPipeline:
             str(self.runtime.root / ".config/checks/pytest/pytest.toml"),
             "-n",
             "0",
-            "tests/architecture/test_portable_toolchain.py",
-            "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
-            "::test_windows_native_acl_protection_rejects_foreign_writer",
+            *HOST_CASES,
         )
         self.build(session)
         self.prove_install(session)

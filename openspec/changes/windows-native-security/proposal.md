@@ -61,6 +61,7 @@ None.
 `tools/ci/dependency_hygiene.py`, `src/ethos/adapters/process.py`,
 `src/ethos/adapters/repo/trust_anchor/filesystem.py`,
 `src/ethos/adapters/repo/runtime/retirement.py`, `tools/ci/delivery/acceptance/host_environment.py`,
-their tests and the three specifications. Windows behavior is proven only by hosted Windows runs. A
-paradigm rule that keeps platform shells out of every governed repository's product code is a
-separate Change, because it needs an adopter inventory first.
+the host proof's case selection in `tools/ci/delivery/pipeline.py`, their tests and the three
+specifications. Windows behavior is proven only by hosted Windows runs. A paradigm rule that keeps
+platform shells out of every governed repository's product code is a separate Change, because it
+needs an adopter inventory first.

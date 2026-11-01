@@ -66,6 +66,10 @@ the stderr reader thread without a bound, as CPython's own `subprocess.run` does
   `.config/ci/pipeline.cue` and lands both together. The binding commit changes no hashed input, so
   the image built from the lock commit serves it. A proposal ref reaches a peer only through ETHOS
   publication, which requires the head's proof, as `dev` does.
+- **Hosted Windows runs the cases.** The host proof ran one ACL case on Windows; every other Windows
+  branch ran nowhere. Its selection is declared once, as `HOST_CASES` in
+  `tools/ci/delivery/pipeline.py`, and adds the trust-anchor file, the timed-out command with a
+  descendant, WMI listing and the shared temporary root, so each Windows job proves them.
 - **Native test fixtures.** Windows-only tests plant a foreign writer with `icacls`, a native
   program that takes the path and grant as arguments and starts no shell.
 

@@ -8,7 +8,6 @@ import signal
 import subprocess
 import sys
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from contextlib import nullcontext
@@ -248,21 +247,6 @@ def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, monk
             )
     assert expired.value.timeout == pytest.approx(0.25)
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
-
-
-def test_a_timeout_returns_while_a_descendant_holds_the_output(tmp_path: Path) -> None:
-    """A timed-out command returns within its bound while its descendant keeps the output open."""
-    script = (
-        "import subprocess, sys, time\n"
-        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
-        "print('started', flush=True)\n"
-        "time.sleep(60)\n"
-    )
-    began = time.monotonic()
-    with pytest.raises(subprocess.TimeoutExpired) as expired:
-        process_adapter.run_command(tmp_path, (sys.executable, "-c", script), timeout=3)
-    assert time.monotonic() - began < 20
-    assert b"started" in expired.value.stdout
 
 
 @pytest.mark.parametrize("phase", ["spawn", "communication", "completed"])

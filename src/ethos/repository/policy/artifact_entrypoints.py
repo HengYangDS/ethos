@@ -148,7 +148,6 @@ def _tool_route_findings(rel: str, active: str, full_text: str) -> list[dict[str
         *_runtime_bootstrap_findings(rel, producer_text),
         *_ruff_route_findings(rel, producer_text, full_text),
         *_import_linter_route_findings(rel, producer_text, full_text),
-        *_pytest_runner_findings(rel, producer_text, full_text),
         *_package_build_route_findings(rel, producer_text),
         *_gitlab_local_route_findings(rel, producer_text),
     ]
@@ -225,38 +224,6 @@ def _import_linter_route_findings(
             ),
             required_gap=(f"generated_artifact_entrypoint_import_linter_cache_unrouted:{rel}"),
         )
-    ]
-
-
-def _pytest_runner_findings(rel: str, producer_text: str, full_text: str) -> list[dict[str, str]]:
-    if rel != "tools/ci/python_test_gate.py" or "pytest" not in producer_text:
-        return []
-    required_routes = {
-        "pytest-config": (
-            'PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"',
-            f"generated_artifact_entrypoint_pytest_config_unrouted:{rel}",
-            "pytest must use the explicit .config/checks/pytest/pytest.toml owner",
-        ),
-        "pytest-config-argument": (
-            "str(PYTEST_CONFIG)",
-            f"generated_artifact_entrypoint_pytest_config_argument_missing:{rel}",
-            "pytest command must pass its explicit config owner",
-        ),
-        "coverage-evidence": (
-            'self.data = self.coverage / ".coverage"',
-            f"generated_artifact_entrypoint_coverage_evidence_unrouted:{rel}",
-            "coverage runtime data must route under build/evidence quality evidence",
-        ),
-        "pytest-basetemp": (
-            'f"--basetemp={self.s.basetemp}"',
-            f"generated_artifact_entrypoint_pytest_basetemp_unrouted:{rel}",
-            "pytest scratch work must route to an explicit temporary work directory",
-        ),
-    }
-    return [
-        _entrypoint_finding(rel, check=check, boundary=boundary, required_gap=gap)
-        for check, (needle, gap, boundary) in required_routes.items()
-        if needle not in full_text
     ]
 
 

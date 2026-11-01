@@ -24,16 +24,67 @@ from pathlib import Path
 
 import allure
 import pytest
+from hypothesis import settings
 from hypothesis.configuration import set_hypothesis_home_dir
 
 import tests.support.runtime_scenarios as runtime_scenarios
+import tests.support.tier_guard as tier_guard
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-set_hypothesis_home_dir(
-    _REPO_ROOT
-    / "build/runtime/tool-cache/hypothesis"
-    / os.environ.get("PYTEST_XDIST_WORKER", "local")
+# What every case and its children inherit, set once before xdist starts its workers: hidden Git
+# configuration with one overlay entry, no prompt, bytecode only under a named prefix, absolute tool
+# supplies and no inherited actor.
+for _name in [
+    key for key in os.environ if key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
+]:
+    del os.environ[_name]
+os.environ.update(
+    {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_0": "false",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
 )
+os.environ.pop("ETHOS_ACTOR", None)
+if _cache := os.environ.get("UV_CACHE_DIR"):
+    os.environ["UV_CACHE_DIR"] = str((_REPO_ROOT / _cache).resolve())
+if "ETHOS_NODE_PACKAGE_SUPPLY" not in os.environ:
+    os.environ["ETHOS_NODE_PACKAGE_SUPPLY"] = str(resolve_node_package_supply(_REPO_ROOT))
+# Under a named prefix, the probe's scratch, every process of the run shares one bytecode cache
+# that leaves with it; without one nothing is written beside the sources.
+if os.environ.get("PYTHONPYCACHEPREFIX"):
+    os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+    sys.dont_write_bytecode = False
+else:
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    sys.dont_write_bytecode = True
+# A proof is reproducible: `--hypothesis-profile` selects another profile explicitly.
+settings.register_profile("proof", derandomize=True, deadline=None, database=None)
+settings.load_profile("proof")
+if "HYPOTHESIS_STORAGE_DIRECTORY" not in os.environ:
+    set_hypothesis_home_dir(
+        _REPO_ROOT
+        / "build/runtime/tool-cache/hypothesis"
+        / os.environ.get("PYTEST_XDIST_WORKER", "local")
+    )
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    """Register the report-only tier guard and send Allure results to the attempt's report root.
+
+    The guard's name is the one `-p no:ethos-tier-guard` blocks. allure-pytest reads its directory
+    when it configures, so the attempt's root is chosen first and only when none is given.
+    """
+    config.pluginmanager.register(tier_guard, "ethos-tier-guard")
+    if (root := os.environ.get("ETHOS_NATIVE_OUTPUT_DIR")) and not config.option.allure_report_dir:
+        config.option.allure_report_dir = str(Path(root) / "allure/results")
 
 
 @pytest.fixture(autouse=True)
@@ -109,3 +160,5 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
+    # Commands a case runs cannot write into the attempt's report root.
+    monkeypatch.delenv("ETHOS_NATIVE_OUTPUT_DIR", raising=False)

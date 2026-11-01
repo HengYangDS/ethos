@@ -78,6 +78,17 @@ def test_an_invocation_reads_each_immutable_object_once(
         lambda head: ("-c", "core.quotePath=false", "rev-parse", head),
         lambda _head: ("status", "--porcelain"),
     ],
+    ids=[
+        "head-ref",
+        "abbreviated",
+        "show-object",
+        "show-head",
+        "textconv",
+        "rev-list-all",
+        "fork-point",
+        "configured",
+        "status",
+    ],
 )
 def test_mutable_or_interpreted_reads_are_observed_every_time(
     tmp_path: Path, launched: list[tuple[str, ...]], argv: Callable[[str], tuple[str, ...]]

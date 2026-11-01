@@ -151,7 +151,9 @@ shows peer selection with `--peer <id>`.
 ## Development
 
 ```bash
-uv run --frozen --offline python -m nox -s tests
+uv run --frozen --offline python -m pytest -c .config/checks/pytest/pytest.toml \
+  --rootdir=. tests/unit
+uv run ethos prove --execute --gate unit-architecture --expect-head "$(git rev-parse HEAD)" --json
 uv run --frozen --offline python -m nox -s lint
 uv run ethos status --json
 uv run ethos plan --changed --json

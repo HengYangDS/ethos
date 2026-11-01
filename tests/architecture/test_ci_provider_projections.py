@@ -104,11 +104,9 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
         " -m nox -s build" in command or " -m nox -s supply_chain" in command
         for command in commands
     )
-    assert not {
-        "ETHOS_TEST_WORKERS",
-        "ETHOS_TEST_TIMEOUT_SECONDS",
-        "ETHOS_TEST_TIMEOUT_METHOD",
-    }.intersection(github["jobs"]["quality"].get("env", {}))
+    # Hosted workers come from pytest-xdist's own bound; GitHub keeps the carrier's `auto`.
+    assert "PYTEST_XDIST_AUTO_NUM_WORKERS" not in github["jobs"]["quality"].get("env", {})
+    assert gitlab["ethos:verify"]["variables"]["PYTEST_XDIST_AUTO_NUM_WORKERS"] == "4"
     upload = next(step for step in steps if step.get("name") == "Upload proof receipt")
     junit = "build/evidence/quality/tests/pytest/junit*.xml"
     assert junit in upload["with"]["path"]

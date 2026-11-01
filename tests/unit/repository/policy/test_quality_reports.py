@@ -15,7 +15,6 @@ from ethos.repository.policy.quality.pytest import pytest_report
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
-from ethos.repository.policy.quality_reports import junit_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 from ethos.repository.policy.quality_reports import node_event_report
 
@@ -42,43 +41,29 @@ if TYPE_CHECKING:
         ),
     ],
 )
-def test_junit_rejects_invalid_or_false_success(tmp_path: Path, xml: str, gap: str) -> None:
-    """A report is not successful merely because a file exists or cases have no failures."""
-    path = tmp_path / "junit.xml"
-    path.write_text(xml, encoding="utf-8")
+def test_junit_rejects_invalid_or_false_success(xml: str, gap: str) -> None:
+    """A report is not successful merely because it parses or its cases have no failures."""
     with pytest.raises(ValueError, match=f"^{gap}$"):
-        junit_report((path,))
+        junit_stream_report(xml)
 
 
-def test_junit_requires_a_report() -> None:
-    """An empty selection cannot prove tests ran."""
-    with pytest.raises(ValueError, match=r"^junit_missing$"):
-        junit_report(())
-
-
-def test_junit_suite_failure_is_not_hidden_by_a_passing_case(tmp_path: Path) -> None:
+def test_junit_suite_failure_is_not_hidden_by_a_passing_case() -> None:
     """Declared suite failure is adverse evidence even without failed testcase elements."""
-    path = tmp_path / "junit.xml"
-    path.write_text(
-        '<testsuites><testsuite failures="1"><testcase name="pass"/></testsuite></testsuites>',
-        encoding="utf-8",
+    counts, failed = junit_stream_report(
+        '<testsuites><testsuite failures="1"><testcase name="pass"/></testsuite></testsuites>'
     )
-    counts, failed = junit_report((path,))
     assert counts == {"total": 1, "failures": 0, "errors": 0, "skipped": 0}
     assert failed is True
 
 
-def test_junit_declared_counts_agree_with_executed_cases(tmp_path: Path) -> None:
+def test_junit_declared_counts_agree_with_executed_cases() -> None:
     """A complete native report retains matching suite-level totals."""
-    path = tmp_path / "junit.xml"
-    path.write_text(
+    counts, failed = junit_stream_report(
         '<testsuites tests="2" failures="0" errors="0" skipped="1">'
         '<testsuite tests="2" failures="0" errors="0" skipped="1">'
         '<testcase name="passed"/><testcase name="skipped"><skipped/></testcase>'
-        "</testsuite></testsuites>",
-        encoding="utf-8",
+        "</testsuite></testsuites>"
     )
-    counts, failed = junit_report((path,))
     assert counts == {"total": 2, "failures": 0, "errors": 0, "skipped": 1}
     assert failed is False
 
@@ -407,6 +392,13 @@ def test_pytest_events_refuse_incomplete_or_unordered_streams(text: str, code: s
     """Only one complete, ordered official stream can describe a test attempt."""
     with pytest.raises(ValueError, match=f"^{code}$"):
         pytest_report(text)
+
+
+def test_pytest_events_refuse_a_rerun_outcome() -> None:
+    """A trust-bearing run never retries: a rerun outcome is no outcome it can report."""
+    rerun = _event("TestReport", nodeid=_NODE, when="call", outcome="rerun")
+    with pytest.raises(ValueError, match=r"^pytest_event_invalid$"):
+        pytest_report(_events(_SETUP, rerun))
 
 
 def test_pytest_failed_setup_is_an_error_outcome() -> None:

@@ -109,7 +109,7 @@ ethos:verify:
     - when: on_success
   variables:
     GIT_STRATEGY: clone
-    ETHOS_TEST_WORKERS: "4"
+    PYTEST_XDIST_AUTO_NUM_WORKERS: "4"
   script:
     - uv run --frozen --offline --no-sync python -m nox -s hosted_verification
   artifacts:

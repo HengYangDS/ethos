@@ -743,50 +743,6 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
   hosted CI policy inline
 - **AND** local fallback evidence does not claim hosted CI pipeline success
 
-### Requirement: Generated Evidence Boundary
-
-Generated proof artifacts SHALL remain outside repository truth, with
-deterministic latest-artifact writes. Product and contributor package builds
-SHALL build in a disposable staging directory and replace
-`build/artifacts/python`, or `build/artifacts/release/python` for a release
-build, with exactly one admitted wheel; they SHALL rely on the repository-level
-ignore and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
-
-#### Scenario: Shared coverage evidence writes are serialized
-
-- **WHEN** the Python owner test gate writes generated coverage evidence
-- **THEN** it serializes cleanup, shard combination, and latest XML writes for
-  the shared coverage evidence directory
-- **AND** the serialization mechanism does not create a new repository truth
-  store
-- **AND** local fallback evidence does not claim hosted CI success.
-
-#### Scenario: An interrupted coverage writer does not block future proof forever
-
-- **GIVEN** a coverage writer exited or died while holding the native file lock
-- **WHEN** a later Python owner test gate starts for that same evidence home
-- **THEN** the operating system has released that lock and the gate acquires the
-  writer boundary
-- **AND** it never preempts a live holder
-- **AND** a lock held past the configured bounded wait
-  (`ETHOS_COVERAGE_LOCK_WAIT_SECONDS`) fails with the lock path rather than
-  waiting indefinitely
-- **AND** the lock file remains ignored generated state, not repository truth.
-
-#### Scenario: Package build writes to the semantic artifact home
-
-- **WHEN** the product full proof executes its package build gate or a
-  contributor follows the documented package-build command
-- **THEN** the `build` owner runs `uv build` with `--out-dir <staging>` and
-  `--no-create-gitignore`, then replaces `build/artifacts/python` with the one
-  admitted wheel
-- **AND** generated package artifacts remain disposable local state under
-  `build/artifacts/python`
-- **AND** concurrent workspace package builds do not race on an output-local
-  ignore marker
-- **AND** the invocation does not create or authorize repository-root `dist/`
-  output.
-
 ### Requirement: Forge provider projections preserve ETHOS repository truth
 
 GitHub and GitLab SHALL independently project the same `status -> plan -> prove
@@ -2446,23 +2402,6 @@ another runtime authority.
 - **WHEN** the candidate runtime, manifest, entrypoint, or generated hook bundle fails validation
 - **THEN** neither the runtime selector nor effective common hook activation changes
 - **AND** the previously selected valid runtime remains the sole selected runtime.
-
-### Requirement: Python test basetemp has one explicit owner
-
-An ETHOS Python gate SHALL distinguish owned from caller-supplied temporary paths.
-
-#### Scenario: Internally allocated Python test basetemp is reclaimed
-
-- **WHEN** the Python test gate allocates its default pytest basetemp
-- **THEN** the gate records that it owns the path
-- **AND** it removes that exact path after successful or failed execution
-- **AND** cleanup failure remains visible.
-
-#### Scenario: Caller-managed Python test basetemp is preserved
-
-- **WHEN** `ETHOS_TEST_BASETEMP` supplies the pytest basetemp
-- **THEN** the gate records that the path is externally managed
-- **AND** it never recursively removes that path.
 
 ### Requirement: Official spec-free Changes compile acceptance
 
@@ -6052,3 +5991,21 @@ block closeout.
 - **WHEN** `main` exists and is not an ancestor of the candidate head
 - **THEN** closeout blocks with `accepted_transition_invalid` and reports `release_mirror_diverged`
 - **AND** neither protected ref moves
+
+### Requirement: Generated artifacts stay outside repository truth
+
+Generated proof artifacts SHALL remain outside repository truth, with deterministic latest-artifact
+writes. Product and contributor package builds SHALL build in a disposable staging directory and
+replace `build/artifacts/python`, or `build/artifacts/release/python` for a release build, with
+exactly one admitted wheel; they SHALL rely on the repository-level ignore and SHALL NOT use root
+`dist/` or add an output-local `.gitignore`.
+
+#### Scenario: Package build writes to the semantic artifact home
+
+- **WHEN** the product full proof executes its package build gate or a contributor follows the
+  documented package-build command
+- **THEN** the `build` owner runs `uv build` with `--out-dir <staging>` and `--no-create-gitignore`,
+  then replaces `build/artifacts/python` with the one admitted wheel
+- **AND** generated package artifacts remain disposable local state under `build/artifacts/python`
+- **AND** concurrent workspace package builds do not race on an output-local ignore marker
+- **AND** the invocation does not create or authorize repository-root `dist/` output.

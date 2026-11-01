@@ -548,10 +548,10 @@ gitlab: {
 			// resolve pinned commits without repeating preparation for every gate.
 			GIT_STRATEGY: "clone"
 			// Scoped native process observation removes unrelated descriptor churn.
-			// Qualify four workers through the full hosted proof and coverage floor.
-			// The image's unprivileged user runs the entire job, preserving process
-			// visibility and permission tests.
-			ETHOS_TEST_WORKERS: "4"
+			// pytest-xdist's own `auto` bound: four workers through the full hosted
+			// proof. The image's unprivileged user runs the entire job, preserving
+			// process visibility and permission tests.
+			PYTEST_XDIST_AUTO_NUM_WORKERS: "4"
 		}
 		script: [
 			"\(offlineRun) python -m nox -s hosted_verification",

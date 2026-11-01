@@ -1,6 +1,7 @@
 [pytest]
 minversion = "9.0"
-addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib", "--max-worker-restart=0", "--maxfail=1", "--failed-first", "--tb=short"]
+strict = true
+addopts = ["--import-mode=importlib", "--numprocesses=auto", "--maxprocesses=12", "--dist=load", "--maxschedchunk=1", "--max-worker-restart=0", "--maxfail=1", "--failed-first", "--tb=short", "--durations=20"]
 cache_dir = "build/runtime/tool-cache/pytest"
 tmp_path_retention_policy = "failed"
 testpaths = ["tests"]

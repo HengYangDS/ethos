@@ -1,4 +1,4 @@
-# Native coverage measurement; policy.toml owns the required combined floor.
+# Native coverage measurement and the required combined floor, which the measuring run decides.
 
 [tool.coverage.run]
 branch = true
@@ -6,6 +6,7 @@ patch = ["subprocess"]
 source = ["src/ethos"]
 
 [tool.coverage.report]
+fail_under = 95
 exclude_lines = []
 show_missing = true
 skip_covered = false

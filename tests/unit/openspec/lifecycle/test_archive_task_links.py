@@ -70,6 +70,7 @@ def test_completed_tasks_with_relocated_links_are_admitted_on_every_pass(tmp_pat
         lambda text: text.replace("docs/target.md#scope", "docs/target.md#other"),
         lambda text: text + "- [x] 1.3 Insert unreviewed work\n",
     ],
+    ids=["body", "link", "task"],
 )
 def test_relocated_tasks_still_refuse_body_and_task_changes(tmp_path: Path, tamper) -> None:
     """Only the exact native link relocation and final checkboxes may differ from the source."""

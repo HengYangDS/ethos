@@ -34,9 +34,9 @@ execution. [Bazel][bazel] and Nix remain alternatives where their execution or
 supply model fits better, not rejected because ETHOS has one Python package.
 
 Current removal targets are the corresponding scheduling/process code in
-`src/ethos/adapters/gates/runner.py`, repeated preparation in
-`tools/ci/python_test_gate.py` and environment assembly under
-`src/ethos/adapters/repo/runtime/materialization/`. Preserve acceptance
+`src/ethos/adapters/gates/runner.py` and environment assembly under
+`src/ethos/adapters/repo/runtime/materialization/`; the Python test runner's
+repeated preparation left with the runner (`test-runner-unification`). Preserve acceptance
 obligations, exact proof binding, native effect tests and runtime activation.
 A selected engine supplies execution evidence, never repository authorization.
 

@@ -145,28 +145,6 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.error.assert_not_called()
 
 
-def test_full_test_session_refuses_selectors_before_loading_supply(tmp_path) -> None:
-    """A focused request must not silently start the complete proof floor."""
-    result = run_command(
-        ROOT,
-        (
-            sys.executable,
-            "-B",
-            "-m",
-            "nox",
-            "-s",
-            "tests",
-            "--",
-            str(Path(__file__).relative_to(ROOT)),
-        ),
-        env={"ETHOS_NODE_PACKAGE_SUPPLY": str(tmp_path / "missing")},
-        timeout=30,
-    )
-    assert result.returncode != 0
-    assert "tests_session_selection_not_supported" in result.stderr
-    assert "node_package_supply_unavailable" not in result.stderr
-
-
 def test_fix_projects_authorized_native_source_format_with_current_head() -> None:
     """The source fix verb forwards exact inputs to the one fresh native write owner."""
     head = "a" * 40
@@ -366,7 +344,6 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
     assert "tools.ci.sessions" in result.stdout.splitlines()
     assert not {
         "tools.ci.delivery.pipeline",
-        "tools.ci.python_test_gate",
         "PIL.Image",
         "ethos.adapters.repo.runtime.materialization.input_resolution",
         "ethos.adapters.repo.runtime.materialization.node_package_supply",

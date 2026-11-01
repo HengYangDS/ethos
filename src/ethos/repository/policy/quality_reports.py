@@ -23,8 +23,6 @@ from pydantic import ValidationError
 from ethos.repository.policy.quality.pytest import pytest_report
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from ethos.repository.policy.quality.pytest import PytestReport
 
 _NativeCount = Annotated[int, Field(strict=True, ge=0)]
@@ -82,18 +80,6 @@ def validate_node_precise_coverage(payload: bytes) -> None:
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
     raise ValueError(code) from error
-
-
-def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
-    """Return executed-case counts and whether native test evidence failed."""
-    files = tuple(paths)
-    if not files:
-        _invalid("junit_missing")
-    try:
-        roots = tuple(ElementTree.parse(path).getroot() for path in files)
-    except ElementTree.ParseError as error:
-        _invalid("junit_invalid", error)
-    return _junit_roots_report(roots)
 
 
 def junit_stream_report(

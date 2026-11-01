@@ -447,7 +447,6 @@ def test_a_retired_key_names_its_rename(tmp_path: Path, key: str, renamed: str) 
 @pytest.mark.parametrize(
     ("changes", "gap", "repair"),
     [
-        ({_PRETTIER: None}, "formatter_binding", "bind prettier"),
         (
             {_PRETTIER: 'printWidth = 80\nproseWrap = "always"\n'},
             "formatter_setting",
@@ -456,7 +455,7 @@ def test_a_retired_key_names_its_rename(tmp_path: Path, key: str, renamed: str) 
         ({_TAPLO: "[formatting]\n"}, "formatter_setting", "column_width"),
         ({_RUFF: "line-length = 100\n"}, "formatter_setting", "py312"),
     ],
-    ids=["unbound", "settings", "nested-setting", "python-target"],
+    ids=["settings", "nested-setting", "python-target"],
 )
 def test_each_tracked_carrier_class_names_its_common_formatter(
     tmp_path: Path, changes: dict[str, str | None], gap: str, repair: str
@@ -467,6 +466,15 @@ def test_each_tracked_carrier_class_names_its_common_formatter(
     assert report["verdict"] == "block"
     assert [item for item in report["required_gaps"] if gap in item], report["required_gaps"]
     assert any(repair in detail["repair"] for detail in report["gaps"]), report["gaps"]
+
+
+def test_the_shipped_formatters_need_no_local_carrier(tmp_path: Path) -> None:
+    """Formatted carrier classes run on the shipped settings, so absent carriers are no gap."""
+    files = {
+        key: value for key, value in CONFORMING.items() if key not in {_PRETTIER, _TAPLO, _RUFF}
+    }
+    report = paradigm_report(tmp_path, files)
+    assert [gap for gap in report["required_gaps"] if "formatter" in gap] == []
 
 
 def test_formatter_accepted_markdown_layout_conforms(tmp_path: Path) -> None:

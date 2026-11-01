@@ -170,7 +170,7 @@ def _section(line: str) -> str | None:
 
 
 def _formatter(paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None) -> Repair | None:
-    """Create a missing formatter carrier, or set the one setting the report names."""
+    """Set the formatter setting the report names in the repository's own carrier."""
     path, _, key = gap.carrier.partition(":")
     if not path.endswith(".toml"):
         return None
@@ -183,10 +183,8 @@ def _formatter(paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None)
         ),
         None,
     )
-    if settings is None:
+    if settings is None or text is None:
         return None
-    if text is None:
-        return tomli_w.dumps(_nested(settings)), ""
     repaired: str | None = text
     for name, value in settings.items():
         if repaired is not None and (not key or name == key):
@@ -194,18 +192,6 @@ def _formatter(paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None)
     if repaired is None:
         return None
     return repaired, f"git add {path}" if repaired == text else ""
-
-
-def _nested(settings: Mapping[str, object]) -> dict[str, Any]:
-    """Turn dotted setting names into the TOML tables that carry them."""
-    nested: dict[str, Any] = {}
-    for key, value in settings.items():
-        *tables, leaf = key.split(".")
-        target = nested
-        for table in tables:
-            target = target.setdefault(table, {})
-        target[leaf] = value
-    return nested
 
 
 def _set_toml_value(text: str, key: str, value: object) -> str | None:
@@ -424,7 +410,6 @@ def _fixed(paradigm: RepositoryParadigm, table: str, name: str) -> object:
 
 _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Repair | None]] = {
     "text-normalization": _normalization,
-    "formatter-binding": _formatter,
     "formatter-setting": _formatter,
     "front-matter": _front_matter,
     "peer-remote": _peer_remote,

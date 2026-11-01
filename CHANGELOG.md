@@ -28,6 +28,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The locked supply moves to the latest stable releases of cachetools 7.2.8, filelock 4.2.6,
   nodeenv 1.12.0, platformdirs 4.14.2 and python-multipart 0.0.33; npm and Mise report nothing newer
   within ETHOS's constraints.
+- A repository needs no Prettier, Taplo or Ruff carrier of its own: the formatters run on the
+  settings ETHOS ships, and a carrier a repository keeps is still held to them (GitHub issue #20).
+  `ethos repair` no longer writes formatter carriers.
+- A root `package.json` `version` that equals `VERSION` is a checked projection of the one version
+  source, so a repository can publish its npm package from the root.
 
 ### Removed
 

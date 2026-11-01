@@ -68,12 +68,10 @@ def test_missing_normalization_carriers_are_created(tmp_path: Path) -> None:
     assert _apply(tmp_path, plan, files) == []
 
 
-def test_missing_formatter_carriers_are_created_with_the_shared_settings(tmp_path: Path) -> None:
-    """A missing carrier is written with the paradigm settings in their native tables."""
+def test_missing_formatter_carriers_stay_absent(tmp_path: Path) -> None:
+    """The shipped settings are the formatters' baseline, so repair writes no formatter carrier."""
     plan, files = _plan(tmp_path, {_TAPLO: None, _PRETTIER: None})
-    edits = {edit.path: edit.after for edit in plan.edits}
-    assert edits[_TAPLO] == "[formatting]\ncolumn_width = 100\n"
-    assert edits[_PRETTIER] == 'proseWrap = "preserve"\nprintWidth = 100\n'
+    assert {_TAPLO, _PRETTIER}.isdisjoint(edit.path for edit in plan.edits)
     assert _apply(tmp_path, plan, files) == []
 
 
@@ -173,12 +171,11 @@ def test_a_setting_that_cannot_be_rewritten_stays_report_only(tmp_path: Path) ->
     assert [gap.carrier for gap in plan.report_only] == [f"{_PRETTIER}:printWidth"]
 
 
-def test_an_untracked_carrier_is_tracked_rather_than_rewritten(tmp_path: Path) -> None:
-    """A carrier present on disk but untracked needs `git add`, not new text."""
+def test_an_untracked_carrier_leaves_the_baseline_in_force(tmp_path: Path) -> None:
+    """A carrier present on disk but untracked is no repository truth, so it is no gap to repair."""
     report = paradigm_report(tmp_path, CONFORMING, untracked=(_TAPLO,))
     plan = paradigm_repair_plan(tmp_path, [ParadigmGap(**gap) for gap in report["gaps"]])
-    assert plan.edits == ()
-    assert plan.actions == (f"git add {_TAPLO}",)
+    assert plan.edits == plan.actions == ()
 
 
 @pytest.mark.parametrize(
@@ -222,8 +219,8 @@ def test_gaps_without_a_deterministic_repair_stay_report_only(tmp_path: Path) ->
     gaps = [
         ParadigmGap("code-size", "src/sample/module.py", "split it"),
         ParadigmGap("text-normalization", ".gitattributes", "declare it"),
-        ParadigmGap("formatter-binding", ".config/checks/eslint/eslint.config.mjs", "bind it"),
-        ParadigmGap("formatter-binding", ".config/checks/unknown/unknown.toml", "bind it"),
+        ParadigmGap("formatter-setting", ".config/checks/eslint/eslint.config.mjs", "set it"),
+        ParadigmGap("formatter-setting", ".config/checks/unknown/unknown.toml", "set it"),
         ParadigmGap("peer-remote", ".ethos/release.toml:publication.peers.absent", "rename it"),
     ]
     plan = paradigm_repair_plan(tmp_path, gaps)

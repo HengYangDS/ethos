@@ -332,21 +332,13 @@ def _module_gaps(
 def _formatter_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
-    """Bind each tracked authored carrier class to its common formatter and settings."""
+    """Hold a repository's own formatter carrier to the common settings ETHOS ships as baseline."""
     carriers = {tool.id: tool.carrier for tool in paradigm.tool}
     authored = [path for path in tracked if not path.startswith(paradigm.immutable_roots)]
     for formatter in paradigm.formatter:
-        if not any(path.endswith(formatter.suffixes) for path in authored):
-            continue
         carrier = carriers[formatter.tool]
         source = tracked_text(root, carrier, tracked)
-        if source is None:
-            classes = "/".join(formatter.suffixes)
-            yield ParadigmGap(
-                "formatter-binding",
-                carrier,
-                f"bind {formatter.tool} at {carrier} for the tracked {classes} carriers",
-            )
+        if source is None or not any(path.endswith(formatter.suffixes) for path in authored):
             continue
         try:
             declared = tomllib.loads(source)
@@ -428,11 +420,13 @@ def _release_gaps(
         manifest = json.loads(package) if package is not None else {}
     except json.JSONDecodeError:
         manifest = {}
-    if isinstance(manifest, dict) and "version" in manifest:
+    # npm packs only a literal version, so one equal to VERSION is its checked projection.
+    projected = (tracked_text(root, conventions.version_file, tracked) or "").strip()
+    if isinstance(manifest, dict) and manifest.get("version", projected) != projected:
         yield ParadigmGap(
             "version-source",
             "package.json:version",
-            f"remove the literal version; {conventions.version_file} is the only version source",
+            f"repeat {conventions.version_file} or drop the version; it is the one version source",
         )
     yield from _changelog_gaps(conventions, tracked_text(root, conventions.changelog, tracked))
 

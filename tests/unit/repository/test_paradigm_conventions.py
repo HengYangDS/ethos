@@ -168,8 +168,9 @@ _RELEASING = {
         "### Fixed\n\n- Correct the release result.\n"
     ),
 }
-# Release tags require VERSION alone, v-tags and a bracketed Keep a Changelog history; literal
-# manifest versions, an unreadable manifest and a missing history are each reported.
+# Release tags require VERSION as the one source, v-tags and a bracketed Keep a Changelog history;
+# a manifest version other than VERSION's, an unreadable manifest and a missing history are each
+# reported, and an npm manifest that repeats VERSION is its checked projection.
 _RELEASES = {
     "conforming": ({}, []),
     "unbracketed": (
@@ -178,8 +179,16 @@ _RELEASES = {
     ),
     "no-version": ({"VERSION": None}, ["repository_paradigm_version_source:VERSION"]),
     "package-version": (
-        {"package.json": '{"version": "1.2.0", "scripts": {}}\n'},
+        {"package.json": '{"version": "1.3.0", "scripts": {}}\n'},
         ["repository_paradigm_version_source:package.json:version"],
+    ),
+    "package-projects-version": ({"package.json": '{"version": "1.2.0", "scripts": {}}\n'}, []),
+    "package-without-version-file": (
+        {"package.json": '{"version": "1.2.0", "scripts": {}}\n', "VERSION": None},
+        [
+            "repository_paradigm_version_source:VERSION",
+            "repository_paradigm_version_source:package.json:version",
+        ],
     ),
     "tag-pattern": (
         {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},

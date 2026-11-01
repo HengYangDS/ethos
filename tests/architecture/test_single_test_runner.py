@@ -54,7 +54,8 @@ def _session_starts_pytest(name: str) -> bool:
         for node in ast.walk(ast.parse(inspect.getsource(module))):
             if isinstance(node, ast.FunctionDef):
                 functions.setdefault(node.name, []).append(node)
-    pending, seen = [body], set()
+    pending: list[ast.AST] = [body]
+    seen: set[str | None] = set()
     while pending:
         node = pending.pop()
         if _builds_pytest(node):

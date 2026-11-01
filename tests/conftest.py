@@ -27,6 +27,7 @@ import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
 import tests.support.runtime_scenarios as runtime_scenarios
+import tests.support.tier_guard as tier_guard
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(
@@ -34,6 +35,11 @@ set_hypothesis_home_dir(
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Register the report-only tier guard under a name that `-p no:ethos-tier-guard` blocks."""
+    config.pluginmanager.register(tier_guard, "ethos-tier-guard")
 
 
 @pytest.fixture(autouse=True)

@@ -60,10 +60,11 @@
 
 ## 4. Report-only tier guard
 
-- [ ] 4.1 Add the guard's cases: a case under `tests/unit` that opens a file is recorded as
+- [x] 4.1 Add the guard's cases: a case under `tests/unit` that opens a file is recorded as
       exceeding its tier; a lazy import is not recorded; a loopback connection outside `tests/unit`
       is recorded without exceeding; the outcome is unchanged. Done when they fail without the
-      guard.
+      guard. (`tests/architecture/test_tier_guard.py` runs a nested pytest; without the module it
+      failed on the missing plugin.)
 - [ ] 4.2 Add `tests/support/tier_guard.py` and load it from `tests/conftest.py`. Done when 4.1
       passes and a full run's JUnit carries `ethos.crossed` and `ethos.exceeds` properties.
 

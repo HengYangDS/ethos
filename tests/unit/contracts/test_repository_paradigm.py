@@ -35,9 +35,12 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert owners[".config/checks/vale"][1] is True
     assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
-    assert paradigm.size.code_effective_lines == 500
-    assert paradigm.size.document_nonblank_lines == 500
-    assert paradigm.size.bound == 1000
+    assert paradigm.parameter_defaults("size") == {
+        "code_effective_lines": 500,
+        "document_nonblank_lines": 500,
+    }
+    assert {row.bound for row in paradigm.parameter if row.group == "size"} == {1000}
+    assert paradigm.parameter_defaults("timeout")["gate_seconds"] == 600
     assert paradigm.documents.decision_record_name.startswith("^dr-")
     grammar = paradigm.commit.subject_pattern(("cli",))
     assert grammar.startswith("^(build|chore|ci|docs|feat|fix|perf|refactor|revert|test)")
@@ -61,6 +64,8 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
         "duplicate-table",
         "tool-unknown-key",
         "size-not-positive",
+        "bound-not-above-default",
+        "duplicate-parameter",
         "openspec-unknown-artifact",
         "openspec-other-schema",
         "openspec-empty-rules",
@@ -95,8 +100,11 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
                 "manifest_tables": ["ruff"],
             }
         )
-    elif mutation == "size-not-positive":
-        payload["size"] = {**payload["size"], "code_effective_lines": 0}
+    elif mutation in {"size-not-positive", "bound-not-above-default", "duplicate-parameter"}:
+        rows = payload["parameter"]
+        assert isinstance(rows, list)
+        change = {"size-not-positive": {"default": 0}, "bound-not-above-default": {"bound": 500}}
+        rows[0] = {**rows[0], **change.get(mutation, {"key": rows[1]["key"]})}
     elif mutation.startswith("retention-"):
         pipelines = payload["pipelines"]
         assert isinstance(pipelines, dict)

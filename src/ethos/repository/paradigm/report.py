@@ -22,10 +22,10 @@ from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
 from ethos.repository.paradigm.orchestration import orchestration_gaps
+from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.scripts import tracked_script_gaps
 from ethos.repository.paradigm.size import code_size_gaps
-from ethos.repository.paradigm.size import size_resolution
 from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
 from ethos.repository.release.changelog import changelog_errors
@@ -66,7 +66,7 @@ def repository_paradigm_report(
     tracked = frozenset(tracked_paths)
     received = frozenset(received_paths)
     rules = tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
-    size = size_resolution(rules, paradigm)
+    parameters = parameter_resolution(rules, paradigm)
     release = _release_binding(paradigm, root, tracked)
     gaps = [
         *_root_gaps(paradigm, tracked),
@@ -76,8 +76,10 @@ def repository_paradigm_report(
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
-        *size.gaps,
-        *code_size_gaps(paradigm, root, tracked - received, size.ceilings["code_effective_lines"]),
+        *parameters.gaps,
+        *code_size_gaps(
+            paradigm, root, tracked - received, parameters.values["size"]["code_effective_lines"]
+        ),
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
         *openspec_gaps(paradigm, root, tracked),
@@ -96,7 +98,7 @@ def repository_paradigm_report(
         "paradigm": paradigm.id,
         "gaps": [gap._asdict() for gap in gaps],
         "required_gaps": required,
-        "deviations": list(size.deviations),
+        "deviations": list(parameters.deviations),
         "next_action": gaps[0].repair if gaps else "",
     }
 

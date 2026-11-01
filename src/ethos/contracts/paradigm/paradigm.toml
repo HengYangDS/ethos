@@ -61,19 +61,75 @@ tag_pattern = "v*"
 changelog = "CHANGELOG.md"
 changelog_heading = '^## \[(?P<version>Unreleased|[^\]\r\n]+)\](?: - (?P<date>\d{4}-\d{2}-\d{2}))?$'
 
-# Per-file ceilings, keyed by class of file. A governed repository keeps these defaults unless
-# its binding declares its own value in .ethos/rules.toml [paradigm.size]: a lower one, or a
-# higher one up to the bound with a reason in [paradigm.size.reasons]. A value covers the whole
-# repository, never one file, path or language; exceeding a ceiling needs semantic
-# consolidation, never compression. A retired key is reported with the key that replaced it.
-[size]
-code_effective_lines = 500
-document_nonblank_lines = 500
+# Tunable values, one row each. A governed repository keeps every default unless its binding
+# declares its own value in .ethos/rules.toml [paradigm.<group>]: a lower one, or a higher one up to
+# the row's bound with a reason in [paradigm.<group>.reasons]. A lower value is stricter for every
+# row. A value covers the whole repository, never one file, path, language or gate; a retired key is
+# reported with the key that replaced it.
+#
+# Per-file ceilings, keyed by class of file: exceeding one needs semantic consolidation, never
+# compression.
+[[parameter]]
+group = "size"
+key = "code_effective_lines"
+default = 500
+unit = "lines"
 bound = 1000
+retired = ["python_effective_lines"]
 
-[size.retired]
-python_effective_lines = "code_effective_lines"
-markdown_nonblank_lines = "document_nonblank_lines"
+[[parameter]]
+group = "size"
+key = "document_nonblank_lines"
+default = 500
+unit = "lines"
+bound = 1000
+retired = ["markdown_nonblank_lines"]
+
+# Timeouts. A gate without its own timeout_seconds runs within gate_seconds, and every command
+# inside a gate runs within its gate's deadline. The other rows bound one native wait outside a
+# gate: a tool run, a Git command, a long Git history operation, a version or identity probe and a
+# lock held by another process.
+[[parameter]]
+group = "timeout"
+key = "gate_seconds"
+default = 600
+unit = "seconds"
+bound = 7200
+
+[[parameter]]
+group = "timeout"
+key = "tool_seconds"
+default = 60
+unit = "seconds"
+bound = 600
+
+[[parameter]]
+group = "timeout"
+key = "git_seconds"
+default = 30
+unit = "seconds"
+bound = 300
+
+[[parameter]]
+group = "timeout"
+key = "git_history_seconds"
+default = 120
+unit = "seconds"
+bound = 1200
+
+[[parameter]]
+group = "timeout"
+key = "probe_seconds"
+default = 15
+unit = "seconds"
+bound = 150
+
+[[parameter]]
+group = "timeout"
+key = "lock_seconds"
+default = 10
+unit = "seconds"
+bound = 100
 
 # Code languages. A tracked file whose suffix a language lists is code: it stays within the
 # code ceiling unless Git attributes mark it vendored or generated. Python is measured by its

@@ -21,13 +21,14 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
     """Parse one native invocation and load authority only for required admission."""
     repo = root.resolve()
     try:
-        if name not in HOOK_NAMES:
-            reports = (blocked_report(name, "hook_name_invalid"),)
-        elif name == "reference-transaction":
-            reports = _reference_transaction(repo, args, stdin)
-        else:
-            admission = import_module("ethos.adapters.repo.hook.admission")
-            reports = admission.admit_hook(repo, name, args, stdin=stdin)
+        with import_module("ethos.repository.paradigm.parameters").repository_parameters(repo):
+            if name not in HOOK_NAMES:
+                reports = (blocked_report(name, "hook_name_invalid"),)
+            elif name == "reference-transaction":
+                reports = _reference_transaction(repo, args, stdin)
+            else:
+                admission = import_module("ethos.adapters.repo.hook.admission")
+                reports = admission.admit_hook(repo, name, args, stdin=stdin)
     except (OSError, RuntimeError, TypeError, ValueError, ImportError) as error:
         reports = (blocked_report(name, str(error) or error.__class__.__name__),)
     failed = next((report for report in reports if report_verdict(report) != "pass"), None)

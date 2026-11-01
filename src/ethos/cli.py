@@ -78,7 +78,9 @@ def main() -> None:
                 return
             commands = import_module("ethos.surface.cli.application")
             commands.load_command_groups(argv)
-            commands.app(commands.dispatch_arguments(argv))
+            parameters = import_module("ethos.repository.paradigm.parameters")
+            with parameters.repository_parameters(_argument_root(argv)):
+                commands.app(commands.dispatch_arguments(argv))
         except ProcessExecutionError as exc:
             import_module("ethos.surface.cli.output").emit_process_execution_failure(
                 command=command,

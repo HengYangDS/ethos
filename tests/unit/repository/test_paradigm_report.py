@@ -16,7 +16,7 @@ from tests.support.paradigm import paradigm_report
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CODE_CEILING = load_repository_paradigm().size.code_effective_lines
+_CODE_CEILING = load_repository_paradigm().parameter_defaults("size")["code_effective_lines"]
 _MODULE = "src/sample/module.py"
 _PRETTIER = ".config/checks/prettier/prettier.toml"
 _TAPLO = ".config/checks/taplo/taplo.toml"
@@ -333,6 +333,9 @@ _RULES = ".ethos/rules.toml"
 _REASON = '[paradigm.size.reasons]\ncode_effective_lines = "Parser tables stay whole."\n'
 _DECLARED = f"repository_paradigm_size_declaration:{_RULES}:paradigm.size.code_effective_lines"
 _OVER = f"repository_paradigm_code_size:{_MODULE}"
+_GATE_REASON = '[paradigm.timeout.reasons]\ngate_seconds = "Release tests take ten minutes."\n'
+_GATE = f"repository_paradigm_timeout_declaration:{_RULES}:paradigm.timeout.gate_seconds"
+_GROUP = f"repository_paradigm_parameter_declaration:{_RULES}:paradigm.timeouts"
 
 
 @pytest.mark.parametrize(
@@ -358,6 +361,11 @@ _OVER = f"repository_paradigm_code_size:{_MODULE}"
             1,
             [f"repository_paradigm_binding_restatement:{_RULES}:quality.code_size"],
         ),
+        ("[paradigm.timeout]\ngit_seconds = 10\n", 1, []),
+        ("[paradigm.timeout]\ngate_seconds = 1200\n" + _GATE_REASON, 1, []),
+        ("[paradigm.timeout]\ngate_seconds = 1200\n", 1, [_GATE]),
+        ("[paradigm.timeout]\ngate_seconds = 9000\n" + _GATE_REASON, 1, [_GATE]),
+        ("[paradigm.timeouts]\ngate_seconds = 1200\n", 1, [_GROUP]),
     ],
     ids=[
         "lower",
@@ -368,6 +376,11 @@ _OVER = f"repository_paradigm_code_size:{_MODULE}"
         "unknown-key",
         "restates-default",
         "retired-table",
+        "timeout-lower",
+        "timeout-higher-with-reason",
+        "timeout-higher-without-reason",
+        "timeout-above-bound",
+        "unknown-group",
     ],
 )
 def test_a_binding_declares_its_ceiling_within_the_contract(
@@ -381,14 +394,21 @@ def test_a_binding_declares_its_ceiling_within_the_contract(
 def test_a_reasoned_higher_ceiling_is_reported_as_a_deviation(tmp_path: Path) -> None:
     """Only a value above the default, with its reason, is listed beside the gaps."""
     rules = "[paradigm.size]\ncode_effective_lines = 700\ndocument_nonblank_lines = 400\n"
-    report = paradigm_report(tmp_path, {**CONFORMING, _RULES: rules + _REASON})
+    timeout = "[paradigm.timeout]\ngate_seconds = 1200\n" + _GATE_REASON
+    report = paradigm_report(tmp_path, {**CONFORMING, _RULES: rules + _REASON + timeout})
     assert report["deviations"] == [
         {
-            "ceiling": "code_effective_lines",
+            "parameter": "size.code_effective_lines",
             "value": 700,
             "default": 500,
             "reason": "Parser tables stay whole.",
-        }
+        },
+        {
+            "parameter": "timeout.gate_seconds",
+            "value": 1200,
+            "default": 600,
+            "reason": "Release tests take ten minutes.",
+        },
     ]
     assert paradigm_report(tmp_path / "plain", CONFORMING)["deviations"] == []
 

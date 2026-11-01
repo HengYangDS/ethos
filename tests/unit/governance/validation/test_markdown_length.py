@@ -33,7 +33,7 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CEILING = load_repository_paradigm().size.document_nonblank_lines
+_CEILING = load_repository_paradigm().parameter_defaults("size")["document_nonblank_lines"]
 
 
 def _write_topic(root: Path, relative: str, state: str, count: int) -> None:

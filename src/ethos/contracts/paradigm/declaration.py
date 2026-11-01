@@ -118,15 +118,25 @@ class ReleaseConventions(BaseModel):
     changelog_heading: str
 
 
-class SizeCeilings(BaseModel):
-    """Per-file ceiling defaults and the bound that a repository's own value stays within."""
+class Parameter(BaseModel):
+    """One tunable value: its default, unit and the bound a repository's own value stays within."""
 
     model_config = _DECLARATION
 
-    code_effective_lines: int = Field(gt=0)
-    document_nonblank_lines: int = Field(gt=0)
+    group: str = Field(pattern=r"^[a-z]+$")
+    key: str = Field(pattern=r"^[a-z][a-z_]*[a-z]$")
+    default: int = Field(gt=0)
+    unit: Literal["lines", "seconds"]
     bound: int = Field(gt=0)
-    retired: FrozenMapping[str]
+    retired: FrozenTuple[str] = ()
+
+    @model_validator(mode="after")
+    def require_room_above_default(self) -> Self:
+        """Reject a bound that leaves a repository no higher value."""
+        if self.bound <= self.default:
+            message = f"parameter {self.group}.{self.key} needs a bound above its default"
+            raise ValueError(message)
+        return self
 
 
 class Language(BaseModel):
@@ -314,7 +324,7 @@ class RepositoryParadigm(BaseModel):
     immutable_roots: FrozenTuple[str]
     formatter: FrozenTuple[FormatterBinding]
     release: ReleaseConventions
-    size: SizeCeilings
+    parameter: FrozenTuple[Parameter] = Field(min_length=1)
     language: FrozenTuple[Language] = Field(min_length=1)
     documents: DocumentConventions
     names: NameConventions
@@ -339,6 +349,7 @@ class RepositoryParadigm(BaseModel):
             [name for tool in self.tool for name in tool.root_names],
             [table for tool in self.tool for table in tool.manifest_tables],
             [key for tool in self.tool for key in tool.package_keys],
+            [(row.group, key) for row in self.parameter for key in (row.key, *row.retired)],
         )
         if any(len(set(group)) != len(group) for group in groups):
             message = "repository paradigm identities must be unique"
@@ -360,6 +371,10 @@ class RepositoryParadigm(BaseModel):
     def language_of(self, path: str) -> Language | None:
         """Return the code language whose suffix ends the path, if one does."""
         return next((item for item in self.language if path.endswith(item.suffixes)), None)
+
+    def parameter_defaults(self, group: str) -> dict[str, int]:
+        """Return each declared key of one parameter group with its default."""
+        return {row.key: row.default for row in self.parameter if row.group == group}
 
     def canonical_carrier(self, root_name: str) -> str:
         """Return the canonical carrier of a root name that a catalogued tool discovers."""

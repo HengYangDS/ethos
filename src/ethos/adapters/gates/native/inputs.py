@@ -37,10 +37,15 @@ if TYPE_CHECKING:
 
 
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
-    """Read current authored input through native Git without swallowing inventory failure."""
-    return git_files(
+    """Read current authored input through native Git without swallowing inventory failure.
+
+    An indexed path that the worktree deleted is not input, whether or not the deletion is staged.
+    """
+    listed = git_files(
         root, "--cached", "--others", "--exclude-standard", "--", *patterns, check=True
     )
+    deleted = set(git_files(root, "--deleted", "--", *patterns, check=True))
+    return [path for path in listed if path not in deleted]
 
 
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
@@ -213,8 +218,7 @@ def native_repository_configuration(root: Path, tool: str) -> Path | None:
 
     The tool reads its carrier from the worktree, so an indexed path deleted there is absent.
     """
-    live = tuple(p for p in quality_source_files(root) if (root / p).exists(follow_symlinks=False))
-    if (selected := native_tool_configuration(live, tool)) is None:
+    if (selected := native_tool_configuration(tuple(quality_source_files(root)), tool)) is None:
         return None
     path = root / selected
     if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()) or not path.is_file():

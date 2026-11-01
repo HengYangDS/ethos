@@ -225,6 +225,13 @@ def run_plan_checks(
     return checks, runs_ok
 
 
+def _plan_next_action(gate: tuple[str, ...], gaps: tuple[str, ...]) -> str:
+    """Route a focused plan refused only for axes it did not select to the full proof."""
+    if gate and gaps and all(gap.startswith("quality_obligation_unproven:") for gap in gaps):
+        return "ethos prove --execute --json"
+    return "repair the Commitment or repository facts"
+
+
 def _proof_next_action(
     *,
     options: _ProofOptions,
@@ -359,7 +366,7 @@ def prove(
                 verdict=plan.verdict,
                 state="gapped",
                 required_gaps=plan_gaps or ("plan_not_admitted",),
-                next_action="repair the Commitment or repository facts",
+                next_action=_plan_next_action(options.gate, plan_gaps),
             ),
             json_output=json_output,
         )

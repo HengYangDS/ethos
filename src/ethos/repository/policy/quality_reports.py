@@ -503,7 +503,10 @@ def istanbul_coverage_report(
 def _node_test_scope(
     root: Path, events: tuple[dict[str, object], ...], tests: tuple[str, ...]
 ) -> None:
-    """Require each selected native test file to appear in the original event stream."""
+    """Require each selected native test file to appear in the original event stream.
+
+    A refusal names each selected file never entered and each file entered unselected.
+    """
     entered: set[Path] = set()
     for event in events:
         data = event.get("data")
@@ -515,5 +518,11 @@ def _node_test_scope(
             file = data.get("file")
             if isinstance(file, str):
                 entered.add(Path(file).resolve())
-    if {(root / path).resolve() for path in tests} != entered:
-        _invalid("javascript_native_test_scope_incomplete")
+    selected = {(root / path).resolve(): path for path in tests}
+    if set(selected) != entered:
+        base = root.resolve()
+        differing = {selected[path] for path in selected.keys() - entered} | {
+            path.relative_to(base).as_posix() if path.is_relative_to(base) else str(path)
+            for path in entered - selected.keys()
+        }
+        _invalid(f"javascript_native_test_scope_incomplete:{','.join(sorted(differing))}")

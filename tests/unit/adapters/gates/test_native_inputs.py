@@ -47,3 +47,20 @@ def test_two_live_tool_configurations_stay_ambiguous(tmp_path) -> None:
     legacy.write_text("", encoding="utf-8")
     with pytest.raises(ValueError, match=r"^native_tool_configuration_ambiguous:taplo$"):
         native_inputs.native_repository_configuration(repo, "taplo")
+
+
+def test_a_tracked_file_deleted_in_the_worktree_is_not_candidate_input(tmp_path) -> None:
+    """A deletion the lane has not staged is not input, so no authored-text refusal names it."""
+    repo = init_git_repo(tmp_path / "adopter")
+    gone = repo / "docs/gone.md"
+    gone.parent.mkdir(parents=True, exist_ok=True)
+    gone.write_text("# Gone\n", encoding="utf-8")
+    git(repo, "add", "--", "docs/gone.md")
+    gone.unlink()
+
+    selected = native_inputs.quality_source_files(repo, "*.md")
+
+    assert "docs/gone.md" not in selected
+    assert not [
+        gap for gap in native_inputs.authored_text_gaps(repo, selected) if "path_invalid" in gap
+    ]

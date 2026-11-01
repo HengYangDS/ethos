@@ -105,7 +105,9 @@ def test_native_selection_preserves_options_and_same_attempt_custody(
         assert tuple(argv[-3:]) == ("--test-concurrency=2", "--test-timeout=180000", tests[0])
         assert "--import" in argv
         assert "./preload.mjs" in argv
-        assert "javascript_native_test_scope_incomplete" in string_sequence(report["required_gaps"])
+        assert f"javascript_native_test_scope_incomplete:{tests[1]}" in string_sequence(
+            report["required_gaps"]
+        )
         assert (repo / "attempts").read_text() == "one\n"
     assert report["raw_identity_preserved"]
     assert not Path(str(report["raw_directory"])).exists()

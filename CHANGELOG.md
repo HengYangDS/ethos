@@ -18,6 +18,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   nodeenv 1.12.0, platformdirs 4.14.2 and python-multipart 0.0.33; npm and Mise report nothing newer
   within ETHOS's constraints.
 
+### Fixed
+
+- A tracked file that a lane deletes without staging the deletion is no longer quality input, so
+  `ethos lane format` and every gate that reads candidate input stop refusing it with
+  `authored_text_path_invalid`. A focused proof refused only because axes it did not select are
+  unproven names `ethos prove --execute --json`, and a JavaScript test-scope refusal names each file
+  that the runner did not enter or entered unselected.
+
 ## [0.2.0-alpha.25] - 2026-11-01
 
 ### Changed

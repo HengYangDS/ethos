@@ -25,8 +25,10 @@ from tests.support.semantic import commitment_fixture
 if TYPE_CHECKING:
     from pathlib import Path
 
+_REPAIR = "repair the Commitment or repository facts"
 
-def _plan(*, gap: str = ""):
+
+def _plan(*, gap: str = "", gaps: tuple[str, ...] = ()):
     commitment = commitment_fixture(
         id="repository:proof-command", acceptance=("acceptance:fixture",)
     )
@@ -51,7 +53,7 @@ def _plan(*, gap: str = ""):
                 }
             ]
         },
-        required_gaps=(gap,) if gap else (),
+        required_gaps=((gap,) if gap else ()) + gaps,
     )
 
 
@@ -174,7 +176,7 @@ def test_invalid_common_audit_stops_before_check_execution(
     ("case", "expected_gap", "next_action"),
     [
         ("plan-error", "proof_plan_invalid", "ethos plan --changed --json"),
-        ("plan-blocked", "plan_gap", "repair the Commitment or repository facts"),
+        ("plan-blocked", "plan_gap", _REPAIR),
         ("runner-error", "proof_plan_head_missing", "ethos plan --changed --json"),
     ],
 )
@@ -195,6 +197,33 @@ def test_prove_fail_closed_before_result_compilation(
 
     assert emitted[-1].required_gaps == (expected_gap,)
     assert emitted[-1].next_action == next_action
+
+
+@pytest.mark.parametrize(
+    ("gate", "gaps", "next_action"),
+    [
+        (
+            ("gate",),
+            ("quality_obligation_unproven:static-analysis",),
+            "ethos prove --execute --json",
+        ),
+        ((), ("quality_obligation_unproven:static-analysis",), _REPAIR),
+        (("gate",), ("quality_obligation_unproven:behavior", "plan_gap"), _REPAIR),
+    ],
+)
+def test_a_focused_plan_refused_for_unselected_axes_names_the_full_proof(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    gate: tuple[str, ...],
+    gaps: tuple[str, ...],
+    next_action: str,
+) -> None:
+    """Only axes a focused selection left out route to the proof that selects every axis."""
+    _repo, emitted = _arrange(monkeypatch, tmp_path, plan=_plan(gaps=gaps))
+
+    proof_cli.prove(_options(gate=gate), root=tmp_path, json_output=True)
+
+    assert (emitted[-1].required_gaps, emitted[-1].next_action) == (gaps, next_action)
 
 
 def test_prove_preserves_nonpassing_current_resolution_without_planning(

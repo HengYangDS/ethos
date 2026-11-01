@@ -53,11 +53,10 @@ SHALL be what the formatters write, and the paradigm SHALL add no layout rule of
 ### Requirement: Released products keep one version source
 
 A repository that publishes releases SHALL keep `VERSION` as its only version source and SHALL tag
-releases as `v` followed by a Semantic Versioning version. A root `package.json` `version` that
-equals the text of `VERSION` SHALL count as a checked projection of that source, since npm packs and
-publishes only a literal version; any other manifest version SHALL count as a second source.
-`CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0 with an `[Unreleased]` section and bracketed
-version headings.
+releases as `v` followed by a Semantic Versioning version. A root `package.json` `version` equal to
+`VERSION` SHALL count as a checked projection, since npm publishes only a literal version; any
+other manifest version SHALL count as a second source. `CHANGELOG.md` SHALL follow Keep a Changelog
+1.1.0 with an `[Unreleased]` section and bracketed version headings.
 
 #### Scenario: A second version source exists
 

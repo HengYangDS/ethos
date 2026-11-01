@@ -22,6 +22,8 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_publication_topology
+from tests.support.paradigm import LINKED_README
+from tests.support.paradigm import MIT_GRANT
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
 
@@ -181,6 +183,8 @@ def accepted_release_fixture(
         "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n\n"
         "### Fixed\n\n- Correct the native release source.\n"
     )
+    (repo / "LICENSE").write_text(MIT_GRANT, encoding="utf-8")
+    (repo / "README.md").write_text(LINKED_README, encoding="utf-8")
     if retired_source:
         write_active_commitment(repo)
     head = commit_fixture(repo, "fix: accept native release source")

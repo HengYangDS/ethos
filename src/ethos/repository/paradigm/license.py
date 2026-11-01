@@ -41,15 +41,21 @@ _EQUIVALENT = str.maketrans("\u2018\u2019\u201c\u201d\u2013\u2014", "''\"\"--")
 
 
 def license_gaps(
-    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str], *, releasing: bool = False
 ) -> Iterator[ParadigmGap]:
-    """Judge the grant, its public entry and the license each root manifest declares."""
+    """Judge the grant, its public entry and the license each root manifest declares.
+
+    A repository that tags releases distributes its work, so it keeps a grant even when no manifest
+    declares a license.
+    """
     conventions = paradigm.license
     carrier = conventions.carrier
     declared = _declared_licenses(root, tracked)
     if carrier not in tracked:
-        if any(isinstance(value, str) and value != "UNLICENSED" for value in declared.values()):
-            repair = f"add {carrier} with the standard text of the license package metadata names"
+        if releasing or any(
+            isinstance(value, str) and value != "UNLICENSED" for value in declared.values()
+        ):
+            repair = f"add {carrier} with the standard text of the license the repository grants"
             yield ParadigmGap("license-grant", carrier, repair)
         return
     identifier = _recognized(tracked_text(root, carrier, tracked) or "", conventions)

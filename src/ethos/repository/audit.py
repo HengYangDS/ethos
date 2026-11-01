@@ -22,8 +22,8 @@ from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.docs.health import docs_health_report
-from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES
 from ethos.repository.release.configuration import release_role_policy_report
+from ethos.repository.release.configuration import required_release_files
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -97,7 +97,9 @@ REQUIRED_OPENSPEC_CAPABILITIES = (
 
 
 def release_files_report(root: Path) -> dict[str, object]:
-    release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
+    release_files_missing = [
+        path for path in required_release_files() if not (root / path).exists()
+    ]
     return {
         "verdict": observation_verdict(ok=not release_files_missing),
         "missing": release_files_missing,

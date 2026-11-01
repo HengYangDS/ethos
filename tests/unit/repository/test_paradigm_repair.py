@@ -206,7 +206,7 @@ def test_a_peer_remote_is_named_after_its_peer(tmp_path: Path) -> None:
 def test_a_peer_block_that_cannot_be_read_alone_stays_report_only(tmp_path: Path) -> None:
     """A block whose lines start like a table cannot be edited without guessing its end."""
     release = (
-        '[[publication.peers]]\nid = "gitlab"\ngit_remote = "origin"\nmatrix = [\n  ["a"],\n]\n'
+        '[[publication.peers]]\nid = "gitlab"\ngit_remote = "upstream"\nmatrix = [\n  ["a"],\n]\n'
     )
     plan, _ = _plan(tmp_path, {".ethos/release.toml": release})
     assert plan.edits == ()

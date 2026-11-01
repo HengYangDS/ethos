@@ -33,6 +33,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `ethos repair` no longer writes formatter carriers.
 - A root `package.json` `version` that equals `VERSION` is a checked projection of the one version
   source, so a repository can publish its npm package from the root.
+- **Breaking for adopters:** every governed repository keeps `CONTRIBUTING.md` beside `AGENTS.md`
+  and `README.md`, and a repository that tags releases keeps its license grant in `LICENSE`. ETHOS's
+  own release-file list now derives from the paradigm. A sole publication peer may keep the remote
+  name `git clone` gives it, which the paradigm declares as `origin`; with two or more peers, each
+  remote takes its peer id.
 
 ### Removed
 

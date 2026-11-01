@@ -27,6 +27,8 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.paradigm import LINKED_README
+from tests.support.paradigm import MIT_GRANT
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
@@ -81,6 +83,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n\n"
         "### Fixed\n\n- Preserve identity-scoped release delivery.\n"
     )
+    (work / "LICENSE").write_text(MIT_GRANT, encoding="utf-8")
+    (work / "README.md").write_text(LINKED_README, encoding="utf-8")
     release = work / ".ethos/release.toml"
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
@@ -98,6 +102,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
         tasks.relative_to(work).as_posix(),
         "VERSION",
         "CHANGELOG.md",
+        "LICENSE",
+        "README.md",
         ".ethos",
         "system/gates.toml",
     )

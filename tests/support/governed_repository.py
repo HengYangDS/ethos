@@ -15,6 +15,7 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from ethos.repository.release.resources import canonical_resource
@@ -23,6 +24,8 @@ from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
+# The root documents every governed repository keeps, as the paradigm declares them.
+ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
 PARADIGM_EDITORCONFIG = (
     "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 )
@@ -179,8 +182,8 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     configure_fixture_signer(path)
     git(path, "config", "core.hooksPath", ".git/test-hooks")
     (path / ".gitignore").write_text("", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    for document in ROOT_DOCUMENTS:
+        (path / document).write_text(f"# {Path(document).stem.title()}\n", encoding="utf-8")
     (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
     (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
     for relative, content in PARADIGM_FORMATTERS.items():

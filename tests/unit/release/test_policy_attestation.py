@@ -40,7 +40,7 @@ _PUBLICATION = {
         },
     ],
 }
-_REQUIRED_FILES = ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
+_REQUIRED_FILES = ("AGENTS.md", "CONTRIBUTING.md", "README.md", "LICENSE", "CHANGELOG.md")
 _RUNTIME = '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n'
 _INVALID_IDENTITIES = [
     ("not-tool = true\n", None),

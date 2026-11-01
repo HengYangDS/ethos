@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import tomllib
+from functools import cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
@@ -21,13 +23,18 @@ if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
 
 RELEASE_HISTORY_FILE = "CHANGELOG.md"
-REQUIRED_RELEASE_FILES = (
-    "README.md",
-    "LICENSE",
-    "CONTRIBUTING.md",
-    RELEASE_HISTORY_FILE,
-    ".ethos/release.toml",
-)
+
+
+@cache
+def required_release_files() -> tuple[str, ...]:
+    """Name what a releasing root keeps: the paradigm's documents, grant, changelog and binding."""
+    paradigm = load_repository_paradigm()
+    return (
+        *paradigm.root.required_documents,
+        paradigm.license.carrier,
+        paradigm.release.changelog,
+        f"{paradigm.binding.root}/release.toml",
+    )
 
 
 def _toml(path: Path) -> dict[str, Any]:
@@ -187,7 +194,7 @@ def host_git_remote(root: Path) -> str:
 def release_policy_report(root: Path) -> dict[str, Any]:
     role_report = release_role_policy_report(root)
     config = role_report["declaration"]
-    missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
+    missing_files = [path for path in required_release_files() if not (root / path).exists()]
     version = version_manifest(root)
     protected_refs = role_report["protected_refs"]
     host_profile = _host_profile(config)
@@ -213,7 +220,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "required_gaps": gaps,
         "version": version,
-        "required_files": list(REQUIRED_RELEASE_FILES),
+        "required_files": list(required_release_files()),
         "protected_refs": protected_refs,
         "host_profile": host_profile,
         "publication_topology": publication,

@@ -235,11 +235,12 @@ def test_typescript_project_elsewhere_names_its_native_carrier(
 def test_missing_entries_and_unlocked_runner_are_reported(tmp_path: Path) -> None:
     """A runner entry needs its module, and entry documents and carriers must be tracked."""
     files = _conforming_without("pyproject.toml", "uv.lock")
-    untracked = ("AGENTS.md", ".gitattributes", ".editorconfig")
+    untracked = ("AGENTS.md", "CONTRIBUTING.md", ".gitattributes", ".editorconfig")
     report = paradigm_report(tmp_path, files, untracked=untracked)
     assert report["required_gaps"] == [
         "repository_paradigm_root_catalog:noxfile.py",
         "repository_paradigm_entry_documents:AGENTS.md",
+        "repository_paradigm_entry_documents:CONTRIBUTING.md",
         "repository_paradigm_text_normalization:.gitattributes",
         "repository_paradigm_text_normalization:.editorconfig",
     ]

@@ -14,7 +14,7 @@ entry_documents = [
   "README.md",
   "VERSION",
 ]
-required_documents = ["AGENTS.md", "README.md"]
+required_documents = ["AGENTS.md", "CONTRIBUTING.md", "README.md"]
 protocol_files = [".editorconfig", ".gitattributes", ".gitignore"]
 forge_entries = [".github", ".gitlab", ".gitlab-ci.yml"]
 governance_roots = [".agents", ".config", ".ethos", "openspec"]
@@ -51,8 +51,11 @@ files = ["miserc.toml"]
 policy = "policy.toml"
 
 # A repository that declares release tags keeps one version source and one
-# changelog grammar (Keep a Changelog 1.1.0, bracketed headings).
+# changelog grammar (Keep a Changelog 1.1.0, bracketed headings). Each publication
+# peer's Git remote takes the peer's id; a sole peer may keep the name `git clone`
+# gives its remote, Git's default `clone.defaultRemoteName`.
 [release]
+clone_remote = "origin"
 version_file = "VERSION"
 tag_pattern = "v*"
 changelog = "CHANGELOG.md"

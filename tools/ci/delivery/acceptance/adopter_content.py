@@ -49,6 +49,7 @@ capabilities = ["repository", "publication"]
     ),
     "README.md": "# installed CLI adopter\n",
     "AGENTS.md": "# Agents\n",
+    "CONTRIBUTING.md": "# Contributing\n",
     ".editorconfig": (
         "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
     ),

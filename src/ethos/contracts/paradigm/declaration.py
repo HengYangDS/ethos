@@ -107,10 +107,11 @@ class FormatterBinding(BaseModel):
 
 
 class ReleaseConventions(BaseModel):
-    """The version source, tag pattern and changelog grammar of a releasing repository."""
+    """The version source, tag pattern, changelog and remote naming of a releasing repository."""
 
     model_config = _DECLARATION
 
+    clone_remote: str = Field(min_length=1)
     version_file: str
     tag_pattern: str
     changelog: str

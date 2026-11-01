@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.support.paradigm import CONFORMING
+from tests.support.paradigm import LINKED_README
+from tests.support.paradigm import MIT_GRANT
 from tests.support.paradigm import paradigm_report
 
 if TYPE_CHECKING:
@@ -14,28 +16,30 @@ if TYPE_CHECKING:
 
 
 _WORKSPACE = ".ethos/workspace.toml"
+_SOLE = '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "{gitlab}"\n'
 _RELEASE = (
-    '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "{gitlab}"\n'
-    '[[publication.peers]]\nid = "github"\nprovider = "github"\ngit_remote = "github"\n'
+    _SOLE + '[[publication.peers]]\nid = "github"\nprovider = "github"\ngit_remote = "github"\n'
 )
 
 
 @pytest.mark.parametrize(
-    ("remote", "gaps"),
+    ("peers", "remote", "gaps"),
     [
-        ("gitlab", []),
+        (_RELEASE, "gitlab", []),
         (
+            _RELEASE,
             "origin",
             ["repository_paradigm_peer_remote:.ethos/release.toml:publication.peers.gitlab"],
         ),
+        (_SOLE, "origin", []),
     ],
-    ids=["peer-named", "implicit-origin"],
+    ids=["peer-named", "implicit-origin", "sole-origin"],
 )
 def test_each_publication_peer_names_its_git_remote(
-    tmp_path: Path, remote: str, gaps: list[str]
+    tmp_path: Path, peers: str, remote: str, gaps: list[str]
 ) -> None:
-    """A peer's Git remote carries the peer's own id, never the implicit origin."""
-    release = _RELEASE.format(gitlab=remote)
+    """A remote beside another peer takes its peer's id; a sole peer may keep `origin`."""
+    release = peers.format(gitlab=remote)
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/release.toml": release})
     assert report["required_gaps"] == gaps
     if gaps:
@@ -162,15 +166,17 @@ def test_the_signature_is_not_restated(tmp_path: Path, value: str) -> None:
 
 _RELEASING = {
     ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
+    "LICENSE": MIT_GRANT,
+    "README.md": LINKED_README,
     "VERSION": "1.2.0\n",
     "CHANGELOG.md": (
         "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n\n"
         "### Fixed\n\n- Correct the release result.\n"
     ),
 }
-# Release tags require VERSION as the one source, v-tags and a bracketed Keep a Changelog history;
-# a manifest version other than VERSION's, an unreadable manifest and a missing history are each
-# reported, and an npm manifest that repeats VERSION is its checked projection.
+# Release tags require VERSION as the one source, v-tags, a license grant and a bracketed Keep a
+# Changelog history; a manifest version other than VERSION's, an unreadable manifest and a missing
+# history or grant are each reported, and an npm manifest that repeats VERSION is its projection.
 _RELEASES = {
     "conforming": ({}, []),
     "unbracketed": (
@@ -195,6 +201,11 @@ _RELEASES = {
         ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],
     ),
     "not-released": ({".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None}, []),
+    "no-license": ({"LICENSE": None}, ["repository_paradigm_license_grant:LICENSE"]),
+    "not-released-without-license": (
+        {".ethos/release.toml": "", "LICENSE": None, "README.md": CONFORMING["README.md"]},
+        [],
+    ),
     "pyproject-version": (
         {
             "pyproject.toml": (

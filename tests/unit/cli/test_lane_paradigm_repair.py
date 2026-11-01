@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 _WRAPPED = "<!--\n---\nsubject: sample:guide\n---\n-->\n\n# Guide\n"
 _RELEASE = (
     '[release]\nversion_source = "VERSION"\ntag_pattern = "v{version}"\n\n'
-    '[[publication.peers]]\nid = "gitlab"\ngit_remote = "origin"\n'
+    '[[publication.peers]]\nid = "gitlab"\ngit_remote = "origin"\n\n'
+    '[[publication.peers]]\nid = "github"\ngit_remote = "github"\n'
 )
 
 

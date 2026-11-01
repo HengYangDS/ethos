@@ -67,11 +67,12 @@ def repository_paradigm_report(
     received = frozenset(received_paths)
     rules = tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
     size = size_resolution(rules, paradigm)
+    release = _release_binding(paradigm, root, tracked)
     gaps = [
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
         *_normalization_gaps(paradigm, root, tracked, line_endings),
-        *license_gaps(paradigm, root, tracked),
+        *license_gaps(paradigm, root, tracked, releasing=bool(_release_tags(release))),
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
@@ -80,9 +81,9 @@ def repository_paradigm_report(
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
         *openspec_gaps(paradigm, root, tracked),
-        *_peer_remote_gaps(paradigm, root, tracked),
+        *_peer_remote_gaps(paradigm, release),
         *workspace_gaps(paradigm, root, tracked),
-        *_release_gaps(paradigm, root, tracked),
+        *_release_gaps(paradigm, root, tracked, release),
         *authored_name_gaps(paradigm, tracked, received),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),
@@ -353,44 +354,54 @@ def _formatter_gaps(
                 )
 
 
-def _peer_remote_gaps(
+def _release_binding(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
-) -> Iterator[ParadigmGap]:
-    """Name each publication peer's Git remote after the peer itself."""
-    release = f"{paradigm.binding.root}/release.toml"
-    source = tracked_text(root, release, tracked)
+) -> Mapping[str, object]:
+    """Read the release binding once; the release policy report owns an unreadable one."""
+    source = tracked_text(root, f"{paradigm.binding.root}/release.toml", tracked)
     try:
-        declared = tomllib.loads(source) if source is not None else {}
+        return tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
-        return  # The release policy report owns an unreadable release binding.
+        return {}
+
+
+def _release_tags(declared: Mapping[str, object]) -> object:
+    """Return the release tags the binding protects; a repository without them tags no release."""
+    protected = declared.get("protected_refs", {})
+    return protected.get("tags") if isinstance(protected, dict) else None
+
+
+def _peer_remote_gaps(
+    paradigm: RepositoryParadigm, declared: Mapping[str, object]
+) -> Iterator[ParadigmGap]:
+    """Name each peer's remote after the peer; only a sole peer may keep its clone's name."""
     publication = declared.get("publication", {})
     peers = publication.get("peers", []) if isinstance(publication, dict) else []
-    for peer in peers if isinstance(peers, list) else ():
-        if not isinstance(peer, dict) or not isinstance(peer.get("id"), str):
-            continue
+    named = [
+        peer
+        for peer in (peers if isinstance(peers, list) else ())
+        if isinstance(peer, dict) and isinstance(peer.get("id"), str)
+    ]
+    for peer in named:
         identity, remote = peer["id"], peer.get("git_remote")
-        if remote != identity:
+        if remote != identity and (len(named) > 1 or remote != paradigm.release.clone_remote):
             yield ParadigmGap(
                 "peer-remote",
-                f"{release}:publication.peers.{identity}",
+                f"{paradigm.binding.root}/release.toml:publication.peers.{identity}",
                 f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
             )
 
 
 def _release_gaps(
-    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+    paradigm: RepositoryParadigm,
+    root: Path,
+    tracked: frozenset[str],
+    declared: Mapping[str, object],
 ) -> Iterator[ParadigmGap]:
     """Keep one version source and one changelog grammar in a repository that tags releases."""
-    release = f"{paradigm.binding.root}/release.toml"
-    source = tracked_text(root, release, tracked)
-    try:
-        declared = tomllib.loads(source) if source is not None else {}
-    except tomllib.TOMLDecodeError:
-        return  # The release policy report owns an unreadable release binding.
-    protected = declared.get("protected_refs", {})
-    tags = protected.get("tags") if isinstance(protected, dict) else None
-    if not tags:
+    if not (tags := _release_tags(declared)):
         return
+    release = f"{paradigm.binding.root}/release.toml"
     conventions = paradigm.release
     if tags != [conventions.tag_pattern]:
         yield ParadigmGap(

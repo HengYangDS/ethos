@@ -68,6 +68,12 @@ def test_imports_lazily():
     import json.tool
 
 
+def test_reads_package_metadata():
+    from importlib import metadata
+
+    assert metadata.distribution("pytest").read_text("METADATA")
+
+
 def test_fails_after_reading(tmp_path):
     (tmp_path / "failed.txt").write_text("x", encoding="utf-8")
     raise AssertionError("kept")
@@ -139,6 +145,7 @@ def test_guard_records_crossings_and_keeps_outcomes(tmp_path: Path) -> None:
         "test_generates_values": ({}, False),
         "test_reads_a_file": ({"ethos.crossed": "open", "ethos.exceeds": "true"}, False),
         "test_imports_lazily": ({}, False),
+        "test_reads_package_metadata": ({"ethos.crossed": "open,os.listdir", **exceeds}, False),
         "test_fails_after_reading": ({"ethos.crossed": "open", "ethos.exceeds": "true"}, True),
         "test_connects_to_loopback": (
             {"ethos.crossed": "socket.connect", "ethos.exceeds": "false"},

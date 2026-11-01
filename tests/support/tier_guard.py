@@ -40,7 +40,8 @@ _EVENTS = frozenset(
     }
 )
 _PATH_EVENTS = frozenset({"open", "os.listdir", "os.scandir", "os.remove", "os.rename"})
-_LOADERS = ("_frozen_importlib", "importlib", "zipimport")
+# Module loading only: `importlib.metadata` and `importlib.resources` read files for their caller.
+_LOADERS = ("_frozen_importlib", "importlib._bootstrap", "zipimport")
 _TOOLS = frozenset(
     {
         "_pytest",

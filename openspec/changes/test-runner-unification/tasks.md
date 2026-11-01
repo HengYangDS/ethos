@@ -85,7 +85,9 @@
 - [x] 4.3 Watch setup, call and teardown, record design Decision 7's event table, and leave out
       module loading, the test tools' own work, the report root and wider-scope fixture setups. Done
       when the nested guard cases pass. (Before, a fixture's setup and teardown, a rename, a removal
-      and `os.system` went unrecorded, and Hypothesis's own reads were charged to the case.)
+      and `os.system` went unrecorded, and Hypothesis's own reads were charged to the case; a read
+      through `importlib.metadata` went unrecorded until only `importlib._bootstrap*` counted as
+      module loading, committee round 12.)
 
 ## 5. One runner
 
@@ -119,6 +121,11 @@
       12 strict-id renames, the 44 parallel-proof renames and one hosted re-parametrization, each
       recorded in design.md;
       `build/runtime/work/test-runner-unification/lane/completeness-p2.json`.)
+- [x] 5.7 Make the commit-trust material case bind its material under its own `tmp_path`, since
+      `tempfile` reads `TMPDIR` once per process. Done when the case asserts that the selected
+      anchor is under `tmp_path` and passes, where it failed before. (Before, the anchor was under
+      the host's temporary root, and every run left one `ethos-ci-trust-*` directory there; design
+      Context.)
 
 ## 6. Specifications and documents
 

@@ -110,7 +110,8 @@ def test_commit_trust_binds_only_the_one_supplied_input(
         monkeypatch.setenv("ETHOS_COMMIT_TRUST_ANCHOR", str(anchor))
     if state in {"material", "ambiguous"}:
         monkeypatch.setenv("ETHOS_COMMIT_ALLOWED_SIGNERS", anchor.read_text().rstrip("\n"))
-        monkeypatch.setenv("TMPDIR", str(tmp_path))
+        # `tempfile` keeps the temporary root it first found; the variable alone cannot move it.
+        monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     monkeypatch.chdir(repo)
     before = git(repo, "config", "--local", "--list")
     if state == "ambiguous":
@@ -127,6 +128,7 @@ def test_commit_trust_binds_only_the_one_supplied_input(
     else:
         selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
         assert selected.read_text(encoding="utf-8") == anchor.read_text().rstrip("\n")
+        assert selected.is_relative_to(tmp_path)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires the Windows ACL authority")

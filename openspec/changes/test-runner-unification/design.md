@@ -33,6 +33,14 @@ locked PATH on macOS; the case runs on the Linux hosted plane, where coreutils p
 JUnit records a crossing for 5,743 of the 7,520 cases under `tests/unit`, all of them beyond their
 tier, and for 212 of the 244 under `tests/architecture`, none beyond loopback.
 
+The runs also showed one case that left a directory in the host's temporary root every time it ran.
+`test_commit_trust_binds_only_the_one_supplied_input[material]` set `TMPDIR`, which `tempfile` reads
+once per process, so `bind_commit_trust_material` (`tools/ci/toolchain/environment.py:39`) created
+its `ethos-ci-trust-*` directory in the host's root instead of the case's; 122 of them, each holding
+the fixture's public trust bytes, had accumulated on the owner's workstation by 12:41 on 11-01. The
+case now moves `tempfile.tempdir` (task 5.7). Giving every case a temporary root inside the attempt
+waits with the kernel's scratch roots (Decision 5).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -134,10 +142,11 @@ tier, and for 212 of the 244 under `tests/architecture`, none beyond loopback.
    conftest removes `PYTHONDONTWRITEBYTECODE` there; without a prefix it sets it and writes nothing
    beside the sources. The first full run kept the runner's "write none" and took 1,434 seconds
    against the runner's 895; importing the CLI stack in one child takes 0.85 seconds without the
-   cache and 0.25 seconds from it (task 7.2). Rejected: the probe passing `--alluredir`, which needs
-   plugin detection and is visible to adopters; `UV_COMPILE_BYTECODE=1` in the probe, which compiles
-   installed packages but not the sources every child imports from the project; the checked-hash
-   compile step moved into `tests/support`, a second compile owner.
+   cache and 0.25 seconds from it. With the shared cache, at `6de0eb72b`, the suite took 1,139
+   seconds (task 7.2). Rejected: the probe passing `--alluredir`, which needs plugin detection and
+   is visible to adopters; `UV_COMPILE_BYTECODE=1` in the probe, which compiles installed packages
+   but not the sources every child imports from the project; the checked-hash compile step moved
+   into `tests/support`, a second compile owner.
 7. **The guard reports from ETHOS's test support.** `tests/support/tier_guard.py`, loaded from
    `tests/conftest.py`, installs one audit hook per process (PEP 578). The hook acts while a case's
    setup, call and teardown run, so work moved into a fixture is still the case's (committee round
@@ -145,16 +154,18 @@ tier, and for 212 of the 244 under `tests/architecture`, none beyond loopback.
    `os.system`, `os.posix_spawn`, `os.fork`, `sqlite3.connect` and `socket.connect`.
    `sqlite3.connect` is added to VD 3.4's list because SQLite opens its file without an `open` event
    and the Lease store is SQLite. An event is not the case's when the first frame outside the
-   standard library loads a module (`_frozen_importlib*`, `importlib`, `zipimport`; F11) or belongs
-   to a test tool (pytest, pluggy, Hypothesis, coverage, Allure, xdist, pytest-timeout), when its
-   path is under the attempt's report root, or while a fixture wider than function scope is set up,
-   which would otherwise charge whichever case requests it first. A case under `tests/unit/` exceeds
-   its tier on any recorded event; any other case exceeds it only on a connection beyond loopback; a
-   Unix-domain socket counts as local, and DNS lookups (`socket.getaddrinfo`) are not recorded. The
-   hook appends `ethos.crossed` and `ethos.exceeds` to `item.user_properties`, which pytest writes
-   into the case's JUnit properties (`_pytest/junitxml.py:546-547`) and the report log. Rejected: a
-   product plugin now (7 lines of product headroom at `63deedc09`; an adopter rule needs contract
-   2); a separate JSON report (another evidence file; V8).
+   standard library loads a module (`_frozen_importlib*`, `importlib._bootstrap*`, `zipimport`; F11)
+   or belongs to a test tool (pytest, pluggy, Hypothesis, coverage, Allure, xdist, pytest-timeout),
+   when its path is under the attempt's report root, or while a fixture wider than function scope is
+   set up, which would otherwise charge whichever case requests it first. `importlib.metadata` and
+   `importlib.resources` are not module loading: the files they read are their caller's (committee
+   round 12). A case under `tests/unit/` exceeds its tier on any recorded event; any other case
+   exceeds it only on a connection beyond loopback; a Unix-domain socket counts as local, and DNS
+   lookups (`socket.getaddrinfo`) are not recorded. The hook appends `ethos.crossed` and
+   `ethos.exceeds` to `item.user_properties`, which pytest writes into the case's JUnit properties
+   (`_pytest/junitxml.py:546-547`) and the report log. Rejected: a product plugin now (7 lines of
+   product headroom at `63deedc09`; an adopter rule needs contract 2); a separate JSON report
+   (another evidence file; V8).
 8. **Distribution.** `-n auto --maxprocesses=12` reproduces today's default (`os.cpu_count()` is 18
    on the reference workstation, and psutil is not locked, so `auto` is 18 and the cap gives 12);
    hosted jobs set `PYTEST_XDIST_AUTO_NUM_WORKERS` instead of `ETHOS_TEST_WORKERS`
@@ -244,10 +255,11 @@ tier, and for 212 of the 244 under `tests/architecture`, none beyond loopback.
   root `.venv`; mise's locked PATH without Homebrew Git, `/usr/sbin/lsof` or the tool paths that
   hosted verification prepends; `MISE_OFFLINE` and `MISE_CEILING_PATHS` set for every test; the
   report-log agreement at 7,780 cases under xdist, which no test or adopter has exercised; recorded
-  warnings failing the run (`quality/pytest.py:223-229`)] → Task 2.3 runs it once, after the probe
-  applies the carriers and before the suite's own configuration moves, and lists every refusal;
-  fixes go into the suite's conftest, its test support or the probe within this Change, and the
-  Change splits again if a product fix does not fit the margin.
+  warnings failing the run (`quality/pytest.py:223-229`)] → Task 2.3 ran it twice: after the probe
+  applied the carriers, where the carrier's `--maxfail=1` shows one refusal per run, and again after
+  the removals of task 5.4. Each refusal it listed was fixed in the suite's conftest, its test
+  support or the probe within this Change; the Change would have split again had a product fix not
+  fit the margin.
 - [A missed floor reports `quality_behavior_tests_failed`, with pytest-cov's "Coverage failure" line
   in the retained output, instead of its own gate] → Accepted: the gate id and output still name the
   cause; a distinct gap would be new product code.

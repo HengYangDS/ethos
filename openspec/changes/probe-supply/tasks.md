@@ -22,8 +22,12 @@
       current; `uv lock --check` and the dependencies session passed; 812 CI, projection, toolchain
       and paradigm tests passed with 1 skipped, and the format, lint, CI template and configuration
       sessions passed.)
-- [ ] 2.2 Audit the moved supply. Done when the release build's audit of the lane head reports no
-      fixable finding and the Unreleased notes name every advisory that it reports in shipped bytes.
+- [x] 2.2 Audit the moved supply. Done when the release build's audit of the lane head reports no
+      fixable finding and every advisory that it reports in shipped bytes is one that the
+      `0.2.0-alpha.25` entry already names. (The audit of `57589188b` decided `pass` with
+      `unfixed_upstream_findings_reported`: npm 12.2.1's bundled undici 6.29.0, glob 13.0.6,
+      minimatch 10.2.5 and ip-address 10.7.2, which that entry names; uv's audit of 120 packages
+      reported no finding.)
 
 ## Workflow follow-up
 

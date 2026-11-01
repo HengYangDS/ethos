@@ -26,13 +26,13 @@ from typing import TYPE_CHECKING
 from filelock import FileLock
 from filelock import Timeout
 
+import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.repository.paradigm import parameters
 
 if TYPE_CHECKING:
     from collections.abc import Callable

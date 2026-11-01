@@ -31,7 +31,8 @@
 
 - [x] 3.1 Write the quality and command-plane deltas. Done when strict OpenSpec validation passes.
       (It passes.)
-- [ ] 3.2 Add the fix to CHANGELOG's `[Unreleased]`. Done when the documentation gates pass.
+- [x] 3.2 Add the fix to CHANGELOG's `[Unreleased]`. Done when the documentation gates pass.
+      (`markdown_lint` and `prose` pass.)
 
 ## Workflow follow-up
 

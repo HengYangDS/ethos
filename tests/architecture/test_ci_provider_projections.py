@@ -19,6 +19,7 @@ import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
+from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.projections import observe_projections
 from tests.support.registries import repository_registry_path
 from tools.ci.ci_projection import check_templates
@@ -57,7 +58,7 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
     invocation = arguments[5 : arguments.index("--target-ref")]
     assert invocation == ["python", "-B", "-I", "-m", "ethos.cli", "hook", "commit-range"]
     probe = run_command(
-        ROOT, (sys.executable, *invocation[1:], "--help"), timeout=10, env={"PATH": ""}
+        ROOT, (sys.executable, *invocation[1:], "--help"), timeout=seconds("tool"), env={"PATH": ""}
     )
     assert probe.returncode == 0
     assert arguments[-3:] == ["--root", ".", "--json"]
@@ -188,7 +189,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path, monk
         (sys.executable, "-B", "tools/ci/toolchain/native.py", "--help"),
         env=environment,
         inherit_environment=False,
-        timeout=10,
+        timeout=seconds("tool"),
     )
     assert imported.returncode == 0, imported.stderr
     selected = run_command(
@@ -205,7 +206,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path, monk
         ),
         env=environment,
         inherit_environment=False,
-        timeout=10,
+        timeout=seconds("tool"),
     )
     assert selected.returncode == 0, selected.stderr
     assert selected.stdout.strip() == str(tmp_path / "tool-cache")
@@ -226,7 +227,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path, monk
             "no:cacheprovider",
             selector,
         ),
-        timeout=60,
+        timeout=seconds("tool"),
     )
     assert collected.returncode == 0, collected.stdout + collected.stderr
 
@@ -284,7 +285,7 @@ def test_required_github_checks_project_only_successful_execution(github, job, n
             ROOT,
             ("bash", "-c", step["run"]),
             env=os.environ | {"QUALITY_RESULT": result},
-            timeout=5,
+            timeout=seconds("tool"),
         )
         assert (observed.returncode == 0) == (result == "success")
 
@@ -431,8 +432,8 @@ def test_native_projection_cli_is_deterministic_and_read_only(tmp_path):
     expected = {
         item["projection"]: (ROOT / item["projection"]).read_text() for item in projection_entries()
     }
-    first = run_command(ROOT, command, timeout=30, check=True).stdout
-    assert first == run_command(ROOT, command, timeout=30, check=True).stdout
+    first = run_command(ROOT, command, timeout=seconds("tool"), check=True).stdout
+    assert first == run_command(ROOT, command, timeout=seconds("tool"), check=True).stdout
     assert json.loads(first) == expected
     assert all((ROOT / path).read_text() == text for path, text in expected.items())
     with pytest.raises((ValueError, FileNotFoundError)):
@@ -491,7 +492,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
                 "\ncompiled: observations: compiled.providers\n"
                 'compiled: rendered: {github: "forged", gitlab: "forged"}\n'
             ),
-            timeout=15,
+            timeout=seconds("tool"),
             check=True,
         ).stdout
     for relative, content in files.items():

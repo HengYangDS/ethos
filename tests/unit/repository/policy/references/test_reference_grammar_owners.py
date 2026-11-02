@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.orchestration import orchestration_gaps
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.declarations import retained_ci_steps
 from ethos.repository.policy.references.observation import product_references_from_files
+from tests.support.governed_repository import git
 from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
@@ -81,6 +84,71 @@ def test_a_mise_tool_owns_the_executable_it_names() -> None:
 
     assert {"cue", "pixi", "rg", "rust"} <= owned["executable"]
     assert "rustup" not in owned["executable"]
+
+
+PIXI = (
+    '[workspace]\nname = "adopter"\n\n[dependencies]\ngit = "*"\n\n'
+    '[target.osx-arm64.dependencies]\nllvm = "*"\n\n'
+    '[feature.host.dependencies]\npip = "*"\n\n'
+    '[feature.host.target.linux-64.dependencies]\nsed = "*"\n\n'
+    '[feature.host.pypi-dependencies]\nhttpie = "*"\n\n[constraints]\ncurl = "*"\n'
+)
+
+
+@pytest.mark.parametrize(
+    ("files", "owned_names"),
+    [
+        ({"pixi.toml": PIXI}, {"git", "llvm", "pip", "sed"}),
+        (
+            {"pyproject.toml": '[project]\nname = "a"\n\n[tool.pixi.dependencies]\npip = "*"\n'},
+            {"pip"},
+        ),
+        (
+            {"pixi.toml": PIXI, "pyproject.toml": '[tool.pixi.dependencies]\nxz = "*"\n'},
+            {"git", "llvm", "pip", "sed"},
+        ),
+        ({"pixi.toml": "[dependencies\n"}, set()),
+    ],
+    ids=["manifest", "pyproject", "manifest-first", "malformed"],
+)
+def test_a_pixi_conda_dependency_owns_the_executable_it_names(
+    files: dict[str, str], owned_names: set[str]
+) -> None:
+    """Each conda table owns its package names; PyPI, constraints and companions own nothing."""
+    owned = native_owned_references_from_files(files)["executable"]
+
+    assert owned_names <= owned
+    assert not {"pip3", "httpie", "curl", "xz"} & owned
+    assert owned_names or not {"git", "pip"} & owned
+
+
+def test_a_pixi_declared_package_admits_its_documented_command(tmp_path: Path) -> None:
+    """A guide that runs the declared `pip` is admitted; an undeclared `pip3` stays refused."""
+    repo = tmp_path / "adopter"
+    guide = "docs/guides/setup.md"
+    before = "# Setup\n\n```bash\npip install -e packages/core\n```\n"
+    write_tree(repo, {"pixi.toml": PIXI, guide: before})
+    git(repo, "init", "-b", "dev")
+    git(repo, "add", ".")
+    baseline = git(repo, "write-tree")
+    after = before.replace("# Setup", "# Set up the host")
+    patch = f"diff --git a/{guide} b/{guide}\n" + "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=f"a/{guide}",
+            tofile=f"b/{guide}",
+        )
+    )
+
+    report = patch_admission(
+        root=repo, requested_paths=(guide,), baseline_head=baseline, patch=patch
+    )
+
+    assert report["references"] == {"executable": ["pip"]}
+    assert (report["verdict"], report["reason"]) == ("pass", "baseline_product_closure_matched")
+    owned = native_owned_references_from_files({"pixi.toml": PIXI})["executable"]
+    assert "pip3" not in owned
 
 
 def test_package_roots_own_first_party_names() -> None:

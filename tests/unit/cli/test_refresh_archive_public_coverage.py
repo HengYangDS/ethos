@@ -88,6 +88,26 @@ def test_archive_public_observes_workspace_and_resolves_intent_once(
     assert invocations == ["workspace", "resolution"]
 
 
+def test_archive_preview_blocks_what_the_merged_specs_would_refuse(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The preview runs the proof's archive readiness on the head's tree and makes no effect."""
+    stub_archive_public(monkeypatch, tmp_path)
+    gap = f"openspec_archived_requirement_invalid:{CHANGE}:contracts:Governed fixture"
+    simulated: list[tuple[str, str]] = []
+
+    def readiness(_root: Path, *, change: str, tree: str) -> tuple[str, ...]:
+        simulated.append((change, tree))
+        return (gap,)
+
+    monkeypatch.setattr(archive, "archive_readiness_gaps", readiness)
+
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
+
+    assert (report["state"], report["required_gaps"]) == ("blocked", [gap])
+    assert simulated == [(CHANGE, "source-tree")]
+
+
 def test_archive_public_preserves_current_resolution_recovery_action(monkeypatch, tmp_path):
     gap = f"invocation_actor_missing:{BRANCH}"
     resolution = CurrentResolution(

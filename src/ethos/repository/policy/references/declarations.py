@@ -63,6 +63,7 @@ def native_owned_references_from_files(
     _declared_profiles(files, npm_scripts, owned)
     _declared_container_environment(files, owned)
     _declared_mise_tools(files, owned)
+    _declared_pixi_packages(files, owned)
     return {kind: frozenset(owned[kind]) for kind in REFERENCE_KINDS}
 
 
@@ -72,6 +73,27 @@ def _declared_mise_tools(files: dict[str, str], owned: dict[str, set[str]]) -> N
     for identity, value in tools.items() if isinstance(tools, dict) else ():
         options = value if isinstance(value, dict) else next(iter(_table_items(value)), {})
         owned["executable"].add(str(options.get("rename_exe") or re.split(r"[:/]", identity)[-1]))
+
+
+def _declared_pixi_packages(files: dict[str, str], owned: dict[str, set[str]]) -> None:
+    """A conda package the Pixi manifest declares owns its own name, as a Mise tool does.
+
+    `pixi.toml` takes precedence over `[tool.pixi]` in `pyproject.toml`, as Pixi resolves them.
+    PyPI dependencies, constraints and a package's other executables own nothing.
+    """
+    if "pixi.toml" in files:
+        manifest: object = _toml(files["pixi.toml"])
+    else:
+        tool = _toml(files.get("pyproject.toml", "")).get("tool")
+        manifest = tool.get("pixi") if isinstance(tool, dict) else None
+    features = manifest.get("feature") if isinstance(manifest, dict) else None
+    scopes = [manifest, *(features.values() if isinstance(features, dict) else ())]
+    for scope in [*scopes]:
+        targets = scope.get("target") if isinstance(scope, dict) else None
+        scopes.extend(targets.values() if isinstance(targets, dict) else ())
+    for scope in scopes:
+        dependencies = scope.get("dependencies") if isinstance(scope, dict) else None
+        owned["executable"].update(dependencies if isinstance(dependencies, dict) else ())
 
 
 def _declared_container_environment(files: dict[str, str], owned: dict[str, set[str]]) -> None:

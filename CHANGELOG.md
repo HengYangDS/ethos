@@ -12,6 +12,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- A conda package that a repository's Pixi manifest declares owns the executable of its package
+  name, as a Mise tool owns its own: prewrite admits a touched carrier that runs it. The manifest is
+  `pixi.toml`, or `[tool.pixi]` in `pyproject.toml` without one, and every conda dependency table
+  counts, also under `target` and `feature`. PyPI dependencies, constraints and a package's other
+  executables own nothing.
+- ETHOS publishes with Git's sparse pack walk disabled, so a push of a batch of renamed directories
+  sends only the objects its peer lacks.
+
 ### Removed
 
 - The source-only system contracts `system/formats.toml`, `system/routing.toml` and
@@ -19,6 +29,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   schemas; `system/surfaces.toml` is the one system contract left.
 - The repository gate `svg-format` and its `svg_lint` session: the shipped `source-format` gate
   already checks every authored SVG file with the same provider.
+
+### Fixed
+
+- `ethos lane archive-change` previews the archive it would apply: it simulates the archive and
+  validates the merged specs strictly, as the proof does, so a requirement that the merge would push
+  past OpenSpec's 500-character limit blocks the preview with
+  `openspec_archived_requirement_invalid` instead of failing the apply.
 
 ## [0.2.0-alpha.27] - 2026-11-02
 

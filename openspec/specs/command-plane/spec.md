@@ -1005,7 +1005,8 @@ remote state. Observation SHALL not claim repository proof or mutation authority
 When official strict validation rejects the archive postimage, `ethos lane
 archive-change` SHALL report each blocking native issue of every rejected item
 as a diagnostic with its item, severity, path and message, so the failure is
-diagnosable without repeating the archive.
+diagnosable without repeating the archive. Its preview SHALL simulate the
+archive and validate the merged specs strictly before it reports readiness.
 
 #### Scenario: Merged canonical spec fails strict validation
 
@@ -1022,6 +1023,14 @@ diagnosable without repeating the archive.
 - **WHEN** the official validation output cannot be read
 - **THEN** the result carries no invented diagnostics and keeps its existing
   unreadable gap.
+
+#### Scenario: Preview refuses an archive that validation would reject
+
+- **WHEN** the archive merge of the selected Change would leave a requirement
+  that strict validation rejects
+- **THEN** the preview blocks with the gap the proof's archive readiness
+  reports, `openspec_archived_requirement_invalid:<change>:<capability>:<requirement>`
+- **AND** it makes no archive effect.
 
 ### Requirement: Work Lane refresh is admitted before it rewrites
 

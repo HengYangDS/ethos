@@ -18,6 +18,7 @@ from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effe
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.remediation.guidance import archive_recovery_command
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
+from ethos.adapters.openspec.archive_readiness import archive_readiness_gaps
 from ethos.adapters.openspec.lifecycle.archive_binding import collision_preservation_path
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
 from ethos.adapters.repo.commit.admission import commit_subject_gap
@@ -220,6 +221,10 @@ def _archive_active_change(
             collision = archive_collision(repo, head, change)
         except ValueError as error:
             gaps = [str(error)]
+    if not gaps and not apply and resolution.authority is not None:
+        # A preview simulates the merge as the proof does; an apply keeps the native diagnostics.
+        tree = resolution.authority.current_tree
+        gaps = list(archive_readiness_gaps(repo, change=change, tree=tree))
     if gaps or not apply:
         return lifecycle_report(
             branch,

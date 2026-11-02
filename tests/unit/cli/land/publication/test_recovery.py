@@ -186,7 +186,7 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
         if args and args[0] == "ls-remote" and args[1] == failed_remote and origin_push_applied:
             raise subprocess.TimeoutExpired(("git", *args), 30, output="", stderr=error)
         completed = original(root, *args, **options)
-        if args[0] == "push" and "gitlab" in args and completed.returncode == 0:
+        if "push" in args and "gitlab" in args and completed.returncode == 0:
             origin_push_applied = True
         return completed
 
@@ -219,6 +219,28 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
         ("gitlab", "already_applied"),
         ("github", "applied"),
     ]
+    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
+
+
+def test_publication_pushes_without_the_sparse_pack_walk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rename batch packs only missing objects: every push disables the sparse walk itself."""
+    repo, remotes, head = branch_publication_fixture(tmp_path)
+    receipt = branch_publication(repo, head)["data"]["request_receipt"]
+    original = publication_execution.git.run_network_git
+    pushes: list[tuple[str, ...]] = []
+
+    def run_network_git(root, *args, **options):
+        if "push" in args:
+            pushes.append(args)
+        return original(root, *args, **options)
+
+    monkeypatch.setattr(publication_execution.git, "run_network_git", run_network_git)
+
+    assert apply_receipt(repo, receipt, head)["state"] == "published"
+    assert len(pushes) == len(remotes)
+    assert all(args[:3] == ("-c", "pack.useSparse=false", "push") for args in pushes)
     assert {proposal_ref(remote) for remote in remotes.values()} == {head}
 
 

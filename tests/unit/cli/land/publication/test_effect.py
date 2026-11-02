@@ -213,7 +213,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     monkeypatch.setattr(publication_execution, "monotonic", lambda: next(clock))
     blocked = apply_receipt(repo, receipt, head, blocked=True)
     assert admissions.call_count == 8  # Four preflight refs, then two per peer.
-    pushes = [call for call in network.call_args_list if call.args[1] == "push"]
+    pushes = [call for call in network.call_args_list if "push" in call.args]
     # Each push covers transfer plus twice the 30 s admission its hook repeats.
     assert pushes
     assert {call.kwargs["timeout"] for call in pushes} == {180.0}

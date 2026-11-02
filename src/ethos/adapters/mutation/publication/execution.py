@@ -48,7 +48,11 @@ def _push_remote_ref_set_exact(
     updates: tuple[PublicationUpdate, ...],
     admission_seconds: float,
 ) -> dict[str, object]:
-    """Push one atomic exact-lease set; the native pre-push hook repeats its admission."""
+    """Push one atomic exact-lease set; the native pre-push hook repeats its admission.
+
+    The sparse pack walk can add objects for direct renames (`git help pack-objects`), which pushed
+    a 29 MiB pack past a Forge's 20 MiB limit for a 1 MiB rename batch.
+    """
     leases = tuple(
         f"--force-with-lease={update.target_ref}:{update.expected}" for update in updates
     )
@@ -58,6 +62,8 @@ def _push_remote_ref_set_exact(
     try:
         completed = git.run_network_git(
             root,
+            "-c",
+            "pack.useSparse=false",
             "push",
             "--porcelain",
             "--atomic",

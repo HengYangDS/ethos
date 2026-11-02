@@ -265,7 +265,7 @@ def test_retirement_recovers_partial_effects_without_redeleting_completed_peers(
 
     def network(root, *args, **kwargs):
         nonlocal unavailable
-        if args[0] == "push" and "github" in args:
+        if "push" in args and "github" in args:
             if failure == "rejected":
                 return subprocess.CompletedProcess(args, 1, "", "rejected")
             if failure == "lost_ack":

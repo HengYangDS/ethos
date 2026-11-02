@@ -19,6 +19,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `pixi.toml`, or `[tool.pixi]` in `pyproject.toml` without one, and every conda dependency table
   counts, also under `target` and `feature`. PyPI dependencies, constraints and a package's other
   executables own nothing.
+- ETHOS publishes with Git's sparse pack walk disabled, so a push of a batch of renamed directories
+  sends only the objects its peer lacks.
 
 ### Fixed
 

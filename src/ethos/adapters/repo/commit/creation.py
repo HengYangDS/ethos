@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import observe_commit
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.commit import commit_policy_from_text
 
@@ -198,7 +199,7 @@ def create_signed_replacement(root: Path, revision: str) -> str:
     if source["verdict"] != "pass" or not isinstance(signature, dict) or signature["present"]:
         error = "signature_repair_source_not_unsigned"
         raise ValueError(error)
-    policy = commit_policy_from_text(committed_file_text(root, revision, ".ethos/workspace.toml"))
+    policy = commit_policy_from_text(committed_file_text(root, revision, binding_path("workspace")))
     if gap := commit_subject_gap(policy, str(source["subject"]), revision=revision):
         raise ValueError(gap)
     payload = commit_payload(root, revision)

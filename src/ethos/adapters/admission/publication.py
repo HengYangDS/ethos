@@ -24,6 +24,7 @@ from ethos.adapters.repo.release import publication_source_baseline
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _ZERO_OIDS = {"0" * 40, "0" * 64}
-_POLICY_PATHS = (".ethos/workspace.toml", ".ethos/release.toml")
+_POLICY_PATHS = (binding_path("workspace"), binding_path("release"))
 
 
 def _committed_target_policy(

@@ -36,6 +36,7 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import declared_role_names
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
@@ -160,7 +161,7 @@ def _topic_transition(root: Path) -> tuple[str, str, str, TransitionPlan | None]
     if target:
         return bound, target, head, None
     standard = BranchRolePolicy()
-    prefix = declared_role_names(committed_file_text(root, head, ".ethos/workspace.toml")).get(
+    prefix = declared_role_names(committed_file_text(root, head, binding_path("workspace"))).get(
         "work_branch_prefix", ""
     )
     if not prefix or not bound.startswith(standard.work_branch_prefix):
@@ -235,7 +236,7 @@ def rename_legacy_roles(
     try:
         renames = legacy_role_renames(root, current_head)
         declared = declared_role_names(
-            committed_file_text(root, current_head, ".ethos/workspace.toml")
+            committed_file_text(root, current_head, binding_path("workspace"))
         )
     except (TypeError, ValueError):
         return None
@@ -328,7 +329,7 @@ def bind_renamed_worktrees(root: Path, renames: Mapping[str, str]) -> None:
 def resume_renamed_bindings(root: Path) -> None:
     """Bind a worktree left on a renamed legacy role ref, using its own declared names."""
     bound = run_git(root, "symbolic-ref", "--quiet", "HEAD", check=False).stdout.strip()
-    workspace = root / ".ethos" / "workspace.toml"
+    workspace = root / binding_path("workspace")
     if not bound or ref_head(root, bound) or not workspace.is_file():
         return
     try:

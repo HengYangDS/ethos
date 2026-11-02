@@ -9,6 +9,7 @@ from typing import NamedTuple
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import resolve_revisions
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import IndependentVerificationPolicy
@@ -31,7 +32,7 @@ def load_committed_repository_profile(
     result = run_git(
         root,
         "show",
-        f"{tree_ref}:.ethos/profile.toml",
+        f"{tree_ref}:{binding_path('profile')}",
         check=False,
         env=environment,
     )
@@ -98,7 +99,7 @@ def repository_identities(
         return identities
     observed = resolve_revisions(
         root,
-        tuple(f"{revision}:.ethos/profile.toml" for revision in required),
+        tuple(f"{revision}:{binding_path('profile')}" for revision in required),
         environment=environment,
     )
     object_ids = tuple(dict.fromkeys(identity for identity in observed.values() if identity))
@@ -107,7 +108,7 @@ def repository_identities(
     )
     decoded: dict[tuple[str, bool], str] = {}
     for revision in required:
-        key = (observed[f"{revision}:.ethos/profile.toml"], revision in past)
+        key = (observed[f"{revision}:{binding_path('profile')}"], revision in past)
         if key not in decoded:
             payload = payloads.get(key[0], b"")
             decoded[key] = (
@@ -139,12 +140,12 @@ def historical_repository_identity(
     result = run_git(
         root,
         "show",
-        f"{tree_ref}:.ethos/profile.toml",
+        f"{tree_ref}:{binding_path('profile')}",
         check=False,
         env=environment,
         text=False,
     )
-    message = "repository_historical_identity_invalid:.ethos/profile.toml"
+    message = f"repository_historical_identity_invalid:{binding_path('profile')}"
     if result.returncode:
         raise ValueError(message)
     return _historical_identity(result.stdout)
@@ -156,7 +157,7 @@ def profile_blocks_operation(root: Path, *, closeout: bool = False) -> bool:
         return False
     if not closeout:
         return True
-    edited = run_git(root, "diff", "--quiet", "HEAD", "--", ".ethos/profile.toml", check=False)
+    edited = run_git(root, "diff", "--quiet", "HEAD", "--", binding_path("profile"), check=False)
     try:
         historical_repository_identity(root, tree_ref="HEAD")
     except ValueError:
@@ -168,7 +169,7 @@ def historical_verification_policy(
     root: Path, action: str, *, tree_ref: str
 ) -> IndependentVerificationPolicy:
     """Read one past tree's declared verification mode; an unreadable declaration requires it."""
-    result = run_git(root, "show", f"{tree_ref}:.ethos/profile.toml", check=False, text=False)
+    result = run_git(root, "show", f"{tree_ref}:{binding_path('profile')}", check=False, text=False)
     try:
         policy = tomllib.loads(result.stdout.decode("utf-8")).get("independent_verification", {})
     except (UnicodeDecodeError, tomllib.TOMLDecodeError):
@@ -181,7 +182,7 @@ def historical_verification_policy(
 
 
 def _historical_identity(payload: bytes) -> str:
-    message = "repository_historical_identity_invalid:.ethos/profile.toml"
+    message = f"repository_historical_identity_invalid:{binding_path('profile')}"
     try:
         values = tomllib.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
@@ -202,7 +203,7 @@ class ProfilePostimage(NamedTuple):
 
 def profile_postimage(root: Path, postimages: Mapping[str, str | None]) -> ProfilePostimage:
     """Validate the strict profile and recognize only additive metadata binding repair."""
-    text = postimages.get(".ethos/profile.toml")
+    text = postimages.get(binding_path("profile"))
     if text is None:
         return ProfilePostimage(gap="", profile_id="", metadata_repair=False)
     proposed = repository_profile_from_text(root, exists=True, text=text).declaration

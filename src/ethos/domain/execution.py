@@ -11,6 +11,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.invocation_facts import invocation_scope
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 
@@ -25,7 +26,7 @@ def profile_failure_result(command: str) -> EthosResult:
         verdict="block",
         state="gapped",
         required_gaps=(INVALID_PROFILE_ERROR,),
-        next_action="repair .ethos/profile.toml and rerun the command",
+        next_action=f"repair {binding_path('profile')} and rerun the command",
         data={"error_boundary": "repository_profile_validation"},
     )
 

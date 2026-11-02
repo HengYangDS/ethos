@@ -9,7 +9,9 @@ import pytest
 from pydantic import ValidationError
 from pygments.lexers import get_lexer_by_name
 
+from ethos.contracts.paradigm.declaration import BindingRole
 from ethos.contracts.paradigm.declaration import RepositoryParadigm
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 
@@ -51,6 +53,16 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert retention.record == ".config/ci/retained-steps.toml"
     assert retention.classes == ("official-installer", "operating-system-glue")
     assert retention.platforms == ("darwin", "linux", "windows")
+
+
+@pytest.mark.parametrize("role", ["profile", "release", "rules", "workspace"])
+def test_every_binding_carrier_is_built_from_the_declaration(role: BindingRole) -> None:
+    """One accessor joins the binding root and a role's file, as the paradigm declares them."""
+    assert binding_path(role) == f".ethos/{role}.toml"
+    assert (
+        binding_path(role).removeprefix(".ethos/")
+        in load_repository_paradigm().binding.files.values()
+    )
 
 
 @pytest.mark.parametrize(

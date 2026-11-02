@@ -21,10 +21,25 @@ governance_roots = [".agents", ".config", ".ethos", "openspec"]
 
 [binding]
 root = ".ethos"
-files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
-# The only table a workspace binding declares. The paradigm fixes every branch
-# role, and the release binding declares the release mirror.
+# The only table a workspace binding declares. The paradigm fixes every branch role in [branch],
+# and the release binding declares the release mirror.
 workspace_tables = ["commit_policy"]
+
+# Every product reader builds a binding carrier's path from its role here.
+[binding.files]
+profile = "profile.toml"
+release = "release.toml"
+rules = "rules.toml"
+workspace = "workspace.toml"
+
+# The branch role names of every governed repository: the release and accepted roots, the
+# candidate, and the prefixes of Work Lane branches and their proposals.
+[branch]
+release = "main"
+accepted = "dev"
+candidate = "candidate/dev"
+work_prefix = "work/"
+proposal_prefix = "proposal/"
 
 [normalization]
 gitattributes = "* text=auto eol=lf"

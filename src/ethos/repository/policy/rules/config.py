@@ -7,13 +7,15 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.contracts.paradigm.declaration import binding_path
+
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def rules_path(root: Path) -> Path:
     """Return the tracked rules configuration path for a repository root."""
-    return root / ".ethos" / "rules.toml"
+    return root / binding_path("rules")
 
 
 def load_rules_config(root: Path) -> dict[str, Any]:

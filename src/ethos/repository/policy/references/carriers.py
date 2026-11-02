@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import binding_path
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
@@ -91,9 +93,9 @@ REFERENCE_CARRIERS = (
             (".config/release/release-sbom/policy.toml", "tool-supply"),
             (".config/ci/runners.toml", "ci-runners"),
             ("system/gates.toml", "gates"),
-            (".ethos/profile.toml", "profile"),
+            (binding_path("profile"), "profile"),
             ("system/surfaces.toml", "surfaces"),
-            (".ethos/release.toml", "release"),
+            (binding_path("release"), "release"),
             (".config/checks/ci-projection/policy.toml", "providers"),
         ),
         entrypoints=(".config/checks/pytest/pytest.toml",),

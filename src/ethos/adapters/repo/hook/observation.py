@@ -29,6 +29,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.profile import load_repository_profile
 
@@ -244,7 +245,8 @@ def commit_policy_enforcement(
             "commit_message_transport": "unknown",
             "push_range_enforcement": "unknown",
             "required_gaps": [gap],
-            "next_action": f"repair {(repo / '.ethos/workspace.toml').as_posix()} [commit_policy]",
+            "next_action": f"repair {(repo / binding_path('workspace')).as_posix()} "
+            "[commit_policy]",
         }
     if not runtime.get("required"):
         return {

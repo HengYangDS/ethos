@@ -32,6 +32,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -91,7 +92,7 @@ def observe_proposal_review(
             "remote": remote,
             "source_branch": branch,
             "reason": "forge_repository_required",
-            "next_action": "Declare this peer's forge_repository in .ethos/release.toml",
+            "next_action": f"Declare this peer's forge_repository in {binding_path('release')}",
         }
     commands = {
         "github": (
@@ -317,7 +318,7 @@ def _retirement_role(root: Path, policy: BranchRolePolicy, target_ref: str, old:
     if role != ROLE_OTHER:
         return role
     try:
-        text = committed_file_text(root, old, ".ethos/workspace.toml")
+        text = committed_file_text(root, old, binding_path("workspace"))
         names, prefix = legacy_role_names(text), legacy_proposal_prefix(text)
     except (TypeError, ValueError):
         return role
@@ -336,12 +337,12 @@ def _retirement_context(
     if not accepted:
         raise ValueError(gap)
     committed = branch_role_policy_from_release_text(
-        committed_file_text(root, accepted, ".ethos/release.toml")
+        committed_file_text(root, accepted, binding_path("release"))
     )
     gap = "proposal_retirement_policy_drift"
     if committed != policy:
         raise ValueError(gap)
-    config = release_config_from_text(committed_file_text(root, accepted, ".ethos/release.toml"))
+    config = release_config_from_text(committed_file_text(root, accepted, binding_path("release")))
     topology = publication_topology(root, config)
     gap = "proposal_retirement_topology_invalid"
     if topology["required_gaps"]:

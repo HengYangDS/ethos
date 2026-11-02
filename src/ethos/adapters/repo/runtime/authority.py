@@ -17,6 +17,7 @@ from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -34,7 +35,7 @@ class RuntimeBuild(NamedTuple):
 
 def runtime_build_identity(source: Path, *, include_overlay: bool = True) -> BuildIdentity:
     """Resolve one checkout or installed package to its canonical build identity."""
-    if (source / "VERSION").is_file():
+    if (source / _version_file()).is_file():
         return source_build_identity(source, include_overlay=include_overlay)
     return packaged_build_identity()
 
@@ -58,7 +59,8 @@ def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None)
     package_source = Path(__file__).resolve().parents[5]
     source_authority = (
         package_source
-        if (package_source / "pyproject.toml").is_file() and (package_source / "VERSION").is_file()
+        if (package_source / "pyproject.toml").is_file()
+        and (package_source / _version_file()).is_file()
         else None
     )
     try:
@@ -77,7 +79,9 @@ def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None)
     tree = current_tree(repo, commit)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
         return RuntimeBuild(_invoking_build(include_overlay=False), source_authority)
-    version = run_git(repo, "show", f"{commit}:VERSION", text=False).stdout.decode("ascii")
+    version = run_git(repo, "show", f"{commit}:{_version_file()}", text=False).stdout.decode(
+        "ascii"
+    )
     identity = build_identity(
         product=product_version_from_text(version), source_commit=commit, source_tree=tree
     )
@@ -98,7 +102,14 @@ def accepted_version_migration_pending(
     """Return whether the accepted source predates the tracked VERSION authority."""
     repo = repository_root(root)
     commit = accepted_commit or ref_head(repo, load_branch_role_policy(repo).accepted_branch)
-    return run_git(repo, "cat-file", "-e", f"{commit}:VERSION", check=False).returncode != 0
+    return (
+        run_git(repo, "cat-file", "-e", f"{commit}:{_version_file()}", check=False).returncode != 0
+    )
+
+
+def _version_file() -> str:
+    """Name the tracked version source as the paradigm declares it."""
+    return load_repository_paradigm().release.version_file
 
 
 def _accepted_worktree(repo: Path, branch: str) -> Path:

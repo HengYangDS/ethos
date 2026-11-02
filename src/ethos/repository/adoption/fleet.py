@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.profile import RepositoryRoots
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
@@ -34,7 +35,7 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         "docs": _has_docs(repo, paths["docs"]),
     }
     required_gaps = (
-        ["adopter_binding_missing:.ethos/profile.toml"]
+        [f"adopter_binding_missing:{binding_path('profile')}"]
         if profile.state == "missing"
         else list(profile_required_gaps(profile))
     )

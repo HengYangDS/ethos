@@ -13,6 +13,8 @@ from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.assistants.skills.portfolio import skill_portfolio_report
+from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
@@ -63,7 +65,7 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
             verdict="block",
             state="gapped",
             required_gaps=(gap,),
-            next_action="repair .ethos/profile.toml",
+            next_action=f"repair {binding_path('profile')}",
         )
     observed_paths = status_payload.get("changed_paths")
     authority_ready = status_payload.get("role") != "work_lane" or (
@@ -137,7 +139,7 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])
     candidate = cast("dict[str, object]", status_payload.get("candidate") or {})
-    candidate_branch = str(candidate.get("branch") or "candidate/dev")
+    candidate_branch = str(candidate.get("branch") or load_repository_paradigm().branch.candidate)
     strategy = collaboration_competition_projection(
         foreign,
         candidate=ref_progress(repo, candidate_branch, observed_at=facts.observed_at)
@@ -204,7 +206,7 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
         or (
             "ethos prove --json"
             if ok
-            else "repair .ethos/rules.toml and rerun ethos plan --json"
+            else f"repair {binding_path('rules')} and rerun ethos plan --json"
             if rule_validation_gaps
             else "repair the selected Skill packages and rerun ethos plan --json"
             if skill_activation.required_gaps

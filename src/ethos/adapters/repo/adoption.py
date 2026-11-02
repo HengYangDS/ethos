@@ -19,6 +19,7 @@ from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 from ethos.contracts.openspec.models import OpenSpecPolicy
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -26,7 +27,7 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
 
-PROFILE_PATH = ".ethos/profile.toml"
+PROFILE_PATH = binding_path("profile")
 APPLY_CRITERIA = (
     "planned_files contains only the adopter profile and official OpenSpec config",
     "existing nonempty binding content is not replaced",

@@ -335,7 +335,7 @@ def _gate_commands(
     proof = declaration.proof if declaration else None
     if proof is None:
         return
-    profile = f"{paradigm.binding.root}/profile.toml"
+    profile = paradigm.binding.path("profile")
     for gate in proof.gates:
         yield f"{profile}:proof.gates.{gate.id}", tuple(gate.command)
     registry = proof.gate_registry

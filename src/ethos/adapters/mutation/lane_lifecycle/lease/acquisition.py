@@ -35,6 +35,7 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.semantic import canonical_json_digest
 
 
@@ -55,12 +56,12 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
                 "--name-only",
                 row["head"],
                 "--",
-                ".ethos/release.toml",
+                binding_path("release"),
                 observation=True,
             ).stdout
             policy = (
                 strict_branch_role_policy_from_release_text(
-                    committed_file_text(repo, row["head"], ".ethos/release.toml")
+                    committed_file_text(repo, row["head"], binding_path("release"))
                 )
                 if declared
                 else BranchRolePolicy()

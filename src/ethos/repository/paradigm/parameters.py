@@ -39,7 +39,7 @@ class ParameterResolution(NamedTuple):
 
 def parameter_resolution(rules: str | None, paradigm: RepositoryParadigm) -> ParameterResolution:
     """Resolve every declared group from the contract and the binding's `rules.toml` text."""
-    carrier = f"{paradigm.binding.root}/rules.toml"
+    carrier = paradigm.binding.path("rules")
     try:
         table = tomllib.loads(rules or "")
     except tomllib.TOMLDecodeError:
@@ -111,7 +111,7 @@ def repository_resolution(root: Path) -> ParameterResolution:
     """Resolve the parameters that the repository's binding selects."""
     paradigm = _paradigm()
     try:
-        rules = (root / paradigm.binding.root / "rules.toml").read_text(encoding="utf-8")
+        rules = (root / paradigm.binding.path("rules")).read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         rules = None
     return parameter_resolution(rules, paradigm)

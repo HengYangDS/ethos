@@ -24,6 +24,7 @@ from ethos.adapters.repo.content.source import MAX_MEMBER_BYTES
 from ethos.adapters.repo.content.source import MAX_OBSERVATION_BYTES
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import locked_archive
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -277,7 +278,7 @@ def _upstream(snapshot: SourceTree, contracts: tuple[SourceContract, ...]) -> No
 
 def _contracts(snapshot: SourceTree) -> tuple[SourceContract, ...]:
     """Read obligations only from the same unchanged committed native profile."""
-    relative = ".ethos/profile.toml"
+    relative = binding_path("profile")
     if relative not in snapshot.entries:
         return ()
     profile = repository_profile_from_text(

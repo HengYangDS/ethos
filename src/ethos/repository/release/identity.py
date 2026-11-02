@@ -16,6 +16,7 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from pathlib import Path
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
 from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
 from ethos.repository.release.resources import packaged_resource
@@ -44,10 +45,11 @@ class BuildIdentity(NamedTuple):
 
 def product_version(root: Path) -> str:
     """Read and validate the sole tracked SemVer product-version authority."""
+    source = load_repository_paradigm().release.version_file
     try:
-        raw = (root / "VERSION").read_text(encoding="ascii")
+        raw = (root / source).read_text(encoding="ascii")
     except (OSError, UnicodeError) as error:
-        _fail("product_version_missing:VERSION", error)
+        _fail(f"product_version_missing:{source}", error)
     return product_version_from_text(raw)
 
 
@@ -55,7 +57,7 @@ def product_version_from_text(raw: str) -> str:
     """Validate exact text read from the tracked SemVer version authority."""
     value = raw.strip()
     if raw != f"{value}\n" or value != _canonical_semver(value):
-        _fail("product_version_invalid:VERSION")
+        _fail(f"product_version_invalid:{load_repository_paradigm().release.version_file}")
     return value
 
 

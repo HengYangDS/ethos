@@ -65,7 +65,7 @@ def repository_paradigm_report(
     paradigm = load_repository_paradigm()
     tracked = frozenset(tracked_paths)
     received = frozenset(received_paths)
-    rules = tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
+    rules = tracked_text(root, paradigm.binding.path("rules"), tracked)
     parameters = parameter_resolution(rules, paradigm)
     release = _release_binding(paradigm, root, tracked)
     gaps = [
@@ -168,8 +168,9 @@ def _root_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iterato
 def _binding_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iterator[ParadigmGap]:
     """Admit only the ETHOS-defined binding files under the binding root."""
     prefix = f"{paradigm.binding.root}/"
+    files = set(paradigm.binding.files.values())
     for path in sorted(tracked):
-        if path.startswith(prefix) and path.removeprefix(prefix) not in paradigm.binding.files:
+        if path.startswith(prefix) and path.removeprefix(prefix) not in files:
             yield ParadigmGap(
                 "binding-files",
                 path,
@@ -360,7 +361,7 @@ def _release_binding(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Mapping[str, object]:
     """Read the release binding once; the release policy report owns an unreadable one."""
-    source = tracked_text(root, f"{paradigm.binding.root}/release.toml", tracked)
+    source = tracked_text(root, paradigm.binding.path("release"), tracked)
     try:
         return tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
@@ -389,7 +390,7 @@ def _peer_remote_gaps(
         if remote != identity and (len(named) > 1 or remote != paradigm.release.clone_remote):
             yield ParadigmGap(
                 "peer-remote",
-                f"{paradigm.binding.root}/release.toml:publication.peers.{identity}",
+                f"{paradigm.binding.path('release')}:publication.peers.{identity}",
                 f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
             )
 
@@ -403,7 +404,7 @@ def _release_gaps(
     """Keep one version source and one changelog grammar in a repository that tags releases."""
     if not (tags := _release_tags(declared)):
         return
-    release = f"{paradigm.binding.root}/release.toml"
+    release = paradigm.binding.path("release")
     conventions = paradigm.release
     if tags != [conventions.tag_pattern]:
         yield ParadigmGap(

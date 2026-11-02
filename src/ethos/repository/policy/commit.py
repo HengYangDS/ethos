@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 if TYPE_CHECKING:
@@ -158,5 +159,5 @@ def commit_policy_from_text(text: str) -> CommitPolicy:
 
 def load_commit_policy(root: Path) -> CommitPolicy:
     """Compile the commit policy the working tree's binding selects."""
-    path = root / ".ethos" / "workspace.toml"
+    path = root / binding_path("workspace")
     return commit_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")

@@ -8,6 +8,7 @@ from typing import cast
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
     from ethos.repository.policy.commit import CommitPolicy
 
-_POLICY_PATH = ".ethos/workspace.toml"
+_POLICY_PATH = binding_path("workspace")
 
 
 def _indexed_commit_policy(

@@ -7,6 +7,7 @@ import re
 import shlex
 from pathlib import Path
 
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import report_verdict
 
 LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
@@ -117,7 +118,7 @@ def local_ci_owner_scripts(*, root: Path | None = None, command: str = "") -> li
 def fallback_action(command: str, *, refresh: bool = False) -> str:
     """Name the command that produces or refreshes local fallback evidence."""
     if not command:
-        return "declare .ethos/release.toml [publication].local_verification_command"
+        return f"declare {binding_path('release')} [publication].local_verification_command"
     return (
         f"rerun {command} to refresh local fallback evidence"
         if refresh

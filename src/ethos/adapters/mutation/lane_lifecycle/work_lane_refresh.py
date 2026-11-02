@@ -41,6 +41,8 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -188,7 +190,7 @@ def _refresh_work_lane(
         return refresh_report(context, current_head, "blocked", snapshot_gaps)
     try:
         commit_policy = commit_policy_from_text(
-            committed_file_text(root, candidate_head, ".ethos/workspace.toml")
+            committed_file_text(root, candidate_head, binding_path("workspace"))
         )
         environment = commit_environment(root, None)
         write_pending_refresh(
@@ -422,7 +424,8 @@ def _recover_work_lane(
         raise ValueError(msg)
     ref_name, update = next(iter(effect.updates.items()))
     branch = ref_name.removeprefix("refs/heads/")
-    if not branch.startswith("work/") or plan.policy.get("execution_branch") != branch:
+    prefix = load_repository_paradigm().branch.work_prefix
+    if not branch.startswith(prefix) or plan.policy.get("execution_branch") != branch:
         msg = "git_effect_recovery_unproven"
         raise ValueError(msg)
 

@@ -20,6 +20,7 @@ from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.publication import publication_ref_role
 from ethos.repository.release.publication import publication_transport_tags
@@ -376,7 +377,7 @@ def peer_publication_baseline(
         return "", "other", f"commit_range_trusted_baseline_required:{target_ref}"
     try:
         root_policy = strict_branch_role_policy_from_release_text(
-            committed_file_text(root, root_ref, ".ethos/release.toml")
+            committed_file_text(root, root_ref, binding_path("release"))
         )
         if root_ref.removeprefix(namespace) not in root_policy.protected_branches:
             return "", "other", f"commit_range_peer_root_not_protected:{root_ref}"
@@ -385,12 +386,12 @@ def peer_publication_baseline(
         if not baseline:
             return baseline_ref, "other", f"commit_range_trusted_baseline_unreadable:{baseline_ref}"
         policy = strict_branch_role_policy_from_release_text(
-            committed_file_text(root, baseline, ".ethos/release.toml")
+            committed_file_text(root, baseline, binding_path("release"))
         )
         if policy.accepted_branch != root_policy.accepted_branch:
             return "", "other", f"commit_range_peer_accepted_role_mismatch:{baseline_ref}"
         declaration = release_config_from_text(
-            committed_file_text(root, baseline, ".ethos/release.toml")
+            committed_file_text(root, baseline, binding_path("release"))
         )
         _, role, allowed = publication_ref_role(
             policy,

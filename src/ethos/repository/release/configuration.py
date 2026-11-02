@@ -10,6 +10,7 @@ from typing import cast
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.release.identity import product_version
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
     from ethos.contracts.branch.roles import BranchRolePolicy
 
-RELEASE_HISTORY_FILE = "CHANGELOG.md"
+RELEASE_HISTORY_FILE = load_repository_paradigm().release.changelog
 
 
 @cache
@@ -33,7 +34,7 @@ def required_release_files() -> tuple[str, ...]:
         *paradigm.root.required_documents,
         paradigm.license.carrier,
         paradigm.release.changelog,
-        f"{paradigm.binding.root}/release.toml",
+        paradigm.binding.path("release"),
     )
 
 
@@ -50,8 +51,8 @@ def _optional_toml(path: Path) -> dict[str, Any] | None:
 
 def release_config(root: Path) -> dict[str, Any]:
     """Read optional release policy without treating invalid input as absence."""
-    gap = "release_config_invalid:.ethos/release.toml"
-    path = root / ".ethos" / "release.toml"
+    gap = f"release_config_invalid:{binding_path('release')}"
+    path = root / binding_path("release")
     try:
         source = path.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -65,7 +66,7 @@ def release_config(root: Path) -> dict[str, Any]:
 
 def release_config_from_text(source: str) -> dict[str, Any]:
     """Compile the same release declaration from checkout or exact Git bytes."""
-    gap = "release_config_invalid:.ethos/release.toml"
+    gap = f"release_config_invalid:{binding_path('release')}"
     try:
         config = tomllib.loads(source)
         strict_branch_role_policy_from_release_text(source)
@@ -116,7 +117,9 @@ def release_role_policy_report(root: Path) -> dict[str, Any]:
         "declaration": config,
         "protected_refs": protected_refs,
         "next_action": (
-            f"repair {root / '.ethos/release.toml'} against configured branch roles" if gaps else ""
+            f"repair {root / binding_path('release')} against configured branch roles"
+            if gaps
+            else ""
         ),
     }
 

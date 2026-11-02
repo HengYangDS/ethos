@@ -34,7 +34,7 @@ def workspace_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
     """Report every workspace table but the commit policy, and its restated grammar or signature."""
-    workspace = f"{paradigm.binding.root}/workspace.toml"
+    workspace = paradigm.binding.path("workspace")
     declared = _declared(root, workspace, tracked)
     if declared is None:
         return  # The workspace policy owners report an unreadable binding.
@@ -72,7 +72,7 @@ def _role_gaps(
     roles: dict[str, object],
 ) -> Iterator[ParadigmGap]:
     """Name each retired role field; an undeclared accepted mirror also names its new carrier."""
-    release = f"{paradigm.binding.root}/release.toml"
+    release = paradigm.binding.path("release")
     declared_release = (_declared(root, release, tracked) or {}).get("release")
     mirror_declared = isinstance(declared_release, dict) and "mirror" in declared_release
     for field in (field for field in RETIRED_BRANCH_ROLE_FIELDS if field in roles):

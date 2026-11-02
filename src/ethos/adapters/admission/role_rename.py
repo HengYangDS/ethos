@@ -22,6 +22,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import declared_role_names
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ def legacy_proposal_prefix(text: str) -> str:
 
 def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
     """Map each legacy role ref the committed table at head declares to its standard ref."""
-    names = legacy_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
+    names = legacy_role_names(committed_file_text(root, head, binding_path("workspace")))
     standard = BranchRolePolicy()
     return {
         f"refs/heads/{legacy}": (f"refs/heads/{getattr(standard, role)}", value)
@@ -61,7 +62,7 @@ def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
 
 def retained_topic_target(root: Path, branch: str, head: str) -> str:
     """Derive one retained Work Lane's fixed name from its committed declaration."""
-    declared = declared_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
+    declared = declared_role_names(committed_file_text(root, head, binding_path("workspace")))
     standard = BranchRolePolicy()
     prefix = declared.get("work_branch_prefix", "")
     if (

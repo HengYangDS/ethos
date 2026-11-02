@@ -27,6 +27,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import obser
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
 
@@ -111,7 +112,7 @@ def resolve_runtime_wheel(
 
 def resolve_runtime_project(package_source: Path) -> Path:
     """Resolve the complete source project or its shipped lock-bound inputs."""
-    required = ("pyproject.toml", "uv.lock", "VERSION")
+    required = ("pyproject.toml", "uv.lock", load_repository_paradigm().release.version_file)
     if all((package_source / name).is_file() for name in required):
         return package_source
     project = packaged_resource()

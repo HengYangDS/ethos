@@ -1,25 +1,30 @@
 """Define strict branch roles and their repository policy interpretation.
 
-The repository paradigm fixes every role name: release `main`, accepted `dev`,
-candidate `candidate/dev`, Work Lanes under `work/` and proposals under
-`proposal/`, with each Work Lane in a sibling worktree. The release binding
-declares the one open setting, `[release] mirror`. A `[branch_roles]` table in
-the workspace binding is a retired declaration that the policy readers ignore;
-accepted closeout still renames a legacy role ref it names to the paradigm's name,
-and historical repair evidence still reads a mirror an earlier commit declared there.
+The repository paradigm's `[branch]` table fixes every role name: release `main`, accepted
+`dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`, with
+each Work Lane in a sibling worktree. The release binding declares the one open setting,
+`[release] mirror`. A `[branch_roles]` table in the workspace binding is a retired declaration that
+the policy readers ignore; accepted closeout still renames a legacy role ref it names to the
+paradigm's name, and historical repair evidence still reads a mirror an earlier commit declared
+there.
 """
 
 from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.paradigm.declaration import BranchNames
 
 ROLE_RELEASE_ROOT = "release_root"
 ROLE_ACCEPTED_ROOT = "accepted_root"
@@ -60,13 +65,18 @@ PROTECTED_WRITE_ROLES = frozenset(
 )
 
 
+def _names() -> BranchNames:
+    """Read the branch role names from the paradigm, their one source."""
+    return load_repository_paradigm().branch
+
+
 @dataclass(frozen=True, slots=True)
 class BranchRolePolicy:
-    release_branch: str = "main"
-    accepted_branch: str = "dev"
-    candidate_branch: str = "candidate/dev"
-    work_branch_prefix: str = "work/"
-    proposal_branch_prefix: str = "proposal/"
+    release_branch: str = field(default_factory=lambda: _names().release)
+    accepted_branch: str = field(default_factory=lambda: _names().accepted)
+    candidate_branch: str = field(default_factory=lambda: _names().candidate)
+    work_branch_prefix: str = field(default_factory=lambda: _names().work_prefix)
+    proposal_branch_prefix: str = field(default_factory=lambda: _names().proposal_prefix)
     release_mirror: str = RELEASE_MIRROR_INDEPENDENT
 
     def role_for_branch(self, branch: str) -> str:
@@ -215,7 +225,7 @@ def declared_role_names(text: str) -> dict[str, str]:
 
 def load_branch_role_policy(root: Path) -> BranchRolePolicy:
     """Load branch-role policy from the release binding in the current working tree."""
-    path = root / ".ethos" / "release.toml"
+    path = root / binding_path("release")
     return branch_role_policy_from_release_text(
         path.read_text(encoding="utf-8") if path.exists() else ""
     )

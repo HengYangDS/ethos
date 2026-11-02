@@ -25,6 +25,7 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
@@ -269,7 +270,10 @@ def _prepare_history(
     )
     tree = ""
     for args, gap in (
-        (("init", "-q", "--template=", "-b", "dev"), "formation_git_init_failed"),
+        (
+            ("init", "-q", "--template=", "-b", load_repository_paradigm().branch.accepted),
+            "formation_git_init_failed",
+        ),
         *(
             (("config", "--local", name, value), "formation_git_init_failed")
             for name, value in signer

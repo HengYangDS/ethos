@@ -25,6 +25,8 @@ from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 from ethos.repository.release.changelog import changelog_errors
@@ -51,7 +53,7 @@ def release_branch_policy(root: Path) -> BranchRolePolicy:
     """Keep release roles anchored to current accepted policy, not candidate edits."""
     policy = load_branch_role_policy(root)
     committed = strict_branch_role_policy_from_release_text(
-        committed_file_text(root, ref_head(root, policy.accepted_branch), ".ethos/release.toml")
+        committed_file_text(root, ref_head(root, policy.accepted_branch), binding_path("release"))
     )
     require_release(policy == committed, "release_branch_policy_changed")
     return policy
@@ -90,7 +92,7 @@ def release_selection_command(
 
 def _version_value(name: str, raw: str) -> str:
     """Decode native version fields, not lockfiles or arbitrary string occurrences."""
-    if name == "VERSION":
+    if name == load_repository_paradigm().release.version_file:
         return semver_from_text(raw)
     payload = json.loads(raw) if name.endswith(".json") else tomllib.loads(raw)
     require_release(isinstance(payload, dict), "release_version_source_not_object")
@@ -112,7 +114,7 @@ def committed_release_version(root: Path, revision: str) -> dict[str, str]:
         "-z",
         revision,
         "--",
-        "VERSION",
+        load_repository_paradigm().release.version_file,
         "package.json",
         "pyproject.toml",
         text=False,
@@ -142,7 +144,7 @@ def declared_release_tag(root: Path, ref: str) -> bool:
     """Select only the release tags declared by current committed policy."""
     policy = release_branch_policy(root)
     declaration = release_config_from_text(
-        committed_file_text(root, ref_head(root, policy.accepted_branch), ".ethos/release.toml")
+        committed_file_text(root, ref_head(root, policy.accepted_branch), binding_path("release"))
     )
     tags = tuple(declaration.get("protected_refs", {}).get("tags", ()))
     return bool(publication_ref_role(policy, ref, tags)[2])
@@ -153,8 +155,9 @@ def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
     require_release(declared_release_tag(root, f"refs/tags/{name}"), "release_tag_not_declared")
     version = committed_release_version(root, head)
     require_release(name == f"v{version['version']}", "release_tag_version_mismatch")
+    changelog = load_repository_paradigm().release.changelog
     if errors := changelog_errors(
-        committed_file_text(root, head, "CHANGELOG.md"), target=version["version"]
+        committed_file_text(root, head, changelog), target=version["version"]
     ):
         raise ValueError(errors[0])
     return version

@@ -5,12 +5,14 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
 if TYPE_CHECKING:
     from pathlib import Path
 
 PRODUCT_SURFACES = (
     "AGENTS.md",
-    "CHANGELOG.md",
+    load_repository_paradigm().release.changelog,
     "README.md",
     "CONTRIBUTING.md",
     "LICENSE",

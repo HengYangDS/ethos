@@ -13,6 +13,7 @@ from functools import lru_cache
 from importlib import resources
 from typing import Literal
 from typing import Self
+from typing import get_args
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -23,6 +24,7 @@ from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
 
 _DECLARATION = ConfigDict(frozen=True, strict=True, extra="forbid")
+type BindingRole = Literal["profile", "release", "rules", "workspace"]
 
 
 class RootCatalog(BaseModel):
@@ -46,13 +48,37 @@ class RootCatalog(BaseModel):
 
 
 class BindingFileSet(BaseModel):
-    """The ETHOS-defined files a repository binding may track."""
+    """The ETHOS-defined files a repository binding may track, keyed by role."""
 
     model_config = _DECLARATION
 
     root: str
-    files: FrozenTuple[str]
+    files: FrozenMapping[str]
     workspace_tables: FrozenTuple[str]
+
+    @model_validator(mode="after")
+    def require_every_role(self) -> Self:
+        """Declare exactly one file for each binding role."""
+        if set(self.files) != set(get_args(BindingRole.__value__)):
+            message = "binding files must name exactly the binding roles"
+            raise ValueError(message)
+        return self
+
+    def path(self, role: BindingRole) -> str:
+        """Return the repository-relative path of one role's binding file."""
+        return f"{self.root}/{self.files[role]}"
+
+
+class BranchNames(BaseModel):
+    """The branch role names the paradigm fixes for every governed repository."""
+
+    model_config = _DECLARATION
+
+    release: str = Field(min_length=1)
+    accepted: str = Field(min_length=1)
+    candidate: str = Field(min_length=1)
+    work_prefix: str = Field(min_length=1)
+    proposal_prefix: str = Field(min_length=1)
 
 
 class EditorDefaults(BaseModel):
@@ -318,6 +344,7 @@ class RepositoryParadigm(BaseModel):
     source_refs: FrozenTuple[str]
     root: RootCatalog
     binding: BindingFileSet
+    branch: BranchNames
     normalization: TextNormalization
     license: LicenseConventions
     configuration: ConfigurationPlane
@@ -418,6 +445,11 @@ def load_repository_paradigm() -> RepositoryParadigm:
     source = resources.files(__package__).joinpath("paradigm.toml")
     payload = tomllib.loads(source.read_text(encoding="utf-8"))
     return RepositoryParadigm.model_validate(payload)
+
+
+def binding_path(role: BindingRole) -> str:
+    """Return the path of one binding carrier as the paradigm declares it."""
+    return load_repository_paradigm().binding.path(role)
 
 
 @lru_cache

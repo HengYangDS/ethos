@@ -19,6 +19,7 @@ from ethos.adapters.repo.profile import ProfilePostimage
 from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import profile_postimage
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import Projection
@@ -143,7 +144,7 @@ def profile_repair_scope(
     root: Path, *, role: str, requested_paths: tuple[str, ...], report: dict[str, object]
 ) -> dict[str, object]:
     """Admit only an exact, identity-preserving repair of an invalid profile."""
-    path = ".ethos/profile.toml"
+    path = binding_path("profile")
     candidate_id = report.get("profile_postimage_id")
     if role != ROLE_WORK_LANE:
         reason = "profile_repair_requires_work_lane"

@@ -7,6 +7,8 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
 from ethos.repository.policy.gates import compile_gate_policy
@@ -39,7 +41,7 @@ STARTER_RULES: tuple[Rule, ...] = (
             "docs/**",
             "README.md",
             "CONTRIBUTING.md",
-            "CHANGELOG.md",
+            load_repository_paradigm().release.changelog,
             "distributions/**/README.md",
         ),
         severity="advisory",
@@ -77,7 +79,7 @@ STARTER_RULES: tuple[Rule, ...] = (
         version=1,
         owner="ethos",
         profile_layers=("generic",),
-        authority_ref=".ethos/rules.toml",
+        authority_ref=binding_path("rules"),
         contract_ref="docs/governance/product-design-contract.md",
         subject="governance",
         path_globs=(
@@ -221,7 +223,7 @@ def compile_rules(root: Path) -> dict[str, object]:
     rule_set_payload = rule_set.model_dump(mode="json")
     source_refs = ["product:starter-rules"]
     if rules_path(root).exists():
-        source_refs.append(".ethos/rules.toml")
+        source_refs.append(binding_path("rules"))
     return {
         "schema_version": 1,
         "profile_stack": profile_stack,

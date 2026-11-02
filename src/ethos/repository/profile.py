@@ -25,6 +25,7 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.openspec.models import OpenSpecPolicy
+from ethos.contracts.paradigm.declaration import binding_path
 
 DEFAULT_ROOTS = {
     "rules": "rules",
@@ -33,7 +34,7 @@ DEFAULT_ROOTS = {
 }
 
 PATH_VALUE_ERROR = "repository path must be relative POSIX without dot segments"
-INVALID_PROFILE_ERROR = "repository_profile_invalid:.ethos/profile.toml"
+INVALID_PROFILE_ERROR = f"repository_profile_invalid:{binding_path('profile')}"
 
 
 def _repository_path(value: str) -> str:
@@ -217,7 +218,7 @@ class IndependentVerificationPolicy(_ProfileModel):
 
 
 class AdoptionBoundaryPolicy(_ProfileModel):
-    binding_manifest: RepositoryPath = ".ethos/profile.toml"
+    binding_manifest: RepositoryPath = binding_path("profile")
     execution_config_root: RepositoryPath = ".config"
     forbidden_external_product_roots: RepositoryPathTuple = ()
 
@@ -264,7 +265,7 @@ def repository_profile_from_text(root: Path, *, exists: bool, text: str) -> Repo
     return RepositoryProfile(
         root=repo,
         exists=exists,
-        source=".ethos/profile.toml" if exists else "",
+        source=binding_path("profile") if exists else "",
         declaration=declaration,
     )
 
@@ -272,7 +273,7 @@ def repository_profile_from_text(root: Path, *, exists: bool, text: str) -> Repo
 def load_repository_profile(root: Path) -> RepositoryProfile:
     """Load and parse the worktree repository profile."""
     repo = root.resolve()
-    path = repo / ".ethos" / "profile.toml"
+    path = repo / binding_path("profile")
     try:
         resolved = path.resolve(strict=True)
         resolved.relative_to(repo)

@@ -406,7 +406,7 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
     # A repository may remove its own optional ETHOS binding; the binding contract that
     # product code reads stays current, so no binding file counts as retired here.
     binding = load_repository_paradigm().binding
-    carriers = {f"{binding.root}/{name}" for name in binding.files}
+    carriers = {f"{binding.root}/{name}" for name in binding.files.values()}
     return tuple(sorted(set(retired) - carriers))
 
 

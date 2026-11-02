@@ -6,12 +6,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.contracts.branch.roles as roles
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import declared_role_names
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import strict_source_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,6 +49,20 @@ def test_topic_identity_is_not_authoring_permission(branch: str, *, topic: bool)
     assert policy.is_topic_branch(branch) is topic
     if branch in {"codex/one", "topic/one", "proposal/one"}:
         assert policy.role_for_branch(branch) == "other"
+
+
+def test_a_policy_built_without_arguments_reads_the_declared_branch_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The paradigm's `[branch]` table, not the policy, is the source of every role name."""
+    declared = load_repository_paradigm()
+    names = declared.branch.model_copy(update={"accepted": "trunk", "work_prefix": "lane/"})
+    monkeypatch.setattr(
+        roles, "load_repository_paradigm", lambda: declared.model_copy(update={"branch": names})
+    )
+    policy = BranchRolePolicy()
+    assert (policy.accepted_branch, policy.work_branch_prefix) == ("trunk", "lane/")
+    assert policy.release_branch == declared.branch.release
 
 
 @pytest.mark.parametrize(

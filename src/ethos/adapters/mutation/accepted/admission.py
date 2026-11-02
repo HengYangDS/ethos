@@ -13,6 +13,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.paradigm.declaration import binding_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -101,7 +102,7 @@ def candidate_to_accepted(
 
 def accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
     """Read the incumbent policy; use defaults only for a provably absent carrier."""
-    if release := committed_file_text(root, head, ".ethos/release.toml"):
+    if release := committed_file_text(root, head, binding_path("release")):
         return strict_branch_role_policy_from_release_text(release)
     present = run_git(
         root,
@@ -109,7 +110,7 @@ def accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
         "--name-only",
         head,
         "--",
-        ".ethos/release.toml",
+        binding_path("release"),
         check=False,
     )
     if present.returncode or present.stdout.strip():

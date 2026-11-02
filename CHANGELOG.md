@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.28] - 2026-11-02
+
 ### Added
 
 - After `ethos publish` moves a peer's accepted branch, its result names that peer's proposal refs
@@ -29,6 +31,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   executables own nothing.
 - ETHOS publishes with Git's sparse pack walk disabled, so a push of a batch of renamed directories
   sends only the objects its peer lacks.
+- The locked supply moves to the latest stable releases that ETHOS's constraints allow: Vale 3.26.0,
+  which the wheels carry; anyio 4.16.0, Authlib 1.9.2, FastMCP and fastmcp-slim 4.1.5 and
+  platformdirs 4.14.3, with ETHOS now requiring anyio 4.16.0, FastMCP 4.1.5 and platformdirs 4.14.3
+  or later; and globals 17.14.0, the minimatch override 11.0.4 and 27 npm packages within their
+  declared ranges. The supported Python versions remain 3.12 through 3.14: `cel-expr-python` 0.1.3
+  publishes no CPython 3.15 wheel or source distribution.
 
 ### Removed
 
@@ -47,6 +55,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - `ethos land` looks up its candidate authority under the Change that its admitted proof carries, so
   a lane that archived several Changes and was proved with an earlier one lands instead of refusing
   `proof_attestation_authority_binding_mismatch`.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.27] - 2026-11-02
 

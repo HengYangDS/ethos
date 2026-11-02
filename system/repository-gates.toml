@@ -4,7 +4,7 @@ source_refs = ["system/repository-gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
+full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -398,23 +398,6 @@ sessions = ["javascript_tests"]
 path = "lcov.info"
 format = "lcov"
 sessions = ["javascript_tests"]
-
-[[gates]]
-id = "svg-format"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "svg_lint"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["assets"]
-dimensions = ["svg-format"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "svg_lint"
-writes_files = false
-network_policy = "offline"
-version_source = "locked-toolchain"
 
 [[gates]]
 id = "asset-validation"

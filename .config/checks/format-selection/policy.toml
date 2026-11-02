@@ -178,7 +178,7 @@ format_owner = "svgo"
 format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
 format_check = "ethos lane format --check"
 validation_owner = "svgo"
-validation_command = "uv run --frozen --offline python -m nox -s svg_lint"
+validation_command = "ethos prove --gate source-format --json"
 mutation_policy = "native-formatter"
 
 [[ownership]]
@@ -278,7 +278,7 @@ budget = [{ category = "json", measure = "structured", baseline_measure = "lines
 [[format]]
 extensions = [".jsonl"]
 carrier = "JSONL"
-owner = "system/formats.toml"
+owner = ".config/checks/format-selection/policy.toml"
 execution = "report-only"
 truth_boundary = "generated append-only streams, not tracked source of truth"
 

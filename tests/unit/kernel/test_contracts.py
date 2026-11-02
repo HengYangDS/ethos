@@ -108,38 +108,48 @@ def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -
     )
 
 
-def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: Path) -> None:
-    system = tmp_path / "system"
-    schemas = tmp_path / "schemas"
-    system.mkdir()
-    schemas.mkdir()
-    (system / "formats.toml").write_text("schema = 'schemas/formats.json'\n", encoding="utf-8")
-    (system / "routing.toml").write_text("invalid = [\n", encoding="utf-8")
-    (system / "surfaces.toml").write_text("schema = 'schemas/missing.json'\n", encoding="utf-8")
-    # The contract identifier stays snake_case; its repository-authored file name is kebab-case.
-    (system / "evidence-boundaries.toml").write_text(
-        "schema = 'schemas/evidence.json'\nvalue = 1\n", encoding="utf-8"
-    )
-    (schemas / "formats.json").write_text("not-json", encoding="utf-8")
-    (schemas / "evidence.json").write_text(
-        json.dumps({"type": "object", "required": ["required"]}), encoding="utf-8"
-    )
+@pytest.mark.parametrize(
+    ("contract", "schema", "loaded", "gap"),
+    [
+        (None, None, {"surfaces": False}, "system_contract_missing:surfaces"),
+        ("invalid = [\n", None, {"surfaces": False}, "system_contract_invalid:surfaces:"),
+        (
+            "schema = 'schemas/missing.json'\n",
+            None,
+            {"surfaces": True},
+            "system_schema_ref_missing:surfaces:",
+        ),
+        (
+            "schema = 'schemas/s.json'\n",
+            "not-json",
+            {"surfaces": True},
+            "system_schema_unreadable:surfaces:",
+        ),
+        (
+            "schema = 'schemas/s.json'\nvalue = 1\n",
+            json.dumps({"type": "object", "required": ["required"]}),
+            {"surfaces": True},
+            "system_contract_schema_violation:surfaces:",
+        ),
+    ],
+    ids=["missing", "invalid", "schema-missing", "schema-unreadable", "schema-violation"],
+)
+def test_system_contracts_report_fails_closed_for_every_carrier_state(
+    tmp_path: Path, contract: str | None, schema: str | None, loaded: dict[str, bool], gap: str
+) -> None:
+    (tmp_path / "system").mkdir()
+    (tmp_path / "schemas").mkdir()
+    if contract is not None:
+        (tmp_path / "system" / "surfaces.toml").write_text(contract, encoding="utf-8")
+    if schema is not None:
+        (tmp_path / "schemas" / "s.json").write_text(schema, encoding="utf-8")
 
     report = system_contracts_report(tmp_path)
 
-    assert report["contracts"] == {
-        "formats": True,
-        "routing": False,
-        "surfaces": True,
-        "evidence_boundaries": True,
-    }
+    assert report["verdict"] == "block"
+    assert report["contracts"] == loaded
     gaps = report["required_gaps"]
-    assert any(str(gap).startswith("system_schema_unreadable:formats:") for gap in gaps)
-    assert any(str(gap).startswith("system_contract_invalid:routing:") for gap in gaps)
-    assert "system_schema_ref_missing:surfaces:schemas/missing.json" in gaps
-    assert any(
-        str(gap).startswith("system_contract_schema_violation:evidence_boundaries:") for gap in gaps
-    )
+    assert any(str(item).startswith(gap) for item in gaps)
 
 
 def test_system_contracts_report_owns_surface_identity_uniqueness(tmp_path: Path) -> None:
@@ -148,13 +158,7 @@ def test_system_contracts_report_owns_surface_identity_uniqueness(tmp_path: Path
     schemas = tmp_path / "schemas"
     system.mkdir()
     schemas.mkdir()
-    schema = schemas / "permissive.json"
-    schema.write_text(json.dumps({"type": "object"}), encoding="utf-8")
-    for name in SYSTEM_CONTRACTS:
-        (tmp_path / system_contract_file(name)).write_text(
-            "schema = 'schemas/permissive.json'\n",
-            encoding="utf-8",
-        )
+    (schemas / "permissive.json").write_text(json.dumps({"type": "object"}), encoding="utf-8")
     (system / "surfaces.toml").write_text(
         """schema = "schemas/permissive.json"
 
@@ -191,13 +195,8 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
     schema.write_text(json.dumps({"type": "object", "required": ["id"]}), encoding="utf-8")
 
     assert schema_validation_gaps("sample", {"id": "sample"}, schema) == []
-    assert tuple(SYSTEM_CONTRACTS) == (
-        "formats",
-        "routing",
-        "surfaces",
-        "evidence_boundaries",
-    )
-    assert system_contract_file("evidence_boundaries") == "system/evidence-boundaries.toml"
+    assert tuple(SYSTEM_CONTRACTS) == ("surfaces",)
+    assert system_contract_file("surfaces") == "system/surfaces.toml"
 
 
 @pytest.mark.parametrize("field", ["campaign", "collaboration", "compatibility", "publication"])

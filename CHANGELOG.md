@@ -30,6 +30,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - ETHOS publishes with Git's sparse pack walk disabled, so a push of a batch of renamed directories
   sends only the objects its peer lacks.
 
+### Removed
+
+- The source-only system contracts `system/formats.toml`, `system/routing.toml` and
+  `system/evidence-boundaries.toml`, which nothing read beyond their presence, and their shipped
+  schemas; `system/surfaces.toml` is the one system contract left.
+- The repository gate `svg-format` and its `svg_lint` session: the shipped `source-format` gate
+  already checks every authored SVG file with the same provider.
+
 ### Fixed
 
 - `ethos lane archive-change` previews the archive it would apply: it simulates the archive and

@@ -9,9 +9,11 @@
       555 npm lock entries resolve to the public registry; the prose gate ran the materialized Vale
       3.26.0; `prose`, `markdown_lint`, `config_quality`, `format_check`, `lint`, `dependencies`,
       `javascript_lint`, `javascript_tests`, `ci_templates`, `supply_chain` and `schemas` pass.)
-- [ ] 1.2 Bind a supply image built from the moved locks. Done when the hosted `supply_image`
+- [x] 1.2 Bind a supply image built from the moved locks. Done when the hosted `supply_image`
       workflow built and pushed it from this lane, `lane project --check` reports the projections
-      conforming and every GitLab supply job selects its digest.
+      conforming and every GitLab supply job selects its digest. (Run `41473248241` built and pushed
+      the image from `f5cb02652` in 3 minutes; `lane project --check` reported `conforming`; the
+      five GitLab supply jobs select `550b12a7…` and none `84ab2268…`.)
 
 ## 2. Release Entry
 

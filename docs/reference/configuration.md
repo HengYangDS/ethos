@@ -109,10 +109,8 @@ configuration plane, not a truth center.
   native compilation, exact output bytes and input bindings.
   `uv run --frozen --offline python tools/ci/ci_templates.py check-templates --render`
   emits both outputs once without writing tracked files.
-- `.config/checks/ci-projection/policy.toml` declares provider emulator selection,
-  events, jobs, images and time limits. `tools/ci/ci_projection.py` consumes
-  that declaration; emulator output is local evidence, not hosted CI status.
-  Its `[[forge_surface]]` entries declare the issue and change forms each Forge projects and
+- `.config/checks/ci-projection/policy.toml` declares each provider's projection and
+  the owner scripts it requires. Its `[[forge_surface]]` entries declare the issue and change forms each Forge projects and
   their required sections; `tools/ci/ci_projection.py` checks them. CUE compiler inputs keep
   their native carriers: a string reference stays TOML, and a typed reference names an exact
   `path` and `format`:
@@ -242,7 +240,7 @@ Configuration under `.config/checks/` owns policy only. Runtime caches and
 local generated outputs must use semantic ignored homes: `<git-common-dir>/ethos/`,
 outside every checkout, for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
 the project `.venv/` for the one uv-locked Python environment,
-`build/runtime/work/<provider>/` for provider emulator work state,
+`build/runtime/work/<purpose>/` for bounded execution work,
 `build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine
 projections, and `build/artifacts/<kind>/` for local package/build outputs.
 Root cache directories such as `.import_linter_cache/`, `.pytest_cache/`,

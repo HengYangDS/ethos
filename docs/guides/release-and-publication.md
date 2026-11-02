@@ -29,5 +29,4 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
 3. **Write the generated files.** Preview and apply them with `ethos lane project`.
 4. **Check them.** Run `uv run --frozen --offline python -m nox -s ci_templates`.
 5. **Prove the head.** Run `ethos prove --execute --full --expect-head <HEAD> --json`.
-6. **Optional emulator evidence.** Record it with `uv run --frozen --offline python tools/ci/ci_templates.py emulator-evidence <provider>`. It is local evidence only.
-7. **Observe the hosted run.** Record the hosted run with the `hosted_observation` Nox session in execute mode (`ETHOS_HOSTED_OBSERVATION_EXECUTE=1`) before claiming hosted success. Each Forge's hosted observation stays a separate proof plane.
+6. **Observe the hosted run.** Record the hosted run with the `hosted_observation` Nox session in execute mode (`ETHOS_HOSTED_OBSERVATION_EXECUTE=1`) before claiming hosted success. Each Forge's hosted observation stays a separate proof plane.

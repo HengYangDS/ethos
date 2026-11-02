@@ -466,9 +466,7 @@ owner, name = ((release, 'create_signed_tag') if boundary == 'tag-object'
 pause_after_effect(owner, name, Path(marker))
 print(release.promote_release(root=Path(repo),head=head,previous=old,tag='v1.2.3',apply=True,authorized=True),flush=True)
 """
-    kill_after_marker(
-        repo, script, (str(repo), previous, head, boundary, str(marker)), marker, timeout=30
-    )
+    kill_after_marker(repo, script, (str(repo), previous, head, boundary, str(marker)), marker)
     before = (
         marker.read_text()
         if boundary == "tag-object"

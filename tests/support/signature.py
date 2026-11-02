@@ -163,5 +163,5 @@ repair.repair_signature(root=Path(repo), expect_head=old, corrections={first: {'
                       apply=True, authorized=True)
 """
     return kill_after_marker(
-        repo, script, (str(repo), old, first, str(backup), str(ready), boundary), ready, timeout=15
+        repo, script, (str(repo), old, first, str(backup), str(ready), boundary), ready
     )

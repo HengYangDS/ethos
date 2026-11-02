@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.paradigm.parameters import seconds
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -49,10 +51,11 @@ def ready_descendant(monkeypatch, before_communication):
         yield child, lambda: connection is not None and connection.recv(1) == b""
 
 
-def kill_after_marker(
-    root: Path, script: str, args: tuple[str, ...], marker: Path, *, timeout: float = 45
-) -> str:
-    """Kill one owned child only after its real effect reaches an observable boundary."""
+def kill_after_marker(root: Path, script: str, args: tuple[str, ...], marker: Path) -> str:
+    """Kill one owned child only after its real effect reaches an observable boundary.
+
+    The child runs one ETHOS command, so it reaches its marker within the declared tool deadline.
+    """
     script = (
         f"import sys; sys.path.insert(0, {str(Path(__file__).resolve().parents[2])!r})\n" + script
     )
@@ -67,7 +70,7 @@ def kill_after_marker(
         ) as child,
     ):
         try:
-            deadline = time.monotonic() + timeout
+            deadline = time.monotonic() + seconds("tool")
             while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
                 time.sleep(0.02)
             output.seek(0)

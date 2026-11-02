@@ -3,14 +3,12 @@
 ### Requirement: CI runner and retained-step records own their commands
 
 `.config/ci/runners.toml` MAY name, per Forge, the executables and references
-that the Forge's CI runner provides beyond the repository toolchain and the
-product runtime. Reference admission SHALL count them as owned only in that
-Forge's own pipeline files and in a template that the CI projection
-declaration names as the source of one of them; a template projected into the
-pipeline files of several Forges SHALL need each of those Forges' records. A
-malformed record SHALL own nothing. A CI step that the retention record keeps
-SHALL be owned by that record as a whole, so admission reads no command names
-from it until its text changes.
+its CI runner provides beyond the toolchain and product runtime. Admission
+SHALL count them as owned only in that Forge's pipeline files and in templates
+the CI projection declaration projects into them, a template reaching several
+Forges needing each Forge's record; a malformed record SHALL own nothing. A CI
+step the retention record keeps SHALL be owned by that record as a whole until
+its text changes.
 
 #### Scenario: A runner executable is used by another Forge
 

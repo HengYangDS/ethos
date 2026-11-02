@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The locked supply moves to the latest stable releases that ETHOS's constraints allow: Mise
+  2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
+  official executable digests, and Cyclopts 5.3.3, filelock 4.2.7 and python-discovery 1.9.1, with
+  ETHOS now requiring Cyclopts 5.3.3 and filelock 4.2.7 or later.
+
 ## [0.2.0-alpha.28] - 2026-11-02
 
 ### Added

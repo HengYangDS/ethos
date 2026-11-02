@@ -19,12 +19,7 @@ from ethos.contracts.verdict import close_verdict
 if TYPE_CHECKING:
     from pathlib import Path
 
-SYSTEM_CONTRACTS = (
-    "formats",
-    "routing",
-    "surfaces",
-    "evidence_boundaries",
-)
+SYSTEM_CONTRACTS = ("surfaces",)
 
 _IDENTITY_FIELDS = {
     "surfaces": ("surface", "name", "surface"),
@@ -32,8 +27,8 @@ _IDENTITY_FIELDS = {
 
 
 def system_contract_file(name: str) -> str:
-    """Return the kebab-case repository file that carries one snake_case contract identifier."""
-    return f"system/{name.replace('_', '-')}.toml"
+    """Return the repository file that carries one system contract."""
+    return f"system/{name}.toml"
 
 
 def schema_validation_gaps(name: str, payload: dict[str, object], schema_path: Path) -> list[str]:

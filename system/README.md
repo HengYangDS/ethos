@@ -48,9 +48,9 @@ nor a catch-all for the repository. Select required product inputs, not all file
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Derived engineering constraints         | [Axioms](axioms.md), under the PDC [Root Constraint](../docs/governance/product-design-contract.md#root-constraint) |
 | Gate executors and evidence obligations | [Shared gate declaration](gates.toml); [source repository gate declaration](repository-gates.toml "source-only")    |
-| Evidence relationships                  | [Source evidence boundaries](evidence-boundaries.toml "source-only")                                                |
-| Routing and public surfaces             | [Source routing](routing.toml "source-only") and [source surfaces](surfaces.toml "source-only")                     |
-| Native carrier formats                  | [Source formats](formats.toml "source-only")                                                                        |
+| Evidence relationships                  | [PDC evidence planes](../docs/governance/product-design-contract.md#evidence-planes-and-completion-claims)          |
+| Public surfaces                         | [Source surfaces](surfaces.toml "source-only")                                                                      |
+| Native carrier formats                  | [Source format selection](../.config/checks/format-selection/policy.toml "source-only")                             |
 | Schemas and their local references      | `schemas/`; [contract schemas](schemas/contracts/README.md)                                                         |
 | Publication projections                 | [Source projection owners](projections/README.md "source-only")                                                     |
 

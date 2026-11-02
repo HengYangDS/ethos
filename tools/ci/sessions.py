@@ -42,7 +42,6 @@ PUBLIC_SESSIONS = (
     "markdown_lint",
     "javascript_lint",
     "javascript_tests",
-    "svg_lint",
     "asset_validation",
     "config_quality",
     "hosted_observation",
@@ -436,12 +435,6 @@ def javascript_lint(session) -> None:
         observation = analyzer.static_observation(ROOT, paths)
         if observation["verdict"] != "pass":
             session.error(json.dumps(observation))
-        _check_source_paths(session, paths)
-
-
-def svg_lint(session) -> None:
-    paths = _paths("*.svg")
-    if paths:
         _check_source_paths(session, paths)
 
 

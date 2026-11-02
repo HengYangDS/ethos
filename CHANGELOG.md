@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Removed
+
+- The source-only system contracts `system/formats.toml`, `system/routing.toml` and
+  `system/evidence-boundaries.toml`, which nothing read beyond their presence, and their shipped
+  schemas; `system/surfaces.toml` is the one system contract left.
+- The repository gate `svg-format` and its `svg_lint` session: the shipped `source-format` gate
+  already checks every authored SVG file with the same provider.
+
 ## [0.2.0-alpha.27] - 2026-11-02
 
 ### Changed

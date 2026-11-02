@@ -10,9 +10,10 @@ relations:
 
 ETHOS protocols are language-neutral before they are Python APIs.
 
-The native protocol set ([carrier policy](../../system/formats.toml)) is JSON Schema for command
-output and kernel objects, SQLite for ignored local runtime state, JSONL for generated runtime
-streams and exports under ignored paths, and TOML for human-authored project configuration.
+The native protocol set ([format selection](../../.config/checks/format-selection/policy.toml)) is
+JSON Schema for command output and kernel objects, SQLite for ignored local runtime state, JSONL for
+generated runtime streams and exports under ignored paths, and TOML for human-authored project
+configuration.
 
 External standards enter by adapter contract. SLSA-style provenance, in-toto
 statement envelopes, Sigstore-compatible signing, SPDX-compatible artifact

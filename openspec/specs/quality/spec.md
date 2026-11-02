@@ -385,14 +385,14 @@ until the complete required floor is present.
 
 ### Requirement: Local And Hosted Planes Stay Separate
 
-Local proof, local provider emulation, GitLab CI, GitHub Actions, publication, and
-release SHALL remain independently identified evidence planes.
+Local proof, GitLab CI, GitHub Actions, publication, and release SHALL remain
+independently identified evidence planes.
 
 #### Scenario: Local proof passes while a provider is unavailable
 
 - **WHEN** every local gate passes but GitLab or GitHub has no fresh observation
 - **THEN** local proof is pass and the unavailable provider remains unknown
-- **AND** no local runner or emulator self-promotes to hosted success
+- **AND** no local runner self-promotes to hosted success
 
 ### Requirement: Fresh Offline Installation
 
@@ -2393,7 +2393,6 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 
 - **WHEN** GitHub executes the selected quality workflow
 - **THEN** its jobs select GitHub-hosted runners without workstation labels or inherited-hook overrides
-- **AND** local emulation derives its platform mapping from the selected workflow job
 - **AND** ephemeral hosted tool storage is not presented as cross-job persistence
 - **AND** GitLab uses a separate digest-bound image, not an assumed runner-local cache
 

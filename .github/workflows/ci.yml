@@ -58,10 +58,41 @@ jobs:
         run: docker push ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}
       - name: Inspect the published supply image
         run: docker buildx imagetools inspect ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}
+  commit-policy:
+    name: commit policy
+    runs-on: ubuntu-24.04-arm
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.6
+          python-version: "3.14"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.14
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare locked native tool supply
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
+      - name: Install locked npm packages
+        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
+      - name: Admit pushed commit range
+        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
   host-conformance:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    if: ${{ !inputs.supply_image && !inputs.release_tag }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     env:
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
     strategy:
@@ -117,7 +148,7 @@ jobs:
   quality:
     name: quality gates
     runs-on: ubuntu-24.04-arm
-    if: ${{ !inputs.supply_image && !inputs.release_tag }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
     steps:
@@ -172,7 +203,7 @@ jobs:
   external-links:
     name: external link health
     runs-on: ubuntu-latest
-    if: ${{ !inputs.supply_image && !inputs.release_tag }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -210,7 +241,7 @@ jobs:
     name: repository proof
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag }}
+    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
       - name: Require successful hosted execution and artifact publication
         env:
@@ -220,7 +251,7 @@ jobs:
     name: package artifacts
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag }}
+    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
       - name: Require successful hosted execution and artifact publication
         env:

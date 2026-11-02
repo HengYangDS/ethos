@@ -18,6 +18,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
   official executable digests, and Cyclopts 5.3.3, filelock 4.2.7 and python-discovery 1.9.1, with
   ETHOS now requiring Cyclopts 5.3.3 and filelock 4.2.7 or later.
+- GitHub runs ETHOS's full verification once for each published commit. A push to `main`, which
+  moves only to the accepted commit that `dev`'s run already verifies, now runs only a
+  `commit policy` job that admits the pushed range; host conformance, quality gates, external
+  links, repository proof and package artifacts stay with `dev`'s run, as GitLab's `main` pipeline
+  already leaves them to `dev`'s. A published commit costs about 320 GitHub job-minutes instead of
+  about 640.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

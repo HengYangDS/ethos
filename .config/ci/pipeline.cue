@@ -108,6 +108,12 @@ let regularRun = "!inputs.supply_image && !inputs.release_tag"
 let releaseRun = "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != ''"
 let releaseArguments = "--release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}"
 
+// A main push moves main to the accepted commit that dev's run of the same commit verifies, so it
+// repeats none of the commit-scoped jobs and only admits its pushed range (decision D11).
+let mainPush = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+let commitRun = "\(regularRun) && !(\(mainPush))"
+let pushedRange = "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
+
 // Windows on Arm executes the x64 runtime through its emulation; CEL ships no win_arm64 wheel.
 let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
 
@@ -251,10 +257,20 @@ github: {
 				run:  "docker buildx imagetools inspect \(supplyImage)"
 			}]
 		}
+		"commit-policy": {
+			name:      "commit policy"
+			"runs-on": "ubuntu-24.04-arm"
+			if:        "${{ \(mainPush) }}"
+			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
+			steps: list.Concat([githubPythonBootstrap, [{
+				name: "Admit pushed commit range"
+				run:  pushedRange
+			}]])
+		}
 		"host-conformance": {
 			name:      "${{ matrix.os }} / Python ${{ matrix.python }}"
 			"runs-on": "${{ matrix.os }}"
-			if:        "${{ \(regularRun) }}"
+			if:        "${{ \(commitRun) }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
 			strategy: {
 				"fail-fast": false
@@ -287,12 +303,12 @@ github: {
 		quality: {
 			name:      "quality gates"
 			"runs-on": "ubuntu-24.04-arm"
-			if:        "${{ \(regularRun) }}"
+			if:        "${{ \(commitRun) }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "Admit pushed commit range"
 				if:   "github.event_name == 'push'"
-				run:  "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
+				run:  pushedRange
 			}, {
 				name: "Admit pull request commit range"
 				if:   "github.event_name == 'pull_request'"
@@ -333,7 +349,7 @@ github: {
 		"external-links": {
 			name:                "external link health"
 			"runs-on":           "ubuntu-latest"
-			if:                  "${{ \(regularRun) }}"
+			if:                  "${{ \(commitRun) }}"
 			"continue-on-error": true
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "External links"
@@ -353,7 +369,7 @@ github: {
 			name:      "repository proof"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() && \(regularRun) }}"
+			if:        "${{ always() && \(commitRun) }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"
@@ -364,7 +380,7 @@ github: {
 			name:      "package artifacts"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() && \(regularRun) }}"
+			if:        "${{ always() && \(commitRun) }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"

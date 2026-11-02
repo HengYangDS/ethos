@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.27] - 2026-11-02
+
 ### Changed
 
 - Every wait ETHOS applies is a declared parameter. The paradigm declares each one's default, unit
@@ -46,6 +48,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   patch admission and the repository semantic closure no longer refuse them as orphan consumers. A
   template projected into several Forges' pipelines needs each Forge's runner record, and a YAML
   file under `.config/ci/` that no projection names still owns nothing.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.26] - 2026-11-02
 

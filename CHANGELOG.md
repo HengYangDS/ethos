@@ -20,6 +20,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   counts, also under `target` and `feature`. PyPI dependencies, constraints and a package's other
   executables own nothing.
 
+### Fixed
+
+- `ethos lane archive-change` previews the archive it would apply: it simulates the archive and
+  validates the merged specs strictly, as the proof does, so a requirement that the merge would push
+  past OpenSpec's 500-character limit blocks the preview with
+  `openspec_archived_requirement_invalid` instead of failing the apply.
+
 ## [0.2.0-alpha.27] - 2026-11-02
 
 ### Changed

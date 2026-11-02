@@ -381,6 +381,8 @@ def stub_archive_public(
 
     monkeypatch.setattr(archive, "workspace_status_observation", observe_workspace)
     monkeypatch.setattr(archive, "resolve_current_resolution", resolve_current)
+    # The fixture's tree is not a Git object; the official archive simulation is stubbed clean.
+    monkeypatch.setattr(archive, "archive_readiness_gaps", lambda *_args, **_kwargs: ())
 
     def git_stdout(_root: Path, *args: str) -> str:
         return {

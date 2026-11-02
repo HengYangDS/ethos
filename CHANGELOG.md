@@ -33,6 +33,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   supply preparation 180 instead of 30, and the custody lock 120 instead of 300.
 - ETHOS's own source budget steps to 75,000 product and 95,000 test effective lines, one
   5,000-line step each under DR-0010, after the necessity review that the decision record cites.
+- The repository paradigm declares the branch role names (`release`, `accepted`, `candidate`,
+  `work_prefix`, `proposal_prefix`) in its `[branch]` table and keys the binding files by role
+  (`[binding.files]`). ETHOS builds every binding carrier path, its version file, its changelog and
+  every branch name from that declaration, and a newly formed repository starts on the declared
+  accepted branch. An architecture check refuses a restated value in `src/`.
 
 ### Fixed
 

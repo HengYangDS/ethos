@@ -11,6 +11,7 @@ import ethos.adapters.mutation.remediation.guidance as remediation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.mutation.proof_admission import proof_attestation
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.openspec.commitment import admissible_openspec_commitments
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import current_branch
@@ -32,6 +33,8 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.proof.plan import proof_acceptance_purpose
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -281,7 +284,7 @@ def _candidate_plan(
         (
             commitment
             for commitment in admissible_openspec_commitments(
-                root, change_id=None, tree_ref=current_head
+                root, change_id=_carried_change(proof), tree_ref=current_head
             )
             if commitment.digest() == proof.commitment_digest
         ),
@@ -330,6 +333,14 @@ def _candidate_plan(
         else None
     )
     return None, (policy, base_report, candidate_path, candidate_head, plan, attestation)
+
+
+def _carried_change(proof: Attestation) -> str | None:
+    """Name the Change whose Commitment the admitted proof carries, when it carries one."""
+    carried = plan_from_statement(proof).commitment
+    if carried is None:
+        return None
+    return Commitment.model_validate(mutable_json(carried)).id.removeprefix("change:")
 
 
 def _candidate_materialization_plan(

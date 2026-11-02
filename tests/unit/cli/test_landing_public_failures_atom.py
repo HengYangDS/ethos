@@ -55,6 +55,9 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     monkeypatch.setattr(landing, "local_state_root", lambda _root: tmp_path / "proof-store")
     monkeypatch.setattr(landing, "predecessor_policy_gaps", lambda *_args: [])
     monkeypatch.setattr(
+        landing, "plan_from_statement", lambda _proof: SimpleNamespace(commitment=None)
+    )
+    monkeypatch.setattr(
         landing,
         "current_branch",
         lambda *_args: "work/example",

@@ -36,6 +36,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   validates the merged specs strictly, as the proof does, so a requirement that the merge would push
   past OpenSpec's 500-character limit blocks the preview with
   `openspec_archived_requirement_invalid` instead of failing the apply.
+- `ethos land` looks up its candidate authority under the Change that its admitted proof carries, so
+  a lane that archived several Changes and was proved with an earlier one lands instead of refusing
+  `proof_attestation_authority_binding_mismatch`.
 
 ## [0.2.0-alpha.27] - 2026-11-02
 

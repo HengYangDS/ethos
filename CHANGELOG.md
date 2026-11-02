@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- A conda package that a repository's Pixi manifest declares owns the executable of its package
+  name, as a Mise tool owns its own: prewrite admits a touched carrier that runs it. The manifest is
+  `pixi.toml`, or `[tool.pixi]` in `pyproject.toml` without one, and every conda dependency table
+  counts, also under `target` and `feature`. PyPI dependencies, constraints and a package's other
+  executables own nothing.
+
 ## [0.2.0-alpha.27] - 2026-11-02
 
 ### Changed

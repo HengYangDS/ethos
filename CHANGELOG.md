@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- After `ethos publish` moves a peer's accepted branch, its result names that peer's proposal refs
+  whose tips the published head preserves (`absorbed_proposals`), and its next action is their exact
+  retirement probe, so a landed lane's proposal is retired when its peer absorbs it rather than when
+  someone remembers it. A peer whose proposals cannot be listed is named under
+  `absorbed_proposals_unobserved`; the publication's own outcome does not change.
+
 ### Changed
 
 - A conda package that a repository's Pixi manifest declares owns the executable of its package

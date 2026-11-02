@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.publication.absorption import absorbed_proposals
 from ethos.adapters.mutation.publication.execution import apply_remote_publication_effect
 from ethos.adapters.mutation.publication.request import compile_remote_publication_request
 from ethos.adapters.mutation.publication.request import load_remote_publication_request
@@ -309,6 +310,30 @@ def _publication_result(
             )
         )
     )
+    absorbed: dict[str, list[str]] = {}
+    unobserved: list[str] = []
+    if apply and verdict == "pass" and not retirement and effect is not None:
+        absorbed, unobserved = absorbed_proposals(repo, effect)
+        if absorbed:
+            next_action = shlex.join(
+                (
+                    "ethos",
+                    "publish",
+                    "--retire",
+                    *(
+                        item
+                        for ref in sorted({ref for refs in absorbed.values() for ref in refs})
+                        for item in ("--ref", ref)
+                    ),
+                    *(item for peer_id in absorbed for item in ("--peer", peer_id)),
+                    "--probe-remote",
+                    "--expect-head",
+                    current_head,
+                    "--root",
+                    repo.resolve().as_posix(),
+                    "--json",
+                )
+            )
     followup: dict[str, object] = {}
     if retirement and apply and (verdict == "pass") and (effect is not None):
         references = tuple(
@@ -380,6 +405,8 @@ def _publication_result(
             "push_admission": push_admission,
             "remote_effect": remote_effect,
             "retirement_followup": followup,
+            "absorbed_proposals": absorbed,
+            "absorbed_proposals_unobserved": unobserved,
             "transition_plan": plan.model_dump(mode="json") if plan is not None else {},
             "request_receipt": request,
             "mutation": mutation_envelope(

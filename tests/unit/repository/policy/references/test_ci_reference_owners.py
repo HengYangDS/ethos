@@ -12,6 +12,7 @@ import yaml
 
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.contracts.gates import Gate
+from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.declarations import retained_ci_steps
@@ -19,6 +20,9 @@ from ethos.repository.policy.references.observation import product_references_fr
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
+from tests.support.architecture import declare_reference_package
+from tests.support.architecture import declare_reference_surface
+from tests.support.architecture import write_reference_source
 from tests.support.governed_repository import git
 
 if TYPE_CHECKING:
@@ -196,6 +200,87 @@ def test_declared_runners_own_only_their_forge_pipelines(
     )
 
     assert report["reason"] == reason, report
+
+
+TEMPLATE = ".config/ci/templates/hosted/gitlab-ci.yml"
+UNNAMED = ".config/ci/templates/hosted/release.yml"
+PROJECTED = (
+    'schema = "ethos-ci-template-consistency-v1"\n[[projection]]\n'
+    f'template = "{TEMPLATE}"\nprojection = ".gitlab-ci.yml"\n'
+)
+
+
+@pytest.mark.parametrize(
+    ("paths", "reason"),
+    [
+        ((TEMPLATE, ".gitlab-ci.yml"), "baseline_product_closure_matched"),
+        (
+            (TEMPLATE, ".gitlab-ci.yml", UNNAMED),
+            "product_reference_not_admitted_at_baseline:executable:sha256sum",
+        ),
+    ],
+    ids=["declared", "undeclared"],
+)
+def test_a_declared_template_belongs_to_its_pipelines_forge(
+    tmp_path: Path, paths: tuple[str, ...], reason: str
+) -> None:
+    """A runner owns its identity in the declared template of its Forge's pipeline file only."""
+    repo = tmp_path / "adopter"
+    for directory in (".ethos", ".config/checks/ci-projection", ".config/ci/templates/hosted"):
+        (repo / directory).mkdir(parents=True)
+    git(repo, "init", "-b", "dev")
+    files = {
+        ".ethos/profile.toml": render_repository_profile(
+            RepositoryProfileDeclaration(profile_id="adopter")
+        ),
+        ".ethos/release.toml": RELEASE,
+        ".config/ci/runners.toml": RUNNERS,
+        ".config/checks/ci-projection/policy.toml": PROJECTED,
+        TEMPLATE: PIPELINE,
+        ".gitlab-ci.yml": PIPELINE,
+        UNNAMED: PIPELINE,
+    }
+    for name, text in files.items():
+        (repo / name).write_text(text, encoding="utf-8")
+    git(repo, "add", ".")
+    baseline = git(repo, "write-tree")
+    after = PIPELINE + "    - sha256sum -c sums\n"
+    patch = "".join(
+        f"diff --git a/{path} b/{path}\n"
+        + "".join(
+            difflib.unified_diff(
+                PIPELINE.splitlines(keepends=True),
+                after.splitlines(keepends=True),
+                fromfile=f"a/{path}",
+                tofile=f"b/{path}",
+            )
+        )
+        for path in paths
+    )
+
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=baseline, patch=patch)
+
+    assert report["reason"] == reason, report
+
+
+@pytest.mark.parametrize("named", [True, False])
+def test_the_semantic_closure_reads_the_same_template_forges(
+    tmp_path: Path, *, named: bool
+) -> None:
+    """The repository closure owns a named template's runner identity and an unnamed one's not."""
+    declare_reference_surface(tmp_path)
+    declare_reference_package(tmp_path)
+    write_reference_source(tmp_path, ".config/ci/runners.toml", RUNNERS)
+    for path in (TEMPLATE, ".gitlab-ci.yml"):
+        write_reference_source(tmp_path, path, "verify:\n  script:\n    - sha256sum -c sums\n")
+    if named:
+        write_reference_source(tmp_path, ".config/checks/ci-projection/policy.toml", PROJECTED)
+
+    gaps = repository_semantic_closure(tmp_path)["required_gaps"]
+
+    assert isinstance(gaps, list)
+    orphan = f"semantic_consumer_orphan:executable:sha256sum:{TEMPLATE},.gitlab-ci.yml"
+    assert (orphan in gaps) is not named, gaps
 
 
 GLUE = "$ErrorActionPreference = 'Stop'\nWrite-Host (Join-Path $env:CI_PROJECT_DIR 'mise')\n"

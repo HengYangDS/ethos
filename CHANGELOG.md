@@ -12,6 +12,36 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- Every wait ETHOS applies is a declared parameter. The paradigm declares each one's default, unit
+  and bound: `timeout.gate_seconds` (600), `tool_seconds` (60), `git_seconds` (30),
+  `git_history_seconds` (120), `probe_seconds` (15), `lock_seconds` (10), `download_seconds` (180),
+  `request_seconds` (180) and `admission_seconds` (3,600), each bounded at ten times its default. A
+  governed repository sets its own under `[paradigm.timeout]` in `.ethos/rules.toml`: a stricter
+  value applies as given, and a looser one stays within the bound and states its reason in
+  `[paradigm.timeout.reasons]` (GitLab issue #2).
+- Every gate runs within a deadline: its declared `timeout_seconds`, at most 7,200, or else the
+  repository's `timeout.gate_seconds`. The commands a gate runs no longer carry fixed timeouts of
+  their own.
+- Each `gate_completed` event records the gate's effective timeout and its source (`gate`,
+  `repository` or `default`), and the proof summary lists every looser value with its reason under
+  `parameter_deviations`.
+- **Changed defaults:** Git observations wait 30 seconds instead of 10, a remote probe 30 instead of
+  3, a native tool outside a gate 60 instead of 30, the staged-file format check 60 instead of 120,
+  a version or identity probe 15 instead of 5 or 10, the ref-intent lock 10 instead of 1, a native
+  supply preparation 180 instead of 30, and the custody lock 120 instead of 300.
+- ETHOS's own source budget steps to 75,000 product and 95,000 test effective lines, one
+  5,000-line step each under DR-0010, after the necessity review that the decision record cites.
+
+### Fixed
+
+- A runner declaration in `.config/ci/runners.toml` now owns its identities in a hosted template
+  that the CI projection declaration names as the source of one of that Forge's pipeline files, so
+  patch admission and the repository semantic closure no longer refuse them as orphan consumers. A
+  template projected into several Forges' pipelines needs each Forge's runner record, and a YAML
+  file under `.config/ci/` that no projection names still owns nothing.
+
 ## [0.2.0-alpha.26] - 2026-11-02
 
 ### Changed

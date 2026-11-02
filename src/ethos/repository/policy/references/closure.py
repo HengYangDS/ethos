@@ -15,6 +15,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.declarations import ci_runner_owners
@@ -97,6 +98,7 @@ def runner_provided_references(
     owners = ci_runner_owners(declaration_files)
     if not owners:
         return {}
+    templates = _template_forges(declaration_files)
     sources = reference_consumer_sources_from_files(
         consumer_files, retained_steps=retained_ci_steps(declaration_files)
     ).sources
@@ -104,19 +106,41 @@ def runner_provided_references(
         kind: {
             identity
             for identity, paths in sources.get(kind, {}).items()
-            if _runner_provides(owners, kind, identity, paths)
+            if _runner_provides(owners, templates, kind, identity, paths)
         }
         for kind in ("executable", "reference")
     }
 
 
 def _runner_provides(
-    owners: dict[str, dict[str, frozenset[str]]], kind: str, identity: str, paths: frozenset[str]
+    owners: dict[str, dict[str, frozenset[str]]],
+    templates: dict[str, frozenset[str]],
+    kind: str,
+    identity: str,
+    paths: frozenset[str],
 ) -> bool:
-    return bool(paths) and all(
-        identity in owners.get(_pipeline_forge(path) or "", {}).get(kind, frozenset())
-        for path in paths
-    )
+    """Require the runner of every Forge that each consuming path runs on to provide it."""
+    for path in paths:
+        own = _pipeline_forge(path)
+        forges = templates.get(path, frozenset()) | ({own} if own else frozenset())
+        if not forges or any(
+            identity not in owners.get(forge, {}).get(kind, ()) for forge in forges
+        ):
+            return False
+    return bool(paths)
+
+
+def _template_forges(files: dict[str, str]) -> dict[str, frozenset[str]]:
+    """Map each declared template to the Forges of the pipeline files projected from it."""
+    try:
+        relations = projection_relations(files)
+    except ValueError:
+        return {}
+    forges: dict[str, set[str]] = {}
+    for relation in relations:
+        if forge := _pipeline_forge(relation.output):
+            forges.setdefault(relation.source, set()).add(forge)
+    return {source: frozenset(values) for source, values in forges.items()}
 
 
 def _pipeline_forge(path: str) -> str | None:
@@ -153,7 +177,9 @@ def repository_semantic_closure(
     findings = [
         *_duplicate_command_owners(command_owners),
         *_missing_command_parents(command_owners),
-        *_orphan_consumers(owners, consumption.sources, ci_runner_owners(files)),
+        *_orphan_consumers(
+            owners, consumption.sources, ci_runner_owners(files), _template_forges(files)
+        ),
         *_retired_reference_consumers(root, files),
         *_superseded_current_carriers(root, files, retained_origins=retained_origins),
         *_declaration_findings(contract_report),
@@ -255,12 +281,13 @@ def _orphan_consumers(
     owners: dict[str, frozenset[str]],
     consumers: dict[str, dict[str, frozenset[str]]],
     runners: dict[str, dict[str, frozenset[str]]],
+    templates: dict[str, frozenset[str]],
 ) -> list[SemanticClosureFinding]:
     findings = []
     for kind in REFERENCE_KINDS:
         for identity, sources in consumers[kind].items():
             if identity in owners.get(kind, ()) or _runner_provides(
-                runners, kind, identity, sources
+                runners, templates, kind, identity, sources
             ):
                 continue
             findings.append(

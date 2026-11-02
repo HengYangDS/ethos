@@ -128,6 +128,10 @@ coverage and all other quality obligations remain unchanged.
   per-module wrappers, a zero-benefit indirection; and merging the 14 same-shape test pairs (about
   128 lines), which would merge distinct named obligations. No dead top-level function remains in
   `src/`.
+- The landed head `9b124f1e7` measured 70,075 product and 90,069 test ELOC, 162 and 141 above
+  `e5f2f1942` (69,913 and 89,928, `source_budget_report`). The figures above, 70,079 and 90,055,
+  were taken before the lane's proof-deviation test (`a5b316f36`, 14 test ELOC) and its lock-path
+  commit (`bb411345d`, minus 4 product ELOC); both landed totals stay within the stepped bounds.
 - [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 

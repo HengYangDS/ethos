@@ -22,6 +22,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   attestation, installs it through Mise, and proves a cold install, host-store pinning, hook
   binding, a full proof and status, an upgrade from the previous release with its rollback, and
   uninstall. A `journey_tag` dispatch runs the journey alone for an already published prerelease.
+- A Change archives only after it cites every decision record that names it. When a record names
+  an active Change's identifier in inline code, archive readiness, and with it the archive preview
+  and the proof of that Change, reports `openspec_decision_uncited:<change>:<identity>` until one
+  of the Change's artifacts contains the record's `DR-####` identity or file name.
 
 ### Changed
 

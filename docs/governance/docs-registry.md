@@ -306,6 +306,12 @@ syntax without executing it; ambiguous inline execution is refused rather than
 reported as proved absent. Mechanical validation does not decide whether a
 choice is sound or worth preserving.
 
+A record names a Change by writing the Change's identifier in inline code. A
+record that names an active Change binds it: the Change cites the record, by its
+`DR-####` identity or its file name, in one of its artifacts before it archives,
+and archive readiness otherwise refuses it with `openspec_decision_uncited`. A
+mention in prose names nothing.
+
 Its directory README navigates records and lists every number in order: a number
 without a current record keeps one line with its status, date, successor and Git
 origin. It does not become a second decision register. Adopters need not copy

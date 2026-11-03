@@ -101,6 +101,35 @@ def test_a_missing_official_cli_or_a_failed_archive_is_not_readiness(
     )
 
 
+@pytest.mark.parametrize(
+    ("record", "citation", "uncited"),
+    [
+        ("The `change` Change carries this ruling.", "", True),
+        ("The `change` Change carries this ruling.", "It follows DR-0001.\n", False),
+        ("The `change` Change carries this ruling.", "See [it](dr-0001-ruling.md).\n", False),
+        ("Any change in prose names no Change.", "", False),
+    ],
+)
+def test_a_change_cites_each_decision_record_that_names_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str, citation: str, *, uncited: bool
+) -> None:
+    repo, _tree = _committed_change(tmp_path)
+    ruling = repo / "docs/decisions/dr-0001-ruling.md"
+    ruling.parent.mkdir(parents=True)
+    ruling.write_text(
+        f"---\nrole: decision\n---\n\n# DR-0001: Ruling\n\n{record}\n", encoding="utf-8"
+    )
+    proposal = repo / "openspec/changes/change/proposal.md"
+    proposal.write_text(proposal.read_text(encoding="utf-8") + citation, encoding="utf-8")
+    tree = git(repo, "rev-parse", f"{commit_fixture(repo, 'docs: record a ruling')}^{{tree}}")
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda **_kwargs: None)
+
+    assert archive_readiness_gaps(repo, change="change", tree=tree) == (
+        *(("openspec_decision_uncited:change:DR-0001",) if uncited else ()),
+        "openspec_official_cli_missing",
+    )
+
+
 def test_an_issue_without_a_resolvable_requirement_names_its_specification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

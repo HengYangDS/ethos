@@ -278,21 +278,25 @@ def test_settled_gates_are_neither_run_nor_reported(tmp_path: Path) -> None:
     assert ran == scheduled == ["b"]
 
 
-@pytest.mark.parametrize("readiness", ["pass", "fail"])
+@pytest.mark.parametrize("readiness", ["pass", "fail", "alone"])
 def test_full_proof_waits_for_admission_only_after_readiness(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, readiness: str
 ) -> None:
-    """Readiness runs before admission; its failure ends the proof without waiting or testing."""
+    """Readiness runs before admission; its failure ends the proof without waiting or testing.
+
+    A plan of readiness gates alone leaves admission nothing to protect, so it never waits.
+    """
     repo = init_git_repo(tmp_path / "repo")
     nodes, registry = _graph({"lint": (), "tests": ()}, trust_bearing=True)
-    registry["lint"] = registry["lint"].model_copy(update={"kind": "check"})
+    for name in ("lint", "tests") if readiness == "alone" else ("lint",):
+        registry[name] = registry[name].model_copy(update={"kind": "check"})
     plan = _proof_plan(repo, nodes)
     order: list[str] = []
 
     class Runner:
         def run(self, node, _gate, **_context):
             order.append(node.id)
-            verdict = readiness if node.id == "lint" else "pass"
+            verdict = "fail" if readiness == "fail" and node.id == "lint" else "pass"
             return ActionRunResult(node.id, node.command, verdict, 0 if verdict == "pass" else 1)
 
     @contextmanager
@@ -309,8 +313,14 @@ def test_full_proof_waits_for_admission_only_after_readiness(
     )
 
     assert [check["action_id"] for check in checks] == ["lint", "tests"]
-    assert passed is (readiness == "pass")
-    assert order == (["lint", "admission", "tests"] if readiness == "pass" else ["lint"])
+    assert passed is (readiness != "fail")
+    expected = {
+        "pass": ["lint", "admission", "tests"],
+        "fail": ["lint"],
+        "alone": ["lint", "tests"],
+    }
+    # The two readiness gates of a plan without others run concurrently, in either order.
+    assert (sorted(order) if readiness == "alone" else order) == expected[readiness]
     if readiness == "fail":
         (diagnostic,) = checks[1]["diagnostics"]
         assert diagnostic["required_gaps"] == ["gate_dependency_not_proven:lint"]

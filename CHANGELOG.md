@@ -22,8 +22,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 - A full executing proof runs its readiness gates, every gate that is neither a test nor a
   package gate, before it waits for its repository's proof slot and host load, and ends without
-  waiting when one fails. Its test and package gates still wait for admission, and no gate runs
-  twice.
+  waiting when one fails or when it plans no other gate. Its test and package gates still wait
+  for admission, and no gate runs twice.
 - The locked supply moves to the latest stable releases that ETHOS's constraints allow: Mise
   2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
   official executable digests, and Cyclopts 5.3.3, filelock 4.2.7 and python-discovery 1.9.1, with

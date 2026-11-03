@@ -175,7 +175,7 @@ def run_plan_checks(
     """Run or project the admitted TransitionPlan gate sequence.
 
     With an admission scope, the readiness tier runs first and the other gates run inside the
-    scope; when a readiness gate fails, the scope is never entered and those gates do not run.
+    scope; when a readiness gate fails, or no other gate is planned, the scope is never entered.
     """
     plan_head = plan.facts.get("head")
     if not isinstance(plan_head, str) or not plan_head:
@@ -218,7 +218,9 @@ def run_plan_checks(
         tier = set(readiness_tier(plan.nodes, registry))
         readiness = graph(tuple(node for node in plan.nodes if node.id in tier))
         ready = all(execution_succeeded(asdict(result)) for result in readiness)
-        with admission() if ready else nullcontext():
+        # Admission protects the gates that follow readiness; a plan without any never waits.
+        remaining = any(node.id not in tier for node in plan.nodes)
+        with admission() if ready and remaining else nullcontext():
             results = graph(plan.nodes, {result.action_id: result for result in readiness})
     checks: list[dict[str, object]] = []
     for run_result in results:

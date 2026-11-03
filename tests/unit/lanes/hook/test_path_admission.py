@@ -339,6 +339,20 @@ def test_owned_lane_bootstraps_third_change_without_cross_change_authority(
     assert selected["next_action"] == "openspec new change third --json"
 
 
+def test_selected_change_writes_change_root_files(
+    worktree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file directly in the Change root belongs to no Change; another Change's file does."""
+    write_active_commitment(worktree, change_id="second")
+    other = "openspec/changes/second/tasks.md"
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
+
+    guide = _guard(worktree, ("openspec/changes/README.md",))
+    mismatched = _guard(worktree, (other,))
+    assert guide["verdict"] == "pass", guide["required_gaps"]
+    assert mismatched["error"] == f"openspec_change_path_mismatch:fixture-change:{other}"
+
+
 def test_cli_path_token(worktree: Path) -> None:
     token = "README.md\nAGENTS.md"
     data = run_ethos_blocked(

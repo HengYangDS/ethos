@@ -74,11 +74,12 @@ def prospective_change_scope_report(
         if staged_tree_ref is not None
         else ()
     )
+    # A file directly in openspec/changes/ belongs to no Change; one inside a Change has four parts.
     gaps = [
         f"openspec_change_path_mismatch:{selected}:{path}"
         for path in paths
         if (parts := PurePosixPath(path).parts)
-        and len(parts) >= 3
+        and len(parts) >= 4
         and parts[:2] == ("openspec", "changes")
         and parts[2] not in {"archive", selected}
         and path not in preserved

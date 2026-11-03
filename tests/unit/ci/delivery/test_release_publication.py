@@ -233,3 +233,25 @@ def test_each_release_leg_declares_the_host_its_runner_provides():
     assert uploads == ["release-runtime-${{ matrix.host }}"]
     conformance = jobs["host-conformance"]["strategy"]["matrix"]["include"]
     assert conformance == [dict(zip(("os", "python"), emulated, strict=True))]
+
+
+def test_the_release_attests_its_archives_and_wheels_before_it_exists():
+    """Mise's github backend verifies these attestations, so no release may lack them."""
+    jobs = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
+    publish = jobs["release-publish"]
+    steps = [step.get("name", "") for step in publish["steps"]]
+    attests = [
+        step for step in publish["steps"] if "attest-build-provenance" in step.get("uses", "")
+    ]
+
+    assert len(attests) == 1
+    assert attests[0]["with"]["subject-path"].split() == [
+        "build/release/out/assets/ethos-*.tar.gz",
+        "build/release/out/assets/ethos-*.whl",
+    ]
+    assert steps.index(attests[0]["name"]) < steps.index("Publish the signed pre-release")
+    assert publish["permissions"] == {
+        "contents": "write",
+        "id-token": "write",
+        "attestations": "write",
+    }

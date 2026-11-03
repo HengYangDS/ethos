@@ -12,6 +12,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- Each release run attests the archives and wheels it publishes with GitHub artifact attestations
+  before it creates the release, so `gh attestation verify` and Mise's GitHub backend can check
+  that a file came from ETHOS's release workflow at its signed tag.
+
 ### Changed
 
 - The locked supply moves to the latest stable releases that ETHOS's constraints allow: Mise

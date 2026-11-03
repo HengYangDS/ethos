@@ -435,7 +435,11 @@ github: {
 			"runs-on": "ubuntu-latest"
 			needs:     "release-platforms"
 			if:        "${{ !cancelled() && \(releaseRun) }}"
-			permissions: contents: "write"
+			permissions: {
+				contents:     "write"
+				"id-token":   "write"
+				attestations: "write"
+			}
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 				with: ref: releaseTagRef
@@ -452,6 +456,11 @@ github: {
 				// The assembler admits only archives whose qualification evidence matches their bytes.
 				name: "Assemble the qualified release assets"
 				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md"
+			}, {
+				// Mise's github backend verifies these attestations when it installs a pinned release.
+				name: "Attest the release archives and wheels"
+				uses: "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
+				with: "subject-path": "build/release/out/assets/ethos-*.tar.gz\nbuild/release/out/assets/ethos-*.whl"
 			}, {
 				name: "Publish the signed pre-release"
 				env: GH_TOKEN: "${{ github.token }}"

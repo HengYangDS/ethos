@@ -26,6 +26,16 @@ command output is a projection, not a second proof selector. What such proof can
 to the Product Design Contract's
 [Evidence Planes And Completion Claims](product-design-contract.md#evidence-planes-and-completion-claims).
 
+## Release Artifacts
+
+Each release run attests every archive and wheel it publishes with a GitHub artifact attestation,
+Sigstore-signed build provenance of that workflow run at the release tag, before it creates the
+release. Mise's GitHub backend verifies these attestations when it installs a release pinned as
+`github:HengYangDS/ethos`; the `http:` declaration that adopters pin today does not check them.
+Anyone can check a published file with `gh attestation verify <file> --repo HengYangDS/ethos`.
+Release provenance states where a file was built. It is a hosted provider statement, not an ETHOS
+Attestation, and neither stands in for the other.
+
 ## Storage And Currentness
 
 Current readers select Attestations from `refs/ethos/attestations-set` and

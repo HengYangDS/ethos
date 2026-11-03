@@ -249,15 +249,22 @@ def _admitted_proofs(
         _selected_root, attestations = read_attestation_set(root)
     except ValueError as error:
         return (), [str(error)]
-    matching, gaps = _selected_candidates(head, attestations)
-    if gaps:
-        return (), gaps
-    matching, gaps = _purpose_candidates(matching, acceptance_purpose, attestation_id)
+    matching, gaps = _selected_candidates(head, attestations, acceptance_purpose, attestation_id)
     if gaps:
         return (), gaps
     canonical_policies = resolve_proof_policies(
         root, tree_ref=head, acceptance_purpose=acceptance_purpose
     )
+    # A passing proof never carries a missing runtime, so a policy compiled without one cannot
+    # match it; name the cause instead of a digest mismatch.
+    runtime_gaps = [
+        gap
+        for _name, policy in canonical_policies
+        for gap in policy.gaps
+        if gap.startswith("gate_runtime_missing:")
+    ]
+    if runtime_gaps:
+        return (), list(dict.fromkeys(runtime_gaps))
 
     @cache
     def source_intent(change: str) -> tuple[Commitment, ...]:
@@ -345,6 +352,8 @@ def _intent_candidates(
 def _selected_candidates(
     head: str,
     attestations: tuple[Attestation, ...],
+    purpose: AcceptancePurpose,
+    attestation_id: str,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
     candidates = tuple(
         item
@@ -358,7 +367,7 @@ def _selected_candidates(
         return (), ["unknown_required_fact"]
     matching = tuple(item for item in current if not _query_gaps(item))
     if matching:
-        return matching, []
+        return _purpose_candidates(matching, purpose, attestation_id)
     return (), list(dict.fromkeys(gap for item in current for gap in _query_gaps(item)))
 
 

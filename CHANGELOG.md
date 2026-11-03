@@ -67,6 +67,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Pre-commit admission checks staged Python with the shipped Ruff settings when a repository tracks
   no `.config/checks/ruff/ruff.toml`, as its `format_check` gate already does. It used to skip the
   check, so such a repository could commit Python that its own proof then refused.
+- Proof admission reports `gate_runtime_missing:repository-python` when the worktree whose policy
+  it compiles has no repository Python environment, with a remediation that runs the repository's
+  bootstrap verb there. It used to report `proof_attestation_repository_policy_mismatch`, so a
+  closeout whose candidate worktree had lost its `.venv` named no cause.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

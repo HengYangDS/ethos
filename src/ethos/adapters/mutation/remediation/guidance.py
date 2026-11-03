@@ -102,4 +102,14 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                     ),
                 }
             )
+        elif gap.startswith("gate_runtime_missing:"):
+            hints.append(
+                {
+                    "gap": gap,
+                    "kind": "repository_runtime_missing",
+                    "next_action": (
+                        "run the repository's bootstrap verb in the admitted worktree, then retry"
+                    ),
+                }
+            )
     return hints

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -19,6 +20,7 @@ import ethos.adapters.openspec.lifecycle.archive_transition as archive
 import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.remediation.guidance import remediation_for_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.plan import compile_plan
@@ -151,6 +153,35 @@ def test_superseded_policy_proof_alone_is_insufficient(tmp_path: Path) -> None:
         None,
         ["proof_attestation_repository_policy_mismatch"],
     )
+
+
+def test_admission_names_a_missing_repository_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A root without the runtime its committed policy needs reports it, not a mismatch."""
+    repo, head = proof_repository(tmp_path / "repo")
+    persist_proof_attestation(repo, _issue(repo, head))
+    compiled = proof_admission.resolve_proof_policies
+    missing = "gate_runtime_missing:repository-python"
+    monkeypatch.setattr(
+        proof_admission,
+        "resolve_proof_policies",
+        lambda *args, **kwargs: tuple(
+            (name, replace(policy, gaps=(*policy.gaps, missing)))
+            for name, policy in compiled(*args, **kwargs)
+        ),
+    )
+
+    assert proof_module.proof_for_repository_transition(repo, head) == (None, [missing])
+    assert remediation_for_gaps([missing]) == [
+        {
+            "gap": missing,
+            "kind": "repository_runtime_missing",
+            "next_action": (
+                "run the repository's bootstrap verb in the admitted worktree, then retry"
+            ),
+        }
+    ]
 
 
 def test_superseded_policy_proof_does_not_hide_tampered_binding(tmp_path: Path) -> None:

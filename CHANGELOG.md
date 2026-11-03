@@ -64,6 +64,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   value, as `git branch -D`, `git update-ref -d` and the `packed-refs` side of every deletion of a
   packed ref do, by the ref's current value. `ethos lane retire absorbed-ref --apply` no longer
   fails for a packed ref, and the accepted branch's rules still refuse its deletion that way.
+- Pre-commit admission checks staged Python with the shipped Ruff settings when a repository tracks
+  no `.config/checks/ruff/ruff.toml`, as its `format_check` gate already does. It used to skip the
+  check, so such a repository could commit Python that its own proof then refused.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

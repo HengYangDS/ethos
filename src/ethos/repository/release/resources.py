@@ -108,3 +108,9 @@ def canonical_resource(relative: str | PurePosixPath = "") -> Path:
             raise ValueError(message)
         return path
     return packaged_resource(name, package=package)
+
+
+def shipped_resource(relative: str | PurePosixPath) -> Path:
+    """Select a mandatory shipped input: the source's own, else verified packaged bytes."""
+    path = canonical_resource(relative)
+    return require_packaged_resource(relative) if path == packaged_resource(relative) else path

@@ -28,7 +28,8 @@ configuration plane, not a truth center.
   CLI caches are bound explicitly to `build/runtime/tool-cache/ruff/`.
   The package runtime supplies Ruff for selected staged Python checks. These
   checks consume index bytes through native stdin, not uncommitted worktree
-  contents. Missing bound supply is a failure, not an implicit skipped check.
+  contents. A repository that tracks no Ruff carrier is checked with the
+  shipped settings. Missing bound supply is a failure, not an implicit skipped check.
   Editor integration remains a separate acceptance boundary.
 - `.config/checks/<owner>/` and `.config/release/<owner>/` are named by the consuming tool, keeping its
   native file name, or by the repository check whose parameters live in `policy.toml`.

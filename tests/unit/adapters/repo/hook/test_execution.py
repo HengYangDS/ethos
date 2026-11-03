@@ -320,7 +320,8 @@ def test_hook_execution_rejects_a_noncanonical_current_selector(
 @pytest.mark.parametrize(
     ("capability", "gap"),
     [
-        ("absent", ""),
+        ("absent", "pre_commit_python_format_failed"),
+        ("absent-valid", ""),
         ("secrets", "staged_secret_gitleaks_missing"),
         ("timeout", "pre_commit_python_format_timeout"),
         ("missing-formatter", "pre_commit_python_formatter_unavailable"),
@@ -333,9 +334,13 @@ def test_hook_execution_rejects_a_noncanonical_current_selector(
 def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
     monkeypatch, repo, capsys, capability, gap
 ) -> None:
-    """Native hook checks exact index bytes and preserves unselected working content."""
+    """Native hook checks exact index bytes and preserves unselected working content.
+
+    Without a tracked Ruff carrier, the shipped Ruff settings check the staged Python.
+    """
     staged = repo / "change.py"
-    staged.write_text("VALUE = 1\n" if capability == "staged-valid" else "VALUE=1\n")
+    valid = capability in {"staged-valid", "absent-valid"}
+    staged.write_text("VALUE = 1\n" if valid else "VALUE=1\n")
     assert git_process(repo, "add", "change.py").returncode == 0
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
@@ -347,7 +352,7 @@ def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
         policy.write_text("title = 'policy'\n")
         assert git_process(repo, "add", str(policy)).returncode == 0
         monkeypatch.setattr(hook_runtime, "shutil", SimpleNamespace(which=lambda _name: None))
-    elif capability != "absent":
+    elif not capability.startswith("absent"):
         policy = repo / ".config/checks/ruff/ruff.toml"
         policy.parent.mkdir(parents=True)
         policy.write_text("line-length = 100\n")

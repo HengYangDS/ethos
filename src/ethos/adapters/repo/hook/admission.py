@@ -270,8 +270,7 @@ def _check_staged_python_format(
 ) -> None:
     tools = import_module("ethos.repository.policy.quality.tool_configuration")
     paths = tuple(path for path in staged if path.endswith((".py", ".pyi")))
-    policy = tools.NATIVE_TOOL_LOCATIONS["ruff"]
-    if not paths or not (configuration / policy).is_file():
+    if not paths:
         return
     indexed = set(
         _git_paths(
@@ -281,6 +280,13 @@ def _check_staged_python_format(
     paths = tuple(path for path in paths if path in indexed)
     if not paths:
         return
+    carrier = tools.NATIVE_TOOL_LOCATIONS["ruff"]
+    # A repository's own carrier keeps the shipped settings; without one they apply directly.
+    policy = (
+        carrier
+        if (configuration / carrier).is_file()
+        else str(import_module("ethos.repository.release.resources").shipped_resource(carrier))
+    )
     try:
         executable = Path(import_module("ruff").find_ruff_bin())
         expected = runtime_scripts(Path(sys.prefix)) / ("ruff.exe" if os.name == "nt" else "ruff")

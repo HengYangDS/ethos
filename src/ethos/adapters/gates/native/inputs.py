@@ -25,8 +25,7 @@ from ethos.repository.policy.rules.config import path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
-from ethos.repository.release.resources import packaged_resource
-from ethos.repository.release.resources import require_packaged_resource
+from ethos.repository.release.resources import shipped_resource
 
 if TYPE_CHECKING:
     import subprocess
@@ -220,9 +219,7 @@ def native_repository_configuration(root: Path, tool: str) -> Path | None:
 
 def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
-    common = canonical_resource(shared)
-    if common == packaged_resource(shared):
-        common = require_packaged_resource(shared)
+    common = shipped_resource(shared)
     path = native_repository_configuration(root, tool)
     if path is not None and path.resolve() != common.resolve():
         return str(common), str(path)

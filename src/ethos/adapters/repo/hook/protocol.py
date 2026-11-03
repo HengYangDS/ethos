@@ -10,6 +10,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import IO
 
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.contracts.verdict import report_verdict
@@ -65,6 +66,10 @@ def _reference_transaction(
             old_value == new_value and old_value not in _ZERO_OIDS
         ):
             continue
+        if old_value in _ZERO_OIDS and new_value in _ZERO_OIDS:
+            # Git reports a deletion without its old value, and the packed-refs twin of any
+            # deletion, as zero to zero; the prepared ref still holds the value it deletes.
+            old_value = ref_head(root, ref_name, old_value)
         if admit is None:
             admission = import_module("ethos.adapters.repo.hook.admission")
             admit = partial(

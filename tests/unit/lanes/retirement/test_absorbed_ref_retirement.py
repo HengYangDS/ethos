@@ -87,11 +87,17 @@ def _raw_delete(repo: Path, branch: str, source: str) -> subprocess.CompletedPro
     )
 
 
-@pytest.mark.parametrize("installed", [False, True])
+@pytest.mark.parametrize(
+    ("installed", "packed"),
+    [(False, False), (True, False), (True, True)],
+    ids=["direct", "hooked", "hooked-packed"],
+)
 def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(
-    tmp_path: Path, *, installed: bool
+    tmp_path: Path, *, installed: bool, packed: bool
 ) -> None:
     repo, source, accepted = _absorbed_ref(tmp_path)
+    if packed:
+        git(repo, "pack-refs", "--all")
     protected_before = {
         branch: git(repo, "rev-parse", branch)
         for branch in ("dev", "main", "candidate/dev")
@@ -211,6 +217,24 @@ def test_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(
 
     assert deleted.returncode != 0
     assert git(repo, "rev-parse", "work/unintended") == source
+
+
+def test_accepted_branch_deletion_without_old_value_keeps_its_rules(tmp_path: Path) -> None:
+    """A zero-to-zero deletion of the accepted branch is refused as a protected move."""
+    repo, _source, accepted = _absorbed_ref(tmp_path)
+    install_fixture_hook_runtime(repo)
+
+    deleted = subprocess.run(
+        ("git", "update-ref", "-d", "refs/heads/dev"),
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert deleted.returncode != 0
+    assert "ref_move_policy_unavailable" not in deleted.stderr, deleted.stderr
+    assert git(repo, "rev-parse", "dev") == accepted
 
 
 @pytest.mark.parametrize("prefix", ["work", "codex", "topic", "proposal"])

@@ -14,6 +14,7 @@ import pytest
 import ethos.adapters.repo.hook.admission as hook_admission
 from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 
@@ -330,3 +331,29 @@ def test_tag_ref_movement_requires_admission(tmp_path: Path) -> None:
     result = _protocol(tmp_path, "prepared", f"{'0' * 40} {'b' * 40} refs/tags/v1\n")
     assert result.returncode == 1
     assert "unused authority initialized" in result.stderr
+
+
+def test_a_zero_to_zero_deletion_is_governed_by_the_current_ref_value(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Git reports a deletion without its old value, and a packed deletion's twin, as zeros."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "branch", "topic")
+    calls: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(hook_admission, "current_runtime", lambda _common: None)
+
+    def admit(
+        _root: Path, ref_name: str, old: str, new: str, **_kwargs: object
+    ) -> dict[str, object]:
+        calls.append((ref_name, old, new))
+        return {"verdict": "pass", "state": "admitted", "required_gaps": []}
+
+    monkeypatch.setattr(hook_admission, "admit_reference", admit)
+    zero = "0" * len(head)
+    body = f"{zero} {zero} refs/heads/topic\n{zero} {zero} refs/heads/absent\n"
+
+    result = execute_hook(repo, "reference-transaction", ("prepared",), stdin=StringIO(body))
+
+    assert result == 0
+    assert calls == [("refs/heads/topic", head, zero), ("refs/heads/absent", zero, zero)]

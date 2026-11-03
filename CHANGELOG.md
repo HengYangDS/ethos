@@ -35,9 +35,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   every module and package docstring and each docstring's summary and sections, and a CLI surface
   test requires help text for every registered command. Its weak-summary, reStructuredText-marker
   and unknown-section checks have no Ruff rule and are not replaced.
-
-### Removed
-
 - ETHOS's optional local CI emulation, `tools/ci/ci_templates.py emulator-evidence` with `act` for
   GitHub and `gitlab-ci-local` for GitLab, and its policy fields. Hosted runs remain the only CI
   evidence, and the `ci_templates` gate keeps checking both projections.

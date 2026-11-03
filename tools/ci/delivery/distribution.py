@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
-from ethos.adapters.process import command_failure
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
@@ -29,13 +28,15 @@ from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.release.identity import is_release_build
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
+from tools.ci.delivery.mise_tool import CONSOLE_DIRECTORY
+from tools.ci.delivery.mise_tool import install_declared
+from tools.ci.delivery.mise_tool import run as run_mise
 from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-# The only archive directory a package manager puts on PATH; it holds the ETHOS console alone.
-CONSOLE_DIRECTORY = "ethos/bin"
+    from tools.ci.delivery.mise_tool import InstalledTool
 
 
 def archive_runtime(selected: SelectedRuntime) -> str:
@@ -352,30 +353,16 @@ def _prove_external_supply_recovery(
         raise RuntimeError(message)
 
 
-def _mise(
-    mise: Path, project: Path, arguments: tuple[str, ...], environment: Mapping[str, str]
-) -> str:
-    completed = run_command(
-        project,
-        (str(mise), "--cd", str(project), *arguments),
-        env=environment,
-        inherit_environment=False,
-        timeout=600,
-    )
-    if completed.returncode:
-        output = (completed.stderr.strip() or completed.stdout.strip())[-2000:]
-        detail = f"{shlex.join(arguments)}:exit={completed.returncode}:{output}"
-        message = f"shared_supply_package_manager_failed:{detail}"
-        # The bounded message names the call; the chained native failure keeps both whole streams.
-        raise RuntimeError(message) from command_failure(completed)
-    return completed.stdout
-
-
 @observe_stage("shared_package_installation")
-def _install_with_mise(
-    archive: Path, home: Path, *, mise: Path, environment: Mapping[str, str]
-) -> tuple[Path, Path, dict[str, str]]:
-    """Install the archive as adopters do: one locked Mise `http:` tool and its console."""
+def install_archive(
+    archive: Path,
+    home: Path,
+    *,
+    mise: Path,
+    environment: Mapping[str, str],
+    declaration: str | None = None,
+) -> InstalledTool:
+    """Install the archive as adopters do, from its published declaration when one is given."""
     with tarfile.open(archive) as packed:
         manifests = [
             name
@@ -390,42 +377,20 @@ def _install_with_mise(
     # Adopters label the tool with its product version, which also keeps a Windows install's
     # paths within what `cmd` runs; the console must still report the exact distribution.
     version = manifest.get("product_version", "")
-    distribution = manifest.get("distribution_version")
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
-    # The project is its own repository, as an adopter's is before ETHOS selects a runtime:
-    # the installed console then runs its own runtime, not one an enclosing checkout selected.
-    project = home / "project"
-    project.mkdir(parents=True)
-    run_command(home, ("git", "init", "--quiet", "--initial-branch=dev", str(project)), check=True)
-    declaration = project / "mise.toml"
-    declaration.write_text(
+    local = (
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'
-        f'checksum = "sha256:{digest}"\nbin_path = "{CONSOLE_DIRECTORY}"\n',
-        encoding="utf-8",
+        f'checksum = "sha256:{digest}"\nbin_path = "{CONSOLE_DIRECTORY}"\n'
     )
-    scoped = {
-        **environment,
-        **{f"MISE_{name}_DIR": str(home / name.lower()) for name in ("DATA", "CONFIG", "STATE")},
-        "MISE_CACHE_DIR": str(home / "cache"),
-        "MISE_CEILING_PATHS": str(home),
-        "MISE_GLOBAL_CONFIG_FILE": str(home / "absent-global.toml"),
-        "MISE_SYSTEM_CONFIG_DIR": str(home / "absent-system"),
-        "MISE_TRUSTED_CONFIG_PATHS": str(declaration),
-        **dict.fromkeys(("MISE_DISABLE_UPDATE_WARNING", "MISE_OFFLINE", "MISE_YES"), "1"),
-    }
-    for arguments in (("lock",), ("install", "--locked")):
-        _mise(mise, project, arguments, scoped)
-    installed = Path(_mise(mise, project, ("where", "http:ethos"), scoped).strip())
-    entries = sorted(path.name for path in (installed / CONSOLE_DIRECTORY).iterdir())
-    if entries not in (["ethos"], ["ethos.cmd"]):
-        message = f"shared_supply_path_entries_invalid:{','.join(entries)}"
-        raise RuntimeError(message)
-    console = _mise(mise, project, ("exec", "--locked", "--", "ethos", "--version"), scoped)
-    if not distribution or distribution not in console:
-        message = f"shared_supply_console_failed:{console.strip()}"
-        raise RuntimeError(message)
-    return installed, project, scoped
+    return install_declared(
+        declaration or local,
+        home,
+        mise=mise,
+        environment=environment,
+        distribution=manifest.get("distribution_version", ""),
+        offline=declaration is None,
+    )
 
 
 @observe_stage("shared_supply")
@@ -435,12 +400,17 @@ def prove_shared_supply(
     *,
     environment: Mapping[str, str],
     root: Path,
+    declaration: str | None = None,
 ) -> dict[str, object]:
     """Exercise independent repositories against the same delivered immutable supply."""
-    mise = prepare_mise(root)
-    installed, project, managed = _install_with_mise(
-        archive, work / "package-manager", mise=mise, environment=environment
+    tool = install_archive(
+        archive,
+        work / "package-manager",
+        mise=prepare_mise(root),
+        environment=environment,
+        declaration=declaration,
     )
+    installed = tool.installed
     generations = tuple((installed / "ethos/runtime").iterdir())
     if len(generations) != 1:
         message = "shared_supply_generation_ambiguous"
@@ -508,9 +478,7 @@ def prove_shared_supply(
     if selectors[0].read_bytes() != original or require_selected_runtime(pinned_root) != pinned:
         message = "shared_supply_recovery_or_integrity_failed"
         raise RuntimeError(message)
-    _prove_package_carrier_removal(
-        (mise, project, installed, managed), prefix, repositories, scoped_environment
-    )
+    _prove_package_carrier_removal(tool, prefix, repositories, scoped_environment)
     return {
         "state": "passed",
         "runtime_digest": selected.digest,
@@ -529,7 +497,7 @@ def prove_shared_supply(
 
 
 def _prove_package_carrier_removal(
-    manager: tuple[Path, Path, Path, Mapping[str, str]],
+    manager: InstalledTool,
     prefix: tuple[str, ...],
     repositories: list[Path],
     environment: Mapping[str, str],
@@ -547,7 +515,7 @@ def _prove_package_carrier_removal(
     if not isinstance(runtime, dict) or runtime.get("current") is not True:
         message = f"shared_supply_console_failed:{code}:{detail}"
         raise RuntimeError(message)
-    _mise(mise, project, ("uninstall", "http:ethos"), managed)
+    run_mise(mise, project, ("uninstall", "http:ethos"), managed)
     if installed.exists():
         message = "shared_supply_package_manager_uninstall_incomplete"
         raise RuntimeError(message)

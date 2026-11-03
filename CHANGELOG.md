@@ -17,6 +17,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Each release run attests the archives and wheels it publishes with GitHub artifact attestations
   before it creates the release, so `gh attestation verify` and Mise's GitHub backend can check
   that a file came from ETHOS's release workflow at its signed tag.
+- A release run qualifies the prerelease it publishes on the adopter journey on macOS and Linux.
+  Its `release-journey` job checks the platform archive against the release's checksums and build
+  attestation, installs it through Mise, and proves a cold install, host-store pinning, hook
+  binding, a full proof and status, an upgrade from the previous release with its rollback, and
+  uninstall. A `journey_tag` dispatch runs the journey alone for an already published prerelease.
 
 ### Changed
 

@@ -452,6 +452,22 @@ def prepare_acceptance_topology(
         (checkout / relative).write_text(f"{role}\n", encoding="utf-8", newline="\n")
         run(git, "add", relative, cwd=checkout)
         run(git, "commit", "--quiet", "-m", f"advance {role} independently", cwd=checkout)
+    run(git, "add", *declare_trust_registry(root), cwd=root)
+    run(
+        git,
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "-m",
+        "chore: require accepted signature repair",
+        cwd=root,
+    )
+    return candidate
+
+
+def declare_trust_registry(root: Path) -> tuple[str, ...]:
+    """Make signature trust and patch validity the repository's full proof floor."""
     profile = root / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
@@ -482,15 +498,4 @@ def prepare_acceptance_topology(
         encoding="utf-8",
         newline="\n",
     )
-    run(git, "add", ".ethos/profile.toml", "system/gates.toml", cwd=root)
-    run(
-        git,
-        "-c",
-        "commit.gpgsign=false",
-        "commit",
-        "--quiet",
-        "-m",
-        "chore: require accepted signature repair",
-        cwd=root,
-    )
-    return candidate
+    return (".ethos/profile.toml", "system/gates.toml")

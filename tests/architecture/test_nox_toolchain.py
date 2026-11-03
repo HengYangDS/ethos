@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shlex
 import subprocess
@@ -14,6 +15,7 @@ from unittest.mock import Mock
 
 import pytest
 import tomli_w
+from markdown_it import MarkdownIt
 
 import ethos.adapters.repo.content.observation as content_observation
 import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
@@ -236,6 +238,17 @@ def test_prose_executor_reuses_installed_native_provider(
     session.log.assert_called_once()
     session.run.assert_not_called()
     assert session.error.called == (verdict == "block")
+
+
+def test_loaded_sessions_keep_markdown_debug_records_out_of_nox_output(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Nox logs at debug level; once sessions load, markdown-it reports only info and above."""
+    caplog.set_level(logging.DEBUG)
+    MarkdownIt("commonmark").parse("# Title\n\n- item\n\ntext\n")
+    logging.getLogger("markdown_it.rules_block.paragraph").warning("kept")
+    records = [record for record in caplog.records if record.name.startswith("markdown_it")]
+    assert [record.getMessage() for record in records] == ["kept"]
 
 
 def test_configuration_gate_has_one_installed_owner() -> None:

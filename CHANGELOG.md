@@ -77,6 +77,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   it compiles has no repository Python environment, with a remediation that runs the repository's
   bootstrap verb there. It used to report `proof_attestation_repository_policy_mismatch`, so a
   closeout whose candidate worktree had lost its `.venv` named no cause.
+- The repository's Nox sessions no longer print markdown-it's debug records, which reached Nox's
+  debug root logger whenever a session parsed Markdown in process: one local `nox -s prose` run
+  printed about 27 MB of them. Warnings and errors from markdown-it still print.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

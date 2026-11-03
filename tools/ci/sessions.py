@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -21,6 +22,11 @@ RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 GITLEAKS_CONFIG = ROOT / ".config/checks/gitleaks/gitleaks.toml"
+
+# Nox prints every record at debug level, and in-process providers parse Markdown with
+# markdown-it, which logs each block rule it tries there.
+logging.getLogger("markdown_it").setLevel(logging.INFO)
+
 PUBLIC_SESSIONS = (
     "lint",
     "format",

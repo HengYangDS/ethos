@@ -484,8 +484,8 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     assert observed.get("change") == ("proof-command" if openspec else None)
 
 
-def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_path) -> None:
-    """Gates start after admission; the result reports the wait and each reasoned looser value."""
+def test_a_full_proof_admits_its_tests_only_after_readiness(monkeypatch, tmp_path) -> None:
+    """Readiness runs before admission and tests inside it; the result reports wait and values."""
     _repo, emitted = _arrange(monkeypatch, tmp_path)
     order: list[str] = []
 
@@ -495,8 +495,10 @@ def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_
         yield SlotAdmission(waited_seconds=4.0, load=3.0, limit=9.0)
         order.append("released")
 
-    def gates(**_kwargs):
-        order.append("gates")
+    def gates(*, admission, **_kwargs):
+        order.append("readiness")
+        with admission():
+            order.append("gates")
         return [_check()], True
 
     monkeypatch.setattr(proof_cli, "admitted_full_proof", admitted)
@@ -512,7 +514,7 @@ def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_
     with repository_parameters(binding):
         proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
-    assert order == [f"admitted:{'a' * 40}", "gates", "released"]
+    assert order == ["readiness", f"admitted:{'a' * 40}", "gates", "released"]
     assert emitted[-1].data["admission"] == {"waited_seconds": 4.0, "load": 3.0, "limit": 9.0}
     (deviation,) = emitted[-1].data["parameter_deviations"]
     assert dict(deviation) == {
@@ -533,7 +535,7 @@ def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_
         ),
     ],
 )
-def test_ended_admission_runs_no_gate_and_records_nothing(
+def test_ended_admission_runs_no_test_gate_and_records_nothing(
     monkeypatch, tmp_path, gap, next_action
 ) -> None:
     """Admission that ends a proof leaves its gap, the repair step and no Attestation."""
@@ -544,9 +546,14 @@ def test_ended_admission_runs_no_gate_and_records_nothing(
         raise ValueError(gap)
         yield
 
+    def gates(*, admission, **_kwargs):
+        with admission():
+            pytest.fail("a test gate ran after admission ended the proof")
+        return [_check()], True
+
     issued = Mock()
     monkeypatch.setattr(proof_cli, "admitted_full_proof", ended)
-    monkeypatch.setattr(proof_cli, "run_plan_checks", Mock(side_effect=AssertionError("gate ran")))
+    monkeypatch.setattr(proof_cli, "run_plan_checks", gates)
     monkeypatch.setattr(proof_cli, "issue_proof_attestation", issued)
 
     proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)

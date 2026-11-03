@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
@@ -246,3 +247,70 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert f"gate_dependency_not_proven:{readiness_gate}" in diagnostic["required_gaps"]
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
     assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)
+
+
+def test_settled_gates_are_neither_run_nor_reported(tmp_path: Path) -> None:
+    """A graph given a settled result keeps it, schedules only the rest and keeps plan order."""
+    repo = init_git_repo(tmp_path / "repo")
+    nodes, registry = _graph({"a": (), "b": ("a",)}, execution_mode="subprocess")
+    settled = {"a": ActionRunResult("a", ("a",), "pass", 0)}
+    ran: list[str] = []
+    scheduled: list[str] = []
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, _gate, **_context):
+            ran.append(node.id)
+            return ActionRunResult(node.id, node.command, "pass", 0)
+
+    results = gate_runner.run_gate_graph(
+        Runner(),
+        nodes,
+        registry,
+        root=repo,
+        capacity=2,
+        parallel=True,
+        on_schedule=scheduled.append,
+        settled=settled,
+    )
+
+    assert [result.action_id for result in results] == ["a", "b"]
+    assert results[0] is settled["a"]
+    assert ran == scheduled == ["b"]
+
+
+@pytest.mark.parametrize("readiness", ["pass", "fail"])
+def test_full_proof_waits_for_admission_only_after_readiness(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, readiness: str
+) -> None:
+    """Readiness runs before admission; its failure ends the proof without waiting or testing."""
+    repo = init_git_repo(tmp_path / "repo")
+    nodes, registry = _graph({"lint": (), "tests": ()}, trust_bearing=True)
+    registry["lint"] = registry["lint"].model_copy(update={"kind": "check"})
+    plan = _proof_plan(repo, nodes)
+    order: list[str] = []
+
+    class Runner:
+        def run(self, node, _gate, **_context):
+            order.append(node.id)
+            verdict = readiness if node.id == "lint" else "pass"
+            return ActionRunResult(node.id, node.command, verdict, 0 if verdict == "pass" else 1)
+
+    @contextmanager
+    def admission():
+        order.append("admission")
+        yield
+
+    monkeypatch.setattr(
+        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
+    )
+    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
+    checks, passed = proof_cli.run_plan_checks(
+        repo=repo, plan=plan, execute=True, capacity=2, admission=admission
+    )
+
+    assert [check["action_id"] for check in checks] == ["lint", "tests"]
+    assert passed is (readiness == "pass")
+    assert order == (["lint", "admission", "tests"] if readiness == "pass" else ["lint"])
+    if readiness == "fail":
+        (diagnostic,) = checks[1]["diagnostics"]
+        assert diagnostic["required_gaps"] == ["gate_dependency_not_proven:lint"]

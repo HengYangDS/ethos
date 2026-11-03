@@ -356,24 +356,36 @@ def observe_gate_execution(
     }
 
 
-def _scheduled_nodes(
-    nodes: tuple[PlanNode, ...],
-    gates: Mapping[str, Gate],
-) -> tuple[PlanNode, ...]:
-    """Derive selected preflight ordering without changing proof-policy inputs."""
+def _tiers(
+    nodes: tuple[PlanNode, ...], gates: Mapping[str, Gate]
+) -> tuple[tuple[str, ...], frozenset[str]]:
+    """Split a plan into its readiness tier and the test and package gates that start the rest."""
     ordered = TransitionPlan.closure(nodes)
     postexecution: set[str] = set()
-    execution_roots: set[str] = set()
+    roots: set[str] = set()
     for node in ordered:
         if postexecution.intersection(node.depends_on):
             postexecution.add(node.id)
         elif gates[node.id].kind in {"test", "package"}:
             postexecution.add(node.id)
-            execution_roots.add(node.id)
-    readiness = tuple(node.id for node in ordered if node.id not in postexecution)
+            roots.add(node.id)
+    return tuple(node.id for node in ordered if node.id not in postexecution), frozenset(roots)
+
+
+def readiness_tier(nodes: tuple[PlanNode, ...], gates: Mapping[str, Gate]) -> tuple[str, ...]:
+    """Return the gates that are neither test nor package gates and depend on none, in order."""
+    return _tiers(nodes, gates)[0]
+
+
+def _scheduled_nodes(
+    nodes: tuple[PlanNode, ...],
+    gates: Mapping[str, Gate],
+) -> tuple[PlanNode, ...]:
+    """Make the test and package gates that start the rest wait for the whole readiness tier."""
+    readiness, roots = _tiers(nodes, gates)
     return tuple(
         node.model_copy(update={"depends_on": tuple(dict.fromkeys((*node.depends_on, *readiness)))})
-        if node.id in execution_roots
+        if node.id in roots
         else node
         for node in nodes
     )
@@ -417,8 +429,15 @@ def run_gate_graph(
     parallel: bool,
     on_schedule: Callable[[str], None] | None = None,
     on_result: Callable[[ActionRunResult], None] | None = None,
+    settled: Mapping[str, ActionRunResult] | None = None,
+    epoch: float | None = None,
 ) -> tuple[ActionRunResult, ...]:
-    """Run ready nonconflicting checks once and return canonical plan order."""
+    """Run ready nonconflicting checks once and return canonical plan order.
+
+    A settled result stands for its gate: it is neither run nor reported again, and its
+    dependents judge it like any result of this run. An `epoch` shared across runs keeps
+    every gate's start offset on one timeline.
+    """
     if capacity < 1:
         message = "proof_node_capacity_invalid"
         raise ValueError(message)
@@ -428,39 +447,33 @@ def run_gate_graph(
     graph = TopologicalSorter({node.id: node.depends_on for node in scheduled})
     graph.prepare()
     ready: set[str] = set()
+    known = dict(settled or {})
     results: dict[str, ActionRunResult] = {}
     running = {}
     limit = capacity if parallel else 1
-    epoch = monotonic()
+    epoch = monotonic() if epoch is None else epoch
     scheduled_event = on_schedule or (lambda _action_id: None)
     completed_event = on_result or (lambda _result: None)
 
     with ThreadPoolExecutor(max_workers=limit) as executor, command_scope():
         while graph.is_active():
-            ready.update(graph.get_ready())
+            fresh = graph.get_ready()
+            for node_id in (node_id for node_id in fresh if node_id in known):
+                results[node_id] = known[node_id]
+                graph.done(node_id)
+            ready.update(node_id for node_id in fresh if node_id not in known)
             selected = _ready_checks(scheduled, gates, ready, tuple(running.values()), limit)
             for node in selected:
                 ready.remove(node.id)
                 scheduled_event(node.id)
+                arguments = (runner, node, gates[node.id], results, root, epoch)
                 if not parallel or isinstance(runner, DryRunRunner):
-                    results[node.id] = _run_ready_gate(
-                        runner, node, gates[node.id], results, root, epoch
-                    )
+                    results[node.id] = _run_ready_gate(*arguments)
                     completed_event(results[node.id])
                     graph.done(node.id)
                 else:
-                    running[
-                        executor.submit(
-                            copy_context().run,
-                            _run_ready_gate,
-                            runner,
-                            node,
-                            gates[node.id],
-                            results,
-                            root,
-                            epoch,
-                        )
-                    ] = node.id
+                    future = executor.submit(copy_context().run, _run_ready_gate, *arguments)
+                    running[future] = node.id
             if selected:
                 continue
             if running:

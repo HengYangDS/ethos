@@ -365,7 +365,7 @@ execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
 
-Full proof holds the repository's shared slot, then waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks). Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
+Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks) before its test and package gates. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
 

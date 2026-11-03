@@ -6,9 +6,11 @@ import json
 import os
 import sys
 from collections.abc import Mapping
+from contextlib import contextmanager
 from contextlib import nullcontext
 from dataclasses import asdict
 from dataclasses import dataclass
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import cast
@@ -22,6 +24,7 @@ from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
+from ethos.adapters.gates.runner import readiness_tier
 from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.mutation.proof import assert_proof_execution_source
 from ethos.adapters.mutation.proof import issue_proof_attestation
@@ -51,9 +54,14 @@ from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Generator
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
+    from ethos.adapters.gates.proof_slot import SlotAdmission
     from ethos.adapters.gates.runner import ActionRunResult
+    from ethos.contracts.plan import PlanNode
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
     from ethos.contracts.verdict import Verdict
@@ -162,8 +170,13 @@ def run_plan_checks(
     plan: TransitionPlan,
     execute: bool,
     capacity: int | None = None,
+    admission: Callable[[], AbstractContextManager[object]] | None = None,
 ) -> tuple[list[dict[str, object]], bool]:
-    """Run or project the admitted TransitionPlan gate sequence."""
+    """Run or project the admitted TransitionPlan gate sequence.
+
+    With an admission scope, the readiness tier runs first and the other gates run inside the
+    scope; when a readiness gate fails, the scope is never entered and those gates do not run.
+    """
     plan_head = plan.facts.get("head")
     if not isinstance(plan_head, str) or not plan_head:
         message = "proof_plan_head_missing"
@@ -179,18 +192,34 @@ def run_plan_checks(
     registry = gates_by_id.registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
-    results = run_gate_graph(
-        runner,
-        plan.nodes,
-        registry,
-        root=repo,
-        capacity=node_capacity,
-        parallel=execute,
-        on_schedule=(lambda action_id: _gate_progress(plan, action_id)) if execute else None,
-        on_result=(lambda result: _gate_progress(plan, result.action_id, result))
-        if execute
-        else None,
-    )
+    epoch = monotonic()
+
+    def graph(
+        nodes: tuple[PlanNode, ...], settled: Mapping[str, ActionRunResult] | None = None
+    ) -> tuple[ActionRunResult, ...]:
+        return run_gate_graph(
+            runner,
+            nodes,
+            registry,
+            root=repo,
+            capacity=node_capacity,
+            parallel=execute,
+            on_schedule=(lambda action_id: _gate_progress(plan, action_id)) if execute else None,
+            on_result=(lambda result: _gate_progress(plan, result.action_id, result))
+            if execute
+            else None,
+            settled=settled,
+            epoch=epoch,
+        )
+
+    if admission is None:
+        results = graph(plan.nodes)
+    else:
+        tier = set(readiness_tier(plan.nodes, registry))
+        readiness = graph(tuple(node for node in plan.nodes if node.id in tier))
+        ready = all(execution_succeeded(asdict(result)) for result in readiness)
+        with admission() if ready else nullcontext():
+            results = graph(plan.nodes, {result.action_id: result for result in readiness})
     checks: list[dict[str, object]] = []
     for run_result in results:
         gate = registry[run_result.action_id]
@@ -374,15 +403,23 @@ def prove(
             json_output=json_output,
         )
         return
-    # A full proof waits for its repository's slot and host capacity before any gate runs.
-    admission_scope = (
-        admitted_full_proof(repo, head=current_head)
-        if options.execute and options.full
-        else nullcontext()
-    )
+    # A full proof runs its readiness gates first, then waits for its repository's slot and host
+    # capacity before its test and package gates.
+    granted: list[SlotAdmission] = []
+
+    @contextmanager
+    def admission() -> Generator[None]:
+        with admitted_full_proof(repo, head=current_head) as slot:
+            granted.append(slot)
+            yield
+
     try:
-        with admission_scope as admission:
-            checks, runs_ok = run_plan_checks(repo=repo, plan=plan, execute=options.execute)
+        checks, runs_ok = run_plan_checks(
+            repo=repo,
+            plan=plan,
+            execute=options.execute,
+            admission=admission if options.execute and options.full else None,
+        )
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output, head=current_head)
         return
@@ -450,8 +487,8 @@ def prove(
             "matches": options.expect_head is None or options.expect_head == current_head,
         },
     }
-    if admission is not None:
-        data["admission"] = asdict(admission)
+    if granted:
+        data["admission"] = asdict(granted[0])
     if detailed:
         data.update(
             governance_context=audit["governance_context"],

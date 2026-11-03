@@ -1,12 +1,13 @@
 """Admit one full proof per repository onto a host whose load leaves room for it.
 
 A full proof that starts beside another full proof, or on a host already loaded by local CI
-virtual machines or other test runs, fails its gates by timeout rather than by any defect.
-Admission therefore waits before the first gate runs: first for the repository's proof slot,
-then, while holding it, for both the 1- and 5-minute load averages to fall within the limit, so
-a short lull between other jobs is not mistaken for room. Waiting is bounded; contention that
-outlasts the bound ends the proof with a gap before any gate runs. A Work Lane that falls behind
-its candidate meanwhile could no longer land, so its proof also ends before any gate runs.
+virtual machines or other test runs, fails its gates by timeout rather than by any defect. Its
+readiness gates, static checks of a committed tree, run first without waiting. Admission then
+waits before the first test or package gate runs: first for the repository's proof slot, then,
+while holding it, for both the 1- and 5-minute load averages to fall within the limit, so a short
+lull between other jobs is not mistaken for room. Waiting is bounded; contention that outlasts
+the bound ends the proof with a gap before any test or package gate runs. A Work Lane that falls
+behind its candidate meanwhile could no longer land, so its proof also ends there.
 """
 
 from __future__ import annotations

@@ -17,6 +17,7 @@ from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.adopter_content import ADOPTER_FILES
@@ -468,7 +469,8 @@ def prepare_acceptance_topology(
 
 def declare_trust_registry(root: Path) -> tuple[str, ...]:
     """Make signature trust and patch validity the repository's full proof floor."""
-    profile = root / ".ethos/profile.toml"
+    declared = load_repository_paradigm().binding.path("profile")
+    profile = root / declared
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
         encoding="utf-8",
@@ -498,4 +500,4 @@ def declare_trust_registry(root: Path) -> tuple[str, ...]:
         encoding="utf-8",
         newline="\n",
     )
-    return (".ethos/profile.toml", "system/gates.toml")
+    return (declared, "system/gates.toml")

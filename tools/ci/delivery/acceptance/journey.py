@@ -30,6 +30,7 @@ from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import acceptance_observation
 from tools.ci.delivery.acceptance.invocation import command_label
@@ -321,8 +322,9 @@ def run(session: nox.Session, *, tag: str, evidence: Path | None = None, work: P
                 if work.exists():
                     remove_generated_tree(work)
                 work.mkdir(parents=True)
-                changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-                payload |= qualify(tag, work=work, platform=host, changelog=changelog)
+                changelog = ROOT / load_repository_paradigm().release.changelog
+                history = changelog.read_text(encoding="utf-8")
+                payload |= qualify(tag, work=work, platform=host, changelog=history)
                 payload["state"] = "passed"
             finally:
                 remove_generated_tree(work)

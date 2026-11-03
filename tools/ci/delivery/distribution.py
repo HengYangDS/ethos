@@ -26,11 +26,11 @@ from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.release.identity import is_release_build
+from tools.ci.delivery import mise_tool
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.mise_tool import CONSOLE_DIRECTORY
 from tools.ci.delivery.mise_tool import install_declared
-from tools.ci.delivery.mise_tool import run as run_mise
 from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
@@ -515,7 +515,7 @@ def _prove_package_carrier_removal(
     if not isinstance(runtime, dict) or runtime.get("current") is not True:
         message = f"shared_supply_console_failed:{code}:{detail}"
         raise RuntimeError(message)
-    run_mise(mise, project, ("uninstall", "http:ethos"), managed)
+    mise_tool.run(mise, project, ("uninstall", "http:ethos"), managed)
     if installed.exists():
         message = "shared_supply_package_manager_uninstall_incomplete"
         raise RuntimeError(message)

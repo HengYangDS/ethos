@@ -41,6 +41,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   links, repository proof and package artifacts stay with `dev`'s run, as GitLab's `main` pipeline
   already leaves them to `dev`'s. A published commit costs about 320 GitHub job-minutes instead of
   about 640.
+- A newer push of a proposal ref cancels the hosted run of its earlier push, whose head the ref no
+  longer proposes: GitHub groups only proposal pushes by their ref, and GitLab cancels the jobs of
+  the superseded proposal pipeline. No run of `dev`, `main`, a release, a manual dispatch or a pull
+  or merge request is cancelled or queued, and a new `dev` commit no longer cancels a `dev`
+  pipeline that still waits for its GitLab runner.
 - The managed Ruff policy selects `docstring-extraneous-parameter` (`DOC102`), a preview rule enabled
   by its exact code, so a docstring that documents an argument its signature lacks fails lint in
   ETHOS and in every governed Python repository; `D417` already reports a missing one.

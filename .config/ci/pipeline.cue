@@ -117,6 +117,11 @@ let mainPush = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 let commitRun = "\(regularRun) && !(\(mainPush))"
 let pushedRange = "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
 
+// A newer push of a proposal ref replaces the head that its earlier run verifies, so that run is
+// cancelled. Every other run has a group of its own and never waits for or cancels another.
+let proposalPush = "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/')"
+let concurrencyGroup = "\(proposalPush) && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id)"
+
 // Windows on Arm executes the x64 runtime through its emulation; CEL ships no win_arm64 wheel.
 let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
 
@@ -222,6 +227,10 @@ github: {
 		}
 	}
 	permissions: contents: "read"
+	concurrency: {
+		group:                "${{ \(concurrencyGroup) }}"
+		"cancel-in-progress": true
+	}
 	env: #ExecutionEnvironment & {
 		UV_CACHE_DIR:            "${{ github.workspace }}/build/runtime/tool-cache/uv"
 		ETHOS_CI_TOOL_CACHE_DIR: "${{ github.workspace }}/build/runtime/tool-cache/ci-tools"
@@ -523,12 +532,18 @@ gitlab: {
 	]
 
 	// Candidate integration is local-only. Hosted pipelines run only for remote-eligible
-	// branches, plus merge-request validation.
+	// branches, plus merge-request validation. A new commit of a proposal ref cancels the jobs of
+	// the pipeline it supersedes; no new commit cancels a dev, main or merge-request pipeline.
 	workflow: {
 		rules: [{
 			if: "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+			auto_cancel: on_new_commit: "none"
 		}, {
-			if: "$CI_COMMIT_BRANCH == \"dev\" || $CI_COMMIT_BRANCH == \"main\" || $CI_COMMIT_BRANCH =~ /^proposal\\/.+$/"
+			if: "$CI_COMMIT_BRANCH == \"dev\" || $CI_COMMIT_BRANCH == \"main\""
+			auto_cancel: on_new_commit: "none"
+		}, {
+			if: "$CI_COMMIT_BRANCH =~ /^proposal\\/.+$/"
+			auto_cancel: on_new_commit: "interruptible"
 		}, {
 			when: "never"
 		}]
@@ -552,6 +567,8 @@ gitlab: {
 	// genuine gate breach still fails the pipeline.
 	default: {
 		tags: ["${ETHOS_GITLAB_RUNNER_TAG}"]
+		// The workflow rule of each ref decides whether a new commit cancels anything.
+		interruptible: true
 		retry: {
 			max: 2
 			when: [

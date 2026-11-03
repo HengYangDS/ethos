@@ -34,6 +34,7 @@ PUBLIC_SESSIONS = (
     "fix",
     "build",
     "install_smoke",
+    "release_journey",
     "host_conformance",
     "dependencies",
     "vulnerabilities",
@@ -193,6 +194,13 @@ def install_smoke(session) -> None:
         release_tag=owner.release_build_tag(tuple(remaining)),
         predecessor=options.predecessor_runtime,
     )
+
+
+def release_journey(session) -> None:
+    parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
+    parser.add_argument("--tag", required=True)
+    options = parser.parse_args(tuple(session.posargs))
+    import_module("tools.ci.delivery.acceptance.journey").run(session, tag=options.tag)
 
 
 def host_conformance(session) -> None:

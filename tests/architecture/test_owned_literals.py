@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OWNER = "src/ethos/contracts/paradigm/"
 # Delivery acceptance runs outside a governed repository's proof; its owners migrate these values,
 # so the count only falls.
-TOOLS_RESTATEMENTS = 19
+TOOLS_RESTATEMENTS = 17
 
 
 def test_product_code_restates_no_declared_value_and_tools_only_shed_theirs() -> None:

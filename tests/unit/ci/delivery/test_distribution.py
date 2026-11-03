@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import tools.ci.delivery.distribution as distribution
+import tools.ci.delivery.mise_tool as mise_tool
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import materialize_runtime_case
@@ -76,9 +77,43 @@ def test_a_failed_mise_call_keeps_both_whole_streams(
 ) -> None:
     """The bounded message names the call; its chained native failure keeps the whole result."""
     failed = subprocess.CompletedProcess(("mise", "install"), 23, "o" * 2140, "e" * 2140)
-    monkeypatch.setattr(distribution, "run_command", lambda *_args, **_options: failed)
+    monkeypatch.setattr(mise_tool, "run_command", lambda *_args, **_options: failed)
     with pytest.raises(RuntimeError, match="package_manager_failed:install:exit=23") as failure:
-        vars(distribution)["_mise"](tmp_path / "mise", tmp_path, ("install",), {})
+        mise_tool.run(tmp_path / "mise", tmp_path, ("install",), {})
     cause = failure.value.__cause__
     assert isinstance(cause, subprocess.CalledProcessError)
     assert (cause.returncode, cause.stdout, cause.stderr) == (23, "o" * 2140, "e" * 2140)
+
+
+def test_mise_reads_no_configuration_above_its_isolated_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A home named through `..` still bounds the search, so an enclosing project's tools stay out.
+
+    Mise compares its ceiling with the canonical directories it walks; an unresolved home never
+    matched them and let a checkout's own toolchain join the published tool's installation.
+    """
+    environments: list[object] = []
+
+    def mise(
+        _cwd: Path, command: tuple[str, ...], **options: object
+    ) -> subprocess.CompletedProcess:
+        environments.append(options.get("env"))
+        if command[-2:] == ("where", "http:ethos"):
+            console = tmp_path / "installed" / mise_tool.CONSOLE_DIRECTORY / "ethos"
+            console.parent.mkdir(parents=True, exist_ok=True)
+            console.touch()
+            return subprocess.CompletedProcess(command, 0, f"{console.parents[2]}\n", "")
+        return subprocess.CompletedProcess(command, 0, "ethos 1.2.3\n", "")
+
+    monkeypatch.setattr(mise_tool, "run_command", mise)
+    home = tmp_path / "work" / ".." / "home"
+    mise_tool.install_declared(
+        "", home, mise=tmp_path / "mise", environment={}, distribution="1.2.3", offline=True
+    )
+    ceilings = {
+        environment["MISE_CEILING_PATHS"]
+        for environment in environments
+        if isinstance(environment, dict)
+    }
+    assert ceilings == {str((tmp_path / "home").resolve())}

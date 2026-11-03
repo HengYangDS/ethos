@@ -17,6 +17,7 @@ from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.adopter_content import ADOPTER_FILES
@@ -452,7 +453,24 @@ def prepare_acceptance_topology(
         (checkout / relative).write_text(f"{role}\n", encoding="utf-8", newline="\n")
         run(git, "add", relative, cwd=checkout)
         run(git, "commit", "--quiet", "-m", f"advance {role} independently", cwd=checkout)
-    profile = root / ".ethos/profile.toml"
+    run(git, "add", *declare_trust_registry(root), cwd=root)
+    run(
+        git,
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "-m",
+        "chore: require accepted signature repair",
+        cwd=root,
+    )
+    return candidate
+
+
+def declare_trust_registry(root: Path) -> tuple[str, ...]:
+    """Make signature trust and patch validity the repository's full proof floor."""
+    declared = load_repository_paradigm().binding.path("profile")
+    profile = root / declared
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
         encoding="utf-8",
@@ -482,15 +500,4 @@ def prepare_acceptance_topology(
         encoding="utf-8",
         newline="\n",
     )
-    run(git, "add", ".ethos/profile.toml", "system/gates.toml", cwd=root)
-    run(
-        git,
-        "-c",
-        "commit.gpgsign=false",
-        "commit",
-        "--quiet",
-        "-m",
-        "chore: require accepted signature repair",
-        cwd=root,
-    )
-    return candidate
+    return (declared, "system/gates.toml")

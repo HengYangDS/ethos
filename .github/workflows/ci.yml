@@ -23,6 +23,11 @@ name: ETHOS CI
         required: false
         type: string
         default: ""
+      journey_tag:
+        description: Qualify this published pre-release on the adopter journey alone
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 env:
@@ -92,7 +97,7 @@ jobs:
   host-conformance:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     env:
       UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
     strategy:
@@ -150,7 +155,7 @@ jobs:
   quality:
     name: quality gates
     runs-on: ubuntu-24.04-arm
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
     steps:
@@ -205,7 +210,7 @@ jobs:
   external-links:
     name: external link health
     runs-on: ubuntu-latest
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -243,7 +248,7 @@ jobs:
     name: repository proof
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
       - name: Require successful hosted execution and artifact publication
         env:
@@ -253,7 +258,7 @@ jobs:
     name: package artifacts
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     steps:
       - name: Require successful hosted execution and artifact publication
         env:
@@ -361,3 +366,59 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create ${{ inputs.release_tag }} --repo ${{ github.repository }} --prerelease --verify-tag --title "ETHOS ${{ inputs.release_tag }}" --notes-file build/release/out/notes.md build/release/out/assets/*
+  release-journey:
+    name: release journey ${{ matrix.host }}
+    runs-on: ${{ matrix.os }}
+    needs: release-publish
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' && needs.release-publish.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.journey_tag != '')) }}
+    permissions:
+      contents: read
+      attestations: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+          - linux-x64
+          - macos-arm64
+        include:
+          - host: linux-x64
+            os: ubuntu-latest
+            python: "3.14"
+          - host: macos-arm64
+            os: macos-latest
+            python: "3.14"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.6
+          python-version: ${{ matrix.python }}
+      - name: Provision native Python image supply
+        run: uv python install --no-bin ${{ matrix.python }}
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Qualify the published pre-release on the adopter journey
+        run: uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }}
+      - name: Upload the release journey receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-journey-${{ matrix.host }}
+          path: build/evidence/release-journey/
+          if-no-files-found: error

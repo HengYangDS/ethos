@@ -104,9 +104,12 @@ let githubPythonBootstrap = list.Concat([[{
 let releaseTagRef = "refs/tags/${{ inputs.release_tag }}"
 
 // A release run is an explicit dispatch from accepted main naming one signed tag and its commit.
-let regularRun = "!inputs.supply_image && !inputs.release_tag"
+let regularRun = "!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag"
 let releaseRun = "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != ''"
 let releaseArguments = "--release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}"
+
+// A journey run qualifies one already published pre-release again, with the dispatching ref's code.
+let journeyRun = "github.event_name == 'workflow_dispatch' && inputs.journey_tag != ''"
 
 // A main push moves main to the accepted commit that dev's run of the same commit verifies, so it
 // repeats none of the commit-scoped jobs and only admits its pushed range (decision D11).
@@ -125,6 +128,9 @@ let releaseLegs = [
 	{host: "windows-x64", os: "windows-latest", python: "3.14"},
 	windowsArmLeg & {host: "windows-arm64"},
 ]
+
+// The adopter journey runs from the published artifacts on the platforms a beta must qualify.
+let journeyLegs = [for leg in releaseLegs if leg.host == "linux-x64" || leg.host == "macos-arm64" {leg}]
 
 // The host-conformance supply order that every hosted OS proves: checkout, Python image,
 // build-only dependencies, native and npm supply, then the project environment.
@@ -203,6 +209,12 @@ github: {
 			}
 			release_head: {
 				description: "The exact commit that the release tag signs"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			journey_tag: {
+				description: "Qualify this published pre-release on the adopter journey alone"
 				required:    false
 				type:        "string"
 				default:     ""
@@ -469,6 +481,40 @@ github: {
 				env: GH_TOKEN: "${{ github.token }}"
 				run: "gh release create ${{ inputs.release_tag }} --repo ${{ github.repository }} --prerelease --verify-tag --title \"ETHOS ${{ inputs.release_tag }}\" --notes-file build/release/out/notes.md build/release/out/assets/*"
 			}]
+		}
+		"release-journey": {
+			name:      "release journey ${{ matrix.host }}"
+			"runs-on": "${{ matrix.os }}"
+			needs:     "release-publish"
+			if:        "${{ !cancelled() && ((\(releaseRun) && needs.release-publish.result == 'success') || (\(journeyRun))) }}"
+			permissions: {
+				contents:     "read"
+				attestations: "read"
+			}
+			env: {
+				GH_TOKEN:              "${{ github.token }}"
+				UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
+			}
+			strategy: {
+				"fail-fast": false
+				matrix: {
+					host: [for leg in journeyLegs {leg.host}]
+					include: journeyLegs
+				}
+			}
+			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
+				name: "Qualify the published pre-release on the adopter journey"
+				run:  "uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }}"
+			}, {
+				name: "Upload the release journey receipt"
+				if:   "always()"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				with: {
+					name:                "release-journey-${{ matrix.host }}"
+					path:                "build/evidence/release-journey/"
+					"if-no-files-found": "error"
+				}
+			}]])
 		}
 	}
 }

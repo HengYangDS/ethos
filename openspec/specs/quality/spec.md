@@ -3206,6 +3206,7 @@ tree with `dev`.
 
 - **WHEN** `dev` or a proposal ref is pushed, or a pull or merge request is opened or updated
 - **THEN** the Forge runs every commit-scoped job and admits the event's range
+- **AND** only a newer push of the same proposal ref cancels those jobs
 
 ### Requirement: Readiness gates precede host-load admission
 
@@ -3247,3 +3248,21 @@ values.
 - **WHEN** `git update-ref -d` deletes the accepted branch without its old value
 - **THEN** the hook refuses it under the accepted branch's rules, not for a missing policy
 - **AND** the branch keeps its value.
+
+### Requirement: A newer proposal push supersedes its earlier run
+
+A newer push of a proposal ref SHALL cancel the hosted run of its earlier push, whose head the ref
+no longer proposes. No newer event SHALL cancel or queue a run of `dev` or `main`, of a manual
+dispatch such as a release, or of a pull or merge request.
+
+#### Scenario: A proposal ref is pushed again
+
+- **WHEN** a proposal ref is pushed again while the run of its earlier push is in progress
+- **THEN** the Forge cancels the earlier run's jobs
+- **AND** the newer push's run executes every commit-scoped job and admits its range
+
+#### Scenario: Other runs are never superseded
+
+- **WHEN** `dev` or `main` is pushed, a manual dispatch runs, or a pull or merge request is opened
+  or updated
+- **THEN** no later event cancels or queues its run

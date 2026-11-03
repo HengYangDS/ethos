@@ -24,6 +24,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
   official executable digests, and Cyclopts 5.3.3, filelock 4.2.7 and python-discovery 1.9.1, with
   ETHOS now requiring Cyclopts 5.3.3 and filelock 4.2.7 or later.
+- The shipped adopter CI model pins `jdx/mise-action` 5.2.6 by commit, which no longer hangs when
+  a cache restore fails mid-download.
 - GitHub runs ETHOS's full verification once for each published commit. A push to `main`, which
   moves only to the accepted commit that `dev`'s run already verifies, now runs only a
   `commit policy` job that admits the pushed range; host conformance, quality gates, external

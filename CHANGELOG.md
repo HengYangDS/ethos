@@ -108,6 +108,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The repository's Nox sessions no longer print markdown-it's debug records, which reached Nox's
   debug root logger whenever a session parsed Markdown in process: one local `nox -s prose` run
   printed about 27 MB of them. Warnings and errors from markdown-it still print.
+- ETHOS's hosted CI waits up to about 13 seconds for Windows to release the Mise executable it
+  has just verified before replacing the cached one with it, instead of failing the job with
+  `WinError 32`, as `dev`'s Windows on Arm job did in GitHub run 41728732273.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

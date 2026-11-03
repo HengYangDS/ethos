@@ -136,3 +136,39 @@ def test_supply_failure_reports_the_failure_its_cleanup_masked(
     error = capsys.readouterr().err
     assert "WinError 32" in error
     assert "mise_version_mismatch" in error
+
+
+class _HeldOpenError(PermissionError):
+    """What Windows raises while another process still holds the file."""
+
+    winerror = 32
+
+
+@pytest.mark.parametrize("held", [_HeldOpenError, PermissionError])
+def test_mise_waits_only_while_windows_holds_the_verified_executable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, held: type[PermissionError]
+) -> None:
+    """A just-run executable can stay open for a moment; only that hold is waited out."""
+    payload = _executable()
+    _source(tmp_path, x64=hashlib.sha256(payload).hexdigest())
+    _serve(monkeypatch, payload)
+    replace = Path.replace
+    attempts: list[Path] = []
+    waits: list[float] = []
+
+    def held_twice(self: Path, target: Path) -> Path:
+        attempts.append(self)
+        if len(attempts) <= 2:
+            raise held(13, "The process cannot access the file")
+        return replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", held_twice)
+    monkeypatch.setattr(native.time, "sleep", waits.append)
+
+    if held is _HeldOpenError:
+        assert native.prepare_mise(tmp_path).read_bytes() == payload
+        assert (len(attempts), waits) == (3, [0.1, 0.2])
+    else:
+        with pytest.raises(PermissionError):
+            native.prepare_mise(tmp_path)
+        assert (len(attempts), waits) == (1, [])

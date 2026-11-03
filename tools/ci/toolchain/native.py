@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 import tomllib
 import zipfile
 from pathlib import Path
@@ -34,6 +35,9 @@ MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
 CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
 MISE_SYSTEMS = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}
 MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
+# What Windows raises while another process, such as its scanner, still holds a file open.
+_HELD_FILE_ERRORS = frozenset({5, 32})
+_HELD_FILE_ATTEMPTS = 10
 
 
 def _windows_host() -> bool:
@@ -87,6 +91,20 @@ def _bound_executable(root: Path, executable: Path) -> None:
     ):
         message = f"mise_executable_digest_mismatch:{executable.name}"
         raise ValueError(message)
+
+
+def _replace_once_released(source: Path, target: Path) -> None:
+    """Replace the target, waiting about 13 seconds at most while Windows holds the source."""
+    for attempt in range(_HELD_FILE_ATTEMPTS):
+        try:
+            source.replace(target)
+        except PermissionError as error:
+            held = getattr(error, "winerror", None) in _HELD_FILE_ERRORS
+            if not held or attempt + 1 == _HELD_FILE_ATTEMPTS:
+                raise
+            time.sleep(min(0.1 * 2**attempt, 2.0))
+        else:
+            return
 
 
 def _stage_mise(root: Path, version: str, candidate: Path) -> None:
@@ -149,7 +167,7 @@ def prepare_mise(root: Path) -> Path:
             candidate = Path(directory) / executable.name
             _stage_mise(root, version, candidate)
             verify(candidate)
-            candidate.replace(executable)
+            _replace_once_released(candidate, executable)
     return executable
 
 

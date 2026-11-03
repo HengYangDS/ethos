@@ -66,6 +66,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   undecorated function whose one statement returns a call to a function the module defines or
   imports, passing every parameter unchanged and nothing else. `openspec_base_command`, the last
   one, now owns the locked OpenSpec command resolution it used to forward to.
+- A push of a proposal ref no longer runs GitHub's Windows on Arm host conformance, the slowest
+  job of a proposal run: 71 minutes against 51 for the slowest native pair in run 41713822013.
+  `dev`'s run of the landed commit, the proposal's exact commit, still runs it before the commit
+  can be tagged, and so do pull requests and manual dispatches.
 
 ### Removed
 

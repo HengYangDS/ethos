@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import tomllib
@@ -215,7 +216,11 @@ def test_an_emulating_host_publishes_the_archive_it_qualified(tmp_path):
 
 
 def test_each_release_leg_declares_the_host_its_runner_provides():
-    """A leg's host is declared, since Windows reports its CPU to an emulated interpreter."""
+    """A leg's host is declared, since Windows reports its CPU to an emulated interpreter.
+
+    Host conformance runs the emulated pair for every event but a proposal push, whose landed
+    commit `dev`'s run verifies on it.
+    """
     jobs = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
     release = jobs["release-platforms"]
     included = release["strategy"]["matrix"]["include"]
@@ -231,8 +236,14 @@ def test_each_release_leg_declares_the_host_its_runner_provides():
     steps = release["steps"]
     uploads = [step["with"]["name"] for step in steps if "upload-artifact" in step.get("uses", "")]
     assert uploads == ["release-runtime-${{ matrix.host }}"]
-    conformance = jobs["host-conformance"]["strategy"]["matrix"]["include"]
-    assert conformance == [dict(zip(("os", "python"), emulated, strict=True))]
+    selection = re.fullmatch(
+        r"\$\{\{ fromJSON\((.+) && '\[\]' \|\| '(.+)'\) \}\}",
+        jobs["host-conformance"]["strategy"]["matrix"]["include"],
+    )
+    assert selection is not None
+    proposal_push = "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/')"
+    assert selection[1] == proposal_push
+    assert json.loads(selection[2]) == [dict(zip(("os", "python"), emulated, strict=True))]
 
 
 def test_the_release_attests_its_archives_and_wheels_before_it_exists():

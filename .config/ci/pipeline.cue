@@ -1,6 +1,7 @@
 package ci
 
 import (
+	"encoding/json"
 	"list"
 )
 
@@ -298,7 +299,9 @@ github: {
 				matrix: {
 					os: ["ubuntu-latest", "windows-latest", "macos-latest"]
 					python: ["3.12", "3.13", "3.14"]
-					include: [windowsArmLeg]
+					// A proposal push leaves its slowest pair, Windows on Arm, to dev's run of the
+					// landed commit, which is the proposal's exact commit.
+					include: "${{ fromJSON(\(proposalPush) && '[]' || '\(json.Marshal([windowsArmLeg]))') }}"
 				}
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{

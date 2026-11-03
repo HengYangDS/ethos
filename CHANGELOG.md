@@ -70,6 +70,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   job of a proposal run: 71 minutes against 51 for the slowest native pair in run 41713822013.
   `dev`'s run of the landed commit, the proposal's exact commit, still runs it before the commit
   can be tagged, and so do pull requests and manual dispatches.
+- The locked supply moves to syft 1.56.0, fastmcp 4.1.6, ty 0.0.96, authlib 1.9.3, coverage
+  7.17.1, joserfc 1.8.0, python-discovery 1.9.2, uncalled-for 0.4.2 and virtualenv 21.15.3, and
+  the fastmcp and ty floors follow the locked versions.
 
 ### Removed
 

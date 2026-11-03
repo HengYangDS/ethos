@@ -56,6 +56,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Prewrite no longer refuses a selected Change's write to a file directly in `openspec/changes/`,
   such as a guide or a template, as another Change's path. Only a file inside another Change's
   directory reports `openspec_change_path_mismatch`.
+- Prewrite admits the deletion of a tracked file at a location the repository paradigm rejects,
+  staged or not, instead of refusing it as a new file there with a repair that asks to move it. A
+  path absent from the worktree is a creation only when neither the index nor `HEAD` tracks it, so
+  a new file at such a location is still refused.
+- The generated reference-transaction hook governs a ref deletion that Git reports without its old
+  value, as `git branch -D`, `git update-ref -d` and the `packed-refs` side of every deletion of a
+  packed ref do, by the ref's current value. `ethos lane retire absorbed-ref --apply` no longer
+  fails for a packed ref, and the accepted branch's rules still refuse its deletion that way.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

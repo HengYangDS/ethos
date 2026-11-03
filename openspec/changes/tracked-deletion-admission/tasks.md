@@ -9,8 +9,8 @@
       (`test_prewrite_admits_the_deletion_of_a_tracked_non_conforming_carrier` failed with
       `repository_paradigm_root_catalog:pytest.ini` in both cases and passes;
       `test_prewrite_refuses_a_new_path_the_paradigm_rejects` still refuses the new path.)
-- [ ] 1.2 Record the fix in the changelog. Done when the Unreleased section of `CHANGELOG.md` names
-      it under Fixed.
+- [x] 1.2 Record the fix in the changelog. Done when the Unreleased section of `CHANGELOG.md` names
+      it under Fixed. (The second Fixed entry.)
 
 ## 2. Specification
 

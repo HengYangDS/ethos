@@ -24,6 +24,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   links, repository proof and package artifacts stay with `dev`'s run, as GitLab's `main` pipeline
   already leaves them to `dev`'s. A published commit costs about 320 GitHub job-minutes instead of
   about 640.
+- The managed Ruff policy selects `docstring-extraneous-parameter` (`DOC102`), a preview rule enabled
+  by its exact code, so a docstring that documents an argument its signature lacks fails lint in
+  ETHOS and in every governed Python repository; `D417` already reports a missing one.
+
+### Removed
+
+- ETHOS's own docstring checker and its `docstrings` gate, `.config/checks/docstrings/policy.toml`
+  and `src/ethos/repository/policy/docstrings/`. The managed Ruff policy's docstring rules check
+  every module and package docstring and each docstring's summary and sections, and a CLI surface
+  test requires help text for every registered command. Its weak-summary, reStructuredText-marker
+  and unknown-section checks have no Ruff rule and are not replaced.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

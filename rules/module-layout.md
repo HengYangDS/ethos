@@ -140,10 +140,13 @@ runtime export behavior are not proved by these static checks. Private access
 needed by another owner requires semantic relocation or a justified public
 capability, not a blanket rename or re-export facade.
 
-Public documentation obligations belong to the declared docstring gate. Its
-current implementation-selected coverage is not evidence that every code file
-and public definition is documented; global missing-file and rule-coverage
-obligations remain tracked in the sole terminal plan until enforced and verified.
+Public documentation obligations belong to the managed Ruff policy and the CLI
+surface tests. Ruff's Google-convention docstring rules require a docstring in
+every module and package and check each docstring's summary and sections;
+`D417` and `DOC102` keep an `Args` section equal to its signature. The CLI
+surface tests require help text, which Cyclopts takes from the docstring, for
+every registered command. Classes, methods and other functions need no
+docstring (`D101` to `D103` and `D105` to `D107` stay ignored).
 
 ### Import discipline
 

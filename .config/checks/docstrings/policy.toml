@@ -1,7 +1,0 @@
-# Docstring policy for ETHOS Python product surfaces.
-# Owned by .config/checks/docstrings/; CI invokes the ETHOS quality command.
-
-paths = ["src/ethos"]
-fail_under = 100
-style = "google"
-check_structured_signature = true

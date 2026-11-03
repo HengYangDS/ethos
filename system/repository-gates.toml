@@ -3,8 +3,8 @@ id = "repository-gate-registry"
 source_refs = ["system/repository-gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
+default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
+full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -99,7 +99,6 @@ depends_on = [
   "repository-audit",
   "skills",
   "ruff",
-  "docstrings",
   "module-layout",
   "shell-lint",
   "source-budget",
@@ -155,23 +154,6 @@ execution_mode = "provider"
 evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "ethos"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
-
-[[gates]]
-id = "docstrings"
-kind = "docs"
-providers = ["ethos.repository.policy.docstrings.coverage:docstring_coverage_report"]
-policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
-asset_classes = ["python-code"]
-dimensions = ["documentation", "intent"]
-execution_mode = "provider"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "ethos-docstrings-google"
 writes_files = false
 network_policy = "offline"
 version_source = "product"

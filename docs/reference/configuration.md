@@ -23,8 +23,8 @@ configuration plane, not a truth center.
   remaining native tool tables are not permission to duplicate policy owned
   by an explicit configuration file.
 - `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
-- [The Ruff policy](../../.config/checks/ruff/ruff.toml) owns lint and formatting rules. Native
-  CLI and hook consumers select this exact nested policy; no root pointer remains.
+- [The Ruff policy](../../.config/checks/ruff/ruff.toml) owns lint, docstring and formatting rules.
+  Native CLI and hook consumers select this exact nested policy; no root pointer remains.
   CLI caches are bound explicitly to `build/runtime/tool-cache/ruff/`.
   The package runtime supplies Ruff for selected staged Python checks. These
   checks consume index bytes through native stdin, not uncommitted worktree
@@ -44,7 +44,6 @@ configuration plane, not a truth center.
   environment, and Ruff caches remain under `build/runtime/tool-cache/ruff/`.
   Root `pyproject.toml` remains free of Ruff policy.
 - `.config/checks/coverage/coverage.toml` owns Python line-and-branch measurement and the required hard floor, coverage's own `fail_under`, which the run that measures coverage decides. The `unit-architecture` gate runs the suite once through the shipped behavior probe, which applies this carrier and the pytest carrier; the attempt's JUnit report, report log, coverage data and XML, pytest cache and temporary directories, bytecode and Hypothesis storage stay in its scratch, and its reports are copied only to a native output root the runner names, which hosted verification sets to `build/evidence/quality/tests/`. A direct run keeps pytest's cache in ignored `build/runtime/tool-cache/pytest/`, and its temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy stays in `.config/checks/pytest/pytest.toml`, which every invocation passes with `-c`; a bare `pytest` at the root applies no project policy.
-- `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/module-layout/policy.toml` owns all tracked Python as the
   repository-wide semantic scope, plus the narrower product-package topology
   scope, ambiguous naming, facade, command-owner, and import-boundary policy.

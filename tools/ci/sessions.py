@@ -47,7 +47,6 @@ PUBLIC_SESSIONS = (
     "hosted_observation",
     "hosted_verification",
     "external_links",
-    "docstrings",
     "module_layout",
     "product_boundary",
     "import_boundaries",
@@ -342,10 +341,6 @@ def external_links(session) -> None:
         )
     if completed.returncode:
         session.error(f"external link observation failed with exit status {completed.returncode}")
-
-
-def docstrings(session) -> None:
-    _host(session, "docstrings")
 
 
 def module_layout(session) -> None:

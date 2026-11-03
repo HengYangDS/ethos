@@ -77,6 +77,23 @@ def test_bare_help_loads_the_terminal_root_surface() -> None:
         assert command in completed.stdout
 
 
+def test_every_registered_command_has_help_text() -> None:
+    """Cyclopts takes a command's help from its docstring, so an undocumented command has none."""
+    load_command_groups([])
+    pending = [("ethos", app)]
+    undocumented = []
+    while pending:
+        path, group = pending.pop()
+        for name, command in group.resolved_commands().items():
+            if name.startswith("-") or command is group:
+                continue
+            if not (command.help or "").strip():
+                undocumented.append(f"{path} {name}")
+            pending.append((f"{path} {name}", command))
+
+    assert undocumented == []
+
+
 def test_takeover_is_a_public_generation_bound_lease_command() -> None:
     completed = run_ethos_raw("lane", "lease", "takeover", "--help")
 

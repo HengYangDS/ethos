@@ -294,8 +294,11 @@ github: {
 				if:   "always()"
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
-					name:                "host-conformance-${{ matrix.os }}-py${{ matrix.python }}"
-					path:                "build/evidence/local-install/smoke.json"
+					name: "host-conformance-${{ matrix.os }}-py${{ matrix.python }}"
+					path: """
+						build/evidence/local-install/smoke.json
+						build/evidence/local-install/smoke.events.jsonl
+						"""
 					"if-no-files-found": "error"
 				}
 			}]])
@@ -561,7 +564,10 @@ gitlab: {
 		script: ["\(offlineRun) python -m nox -s host_conformance"]
 		artifacts: {
 			when: "always"
-			paths: ["build/evidence/local-install/smoke.json"]
+			paths: [
+				"build/evidence/local-install/smoke.json",
+				"build/evidence/local-install/smoke.events.jsonl",
+			]
 		}
 	}
 	"ethos:verify": {

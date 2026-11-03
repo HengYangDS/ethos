@@ -87,6 +87,7 @@ ethos:host-conformance:
     when: always
     paths:
       - build/evidence/local-install/smoke.json
+      - build/evidence/local-install/smoke.events.jsonl
 ethos:verify:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   before_script:

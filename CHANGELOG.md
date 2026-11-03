@@ -39,6 +39,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The managed Ruff policy selects `docstring-extraneous-parameter` (`DOC102`), a preview rule enabled
   by its exact code, so a docstring that documents an argument its signature lacks fails lint in
   ETHOS and in every governed Python repository; `D417` already reports a missing one.
+- Each hosted host conformance job uploads the stage timings of its package acceptance,
+  `build/evidence/local-install/smoke.events.jsonl`, with its receipt `smoke.json`, also when the
+  job fails.
 
 ### Removed
 

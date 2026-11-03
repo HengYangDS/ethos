@@ -1,5 +1,12 @@
-# Executables each Forge's CI runner environment provides to that Forge's own pipelines,
-# beyond the repository's toolchain and the product runtime.
+# Executables and references each Forge's CI runner environment provides to that Forge's own
+# pipelines, beyond the repository's toolchain and the product runtime.
+[[runner]]
+forge = "github"
+# The hosted Ubuntu image ships Docker with Buildx, which the supply image job builds with.
+executables = ["docker"]
+
 [[runner]]
 forge = "gitlab"
 executables = ["sha256sum"]
+# Every job names its image, which the runner's Docker executor runs.
+references = ["docker"]

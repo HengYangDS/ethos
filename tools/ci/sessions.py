@@ -209,7 +209,7 @@ def supply_chain(session) -> None:
 
 
 def ci_templates(session) -> None:
-    if import_module("tools.ci.ci_templates").check_templates(json_output=True):
+    if import_module("tools.ci.ci_projection").check_templates(json_output=True):
         session.error("CI provider projections differ from their owners")
 
 

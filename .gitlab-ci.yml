@@ -30,7 +30,7 @@ default:
       - api_failure
       - scheduler_failure
 ethos:commit-policy:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:da1ed80ae5205858a90dfc5966f4c1c4ee725cffec34a75200a3dc995651eb5f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
@@ -62,7 +62,7 @@ ethos:commit-policy:
   script:
     - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:da1ed80ae5205858a90dfc5966f4c1c4ee725cffec34a75200a3dc995651eb5f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
@@ -88,7 +88,7 @@ ethos:host-conformance:
     paths:
       - build/evidence/local-install/smoke.json
 ethos:verify:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:da1ed80ae5205858a90dfc5966f4c1c4ee725cffec34a75200a3dc995651eb5f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
@@ -128,7 +128,7 @@ ethos:verify:
         coverage_format: cobertura
         path: build/evidence/quality/tests/coverage/coverage.xml
 ethos:external-links:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:da1ed80ae5205858a90dfc5966f4c1c4ee725cffec34a75200a3dc995651eb5f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -167,7 +167,7 @@ ethos:npm:
     - when: on_success
   variables:
     NODE_VERSION: 26.13.0
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:da1ed80ae5205858a90dfc5966f4c1c4ee725cffec34a75200a3dc995651eb5f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:441a02a2b75752ebae9b608f5daafc30d9950031e980d99aec6f4e0017addc0c
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev

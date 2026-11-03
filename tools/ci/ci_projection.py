@@ -32,12 +32,6 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_RELATIVE_PATH = ".config/checks/ci-projection/policy.toml"
 CONFIG_PATH = ROOT / CONFIG_RELATIVE_PATH
-EMULATOR_REQUIRED_FIELDS = (
-    "emulator_tool",
-    "emulator_event",
-    "emulator_job",
-    "emulator_timeout_seconds",
-)
 
 
 def _git_output(*args: str) -> str:
@@ -262,54 +256,6 @@ def _surface_entries() -> list[dict[str, Any]]:
     return entries
 
 
-def provider_entry(provider: str) -> dict[str, Any]:
-    entries = [entry for entry in projection_entries() if entry.get("provider") == provider]
-    if len(entries) != 1:
-        message = f"expected exactly one CI projection for provider: {provider}"
-        raise SystemExit(message)
-    return entries[0]
-
-
-def emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
-    missing = [field for field in EMULATOR_REQUIRED_FIELDS if field not in entry]
-    if missing:
-        provider = entry.get("provider", "unknown")
-        message = f"CI emulator declaration missing for {provider}: {', '.join(missing)}"
-        raise SystemExit(message)
-    image = entry.get("emulator_image")
-    if image is None:
-        try:
-            projected = yaml.safe_load(
-                (ROOT / str(entry["projection"])).read_text(encoding="utf-8")
-            )
-            jobs = projected.get("jobs", projected)
-            selected = jobs[entry["emulator_job"]]["image"]
-            image = selected.get("name") if isinstance(selected, dict) else selected
-        except (AttributeError, KeyError, OSError, TypeError, ValueError, yaml.YAMLError) as error:
-            provider = entry.get("provider", "unknown")
-            message = f"CI emulator image unavailable for {provider}"
-            raise SystemExit(message) from error
-    if not isinstance(image, str) or "@sha256:" not in image:
-        provider = entry.get("provider", "unknown")
-        message = f"CI emulator image unavailable for {provider}"
-        raise SystemExit(message)
-    declaration = {field: entry[field] for field in EMULATOR_REQUIRED_FIELDS} | {
-        "emulator_image": image,
-        "emulator_state_dir": entry.get("emulator_state_dir", ""),
-        "forbidden_log_patterns": list(entry.get("forbidden_log_patterns", [])),
-    }
-    timeout_seconds = declaration["emulator_timeout_seconds"]
-    if (
-        not isinstance(timeout_seconds, int)
-        or isinstance(timeout_seconds, bool)
-        or timeout_seconds < 1
-    ):
-        provider = entry.get("provider", "unknown")
-        message = f"CI emulator timeout invalid for {provider}: {timeout_seconds!r}"
-        raise SystemExit(message)
-    return declaration
-
-
 def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     surfaces = []
     failures = []
@@ -367,11 +313,6 @@ def check_templates(*, json_output: bool) -> int:
     for entry in projection_entries() if relations else ():
         provider = str(entry["provider"])
         projection = ROOT / str(entry["projection"])
-        try:
-            emulation = emulator_declaration(entry)
-        except SystemExit as exc:
-            failures.append({"provider": provider, "reason": str(exc)})
-            continue
         owner_missing = [
             script
             for script in entry.get("required_owner_scripts", [])
@@ -396,7 +337,6 @@ def check_templates(*, json_output: bool) -> int:
                 "provider": provider,
                 "source": relation.source,
                 "projection": str(projection.relative_to(ROOT)),
-                "emulation": emulation,
                 "input_sha256": {
                     path: _sha256(ROOT / path)
                     for path in relation.materials

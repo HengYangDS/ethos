@@ -24,7 +24,6 @@ from ethos.repository.policy.projections import observe_projections
 from tests.support.registries import repository_registry_path
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
-from tools.ci.ci_projection import emulator_declaration
 from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -355,13 +354,8 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
         for job in gitlab.values()
         if isinstance(job, dict) and isinstance(job.get("image"), str)
     }
-    providers = {entry["provider"]: entry for entry in projection_entries()}
-    assert "@sha256:" in providers["github"]["emulator_image"]
-    assert "emulator_image" not in providers["gitlab"]
-    assert all(int(entry["emulator_timeout_seconds"]) > 0 for entry in providers.values())
-    declared = providers["gitlab"]
-    assert declared["emulator_job"] == "ethos:verify"
-    assert images == {emulator_declaration(declared)["emulator_image"]}
+    (image,) = images
+    assert "@sha256:" in image
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:

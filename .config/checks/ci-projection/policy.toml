@@ -4,15 +4,6 @@ owner = "ethos-quality-gate-governance"
 provider = "github"
 kind = "cue"
 projection = ".github/workflows/ci.yml"
-emulator_tool = "act"
-emulator_event = "workflow_dispatch"
-emulator_job = "quality"
-emulator_image = "ghcr.io/catthehacker/ubuntu@sha256:62d572b92f9f32d3427b6d220ad1f9dca9c7b6ffad37d295425037dbff78abaf"
-emulator_timeout_seconds = 1800
-forbidden_log_patterns = [
-  "(?:^|[ >])DeprecationWarning:",
-  "(?:^|[ >])WARNING:",
-]
 required_owner_scripts = [
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
@@ -21,23 +12,10 @@ required_owner_scripts = [
 provider = "gitlab"
 kind = "cue"
 projection = ".gitlab-ci.yml"
-emulator_tool = "gitlab-ci-local"
-emulator_event = "pipeline"
-emulator_job = "ethos:verify"
-emulator_timeout_seconds = 1800
-forbidden_log_patterns = [
-  "(?:^|[ >])DeprecationWarning:",
-  "(?:^|[ >])WARNING:",
-]
 required_owner_scripts = [
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
 ]
-[evidence]
-local_github_emulator_dir = "build/evidence/local-ci/github"
-local_gitlab_emulator_dir = "build/evidence/local-ci/gitlab"
-hosted_status_claim_boundary = "local emulators MUST NOT claim hosted provider status"
-
 [[forge_surface]]
 provider = "github"
 kind = "issue"

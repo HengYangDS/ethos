@@ -6,7 +6,7 @@ system ETHOS "Evidence-grounded repository governance"
 container Git "Git substrate" "Branches, refs, worktrees, HEAD binding"
 container OpenSpec "OpenSpec governance" "Official specs and active changes"
 container Evidence "Attestations" "HEAD-bound proof and effect receipts"
-container CI "Provider projections" "GitHub/GitLab templates and local emulators"
+container CI "Provider projections" "GitHub/GitLab templates"
 container Agents "Agent projections" "Skills and optional protocol adapters"
 
 rel ETHOS Git "classifies repository role and mutation authority"

@@ -14,8 +14,8 @@
       `test_accepted_branch_deletion_without_old_value_keeps_its_rules` failed with
       `ref_move_policy_unavailable` and pass; 373 of 374 cases in 15 admission, hook and retirement
       modules pass, and the other, a claim-matrix case, passes alone.)
-- [ ] 1.3 Record the fix in the changelog. Done when the Unreleased section of `CHANGELOG.md` names
-      it under Fixed.
+- [x] 1.3 Record the fix in the changelog. Done when the Unreleased section of `CHANGELOG.md` names
+      it under Fixed. (The third Fixed entry.)
 
 ## 2. Specification
 

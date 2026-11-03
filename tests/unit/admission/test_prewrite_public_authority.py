@@ -13,6 +13,7 @@ from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.repo.git import tracked_subset
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -40,12 +41,13 @@ def _status(root: Path, *, role: str = "work_lane") -> dict[str, object]:
 
 
 def _bind_admission(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pass the non-OpenSpec patch and ignore owners so each case observes one owner."""
+    """Pass the non-OpenSpec patch and stub ignore and tracked reads, one owner per case."""
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(
         prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
     )
     monkeypatch.setattr(path_admission, "ignored_paths", lambda _root, _paths: set())
+    monkeypatch.setattr(path_admission, "tracked_subset", lambda _root, _paths: frozenset())
 
 
 def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "work_lane") -> None:
@@ -450,6 +452,28 @@ def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
     [path] = report["paths"]
     assert isinstance(path, dict)
     assert not str(path["reason"]).startswith("repository_paradigm")
+
+
+@pytest.mark.parametrize("staged", [False, True], ids=["unstaged", "staged"])
+def test_prewrite_admits_the_deletion_of_a_tracked_non_conforming_carrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, staged: bool
+) -> None:
+    """A tracked carrier deleted from the worktree is retired, not created where it is refused."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    git(repo, "add", "pytest.ini")
+    git(repo, "commit", "--quiet", "-m", "track a legacy carrier")
+    if staged:
+        git(repo, "rm", "--quiet", "pytest.ini")
+    else:
+        (repo / "pytest.ini").unlink()
+    _bind_common(monkeypatch, repo, role="accepted_root")
+    monkeypatch.setattr(path_admission, "tracked_subset", tracked_subset)
+    report = prewrite.prewrite_guard(root=repo, paths=[repo / "pytest.ini"], editor_root=repo)
+    [path] = report["paths"]
+    assert isinstance(path, dict)
+    assert path["existence"] == "absent"
+    assert not str(path["reason"]).startswith("repository_paradigm"), path["reason"]
 
 
 @pytest.mark.parametrize(

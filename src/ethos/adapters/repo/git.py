@@ -518,6 +518,24 @@ def tracked_paths(root: Path) -> tuple[str, ...]:
     )
 
 
+def tracked_subset(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
+    """Return the exact paths that the index or HEAD tracks; an unreadable index raises."""
+    if not paths:
+        return frozenset()
+    index = _literal_read(root, "ls-files", "-z", "--", *paths)
+    if index.returncode:
+        message = "git_tracked_observation_unavailable"
+        raise ValueError(message)
+    # A repository without commits has no HEAD; its index is then the only tracker.
+    head = _literal_read(root, "ls-tree", "-z", "-r", "--name-only", "HEAD", "--", *paths)
+    listed = {*index.stdout.split("\0"), *(head.stdout.split("\0") if not head.returncode else ())}
+    return frozenset(listed.intersection(paths))
+
+
+def _literal_read(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return run_git(root, "--literal-pathspecs", *args, check=False, observation=True)
+
+
 def remote_availability(
     root: Path, remote: str, *, timeout_seconds: float | None = None
 ) -> dict[str, object]:

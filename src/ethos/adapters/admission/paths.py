@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.patch_admission import projection_preimages
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ignored_paths
+from ethos.adapters.repo.git import tracked_subset
 from ethos.adapters.repo.git_attributes import received_paths
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
@@ -55,23 +56,29 @@ def check_write_paths(
     relative = tuple(
         dict.fromkeys(str(item["relative_path"]) for item in checked if item["relative_path"])
     )
-    created = (
-        tuple(path for path in relative if indexed.get(path) == "create")
-        if indexed is not None
-        else tuple(
-            str(item["relative_path"])
-            for item in checked
-            if item["relative_path"] and item["existence"] == "absent"
-        )
+    absent = tuple(
+        str(item["relative_path"])
+        for item in checked
+        if item["relative_path"] and item["existence"] == "absent"
     )
-    received = received_paths(root, created)
+    try:
+        # Without index effects, an absent path that the index or HEAD tracks is deleted.
+        deleted = frozenset() if indexed is not None else tracked_subset(root, absent)
+    except (OSError, ValueError) as error:
+        return checked, origin_gap or f"prewrite_tracked_observation_unavailable:{error}"
     try:
         ignored = frozenset() if indexed is not None else ignored_paths(root, relative)
     except (OSError, ValueError) as error:
         return checked, origin_gap or f"prewrite_ignore_observation_unavailable:{error}"
+    created = (
+        tuple(path for path in relative if indexed.get(path) == "create")
+        if indexed is not None
+        else tuple(path for path in absent if path not in deleted)
+    )
+    received = received_paths(root, created)
     for index, path in enumerate(paths):
         relative_path = str(checked[index]["relative_path"])
-        if relative_path in ignored or relative_path in received:
+        if relative_path in ignored or relative_path in received or relative_path in deleted:
             checked[index] = _check_path(
                 root=root,
                 path=path,
@@ -80,6 +87,7 @@ def check_write_paths(
                 indexed_effects=indexed,
                 ignored=relative_path in ignored,
                 received=relative_path in received,
+                deleted=relative_path in deleted,
             )
     return checked, origin_gap
 
@@ -93,6 +101,7 @@ def _check_path(
     indexed_effects: dict[str, object] | None = None,
     ignored: bool = False,
     received: bool = False,
+    deleted: bool = False,
 ) -> dict[str, object]:
     text = path.as_posix()
     if has_invalid_path_character(text):
@@ -123,7 +132,9 @@ def _check_path(
     }
     tracked = not ignored
     created = (
-        indexed_effects.get(relative) == "create" if indexed_effects is not None else not present
+        indexed_effects.get(relative) == "create"
+        if indexed_effects is not None
+        else not present and not deleted
     )
     decision: dict[str, object] = {}
     if topology["decision"] == "deny":

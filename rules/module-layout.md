@@ -112,9 +112,9 @@ algorithm matrix.
 Existing layout and import gates detect structural defects; they do not prove
 information hiding by counting files or matching names. Review and focused
 behavioral evidence must also establish that callers no longer orchestrate
-the replaced internal mechanism. This follows John Ousterhout's
-[CS 190 modular-design analysis](https://web.stanford.edu/~ouster/cgi-bin/cs190-winter18/lecture.php?topic=modularDesign)
-of interface complexity and implementation depth, not a universal method-length
+the replaced internal mechanism. This follows John Ousterhout's analysis of
+interface complexity and implementation depth in _A Philosophy of Software
+Design_ (chapter 4, "Modules Should Be Deep"), not a universal method-length
 threshold.
 
 ### Visibility and ownership

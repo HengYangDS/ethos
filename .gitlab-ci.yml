@@ -4,7 +4,14 @@ stages:
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^proposal\/.+$/
+      auto_cancel:
+        on_new_commit: none
+    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"
+      auto_cancel:
+        on_new_commit: none
+    - if: $CI_COMMIT_BRANCH =~ /^proposal\/.+$/
+      auto_cancel:
+        on_new_commit: interruptible
     - when: never
 variables:
   GIT_DEPTH: "0"
@@ -19,6 +26,7 @@ variables:
 default:
   tags:
     - ${ETHOS_GITLAB_RUNNER_TAG}
+  interruptible: true
   retry:
     max: 2
     when:

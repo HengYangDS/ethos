@@ -64,53 +64,52 @@ def test_bulk_stdout_preserves_native_output_and_closes_capture(
     payload = b"first\r\nsecond\rthird\n" * 65_536
     diagnostic = b"diagnostic\r\nnext\rlast\n"
     body = (
-        "import os,stat,sys,time; "
+        "import os,stat,sys; "
         "assert os.name!='posix' or all(stat.S_ISREG(os.fstat(fd).st_mode) for fd in (1,2)); "
         "sys.stdout.buffer.write(b'first\\r\\nsecond\\rthird\\n'*65536); "
         "sys.stdout.flush(); sys.stderr.buffer.write(b'diagnostic\\r\\nnext\\rlast\\n'); "
         "sys.stderr.flush(); "
-        "time.sleep(10) if sys.argv[1]=='timeout' else None; "
-        "raise SystemExit(7 if sys.argv[1]=='nonzero' else 0)"
     )
-    command = (sys.executable, "-c", body, outcome)
     options = {"text": text, "check": True, "spool_stdout": True}
     expected = "first\nsecond\nthird\n" * 65_536 if text else payload
     if outcome == "success":
+        command = (sys.executable, "-c", body + "raise SystemExit(0)")
         result = process_adapter.run_command(tmp_path, command, timeout=5, **options)
         assert result.stdout == expected
         assert result.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
         assert result.returncode == 0
+    elif outcome == "nonzero":
+        command = (sys.executable, "-c", body + "raise SystemExit(7)")
+        with pytest.raises(subprocess.CalledProcessError) as caught:
+            process_adapter.run_command(tmp_path, command, timeout=5, **options)
+        assert caught.value.returncode == 7
+        assert caught.value.stdout == expected
+        assert caught.value.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
     else:
-        failure = (
-            subprocess.TimeoutExpired if outcome == "timeout" else subprocess.CalledProcessError
-        )
-        with pytest.raises(failure) as caught:
-            process_adapter.run_command(
-                tmp_path, command, timeout=1 if outcome == "timeout" else 5, **options
-            )
-        if outcome == "timeout":
-            assert caught.value.stdout == payload
-            assert caught.value.stderr == diagnostic
-        else:
-            assert caught.value.returncode == 7
-            assert caught.value.stdout == expected
-            assert caught.value.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
+        # The timeout starts after the child has written, however long the host takes to start it.
+        with ready_descendant(monkeypatch, lambda *_: None) as (handshake, _closed):
+            command = (sys.executable, "-c", body + handshake)
+            with pytest.raises(subprocess.TimeoutExpired) as caught:
+                process_adapter.run_command(tmp_path, command, timeout=1, **options)
+        assert caught.value.stdout == payload
+        assert caught.value.stderr == diagnostic
     assert len(opened) == 2
     assert all(value.closed for value in opened)
 
 
 @pytest.mark.parametrize("text", [False, True])
-def test_bulk_stdout_timeout_retains_closed_stderr(tmp_path: Path, *, text: bool) -> None:
+def test_bulk_stdout_timeout_retains_closed_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, text: bool
+) -> None:
     """Closing the diagnostic pipe does not discard bytes when native wait times out."""
     body = (
-        "import os,sys,time; sys.stdout.buffer.write(b'output\\r\\n'); sys.stdout.flush(); "
+        "import os,sys; sys.stdout.buffer.write(b'output\\r\\n'); sys.stdout.flush(); "
         "sys.stderr.buffer.write(b'diagnostic\\r\\n'); sys.stderr.flush(); os.close(2); "
-        "time.sleep(10)"
     )
-    with pytest.raises(subprocess.TimeoutExpired) as caught:
-        process_adapter.run_command(
-            tmp_path, (sys.executable, "-c", body), timeout=1, text=text, spool_stdout=True
-        )
+    with ready_descendant(monkeypatch, lambda *_: None) as (handshake, _closed):
+        command = (sys.executable, "-c", body + handshake)
+        with pytest.raises(subprocess.TimeoutExpired) as caught:
+            process_adapter.run_command(tmp_path, command, timeout=1, text=text, spool_stdout=True)
     assert caught.value.stdout == b"output\r\n"
     assert caught.value.stderr == b"diagnostic\r\n"
 

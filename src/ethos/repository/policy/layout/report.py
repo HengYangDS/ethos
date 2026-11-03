@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.layout.facades import facade_findings
+from ethos.repository.policy.layout.facades import identity_forward_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
 from ethos.repository.policy.layout.imports import package_root_submodule_import_findings
 from ethos.repository.policy.layout.imports import private_import_findings
@@ -45,6 +46,7 @@ def module_layout_report(
         "multiple_command_owner_findings": multiple_command_owner_findings(root, policy, files),
         "private_alias_findings": private_alias_findings(root, policy, files),
         **facade_findings(root, policy, files),
+        "identity_forward_findings": identity_forward_findings(root, policy, files),
         "package_root_submodule_import_findings": package_root_submodule_import_findings(
             root, policy, files
         ),

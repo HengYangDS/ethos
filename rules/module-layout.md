@@ -160,6 +160,13 @@ docstring (`D101` to `D103` and `D105` to `D107` stay ignored).
   surface; a module-level `__getattr__` that dynamically forwards exports is the
   same violation in lazy form. Move callers to the concrete defining module and
   delete the shell.
+- A product function must not be an identity forward either: a module-level,
+  undecorated function whose one statement returns a call to a function that
+  the module defines or imports, passing every parameter unchanged and nothing
+  else, is a second name for one behavior, even when it adds a default. Keep
+  the better name on the function that does the work. A computed receiver, a
+  data value's method or any changed argument gives a function its own
+  behavior; test fixtures that only supply defaults keep their names.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
   Cyclopts command signatures, whose annotation types must stay runtime imports.

@@ -8,6 +8,7 @@ from typing import Any
 
 from ethos.repository.policy.layout.imports import module_bindings
 from ethos.repository.policy.layout.policy import module_name
+from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
@@ -63,6 +64,101 @@ def facade_findings(
     return findings
 
 
+def identity_forward_findings(
+    root: Path,
+    policy: dict[str, Any],
+    files: tuple[Path, ...] | None = None,
+) -> list[dict[str, object]]:
+    """Find product functions whose one statement forwards every parameter, unchanged.
+
+    The callee is a function the module defines or imports, or an attribute of an imported module;
+    a decorator, a computed receiver or any other argument gives the function its own behavior.
+    Test fixtures that only supply defaults keep their names.
+    """
+    findings: list[dict[str, object]] = []
+    for path in package_python_files(root, policy, files=files):
+        rel = path.relative_to(root).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+        functions = [
+            node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        imported = {
+            alias.asname or alias.name.split(".")[0]
+            for node in tree.body
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+            for alias in node.names
+        }
+        callables = imported | {node.name for node in functions}
+        findings.extend(
+            {
+                "gap": f"module_layout_identity_forward:{rel}:{node.name}",
+                "path": rel,
+                "line": node.lineno,
+            }
+            for node in functions
+            if not node.decorator_list and _forwards_every_parameter(node, callables, imported)
+        )
+    return findings
+
+
+def _forwards_every_parameter(
+    function: ast.FunctionDef | ast.AsyncFunctionDef, callables: set[str], modules: set[str]
+) -> bool:
+    body = _body_without_docstring(function)
+    returned = body[0].value if len(body) == 1 and isinstance(body[0], ast.Return) else None
+    call = returned.value if isinstance(returned, ast.Await) else returned
+    return (
+        isinstance(call, ast.Call)
+        and _names_a_function(call.func, callables, modules)
+        and _passes_every_parameter(call, function.args)
+    )
+
+
+def _passes_every_parameter(call: ast.Call, arguments: ast.arguments) -> bool:
+    """Positional parameters pass in order, then by keyword; nothing else is passed."""
+    positional = [item.arg for item in (*arguments.posonlyargs, *arguments.args)]
+    expected = {*positional, *(item.arg for item in arguments.kwonlyargs)}
+    expected |= {"*"} if arguments.vararg else set()
+    expected |= {"**"} if arguments.kwarg else set()
+    by_position = [_positional_name(value, positional, arguments.vararg) for value in call.args]
+    passed = [
+        *by_position,
+        *(_keyword_name(keyword, expected, arguments.kwarg) for keyword in call.keywords),
+    ]
+    in_order = [name for name in by_position if name != "*"]
+    return (
+        None not in passed
+        and in_order == positional[: len(in_order)]
+        and len(passed) == len(set(passed))
+        and set(passed) == expected
+    )
+
+
+def _positional_name(value: ast.expr, positional: list[str], vararg: ast.arg | None) -> str | None:
+    if isinstance(value, ast.Name) and value.id in positional:
+        return value.id
+    return "*" if isinstance(value, ast.Starred) and _is_parameter(value.value, vararg) else None
+
+
+def _keyword_name(keyword: ast.keyword, expected: set[str], kwarg: ast.arg | None) -> str | None:
+    if keyword.arg is None:
+        return "**" if _is_parameter(keyword.value, kwarg) else None
+    forwarded = isinstance(keyword.value, ast.Name) and keyword.value.id == keyword.arg
+    return keyword.arg if forwarded and keyword.arg in expected else None
+
+
+def _names_a_function(callee: ast.expr, callables: set[str], modules: set[str]) -> bool:
+    if isinstance(callee, ast.Name):
+        return callee.id in callables
+    while isinstance(callee, ast.Attribute):
+        callee = callee.value
+    return isinstance(callee, ast.Name) and callee.id in modules
+
+
+def _is_parameter(value: ast.expr, parameter: ast.arg | None) -> bool:
+    return parameter is not None and isinstance(value, ast.Name) and value.id == parameter.arg
+
+
 def dynamic_compat_facade_reasons(tree: ast.Module) -> list[str]:
     """Return reasons a module-level `__getattr__` acts as a compatibility shell."""
     reasons: list[str] = []
@@ -107,7 +203,9 @@ def module_facade_reasons(tree: ast.Module) -> list[str]:
     return ["import_only"]
 
 
-def _body_without_docstring(tree: ast.Module) -> list[ast.stmt]:
+def _body_without_docstring(
+    tree: ast.Module | ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[ast.stmt]:
     body = list(tree.body)
     if (
         body

@@ -57,6 +57,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The shipped Vale policy ignores the directive lines of an Archify draft, `*.archify.md`: a line
   that starts with `@` and a directive name, such as `@source` or `@meta`, carries renderer
   arguments like paths and URLs, not prose. The rest of the draft keeps the full Markdown policy.
+- ETHOS's module-layout gate refuses an identity forward in its product code: a module-level,
+  undecorated function whose one statement returns a call to a function the module defines or
+  imports, passing every parameter unchanged and nothing else. `openspec_base_command`, the last
+  one, now owns the locked OpenSpec command resolution it used to forward to.
 
 ### Removed
 

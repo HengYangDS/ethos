@@ -69,11 +69,6 @@ _SOURCE_NODE = _packaged_node()
 
 
 def openspec_base_command(*, execution_probe: bool = True) -> tuple[str, ...] | None:
-    """Resolve locked supply; self-verifying transports may own the execution probe."""
-    return _base_command(execution_probe=execution_probe)
-
-
-def _base_command(*, execution_probe: bool) -> tuple[str, ...] | None:
     """Resolve one locked command; a read batch probes its imported program itself."""
     source_runtime = _source_runtime()
     source_entry = source_runtime[1] if source_runtime is not None else None
@@ -393,7 +388,9 @@ def run_json_batch(
     if not all(_read_only_arguments(args) for args in commands):
         message = "openspec_batch_read_only_required"
         raise ValueError(message)
-    base_command = _base_command(execution_probe=False) if base_command is None else base_command
+    base_command = (
+        openspec_base_command(execution_probe=False) if base_command is None else base_command
+    )
     if base_command is None or len(base_command) != _SOURCE_COMMAND_LENGTH:
         message = (
             "openspec_official_cli_missing"

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.layout.facades import facade_findings
+from ethos.repository.policy.layout.facades import identity_forward_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
 
 if TYPE_CHECKING:
@@ -159,3 +160,55 @@ def test_ordinary_module_audits_skip_package_initializers(tmp_path: Path) -> Non
 
     findings = facade_findings(tmp_path, policy, files=(carrier,))
     assert findings["module_facade_findings"] == findings["dynamic_compat_facade_findings"] == []
+
+
+_IMPORTED = "from ethos.api import load\n"
+
+
+@pytest.mark.parametrize(
+    ("source", "forwards"),
+    [
+        (
+            _IMPORTED + "def read(path, *, strict=True):\n    return load(path, strict=strict)\n",
+            True,
+        ),
+        (
+            (
+                "def _base(*, probe):\n    return probe\n\n\n"
+                'def base(*, probe=True):\n    """Doc."""\n    return _base(probe=probe)\n'
+            ),
+            True,
+        ),
+        (
+            "import ethos.api\ndef read(*paths, **kw):\n    return ethos.api.load(*paths, **kw)\n",
+            True,
+        ),
+        (_IMPORTED + "async def read(path):\n    return await load(path=path)\n", True),
+        (_IMPORTED + "def read(path):\n    return load(path, strict=True)\n", False),
+        (_IMPORTED + "def read(path, strict):\n    return load(strict, path)\n", False),
+        (_IMPORTED + "def read(path):\n    return load(path.name)\n", False),
+        ("_TABLE = {}\ndef read(key, default):\n    return _TABLE.get(key, default)\n", False),
+        (_IMPORTED + "def read(path):\n    return load().read(path)\n", False),
+        (
+            "from functools import cache\n"
+            + _IMPORTED
+            + "@cache\ndef read(p):\n    return load(p)\n",
+            False,
+        ),
+        (
+            _IMPORTED + "class Reader:\n    def read(self, path):\n        return load(path)\n",
+            False,
+        ),
+    ],
+)
+def test_identity_forward_audit_reports_functions_that_only_forward_their_parameters(
+    tmp_path: Path, source: str, *, forwards: bool
+) -> None:
+    carrier = _write(tmp_path, "src/ethos/sample.py", source)
+
+    findings = identity_forward_findings(tmp_path, _SRC, files=(carrier,))
+
+    name = "base" if "def base" in source else "read"
+    assert [item["gap"] for item in findings] == (
+        [f"module_layout_identity_forward:src/ethos/sample.py:{name}"] if forwards else []
+    )

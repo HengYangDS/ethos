@@ -50,6 +50,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - ETHOS's hosted CI installs the uv version that `.config/mise/config.toml` declares, read when
   the projections are compiled, instead of a version written into `.config/ci/pipeline.cue`. A uv
   upgrade edits the Mise configuration and its lock only.
+- The shipped Vale policy ignores the directive lines of an Archify draft, `*.archify.md`: a line
+  that starts with `@` and a directive name, such as `@source` or `@meta`, carries renderer
+  arguments like paths and URLs, not prose. The rest of the draft keeps the full Markdown policy.
 
 ### Removed
 

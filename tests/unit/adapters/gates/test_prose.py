@@ -187,6 +187,32 @@ def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
         assert source.read_bytes() == original
 
 
+def test_common_vale_policy_skips_only_archify_directive_lines(tmp_path: Path) -> None:
+    """An Archify draft's directive lines are renderer arguments; its prose keeps the policy."""
+    config = canonical_resource(".config/checks/vale/vale.ini")
+    executable = resolve_native_tool("vale")
+    draft = tmp_path / "guide.archify.md"
+    markdown = tmp_path / "guide.md"
+    for source in (draft, markdown):
+        source.write_text(
+            "# Guide\n\n"
+            '@source cli title="Model" path="src/ethos/cli.py" url=https://github.com/x/ethos\n'
+            "@meta locale=en\n\nThe guide is published on github.\n",
+            encoding="utf-8",
+        )
+    command = (str(executable), "--no-global", f"--config={config}", "--output=JSON")
+
+    result = run_command(tmp_path, (*command, str(draft), str(markdown)), timeout=20)
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert not result.stderr
+    terms = {
+        path: {item["Line"] for item in rows if item["Check"] == "Vale.Terms"}
+        for path, rows in json.loads(result.stdout).items()
+    }
+    assert terms == {str(draft): {6}, str(markdown): {3, 6}}, result.stdout
+
+
 def _without_ambient_toolchain(monkeypatch: pytest.MonkeyPatch) -> None:
     """Clear PATH and bind the prepared supply cache explicitly, as hosted CI binds it."""
     project = canonical_resource("pyproject.toml").parent

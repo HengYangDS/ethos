@@ -3,9 +3,10 @@
 The journey downloads the release's Mise declaration, its checksums and its platform's archive,
 checks the archive against both and against its build attestation, and lets Mise install the
 declared URL as an adopter's repository does. On fresh host stores it then proves a cold install,
-host-store pinning, hook binding, status and uninstall; a full proof and status in a fixture
-adopter; and an upgrade from the previous release with its rollback. Each leg writes one receipt
-with the stage events beside it, whether the journey passes or fails.
+host-store pinning, hook binding, status and uninstall; a full proof in a fixture adopter whose
+status then guides it to a ready repository; and an upgrade from the previous release with its
+rollback. Each leg writes one receipt with the stage events beside it, whether the journey passes
+or fails.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import hashlib
 import json
 import platform
 import re
+import shlex
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
@@ -46,6 +48,8 @@ ROOT = Path(__file__).resolve().parents[4]
 WORK = ROOT / "build/runtime/work/release-journey"
 EVIDENCE = ROOT / "build/evidence/release-journey"
 REPOSITORY = "HengYangDS/ethos"
+# The adopter whose lane command creates the fixture's candidate branch.
+_ACTOR = "agent:test:journey:adopter"
 _ENTRY = re.compile(r"^## \[([^\]]+)\] - ", re.MULTILINE)
 _PRERELEASE = re.compile(r"v\d+\.\d+\.\d+-(?:alpha|beta|rc)\.\d+")
 _SYSTEMS = {"darwin": "macos", "linux": "linux"}
@@ -159,7 +163,11 @@ def _run(*command: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> 
 def prove_full(
     runtime: SelectedRuntime, work: Path, *, environment: dict[str, str]
 ) -> dict[str, object]:
-    """Bind a signed fixture adopter to the runtime, then prove its full floor and read status."""
+    """Prove a signed fixture adopter's full floor, then follow its status to a ready repository.
+
+    A new adopter has no candidate branch; its status names the command that creates one, and the
+    journey runs that command before it requires a passing status.
+    """
     repo = work / "proof-adopter"
     adopter_fixture.materialize_adopter(
         repo, openspec_config=ROOT / "openspec/config.yaml", run=_run
@@ -187,19 +195,39 @@ def prove_full(
     if code or proof.get("verdict") != "pass":
         message = f"release_journey_full_proof_failed:{detail}"
         raise RuntimeError(message)
-    code, status, detail = invoke(
-        repo, (*prefix, "status", "--root", str(repo), "--json"), environment=environment
+    reading = (*prefix, "status", "--root", str(repo), "--json")
+    _code, guidance, detail = invoke(repo, reading, environment=environment)
+    following = shlex.split(str(guidance.get("next_action") or ""))
+    if guidance.get("required_gaps") != ["candidate_branch_missing"] or following[:3] != [
+        "ethos",
+        "lane",
+        "candidate",
+    ]:
+        message = f"release_journey_candidate_guidance_invalid:{detail}"
+        raise RuntimeError(message)
+    code, candidate, detail = invoke(
+        repo, (*prefix, *following[1:]), environment={**environment, "ETHOS_ACTOR": _ACTOR}
     )
+    if code or candidate.get("verdict") != "pass":
+        message = f"release_journey_candidate_failed:{detail}"
+        raise RuntimeError(message)
+    code, status, detail = invoke(repo, reading, environment=environment)
     data = status.get("data")
     selected = data.get("hook_runtime") if isinstance(data, dict) else None
-    if code or not isinstance(selected, dict) or selected.get("current") is not True:
+    if (
+        code
+        or status.get("verdict") != "pass"
+        or not isinstance(selected, dict)
+        or selected.get("current") is not True
+    ):
         message = f"release_journey_status_failed:{detail}"
         raise RuntimeError(message)
     return {
         "state": "passed",
         "head": head,
         "proof": {"verdict": proof["verdict"], "state": proof.get("state")},
-        "status": {"verdict": status.get("verdict"), "state": status.get("state")},
+        "candidate": {"guided_by": guidance["required_gaps"], "state": candidate.get("state")},
+        "status": {"verdict": status["verdict"], "state": status.get("state")},
     }
 
 

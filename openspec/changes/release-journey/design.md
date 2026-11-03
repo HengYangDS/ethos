@@ -40,7 +40,11 @@ rollback and reactivation (`prove_retained_upgrade`).
   `prove_retained_upgrade` in a retained fixture adopter on a second empty store.
 - **The full proof is the fixture's own floor.** The fixture adopter declares a signed two-gate
   registry, signature trust and patch validity, as its full proof set, and the journey runs
-  `prove --full --execute` and `status` with the published console.
+  `prove --full --execute` with the published console.
+- **Status guides the adopter to a ready repository.** A new adopter has no candidate branch, so
+  its status blocks with `candidate_branch_missing` and names `ethos lane candidate ... --apply`.
+  The journey requires exactly that guidance, runs the named command and then requires a passing
+  status with the pinned runtime current. A change to first-run guidance changes the journey.
 - **Uninstall keeps the pinned runtime.** After `mise uninstall`, the console is gone and the
   fixture adopter's status still answers from its pinned host-store runtime.
 - **The journey code comes from the dispatching ref.** The job checks out the commit it runs on,
@@ -48,7 +52,9 @@ rollback and reactivation (`prove_retained_upgrade`).
   dispatch the journey alone while it is developed.
 - **Mise installation has one owner.** `tools/ci/delivery/mise_tool.py` installs a declared tool in
   an isolated Mise home, offline for a local archive and online for a published URL; the
-  distribution acceptance keeps its archive declaration and calls it.
+  distribution acceptance keeps its archive declaration and calls it. It resolves the Mise home
+  first: Mise compares its configuration ceiling with the canonical directories it walks, and an
+  unresolved home let an enclosing checkout's toolchain join the installation.
 
 ## Risks / Trade-offs
 

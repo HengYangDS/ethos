@@ -58,8 +58,11 @@ def install_declared(
     """Lock and install the declared tool in a fresh Mise home and check its console.
 
     The project is its own repository, as an adopter's is before ETHOS selects a runtime: the
-    installed console then runs its own runtime, not one an enclosing checkout selected.
+    installed console then runs its own runtime, not one an enclosing checkout selected. Mise
+    compares its ceiling with the canonical directories it walks, so the home is resolved first;
+    otherwise an enclosing checkout's toolchain joins the installation.
     """
+    home = home.resolve()
     project = home / "project"
     project.mkdir(parents=True)
     run_command(home, ("git", "init", "--quiet", "--initial-branch=dev", str(project)), check=True)

@@ -448,27 +448,37 @@ def test_authored_text_refuses_missing_or_linked_inputs(tmp_path: Path, relative
     assert content.read_bytes() == b"Preserved original.\n"
 
 
-def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None:
+def _refused_without_writes(lane: Path, mode: str, files: dict[str, str], *selected: str) -> None:
+    """Run the public check or fix of a conflicting increment; no byte or index entry may change."""
+    write_tree(lane, files)
+    index = git(lane, "write-tree")
+    fix = ("--apply", "--authorize", "--expect-head", git(lane, "rev-parse", "HEAD"))
+    code, result = _command(lane, *selected, *(fix if mode == "fix" else ("--check",)))
+    assert (code, result["verdict"]) == (1, "block"), result
+    assert "native_formatter_policy_conflict" in str(result["required_gaps"])
+    assert all((lane / path).read_text() == content for path, content in files.items())
+    assert git(lane, "write-tree") == index
+
+
+@pytest.mark.parametrize("mode", ["check", "fix"])
+def test_conflicting_native_increment_refuses_all_postimages(lane: Path, mode: str) -> None:
     sources = {
         "source.json": '{"nested":{"value":"' + "x" * 100 + '"}}\n',
         "src/valid.py": "value=1\n",
     }
-    write_tree(lane, {**sources, ".config/checks/prettier/prettier.toml": "tabWidth = 4\n"})
-    code, result = _command(lane, *sources, "--check")
-    assert (code, result["verdict"]) == (1, "block"), result
-    assert all((lane / path).read_text() == content for path, content in sources.items())
+    increment = {".config/checks/prettier/prettier.toml": "tabWidth = 4\n"}
+    _refused_without_writes(lane, mode, {**sources, **increment}, *sources)
 
 
-def test_conflicting_python_formatter_increment_cannot_replace_shared_policy(lane: Path) -> None:
-    content = 'value = {"native": "' + "x" * 90 + '"}\n'
-    write_tree(
-        lane,
-        {"src/valid.py": content, ".config/checks/ruff/ruff.toml": "line-length = 200\n"},
-    )
-    code, result = _command(lane, "src/valid.py", "--check")
-    assert (code, result["verdict"]) == (1, "block"), result
-    assert "native_formatter_policy_conflict" in str(result["required_gaps"])
-    assert (lane / "src/valid.py").read_text() == content
+@pytest.mark.parametrize("mode", ["check", "fix"])
+def test_conflicting_python_formatter_increment_cannot_replace_shared_policy(
+    lane: Path, mode: str
+) -> None:
+    files = {
+        "src/valid.py": 'value = {"native": "' + "x" * 90 + '"}\n',
+        ".config/checks/ruff/ruff.toml": "line-length = 200\n",
+    }
+    _refused_without_writes(lane, mode, files, "src/valid.py")
 
 
 @pytest.mark.parametrize("changed", ["source", "index"])

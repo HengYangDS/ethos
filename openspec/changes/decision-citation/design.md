@@ -41,6 +41,10 @@ repository keeps it, and `ethos.repository.registry.docs.decisions` already read
 
 ## Risks / Trade-offs
 
+- [The check refuses an adopter's archive on its first release] → On 2026-11-04 no governed
+  repository had a decision record that names an active Change in inline code: 31 checkouts and 8
+  lanes were read, among them di-effect's lane with 47 records and 8 active Changes. The check lands
+  armed because it has no violation to remove.
 - [An inline code span equal to a Change name means something else] → The Change cites the record
   once; a record rarely quotes an identifier equal to an active Change's name.
 - [A repository keeps many records] → Each readiness check reads each record once; ETHOS keeps nine.

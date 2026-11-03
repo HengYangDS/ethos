@@ -33,9 +33,12 @@ def materials() -> tuple[dict, dict[str, str]]:
 def test_each_projected_job_is_named_by_its_matrix_coordinates(tmp_path, materials) -> None:
     """A required check keeps its identity: only its own matrix axes vary a job's name."""
     config, files = materials
-    node = config["compiler"]["inputs"]["node"]
-    version = tomllib.loads(files[node])["tools"]["node"]
-    probe = dict(files, **{node: files[node].replace(f'"{version}"', '"0.0.0"')})
+    mise = config["compiler"]["inputs"]["mise"]
+    tools = tomllib.loads(files[mise])["tools"]
+    changed = files[mise]
+    for tool in ("node", "uv"):
+        changed = changed.replace(f'"{tools[tool]}"', '"0.0.0"')
+    probe = dict(files, **{mise: changed})
     cue = locked_tool(ROOT, "cue")
     names = [
         _projected_job_names(tmp_path / label, inputs, cue)

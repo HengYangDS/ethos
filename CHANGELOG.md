@@ -42,6 +42,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Each hosted host conformance job uploads the stage timings of its package acceptance,
   `build/evidence/local-install/smoke.events.jsonl`, with its receipt `smoke.json`, also when the
   job fails.
+- ETHOS's hosted CI installs the uv version that `.config/mise/config.toml` declares, read when
+  the projections are compiled, instead of a version written into `.config/ci/pipeline.cue`. A uv
+  upgrade edits the Mise configuration and its lock only.
 
 ### Removed
 

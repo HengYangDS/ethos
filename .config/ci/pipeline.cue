@@ -12,7 +12,7 @@ _inputs: {
 		proof_sets: full: [string, ...string]
 		...
 	}
-	node: {tools: {node: string, ...}, ...}
+	mise: {tools: {node: string, uv: string, ...}, ...}
 }
 #Gate: {id: string, depends_on: *[] | [...string], ...}
 _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
@@ -90,7 +90,7 @@ let githubPythonBootstrap = list.Concat([[{
 }, {
 	uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 	with: {
-		version:          "0.13.6"
+		version:          _inputs.mise.tools.uv
 		"python-version": "3.14"
 	}
 }, {
@@ -140,7 +140,7 @@ let githubHostSupplyAt = {
 	}, {
 		uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 		with: {
-			version:          "0.13.6"
+			version:          _inputs.mise.tools.uv
 			"python-version": python
 		}
 	}, {
@@ -449,7 +449,7 @@ github: {
 			}, {
 				uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 				with: {
-					version:          "0.13.6"
+					version:          _inputs.mise.tools.uv
 					"python-version": "3.14"
 				}
 			}, {
@@ -625,7 +625,7 @@ gitlab: {
 	"ethos:npm": {
 		stage: "verify"
 		rules: commitScopedRules
-		variables: NODE_VERSION: _inputs.node.tools.node
+		variables: NODE_VERSION: _inputs.mise.tools.node
 		// The shared cache preparer owns Node; Nox owns package test execution.
 		image:         gitlabImage
 		before_script: gitlabBootstrap

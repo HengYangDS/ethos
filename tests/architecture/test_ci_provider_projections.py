@@ -332,7 +332,7 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
     mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
     declaration = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
-    assert declaration["compiler"]["inputs"]["node"] == ".config/mise/config.toml"
+    assert declaration["compiler"]["inputs"]["mise"] == ".config/mise/config.toml"
     uv_version = next(
         item.removeprefix("uv>=")
         for item in project["dependency-groups"]["dev"]

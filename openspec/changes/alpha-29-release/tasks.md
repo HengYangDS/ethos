@@ -2,11 +2,11 @@
 
 ## 1. Supply
 
-- [x] 1.1 Move syft and the Python lock to their latest stable releases through their owners'
-      native resolvers. Done when `mise lock` locks syft 1.56.0 for every platform of the lockfile,
+- [x] 1.1 Move Syft and the Python lock to their latest stable releases through their owners'
+      native resolvers. Done when `mise lock` locks Syft 1.56.0 for every platform of the lockfile,
       `uv lock --check` passes with the fastmcp and ty floors at the locked versions, and the gates
       that run the moved tools pass. `uv lock --check` passes with 121 packages; ty, `dependencies`,
-      `ci_templates`, `vulnerabilities`, `build` and `supply_chain` (syft) pass, and 705 tests of the
+      `ci_templates`, `vulnerabilities`, `build` and `supply_chain` (Syft) pass, and 705 tests of the
       MCP surface, publication, CI and native supply pass. Only uv 0.13.7 remains newer.
 - [ ] 1.2 Move uv to 0.13.7 once Mise admits it. Done when Mise locks it for every platform, the
       `uv>=` floors are 0.13.7, `uv lock --check` passes and `mise install --locked` installs it.

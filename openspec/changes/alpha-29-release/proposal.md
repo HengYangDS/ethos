@@ -45,7 +45,7 @@ The owner asked on 2026-11-02 that every supply chain move to its latest stable 
 ## What Changes
 
 - Supply, each through its owner's native resolver:
-  - Mise: uv 0.13.7 and syft 1.56.0, locked for every platform of the lockfile.
+  - Mise: uv 0.13.7 and Syft 1.56.0, locked for every platform of the lockfile.
   - Python: `uv lock --upgrade`, with the direct floors of fastmcp, ty and uv raised to the locked
     4.1.6, 0.0.96 and 0.13.7.
   - npm: already latest within its declared ranges; every resolved URL stays on the public

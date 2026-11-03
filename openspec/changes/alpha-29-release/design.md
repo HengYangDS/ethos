@@ -27,7 +27,7 @@ the head.
 
 - **Each owner's native resolver moves its pins.** `mise lock` and `uv lock --upgrade` select the
   releases; nothing is edited by hand except the exact pins and floors that a resolver keeps.
-- **Move what is admissible now, and uv when Mise admits it.** syft and the Python packages move
+- **Move what is admissible now, and uv when Mise admits it.** Syft and the Python packages move
   first, so the gates that run them are known to pass before uv's age clears; uv 0.13.7 then moves
   alone in Mise and in the `uv>=` floors.
 - **Build the image from the proposal.** The hosted `supply_image` workflow accepts a proposal ref,

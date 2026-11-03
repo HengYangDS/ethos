@@ -155,8 +155,8 @@ configuration plane, not a truth center.
   `tools/ci/repository_hygiene.py` executes.
 - `.config/ci/verification.cue` is the shared `#Verification` CI model that
   `.config/ci/pipeline.cue` instantiates for both providers.
-- `.config/ci/runners.toml` declares the executables each forge's runner provides
-  beyond the repository toolchain and the product runtime.
+- `.config/ci/runners.toml` declares the executables and references each forge's runner
+  provides beyond the repository toolchain and the product runtime.
 - `.config/ci/supply/Dockerfile` and its `.dockerignore` build the locked Linux ARM64
   supply image for GitLab jobs; source and policy stay in the CI checkout.
 - `.config/ci/pipeline.cue` models every hosted job. Its one bootstrap command

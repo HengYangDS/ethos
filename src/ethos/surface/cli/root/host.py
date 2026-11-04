@@ -7,8 +7,8 @@ from typing import Annotated
 from cyclopts import App
 from cyclopts import Parameter
 
+import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.gates.host_admission import run_admitted
-from ethos.repository.paradigm import parameters
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag

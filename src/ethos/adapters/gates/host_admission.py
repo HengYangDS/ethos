@@ -105,7 +105,7 @@ class HostQueue:
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
         lock = FileLock(self.directory / f"{ticket.name}.lock", mode=0o600)
-        lock.acquire(timeout=0)
+        lock.acquire(blocking=False)
         record = {
             "repository": str(repository),
             "executable": executable,
@@ -127,7 +127,7 @@ class HostQueue:
         for path in sorted(self.directory.glob("*.lock")):
             probe = FileLock(path, mode=0o600)
             try:
-                probe.acquire(timeout=0)
+                probe.acquire(blocking=False)
             except Timeout:
                 tickets.append(Ticket(path.stem))
                 continue

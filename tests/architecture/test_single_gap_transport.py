@@ -1,4 +1,4 @@
-"""Product code carries every gap of a refusal; no error or failure helper carries only the first."""
+"""Product code carries every gap of a refusal; no error or failure helper gets only the first."""
 
 from __future__ import annotations
 

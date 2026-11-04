@@ -183,3 +183,51 @@ def test_the_refusal_names_the_action_that_can_help(
 
     assert expected in str(refused.value)
     assert absent not in str(refused.value).split(";", 1)[1]
+
+
+def test_a_tool_provisioned_on_first_use_does_not_block_another(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supply: dict[str, Path]
+) -> None:
+    """A tool that CI provisions on first use blocks no other tool until then."""
+    rows = {
+        "node": _row(supply["node"], "26.13.0"),
+        "gitleaks": _row(tmp_path / "absent", "8.30.1", installed=False),
+    }
+    monkeypatch.setattr(
+        mise, "run_mise", _Mise(rows, supply["node"] / "bin/node", (supply["node"] / "bin",))
+    )
+
+    assert mise.locked_tool(tmp_path, "node", files=_files()) == supply["node"] / "bin/node"
+    with mise.locked_environment(tmp_path, _files()) as selected:
+        assert str(supply["node"] / "bin") in selected["PATH"]
+
+
+def test_an_environment_warning_names_the_missing_tool(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supply: dict[str, Path]
+) -> None:
+    """Mise's warning about a missing locked tool becomes that tool's gap and remedy."""
+    rows = {
+        "node": _row(supply["node"], "26.13.0"),
+        "npm": _row(supply["npm"], "12.2.1", installed=False),
+    }
+    answers = _Mise(rows, supply["node"] / "bin/npm", (supply["node"] / "bin",))
+
+    def warn(
+        root: Path,
+        arguments: tuple[str, ...],
+        *,
+        files: object = None,
+        offline: bool,
+        executable: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        if arguments == ("env", "--json"):
+            return subprocess.CompletedProcess(arguments, 0, "{}", "mise WARN  missing: npm@12.2.1")
+        return answers(root, arguments, files=files, offline=offline, executable=executable)
+
+    monkeypatch.setattr(mise, "run_mise", warn)
+    monkeypatch.setattr(mise, "_mise_version", lambda _executable: (2026, 11, 0))
+
+    with pytest.raises(ValueError, match=r"mise_supply_incomplete:npm@12\.2\.1; cause:") as refused:
+        _resolve(tmp_path, environment=True, lock=GRAPH_LOCK)
+
+    assert "mise_environment_unavailable" not in str(refused.value)

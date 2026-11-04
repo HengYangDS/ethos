@@ -356,28 +356,44 @@ def _own_executable(tool: str) -> str:
     return tool.rpartition(":")[2].rpartition("/")[2]
 
 
+def _install_path(row: Mapping[str, object]) -> Path | None:
+    """A version's existing install path, or None where native mise lacks that install."""
+    path = row.get("install_path")
+    if row.get("installed") is not True or not isinstance(path, str) or not Path(path).is_dir():
+        return None
+    return Path(path).resolve()
+
+
+def _missing_supply(supply: Mapping[str, list[dict[str, object]]]) -> tuple[str, ...]:
+    """Name every declared tool version that native mise reports without its install."""
+    return tuple(
+        f"mise_supply_incomplete:{tool}@{row.get('version')}"
+        for tool, versions in supply.items()
+        for row in versions
+        if _install_path(row) is None
+    )
+
+
 def supply_gaps(
     supply: Mapping[str, list[dict[str, object]]], executables: Mapping[str, Path]
 ) -> tuple[str, ...]:
-    """Name each declared tool that is not installed and each executable outside its own tool.
+    """Name each resolved executable that does not come from the declared tool named after it.
 
-    An executable that no declared tool names under its own name is native mise's selection.
+    A missing declared tool is named as the cause. A declared tool whose executable nothing
+    resolves stays native mise's own refusal, since supply can be provisioned on first use, and
+    an executable that no declared tool names under its own name is native mise's selection.
     """
     gaps: list[str] = []
-    installed: dict[str, list[Path]] = {}
-    for tool, versions in supply.items():
-        for row in versions:
-            path = row.get("install_path")
-            if (
-                row.get("installed") is not True
-                or not isinstance(path, str)
-                or not Path(path).is_dir()
-            ):
-                gaps.append(f"mise_supply_incomplete:{tool}@{row.get('version')}")
-            else:
-                installed.setdefault(_own_executable(tool), []).append(Path(path).resolve())
     for name, executable in executables.items():
-        owners = installed.get(name, ())
+        owned = {
+            tool: versions for tool, versions in supply.items() if _own_executable(tool) == name
+        }
+        if missing := _missing_supply(owned):
+            gaps.extend(missing)
+            continue
+        owners = [
+            path for versions in owned.values() for row in versions if (path := _install_path(row))
+        ]
         if owners and not any(executable.resolve().is_relative_to(owner) for owner in owners):
             gaps.append(f"mise_executable_outside_tool:{name}")
     return tuple(gaps)
@@ -445,20 +461,32 @@ def _supply_refusal(
     )
 
 
-def _complete_supply(
-    root: Path, files: Mapping[str, str], executable: Path
-) -> dict[str, list[dict[str, object]]]:
-    """Return the declared supply that native mise reports installed, or refuse a missing tool.
-
-    This runs before any other query, so a missing tool is named with the step that can help
-    rather than through whatever warning another query prints.
-    """
-    supply = _locked_supply(
-        run_mise(root, _CURRENT, files=files, executable=executable, offline=True), root, executable
-    )
-    if gaps := supply_gaps(supply, {}):
-        raise _supply_refusal(gaps, root, files, executable)
-    return supply
+def _native_environment(
+    root: Path,
+    files: Mapping[str, str],
+    executable: Path,
+    supply: Mapping[str, list[dict[str, object]]],
+) -> dict[str, str]:
+    """Read native mise's environment; a warning about a missing locked tool names that tool."""
+    selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
+    if selected.returncode or selected.stderr:
+        # Mise warns here about a missing tool that it sees another version of; name the tool and
+        # the step that can help instead of the warning.
+        if missing := _missing_supply(supply):
+            raise _supply_refusal(missing, root, files, executable)
+        message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
+        raise _refusal(message, root, executable)
+    try:
+        environment = json.loads(selected.stdout)
+    except json.JSONDecodeError as error:
+        message = "mise_environment_invalid"
+        raise ValueError(message) from error
+    if not isinstance(environment, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str) for key, value in environment.items()
+    ):
+        message = "mise_environment_invalid"
+        raise ValueError(message)
+    return environment
 
 
 def _require_contained_environment(
@@ -521,21 +549,10 @@ def locked_environment(
     mise's own and precede the host baseline.
     """
     executable = mise_executable()
-    supply = _complete_supply(root, files, executable)
-    selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
-    if selected.returncode or selected.stderr:
-        message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
-        raise _refusal(message, root, executable)
-    try:
-        environment = json.loads(selected.stdout)
-    except json.JSONDecodeError as error:
-        message = "mise_environment_invalid"
-        raise ValueError(message) from error
-    if not isinstance(environment, dict) or any(
-        not isinstance(key, str) or not isinstance(value, str) for key, value in environment.items()
-    ):
-        message = "mise_environment_invalid"
-        raise ValueError(message)
+    supply = _locked_supply(
+        run_mise(root, _CURRENT, files=files, executable=executable, offline=True), root, executable
+    )
+    environment = _native_environment(root, files, executable, supply)
     listed = run_mise(root, ("bin-paths",), files=files, executable=executable, offline=True)
     if listed.returncode or listed.stderr:
         message = f"mise_bin_paths_unavailable:{listed.stderr.strip()[:512]}"

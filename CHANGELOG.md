@@ -12,6 +12,27 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.1] - 2026-11-04
+
+### Changed
+
+- 0.2.0-beta.1 promotes the code of 0.2.0-alpha.30 without product changes.
+  - Its tag waited for alpha.30's release run, which proves the adopter journey from the published
+    artifacts on macOS and Linux: a cold install, host-store pinning, hook binding, a full proof
+    and status, an upgrade from 0.2.0-alpha.29 with its rollback, and uninstall.
+  - It also waited for hosted verification of this head on every supported platform.
+  - alpha.30 closed the last known defect that could admit a wrong proof: a locked npm that Mise
+    reported as missing resolved silently to Node's bundled npm.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - an absorbed-ref retirement preview that the reference-transaction hook then refuses;
+  - no route to retire a legacy role ref that equals its standard successor;
+  - unregistered Skill package directories that the portfolio report does not name;
+  - jdx/mise#15363 upstream, which ETHOS refuses with its cause.
+
 ## [0.2.0-alpha.30] - 2026-11-04
 
 ### Changed

@@ -14,5 +14,6 @@
 
 ## 2. Specification
 
-- [ ] 2.1 Write the `repository-governance` delta. Done when strict validation and the cumulative
-      archive simulation pass.
+- [x] 2.1 Write the `repository-governance` delta. Done when strict validation and the cumulative
+      archive simulation pass. The Change validates strictly, and the cumulative archive simulation
+      of the lane's eleven Changes keeps all 12 specs strictly valid.

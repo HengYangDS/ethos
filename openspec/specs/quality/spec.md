@@ -3204,8 +3204,15 @@ tree with `dev`.
 
 #### Scenario: Other events keep the full verification
 
-- **WHEN** `dev` or a proposal ref is pushed, or a pull or merge request is opened or updated
+- **WHEN** `dev` is pushed, or a pull or merge request is opened or updated
 - **THEN** the Forge runs every commit-scoped job and admits the event's range
+
+#### Scenario: A proposal leaves Windows on Arm to the landed commit
+
+- **WHEN** a proposal ref is pushed
+- **THEN** the Forge runs every commit-scoped job except GitHub's Windows on Arm host conformance,
+  and admits the event's range
+- **AND** `dev`'s run of the landed commit runs that host conformance
 - **AND** only a newer push of the same proposal ref cancels those jobs
 
 ### Requirement: Readiness gates precede host-load admission

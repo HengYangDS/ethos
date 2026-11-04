@@ -38,6 +38,8 @@ accepted `dev` and this lane carry:
   parameters.
 - `windows-arm-accepted-runs`: a proposal run leaves the emulated Windows on Arm pair to `dev`'s
   run of the landed commit, which shortens every landing by about 20 minutes.
+- `windows-bootstrap-retry`: the hosted Mise bootstrap waits out a Windows file hold instead of
+  failing the job, as `dev`'s Windows on Arm job did in GitHub run 41728732273.
 
 The owner asked on 2026-11-02 that every supply chain move to its latest stable release, and on
 11-03 that this release wait for uv 0.13.7, which clears Mise's 24-hour age at 10:45 on 11-04.
@@ -47,7 +49,8 @@ The owner asked on 2026-11-02 that every supply chain move to its latest stable 
 - Supply, each through its owner's native resolver:
   - Mise: uv 0.13.7 and Syft 1.56.0, locked for every platform of the lockfile.
   - Python: `uv lock --upgrade`, with the direct floors of fastmcp, ty and uv raised to the locked
-    4.1.6, 0.0.96 and 0.13.7.
+    4.1.6, 0.0.96 and 0.13.7, and the quality fixture's lock takes the root lock's version of
+    every package they share.
   - npm: already latest within its declared ranges; every resolved URL stays on the public
     registry.
   - Supply image: rebuilt from this lane by the hosted `supply_image` workflow and bound by digest
@@ -71,5 +74,5 @@ contracts, so `skip_specs: true` applies.
 ## Impact
 
 `VERSION`, `distributions/npm/package.json`, `CHANGELOG.md`, `pyproject.toml`, `uv.lock`,
-`.config/mise/config.toml`, `.config/mise/mise.lock`, `.config/ci/pipeline.cue` and the CI
-projections generated from it.
+`tests/fixtures/quality-sample/uv.lock`, `.config/mise/config.toml`, `.config/mise/mise.lock`,
+`.config/ci/pipeline.cue` and the CI projections generated from it.

@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.29] - 2026-11-04
+
 ### Added
 
 - Each release run attests the archives and wheels it publishes with GitHub artifact attestations
@@ -35,8 +37,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   for admission, and no gate runs twice.
 - The locked supply moves to the latest stable releases that ETHOS's constraints allow: Mise
   2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
-  official executable digests, and Cyclopts 5.3.3, filelock 4.2.7 and python-discovery 1.9.1, with
-  ETHOS now requiring Cyclopts 5.3.3 and filelock 4.2.7 or later.
+  official executable digests; Syft 1.56.0; and Authlib 1.9.3, coverage 7.17.1, Cyclopts 5.3.3,
+  FastMCP 4.1.6, filelock 4.2.7, joserfc 1.8.0, python-discovery 1.9.2, ty 0.0.96, uncalled-for
+  0.4.2 and virtualenv 21.15.3, with ETHOS now requiring Cyclopts 5.3.3, FastMCP 4.1.6 and filelock
+  4.2.7 or later.
 - The shipped adopter CI model pins `jdx/mise-action` 5.2.6 by commit, which no longer hangs when
   a cache restore fails mid-download.
 - GitHub runs ETHOS's full verification once for each published commit. A push to `main`, which
@@ -70,9 +74,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   job of a proposal run: 71 minutes against 51 for the slowest native pair in run 41713822013.
   `dev`'s run of the landed commit, the proposal's exact commit, still runs it before the commit
   can be tagged, and so do pull requests and manual dispatches.
-- The locked supply moves to Syft 1.56.0, fastmcp 4.1.6, ty 0.0.96, authlib 1.9.3, coverage
-  7.17.1, joserfc 1.8.0, python-discovery 1.9.2, uncalled-for 0.4.2 and virtualenv 21.15.3, and
-  the fastmcp and ty floors follow the locked versions.
 
 ### Removed
 
@@ -111,6 +112,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - ETHOS's hosted CI waits up to about 13 seconds for Windows to release the Mise executable it
   has just verified before replacing the cached one with it, instead of failing the job with
   `WinError 32`, as `dev`'s Windows on Arm job did in GitHub run 41728732273.
+
+### Security
+
+- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
+  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
+  minimatch and glob overrides that it describes. The release build's audit reports no other
+  advisory.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

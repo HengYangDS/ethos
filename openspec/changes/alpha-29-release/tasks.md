@@ -19,9 +19,9 @@
 
 ## 2. Release Entry
 
-- [ ] 2.1 Move the product version to 0.2.0-alpha.29 in `VERSION` and
+- [x] 2.1 Move the product version to 0.2.0-alpha.29 in `VERSION` and
       `distributions/npm/package.json`. Done when the lane's `ethos --version` reports
-      0.2.0-alpha.29 and the version tests pass unchanged.
+      0.2.0-alpha.29 and the version tests pass unchanged. The lane's `ethos --version` reports 0.2.0-alpha.29, `uv lock --check` passes, and 207 tests of the release, changelog, publication, journey and land release surfaces pass unchanged.
 - [ ] 2.2 Curate the `0.2.0-alpha.29` entry from the Unreleased notes and the advisories that the
       release build's audit reports on the lane head. Done when the changelog validates with
       0.2.0-alpha.29 as its release target, the Unreleased section is empty, and the entry names

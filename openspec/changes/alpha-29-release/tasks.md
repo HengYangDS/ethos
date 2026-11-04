@@ -11,23 +11,36 @@
       MCP surface, publication, CI and native supply pass. The hosted proof of `dfd394a9c`
       (run 41739758355) found the fixture still on coverage 7.17.0; locked to 7.17.1, the 31
       native Nox tests pass. Only uv 0.13.7 remains newer.
-- [ ] 1.2 Move uv to 0.13.7 once Mise admits it, and keep every release younger than 24 hours out of
+- [x] 1.2 Move uv to 0.13.7 once Mise admits it, and keep every release younger than 24 hours out of
       the Python locks. Done when Mise locks it for every platform, the `uv>=` floors are 0.13.7,
       every locked version that differs from `dev` was published at least 24 hours before the move,
-      `uv lock --check` passes for both locks and `mise install --locked` installs it.
-- [ ] 1.3 Bind a supply image built from the moved locks. Done when the hosted `supply_image`
+      `uv lock --check` passes for both locks and `mise install --locked` installs it. Mise locks uv
+      0.13.7 for the lockfile's six platforms and both `uv>=` floors are 0.13.7. The locked versions
+      that differ from `dev` are FastMCP and fastmcp-slim 4.1.6, ty 0.0.96 and uv 0.13.7, each on
+      PyPI for at least 24 hours when `f50e4fc05` moved them; `uv lock --check` passes for both
+      locks and `mise install --locked` installs them. ty, `dependencies`, `build`, `supply_chain`,
+      `ci_templates` and `vulnerabilities` pass, and 877 tests of the MCP surface, publication, CI,
+      native supply, Nox adoption and release pass, 1 skipped.
+- [x] 1.3 Bind a supply image built from the moved locks. Done when the hosted `supply_image`
       workflow built and pushed it from this lane, `lane project --check` reports the projections
-      conforming and every GitLab supply job selects its digest.
+      conforming and every GitLab supply job selects its digest. The hosted `supply_image` dispatch
+      of the proposal ref (run 41764447664) built and pushed the image from `f50e4fc05`;
+      `lane project --check` reports the projections conforming, and all five GitLab supply
+      references select digest `ff6df8ddcec2`, none the previous one.
 
 ## 2. Release Entry
 
 - [x] 2.1 Move the product version to 0.2.0-alpha.29 in `VERSION` and
       `distributions/npm/package.json`. Done when the lane's `ethos --version` reports
-      0.2.0-alpha.29 and the version tests pass unchanged. The lane's `ethos --version` reports 0.2.0-alpha.29, `uv lock --check` passes, and 207 tests of the release, changelog, publication, journey and land release surfaces pass unchanged.
-- [ ] 2.2 Curate the `0.2.0-alpha.29` entry from the Unreleased notes and the advisories that the
+      0.2.0-alpha.29 and the version tests pass unchanged. The lane's `ethos --version` reports
+      0.2.0-alpha.29, `uv lock --check` passes, and 207 tests of the release, changelog,
+      publication, journey and land release surfaces pass unchanged.
+- [x] 2.2 Curate the `0.2.0-alpha.29` entry from the Unreleased notes and the advisories that the
       release build's audit reports on the lane head. Done when the changelog validates with
       0.2.0-alpha.29 as its release target, the Unreleased section is empty, and the entry names
-      every advisory that audit reports.
+      every advisory that audit reports. The changelog validates with 0.2.0-alpha.29 as its release
+      target and an empty Unreleased section. The release build's audit on `f50e4fc05` passes and
+      reports only npm 12.2.1's eight bundled findings, which the entry's Security section names.
 
 ## Workflow follow-up
 

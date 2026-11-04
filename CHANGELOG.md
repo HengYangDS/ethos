@@ -12,6 +12,26 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- A result for a gate that the plan does not declare is `gate_undeclared:<gate>`, so
+  `gate_unknown:<gate>` means only a gate whose verdict is unknown.
+
+### Fixed
+
+- `ethos prove --json` keeps each failed gate's own cause after its class code (GitLab issue #2).
+  A gate that times out reports `gate_unknown:<gate>` and then `gate_timeout:<gate>`, and the
+  proof's verdict stays `unknown` instead of `block`. The result carries one bounded diagnostic per
+  failed gate, with its kind, timeout, elapsed time and the count of codes beyond five that it
+  omits, and its next action names the timeout to raise. Before, the cause appeared only in the gate
+  events and the proof artifact.
+- A gate whose prerequisite is unknown, or whose command is absent, is `unknown`; a failed
+  prerequisite still blocks it.
+- A refusal reports every gap it found, not only the first, and keeps the verdict class that its
+  producer declared: a Git timeout and an unknown Git compare-and-swap outcome are `unknown`.
+  Status keeps an unknown OpenSpec resolution `unknown`, and a retirement failure keeps its gap's
+  subject and the partial-retirement gap.
+
 ## [0.2.0-beta.1] - 2026-11-04
 
 ### Changed

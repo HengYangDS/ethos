@@ -21,6 +21,7 @@ from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.hook.preimage import record_hooks_preimage
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
@@ -40,8 +41,8 @@ if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
 _REF_STORAGE_CONFIG = {"gc.packRefs": "false", "maintenance.pack-refs.enabled": "false"}
-_WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", *_REF_STORAGE_CONFIG)
-_ACTIVATION_KEYS = ("extensions.worktreeConfig", *_WORKTREE_ACTIVATION_KEYS)
+WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", *_REF_STORAGE_CONFIG)
+ACTIVATION_KEYS = ("extensions.worktreeConfig", *WORKTREE_ACTIVATION_KEYS)
 
 
 class HookActivationError(ValueError):
@@ -87,8 +88,8 @@ def install_hook_launchers(
         )
         rollback_supply = {} if current_before is None else _rollback_supply(common, runtime.parent)
         hooks = materialize_hook_launchers(common / "ethos" / "hooks")
-        linked = _linked_worktree_paths(repo)
-        common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
+        linked = linked_worktree_paths(repo)
+        common_before = config_effects.config_values(repo, ACTIVATION_KEYS, scope="local")
         binding, state_transition, worktrees_before = _activate_with_state(
             repo,
             common,
@@ -154,6 +155,7 @@ def _activate_with_state(
     database_existed = database.exists()
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]] = {}
     activated = False
+    recorded: Path | None = None
     try:
         with closing(sqlite3.connect(database)) as connection:
             connection.execute("begin immediate")
@@ -169,8 +171,12 @@ def _activate_with_state(
                 selected_runtime=selected,
                 installed_runtime=installed_runtime,
             )
+            # The configuration this first adoption replaced, kept for a faithful exit.
+            recorded = record_hooks_preimage(common, common_before, worktrees_before)
             connection.commit()
     except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
+        if recorded is not None:
+            recorded.unlink(missing_ok=True)
         if activated:
             _restore_failed_activation(
                 repo,
@@ -289,7 +295,7 @@ def _activate_common_runtime(
     worktrees_before.update(
         {
             worktree: config_effects.config_values(
-                worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree"
+                worktree, WORKTREE_ACTIVATION_KEYS, scope="worktree"
             )
             for worktree in linked
         }
@@ -299,7 +305,7 @@ def _activate_common_runtime(
         {**_REF_STORAGE_CONFIG, "core.hooksPath": hooks.as_posix()},
     )
     for worktree in linked:
-        config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
+        config_effects.unset_worktree_config(worktree, WORKTREE_ACTIVATION_KEYS)
     _require_common_activation(repo, linked, hooks)
     binding = hook_runtime_binding(
         repo, expected_build=expected_build, selected_runtime=selected_runtime
@@ -386,7 +392,7 @@ def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
     }
 
 
-def _linked_worktree_paths(root: Path) -> tuple[Path, ...]:
+def linked_worktree_paths(root: Path) -> tuple[Path, ...]:
     """Return every readable worktree sharing the repository common directory."""
     completed = run_git(root, "worktree", "list", "--porcelain", "-z", check=False)
     if completed.returncode:
@@ -406,13 +412,13 @@ def _require_common_activation(
     worktrees: tuple[Path, ...],
     hooks: Path,
 ) -> None:
-    if config_effects.config_values(root, _ACTIVATION_KEYS, scope="local") != _common_activation(
+    if config_effects.config_values(root, ACTIVATION_KEYS, scope="local") != _common_activation(
         hooks
     ):
         _fail("hook_runtime_common_activation_drift")
     if any(
-        config_effects.config_values(worktree, _WORKTREE_ACTIVATION_KEYS, scope="worktree")
-        != dict.fromkeys(_WORKTREE_ACTIVATION_KEYS, ())
+        config_effects.config_values(worktree, WORKTREE_ACTIVATION_KEYS, scope="worktree")
+        != dict.fromkeys(WORKTREE_ACTIVATION_KEYS, ())
         for worktree in worktrees
     ):
         _fail("hook_runtime_worktree_activation_drift")

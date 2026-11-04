@@ -1,5 +1,9 @@
 """Render the shared adoption operation through Cyclopts."""
 
+from typing import Annotated
+
+from cyclopts import Parameter
+
 from ethos.domain.adoption import adopt_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -26,9 +30,10 @@ def adopt(
     expect_head: str | None = None,
     expect_plan_digest: str | None = None,
     select_runtime: bool = False,
+    exit_repository: Annotated[bool, Parameter(name="--exit")] = False,
     json_output: JsonFlag = False,
 ) -> None:
-    """Plan or apply ETHOS adoption for a repository."""
+    """Plan or apply ETHOS adoption for a repository, or preview its exit."""
     if create and root is None:
         message = "formation_root_required"
         raise ValueError(message)
@@ -49,5 +54,6 @@ def adopt(
         expect_head=expect_head,
         expect_plan_digest=expect_plan_digest,
         select_runtime=select_runtime,
+        exit_repository=exit_repository,
     )
     emit(result, json_output=json_output, enforce=apply)

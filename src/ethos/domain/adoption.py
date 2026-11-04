@@ -6,6 +6,7 @@ from pathlib import Path
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.repo.adoption import adoption_plan
+from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
 from ethos.contracts.verdict import report_verdict
@@ -61,8 +62,11 @@ def adopt_repository(
     expect_head: str | None = None,
     expect_plan_digest: str | None = None,
     select_runtime: bool = False,
+    exit_repository: bool = False,
 ) -> EthosResult:
     """Plan or apply native adoption with unchanged exact-request admission."""
+    if exit_repository:
+        return _exit(root, apply=apply, combined=create or evolve_starter or select_runtime)
     if select_runtime and (create or evolve_starter):
         return EthosResult(
             command="adopt",
@@ -173,6 +177,19 @@ def adopt_repository(
             }
         },
     )
+
+
+def _exit(root: Path, *, apply: bool, combined: bool) -> EthosResult:
+    """Preview a repository's exit; it never runs together with an adoption step."""
+    if combined:
+        return EthosResult(
+            command="adopt",
+            verdict="block",
+            state="blocked",
+            required_gaps=("adoption_exit_combined_with_adoption",),
+            next_action="Run the exit alone: ethos adopt --exit --json",
+        )
+    return adopt_exit(root, apply=apply)
 
 
 def _evolve_starter(

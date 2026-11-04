@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
+from filelock import FileLock
 
 import ethos.adapters.repo.hook.exit as repository_exit
 from ethos.adapters.repo.hook.activation import install_hook_launchers
@@ -86,13 +87,17 @@ def test_the_exit_preview_plans_the_restoration_without_any_effect(
     assert first["user_decision_required"] is False
 
 
+@pytest.mark.parametrize("record", [None, '{"schema_version": 2}'])
 def test_an_exit_without_a_record_asks_instead_of_guessing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str | None
 ) -> None:
-    """A repository adopted before installs recorded anything needs the user's choice."""
+    """A repository adopted before installs recorded anything, or with an unreadable record."""
     repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
     install_hook_launchers(repo)
-    (common / "ethos/hooks-preimage.json").unlink()
+    if record is None:
+        (common / "ethos/hooks-preimage.json").unlink()
+    else:
+        (common / "ethos/hooks-preimage.json").write_text(record, encoding="utf-8")
 
     preview = repository_exit.exit_preview(repo)
 
@@ -118,6 +123,23 @@ def test_a_live_lease_blocks_the_exit(tmp_path: Path, monkeypatch: pytest.Monkey
 
     assert "adoption_exit_lease_live:work/live" in preview["required_gaps"]
     assert preview["plan_digest"] != unleased
+
+
+def test_a_held_selection_blocks_the_exit_and_keeps_its_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selection in progress holds its lock; the probe names it and leaves the lock file."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    install_hook_launchers(repo)
+    lock = common / "ethos/runtime-selection.lock"
+
+    with FileLock(lock):
+        held = repository_exit.exit_preview(repo)
+    free = repository_exit.exit_preview(repo)
+
+    assert held["required_gaps"] == ["adoption_exit_selection_held"]
+    assert free["required_gaps"] == []
+    assert lock.is_file()
 
 
 def test_the_public_exit_only_previews_in_this_release(

@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 from filelock import FileLock
-from filelock import Timeout
 
 import ethos.adapters.repo.config_effects as config_effects
 from ethos.adapters.repo.git import git_common_dir
@@ -25,15 +24,12 @@ from ethos.adapters.repo.hook.activation import ACTIVATION_KEYS
 from ethos.adapters.repo.hook.activation import WORKTREE_ACTIVATION_KEYS
 from ethos.adapters.repo.hook.activation import linked_worktree_paths
 from ethos.adapters.repo.hook.preimage import read_hooks_preimage
+from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import state_database
 from ethos.result import EthosResult
 
 _SELECTORS = ("CURRENT", "ROLLBACK")
-_LOCKS = (
-    ("runtime-selection.lock", "adoption_exit_selection_held"),
-    ("proof-slot.lock", "adoption_exit_proof_running"),
-)
 
 
 def _selector(common: Path, name: str) -> dict[str, object]:
@@ -49,17 +45,19 @@ def _selector(common: Path, name: str) -> dict[str, object]:
     }
 
 
-def _held(path: Path) -> bool:
-    """Probe an existing lock without creating it; a lock that cannot be taken is held."""
-    if not path.is_file():
+def _held(lock: FileLock) -> bool:
+    """Probe an existing lock without waiting; the probe never creates or unlinks its file.
+
+    Taking a lock creates its file, so a missing file is a lock nobody holds. filelock's Timeout
+    is an OSError, so a lock that cannot be taken, or whose state cannot be read, is held.
+    """
+    if not Path(lock.lock_file).is_file():
         return False
-    lock = FileLock(path, timeout=0)
     try:
-        lock.acquire(blocking=False)
-    except Timeout:
+        with lock.acquire(blocking=False):
+            return False
+    except OSError:
         return True
-    lock.release()
-    return False
 
 
 def _blockers(leases: list[dict[str, Any]], common: Path) -> list[str]:
@@ -68,7 +66,18 @@ def _blockers(leases: list[dict[str, Any]], common: Path) -> list[str]:
         for lease in leases
         if lease["lease_state"] in {"valid", "unknown"}
     ]
-    return gaps + [gap for name, gap in _LOCKS if _held(common / "ethos" / name)]
+    locks = (
+        (runtime_selection_lock(common), "adoption_exit_selection_held"),
+        (
+            FileLock(
+                common / "ethos" / "proof-slot.lock",
+                fallback_to_soft=False,
+                preserve_lock_file=True,
+            ),
+            "adoption_exit_proof_running",
+        ),
+    )
+    return gaps + [gap for lock, gap in locks if _held(lock)]
 
 
 def exit_preview(root: Path) -> dict[str, Any]:

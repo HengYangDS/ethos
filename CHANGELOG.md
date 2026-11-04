@@ -18,8 +18,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   consumers, and a Syft JSON inventory that captures Go symbols, for binary scans. Both name the
   archive's published file and SHA-256, are covered by `SHA256SUMS` and the build provenance
   attestation, and must hold every component that the runtime's owners declare: the bundled Go
-  tools, uv's crates, Node and each shipped Python distribution. A required platform whose
-  inventories are missing or name another archive stops the release.
+  tools, uv's crates, Node and each shipped Python distribution. An inventory that names another
+  archive, or a second declaration, stops the release. So does a required platform without both
+  inventories. An optional Windows platform without both is left out, and the release notes name
+  it.
 - A release run reports the binary-level advisories of the inventories it published, in a
   read-only `release-binary-scan` job that never blocks the release. Its report names Grype and
   its database, each archive's digest, one row per archive, package, version and advisory, the

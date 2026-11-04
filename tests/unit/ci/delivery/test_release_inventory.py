@@ -68,6 +68,8 @@ def _rewrite(document: str = "both", **change):
             paths[0].write_text("{", encoding="utf-8")
         elif document == "oversized":
             paths[0].write_bytes(b" " * (release_assets.INVENTORY_LIMIT + 1))
+        elif document == "duplicate":
+            (paths[0].parent / "other.spdx.json").write_bytes(paths[0].read_bytes())
 
     return apply
 
@@ -81,8 +83,9 @@ def _rewrite(document: str = "both", **change):
         (_rewrite(digest="0" * 64), "release_assets_inventory_mismatch:linux-x64"),
         (_rewrite(name="ethos-other.tar.gz"), "release_assets_inventory_mismatch:linux-x64"),
         (_rewrite(parts=0), "release_assets_inventory_components_missing:linux-x64"),
+        (_rewrite("duplicate"), "release_assets_inventory_mismatch:linux-x64"),
     ],
-    ids=["missing", "garbled", "oversized", "digest", "name", "one-package"],
+    ids=["missing", "garbled", "oversized", "digest", "name", "one-package", "duplicate"],
 )
 def test_a_required_host_needs_inventories_that_declare_its_archive(tmp_path, change, gap):
     """A missing, oversized, foreign or one-package inventory stops the release."""
@@ -91,13 +94,33 @@ def test_a_required_host_needs_inventories_that_declare_its_archive(tmp_path, ch
     assert not (tmp_path / "out").exists()
 
 
-def test_a_windows_host_without_inventories_is_left_out(tmp_path):
-    """Windows stays optional: without its inventories it is not published, and the rest are."""
-    _out, sums = _assembled(tmp_path, _rewrite("missing"), host="windows-x64")
+@pytest.mark.parametrize("document", ["missing", "both-missing"])
+def test_an_incomplete_windows_declaration_is_left_out_and_named(tmp_path, document):
+    """Windows stays optional: an incomplete declaration is none, and the release says so."""
+
+    def change(job: Path, host: str) -> None:
+        _rewrite("missing")(job, host)
+        if document == "both-missing":
+            (job / "evidence/release/runtime.spdx.json").unlink()
+
+    out, sums = _assembled(tmp_path, change, host="windows-x64")
     assert not [name for name in sums if "windows" in name or "win_amd64" in name]
     assert f"ethos-{VERSION}-linux-x64.syft.json" in sums
+    assert "windows-x64" in (out / "notes.md").read_text(encoding="utf-8")
+    assert json.loads((out / "left-out.json").read_text(encoding="utf-8")) == [
+        {"host": "windows-x64", "reason": "inventories_incomplete"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [_rewrite(digest="0" * 64), _rewrite(name="ethos-other.tar.gz"), _rewrite("duplicate")],
+    ids=["digest", "name", "duplicate"],
+)
+def test_a_mismatched_binding_blocks_even_an_optional_host(tmp_path, change):
+    """A wrong digest, name or duplicate is a pipeline defect or tampering, never optional."""
     with pytest.raises(ValueError, match="release_assets_inventory_mismatch:windows-x64"):
-        _assembled(tmp_path / "foreign", _rewrite(digest="0" * 64), host="windows-x64")
+        _assembled(tmp_path, change, host="windows-x64")
 
 
 def test_one_syft_run_writes_both_inventories_of_the_archive_bytes(tmp_path):

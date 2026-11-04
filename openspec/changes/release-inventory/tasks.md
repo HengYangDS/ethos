@@ -23,10 +23,11 @@
   - a missing, garbled or oversized inventory refuses;
   - a foreign digest or name refuses;
   - a one-package SBOM refuses;
-  - a Windows host without inventories is left out.
+  - an incomplete Windows declaration is left out and named in the notes and `left-out.json`,
+    while a mismatched or duplicate binding blocks every host.
 
-  The 8 admission tests failed first and pass, and removing the leave-out rule or the digest
-  check makes them fail.
+  The 13 admission tests pass, and each new rule's tests failed first. Removing the leave-out
+  rule, the naming, the duplicate check or the digest check makes them fail.
 
 - [x] 2.2 Run the owner in every release leg, upload the inventories with the archive, and add
       them to the provenance subjects. Done when the GitHub projection is regenerated and

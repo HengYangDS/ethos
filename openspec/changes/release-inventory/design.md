@@ -59,9 +59,14 @@ Non-goals:
    - each lists components.
 
    The assembler reads each host's two inventories as single regular files under 16 MB, and
-   publishes them as `ethos-<version>-<host>.spdx.json` and `.syft.json`. A required host whose
-   inventories are missing or invalid stops the release. A Windows host without inventories is
-   left out, as the platform requirement allows.
+   publishes them as `ethos-<version>-<host>.spdx.json` and `.syft.json`.
+   - A mismatched binding stops the release for every host. That covers another digest, another
+     name, or a second declaration beside the two. A mismatch is a pipeline defect or tampering,
+     never an optional gap.
+   - An incomplete declaration, with one or both inventories missing, counts as none. A required
+     host then stops the release. An optional Windows host is left out, as the platform
+     requirement allows, and named in the release notes and in the assembler's output
+     (`left-out.json`).
 
 6. **Attestation.** The existing `attest-build-provenance` step covers both inventory files.
 

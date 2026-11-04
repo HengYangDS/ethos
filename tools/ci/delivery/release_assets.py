@@ -85,7 +85,7 @@ def assemble(
         message = "release_assets_prerelease_required"
         raise ValueError(message)
     version = tag.removeprefix("v")
-    archives = {}
+    archives, left_out = {}, []
     for evidence in sorted(source.glob(f"{_JOB}*/evidence/local-install/release-smoke.json")):
         job = evidence.parents[2]
         # The leg declares its host, so an emulated interpreter's reports cannot rename it.
@@ -117,12 +117,16 @@ def assemble(
         published = f"ethos-{version}-{platform}.tar.gz"
         inventories = _inventories(job, platform, name=published, digest=distribution["sha256"])
         if inventories is None:
+            left_out.append({"host": platform, "reason": "inventories_incomplete"})
             continue
         archives[platform] = (archive, wheel, native, inventories)
     if missing := sorted(_REQUIRED - {name for name, (_, _, own, _) in archives.items() if own}):
         message = "release_assets_platform_missing:" + ",".join(missing)
         raise ValueError(message)
     notes = _release_notes(changelog, version)
+    if left_out:
+        hosts = ", ".join(item["host"] for item in left_out)
+        notes += f"\nNot published: {hosts}, whose release leg declared no complete inventories.\n"
     assets = output / "assets"
     assets.mkdir(parents=True)
     sums = {}
@@ -149,12 +153,19 @@ def assemble(
         "".join(f"{digest}  {name}\n" for name, digest in sorted(sums.items())), encoding="utf-8"
     )
     (output / "notes.md").write_text(notes, encoding="utf-8")
+    (output / "left-out.json").write_text(json.dumps(left_out, indent=2) + "\n", encoding="utf-8")
     return sums
 
 
 def _inventories(job: Path, platform: str, *, name: str, digest: str) -> tuple[Path, ...] | None:
     """Return a leg's two admitted inventories; an optional host without them is left out."""
-    paths = tuple(job / "evidence/release" / f"runtime{suffix}" for suffix in _INVENTORIES)
+    directory = job / "evidence/release"
+    paths = tuple(directory / f"runtime{suffix}" for suffix in _INVENTORIES)
+    declared = {path for suffix in _INVENTORIES for path in directory.glob(f"*{suffix}")}
+    # A second declaration is a pipeline defect or tampering, so no host may be left out for it.
+    if declared - set(paths):
+        message = f"release_assets_inventory_mismatch:{platform}"
+        raise ValueError(message)
     if platform not in _REQUIRED and not all(path.is_file() for path in paths):
         return None
     try:
@@ -223,7 +234,8 @@ def main(arguments: list[str] | None = None) -> int:
         base_url=options.base_url.rstrip("/"),
         changelog=options.changelog,
     )
-    print(json.dumps(sums, indent=2, sort_keys=True))
+    left_out = json.loads((options.output / "left-out.json").read_text(encoding="utf-8"))
+    print(json.dumps({"left_out": left_out, "sums": sums}, indent=2, sort_keys=True))
     return 0
 
 

@@ -4,8 +4,10 @@
 
 - [x] 1.1 Pin Grype 0.121.1 for Linux and macOS and lock it. Done when `mise lock` records it for
       the four Linux and macOS platforms, and the locked install resolves `grype version` 0.121.1.
-- [ ] 1.2 Bind a supply image built from the moved lock. Done when the hosted `supply_image`
-      workflow built it from this lane and every GitLab supply job selects its digest.
+- [x] 1.2 Bind a supply image built from the moved lock. Done when the hosted `supply_image`
+      workflow built it from this lane and every GitLab supply job selects its digest. Run
+      41884716472 built `ethos-ci-supply@sha256:2f71a037…` from `b44eab5a1`, and all five GitLab
+      supply references select it.
 - [x] 1.3 Resolve Grype through the native supply. Done when tests show that the table-form
       declaration resolves its locked asset, that Windows on Arm is refused, and that Grype's
       version is read as JSON. The 4 tests failed first and pass, and removing the system scope

@@ -16,6 +16,8 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
+from urllib.parse import parse_qs
+from urllib.parse import urlsplit
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
@@ -86,7 +88,13 @@ def scan_release(
         descriptor = result.get("descriptor") or {}
         status = (descriptor.get("db") or {}).get("status") or {}
         report["scanner"] = {"name": descriptor.get("name"), "version": descriptor.get("version")}
-        report["database"] = {"built": status.get("built"), "source": status.get("from")}
+        source_url = str(status.get("from") or "")
+        checksum = parse_qs(urlsplit(source_url).query).get("checksum") or [None]
+        report["database"] = {
+            "built": status.get("built"),
+            "source": status.get("from"),
+            "checksum": checksum[0],
+        }
         audited = _audited_locks(document, audited_lock)
         for match in result.get("matches") or ():
             artifact, advisory = match.get("artifact") or {}, match.get("vulnerability") or {}
@@ -135,7 +143,7 @@ def run(session: nox.Session) -> None:
         work,
         version=tag.removeprefix("v"),
         grype=_native_grype(),
-        audited_lock=_sha256(ROOT / "package-lock.json"),
+        audited_lock=_audited_lock(tag),
     )
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
@@ -163,6 +171,14 @@ def _native_grype() -> Callable[[Path, Path], None]:
         )
 
     return scan
+
+
+def _audited_lock(tag: str) -> str:
+    """Digest the lock at the scanned tag, the one that release's audit checked."""
+    accept = ("-H", "Accept: application/vnd.github.raw")
+    path = f"repos/{REPOSITORY}/contents/package-lock.json?ref={tag}"
+    completed = run_command(ROOT, ("gh", "api", *accept, path), text=False, check=True, timeout=120)
+    return hashlib.sha256(completed.stdout).hexdigest()
 
 
 def _audited_locks(document: dict, audited_lock: str) -> set[str]:

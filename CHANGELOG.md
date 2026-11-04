@@ -25,7 +25,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A release run reports the binary-level advisories of the inventories it published, in a
   read-only `release-binary-scan` job that never blocks the release. Its report names Grype and
   its database, each archive's digest, one row per archive, package, version and advisory, the
-  executables that no package identifies, and any platform it could not scan. On alpha.29's macOS
+  executables that no package identifies, and any platform it could not scan. A `scan_tag`
+  dispatch scans an already published release again from its inventories. On alpha.29's macOS
   archive the symbol-capturing inventory yields the same 63 advisories as a direct scan of the
   runtime, where an SPDX input yields 113.
 

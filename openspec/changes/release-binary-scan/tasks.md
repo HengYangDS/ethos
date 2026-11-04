@@ -21,11 +21,14 @@
   - a missing inventory reports its host as not scanned;
   - executables without packages are named.
 
-  The 3 tests failed first and pass, and counting every npm row as audited makes them fail.
+  The 3 tests failed first and pass. Counting every npm row as audited, or dropping the
+  database checksum, makes them fail. The report records the database's build time, source URL
+  and checksum.
 
 - [x] 2.2 Add the read-only `release-binary-scan` job after `release-publish`, with
-      `continue-on-error`. Done when the GitHub projection is regenerated and conforms. It
-      conforms, and the job test passes.
+      `continue-on-error`, and a `scan_tag` dispatch that runs it alone for a published release.
+      Done when the GitHub projection is regenerated and conforms. It conforms, and the job test,
+      which checks the dispatch input and that every regular job skips it, passes.
 - [x] 2.3 Accept inventory input on real archives. Done when, for the alpha.29 macOS, Linux and
       Windows x64 archives, the `sbom:` and `dir:` advisory pairs are equal under one Grype and
       one database, with run time and output size recorded. Under Grype 0.121.1 and the database

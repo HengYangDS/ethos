@@ -73,7 +73,11 @@ def test_the_report_keys_rows_and_names_what_it_could_not_scan(tmp_path):
     scan = release_binary_scan.scan_release
     report = scan(tmp_path / "release", version=_VERSION, grype=_grype, audited_lock=_SHIPPED)
     assert report["scanner"] == {"name": "grype", "version": "0.121.1"}
-    assert report["database"] == {"built": _DATABASE["built"], "source": _DATABASE["from"]}
+    assert report["database"] == {
+        "built": _DATABASE["built"],
+        "source": _DATABASE["from"],
+        "checksum": "sha256:ab",
+    }
     assert report["archives"]["linux-arm64"] == {
         "archive": "ethos-0.2.0-beta.3-linux-arm64.tar.gz",
         "sha256": "0" * 64,
@@ -124,16 +128,24 @@ def test_a_tampered_inventory_refuses_the_scan(tmp_path, tamper, gap):
 
 
 def test_the_scan_job_reads_only_and_never_blocks_the_release():
-    """The scan follows publication with read permission, and its failure cannot fail the run."""
-    jobs = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
+    """The scan follows publication with read permission, and its failure cannot fail the run.
+
+    A `scan_tag` dispatch re-scans an already published release alone, as `journey_tag` does.
+    """
+    workflow = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    jobs = workflow["jobs"]
+    dispatch = (workflow.get("on") or workflow[True])["workflow_dispatch"]["inputs"]
+    assert dispatch["scan_tag"]["default"] == ""
+    regular = ("host-conformance", "quality", "external-links", "verify", "package")
+    assert all("!inputs.scan_tag" in jobs[name]["if"] for name in regular)
     scan = jobs["release-binary-scan"]
+    assert "inputs.scan_tag != ''" in scan["if"]
     assert scan["needs"] == "release-publish"
     assert scan["permissions"] == {"contents": "read"}
     assert scan["continue-on-error"] is True
     runs = [step.get("run", "") for step in scan["steps"]]
-    assert any(
-        "nox -s release_binary_scan -- --tag ${{ inputs.release_tag }}" in run for run in runs
-    )
+    tag = "${{ inputs.release_tag || inputs.scan_tag }}"
+    assert any(f"nox -s release_binary_scan -- --tag {tag}" in run for run in runs)
     upload = next(step for step in scan["steps"] if "upload-artifact" in step.get("uses", ""))
     assert upload["with"]["path"] == "build/evidence/release-binary-scan/"
     assert upload["if"] == "always()"

@@ -43,19 +43,23 @@ Non-goals:
    - The native Grype runs `grype sbom:<inventory> -o json`, with its database in the CI tool
      cache.
    - The update check is off, and inherited `GRYPE_` and `SYFT_` variables are removed.
-   - Grype's database validity check decides refreshes.
+   - Grype's database validity check decides refreshes. No snapshot is pinned: the scan reports
+     what is known now about what shipped, and the report records which database said so.
 4. **Report.** `build/evidence/release-binary-scan/report.json` records:
-   - the Grype version, and the database's build time and source URL with its checksum;
+   - the Grype version, and the database's build time, source URL and checksum, read from the
+     URL's `checksum` parameter;
    - each host's archive and inventory digests, and its state;
    - one row per (archive, package, version, advisory), with type, severity, fix state and fixed
      versions;
    - for npm rows, `audited_by: "npm audit"` only when the shipped lock's SHA-256 in the
-     inventory equals the checkout's `package-lock.json`, the lock that the release audit
-     checked;
+     inventory equals the scanned tag's `package-lock.json`, which the GitHub API returns, the
+     lock that the release audit checked;
    - executables that Syft reports with no identified package, by archive and path.
 5. **Placement.** The job `release-binary-scan` follows `release-publish`. It runs on
    `ubuntu-latest` with `contents: read` only and `continue-on-error: true`, and uploads its
-   report.
+   report. A `scan_tag` dispatch runs it alone, for an already published release, with the
+   dispatching ref's code, as `journey_tag` runs the journey. Every other job skips that
+   dispatch.
 
 ## Acceptance
 

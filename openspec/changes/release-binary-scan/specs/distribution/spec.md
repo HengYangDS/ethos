@@ -2,13 +2,19 @@
 
 ### Requirement: A release run reports the binary-level advisories of what it shipped
 
-After publication, a read-only hosted job SHALL check each published Syft inventory against `SHA256SUMS` and the archive it names, and scan it with the pinned Grype. Its report SHALL name the scanner and database, each archive's digest, one row per archive, package, version and advisory, and the executables with no identified package. The scan SHALL NOT block the release.
+After publication, and on demand for a published release, a read-only hosted job SHALL check each Syft inventory against `SHA256SUMS` and its archive, and scan it with the pinned Grype. Its report SHALL name the scanner, the database's build time, source and checksum, each archive's digest, one row per archive, package, version and advisory, and unidentified executables. The scan SHALL NOT block the release.
 
 #### Scenario: A release run scans what it shipped
 
 - **WHEN** a hosted release run has published its archives and inventories
 - **THEN** its report lists each archive's digest and the advisories that Grype matched in its inventory
 - **AND** the release itself does not wait for the report
+
+#### Scenario: A published release is scanned again
+
+- **WHEN** a `scan_tag` dispatch names an already published release
+- **THEN** only the scan job runs, over that release's published inventories
+- **AND** its report records the database that produced it
 
 #### Scenario: An inventory is missing
 

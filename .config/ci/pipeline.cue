@@ -105,12 +105,15 @@ let githubPythonBootstrap = list.Concat([[{
 let releaseTagRef = "refs/tags/${{ inputs.release_tag }}"
 
 // A release run is an explicit dispatch from accepted main naming one signed tag and its commit.
-let regularRun = "!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag"
+let regularRun = "!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag"
 let releaseRun = "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != ''"
 let releaseArguments = "--release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}"
 
 // A journey run qualifies one already published pre-release again, with the dispatching ref's code.
 let journeyRun = "github.event_name == 'workflow_dispatch' && inputs.journey_tag != ''"
+
+// A scan run reports one already published release's advisories again from its inventories.
+let scanRun = "github.event_name == 'workflow_dispatch' && inputs.scan_tag != ''"
 
 // A main push moves main to the accepted commit that dev's run of the same commit verifies, so it
 // repeats none of the commit-scoped jobs and only admits its pushed range (decision D11).
@@ -221,6 +224,12 @@ github: {
 			}
 			journey_tag: {
 				description: "Qualify this published pre-release on the adopter journey alone"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			scan_tag: {
+				description: "Report the binary advisories of this published release's inventories alone"
 				required:    false
 				type:        "string"
 				default:     ""
@@ -506,16 +515,16 @@ github: {
 			name:                "release binary scan"
 			"runs-on":           "ubuntu-latest"
 			needs:               "release-publish"
-			if:                  "${{ !cancelled() && \(releaseRun) && needs.release-publish.result == 'success' }}"
+			if:                  "${{ !cancelled() && ((\(releaseRun) && needs.release-publish.result == 'success') || (\(scanRun))) }}"
 			"continue-on-error": true
 			permissions: contents: "read"
 			env: {
 				GH_TOKEN:              "${{ github.token }}"
 				UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
 			}
-			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "3.14"}).out, [{
+			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "3.14"}).out, [{
 				name: "Scan the published runtime inventories"
-				run:  "uv run --frozen python -m nox -s release_binary_scan -- --tag ${{ inputs.release_tag }}"
+				run:  "uv run --frozen python -m nox -s release_binary_scan -- --tag ${{ inputs.release_tag || inputs.scan_tag }}"
 			}, {
 				name: "Upload the release binary scan report"
 				if:   "always()"

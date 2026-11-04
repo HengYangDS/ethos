@@ -66,7 +66,9 @@ def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
     mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
     locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())
     assert locked["lockfile_version"] == 3
-    for name, version in mise["tools"].items():
+    for name, declared in mise["tools"].items():
+        # A tool table may scope a tool to the systems that use it; its version is the same fact.
+        version = declared["version"] if isinstance(declared, dict) else declared
         (record,) = [row for row in locked["tools"][name] if row["version"] == version]
         materials = [value for key, value in record.items() if key.startswith("platforms.")]
         assert materials

@@ -42,9 +42,12 @@ NATIVE_BACKENDS = {
     "cue": "cue",
     "scc": "github:boyter/scc",
     "gitleaks": "github:gitleaks/gitleaks",
+    "grype": "github:anchore/grype",
     "syft": "github:anchore/syft",
     "vale": "github:vale-cli/vale",
 }
+# Anchore's tools state their version as JSON, so a stray banner cannot pass verification.
+_JSON_VERSION = frozenset({"grype", "syft"})
 # Windows can keep a just-run executable open briefly, so moving it may be refused.
 _WINDOWS = os.name == "nt"
 
@@ -90,7 +93,13 @@ class NativeSupply:
             if selected != [backend]:
                 message = f"native_tool_undeclared:{name}"
                 raise ValueError(message)
-            version = declarations[backend]
+            declared = declarations[backend]
+            # A Mise tool table may scope a tool to the systems that use it; others get none.
+            version = declared.get("version") if isinstance(declared, dict) else declared
+            systems = declared.get("os") if isinstance(declared, dict) else None
+            if systems is not None and family not in systems:
+                message = f"native_tool_platform_unsupported:{name}:{family}"
+                raise ValueError(message)
             locked = tomllib.loads((root / MISE_LOCK).read_text(encoding="utf-8"))
             records = [row for row in locked["tools"][backend] if row["version"] == version]
             if len(records) != 1 or locked.get("lockfile_version") != 3:
@@ -179,13 +188,13 @@ class NativeSupply:
         """Observe the locked native version through the existing bounded process owner."""
         arguments = (
             (self.version_argument, "-o", "json")
-            if self.name == "syft"
+            if self.name in _JSON_VERSION
             else (self.version_argument,)
         )
         observed = run_command(Path.cwd(), (str(executable), *arguments), timeout=seconds("probe"))
         version = (
             json.loads(observed.stdout).get("version")
-            if self.name == "syft"
+            if self.name in _JSON_VERSION
             else observed.stdout.splitlines()[0]
             if self.name == "cue" and observed.stdout
             else observed.stdout.strip()

@@ -501,6 +501,32 @@ github: {
 				run: "gh release create ${{ inputs.release_tag }} --repo ${{ github.repository }} --prerelease --verify-tag --title \"ETHOS ${{ inputs.release_tag }}\" --notes-file build/release/out/notes.md build/release/out/assets/*"
 			}]
 		}
+		// Grype reads only the inventories the release published; its report never blocks it.
+		"release-binary-scan": {
+			name:                "release binary scan"
+			"runs-on":           "ubuntu-latest"
+			needs:               "release-publish"
+			if:                  "${{ !cancelled() && \(releaseRun) && needs.release-publish.result == 'success' }}"
+			"continue-on-error": true
+			permissions: contents: "read"
+			env: {
+				GH_TOKEN:              "${{ github.token }}"
+				UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
+			}
+			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "3.14"}).out, [{
+				name: "Scan the published runtime inventories"
+				run:  "uv run --frozen python -m nox -s release_binary_scan -- --tag ${{ inputs.release_tag }}"
+			}, {
+				name: "Upload the release binary scan report"
+				if:   "always()"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				with: {
+					name:                "release-binary-scan"
+					path:                "build/evidence/release-binary-scan/"
+					"if-no-files-found": "error"
+				}
+			}]])
+		}
 		"release-journey": {
 			name:      "release journey ${{ matrix.host }}"
 			"runs-on": "${{ matrix.os }}"

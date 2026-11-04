@@ -39,6 +39,7 @@ PUBLIC_SESSIONS = (
     "dependencies",
     "vulnerabilities",
     "supply_chain",
+    "release_binary_scan",
     "ci_templates",
     "architecture_projection",
     "format_selection",
@@ -220,6 +221,10 @@ def vulnerabilities(session) -> None:
 
 def supply_chain(session) -> None:
     import_module("tools.ci.release_supply_chain").run(session)
+
+
+def release_binary_scan(session) -> None:
+    import_module("tools.ci.release_binary_scan").run(session)
 
 
 def ci_templates(session) -> None:

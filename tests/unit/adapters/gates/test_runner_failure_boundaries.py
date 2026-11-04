@@ -269,7 +269,7 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
         return
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
     assert (result.verdict, result.exit_code) == (
-        "block",
+        "unknown" if boundary == "missing" else "block",
         {"missing": 127, "identity": 1}.get(boundary, 7),
     )
     assert marker.exists() == (boundary == "nonzero")

@@ -198,10 +198,11 @@ class LocalGateRunner:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
             missing = str(exc.__cause__.filename or command[0])
+            # A gate whose command is absent observed nothing, so its facts are unknown.
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
-                verdict="block",
+                verdict="unknown",
                 exit_code=127,
                 stderr=str(exc.__cause__),
                 diagnostics=(

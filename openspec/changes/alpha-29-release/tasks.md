@@ -11,8 +11,10 @@
       MCP surface, publication, CI and native supply pass. The hosted proof of `dfd394a9c`
       (run 41739758355) found the fixture still on coverage 7.17.0; locked to 7.17.1, the 31
       native Nox tests pass. Only uv 0.13.7 remains newer.
-- [ ] 1.2 Move uv to 0.13.7 once Mise admits it. Done when Mise locks it for every platform, the
-      `uv>=` floors are 0.13.7, `uv lock --check` passes and `mise install --locked` installs it.
+- [ ] 1.2 Move uv to 0.13.7 once Mise admits it, and keep every release younger than 24 hours out of
+      the Python locks. Done when Mise locks it for every platform, the `uv>=` floors are 0.13.7,
+      every locked version that differs from `dev` was published at least 24 hours before the move,
+      `uv lock --check` passes for both locks and `mise install --locked` installs it.
 - [ ] 1.3 Bind a supply image built from the moved locks. Done when the hosted `supply_image`
       workflow built and pushed it from this lane, `lane project --check` reports the projections
       conforming and every GitLab supply job selects its digest.

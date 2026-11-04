@@ -35,12 +35,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   package gate, before it waits for its repository's proof slot and host load, and ends without
   waiting when one fails or when it plans no other gate. Its test and package gates still wait
   for admission, and no gate runs twice.
-- The locked supply moves to the latest stable releases that ETHOS's constraints allow: Mise
+- The locked supply moves to the latest stable releases that ETHOS's constraints allow and that
+  have been public for at least 24 hours, the release age Mise requires of its tools: Mise
   2026.10.25, which ETHOS's own repository now requires and its CI bootstraps with the release's
-  official executable digests; Syft 1.56.0; and Authlib 1.9.3, coverage 7.17.1, Cyclopts 5.3.3,
-  FastMCP 4.1.6, filelock 4.2.7, joserfc 1.8.0, python-discovery 1.9.2, ty 0.0.96, uncalled-for
-  0.4.2 and virtualenv 21.15.3, with ETHOS now requiring Cyclopts 5.3.3, FastMCP 4.1.6 and filelock
-  4.2.7 or later.
+  official executable digests; Syft 1.56.0 and uv 0.13.7; and Cyclopts 5.3.3, FastMCP 4.1.6,
+  filelock 4.2.7, python-discovery 1.9.1 and ty 0.0.96, with ETHOS now requiring Cyclopts 5.3.3,
+  FastMCP 4.1.6, filelock 4.2.7 and uv 0.13.7 or later. The newer releases of Authlib, coverage,
+  joserfc, python-discovery, uncalled-for and virtualenv were younger than that and wait for the
+  next release.
 - The shipped adopter CI model pins `jdx/mise-action` 5.2.6 by commit, which no longer hangs when
   a cache restore fails mid-download.
 - GitHub runs ETHOS's full verification once for each published commit. A push to `main`, which
@@ -115,10 +117,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Security
 
-- The wheels and installed runtimes still ship uv 0.13.6 and npm 12.2.1, the latest releases, with
-  the bundled advisories that the `0.2.0-alpha.22` entry lists, and the product npm lock keeps the
-  minimatch and glob overrides that it describes. The release build's audit reports no other
-  advisory.
+- The wheels and installed runtimes ship uv 0.13.7, whose tagged lock builds it with rustls
+  0.23.46, which fixes the four advisories that the `0.2.0-alpha.18` entry lists.
+- They still ship npm 12.2.1, the latest release, with the eight bundled advisories that the
+  `0.2.0-alpha.22` entry lists, and the product npm lock keeps the minimatch and glob overrides
+  that it describes. The owner accepted those eight findings on 2026-11-03 for this exact npm
+  release until 2026-12-13, or until an earlier npm release bundles the fixes, which then moves
+  the pin. ETHOS installs with `npm ci --ignore-scripts`, so its installs never invoke npm's
+  bundled `node-gyp`, the only user of the bundled undici, and the bundled `socks` client, the
+  only user of ip-address, runs only behind a SOCKS proxy, which ETHOS does not configure. The
+  release build's audit reports no other advisory.
 
 ## [0.2.0-alpha.28] - 2026-11-02
 

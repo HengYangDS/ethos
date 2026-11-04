@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.repo.runtime.materialization import native_supply
+import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 
 if TYPE_CHECKING:
     from pathlib import Path

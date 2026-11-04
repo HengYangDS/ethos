@@ -18,17 +18,25 @@
 
 ## 2. Boundaries
 
-- [ ] 2.1 Build the process, public-contract and Git-effect failure results from the carried
+- [x] 2.1 Build the process, public-contract and Git-effect failure results from the carried
       `Outcome` through `EthosResult.from_outcome`. Done when tests show every carried gap and the
       producer's verdict class at each boundary, with the exact matchers unchanged.
+      `test_outcome_boundaries` shows every carried gap and the declared class at the process and
+      public-contract boundaries, and the stale-base and admission matchers keep their tests, at
+      `e3686225a`; the 130 Git effect and compensation tests pass at `eb818fed4`.
 
 ## 3. Aggregators
 
-- [ ] 3.1 Give a dependent of an unknown prerequisite `unknown`, and keep `prove --host`'s causes.
-      Done when runner tests show both.
-- [ ] 3.2 Reduce status, Work Lane refresh, retirement and commit creation through `combine`, and
+- [x] 3.1 Give a dependent of an unknown prerequisite `unknown`, and keep `prove --host`'s causes.
+      Done when runner tests show both. The runner parametrization keeps an unknown prerequisite's
+      dependent `unknown`, the host observation test keeps `gate_timeout:tests` after
+      `gate_unknown:tests` with verdict `unknown`, and both pass at `46488f371`; forcing `block`
+      fails the first.
+- [x] 3.2 Reduce status, Work Lane refresh, retirement and commit creation through `combine`, and
       carry every gap through the failure helpers. Done when one regression per aggregator shows a
-      part's specific gap and verdict class at the top.
+      part's specific gap and verdict class at the top. `test_outcome_aggregators` covers status,
+      refresh and retirement, and `test_creation` covers commit creation, at `46488f371`; the four
+      updated retirement suites pass at `a0909187e`.
 - [x] 3.3 Rename the undeclared-result gap to `gate_undeclared:<gate>`. Done when the gate policy
       and the hosted verification receipt use it. The hosted receipt test pins
       `gate_undeclared:undeclared` and passes at `46488f371`.

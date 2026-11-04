@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.process as process
 import ethos.adapters.repo.runtime.retirement as retirement
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.unit.adapters.repo.runtime.support import generation_tree
@@ -114,6 +119,57 @@ def test_process_references_read_windows_separators(
     runtime = tmp_path / "runtime"
     runtime.mkdir()
     command = "python " + runtime.as_posix().replace("/", "\\")
-    monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
+    monkeypatch.setattr(retirement, "process_commands", lambda *_a, **_k: command)
 
     assert runtime.resolve() in retirement.process_reference_paths(tmp_path)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process listing")
+def test_a_listing_can_leave_out_one_process(tmp_path: Path) -> None:
+    """The exit reads every process but its own; the excluded one is absent, the rest remain."""
+    marker = tmp_path / "marker"
+    marker.mkdir()
+    child = subprocess.Popen((sys.executable, "-c", "import time; time.sleep(60)", str(marker)))
+    try:
+        included = retirement.process_commands(tmp_path)
+        excluded = retirement.process_commands(tmp_path, exclude_pid=child.pid)
+    finally:
+        child.kill()
+        child.wait()
+
+    assert str(marker) in included
+    assert str(marker) not in excluded
+    assert excluded.strip()
+
+
+def _windows_rows(monkeypatch: pytest.MonkeyPatch, rows: list[SimpleNamespace]) -> None:
+    """Answer the management query with exact rows, as WMI would on Windows."""
+    query = SimpleNamespace(ExecQuery=lambda _text: rows)
+    modules = {
+        "pythoncom": SimpleNamespace(
+            CoInitialize=lambda: None, CoUninitialize=lambda: None, com_error=OSError
+        ),
+        "win32com.client": SimpleNamespace(GetObject=lambda _moniker: query),
+    }
+    monkeypatch.setattr(process, "import_module", modules.__getitem__)
+
+
+def test_windows_reads_an_unreadable_process_as_unknown_when_strict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A process whose command line Windows withholds may be using the runtime."""
+    _windows_rows(
+        monkeypatch,
+        [
+            SimpleNamespace(ProcessId=0, CommandLine=None),
+            SimpleNamespace(ProcessId=4, CommandLine=None),
+            SimpleNamespace(ProcessId=10, CommandLine="python run.py"),
+            SimpleNamespace(ProcessId=11, CommandLine="self"),
+            SimpleNamespace(ProcessId=12, CommandLine=None),
+        ],
+    )
+
+    assert process.windows_command_lines(timeout=5) == ("python run.py", "self")
+    assert process.windows_command_lines(timeout=5, exclude_pid=11) == ("python run.py",)
+    with pytest.raises(process.ProcessExecutionError):
+        process.windows_command_lines(timeout=5, strict=True)

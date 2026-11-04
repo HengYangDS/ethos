@@ -21,7 +21,14 @@ from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.hook.preimage import ACTIVATION_KEYS
+from ethos.adapters.repo.hook.preimage import REF_STORAGE_CONFIG
+from ethos.adapters.repo.hook.preimage import WORKTREE_ACTIVATION_KEYS
+from ethos.adapters.repo.hook.preimage import exit_receipt_path
+from ethos.adapters.repo.hook.preimage import file_bytes
+from ethos.adapters.repo.hook.preimage import hooks_preimage_path
 from ethos.adapters.repo.hook.preimage import record_hooks_preimage
+from ethos.adapters.repo.hook.preimage import restore_file
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
@@ -39,10 +46,6 @@ from ethos.adapters.store.state.schema import state_database
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
-
-_REF_STORAGE_CONFIG = {"gc.packRefs": "false", "maintenance.pack-refs.enabled": "false"}
-WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", *_REF_STORAGE_CONFIG)
-ACTIVATION_KEYS = ("extensions.worktreeConfig", *WORKTREE_ACTIVATION_KEYS)
 
 
 class HookActivationError(ValueError):
@@ -155,7 +158,9 @@ def _activate_with_state(
     database_existed = database.exists()
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]] = {}
     activated = False
-    recorded: Path | None = None
+    records = {
+        path: file_bytes(path) for path in (hooks_preimage_path(common), exit_receipt_path(common))
+    }
     try:
         with closing(sqlite3.connect(database)) as connection:
             connection.execute("begin immediate")
@@ -171,12 +176,13 @@ def _activate_with_state(
                 selected_runtime=selected,
                 installed_runtime=installed_runtime,
             )
-            # The configuration this first adoption replaced, kept for a faithful exit.
-            recorded = record_hooks_preimage(common, common_before, worktrees_before)
+            # What this adoption replaced, kept for a faithful exit; an earlier exit's receipt no
+            # longer describes the repository once it is adopted again.
+            record_hooks_preimage(common, common_before, worktrees_before)
+            exit_receipt_path(common).unlink(missing_ok=True)
             connection.commit()
     except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
-        if recorded is not None:
-            recorded.unlink(missing_ok=True)
+        failures = _restore_records(records)
         if activated:
             _restore_failed_activation(
                 repo,
@@ -189,12 +195,25 @@ def _activate_with_state(
         if not database_existed:
             database.unlink(missing_ok=True)
             _remove_state_sidecars(database)
+        if failures:
+            _fail("hook_runtime_activation_compensation_failed:" + ",".join(failures), error)
         if isinstance(error, sqlite3.Error):
             _fail(f"state_activation_failed:{error}", error)
         raise
     if not database_existed:
         _remove_state_sidecars(database)
     return binding, state_transition, worktrees_before
+
+
+def _restore_records(records: dict[Path, bytes | None]) -> list[str]:
+    """Return each exit record to its bytes before the activation, naming each that cannot be."""
+    failures: list[str] = []
+    for path, content in records.items():
+        try:
+            restore_file(path, content)
+        except OSError as failure:
+            failures.append(str(failure) or type(failure).__name__)
+    return failures
 
 
 def _hold_rollback(common: Path, runtime: Path) -> None:
@@ -302,7 +321,7 @@ def _activate_common_runtime(
     )
     config_effects.set_common_config(
         repo,
-        {**_REF_STORAGE_CONFIG, "core.hooksPath": hooks.as_posix()},
+        {**REF_STORAGE_CONFIG, "core.hooksPath": hooks.as_posix()},
     )
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, WORKTREE_ACTIVATION_KEYS)
@@ -387,7 +406,7 @@ def _runtime_selection_bytes(common: Path) -> bytes | None:
 def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
     return {
         "extensions.worktreeConfig": ("true",),
-        **{key: (value,) for key, value in _REF_STORAGE_CONFIG.items()},
+        **{key: (value,) for key, value in REF_STORAGE_CONFIG.items()},
         "core.hooksPath": (hooks.as_posix(),),
     }
 

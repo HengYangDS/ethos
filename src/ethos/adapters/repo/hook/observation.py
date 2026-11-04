@@ -163,12 +163,13 @@ def hook_runtime_binding(
     ):
         gaps.append("write_admission_not_armed:hook_generation_digest")
     # A repository that exited keeps no hooks unless its profile still declares governance.
-    exited = exit_fact(common) if selected is None and not valid_generation else None
+    exit_record = exit_fact(common)
+    exited = exit_record is not None and exit_record["state"] == "exited"
     return {
         "required": (
             load_repository_profile(repo).exists
             or valid_generation
-            or (exited is None and (runtime_root.exists() or runtime_root.is_symlink()))
+            or (not exited and (runtime_root.exists() or runtime_root.is_symlink()))
         ),
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": selected.manifest.as_posix() if selected else "",
@@ -222,7 +223,7 @@ def hook_runtime_binding(
         "scripts": list(scripts),
         "required_gaps": gaps,
         **({"contract_observation": observation} if observation else {}),
-        **({"exit": exited} if exited is not None else {}),
+        **({"exit": exit_record} if exit_record is not None else {}),
     }
 
 

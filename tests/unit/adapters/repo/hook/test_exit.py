@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -10,19 +11,26 @@ from typing import TYPE_CHECKING
 import pytest
 from filelock import FileLock
 
-import ethos.adapters.repo.hook.exit as repository_exit
+import ethos.adapters.repo.runtime.retirement as retirement
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.hook.exit_plan import exit_preview
 from ethos.adapters.repo.hook.preimage import read_hooks_preimage
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import exact_lease
+from tests.support.repository_exit import observe_no_foreign_processes
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+@pytest.fixture(autouse=True)
+def _observable_processes(monkeypatch: pytest.MonkeyPatch) -> None:
+    observe_no_foreign_processes(monkeypatch)
 
 
 def _hooks_path(repo: Path) -> str:
@@ -79,12 +87,12 @@ def test_the_exit_preview_plans_the_restoration_without_any_effect(
     install_hook_launchers(repo)
     before = _state(repo, common)
 
-    first = repository_exit.exit_preview(repo)
-    second = repository_exit.exit_preview(repo)
+    first = exit_preview(repo)
+    second = exit_preview(repo)
 
     assert _state(repo, common) == before
     assert first["required_gaps"] == []
-    assert first["restore"]["common"]["core.hooksPath"] == [".githooks"]
+    assert first["after"]["common"]["core.hooksPath"] == [".githooks"]
     assert first["selectors"]["CURRENT"]["sha256"]
     assert first["plan_digest"] == second["plan_digest"]
     assert first["user_decision_required"] is False
@@ -102,11 +110,11 @@ def test_an_exit_without_a_record_asks_instead_of_guessing(
     else:
         (common / "ethos/hooks-preimage.json").write_text(record, encoding="utf-8")
 
-    preview = repository_exit.exit_preview(repo)
+    preview = exit_preview(repo)
 
     assert preview["required_gaps"] == ["adoption_exit_preimage_unrecorded"]
     assert preview["user_decision_required"] is True
-    assert preview["restore"] is None
+    assert preview["record"] is None
 
 
 def test_a_live_lease_blocks_the_exit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -116,13 +124,13 @@ def test_a_live_lease_blocks_the_exit(tmp_path: Path, monkeypatch: pytest.Monkey
     """
     repo, _runtime, _common = materialized_activation_case(tmp_path, monkeypatch)
     install_hook_launchers(repo)
-    unleased = repository_exit.exit_preview(repo)["plan_digest"]
+    unleased = exit_preview(repo)["plan_digest"]
     acquire_lease(
         state_database(repo),
         lease=exact_lease(branch="work/live", holder_ref="agent:test:case:agent-a"),
     )
 
-    preview = repository_exit.exit_preview(repo)
+    preview = exit_preview(repo)
 
     assert "adoption_exit_lease_live:work/live" in preview["required_gaps"]
     assert preview["plan_digest"] != unleased
@@ -137,8 +145,8 @@ def test_a_held_selection_blocks_the_exit_and_keeps_its_lock(
     lock = common / "ethos/runtime-selection.lock"
 
     with FileLock(lock):
-        held = repository_exit.exit_preview(repo)
-    free = repository_exit.exit_preview(repo)
+        held = exit_preview(repo)
+    free = exit_preview(repo)
 
     assert held["required_gaps"] == ["adoption_exit_selection_held"]
     assert free["required_gaps"] == []
@@ -158,11 +166,11 @@ def test_a_repository_without_a_selector_or_ethos_hooks_is_not_adopted(
         unbound.mkdir()
         (common / "ethos/runtime/CURRENT").replace(unbound / "CURRENT")
 
-    preview = repository_exit.exit_preview(repo)
+    preview = exit_preview(repo)
 
     assert preview["required_gaps"] == ["adoption_exit_not_adopted"]
     assert preview["user_decision_required"] is False
-    assert preview["restore"] is None
+    assert preview["record"] is None
 
 
 def test_without_a_record_the_users_own_hooks_path_settles_the_exit(
@@ -174,13 +182,14 @@ def test_without_a_record_the_users_own_hooks_path_settles_the_exit(
     (common / "ethos/hooks-preimage.json").unlink()
     assert git_process(repo, "config", "--local", "core.hooksPath", ".githooks").returncode == 0
 
-    preview = repository_exit.exit_preview(repo)
+    preview = exit_preview(repo)
 
     assert preview["required_gaps"] == []
-    assert preview["restore"] is None
+    assert preview["record"] is None
     assert preview["selectors"]["CURRENT"]["present"] is True
 
 
+@pytest.mark.skipif(os.name == "nt", reason="a standard Windows user cannot read every process")
 def test_a_running_process_that_uses_the_runtime_blocks_the_exit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -190,7 +199,7 @@ def test_a_running_process_that_uses_the_runtime_blocks_the_exit(
     command = (sys.executable, "-c", "import time; time.sleep(60)", str(common / "ethos/runtime"))
     process = subprocess.Popen(command)
     try:
-        preview = repository_exit.exit_preview(repo)
+        preview = exit_preview(repo)
     finally:
         process.kill()
         process.wait()
@@ -209,9 +218,26 @@ def test_the_preview_lists_the_branches_the_accepted_branch_lacks(
     committed = git_process(linked, *options, "commit", "--allow-empty", "-m", "unlanded")
     assert committed.returncode == 0, committed.stderr
 
-    preview = repository_exit.exit_preview(repo)
+    preview = exit_preview(repo)
 
     assert [branch["branch"] for branch in preview["unlanded_branches"]] == ["work/linked"]
+
+
+def test_a_process_using_an_installed_runtime_a_selector_names_blocks_the_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selector may name an installed runtime outside the repository; using it counts too."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    install_hook_launchers(repo)
+    installed = tmp_path / "store/installations/runtime"
+    installed.mkdir(parents=True)
+    (common / "ethos/runtime/ROLLBACK").write_text(f"{'a' * 64}\n{installed.as_posix()}\n")
+    listing = f"{installed.as_posix()}/python/bin/python -m ethos.cli status"
+    monkeypatch.setattr(retirement, "process_commands", lambda *_a, **_k: listing)
+
+    preview = exit_preview(repo)
+
+    assert preview["required_gaps"] == ["adoption_exit_runtime_in_use"]
 
 
 def test_ethos_adopt_exit_reports_the_plan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

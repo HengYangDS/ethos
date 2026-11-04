@@ -56,11 +56,12 @@ Non-goals:
    - Process failures keep their Git-specific continuations.
    - Public-contract failures keep `_contract_failure_action` for the leading gap.
 4. **Proof.**
-   - `gate_outcome(checks)` builds one part per executed non-pass check. Its class code is
-     `gate_failed:<gate>` or `gate_unknown:<gate>`, followed by the gap codes from the check's
-     diagnostics, and the record keeps the check's timeout facts.
-   - `assess_proof_execution` and issuance both use it. Issuance raises an `OutcomeError` carrying
-     the assessed verdict, the gaps and the causes.
+   - The kernel's `gate_outcome(checks)` builds one part per executed non-pass check. Its class
+     code is `gate_failed:<gate>` or `gate_unknown:<gate>`, followed by the gap codes from the
+     check's diagnostics. The record keeps the leading diagnostic's kind, timeout and elapsed
+     seconds, and the check's exit code and duration, the facts that survive check normalization.
+   - `assess_proof_execution`, issuance and the host observation all use it. Issuance raises an
+     `OutcomeError` carrying the assessed verdict, the gaps and the causes.
    - The next action of a gapped proof is the first remedy that `remediation_for_gaps` returns for
      its gaps, otherwise `ethos plan --changed --json`. That function gains remedies for
      `gate_timeout:` and `missing_command:`.
@@ -87,3 +88,7 @@ Non-goals:
   Both stay non-pass and keep exit status 1, so only scripts that match `block` exactly notice.
 - The five-code bound can hide a cause. The diagnostic counts what it omits, and the proof
   artifact keeps every diagnostic.
+- One transport form remains outside the algebra. `create_git_commit` returns a failed native
+  process whose standard error is the first commit-policy gap, because its callers compensate on
+  the return code, and the ratchet does not cover that form. A later Change can return the
+  refusal beside the process.

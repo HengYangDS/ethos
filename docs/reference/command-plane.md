@@ -53,6 +53,23 @@ record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
 
+`ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
+admits it, and exits with the command's own status.
+
+- **One queue per host.** It sits under ETHOS's host root. Waiters are admitted in arrival order,
+  at most the number of slots that `host.toml` declares.
+- **Live holders.** A holder that exits frees its place without any cleanup.
+- **Bounded waits.** A wait that reaches its bound ends with `host_admission_contended`, naming
+  the holder's repository, executable and start time. A queue record never holds the command's
+  arguments.
+- **Shared with proofs.** A full proof takes the same host slot after its repository's proof
+  slot.
+- **What the child receives.** The child gets `ETHOS_HOST_ADMISSION`, so work that it starts joins
+  the admission instead of waiting for itself. It also gets `ETHOS_HOST_CPU_CAP` and
+  `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `host.toml` does not reserve, at least one.
+- **The declaration.** `host.toml` declares `slots`, default 1, and `reserved_cpus`, default 0. A
+  value out of range is refused with a named gap and never clamped.
+
 ## Native CI Projection
 
 `ethos lane project --json` previews every declared output as one exact patch;

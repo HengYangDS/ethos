@@ -4,10 +4,12 @@ A full proof that starts beside another full proof, or on a host already loaded 
 virtual machines or other test runs, fails its gates by timeout rather than by any defect. Its
 readiness gates, static checks of a committed tree, run first without waiting. Admission then
 waits before the first test or package gate runs: first for the repository's proof slot, then,
-while holding it, for both the 1- and 5-minute load averages to fall within the limit, so a short
-lull between other jobs is not mistaken for room. Waiting is bounded; contention that outlasts
-the bound ends the proof with a gap before any test or package gate runs. A Work Lane that falls
-behind its candidate meanwhile could no longer land, so its proof also ends there.
+while holding it, for the host slot that every heavy local run shares, and then for both the 1-
+and 5-minute load averages to fall within the limit, so a short lull between other jobs is not
+mistaken for room. Work that the admitted proof starts joins its host admission. Waiting is
+bounded; contention that outlasts the bound ends the proof with a gap before any test or package
+gate runs. A Work Lane that falls behind its candidate meanwhile could no longer land, so its proof
+also ends there.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from filelock import FileLock
 from filelock import Timeout
 
 import ethos.repository.paradigm.parameters as parameters
+from ethos.adapters.gates.host_admission import HostPlace
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
@@ -105,6 +108,21 @@ def _report(event: dict[str, object]) -> None:
     sys.stderr.flush()
 
 
+@contextmanager
+def _exported(values: dict[str, str]) -> Generator[None]:
+    """Give the admitted proof's children its host admission, then restore the environment."""
+    previous = {key: os.environ.get(key) for key in values}
+    os.environ.update(values)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def _holder(path: Path) -> dict[str, object] | None:
     """Read who holds the slot; a missing or half-written record is simply unknown."""
     with suppress(OSError, ValueError):
@@ -134,6 +152,7 @@ def admitted_full_proof(
     state.mkdir(parents=True, exist_ok=True)
     slot = FileLock(state / "proof-slot.lock", mode=0o600)
     holder = state / "proof-slot.json"
+    place = HostPlace(root, "ethos prove")
     started = clock()
     acquired = False
     reason = ""
@@ -147,13 +166,15 @@ def admitted_full_proof(
                     acquired = True
                     record = {"pid": os.getpid(), "head": head, "since": datetime.now(UTC)}
                     holder.write_text(json.dumps(record, default=str), encoding="utf-8")
-            observed = load() if acquired and admitted_limit is not None else None
+            hosted = acquired and place.admitted()
+            observed = load() if hosted and admitted_limit is not None else None
             roomy = admitted_limit is None or observed is None or observed <= admitted_limit
-            if acquired and roomy:
+            if hosted and roomy:
                 break
-            waiting = "host_load" if acquired else "slot_held"
+            waiting = "host_load" if hosted else "host_slot_held" if acquired else "slot_held"
             if waiting != reason:
                 reason = waiting
+                held = place.holder() if waiting == "host_slot_held" else None
                 report(
                     {
                         "event": "proof_admission_waiting",
@@ -161,17 +182,26 @@ def admitted_full_proof(
                         "reason": waiting,
                         "load": observed,
                         "limit": admitted_limit,
-                        "holder": None if acquired else _holder(holder),
+                        "holder": held if acquired else _holder(holder),
                     }
                 )
             remaining = started + seconds - clock()
             if remaining <= 0:
-                raise ValueError(CONTENDED)
+                raise ValueError(place.contention() if acquired and not hosted else CONTENDED)
             sleep(min(_POLL_SECONDS, remaining))
         admission = SlotAdmission(round(clock() - started, 1), observed, admitted_limit)
-        report({"event": "proof_admission_granted", "head": head, **admission.__dict__})
-        yield admission
+        report(
+            {
+                "event": "proof_admission_granted",
+                "head": head,
+                "load_measured": observed is not None,
+                **admission.__dict__,
+            }
+        )
+        with _exported(place.environment()):
+            yield admission
     finally:
+        place.leave()
         if acquired:
             holder.unlink(missing_ok=True)
             slot.release()

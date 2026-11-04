@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import TYPE_CHECKING
 
 import pytest
 from filelock import FileLock
 from filelock import Timeout
 
+import ethos.adapters.gates.host_admission as host_admission
 import ethos.adapters.gates.proof_slot as proof_slot
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.governed_repository import commit_fixture_file
@@ -298,7 +300,44 @@ def test_admission_reports_its_grant_on_stderr(
     assert granted == {
         "event": "proof_admission_granted",
         "head": _HEAD,
+        "load_measured": False,
         "waited_seconds": 0.0,
         "load": None,
         "limit": None,
     }
+
+
+def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Path) -> None:
+    """Another heavy run that holds the host delays the proof after its repository slot is held."""
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "film", "renderer")
+
+    class _RenderEnds(_Host):
+        def sleep(self, seconds: float) -> None:
+            super().sleep(seconds)
+            if len(self.sleeps) == 1:
+                queue.leave(*render)
+
+    host = _RenderEnds([20.0, 4.0])
+    with host.admit(repo) as admission:
+        token = os.environ[host_admission.TOKEN]
+        assert queue.holds(token)
+
+    assert [event["reason"] for event in host.waits()] == ["host_slot_held", "host_load"]
+    assert host.waits()[0]["holder"]["executable"] == "renderer"
+    assert admission.load == 4.0
+    assert host_admission.TOKEN not in os.environ
+    assert not queue.live()
+
+
+def test_a_host_without_a_load_average_records_it_unmeasured(tmp_path: Path) -> None:
+    """The host slot still serializes, and the admission says that load was not measured."""
+    repo = init_git_repo(tmp_path / "repo")
+    host = _Host([None])
+
+    with host.admit(repo) as admission:
+        pass
+
+    assert admission.load is None
+    assert host.events[-1]["load_measured"] is False

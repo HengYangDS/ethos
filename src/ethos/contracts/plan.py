@@ -16,6 +16,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.outcome import refusal
 from ethos.contracts.proof.plan import commitment_fact_gaps
 from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Attestation
@@ -246,7 +247,7 @@ class TransitionPlan(_PlanModel):
         """Return one dependency-complete canonical DAG closure."""
         ordered, gaps = cls._resolve_nodes(nodes, selected)
         if gaps:
-            raise ValueError(gaps[0])
+            raise refusal(*gaps)
         return ordered
 
     @classmethod

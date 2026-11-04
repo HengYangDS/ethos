@@ -33,13 +33,14 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 
 
-def _require(condition: object, gap: str) -> None:
+def _require(condition: object, *gaps: str) -> None:
     if not condition:
-        raise ValueError(gap)
+        raise refusal(*gaps)
 
 
 def _record(predicate: str, coordinates: dict[str, object], **result: object) -> Attestation:

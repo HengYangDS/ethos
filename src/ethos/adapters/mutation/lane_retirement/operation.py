@@ -37,6 +37,8 @@ from ethos.adapters.store.state.lease.projection import observe_lease_from_conne
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.retirement import AcceptedState
 from ethos.contracts.retirement import CarrierState
@@ -46,6 +48,8 @@ from ethos.contracts.retirement import RetirementOperation
 from ethos.contracts.retirement import RetirementProgress
 from ethos.contracts.semantic import canonical_json_bytes
 from ethos.contracts.value import mutable_json
+from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -55,14 +59,19 @@ def _fail(reason: str) -> None:
     raise ValueError(reason)
 
 
+# The failure keys that the report's own verdict and gaps replace.
+_OUTCOME_KEYS = frozenset(("verdict", "required_gaps"))
+
+
 def retirement_failure(error: Exception) -> dict[str, object]:
-    """Preserve failure evidence independently of observable retirement progress."""
-    gap = (
-        "lane_retirement_in_progress"
-        if isinstance(error, Timeout)
-        else getattr(error, "code", "") or str(error).partition(":")[0] or type(error).__name__
-    )
-    result: dict[str, object] = {"required_gaps": [str(gap)], "stderr": str(error)}
+    """Keep failure evidence, every gap and its verdict class apart from retirement progress."""
+    timed_out = isinstance(error, Timeout)
+    failed = Outcome.of("block", "lane_retirement_in_progress") if timed_out else outcome_of(error)
+    result: dict[str, object] = {
+        "verdict": failed.verdict,
+        "required_gaps": list(failed.gaps),
+        "stderr": str(error),
+    }
     if isinstance(error, ProcessExecutionError):
         result["process_failure"] = error.evidence()
     return result
@@ -436,16 +445,21 @@ def _report(
         state = "retired"
     elif failure and not partial:
         state = "blocked"
+    outcome = Outcome.of("pass", *(["lane_retirement_partial"] if partial else [])).combine(
+        Outcome.of(report_verdict(failure), *string_sequence(failure.get("required_gaps")))
+        if failure
+        else Outcome()
+    )
     result: dict[str, object] = {
-        "verdict": "block" if failure or partial else "pass",
+        "verdict": outcome.verdict,
         "state": state,
         "branch": request.branch,
         "head": request.head,
         "receipt": dict(request_receipt),
-        "required_gaps": ["lane_retirement_partial"] if partial else [],
+        "required_gaps": list(outcome.gaps),
         "next_action": retirement_continuation(root, request, request_receipt, progress, failure),
         "user_decision_required": progress is None or bool(progress.remaining_effects),
-        **dict(failure or {}),
+        **{key: value for key, value in (failure or {}).items() if key not in _OUTCOME_KEYS},
     }
     if progress is not None:
         result.update(

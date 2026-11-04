@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from pydantic import model_validator
 from yaml.constructor import ConstructorError
 
+from ethos.contracts.outcome import refusal
 from ethos.repository.openspec.identifiers import parse_archived_change_root
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import NonEmpty
@@ -195,7 +196,7 @@ def _observed_retained_origins(
 ) -> dict[str, RetainedDocument]:
     """Require exact native observations without promoting an unavailable read."""
     if observation is not None and observation.required_gaps:
-        raise ValueError(observation.required_gaps[0])
+        raise refusal(*observation.required_gaps)
     retained = retained_document_origins(root)
     if retained and (observation is None or dict(observation.entries) != retained):
         declaration = (docs_root(root) / "_meta/taxonomy.toml").relative_to(root).as_posix()

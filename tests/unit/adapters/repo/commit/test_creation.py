@@ -13,6 +13,7 @@ import ethos.adapters.repo.commit.creation as creation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
+from ethos.contracts.outcome import OutcomeError
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -121,6 +122,19 @@ def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.M
             message="bootstrap Commitment v2",
             runner=lambda *_a, **_k: pytest.fail("Git must not run"),
         )
+
+
+def test_identity_refusal_carries_every_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
+    monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
+    monkeypatch.setattr(
+        creation, "prospective_identity_gaps", lambda *_a, **_k: ["first", "second"]
+    )
+    with pytest.raises(OutcomeError) as refused:
+        creation.create_git_commit(tmp_path, tree="a" * 40, parent="b" * 40, message="fix: one")
+    assert refused.value.outcome.gaps == ("first", "second")
 
 
 def _signature_repository(tmp_path: Path, object_format: str) -> Path:
@@ -313,6 +327,7 @@ def test_signed_replacement_preserves_created_oid_when_validation_fails(
         creation.create_signed_replacement(repo, old)
     observed = caught.value.observation
     assert observed["validation_verdict"] == ("unknown" if failure == "observe" else "block")
+    assert caught.value.outcome.verdict == observed["validation_verdict"]
     assert native_payload(repo, str(observed["replacement"])) == native_payload(repo, old)
     assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before
     assert list((repo / ".git").glob("ethos-signature-*")) == []

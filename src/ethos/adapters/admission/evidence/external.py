@@ -22,6 +22,7 @@ import ethos.adapters.repo.git as git
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
+from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.profile import IndependentVerificationPolicy
@@ -235,7 +236,7 @@ def independent_verification_policy(
         else load_repository_profile(root)
     )
     if gaps := profile_required_gaps(profile):
-        raise ValueError(gaps[0])
+        raise refusal(*gaps)
     declaration = profile.declaration
     policy = declaration.independent_verification if declaration else None
     selected = policy.mode if policy else "disabled"

@@ -172,12 +172,12 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
         release_checkout_gaps(root, head, base=selection.base)
         + hook_runtime_binding(root)["required_gaps"]
     )
-    require_release(not gaps, gaps[0] if gaps else "")
+    require_release(not gaps, *gaps)
     accepted = accepted_release_source(root, head, base=selection.base)
     proof, gaps = proof_for_repository_transition(
         root, head, attestation_id=str(plan.prior_attestations["proof"]["id"]) if plan else ""
     )
-    require_release(proof is not None, gaps[0] if gaps else "release_source_not_proven")
+    require_release(proof is not None, *(gaps or ["release_source_not_proven"]))
     if selection.base:
         assert proof is not None
         require_release(

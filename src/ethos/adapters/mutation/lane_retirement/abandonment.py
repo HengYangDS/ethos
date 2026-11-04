@@ -22,12 +22,13 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import worktree_record
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import refusal
 
 _REASON_CODE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
-def _fail(reason: str) -> None:
-    raise ValueError(reason)
+def _fail(*gaps: str) -> None:
+    raise refusal(*gaps)
 
 
 def _blocked(root: Path, branch: str, error: Exception) -> dict[str, object]:
@@ -125,7 +126,7 @@ def derive_lane_abandonment(
             "lease": lease,
         }
         if gaps := effects.holder_gaps(lane):
-            _fail(gaps[0])
+            _fail(*gaps)
         request = compile_retirement_operation(
             control_root,
             mode="abandon",

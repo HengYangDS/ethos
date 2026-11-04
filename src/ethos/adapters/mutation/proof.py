@@ -355,8 +355,7 @@ def proof_plan(
 ) -> TransitionPlan:
     """Compile one plan solely from a passing frozen current resolution."""
     if resolution.verdict != "pass":
-        message = resolution.required_gaps[0] if resolution.required_gaps else resolution.verdict
-        raise ValueError(message)
+        raise refusal(*resolution.required_gaps, verdict=resolution.verdict)
     authority = resolution.authority
     if authority is None or not authority.current_head or not authority.current_tree:
         message = "current_authority_unavailable"

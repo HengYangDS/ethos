@@ -209,14 +209,17 @@ def test_declared_mise_supply_precedes_ambient_path(
         }
         if arguments in {("env", "--json"), ("bin-paths",)}:
             assert kwargs["executable"] == selected_mise
-        if arguments == ("env", "--json"):
-            selected.append("env")
-            return subprocess.CompletedProcess(arguments, 0, json.dumps({"PATH": str(binary)}), "")
-        if arguments == ("bin-paths",):
-            selected.append("bin-paths")
-            return subprocess.CompletedProcess(arguments, 0, f"{binary}\n", "")
-        selected.append(arguments[1])
-        return subprocess.CompletedProcess(arguments, 0, f"{binary / arguments[1]}\n", "")
+        installed = {"version": "1", "installed": True, "install_path": str(binary)}
+        answers = {
+            ("env", "--json"): json.dumps({"PATH": str(binary)}),
+            ("bin-paths",): f"{binary}\n",
+            # Native mise lists the one declared tool as installed under the locked binaries.
+            ("ls", "--current", "--json"): json.dumps({tool_line.split(" ", 1)[0]: [installed]}),
+        }
+        if arguments[0] != "ls":
+            selected.append(arguments[0] if arguments in answers else arguments[1])
+        output = answers[arguments] if arguments in answers else f"{binary / arguments[1]}\n"
+        return subprocess.CompletedProcess(arguments, 0, output, "")
 
     def execute(_root: Path, command: tuple[str, ...], **kwargs: object):
         environment = kwargs["env"]

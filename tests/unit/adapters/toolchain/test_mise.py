@@ -59,7 +59,11 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         assert offline
         assert files == {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
         assert executable == selected
-        output = '{"MISE_TEST":"selected"}' if arguments == ("env", "--json") else f"{locked_bin}\n"
+        output = {
+            ("env", "--json"): '{"MISE_TEST":"selected"}',
+            # The configuration declares no tool, so native mise lists none.
+            ("ls", "--current", "--json"): "{}",
+        }.get(arguments, f"{locked_bin}\n")
         return subprocess.CompletedProcess(arguments, 0, output, "")
 
     monkeypatch.setattr(mise, "run_mise", observe)
@@ -137,6 +141,9 @@ def test_locked_environment_rejects_unproved_native_supply(
         assert executable == tmp_path / "mise"
         assert offline is True
         calls.append(arguments)
+        if arguments == ("ls", "--current", "--json"):
+            # The configuration declares no tool, so native mise lists none.
+            return subprocess.CompletedProcess(arguments, 0, "{}", "")
         if arguments == ("env", "--json") and phase == "bin-paths":
             return subprocess.CompletedProcess(arguments, 0, '{"PATH":"native"}', "")
         return subprocess.CompletedProcess(arguments, returncode, stdout, stderr)
@@ -146,7 +153,8 @@ def test_locked_environment_rejects_unproved_native_supply(
 
     with pytest.raises(ValueError, match=gap), mise.locked_environment(tmp_path, files):
         pytest.fail("invalid native supply was admitted")
-    assert calls == ([("env", "--json")] if phase == "env" else [("env", "--json"), ("bin-paths",)])
+    listed = ("ls", "--current", "--json")
+    assert calls == [listed, ("env", "--json"), *([("bin-paths",)] if phase == "bin-paths" else [])]
 
 
 @pytest.mark.parametrize(

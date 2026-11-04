@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
 _LAYOUTS = ((MISE_CONFIG, MISE_LOCK), ("mise.toml", "mise.lock"), (".mise.toml", "mise.lock"))
+# The first mise whose safe mode drops the dependency graph a lock entry references, so trust cannot
+# select that install (https://github.com/jdx/mise/issues/15363).
+_GRAPH_SAFE_MODE_REGRESSION = (2026, 11, 0)
 # The caller's own mise storage and safe-mode choice; resolution overrides the last two.
 _CALLER_INPUTS = frozenset(
     ("MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR", "MISE_STATE_DIR", "MISE_SAFE")
@@ -316,7 +319,164 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
     if not executable.is_absolute() or not executable.is_file():
         message = f"mise_executable_unavailable:{name}"
         raise ValueError(message)
+    supply = _locked_supply(run_mise(root, _CURRENT, files=files, offline=True), root, None)
+    if gaps := supply_gaps(supply, {name: executable}):
+        raise _supply_refusal(gaps, root, files, None)
     return executable
+
+
+_CURRENT = ("ls", "--current", "--json")
+
+
+def _locked_supply(
+    listed: subprocess.CompletedProcess[str], root: Path, executable: Path | None
+) -> dict[str, list[dict[str, object]]]:
+    """Read native mise's report of the declared tools and their install state."""
+    if listed.returncode:
+        message = f"mise_supply_unavailable:ls:{listed.stderr.strip()[:512]}"
+        raise _refusal(message, root, executable)
+    try:
+        rows = json.loads(listed.stdout)
+    except json.JSONDecodeError as error:
+        message = "mise_supply_invalid"
+        raise ValueError(message) from error
+    if not isinstance(rows, dict) or any(
+        not isinstance(tool, str)
+        or not isinstance(versions, list)
+        or any(not isinstance(row, dict) for row in versions)
+        for tool, versions in rows.items()
+    ):
+        message = "mise_supply_invalid"
+        raise ValueError(message)
+    return rows
+
+
+def _own_executable(tool: str) -> str:
+    """The executable a declared tool provides under its own name: `npm`, or `syft` for its repo."""
+    return tool.rpartition(":")[2].rpartition("/")[2]
+
+
+def supply_gaps(
+    supply: Mapping[str, list[dict[str, object]]], executables: Mapping[str, Path]
+) -> tuple[str, ...]:
+    """Name each declared tool that is not installed and each executable outside its own tool.
+
+    An executable that no declared tool names under its own name is native mise's selection.
+    """
+    gaps: list[str] = []
+    installed: dict[str, list[Path]] = {}
+    for tool, versions in supply.items():
+        for row in versions:
+            path = row.get("install_path")
+            if (
+                row.get("installed") is not True
+                or not isinstance(path, str)
+                or not Path(path).is_dir()
+            ):
+                gaps.append(f"mise_supply_incomplete:{tool}@{row.get('version')}")
+            else:
+                installed.setdefault(_own_executable(tool), []).append(Path(path).resolve())
+    for name, executable in executables.items():
+        owners = installed.get(name, ())
+        if owners and not any(executable.resolve().is_relative_to(owner) for owner in owners):
+            gaps.append(f"mise_executable_outside_tool:{name}")
+    return tuple(gaps)
+
+
+def _mise_version(executable: Path | None) -> tuple[int, ...] | None:
+    """The selected mise's release, or None when it cannot be read."""
+    try:
+        selected = executable or mise_executable()
+        shown = run_command(
+            selected.parent,
+            (str(selected), "--version"),
+            timeout=seconds("probe"),
+            remove_env_prefixes=("MISE_",),
+            env={"MISE_DISABLE_UPDATE_WARNING": "1"},
+        )
+        return tuple(int(part) for part in shown.stdout.split()[0].split("."))
+    except (OSError, RuntimeError, ValueError, IndexError):
+        return None
+
+
+def _graph_locked(lock: str, tools: list[str]) -> bool:
+    """Whether a missing tool's lock entry references a dependency graph, such as an aube entry."""
+    try:
+        entries = tomllib.loads(lock).get("tools", {})
+    except tomllib.TOMLDecodeError:
+        return False
+    return isinstance(entries, dict) and any(
+        isinstance(entry, dict) and "aube" in entry
+        for tool in tools
+        for entry in (entries.get(tool) if isinstance(entries.get(tool), list) else ())
+    )
+
+
+def _supply_refusal(
+    gaps: tuple[str, ...],
+    root: Path,
+    files: Mapping[str, str] | None,
+    executable: Path | None,
+) -> ValueError:
+    """Name the next action that can complete the supply: an earlier mise, trust or installation."""
+    message = ",".join(gaps)
+    missing = [
+        gap.removeprefix("mise_supply_incomplete:").rpartition("@")[0]
+        for gap in gaps
+        if gap.startswith("mise_supply_incomplete:")
+    ]
+    canonical = root.resolve()
+    version = _mise_version(executable) if missing else None
+    if version is not None and version >= _GRAPH_SAFE_MODE_REGRESSION:
+        materials = files or repository_mise_files(canonical, executable=executable) or {}
+        if _graph_locked(materials.get(MISE_LOCK, ""), missing):
+            selected = ".".join(str(part) for part in version)
+            return ValueError(
+                f"{message}; cause: mise {selected} drops the dependency graph that this lock"
+                " references in safe mode (https://github.com/jdx/mise/issues/15363); next:"
+                " select a mise release before 2026.11.0"
+            )
+    if missing and not _root_trusted(canonical, executable):
+        return ValueError(
+            f"{message}; next: {shlex.join(('mise', '--cd', str(canonical), 'trust'))}"
+        )
+    return ValueError(
+        f"{message}; next: {shlex.join(('mise', '--cd', str(canonical), 'install', '--locked'))}"
+    )
+
+
+def _complete_supply(
+    root: Path, files: Mapping[str, str], executable: Path
+) -> dict[str, list[dict[str, object]]]:
+    """Return the declared supply that native mise reports installed, or refuse a missing tool.
+
+    This runs before any other query, so a missing tool is named with the step that can help
+    rather than through whatever warning another query prints.
+    """
+    supply = _locked_supply(
+        run_mise(root, _CURRENT, files=files, executable=executable, offline=True), root, executable
+    )
+    if gaps := supply_gaps(supply, {}):
+        raise _supply_refusal(gaps, root, files, executable)
+    return supply
+
+
+def _require_contained_environment(
+    root: Path,
+    files: Mapping[str, str],
+    executable: Path,
+    paths: tuple[Path, ...],
+    supply: Mapping[str, list[dict[str, object]]],
+) -> None:
+    """Refuse an environment whose PATH would run another tool's executable for a declared tool."""
+    search = os.pathsep.join(str(path) for path in paths)
+    resolved = {
+        name: Path(found)
+        for name in {_own_executable(tool) for tool in supply}
+        if (found := shutil.which(name, path=search))
+    }
+    if gaps := supply_gaps(supply, resolved):
+        raise _supply_refusal(gaps, root, files, executable)
 
 
 # Git for Windows' bin directory also holds a shell; its cmd directory holds only launchers.
@@ -361,6 +521,7 @@ def locked_environment(
     mise's own and precede the host baseline.
     """
     executable = mise_executable()
+    supply = _complete_supply(root, files, executable)
     selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
     if selected.returncode or selected.stderr:
         message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
@@ -383,6 +544,7 @@ def locked_environment(
     if not paths or any(not path.is_absolute() or not path.is_dir() for path in paths):
         message = "mise_bin_paths_invalid"
         raise _refusal(message, root, executable)
+    _require_contained_environment(root, files, executable, paths, supply)
     windows = os.name == "nt"
     baseline = host_command_baseline(
         windows=windows,

@@ -444,22 +444,24 @@ def test_unavailable_locked_node_does_not_fall_back_to_host_path(
             "/ambient/node" if name == "node" else original_which(name, *args, **kwargs)
         ),
     )
+    missing = {"node": [{"version": "26.9.0", "installed": False, "install_path": "/absent"}]}
+    answers = {
+        ("env", "--json"): '{"PATH":"/ambient/node"}',
+        ("bin-paths",): f"{tmp_path}\n",
+        ("ls", "--current", "--json"): json.dumps(missing),
+    }
     monkeypatch.setattr(
         native_mise,
         "run_mise",
         lambda _root, arguments, **_kwargs: subprocess.CompletedProcess(
             arguments,
-            0 if arguments in {("env", "--json"), ("bin-paths",)} else 1,
-            '{"PATH":"/ambient/node"}'
-            if arguments == ("env", "--json")
-            else f"{tmp_path}\n"
-            if arguments == ("bin-paths",)
-            else "",
-            "" if arguments in {("env", "--json"), ("bin-paths",)} else "locked node unavailable",
+            0 if arguments in answers else 1,
+            answers.get(arguments, ""),
+            "" if arguments in answers else "locked node unavailable",
         ),
     )
 
-    refusal = "quality_static-analysis_mise_supply_unavailable:node:locked node unavailable"
+    refusal = "quality_static-analysis_mise_supply_incomplete:node@26.9.0"
     trust = shlex.join(("mise", "--cd", str(repo.resolve()), "trust"))
     assert native_quality.static_report(repo)["required_gaps"] == [f"{refusal}; next: {trust}"]
 

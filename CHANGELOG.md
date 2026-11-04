@@ -22,6 +22,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- A locked tool or environment is used only when native Mise reports every declared tool installed
+  at its locked version with an existing install path. An executable that a declared tool provides
+  under its own name must also come from that tool. Before, a locked npm that Mise reported as
+  missing resolved silently to Node's bundled npm, so a gate could run the wrong tool and pass. A
+  refusal now names the step that can help:
+  - an earlier Mise, when Mise 2026.11.0 or later cannot use the lock's dependency graph in safe
+    mode ([jdx/mise#15363](https://github.com/jdx/mise/issues/15363));
+  - `mise trust`, for an untrusted root;
+  - otherwise, `mise install --locked`.
 - A failed save of the runtime inventory memo removes its temporary file after closing its stream,
   instead of leaving the file beside the memo.
 

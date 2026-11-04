@@ -40,6 +40,7 @@ def host_gate_observation(
             "gate_count": len(checks),
             "proof_attestation_issued": False,
         },
+        diagnostics=tuple(observed["diagnostics"]),
         required_gaps=required_gaps,
         next_action="repair the selected host gate" if required_gaps else "",
         data={

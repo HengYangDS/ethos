@@ -24,6 +24,9 @@ from time import sleep
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import OutcomeError
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Generator
@@ -32,6 +35,8 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import BinaryIO
 
+    from ethos.contracts.verdict import Verdict
+
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
@@ -39,8 +44,8 @@ _GROUP_REAPING_GRACE_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
 
 
-class ProcessExecutionError(ValueError):
-    """Preserve a failed process boundary and any bounded observation evidence."""
+class ProcessExecutionError(OutcomeError):
+    """Preserve a failed process boundary, its declared verdict class and bounded evidence."""
 
     def __init__(
         self,
@@ -51,14 +56,17 @@ class ProcessExecutionError(ValueError):
         cwd: str = "",
         cause: str = "",
         observation: Mapping[str, object] | None = None,
+        verdict: Verdict = "block",
     ) -> None:
-        super().__init__(code)
+        carried = dict(observation or {})
+        listed = carried.get("required_gaps")
+        gaps = tuple(map(str, listed)) if isinstance(listed, list | tuple) and listed else (code,)
+        super().__init__(Outcome.of(verdict, *gaps), message=code, observation=carried)
         self.code = code
         self.reason = reason
         self.command = command
         self.cwd = cwd
         self.cause = cause
-        self.observation = dict(observation or {})
 
     def evidence(self) -> dict[str, object]:
         """Return the stable machine-readable failure evidence."""

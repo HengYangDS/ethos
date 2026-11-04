@@ -401,7 +401,7 @@ def test_gate_cpu_reservations_respect_host_capacity(
     [
         ("pass", 0, ("pass", 0)),
         ("block", 1, ("block", None)),
-        ("unknown", None, ("block", None)),
+        ("unknown", None, ("unknown", None)),
         ("pass", None, ("block", None)),
         ("pass", 7, ("block", None)),
         ("planned", None, ("unknown", None)),
@@ -450,10 +450,11 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
         else:
             assert result.started_after_seconds >= 0
             assert result.duration_seconds >= 0
+    skipped = not planned and expected != ("pass", 0)
     assert (
-        not blocked.diagnostics
-        if expected[0] != "block"
-        else (blocked.diagnostics[0]["required_gaps"] == ["gate_dependency_not_proven:coverage"])
+        blocked.diagnostics[0]["required_gaps"] == ["gate_dependency_not_proven:coverage"]
+        if skipped
+        else not blocked.diagnostics
     )
 
 

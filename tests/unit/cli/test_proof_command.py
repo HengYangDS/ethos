@@ -15,6 +15,8 @@ import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.gates.proof_slot import SlotAdmission
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
@@ -332,6 +334,18 @@ def test_prove_result_matrix(monkeypatch, tmp_path, case, options, check, expect
         "ethos plan --changed --json" if expected_gap else "ethos prove --execute"
     )
     assert result.data["expected_head"]["matches"] is (case != "head-drift")
+
+
+def test_prove_emits_the_carried_verdict_cause_and_remedy(monkeypatch, tmp_path) -> None:
+    """An issuance refusal reaches the result with its own verdict class, causes and remedy."""
+    _repo, emitted = _arrange(monkeypatch, tmp_path, checks=(_check(verdict="unknown"),))
+    timed = Outcome.part("unknown", "gate_unknown:gate", ("gate_timeout:gate",), subject="gate")
+    monkeypatch.setattr(proof_cli, "issue_proof_attestation", Mock(side_effect=OutcomeError(timed)))
+    proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
+    result = emitted[-1]
+    assert (result.verdict, result.state, result.required_gaps) == ("unknown", "gapped", timed.gaps)
+    assert result.to_dict()["diagnostics"] == list(timed.causes)
+    assert "timeout_seconds" in result.next_action
 
 
 @pytest.mark.parametrize("focused", [False, True])

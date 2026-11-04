@@ -28,6 +28,9 @@ from ethos.adapters.repo.git_effect_admission import require_effect_proof
 from ethos.adapters.repo.git_effect_admission import require_lease_generation
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -295,6 +298,7 @@ def _apply_git_ref_transaction(
         command=tuple(str(arg) for arg in completed.args),
         cwd=str(root),
         observation=observation,
+        verdict="unknown" if observation["outcome"] == "unknown" else "block",
     )
 
 
@@ -401,7 +405,8 @@ def _compensate_git_effect(
         policy = resolve_ref_move_policy(root, ref, update.expected, update.desired)
         gaps = candidate_destination_gaps(root, ref, update, policy=policy)
         if gaps:
-            raise ValueError(gaps[0]) from cause
+            refused = outcome_of(cause).combine(Outcome.of("block", *gaps))
+            raise OutcomeError(refused, message=gaps[0]) from cause
     reverse_intents = _claim_effect_intents(root, plan, reverse, phase="prepared")
     completed = _run_effect_program(root, plan, reverse, environment=environment)
     restored = observe_git_effect(root, reverse, environment=environment)

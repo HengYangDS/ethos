@@ -15,6 +15,7 @@ from pydantic import Field
 from pydantic import computed_field
 from pydantic import model_validator
 
+from ethos.contracts.outcome import Outcome
 from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
@@ -100,6 +101,28 @@ class EthosResult(BaseModel):
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2, sort_keys=False)
+
+    @classmethod
+    def from_outcome(
+        cls,
+        command: str,
+        outcome: Outcome,
+        *,
+        state: str = "",
+        next_action: str = "",
+        fallback: str = "",
+        data: Mapping[str, object] | None = None,
+    ) -> Self:
+        """Build a boundary's result from the decision its parts composed, losing none of it."""
+        return cls(
+            command=command,
+            verdict=outcome.verdict,
+            state=state or {"unknown": "unknown", "block": "gapped"}.get(outcome.verdict, "ready"),
+            diagnostics=outcome.causes,
+            required_gaps=outcome.gaps,
+            next_action=next_action or outcome.next_action or fallback,
+            data=dict(data or {}),
+        )
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> Self:

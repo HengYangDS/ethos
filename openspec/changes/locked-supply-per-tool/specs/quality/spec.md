@@ -2,7 +2,7 @@
 
 ### Requirement: Locked supply is complete before ETHOS uses it
 
-Before ETHOS returns a locked tool, native mise SHALL report, in the same isolated safe-mode resolution, the declared tool named after it installed at its locked version with an existing install path, and the executable SHALL resolve inside that install path. A locked environment SHALL NOT resolve a declared tool's own executable from another tool's install path. A refusal SHALL name the missing tool or the executable outside its tool, and resolution SHALL NOT return another tool's executable in a declared tool's place.
+Before ETHOS returns a locked tool, native mise SHALL report the declared tool named after it installed at its locked version, and the executable SHALL resolve inside that tool's install path. A locked environment SHALL NOT resolve a declared tool's own executable from another tool's install path. A refusal SHALL name the missing tool or the misplaced executable, and resolution SHALL NOT return another tool's executable in a declared tool's place.
 
 #### Scenario: A declared tool is not installed
 

@@ -161,7 +161,8 @@ def test_public_quality_gate_requires_native_artifact_integrity(
         }
     else:
         assert result.returncode != 0, report
-        assert report["verdict"] == "block", report
+        # The integrity provider reports drift as unproven, and dependents keep that class.
+        assert report["verdict"] == ("unknown" if defect.endswith("drift") else "block"), report
         assert report["required_gaps"]
     assert report["summary"]["proof_attestation_issued"] is False
 

@@ -64,7 +64,7 @@ def adopt_repository(
     select_runtime: bool = False,
     exit_repository: bool = False,
 ) -> EthosResult:
-    """Plan or apply native adoption with unchanged exact-request admission."""
+    """Plan or apply native adoption with unchanged exact-request admission, or preview an exit."""
     if exit_repository:
         return _exit(root, apply=apply, combined=create or evolve_starter or select_runtime)
     if select_runtime and (create or evolve_starter):

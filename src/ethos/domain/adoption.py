@@ -66,11 +66,19 @@ def adopt_repository(
 ) -> EthosResult:
     """Plan or apply native adoption with unchanged exact-request admission.
 
-    `exit_repository` only previews a repository's exit in this release. It is not an uninstall:
-    an exit with `apply` is refused as `adoption_exit_apply_unavailable`.
+    `exit_repository` previews a repository's exit. With `apply`, `authorize`, `expect_head` and
+    the previewed `expect_plan_digest`, it restores the configuration that adoption replaced and
+    removes the runtime selectors; a later `ethos hook install` adopts the repository again.
     """
     if exit_repository:
-        return _exit(root, apply=apply, combined=create or evolve_starter or select_runtime)
+        return _exit(
+            root,
+            combined=create or evolve_starter or select_runtime,
+            apply=apply,
+            authorize=authorize,
+            expect_head=expect_head,
+            expect_plan_digest=expect_plan_digest,
+        )
     if select_runtime and (create or evolve_starter):
         return EthosResult(
             command="adopt",
@@ -183,8 +191,16 @@ def adopt_repository(
     )
 
 
-def _exit(root: Path, *, apply: bool, combined: bool) -> EthosResult:
-    """Preview a repository's exit; it never runs together with an adoption step."""
+def _exit(
+    root: Path,
+    *,
+    combined: bool,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    expect_plan_digest: str | None,
+) -> EthosResult:
+    """Preview a repository's exit or apply its previewed plan, never with an adoption step."""
     if combined:
         return EthosResult(
             command="adopt",
@@ -193,7 +209,18 @@ def _exit(root: Path, *, apply: bool, combined: bool) -> EthosResult:
             required_gaps=("adoption_exit_combined_with_adoption",),
             next_action="Run the exit alone: ethos adopt --exit --json",
         )
-    return adopt_exit(root, apply=apply)
+    target = root.resolve()
+    head = git.current_head(target)
+    gaps = request_gaps(
+        apply=apply, authorized=authorize, expect_head=expect_head, current_head=head
+    )
+    return adopt_exit(
+        target,
+        head=head,
+        request_gaps=tuple(gaps),
+        apply=apply,
+        expect_plan_digest=expect_plan_digest,
+    )
 
 
 def _evolve_starter(

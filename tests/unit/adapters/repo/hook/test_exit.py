@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,6 +18,7 @@ from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import exact_lease
 from tests.support.runtime_scenarios import git_process
+from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
 
 if TYPE_CHECKING:
@@ -142,17 +145,73 @@ def test_a_held_selection_blocks_the_exit_and_keeps_its_lock(
     assert lock.is_file()
 
 
-def test_the_public_exit_only_previews_in_this_release(
+@pytest.mark.parametrize("history", ["never", "unbound_by_hand"])
+def test_a_repository_without_a_selector_or_ethos_hooks_is_not_adopted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, history: str
+) -> None:
+    """Nothing is left to exit, and the files of a manual unbinding are never read as a record."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    if history == "unbound_by_hand":
+        install_hook_launchers(repo)
+        assert git_process(repo, "config", "--unset", "core.hooksPath").returncode == 0
+        unbound = common / "ethos/unbound-20261104T124254Z"
+        unbound.mkdir()
+        (common / "ethos/runtime/CURRENT").replace(unbound / "CURRENT")
+
+    preview = repository_exit.exit_preview(repo)
+
+    assert preview["required_gaps"] == ["adoption_exit_not_adopted"]
+    assert preview["user_decision_required"] is False
+    assert preview["restore"] is None
+
+
+def test_without_a_record_the_users_own_hooks_path_settles_the_exit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`ethos adopt --exit` reports its plan; an apply is refused until the apply ships."""
-    repo, _runtime, _common = materialized_activation_case(tmp_path, monkeypatch)
+    """Once the user has set the hooks path, an exit without a record only removes selectors."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
     install_hook_launchers(repo)
+    (common / "ethos/hooks-preimage.json").unlink()
+    assert git_process(repo, "config", "--local", "core.hooksPath", ".githooks").returncode == 0
 
-    result = repository_exit.adopt_exit(repo, apply=True)
+    preview = repository_exit.exit_preview(repo)
 
-    assert result.required_gaps == ("adoption_exit_apply_unavailable",)
-    assert json.loads(result.to_json())["data"]["plan_digest"]
+    assert preview["required_gaps"] == []
+    assert preview["restore"] is None
+    assert preview["selectors"]["CURRENT"]["present"] is True
+
+
+def test_a_running_process_that_uses_the_runtime_blocks_the_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A process that still names the runtime would lose it, so the exit waits for it."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    install_hook_launchers(repo)
+    command = (sys.executable, "-c", "import time; time.sleep(60)", str(common / "ethos/runtime"))
+    process = subprocess.Popen(command)
+    try:
+        preview = repository_exit.exit_preview(repo)
+    finally:
+        process.kill()
+        process.wait()
+
+    assert preview["required_gaps"] == ["adoption_exit_runtime_in_use"]
+
+
+def test_the_preview_lists_the_branches_the_accepted_branch_lacks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unlanded lane work is named before the exit removes the hooks that admit it."""
+    repo, linked, _runtime, _hooks = linked_runtime_case(tmp_path, monkeypatch)
+    assert git_process(repo, "branch", "work/landed").returncode == 0
+    install_hook_launchers(repo)
+    options = ("-c", "core.hooksPath=/dev/null", "-c", "user.name=t", "-c", "user.email=t@e.st")
+    committed = git_process(linked, *options, "commit", "--allow-empty", "-m", "unlanded")
+    assert committed.returncode == 0, committed.stderr
+
+    preview = repository_exit.exit_preview(repo)
+
+    assert [branch["branch"] for branch in preview["unlanded_branches"]] == ["work/linked"]
 
 
 def test_ethos_adopt_exit_reports_the_plan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

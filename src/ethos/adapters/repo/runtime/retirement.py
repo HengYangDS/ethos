@@ -138,6 +138,11 @@ def operational_reference_paths(root: Path) -> frozenset[Path]:
     return _reference_paths(_operational_references(root))
 
 
+def process_reference_paths(root: Path) -> frozenset[Path]:
+    """Return the paths that running commands alone refer to."""
+    return _reference_paths(process_commands(root))
+
+
 def _reference_paths(references: str) -> frozenset[Path]:
     """Resolve observable absolute paths before comparing resource ancestry.
 
@@ -286,13 +291,15 @@ def _retire_packages(
 
 
 def retire_generations(
-    root: Path, *, hooks: Path, runtime: Path, unnamed_predecessor: bool = False
+    root: Path, *, hooks: Path | None, runtime: Path | None, unnamed_predecessor: bool = False
 ) -> GenerationCleanup:
     """Retire only currently unused generations, conserving partial outcomes.
 
     An unnamed predecessor keeps every runtime generation: one of them may be the only rollback.
+    Without a selection, after an exit, every generation is a candidate while `CURRENT` stays
+    absent.
     """
-    selected = {hooks, runtime}
+    selected = {path for path in (hooks, runtime) if path is not None}
     identities: dict[Path, tuple[int, int, int, int]] = {}
     candidates: tuple[Path, ...] = ()
     packages: list[Path] = []
@@ -302,7 +309,7 @@ def retire_generations(
     error = ""
     try:
         common = Path(git_common_dir(root)).resolve()
-        expected = runtime_selection_bytes(common, runtime)
+        expected = runtime_selection_bytes(common, runtime) if runtime is not None else None
         with runtime_selection_transaction(common, expected_current=expected):
             candidates = _generations(common)
             identities = {

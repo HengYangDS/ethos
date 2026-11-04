@@ -1,10 +1,13 @@
-"""Record the hooks-related Git configuration that ETHOS's first activation replaced.
+"""Keep the records of a faithful exit: the configuration adoption replaced, and the exit's receipt.
 
 A repository may have used its own hooks before ETHOS adopted it. Activation replaces the common
 `core.hooksPath` and ref-storage configuration and clears worktree overrides, so an exit can only
 restore that state exactly if adoption recorded it. The record is written once, when activation
 replaces a hooks path that ETHOS does not own, and an absent value is recorded as absent. An
 upgrade or a re-install, which replaces only ETHOS's own path, leaves the record unchanged.
+
+An exit writes its receipt before its first effect and marks it applied after its last one, so
+status can report an exit as a fact, and an interrupted one as incomplete.
 """
 
 from __future__ import annotations
@@ -17,12 +20,45 @@ from datetime import datetime
 from pathlib import Path
 
 PREIMAGE_NAME = "hooks-preimage.json"
+EXIT_RECEIPT_NAME = "exit-receipt.json"
 _SCHEMA_VERSION = 1
 
 
 def hooks_preimage_path(common: Path) -> Path:
     """Where a repository family keeps the configuration its adoption replaced."""
     return common / "ethos" / PREIMAGE_NAME
+
+
+def exit_receipt_path(common: Path) -> Path:
+    """Where a repository family keeps the receipt of its latest exit."""
+    return common / "ethos" / EXIT_RECEIPT_NAME
+
+
+def write_json_atomically(target: Path, payload: object) -> None:
+    """Replace one record with complete JSON, never leaving a partial file behind."""
+    staged = target.with_name(f".{target.name}-{uuid.uuid4().hex}")
+    try:
+        staged.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        staged.replace(target)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def exit_fact(common: Path) -> dict[str, str] | None:
+    """Report the latest exit while no runtime is selected; a receipt left mid-way is incomplete."""
+    if (common / "ethos" / "runtime" / "CURRENT").exists():
+        return None
+    path = exit_receipt_path(common)
+    with suppress(OSError, ValueError):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and payload.get("schema_version") == _SCHEMA_VERSION:
+            return {
+                "state": "exited" if payload.get("state") == "applied" else "incomplete",
+                "receipt": path.as_posix(),
+                "plan_digest": str(payload.get("plan_digest", "")),
+                "written_at": str(payload.get("written_at", "")),
+            }
+    return None
 
 
 def ethos_owns_hooks_path(common: Path, values: tuple[str, ...]) -> bool:
@@ -58,12 +94,7 @@ def record_hooks_preimage(
             for worktree, values_by_key in sorted(worktrees_before.items())
         },
     }
-    staged = target.with_name(f".{PREIMAGE_NAME}-{uuid.uuid4().hex}")
-    try:
-        staged.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        staged.replace(target)
-    finally:
-        staged.unlink(missing_ok=True)
+    write_json_atomically(target, payload)
     return target
 
 

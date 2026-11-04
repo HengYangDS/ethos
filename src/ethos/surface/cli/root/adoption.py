@@ -33,7 +33,7 @@ def adopt(
     exit_repository: Annotated[bool, Parameter(name="--exit")] = False,
     json_output: JsonFlag = False,
 ) -> None:
-    """Plan or apply ETHOS adoption for a repository; --exit only previews an exit for now."""
+    """Plan or apply ETHOS adoption for a repository, or preview and apply its exit."""
     if create and root is None:
         message = "formation_root_required"
         raise ValueError(message)

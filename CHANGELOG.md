@@ -12,6 +12,61 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] - 2026-11-05
+
+### Added
+
+- `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the
+  host-wide queue admits it, and exits with the command's own status.
+  - The queue is one per host. It admits runs in arrival order, up to the slots that `host.toml`
+    in ETHOS's host root declares, and a holder that exits frees its place without cleanup.
+  - A full proof takes the same host slot after its repository's proof slot, so the proofs of two
+    repositories no longer overlap.
+  - The child receives `ETHOS_HOST_ADMISSION`, so work that it starts joins the admission instead
+    of queueing again. It also receives a worker cap in `ETHOS_HOST_CPU_CAP` and
+    `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `reserved_cpus` leaves, at least one.
+  - A wait that reaches its bound names the holder's repository, executable and start time.
+  - Only work that runs through ETHOS joins the queue. Renders, model runs and other test runners
+    join it by wrapping their command in `ethos host run`.
+- `host.toml` declares the host's `slots` (default 1), `reserved_cpus` (default 0) and
+  `load_limit`. An out-of-range value is refused with a named gap and never clamped.
+
+### Changed
+
+- A full proof's load admission waits for two consecutive 1-minute load samples within the limit,
+  instead of one, so a short dip between busy phases no longer admits it. The limit comes from
+  `ETHOS_PROOF_HOST_LOAD_LIMIT`, then `host.toml`'s `load_limit`, then half the CPUs. A wait that
+  reaches its bound names the load, the limit and where the limit came from.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet;
+  - a repository's exit from ETHOS's hook runtime, which has no native command yet;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - `ethos prove --json` reduces a gate's own cause, such as `gate_timeout:<gate>`, to
+    `gate_unknown:<gate>` or `gate_failed:<gate>`, and reports a proof whose gate timed out as
+    `block`. The gate events and the proof artifact keep the cause.
+  - jdx/mise#15363 upstream, which ETHOS refuses with its cause.
+
+### Fixed
+
+- `ethos lane retire absorbed-ref` previews the deletion with the same predicates that the
+  reference-transaction hook applies. A ref that the hook would refuse now blocks the preview with
+  the hook's own gap, instead of an apply that the hook then refuses.
+- A legacy role ref whose standard successor already holds its exact commit can be retired on its
+  own, without renaming any other legacy role.
+- The Skill portfolio report names each package directory under the Skills root that no active
+  record or retirement routes, as `skill_package_unregistered:<directory>`.
+- The generated Windows verification jobs retry their source checkout up to three times. A Windows
+  runner can briefly hold the executables of the previous job, which made `git clean` fail on
+  back-to-back jobs. Adopters receive the retry when they regenerate their CI projections.
+
+### Security
+
+- The wheels and installed runtimes still ship npm 12.2.1 with the eight bundled advisories that
+  the `0.2.0-alpha.22` entry lists, under the owner's acceptance until 2026-12-13 that the
+  `0.2.0-alpha.29` entry describes. The release build's audit reports no other advisory.
+
 ## [0.2.0-beta.1] - 2026-11-04
 
 ### Changed

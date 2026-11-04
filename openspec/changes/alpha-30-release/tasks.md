@@ -2,12 +2,18 @@
 
 ## 1. Supply
 
-- [ ] 1.1 Move the Python locks to every release public for 24 hours at the move. Done when
+- [x] 1.1 Move the Python locks to every release public for 24 hours at the move. Done when
       `uv lock --check` passes, the dependency declaration check reports no gap, and the moved
-      packages and the cutoff are recorded here.
-- [ ] 1.2 Bind a supply image built from moved locks. Done when no lock moved, or when the hosted
+      packages and the cutoff are recorded here. The move ran at 2026-11-04T09:15:10Z with the
+      cutoff 2026-11-03T09:15:10Z. Authlib moved from 1.9.2 to 1.9.3 and python-discovery from
+      1.9.1 to 1.9.2; the quality sample's lock has neither. `uv lock --check`, ty, the
+      `dependencies`, `build`, `supply_chain`, `ci_templates` and `vulnerabilities` sessions and
+      877 supply tests pass.
+- [x] 1.2 Bind a supply image built from moved locks. Done when no lock moved, or when the hosted
       `supply_image` workflow built the image from this lane and every GitLab supply job selects
-      its digest.
+      its digest. Run `41806635921` built and pushed it from `9f6a50e67` as `d0eef172…`.
+      `lane project --check` reports the projections conforming, and the five GitLab supply jobs
+      select it and none selects `ff6df8dd…`.
 
 ## 2. Release Entry
 

@@ -17,13 +17,16 @@
 
 ## 2. Release Entry
 
-- [ ] 2.1 Move the product version to 0.2.0-alpha.30 in `VERSION` and
+- [x] 2.1 Move the product version to 0.2.0-alpha.30 in `VERSION` and
       `distributions/npm/package.json`. Done when the lane's `ethos --version` reports
-      0.2.0-alpha.30 and the version tests pass.
-- [ ] 2.2 Curate the `0.2.0-alpha.30` entry from the Unreleased notes and the advisories that the
+      0.2.0-alpha.30 and the version tests pass. It reports 0.2.0-alpha.30, and the release tests
+      in the 877 supply tests pass.
+- [x] 2.2 Curate the `0.2.0-alpha.30` entry from the Unreleased notes and the advisories that the
       release build's audit reports. Done when the changelog validates with 0.2.0-alpha.30 as its
       release target, the Unreleased section is empty, and the entry names every advisory that the
-      audit reports.
+      audit reports. The audit of `7dfe47d7d` decided `pass` with
+      `unfixed_upstream_findings_reported` for npm 12.2.1's bundled glob, ip-address, minimatch and
+      undici, which the entry names; the Python lock reports none.
 
 ## Workflow follow-up
 

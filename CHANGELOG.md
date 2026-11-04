@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-alpha.30] - 2026-11-04
+
 ### Changed
 
 - Every ETHOS command now runs inside one invocation scope, which the entry point opens, so a
@@ -19,6 +21,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `adopt`, `land` and `publish` opened one before. The long-running MCP server keeps no invocation
   facts, since one process serves many requests. The 26 tests of
   `tests/unit/cli/test_contracts_land.py` start 9,415 native commands instead of 9,723.
+- The Python lock moves Authlib to 1.9.3 and python-discovery to 1.9.2, the releases that had been
+  public for 24 hours. `uv lock --upgrade --exclude-newer` applies that age, and a plain `uv lock`
+  then removes the cutoff from the lock. filelock 4.2.8, platformdirs 4.14.4, python-discovery
+  1.9.4 and virtualenv 21.15.5 were younger and wait for the next release.
 
 ### Fixed
 
@@ -41,6 +47,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   through `XDG_DATA_HOME` could plant entries that made ETHOS reuse a digest for a payload file that
   account had changed. ETHOS creates the memo directory with mode `0700` and tightens an older,
   looser one when it next saves.
+- The wheels and installed runtimes still ship npm 12.2.1 with the eight bundled advisories that
+  the `0.2.0-alpha.22` entry lists, under the owner's acceptance until 2026-12-13 that the
+  `0.2.0-alpha.29` entry describes. The release build's audit reports no other advisory.
 
 ## [0.2.0-alpha.29] - 2026-11-04
 

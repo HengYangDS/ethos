@@ -15,8 +15,8 @@
 
 ## 2. Specification, notes and acceptance
 
-- [ ] 2.1 Modify the `quality` requirement. Done when strict validation and the cumulative archive
-      simulation pass.
+- [x] 2.1 Modify the `quality` requirement. Done when strict validation and the cumulative archive
+      simulation pass. Both pass, with all 12 specifications valid after the archive.
 - [x] 2.2 Correct the `0.2.0-alpha.30` notes. Done when the changelog validates with
       0.2.0-alpha.30 as its target. It validates with no error.
 - [x] 2.3 Re-run the scratch acceptance. Done when the proxy resolves under Mise 2026.11.0 and

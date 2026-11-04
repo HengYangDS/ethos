@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 from cyclopts.exceptions import CycloptsError
 
+from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.result import PAYLOAD_BUDGETS
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
@@ -161,6 +162,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
         patch.dict(os.environ, _without_test_git_config_overlay(os.environ), clear=True),
         redirect_stdout(stdout),
         redirect_stderr(stderr),
+        invocation_scope(),
     ):
         try:
             app(list(args), exit_on_error=False)

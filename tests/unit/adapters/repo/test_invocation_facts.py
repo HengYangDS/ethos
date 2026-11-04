@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
@@ -11,6 +13,8 @@ import pytest
 import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.invocation_facts as invocation_facts
 import ethos.adapters.repo.runtime.authority as authority
+import ethos.surface.cli.application as application
+from ethos import cli
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.domain.execution import application_result
@@ -218,3 +222,27 @@ def test_an_invocation_observes_the_running_build_once(monkeypatch: pytest.Monke
     assert first is second
     assert first != later
     assert observed == [True, True]
+
+
+@pytest.mark.parametrize(
+    ("command", "observations"), [(["prove", "--json"], 1), (["mcp", "serve"], 2)]
+)
+def test_each_command_but_the_mcp_server_is_one_invocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: list[str], observations: int
+) -> None:
+    """A command observes an invocation fact once; the long-running MCP server observes it again."""
+    observed: list[int] = []
+
+    def dispatch(_arguments: object) -> None:
+        for _ in range(2):
+            invocation_facts.invocation_fact(("cli-entry",), lambda: observed.append(1))
+
+    monkeypatch.setattr(cli, "command_scope", lambda **_: nullcontext())
+    monkeypatch.setattr(application, "load_command_groups", lambda _argv: None)
+    monkeypatch.setattr(application, "dispatch_arguments", lambda arguments: arguments)
+    monkeypatch.setattr(application, "app", dispatch)
+    monkeypatch.setattr(sys, "argv", ["ethos", *command, "--root", str(tmp_path)])
+
+    cli.main()
+
+    assert len(observed) == observations

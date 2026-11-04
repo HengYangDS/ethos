@@ -6,6 +6,7 @@ import os
 import shlex
 import subprocess
 import sys
+from contextlib import nullcontext
 from importlib import import_module
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
@@ -79,7 +81,9 @@ def main() -> None:
             commands = import_module("ethos.surface.cli.application")
             commands.load_command_groups(argv)
             parameters = import_module("ethos.repository.paradigm.parameters")
-            with parameters.repository_parameters(_argument_root(argv)):
+            # Every command observes an immutable fact once; the MCP server serves many requests.
+            invocation = nullcontext() if command == "mcp" else invocation_scope()
+            with parameters.repository_parameters(_argument_root(argv)), invocation:
                 commands.app(commands.dispatch_arguments(argv))
         except ProcessExecutionError as exc:
             import_module("ethos.surface.cli.output").emit_process_execution_failure(

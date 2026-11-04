@@ -265,3 +265,24 @@ def test_a_failed_save_leaves_no_temporary_file(tmp_path: Path, memo_directory: 
     runtime_file_inventory(runtime)
 
     assert [path.name for path in memo_directory.iterdir()] == [recorded.name]
+
+
+def test_a_save_writes_nothing_into_a_directory_another_account_could_hold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, memo_directory: Path
+) -> None:
+    """A memo directory replaced by a link after the memo opened receives no write."""
+    runtime = _payload(tmp_path)
+    memo = inventory_memo.open_inventory_memo(runtime.resolve())
+    assert memo is not None
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    memo_directory.symlink_to(elsewhere, target_is_directory=True)
+    memo.digest("python/lib/module.py", (runtime / "python/lib/module.py").stat(), lambda: DIGEST)
+
+    memo.save()
+
+    assert not any(elsewhere.iterdir())
+    regular = tmp_path / "regular"
+    regular.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(inventory_memo, "_memo_directory", lambda: regular / "memo")
+    assert inventory_memo.open_inventory_memo(runtime.resolve()) is None

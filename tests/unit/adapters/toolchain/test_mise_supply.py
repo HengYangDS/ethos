@@ -231,3 +231,66 @@ def test_an_environment_warning_names_the_missing_tool(
         _resolve(tmp_path, environment=True, lock=GRAPH_LOCK)
 
     assert "mise_environment_unavailable" not in str(refused.value)
+
+
+@pytest.mark.parametrize(
+    ("returncode", "listed", "gap"),
+    [
+        (1, "", "mise_supply_unavailable:ls:failed"),
+        (0, "not json", "mise_supply_invalid"),
+        (0, "[]", "mise_supply_invalid"),
+        (0, '{"npm": ["row"]}', "mise_supply_invalid"),
+    ],
+)
+def test_an_unreadable_supply_report_is_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    supply: dict[str, Path],
+    returncode: int,
+    listed: str,
+    gap: str,
+) -> None:
+    """A failed or malformed `mise ls` answer never stands in for a complete supply."""
+    answers = _Mise({}, supply["node"] / "bin/npm", (supply["node"] / "bin",))
+
+    def report(
+        root: Path,
+        arguments: tuple[str, ...],
+        *,
+        files: object = None,
+        offline: bool,
+        executable: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        if arguments[0] == "ls":
+            return subprocess.CompletedProcess(arguments, returncode, listed, "failed")
+        return answers(root, arguments, files=files, offline=offline, executable=executable)
+
+    monkeypatch.setattr(mise, "run_mise", report)
+
+    with pytest.raises(ValueError, match=f"^{gap}"):
+        _resolve(tmp_path, environment=False)
+
+
+@pytest.mark.parametrize("version_output", ["2026.11.0 macos-arm64 (2026-11-03)", "unknown", ""])
+def test_a_regression_needs_a_readable_version_and_a_graph_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, supply: dict[str, Path], version_output: str
+) -> None:
+    """Without a readable 2026.11 version and a graph lock entry, the remedy is installation."""
+    rows = {
+        "node": _row(supply["node"], "26.13.0"),
+        "npm": _row(supply["npm"], "12.2.1", installed=False),
+    }
+    # The fixture stubs the version reader; this case reads the version from a real executable.
+    monkeypatch.undo()
+    monkeypatch.setattr(mise, "run_mise", _Mise(rows, supply["node"] / "bin/npm", ()))
+    monkeypatch.setattr(mise, "_root_trusted", lambda _root, _executable: True)
+    selected = tmp_path / "reported-mise"
+    selected.write_text(f"#!/bin/sh\necho '{version_output}'\n", encoding="utf-8")
+    selected.chmod(0o755)
+    monkeypatch.setattr(mise, "mise_executable", lambda: selected)
+
+    with pytest.raises(ValueError, match="mise_supply_incomplete") as refused:
+        _resolve(tmp_path, environment=False, lock="not toml [")
+
+    assert "install --locked" in str(refused.value)
+    assert "15363" not in str(refused.value)

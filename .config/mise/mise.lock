@@ -37,6 +37,35 @@ checksum = "sha256:9f15378dc52b9a1bb6fa1755adc0410c9f17f330a621b784a5b31fdbc91c6
 url = "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip"
 url_api = "https://api.github.com/repos/cue-lang/cue/releases/assets/479014351"
 
+[[tools."github:anchore/grype"]]
+version = "0.121.1"
+backend = "github:anchore/grype"
+specifiers = ["0.121.1"]
+
+[tools."github:anchore/grype"."platforms.linux-arm64"]
+checksum = "sha256:33670612aad351c48cf3c37f4a85d8b043d1b64b21e6034e675bb00b956d78c1"
+url = "https://github.com/anchore/grype/releases/download/v0.121.1/grype_0.121.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/702581205"
+provenance = "github-attestations"
+
+[tools."github:anchore/grype"."platforms.linux-x64"]
+checksum = "sha256:bc3ea3f9e6fd56ac781c08c6c5e614271b79f438200757f6932085c19b0a4657"
+url = "https://github.com/anchore/grype/releases/download/v0.121.1/grype_0.121.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/702581213"
+provenance = "github-attestations"
+
+[tools."github:anchore/grype"."platforms.macos-arm64"]
+checksum = "sha256:daa9ffdc0022b34fb476f94cbcabac9d850882c895d83e4a5ecf5e0ab13bce77"
+url = "https://github.com/anchore/grype/releases/download/v0.121.1/grype_0.121.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/702581319"
+provenance = "github-attestations"
+
+[tools."github:anchore/grype"."platforms.macos-x64"]
+checksum = "sha256:20fefd09105fb7bf2bbfe29c6bb14edbe4c17214436753735c172465fffe69f6"
+url = "https://github.com/anchore/grype/releases/download/v0.121.1/grype_0.121.1_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/grype/releases/assets/702581336"
+provenance = "github-attestations"
+
 [[tools."github:anchore/syft"]]
 version = "1.56.0"
 backend = "github:anchore/syft"

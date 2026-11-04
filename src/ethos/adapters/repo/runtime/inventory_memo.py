@@ -9,7 +9,9 @@ as bytecode is still refused. A file written within the racy window before its h
 within one timestamp tick, so it is not recorded. Windows reports a creation time as ctime there,
 so it always hashes. The memo lives beside the host runtime store, outside every store whose
 identity ETHOS checks; a missing, unreadable or foreign memo costs only the hashing it would have
-saved.
+saved. Entries are read only from a directory and a file that the current user owns and that group
+and others cannot write, because another account sharing the data home could otherwise plant
+them; Windows keeps the memo off until it checks the same ownership there.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import contextlib
 import hashlib
 import json
 import os
+import stat
 import tempfile
 import time
 from pathlib import Path
@@ -73,24 +76,25 @@ class InventoryMemo:
             return
         payload = {"schema_version": _SCHEMA_VERSION, "root": str(self._root)}
         payload["entries"] = self._current
+        directory = self._path.parent
         with contextlib.suppress(OSError):
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                "w",
-                encoding="utf-8",
-                dir=self._path.parent,
-                prefix=".",
-                suffix=".tmp",
-                delete=False,
-            ) as stream:
-                temporary = Path(stream.name)
-                try:
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if _directory_access(directory) is None:
+                return
+            directory.chmod(0o700)
+            temporary: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    "w", encoding="utf-8", dir=directory, prefix=".", suffix=".tmp", delete=False
+                ) as stream:
+                    temporary = Path(stream.name)
                     json.dump(payload, stream, separators=(",", ":"))
-                except (OSError, ValueError):
+                temporary.replace(self._path)
+                temporary = None
+            finally:
+                if temporary is not None:
                     temporary.unlink(missing_ok=True)
-                    raise
-            temporary.replace(self._path)
-            _prune(self._path.parent)
+            _prune(directory)
 
 
 def open_inventory_memo(root: Path) -> InventoryMemo | None:
@@ -102,10 +106,13 @@ def open_inventory_memo(root: Path) -> InventoryMemo | None:
     name = root.name
     if not _SUPPORTED or len(name) not in {16, 64} or set(name) - _HEX or directory is None:
         return None
+    readable = _directory_access(directory)
+    if readable is None:
+        return None
     path = directory / f"{hashlib.sha256(os.fsencode(root)).hexdigest()[:32]}.json"
     recorded: dict[str, object] = {}
     with contextlib.suppress(OSError, ValueError):
-        payload = json.loads(path.read_bytes())
+        payload = json.loads(_read_private(path)) if readable else None
         if (
             isinstance(payload, dict)
             and payload.get("schema_version") == _SCHEMA_VERSION
@@ -119,6 +126,38 @@ def open_inventory_memo(root: Path) -> InventoryMemo | None:
 def _memo_directory() -> Path | None:
     root = host_store_root()
     return None if root is None else root / "runtime-inventory"
+
+
+def _directory_access(directory: Path) -> bool | None:
+    """Whether entries may be read from the memo directory, or None where no memo may serve.
+
+    A directory owned by the current user that group or others can write serves no entries, but a
+    save may still tighten it; a link, another kind of file or another owner serves nothing.
+    """
+    try:
+        state = directory.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return None
+    if not stat.S_ISDIR(state.st_mode) or state.st_uid != _owner_id():
+        return None
+    return not state.st_mode & 0o022
+
+
+def _read_private(path: Path) -> bytes:
+    """Read a regular memo file that only the current user can have written."""
+    with open(
+        path, "rb", opener=lambda name, flags: os.open(name, flags | os.O_NOFOLLOW)
+    ) as stream:
+        state = os.fstat(stream.fileno())
+        if not stat.S_ISREG(state.st_mode) or state.st_uid != _owner_id() or state.st_mode & 0o022:
+            raise PermissionError(path)
+        return stream.read()
+
+
+def _owner_id() -> int:
+    return os.geteuid()
 
 
 def _prune(directory: Path) -> None:

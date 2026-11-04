@@ -205,3 +205,52 @@ def test_the_memo_lives_beside_the_host_runtime_store(
     assert len(memos) == (1 if declared == "absolute" else 0)
     assert not (tmp_path / "relative-host").exists()
     assert runtime_file_inventory(runtime) == expected
+
+
+@pytest.mark.parametrize("refusal", ["group-writable-file", "other-owner", "linked-directory"])
+def test_a_memo_another_account_could_write_is_not_trusted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, memo_directory: Path, refusal: str
+) -> None:
+    """Only a memo that the current account alone could have written skips hashing."""
+    runtime = _payload(tmp_path)
+    expected = runtime_file_inventory(runtime)
+    (recorded,) = memo_directory.glob("*.json")
+    if refusal == "group-writable-file":
+        recorded.chmod(0o664)
+    elif refusal == "other-owner":
+        monkeypatch.setattr(inventory_memo, "_owner_id", lambda: os.geteuid() + 1, raising=False)
+    else:
+        moved = memo_directory.rename(tmp_path / "elsewhere")
+        memo_directory.symlink_to(moved, target_is_directory=True)
+    hashes = _Hashes(monkeypatch)
+
+    assert runtime_file_inventory(runtime) == expected
+    assert hashes.count == 3
+
+
+def test_a_save_tightens_a_looser_memo_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, memo_directory: Path
+) -> None:
+    """A directory that group or others can write serves no entries until a save restores 0700."""
+    memo_directory.mkdir()
+    memo_directory.chmod(0o775)
+    runtime = _payload(tmp_path)
+    expected = runtime_file_inventory(runtime)
+    assert memo_directory.stat().st_mode & 0o777 == 0o700
+    hashes = _Hashes(monkeypatch)
+
+    assert runtime_file_inventory(runtime) == expected
+    assert hashes.count == 0
+
+
+def test_a_failed_save_leaves_no_temporary_file(tmp_path: Path, memo_directory: Path) -> None:
+    """A save whose replace fails removes its temporary and costs only the memo."""
+    runtime = _payload(tmp_path)
+    runtime_file_inventory(runtime)
+    (recorded,) = memo_directory.glob("*.json")
+    recorded.unlink()
+    (recorded / "occupied").mkdir(parents=True)
+
+    runtime_file_inventory(runtime)
+
+    assert [path.name for path in memo_directory.iterdir()] == [recorded.name]

@@ -12,6 +12,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- A failed save of the runtime inventory memo removes its temporary file after closing its stream,
+  instead of leaving the file beside the memo.
+
+### Security
+
+- ETHOS reads the runtime inventory memo only from a directory and a file that the current user
+  owns and that group and others cannot write. Before, another account that shared the data home
+  through `XDG_DATA_HOME` could plant entries that made ETHOS reuse a digest for a payload file that
+  account had changed. ETHOS creates the memo directory with mode `0700` and tightens an older,
+  looser one when it next saves.
+
 ## [0.2.0-alpha.29] - 2026-11-04
 
 ### Added

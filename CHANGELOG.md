@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- Every ETHOS command now runs inside one invocation scope, which the entry point opens, so a
+  command reads each immutable Git object and the running build once. Only `plan`, `status`,
+  `adopt`, `land` and `publish` opened one before. The long-running MCP server keeps no invocation
+  facts, since one process serves many requests. The 26 tests of
+  `tests/unit/cli/test_contracts_land.py` start 9,415 native commands instead of 9,723.
+
 ### Fixed
 
 - A failed save of the runtime inventory memo removes its temporary file after closing its stream,

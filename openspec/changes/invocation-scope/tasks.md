@@ -15,4 +15,5 @@
       committed head on a similarly loaded host, and 4,835 instead of 1,985 ran inside a scope.
       `status`, `lane prewrite` and `plan` start 52, 40 and 310 processes with or without the scope.
       The CLI, lane, land and repository adapter tests pass: 2,566, 3 skipped.
-- [ ] 1.3 Name the change in the Unreleased notes. Done when the changelog validates.
+- [x] 1.3 Name the change in the Unreleased notes. Done when the changelog validates. It
+      validates with no error.

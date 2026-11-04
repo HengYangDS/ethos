@@ -6,6 +6,7 @@ import hashlib
 import sys
 import sysconfig
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -163,7 +164,8 @@ def test_mise_waits_only_while_windows_holds_the_verified_executable(
         return replace(self, target)
 
     monkeypatch.setattr(Path, "replace", held_twice)
-    monkeypatch.setattr(native.time, "sleep", waits.append)
+    # Only the bootstrap's own clock: a global sleep also records the waits of child processes.
+    monkeypatch.setattr(native, "time", SimpleNamespace(sleep=waits.append))
 
     if held is _HeldOpenError:
         assert native.prepare_mise(tmp_path).read_bytes() == payload

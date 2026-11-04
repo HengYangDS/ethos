@@ -207,6 +207,17 @@ def test_the_memo_lives_beside_the_host_runtime_store(
     assert runtime_file_inventory(runtime) == expected
 
 
+class _OtherAccount:
+    """The memo module's view of `os` when another account runs ETHOS."""
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(os, name)
+
+    @staticmethod
+    def geteuid() -> int:
+        return os.geteuid() + 1
+
+
 @pytest.mark.parametrize("refusal", ["group-writable-file", "other-owner", "linked-directory"])
 def test_a_memo_another_account_could_write_is_not_trusted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, memo_directory: Path, refusal: str
@@ -218,7 +229,7 @@ def test_a_memo_another_account_could_write_is_not_trusted(
     if refusal == "group-writable-file":
         recorded.chmod(0o664)
     elif refusal == "other-owner":
-        monkeypatch.setattr(inventory_memo, "_owner_id", lambda: os.geteuid() + 1, raising=False)
+        monkeypatch.setattr(inventory_memo, "os", _OtherAccount())
     else:
         moved = memo_directory.rename(tmp_path / "elsewhere")
         memo_directory.symlink_to(moved, target_is_directory=True)

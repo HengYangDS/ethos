@@ -140,7 +140,7 @@ def _directory_access(directory: Path) -> bool | None:
         return False
     except OSError:
         return None
-    if not stat.S_ISDIR(state.st_mode) or state.st_uid != _owner_id():
+    if not stat.S_ISDIR(state.st_mode) or state.st_uid != os.geteuid():
         return None
     return not state.st_mode & 0o022
 
@@ -151,13 +151,9 @@ def _read_private(path: Path) -> bytes:
         path, "rb", opener=lambda name, flags: os.open(name, flags | os.O_NOFOLLOW)
     ) as stream:
         state = os.fstat(stream.fileno())
-        if not stat.S_ISREG(state.st_mode) or state.st_uid != _owner_id() or state.st_mode & 0o022:
+        if not stat.S_ISREG(state.st_mode) or state.st_uid != os.geteuid() or state.st_mode & 0o022:
             raise PermissionError(path)
         return stream.read()
-
-
-def _owner_id() -> int:
-    return os.geteuid()
 
 
 def _prune(directory: Path) -> None:

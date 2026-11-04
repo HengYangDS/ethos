@@ -47,3 +47,11 @@ on 11-04 (`build/runtime/work/iteration-speed/host-admission-draft.md`).
   silently, and the slot still serializes.
 - [An older pinned engine ignores the protocol] → Only engines from this release take the slot, so
   the 7-day acceptance starts when every repository runs it.
+- [Admitted heavy work still starves the CI guests, which cannot take the host slot] → On 11-04,
+  architecture-publisher's GitLab job 65187 hit its 30-minute timeout during a full-core render. The
+  same job took 1,278 s in the morning. `reserved_cpus` keeps CPUs for the guests only from children
+  that honor `ETHOS_HOST_CPU_CAP` or `PYTEST_XDIST_AUTO_NUM_WORKERS`, so a render tool must read
+  the cap itself.
+- [Busy guests keep the host's load above half its CPUs] → `host.toml` declares `load_limit`, and
+  admission reads two calm 1-minute samples, not the lagging 5-minute average. On 11-04, a
+  60-second proof waited 51 minutes at limit 9 while three guests held about 8 CPU-equivalents.

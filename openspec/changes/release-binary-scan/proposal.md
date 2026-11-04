@@ -9,30 +9,38 @@ compiled into the binaries the runtime ships:
 - the Go standard library and modules inside CUE, Vale and shfmt;
 - Node itself.
 
-Those findings were found by hand after release, on 10-28 and 11-03. The owner decided on 11-03
-that a binary-aware scan comes after alpha.29, and the design review of 11-04 settled the shape
-(`build/runtime/work/beta2/grype-design-draft.md`). The release SBOM cannot serve as the input: it
-describes only the wheel file, one package with no purls. A Syft catalog of an installed runtime
-lists 1,749 packages, including uv's rustls and three Go standard library versions.
+Those findings were made by hand after release, on 10-28 and 11-03. The release also does not
+declare what it ships. Its SBOM describes only the wheel file: one package, with no purls. Both
+gaps have one cause: no release names the binaries inside its runtime archives. The design review
+of 11-04 and its revision of 11-05 (`build/runtime/work/beta2/grype-design-draft.md`) settle one
+inventory per shipped archive. It is produced at build, published and attested, and the scan reads
+it.
 
 ## What Changes
 
-- Mise pins Grype 0.121.1 for Linux and macOS, the hosts that run the scan. Grype publishes no
-  Windows arm64 build.
-- A new Nox session, `release_binary_scan`, runs in the hosted release run after publication,
-  outside every landing gate. It does these things:
-  - downloads each published runtime archive;
-  - verifies the archive against the release's `SHA256SUMS`;
-  - catalogs the archive once with the pinned Syft;
-  - scans that catalog with the pinned Grype.
-- It writes one report:
-  - Grype's version, and the database build time, URL and checksum;
+- Each release platform leg catalogs its own runtime archive with the pinned Syft 1.56.0 after
+  the install smoke has built it. The catalog captures Go function symbols. Each leg writes:
+  - an SPDX 2.3 SBOM;
+  - a Syft JSON inventory.
+
+  Both name the archive's published file name and its SHA-256.
+
+- Publication admits each inventory only when it names the admitted archive's digest and lists
+  components. An admitted archive without both inventories fails assembly.
+  - `SHA256SUMS` covers the inventories, and they are published as release assets.
+  - `actions/attest-sbom` binds each SPDX SBOM to its archive.
+  - The build provenance attestation covers both inventories.
+- A read-only `release-binary-scan` job follows publication, with `continue-on-error`. It
+  downloads only the inventories and `SHA256SUMS`, checks their digests, and runs the pinned
+  Grype 0.121.1 on each Syft JSON. Its report names:
+  - the scanner and its database;
   - each archive's digest;
-  - one row per (archive, package, version, advisory) with severity and fix state;
-  - npm rows marked as already audited, binaries without metadata listed by name, and a missing
-    host reported as not scanned.
-- The job reports and does not block (`continue-on-error`), and runs outside the job that holds
-  release write permissions.
+  - one row per archive, package, version and advisory;
+  - npm rows, marked as already audited;
+  - executables that no package identifies, listed by name;
+  - a missing host, reported as not scanned.
+- Mise pins Grype 0.121.1 for Linux and macOS, the hosts that scan. Grype publishes no Windows arm64
+  build.
 - Enforcement comes in a later Change: a binary subject in the dependency acceptance policy.
 
 ## Capabilities
@@ -43,11 +51,16 @@ None.
 
 ### Modified Capabilities
 
-- `distribution`: a release run reports the binary-level vulnerabilities of what it shipped.
+- `distribution`:
+  - a published runtime archive comes with attested inventories that name its digest and its
+    components;
+  - a release run reports the binary-level advisories of those inventories without blocking.
 
 ## Impact
 
 - `.config/mise/config.toml` and `mise.lock`, and with them a rebound supply image;
 - `.config/ci/pipeline.cue` and its GitHub projection;
-- `noxfile.py` and a new `tools/ci/release_binary_scan.py` with tests;
+- `noxfile.py` sessions;
+- `tools/ci/delivery/release_assets.py`;
+- new `tools/ci/delivery/runtime_inventory.py` and `tools/ci/release_binary_scan.py`, with tests;
 - the distribution spec and the changelog.

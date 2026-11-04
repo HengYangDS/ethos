@@ -26,8 +26,10 @@
       guests held this 18-CPU host at load 18 to 22, so a limit of 9 never passed. AIGW approved
       this at 21:5x. The 3 new tests failed first, and the 53 host admission and proof slot tests
       pass.
-- [ ] 1.5 Record the change in the Unreleased notes and the CLI reference. Done when the changelog
-      and documentation gates pass.
+- [x] 1.5 Record the change in the Unreleased notes and the CLI reference. Done when the changelog
+      and documentation gates pass. The `0.2.0-beta.2` entry and the `host run` section of the
+      command-plane reference record it; the 139 release tests and the Markdown, prose, format
+      and configuration gates pass at `3b41d4483`.
 
 ## 2. Specification
 

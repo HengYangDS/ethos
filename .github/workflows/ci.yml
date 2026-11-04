@@ -327,6 +327,8 @@ jobs:
         run: uv run --frozen python -m nox -s build -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
       - name: Qualify the release wheel and retain its runtime archive
         run: uv run --frozen python -m nox -s install_smoke -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
+      - name: Declare the components of the retained runtime archive
+        run: uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-runtime-${{ matrix.host }}
@@ -334,6 +336,8 @@ jobs:
             build/artifacts/release/python/
             build/artifacts/native/
             build/evidence/local-install/release-smoke.json
+            build/evidence/release/runtime.spdx.json
+            build/evidence/release/runtime.syft.json
           if-no-files-found: error
   release-publish:
     name: release publication
@@ -363,6 +367,8 @@ jobs:
           subject-path: |-
             build/release/out/assets/ethos-*.tar.gz
             build/release/out/assets/ethos-*.whl
+            build/release/out/assets/ethos-*.spdx.json
+            build/release/out/assets/ethos-*.syft.json
       - name: Publish the signed pre-release
         env:
           GH_TOKEN: ${{ github.token }}

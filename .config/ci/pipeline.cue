@@ -444,6 +444,10 @@ github: {
 				name: "Qualify the release wheel and retain its runtime archive"
 				run:  "uv run --frozen python -m nox -s install_smoke -- \(releaseArguments)"
 			}, {
+				// Syft reads the kept archive here, in a job without write permission.
+				name: "Declare the components of the retained runtime archive"
+				run:  "uv run --frozen python -m nox -s supply_chain -- --host ${{ matrix.host }}"
+			}, {
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name: "release-runtime-${{ matrix.host }}"
@@ -451,6 +455,8 @@ github: {
 						build/artifacts/release/python/
 						build/artifacts/native/
 						build/evidence/local-install/release-smoke.json
+						build/evidence/release/runtime.spdx.json
+						build/evidence/release/runtime.syft.json
 
 						"""
 					"if-no-files-found": "error"
@@ -484,10 +490,11 @@ github: {
 				name: "Assemble the qualified release assets"
 				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md"
 			}, {
-				// Mise's github backend verifies these attestations when it installs a pinned release.
+				// Mise's github backend verifies these attestations when it installs a pinned release;
+				// they also bind each runtime archive's two inventories to the release workflow.
 				name: "Attest the release archives and wheels"
 				uses: "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
-				with: "subject-path": "build/release/out/assets/ethos-*.tar.gz\nbuild/release/out/assets/ethos-*.whl"
+				with: "subject-path": "build/release/out/assets/ethos-*.tar.gz\nbuild/release/out/assets/ethos-*.whl\nbuild/release/out/assets/ethos-*.spdx.json\nbuild/release/out/assets/ethos-*.syft.json"
 			}, {
 				name: "Publish the signed pre-release"
 				env: GH_TOKEN: "${{ github.token }}"

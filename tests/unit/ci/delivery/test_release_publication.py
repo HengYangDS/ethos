@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.release_legs import qualified_leg
 from tools.ci.delivery import pipeline
 from tools.ci.delivery import release_assets
 
@@ -91,34 +92,7 @@ def test_hosted_release_source_refuses_every_other_tag(tmp_path, monkeypatch, ca
         pipeline.prepare_release_candidate(repo, head, tag=tag)
 
 
-def _qualified(inputs: Path, host: str, platform: str, machine: str, tag: str) -> tuple[Path, ...]:
-    """Lay out one leg's upload for its declared host: wheel, archive and evidence."""
-    job = f"release-runtime-{host}"
-    runtime = hashlib.sha256(host.encode()).hexdigest()
-    wheel = inputs / job / "artifacts/release/python" / f"ethos-0.2.0a5-py3-none-{tag}.whl"
-    wheel.parent.mkdir(parents=True)
-    wheel.write_bytes(f"wheel {host}".encode())
-    archive = inputs / job / "artifacts/native" / runtime / "ethos-0.2.0a5.tar.gz"
-    archive.parent.mkdir(parents=True)
-    archive.write_bytes(host.encode())
-    evidence = inputs / job / "evidence/local-install/release-smoke.json"
-    evidence.parent.mkdir(parents=True)
-    # Each runner records the archive in its own path syntax; Windows separates with backslashes.
-    separator = "\\" if platform == "windows" else "/"
-    runner = separator.join(("D:" if platform == "windows" else "", "a", "build/artifacts/native"))
-    distribution = {
-        "path": separator.join((runner, runtime, archive.name)),
-        "sha256": hashlib.sha256(host.encode()).hexdigest(),
-        "runtime_digest": runtime,
-        "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
-        "platform": platform,
-        "architecture": machine,
-        "product_version": "0.2.0-alpha.5",
-    }
-    evidence.write_text(json.dumps({"distribution": distribution}), encoding="utf-8")
-    return wheel, archive
-
-
+_SUFFIXES = (".tar.gz", ".spdx.json", ".syft.json")
 _NATIVE = {
     "linux-x64": ("linux", "x86_64", "linux_x86_64"),
     "linux-arm64": ("linux", "arm64", "linux_aarch64"),
@@ -134,7 +108,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     """
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
-    qualified = {host: _qualified(inputs, host, *leg) for host, leg in _NATIVE.items()}
+    qualified = {host: qualified_leg(inputs, host, *leg) for host, leg in _NATIVE.items()}
     options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
     unreleased = tmp_path / "UNRELEASED.md"
     unreleased.write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
@@ -153,18 +127,10 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     assert not (tmp_path / "refused").exists()
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     assets = tmp_path / "out/assets"
-    assert sorted(path.name for path in assets.iterdir()) == [
-        "SHA256SUMS",
-        "ethos-0.2.0-alpha.5-linux-arm64.tar.gz",
-        "ethos-0.2.0-alpha.5-linux-x64.tar.gz",
-        "ethos-0.2.0-alpha.5-macos-arm64.tar.gz",
-        "ethos-0.2.0-alpha.5-windows-x64.tar.gz",
-        "ethos-0.2.0-alpha.5.mise.toml",
-        "ethos-0.2.0a5-py3-none-linux_aarch64.whl",
-        "ethos-0.2.0a5-py3-none-linux_x86_64.whl",
-        "ethos-0.2.0a5-py3-none-macosx_14_0_arm64.whl",
-        "ethos-0.2.0a5-py3-none-win_amd64.whl",
-    ]
+    published = {f"ethos-0.2.0-alpha.5-{host}{suffix}" for host in _NATIVE for suffix in _SUFFIXES}
+    wheels = {f"ethos-0.2.0a5-py3-none-{leg[2]}.whl" for leg in _NATIVE.values()}
+    expected = {"SHA256SUMS", "ethos-0.2.0-alpha.5.mise.toml", *published, *wheels}
+    assert {path.name for path in assets.iterdir()} == expected
     wheel = hashlib.sha256(b"wheel linux-x64").hexdigest()
     assert sums["ethos-0.2.0a5-py3-none-linux_x86_64.whl"] == wheel
     declared = tomllib.loads((assets / "ethos-0.2.0-alpha.5.mise.toml").read_text())
@@ -183,7 +149,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
         release_assets.assemble(inputs, tmp_path / "partial", **options)
 
 
-def test_an_emulating_host_publishes_the_archive_it_qualified(tmp_path):
+def test_an_emulating_host_publishes_the_archive_itqualified_leg(tmp_path):
     """Windows on Arm serves its platform with the x64 runtime it built, but no wheel of its own.
 
     Only a native leg publishes a wheel or stands in for a required platform, and a leg's
@@ -192,7 +158,7 @@ def test_an_emulating_host_publishes_the_archive_it_qualified(tmp_path):
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
     for host, leg in (_NATIVE | {"windows-arm64": ("windows", "x86_64", "win_amd64")}).items():
-        _qualified(inputs, host, *leg)
+        qualified_leg(inputs, host, *leg)
     options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     declared = tomllib.loads((tmp_path / "out/assets/ethos-0.2.0-alpha.5.mise.toml").read_text())
@@ -205,12 +171,12 @@ def test_an_emulating_host_publishes_the_archive_it_qualified(tmp_path):
     assert sums["ethos-0.2.0a5-py3-none-win_amd64.whl"] == native
     assert len([name for name in sums if name.endswith(".whl")]) == 4
     shutil.rmtree(inputs / "release-runtime-windows-arm64")
-    _qualified(inputs, "windows-arm64", "linux", "x86_64", "linux_x86_64")
+    qualified_leg(inputs, "windows-arm64", "linux", "x86_64", "linux_x86_64")
     with pytest.raises(ValueError, match="release_assets_distribution_mismatch:windows-arm64"):
         release_assets.assemble(inputs, tmp_path / "foreign", **options)
     shutil.rmtree(inputs / "release-runtime-windows-arm64")
     shutil.rmtree(inputs / "release-runtime-linux-arm64")
-    _qualified(inputs, "linux-arm64", "linux", "x86_64", "linux_x86_64")
+    qualified_leg(inputs, "linux-arm64", "linux", "x86_64", "linux_x86_64")
     with pytest.raises(ValueError, match="release_assets_platform_missing:linux-arm64"):
         release_assets.assemble(inputs, tmp_path / "emulated", **options)
 
@@ -257,8 +223,8 @@ def test_the_release_attests_its_archives_and_wheels_before_it_exists():
 
     assert len(attests) == 1
     assert attests[0]["with"]["subject-path"].split() == [
-        "build/release/out/assets/ethos-*.tar.gz",
-        "build/release/out/assets/ethos-*.whl",
+        f"build/release/out/assets/ethos-*{suffix}"
+        for suffix in (".tar.gz", ".whl", ".spdx.json", ".syft.json")
     ]
     assert steps.index(attests[0]["name"]) < steps.index("Publish the signed pre-release")
     assert publish["permissions"] == {

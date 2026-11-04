@@ -1,17 +1,22 @@
-owner = "ethos-quality-gate-governance"
-runner = "uv run --frozen --offline python -m nox -s supply_chain"
-summary = "Syft emits SPDX 2.3 JSON for the exact built Python artifact; provenance remains a provider release concern."
+# The runtime archive that the install smoke keeps, cataloged by one Syft run into two inventories.
 output = "build/evidence/release/supply-chain.json"
-sbom = "build/evidence/release/ethos.spdx.json"
-artifact_glob = "build/artifacts/python/ethos-*.whl"
+spdx = "build/evidence/release/runtime.spdx.json"
+syft = "build/evidence/release/runtime.syft.json"
+smoke = "build/evidence/local-install/smoke.json"
+release_smoke = "build/evidence/local-install/release-smoke.json"
 tool = "syft"
-format = "spdx-json"
+
+# Syft's whole configuration: no inherited SYFT_ variable or default config file applies.
+[syft_config]
+check-for-app-update = false
+golang = { capture-symbols = "extended-stdlib" }
 
 [boundary]
-claim = "the exact built wheel has a Syft-generated SPDX 2.3 JSON SBOM"
+claim = "each runtime archive the install smoke keeps has an SPDX 2.3 SBOM and a symbol-capturing Syft JSON inventory, bound to its SHA-256 and complete against its owners"
 not_claimed = [
   "remote release published",
   "provenance emitted or signed",
   "SLSA conformance or level",
   "hosted CI passed",
+  "vulnerability status",
 ]

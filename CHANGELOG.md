@@ -12,6 +12,21 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- Each release publishes two inventories beside every runtime archive: an SPDX 2.3 SBOM, for
+  consumers, and a Syft JSON inventory that captures Go symbols, for binary scans. Both name the
+  archive's published file and SHA-256, are covered by `SHA256SUMS` and the build provenance
+  attestation, and must hold every component that the runtime's owners declare: the bundled Go
+  tools, uv's crates, Node and each shipped Python distribution. A required platform whose
+  inventories are missing or name another archive stops the release.
+
+### Changed
+
+- The `release-sbom` gate catalogs the runtime archive that the install smoke keeps, instead of
+  the wheel, and now follows `local-install-smoke`. The wheel-only SBOM, which listed one package
+  and no purls, is gone.
+
 ## [0.2.0-alpha.30] - 2026-11-04
 
 ### Changed

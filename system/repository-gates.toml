@@ -470,7 +470,7 @@ version_source = "locked-toolchain"
 id = "release-sbom"
 kind = "package"
 command = ["{python}", "-m", "nox", "-s", "supply_chain"]
-depends_on = ["build"]
+depends_on = ["local-install-smoke"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -481,7 +481,7 @@ evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "supply_chain"
 writes_files = true
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "evidence/release" = "exclusive" }
+resource_locks = { repository = "shared", supply = "shared", "artifacts/native" = "shared", "evidence/install" = "shared", "evidence/release" = "exclusive" }
 network_policy = "required"
 version_source = "locked-toolchain"
 

@@ -139,9 +139,10 @@ configuration plane, not a truth center.
 - `src/ethos/contracts/artifacts/topology.toml` owns generated-state location
   and lifecycle rules, interpreted by its adjacent product module. No parallel
   local-state configuration is maintained under this directory.
-- `.config/release/release-sbom/policy.toml` selects the built-wheel subject, SPDX
-  output and claim boundary. Mise owns the Syft version and artifact checksums.
-  SBOM generation does not establish publication, signing or SLSA conformance.
+- `.config/release/release-sbom/policy.toml` selects the runtime archive that the install
+  smoke keeps, the SPDX and Syft JSON inventory outputs, Syft's whole configuration and the claim
+  boundary. Mise owns the Syft version and artifact checksums. Inventory generation does not
+  establish publication, signing, SLSA conformance or vulnerability status.
 - `.config/checks/import-linter/import-linter.toml` owns the import-layer contracts of the
   one `ethos` package; the `import_boundaries` Nox session and the `import-boundaries` gate
   check them.

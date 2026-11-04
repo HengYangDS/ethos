@@ -105,3 +105,15 @@ def test_listed_path_deleted_while_observed_is_an_observed_absence(
     deleted = listing == "deleted"
     assert result["state"] == ("complete" if deleted else "deferred"), result
     assert obsolete.exists() is not deleted
+
+
+def test_process_references_read_windows_separators(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Windows command line names the runtime with backslashes, which still identify it."""
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    command = "python " + runtime.as_posix().replace("/", "\\")
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
+
+    assert runtime.resolve() in retirement.process_reference_paths(tmp_path)

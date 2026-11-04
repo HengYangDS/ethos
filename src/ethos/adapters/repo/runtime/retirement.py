@@ -139,8 +139,8 @@ def operational_reference_paths(root: Path) -> frozenset[Path]:
 
 
 def process_reference_paths(root: Path) -> frozenset[Path]:
-    """Return the paths that running commands alone refer to."""
-    return _reference_paths(process_commands(root))
+    """Return the paths that running commands alone refer to, in either separator."""
+    return _reference_paths(process_commands(root).replace("\\", "/"))
 
 
 def _reference_paths(references: str) -> frozenset[Path]:

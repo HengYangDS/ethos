@@ -111,18 +111,22 @@ def test_an_apply_needs_the_exact_request(
 
 
 def test_a_failed_exit_compensates_exactly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A selector that cannot be removed returns the configuration, selectors and record."""
+    """A failure after the selectors are gone returns the configuration, selectors and record."""
     repo, common, _before = _adopted_with_own_hooks(tmp_path, monkeypatch)
+    (common / "ethos/runtime/ROLLBACK").write_bytes(b"rollback\n")
     before = _state(repo, common)
-    runtime = common / "ethos/runtime"
-    runtime.chmod(0o555)
-    try:
-        result = _apply(repo)
-    finally:
-        runtime.chmod(0o755)
 
-    assert result.state == "blocked", result.to_json()
-    assert result.required_gaps[0].startswith("adoption_exit_failed:")
+    def remove(path: Path) -> None:
+        if path.name == "hooks-preimage.json":
+            message = "injected"
+            raise OSError(message)
+        path.unlink(missing_ok=True)
+
+    monkeypatch.setattr(repository_exit, "_remove", remove)
+    result = _apply(repo)
+
+    assert result.required_gaps == ("adoption_exit_failed:injected",), result.to_json()
+    assert result.state == "blocked"
     assert _state(repo, common) == before
 
 

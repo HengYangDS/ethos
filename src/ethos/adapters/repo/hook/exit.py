@@ -239,6 +239,10 @@ def _require_no_ethos_hooks(common: Path, worktrees: dict[str, _Values]) -> None
             raise ValueError(message)
 
 
+def _remove(path: Path) -> None:
+    path.unlink(missing_ok=True)
+
+
 def _bytes(path: Path) -> bytes | None:
     try:
         return path.read_bytes()
@@ -340,7 +344,7 @@ def _apply(repo: Path, common: Path, expect_plan_digest: str) -> EthosResult:
             _write_configuration(repo, common_target, worktree_targets)
             _require_no_ethos_hooks(common, plan["worktrees"])
             for name in (*_SELECTORS, "record"):
-                paths[name].unlink(missing_ok=True)
+                _remove(paths[name])
         except (OSError, ValueError) as error:
             return _compensate(repo, common, plan, prior, str(error) or type(error).__name__)
         write_json_atomically(paths["receipt"], receipt | {"state": "applied"})

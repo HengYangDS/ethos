@@ -344,7 +344,8 @@ def test_superseded_retirement_recovers_observed_effects_without_replay(
         _assert_retired(repo, lane, database)
         return
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["retirement_delete_interrupted"]
+    partial = ["lane_retirement_partial"] if report["state"] == "partial_transition" else []
+    assert report["required_gaps"] == [*partial, "retirement_delete_interrupted"]
     assert not lane.exists()
     deleted = failure == "after-delete"
     assert report["state"] == ("partial_transition" if not unbound or deleted else "blocked")

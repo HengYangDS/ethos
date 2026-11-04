@@ -105,7 +105,10 @@ def test_accepted_advance_after_removal_keeps_progress_and_continues(
     monkeypatch.setattr(operation, "remove_operation_worktree", remove_then_advance)
     result = apply_retirement_receipt(repo, receipt)
 
-    assert result["required_gaps"] == ["retirement_accepted_coordinate_drift"], result
+    assert result["required_gaps"] == [
+        "lane_retirement_partial",
+        "retirement_accepted_coordinate_drift",
+    ], result
     assert result["state"] == "partial_transition"
     assert result["completed_effects"] == ["remove_worktree"]
     assert result["remaining_effects"] == ["delete_ref", "revoke_lease"]

@@ -288,7 +288,7 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 
 ### Requirement: Accepted closeout renames legacy role refs
 
-When the accepted root is bound to a ref that its committed table declares as a legacy accepted name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of the legacy ref it replaces and delete that legacy ref, and SHALL bind every worktree on a renamed ref to its new name. Git admission SHALL refuse any other move of a legacy role ref.
+When the accepted root is bound to a ref that its committed table declares as a legacy accepted name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of the legacy ref it replaces and delete that legacy ref, and SHALL bind every worktree on a renamed ref to its new name. Git admission SHALL refuse any other move of a legacy role ref, except deleting one whose standard successor already holds its commit.
 
 #### Scenario: A repository adopted under legacy names
 
@@ -300,6 +300,12 @@ When the accepted root is bound to a ref that its committed table declares as a 
 
 - **WHEN** a user runs `git branch -m accepted/train dev`
 - **THEN** Git admission refuses the update with `legacy_role_ref_protected`.
+
+#### Scenario: A legacy role ref duplicates its successor
+
+- **WHEN** the committed table names `integration/dev` as the legacy candidate name, and `candidate/dev` holds the same commit as `integration/dev`
+- **THEN** the absorbed-ref retirement deletes `integration/dev`, and Git admission admits that deletion
+- **AND** no other legacy role ref is renamed or moved.
 
 ### Requirement: Publication retires published legacy role refs
 

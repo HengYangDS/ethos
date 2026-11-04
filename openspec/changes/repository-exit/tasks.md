@@ -17,5 +17,5 @@
 
 ## 3. Specification and notes
 
-- [ ] 3.1 Write the `runtime-activation` delta and the command reference. Done when strict
-      validation and the cumulative archive simulation pass.
+- [x] 3.1 Write the `runtime-activation` delta and the command reference. Done when strict
+      validation and the cumulative archive simulation pass. Evidence: both pass after each commit.

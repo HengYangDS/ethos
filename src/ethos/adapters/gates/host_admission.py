@@ -15,6 +15,7 @@ whose holder has exited admits nothing.
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 import subprocess
@@ -41,7 +42,7 @@ TOKEN = "ETHOS_HOST_ADMISSION"
 CPU_CAP = "ETHOS_HOST_CPU_CAP"
 XDIST_WORKERS = "PYTEST_XDIST_AUTO_NUM_WORKERS"
 CONTENDED = "host_admission_contended"
-_FIELDS = frozenset(("slots", "reserved_cpus"))
+_FIELDS = frozenset(("slots", "reserved_cpus", "load_limit"))
 _RECORD = ("repository", "executable", "since")
 _POLL_SECONDS = 5.0
 
@@ -52,6 +53,7 @@ class HostDeclaration:
 
     slots: int = 1
     reserved_cpus: int = 0
+    load_limit: float | None = None
 
     def worker_cap(self, cpus: int) -> int:
         """The workers an admitted run may start: the CPUs not reserved, at least one."""
@@ -77,7 +79,13 @@ def read_host_declaration(root: Path, *, cpus: int) -> HostDeclaration:
     if type(reserved) is not int or not 0 <= reserved < cpus:
         message = "host_declaration_invalid:reserved_cpus"
         raise ValueError(message)
-    return HostDeclaration(slots, reserved)
+    limit = declared.get("load_limit")
+    if limit is not None and (
+        type(limit) not in {int, float} or not math.isfinite(limit) or limit <= 0
+    ):
+        message = "host_declaration_invalid:load_limit"
+        raise ValueError(message)
+    return HostDeclaration(slots, reserved, None if limit is None else float(limit))
 
 
 @dataclass(frozen=True)

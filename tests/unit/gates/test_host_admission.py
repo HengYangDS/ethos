@@ -71,6 +71,9 @@ def test_the_host_declaration_bounds_slots_and_workers(
         ("reserved_cpus = -1\n", "host_declaration_invalid:reserved_cpus"),
         ("slot = 1\n", "host_declaration_invalid:slot"),
         ("slots = [\n", "host_declaration_unreadable"),
+        ("load_limit = 0\n", "host_declaration_invalid:load_limit"),
+        ("load_limit = true\n", "host_declaration_invalid:load_limit"),
+        ("load_limit = -2.5\n", "host_declaration_invalid:load_limit"),
     ],
 )
 def test_an_out_of_range_declaration_is_refused_not_clamped(
@@ -177,3 +180,11 @@ def test_admitted_work_carries_one_token_and_worker_cap(host_root: Path, tmp_pat
         patch.setenv(host_admission.TOKEN, outer[host_admission.TOKEN])
         with host_admission.admitted_host_work(tmp_path, "later", seconds=0) as later:
             assert later[host_admission.TOKEN] != outer[host_admission.TOKEN]
+
+
+def test_the_host_declaration_owns_the_load_limit(host_root: Path) -> None:
+    """A declared positive limit is kept as declared; without one, none is declared."""
+    assert host_admission.read_host_declaration(host_root, cpus=8).load_limit is None
+    _declare(host_root, "load_limit = 14.5\n")
+
+    assert host_admission.read_host_declaration(host_root, cpus=8).load_limit == 14.5

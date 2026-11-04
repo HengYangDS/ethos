@@ -31,9 +31,11 @@ from filelock import Timeout
 
 import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.gates.host_admission import HostPlace
+from ethos.adapters.gates.host_admission import read_host_declaration
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -59,28 +61,34 @@ class SlotAdmission:
     limit: float | None
 
 
-def load_limit() -> float | None:
-    """Return the admitted host load; `0` disables the load condition.
+def effective_load_limit() -> tuple[float | None, str]:
+    """Return the admitted 1-minute host load and where it was declared; `0` disables the check.
 
-    Half the CPUs stay free for others by default: a full proof's own test workers fill the
-    rest, and a busier host stretches its slowest tests past their timeout.
+    A run's explicit variable comes first, then the host declaration, which GUI-launched agents and
+    launchd jobs read too. Otherwise half the CPUs stay free for others: a full proof's own test
+    workers fill the rest, and a busier host stretches its slowest tests past their timeout.
     """
     raw = os.environ.get(LOAD_LIMIT_VARIABLE, "")
-    if not raw:
-        return max(1.0, (os.cpu_count() or 1) / 2)
-    try:
-        value = float(raw)
-    except ValueError:
-        value = math.nan
-    if not math.isfinite(value) or value < 0:
-        raise ValueError(_LIMIT_INVALID)
-    return value or None
+    if raw:
+        try:
+            value = float(raw)
+        except ValueError:
+            value = math.nan
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(_LIMIT_INVALID)
+        return value or None, "environment"
+    cpus = os.cpu_count() or 1
+    root = host_store_root()
+    declared = None if root is None else read_host_declaration(root, cpus=cpus).load_limit
+    if declared is not None:
+        return declared, "host.toml"
+    return max(1.0, cpus / 2), "default"
 
 
 def host_load() -> float | None:
-    """Observe the higher of the 1- and 5-minute load averages, or None where unreported."""
+    """Observe the 1-minute load average, or None where the host reports none."""
     try:
-        return max(os.getloadavg()[:2])
+        return os.getloadavg()[0]
     except (AttributeError, OSError):
         return None
 
@@ -137,7 +145,7 @@ def admitted_full_proof(
     *,
     head: str,
     current: Callable[[], bool] | None = None,
-    limit: Callable[[], float | None] = load_limit,
+    limit: Callable[[], tuple[float | None, str]] = effective_load_limit,
     load: Callable[[], float | None] = host_load,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
@@ -145,7 +153,7 @@ def admitted_full_proof(
     report: Callable[[dict[str, object]], None] = _report,
 ) -> Generator[SlotAdmission]:
     """Hold the repository's proof slot once host load allows; release it when the proof ends."""
-    admitted_limit = limit()
+    admitted_limit, limit_source = limit()
     seconds = parameters.seconds("admission", seconds)
     base_current = current or candidate_current(root, head=head)
     state = local_state_root(root)
@@ -156,6 +164,7 @@ def admitted_full_proof(
     started = clock()
     acquired = False
     reason = ""
+    calm = 0
     try:
         while True:
             if not base_current():
@@ -168,8 +177,17 @@ def admitted_full_proof(
                     holder.write_text(json.dumps(record, default=str), encoding="utf-8")
             hosted = acquired and place.admitted()
             observed = load() if hosted and admitted_limit is not None else None
-            roomy = admitted_limit is None or observed is None or observed <= admitted_limit
-            if hosted and roomy:
+            if hosted and (admitted_limit is None or observed is None):
+                break
+            # One calm sample between busy phases is not room; two consecutive ones are.
+            calm = (
+                calm + 1
+                if observed is not None
+                and admitted_limit is not None
+                and observed <= admitted_limit
+                else 0
+            )
+            if calm >= 2:
                 break
             waiting = "host_load" if hosted else "host_slot_held" if acquired else "slot_held"
             if waiting != reason:
@@ -182,12 +200,19 @@ def admitted_full_proof(
                         "reason": waiting,
                         "load": observed,
                         "limit": admitted_limit,
+                        "limit_source": limit_source,
                         "holder": held if acquired else _holder(holder),
                     }
                 )
             remaining = started + seconds - clock()
             if remaining <= 0:
-                raise ValueError(place.contention() if acquired and not hosted else CONTENDED)
+                raise ValueError(
+                    f"{CONTENDED}:load={observed}:limit={admitted_limit}:source={limit_source}"
+                    if hosted
+                    else place.contention()
+                    if acquired
+                    else CONTENDED
+                )
             sleep(min(_POLL_SECONDS, remaining))
         admission = SlotAdmission(round(clock() - started, 1), observed, admitted_limit)
         report(
@@ -195,6 +220,7 @@ def admitted_full_proof(
                 "event": "proof_admission_granted",
                 "head": head,
                 "load_measured": observed is not None,
+                "limit_source": limit_source,
                 **admission.__dict__,
             }
         )

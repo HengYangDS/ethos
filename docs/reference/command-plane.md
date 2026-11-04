@@ -67,8 +67,9 @@ admits it, and exits with the command's own status.
 - **What the child receives.** The child gets `ETHOS_HOST_ADMISSION`, so work that it starts joins
   the admission instead of waiting for itself. It also gets `ETHOS_HOST_CPU_CAP` and
   `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `host.toml` does not reserve, at least one.
-- **The declaration.** `host.toml` declares `slots`, default 1, and `reserved_cpus`, default 0. A
-  value out of range is refused with a named gap and never clamped.
+- **The declaration.** `host.toml` declares `slots`, default 1, `reserved_cpus`, default 0, and
+  `load_limit`, default half the CPUs. A value out of range is refused with a named gap and never
+  clamped.
 
 ## Native CI Projection
 
@@ -382,7 +383,7 @@ execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
 
-Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks) before its test and package gates. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
+Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and the host slot, and waits for two consecutive 1-minute load samples within the limit before its test and package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else `load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, which names the load, the limit and its source, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
 

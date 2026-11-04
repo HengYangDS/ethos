@@ -24,22 +24,33 @@ ETHOS SHALL admit heavy local work through one host-wide queue beside each repos
 
 ### Requirement: The host declaration bounds admitted work
 
-The host declaration SHALL be the only authority for the slot count and the reserved CPUs. A value out of range SHALL be refused with a named gap and not clamped, and admitted work SHALL receive a worker cap of the CPUs that the declaration leaves, at least one.
+The host declaration SHALL be the only host-wide authority for the slot count, the reserved CPUs and the load limit. A value out of range SHALL be refused with a named gap and not clamped, and admitted work SHALL receive a worker cap of the CPUs that the declaration leaves, at least one.
 
 #### Scenario: The host declaration is out of range
 
-- **WHEN** `host.toml` declares zero slots or reserves every CPU
+- **WHEN** `host.toml` declares zero slots, reserves every CPU or declares a load limit that is not positive
 - **THEN** admission refuses with a named gap and does not clamp the value.
+
+#### Scenario: Busy guests hold the host's load
+
+- **GIVEN** CI virtual machines that keep the host's load above half its CPUs
+- **WHEN** `host.toml` declares a higher `load_limit`
+- **THEN** a full proof admits under that limit, and a wait that reaches its bound names the load, the limit and where the limit came from.
 
 ### Requirement: Full proofs and nested work share the host admission
 
-A full executing proof SHALL take its repository slot, then the host slot, then wait for load. Work that runs under a live admission SHALL join it instead of being admitted again, and a token whose holder has exited SHALL admit nothing.
+A full executing proof SHALL take its repository slot, then the host slot, then wait until two consecutive 1-minute load samples fall within the limit. Work that runs under a live admission SHALL join it instead of being admitted again, and a token whose holder has exited SHALL admit nothing.
 
 #### Scenario: Work runs under a live admission
 
 - **WHEN** a command that `ethos host run` admitted starts a proof or another admitted command
 - **THEN** that work joins the live admission and does not wait for itself
 - **AND** a copied token whose holder has exited admits nothing.
+
+#### Scenario: Load dips once between busy phases
+
+- **WHEN** one 1-minute load sample falls within the limit and the next does not
+- **THEN** the proof keeps waiting until two consecutive samples fall within it.
 
 #### Scenario: A host reports no load average
 

@@ -19,6 +19,13 @@
       Done when proof tests show that order, and that a host without a load average records the
       load as not measured. Both new tests failed first, on the missing token and the missing
       `load_measured`; the 27 proof slot tests now pass.
+- [x] 1.6 Let the host declaration own the load limit, and admit on two calm 1-minute samples.
+      Done when tests show three things: the limit comes from the run's variable, then
+      `host.toml`, then half the CPUs; a contended wait names the load, the limit and its source;
+      one calm sample between busy phases does not admit. fbee0c measured on 11-04 that busy CI
+      guests held this 18-CPU host at load 18 to 22, so a limit of 9 never passed. AIGW approved
+      this at 21:5x. The 3 new tests failed first, and the 53 host admission and proof slot tests
+      pass.
 - [ ] 1.5 Record the change in the Unreleased notes and the CLI reference. Done when the changelog
       and documentation gates pass.
 

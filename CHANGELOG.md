@@ -47,6 +47,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   the repository went up to the home directory and loaded `~/.config/mise/config.toml` and its
   `conf.d` files as an ancestor's. archpub's npm test took the operator's npm 12.2.2 that way. The
   walk now also stops at the repository's parent, as resolution already did.
+- The release journey upgrades from the latest earlier release that GitHub published, not merely
+  from the next changelog entry. 0.2.0-beta.1 was tagged but never published, so beta.2's journey
+  failed to download it. The receipt names each skipped version as `skipped_unpublished`, and a
+  forge error other than a missing release refuses instead of skipping.
+- A beta's journey now has to cover every release that governed adopters still upgrade from.
+  beta.2 was qualified only on the upgrade from alpha.30, while 8 of 12 governed repositories
+  were still on alpha.29. The `journey_previous` dispatch input names earlier published prereleases,
+  comma-separated. The journey upgrades from each one, and rolls back to it, in its own host
+  store. The receipt lists every predecessor in `previous`, and keys `upgrade_and_rollback` by
+  predecessor tag. A name that is not an earlier published release refuses before any download.
 
 ## [0.2.0-beta.2] - 2026-11-05
 

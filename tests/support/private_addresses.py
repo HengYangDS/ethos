@@ -57,6 +57,6 @@ DOCUMENTATION_TEXTS = {
     "classes-in-prose": "RFC 1918 covers 10/8, 172.16/12 and 192.168/16; ULA is fc00::/7",
     "public-neighbours": "8.8.8.8, 172.32.0.1, 192.169.1.1 and 11.0.0.1",
     "digest": "sha256:fd12ab34cd56ef7890",
-    "localhost": "http://localhost:8080/ and ('localhost', 0)",
+    "localhost": "localhost:8080 and ('localhost', 0)",
     "redaction": redaction_marker(PRIVATE_FORGE, b"record owner key"),
 }

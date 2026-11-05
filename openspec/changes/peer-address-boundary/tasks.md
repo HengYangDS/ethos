@@ -10,6 +10,11 @@
 - [ ] 1.2 Keep both content scans to content and staged modes. Done when a test shows a repository
       whose history alone holds an address passing the hook's staged scan and the `secrets`
       session's scan, while a history scan finds it. Evidence: `test_private_address_scan.py`.
+- [ ] 1.3 Take the product boundary's address classes from the paradigm's pattern and keep its
+      refusal of `localhost` endpoints. Done when a test shows a private literal and a private name
+      refused on a product surface, a `localhost` URL still refused, and documentation forms
+      admitted. Evidence: `test_product_boundary_remaining_public.py`; the `product_boundary` gate
+      passes.
 
 ## 2. Current content
 

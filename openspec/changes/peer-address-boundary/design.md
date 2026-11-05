@@ -134,6 +134,12 @@ Non-goals:
     peer's address: a tracked test that joined the LAN forge's address would disclose it again in
     current content. The rule was shown red on the LAN forge's own address in a local run whose
     input stays outside the repository.
+11. **The product boundary reads the same pattern.** ETHOS's product boundary gate already refused
+    RFC 1918 and loopback hosts in URLs on ETHOS's product surfaces, with patterns of its own. It
+    now takes the address classes from the paradigm's pattern and keeps only its own refusal of
+    `localhost` endpoints, which a product surface must not fix but a message may name. The gate
+    is ETHOS's own; a read-only search of the governed repositories found none that runs it, and
+    ETHOS's product surfaces hold no match.
 
 ## Risks / Trade-offs
 

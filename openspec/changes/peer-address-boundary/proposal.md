@@ -43,6 +43,8 @@ None.
 - `src/ethos/contracts/paradigm/`: `paradigm.toml` declares the pattern and `declaration.py`
   compiles and applies it.
 - `.config/checks/gitleaks/gitleaks.toml`: the `private-network-address` rule.
+- `src/ethos/repository/policy/boundary/catalog.py`: the product boundary takes its address
+  classes from the paradigm's pattern.
 - `src/ethos/adapters/repo/`: `commit/admission.py`, `commit/creation.py`, `git_object.py` and
   `release.py`.
 - `src/ethos/contracts/plan.py` and `system/schemas/kernel/`: the schema identifiers.

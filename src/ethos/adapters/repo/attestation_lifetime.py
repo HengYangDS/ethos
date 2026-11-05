@@ -108,7 +108,7 @@ def _ref_update_lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
         return (
             ("lineage", f"accepted:{head}") if transition == "candidate.accept" else ("head", head)
         )
-    elif transition == "release.promote":
+    elif transition in {"release.promote", "release.retag"}:
         tags = sorted(ref for ref in updates if ref.startswith("refs/tags/"))
         return ("lineage", tags[0]) if len(tags) == 1 else ("open-predicate", attestation.id)
     elif transition == "commit.identity-replace":
@@ -147,10 +147,15 @@ def _runtime_wheel(attestation: Attestation) -> str:
     return _prefixed("runtime:", _text(attestation.payload.body, "identity", "wheel_sha256"))
 
 
+def _retagged_ref(attestation: Attestation) -> str:
+    return _prefixed("refs/tags/", _text(attestation.payload.body, "tag"))
+
+
 _RECORD_HOLDERS: Mapping[str, tuple[Lifetime, Callable[[Attestation], str]]] = {
     "proof:execution": ("head", _commit_subject),
     "publication:remote-effect": ("head", _commit_subject),
     "release:accepted-identity": ("lineage", _runtime_wheel),
+    "release:mapped-retag": ("lineage", _retagged_ref),
     "effect:starter-formation": ("lineage", lambda _item: "repository"),
     **dict.fromkeys(_REPAIR_RECORDS, ("lineage", _repair_old)),
     **dict.fromkeys(_LANE_EFFECTS, ("operation", _lane_branch)),

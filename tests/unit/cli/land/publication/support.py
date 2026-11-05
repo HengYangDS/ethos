@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.repo.commit.creation import configured_signer_fingerprint
@@ -29,6 +30,12 @@ from tests.support.signature import configure_signer
 
 PROPOSAL = "terminal-convergence"
 PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
+
+
+def later_policy(*_args: object, **_kwargs: object) -> tuple[tuple[str, object], ...]:
+    """Compile what a later runtime would: a policy no historical proof executed."""
+    policy = SimpleNamespace(digest="0" * 64, nodes=(), gaps=())
+    return (("full", policy), ("default", policy))
 
 
 def publication_peers(repo: Path, root: Path, *refs: str, object_format: str = "sha1"):

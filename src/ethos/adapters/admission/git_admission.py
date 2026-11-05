@@ -20,6 +20,7 @@ from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.role_rename import role_rename_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
+from ethos.adapters.mutation.accepted.retag import mapped_retag_move
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
@@ -307,6 +308,11 @@ def _verdict(
 
 def _release_move_gaps(repo: Path, ref: str, old: str, new: str, operation: str) -> list[str]:
     """Conjoin accepted source, current proof and exact executor intent."""
+    if (
+        operation == "release.tag"
+        and (retag := _retag_intent_gaps(repo, ref, old, new)) is not None
+    ):
+        return retag
     reversing = (
         new in _ZERO_OIDS
         if operation == "release.tag"
@@ -335,6 +341,21 @@ def _release_move_gaps(repo: Path, ref: str, old: str, new: str, operation: str)
         operation=operation,
         phase="prepared",
         plan_digest=str(forward["plan_digest"]) if forward else None,
+    )
+    gap = str(intent.get("gap") or "")
+    return ["release_ref_move_no_ref_intent" if gap == "ref_intent_missing" else gap] if gap else []
+
+
+def _retag_intent_gaps(repo: Path, ref: str, old: str, new: str) -> list[str] | None:
+    """Admit a mapped re-tag by its verified request and prepared intent; None otherwise."""
+    if not mapped_retag_move(repo, ref=ref, old=old, new=new):
+        return None
+    intent = claim_ref_intent(
+        root=repo,
+        ref_name=ref,
+        update=GitRefUpdate(expected=old, desired=new),
+        operation="release.tag",
+        phase="prepared",
     )
     gap = str(intent.get("gap") or "")
     return ["release_ref_move_no_ref_intent" if gap == "ref_intent_missing" else gap] if gap else []

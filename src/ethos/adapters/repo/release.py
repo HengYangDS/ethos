@@ -5,15 +5,17 @@ from __future__ import annotations
 import json
 import shlex
 import tomllib
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
-from ethos.adapters.repo.commit.signature import completed_signature_repair
+from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
@@ -32,11 +34,9 @@ from ethos.contracts.value import mutable_json
 from ethos.repository.release.changelog import changelog_errors
 from ethos.repository.release.changelog import semver_from_text
 from ethos.repository.release.configuration import release_config_from_text
-from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_role
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.branch.roles import BranchRolePolicy
@@ -173,6 +173,12 @@ def accepted_release_source(
     plan = (
         release_provenance(root, ref=ref, oid=new) if ref.startswith("refs/tags/") and new else None
     )
+    mapped = (
+        mapped_release_provenance(root, ref=ref, oid=new)
+        if plan is None and ref.startswith("refs/tags/") and new
+        else None
+    )
+    plan = plan if mapped is None else mapped[0]
     maintenance = (
         str(plan.facts.get("values", {}).get("release_request", {}).get("base") or "")
         if plan
@@ -185,7 +191,7 @@ def accepted_release_source(
             "release_tag_source_untrusted",
         )
         require_release(head == current or plan is not None or base, "release_tag_source_untrusted")
-    if maintenance:
+    if maintenance and mapped is None:
         assert plan is not None
         require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
         require_release(not base or base == maintenance, "release_base_not_exact_ancestor")
@@ -257,6 +263,7 @@ def accepted_release_source(
             if maintenance and plan is not None
             else {}
         ),
+        **({"qualification": release_qualification(plan)} if plan is not None else {}),
     }
 
 
@@ -321,7 +328,7 @@ def release_ref_subject(
     accepted_head = ref_head(root, policy.accepted_branch)
     head = accepted_head
     if ref.startswith("refs/tags/"):
-        selected = _immutable_tag_commit(
+        selected = immutable_tag_commit(
             root, ref=ref, old=old, new=new, allow_identical=allow_identical
         )
         if selected != head and not allow_identical and not base:
@@ -348,8 +355,14 @@ def release_ref_subject(
     return head
 
 
-def release_provenance(root: Path, *, ref: str, oid: str) -> TransitionPlan | None:
-    """Read the original completed tag-only effect, never a new acceptance registry."""
+def release_provenance(
+    root: Path, *, ref: str, oid: str, accepted_as: str = ""
+) -> TransitionPlan | None:
+    """Read the original completed tag-only effect, never a new acceptance registry.
+
+    `accepted_as` is the replacement a verified repair mapped the released commit to; the
+    accepted-history check then applies to it, since the original commit left that history.
+    """
     plan = recover_plan(
         root,
         operation="release.promote",
@@ -377,10 +390,63 @@ def release_provenance(root: Path, *, ref: str, oid: str) -> TransitionPlan | No
             not source["required_gaps"]
             and effect.assertions.get(f"refs/heads/{policy.accepted_branch}") == released
             and plan.facts.get("head") == released
-            and is_ancestor(root, released, ref_head(root, policy.accepted_branch)),
+            and is_ancestor(root, accepted_as or released, ref_head(root, policy.accepted_branch)),
             "release_tag_source_untrusted",
         )
     return plan
+
+
+def mapped_release_provenance(
+    root: Path, *, ref: str, oid: str
+) -> tuple[TransitionPlan, str] | None:
+    """Follow a re-created tag to its original's release record, through its re-tag receipt.
+
+    Returns the original release plan and the original tag object. The receipt binds the exact
+    re-created object, and the original tag's own record decides its qualification (DR-0018).
+    """
+    policy = release_branch_policy(root)
+    _selected, members = read_attestation_set(root)
+    receipts = [
+        item
+        for item in members
+        if item.predicate == "release:mapped-retag" and item.subject == f"git:annotated-tag:{oid}"
+    ]
+    if len(receipts) != 1:
+        return None
+    body = receipts[0].payload.body
+    original = str(body.get("original_tag") or "")
+    source = observe_git_object(root, oid, "annotated-tag")
+    mapped = str(body.get("mapped_target") or "")
+    require_release(
+        body.get("tag") == ref.removeprefix("refs/tags/")
+        and not source["required_gaps"]
+        and source["peeled_commit"] == mapped,
+        "release_retag_receipt_mismatch",
+    )
+    released = str(observe_git_object(root, original, "annotated-tag")["peeled_commit"])
+    repair = repaired_object_provenance(
+        root, old=released, new=ref_head(root, policy.accepted_branch)
+    )
+    repaired = repair.get("mapping") if repair is not None else None
+    require_release(
+        isinstance(repaired, dict)
+        and repaired.get(released) == mapped
+        and repair is not None
+        and repair.get("attestation_id") == body.get("mapping_attestation_id"),
+        "release_retag_mapping_unverified",
+    )
+    plan = release_provenance(root, ref=ref, oid=original, accepted_as=mapped)
+    require_release(plan is not None, "release_qualification_missing")
+    assert plan is not None
+    return plan, original
+
+
+def release_qualification(plan: TransitionPlan) -> dict[str, object]:
+    """Return the proof a release record bound, as embedded, and the commit that proof proved."""
+    proof = plan.prior_attestations.get("proof")
+    recorded = cast("dict[str, object]", mutable_json(proof)) if isinstance(proof, Mapping) else {}
+    recorded["proven_commit"] = str(plan.facts.get("head") or "")
+    return {"proof_attestation_id": str(recorded.get("id") or ""), "proof": recorded}
 
 
 def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str:
@@ -394,23 +460,12 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
     if selected == current:
         return current
     plan = release_provenance(root, ref=ref, oid=new)
+    if plan is None and mapped_release_provenance(root, ref=ref, oid=new) is not None:
+        return selected
     return selected if plan is not None else current
 
 
-def publication_proof_head(root: Path, refs: tuple[str, ...], head: str) -> str:
-    """Prove a tag's release commit; every other publication proves the checkout head."""
-    if not refs or not all(ref.startswith("refs/tags/") for ref in refs):
-        return head
-    tag = ref_head(root, refs[0])
-    try:
-        return release_publication_head(root, ref=refs[0], new=tag) if tag else head
-    except ValueError:
-        return head
-
-
-def _immutable_tag_commit(
-    root: Path, *, ref: str, old: str, new: str, allow_identical: bool
-) -> str:
+def immutable_tag_commit(root: Path, *, ref: str, old: str, new: str, allow_identical: bool) -> str:
     """Validate signature, native header and immutable identity for any admitted tag."""
     source = observe_git_object(root, new, "annotated-tag")
     require_release(not source["required_gaps"], "release_tag_source_untrusted")
@@ -434,121 +489,3 @@ def release_checkout_gaps(root: Path, head: str, *, base: str = "") -> list[str]
         return ["release_accepted_root_required"]
     status = run_git(root, "status", "--porcelain", check=False)
     return ["release_worktree_dirty"] if status.returncode or status.stdout.strip() else []
-
-
-def publication_source_baseline(
-    repo: Path,
-    *,
-    policy: BranchRolePolicy,
-    branch: str,
-    role: str,
-    proof_head: str,
-    remote_head: str,
-    target_ref: str = "",
-    source_oid: str = "",
-) -> tuple[dict[str, object], list[str], str, str, Mapping[str, object] | None]:
-    """Resolve one accepted or maintenance source for exact protected publication."""
-    release = role in {"release_root", "release_publication"} or (
-        target_ref.startswith("refs/tags/") and publication_proof_selection(role) != "review_object"
-    )
-    initial = remote_head in {"0" * 40, "0" * 64}
-    try:
-        if target_ref.startswith("refs/tags/"):
-            selected = _immutable_tag_commit(
-                repo, ref=target_ref, old=remote_head, new=source_oid, allow_identical=True
-            )
-            require_release(selected == proof_head, "release_source_binding_mismatch")
-        if release:
-            accepted = None
-            try:
-                accepted = accepted_release_source(
-                    repo, proof_head, ref=target_ref, old=remote_head, new=source_oid
-                )
-            except ValueError as error:
-                if str(error) != "accepted_closeout_effect_not_attested":
-                    raise
-            if target_ref.startswith("refs/tags/"):
-                release_tag_policy(repo, proof_head, target_ref.removeprefix("refs/tags/"))
-            if accepted is not None:
-                provenance = cast("Mapping[str, object]", accepted["provenance"])
-                maintenance = cast("Mapping[str, object]", accepted.get("release", {}))
-                base = str(maintenance.get("base") or provenance["previous_head"])
-                closeout = (
-                    {**maintenance, "candidate_head": proof_head, "provenance": provenance}
-                    if maintenance
-                    else {
-                        "attestation_id": provenance["attestation_id"],
-                        "plan_digest": provenance["plan_digest"],
-                        "accepted_ref": accepted["accepted_ref"],
-                        "accepted_before": base,
-                        "remote_head": remote_head,
-                        "candidate_head": proof_head,
-                        "provenance": provenance,
-                    }
-                )
-                return (
-                    closeout,
-                    [],
-                    base if initial else "",
-                    ("accepted_effect" if maintenance else "accepted_closeout_effect")
-                    if initial
-                    else "",
-                    accepted,
-                )
-        required = (
-            branch == policy.accepted_branch
-            or release
-            or (initial and publication_proof_selection(role) == "repository_transition")
-        )
-        if not required:
-            return {}, [], "", "", None
-        require_release(
-            not release
-            or release_publication_head(repo, ref=target_ref, new=source_oid) == proof_head,
-            "release_source_not_current_accepted",
-        )
-        accepted_ref = f"refs/heads/{policy.accepted_branch}"
-        closeout = accepted_provenance(
-            repo,
-            accepted_ref=accepted_ref,
-            candidate_ref=f"refs/heads/{policy.candidate_branch}",
-            head=proof_head,
-        )
-        if closeout is None:
-            repair = completed_signature_repair(repo, new=proof_head)
-            require_release(
-                repair is not None and accepted_ref in cast("Mapping[str, str]", repair["refs"]),
-                "accepted_closeout_effect_not_attested",
-            )
-            assert repair is not None
-            return (
-                {
-                    "attestation_id": repair["attestation_id"],
-                    "plan_digest": repair["plan_digest"],
-                    "accepted_ref": accepted_ref,
-                    "accepted_before": repair["old"],
-                    "candidate_head": proof_head,
-                    "operation": "commit.identity-replace",
-                },
-                [],
-                "",
-                "",
-                None,
-            )
-        return (
-            {
-                "attestation_id": closeout.attestation.id,
-                "plan_digest": closeout.plan.digest,
-                "accepted_ref": accepted_ref,
-                "accepted_before": closeout.previous_head,
-                "remote_head": remote_head,
-                "candidate_head": proof_head,
-                "provenance": closeout.projection(),
-            },
-            [],
-            closeout.previous_head if initial else "",
-            "accepted_closeout_effect" if initial else "",
-            None,
-        )
-    except (OSError, ValueError) as error:
-        return {}, [str(error)], "", "", None

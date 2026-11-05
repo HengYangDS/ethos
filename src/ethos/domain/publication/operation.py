@@ -382,7 +382,7 @@ def _publication_result(
             "mode": "publication_receipt_apply" if replay else "publication",
             "target_refs": target_refs,
             "source_head": current_head,
-            "remote_push": "applied"
+            "remote_push": _remote_push(execution)
             if execution.get("state") == "applied"
             else state
             if state in {"partial", "outcome_unknown"}
@@ -465,3 +465,17 @@ def publish_repository(
         expect_head=expect_head,
         probe_remote=probe_remote,
     )
+
+
+def _remote_push(execution: Mapping[str, object]) -> str:
+    """Report a completed request that changed no peer as already applied, not as a push."""
+    attempts = execution.get("attempts")
+    unchanged = (
+        isinstance(attempts, (list, tuple))
+        and bool(attempts)
+        and all(
+            isinstance(attempt, Mapping) and attempt.get("state") == "already_applied"
+            for attempt in attempts
+        )
+    )
+    return "already_applied" if unchanged else "applied"

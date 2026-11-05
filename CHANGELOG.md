@@ -29,12 +29,30 @@ historical bindings are governed by the [distribution specification](openspec/sp
   dispatch scans an already published release again from its inventories. On alpha.29's macOS
   archive the symbol-capturing inventory yields the same 63 advisories as a direct scan of the
   runtime, where an SPDX input yields 113.
+- `ethos land --retag <tag>` re-creates a signed release tag whose target a completed signature or
+  history repair replaced, on the mapped replacement commit, with the original name, tagger, date
+  and message; only the target and the signature change. The preview names each refused tag with
+  its gaps and reports one plan digest, and `--apply --authorize --expect-plan-digest <digest>`
+  moves the tag refs and records one `release:mapped-retag` attestation per tag. A pruned original
+  is restored from the repair's backup bundle. Publication qualifies the re-created tag by the
+  proof that its original release record embeds.
 
 ### Changed
 
 - The `release-sbom` gate catalogs the runtime archive that the install smoke keeps, instead of
   the wheel, and now follows `local-install-smoke`. The wheel-only SBOM, which listed one package
   and no purls, is gone.
+
+### Fixed
+
+- A release tag that an earlier ETHOS released publishes on the proof its own release effect
+  bound, verified as recorded from the copy that effect embeds: its identity, schema, subject,
+  tree, artifact custody and recorded policy digest. Before, every publication re-judged it
+  against the policy the running runtime compiled for the old source, so after a policy change
+  every historical tag refused with `proof_attestation_repository_policy_mismatch`, also when
+  every peer already held it. A missing, altered or inconsistent bound proof refuses by name, and
+  branches keep the current policy. A request that changes no peer now reports
+  `remote_push: already_applied`. DR-0018 records the rule.
 
 ## [0.2.0-beta.2] - 2026-11-05
 

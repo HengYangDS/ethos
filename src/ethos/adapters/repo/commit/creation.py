@@ -334,11 +334,20 @@ def _sign_payload(root: Path, payload: bytes) -> bytes:
         return material.with_suffix(".sig").read_bytes().replace(b"\r\n", b"\n").rstrip(b"\n")
 
 
-def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str:
+def create_signed_tag(
+    root: Path,
+    *,
+    name: str,
+    head: str,
+    staging: Path,
+    tagger: str = "",
+    message: str = "",
+) -> str:
     """Prepare one recoverable native tag without moving refs in the source repository.
 
     The caller holds the request lock and retains this owned object store until
-    the exact effect plan is durable. An interrupted signer is never replayed.
+    the exact effect plan is durable. An interrupted signer is never replayed. A re-tag passes
+    the original `tagger` line and `message`, so only the target and the signature change.
     """
     if run_git(root, "check-ref-format", f"refs/tags/{name}", check=False).returncode:
         message = "release_tag_name_invalid"
@@ -361,7 +370,7 @@ def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str
         if attempt.exists():
             message = "release_tag_signing_outcome_unknown"
             raise ValueError(message)
-        tagger = run_git(root, "var", "GIT_COMMITTER_IDENT").stdout.strip()
+        tagger = tagger or run_git(root, "var", "GIT_COMMITTER_IDENT").stdout.strip()
         identity, timestamp, timezone = tagger.rsplit(" ", 2)
         user_name, user_email = identity.rsplit(" <", 1)
         for key, value in (("user.name", user_name), ("user.email", user_email.removesuffix(">"))):
@@ -374,11 +383,18 @@ def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str
             staging,
             "tag",
             "-s",
-            "-m",
-            f"Release {name}",
+            "--cleanup=verbatim",
+            "-F",
+            "-",
             name,
             head,
-            env={**environment, "GIT_COMMITTER_DATE": f"{timestamp} {timezone}"},
+            stdin=message or f"Release {name}\n",
+            env={
+                **environment,
+                "GIT_COMMITTER_NAME": user_name,
+                "GIT_COMMITTER_EMAIL": user_email.removesuffix(">"),
+                "GIT_COMMITTER_DATE": f"{timestamp} {timezone}",
+            },
             check=False,
             timeout=seconds("git"),
         )

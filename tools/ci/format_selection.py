@@ -60,6 +60,31 @@ def _path_allowed_for_extension(path: str, suffix: str, policy: dict[str, object
     return path in files or _matches_any(path, roots)
 
 
+def _empty_policy_roots(tracked: list[str], policy: dict[str, object]) -> list[dict[str, str]]:
+    """Report each declared policy root that admits no tracked file of its format."""
+    declared: list[tuple[str, str, frozenset[str]]] = []
+    for key, suffixes in (
+        ("jsonl_allowed_roots", frozenset({".jsonl"})),
+        ("yaml_allowed_roots", frozenset({".yml", ".yaml"})),
+    ):
+        roots = policy.get(key, [])
+        if _strings(roots):
+            declared.extend((key, root, suffixes) for root in roots)
+    extension_paths = policy.get("extension_paths", {})
+    constraints = extension_paths if _record(extension_paths) else {}
+    for suffix, constraint in constraints.items():
+        roots = constraint.get("roots", []) if _record(constraint) else []
+        if _strings(roots):
+            declared.extend(
+                (f"extension_paths.{suffix}", root, frozenset({suffix})) for root in roots
+            )
+    return [
+        {"path": root, "reason": f"policy root admits no tracked file: {key}"}
+        for key, root, suffixes in declared
+        if not any(Path(path).suffix in suffixes and _matches_any(path, [root]) for path in tracked)
+    ]
+
+
 def main() -> int:
     tracked = _tracked_files()
     ownership = audit(ROOT, paths=tuple(tracked))
@@ -90,6 +115,7 @@ def main() -> int:
         message = "format selection unregistered-extension mode must be a string"
         raise TypeError(message)
     forbidden_exts = set(forbidden)
+    failures.extend(_empty_policy_roots(tracked, policy))
 
     for rel in tracked:
         suffix = Path(rel).suffix

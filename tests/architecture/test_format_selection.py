@@ -218,14 +218,16 @@ def test_native_javascript_transport_uses_its_semantic_adapter_home(
     git(root, "add", relative, str(module.relative_to(root)))
     monkeypatch.setattr(format_selection, "ROOT", root)
     monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
-    assert format_selection.main() == (0 if allowed else 1)
+    format_selection.main()
     report = json.loads(capsys.readouterr().out)
-    assert [item["path"] for item in report["failures"]] == (
-        [] if allowed else [home + "example.mjs"]
-    )
-    assert all(
-        item["reason"] == "format outside declared carrier home: .mjs"
-        for item in report["failures"]
+    # The copied policy's other roots hold nothing in this repository; only placement is tested.
+    placement = [item for item in report["failures"] if "carrier home" in item["reason"]]
+    assert placement == (
+        []
+        if allowed
+        else [
+            {"path": home + "example.mjs", "reason": "format outside declared carrier home: .mjs"}
+        ]
     )
 
 
@@ -322,3 +324,43 @@ def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     assert assignment["format_check"].endswith("-s repository_hygiene")
     assert assignment["mutation_policy"] == "canonical-text"
     assert audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"
+
+
+def test_a_policy_root_that_holds_no_tracked_file_is_a_failure(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """An allowed root with nothing tracked under it is a dead carrier, never a pass."""
+    root = init_git_repo(tmp_path / "repo")
+    relative = ".config/checks/format-selection/policy.toml"
+    config = root / relative
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "[[format]]\nextensions = ['.toml', '.yml']\n"
+        "[policy]\njsonl_allowed_roots = []\n"
+        "yaml_allowed_roots = ['.config/', 'retired/']\n",
+        encoding="utf-8",
+    )
+    (root / ".config/ci.yml").write_text("on: push\n", encoding="utf-8")
+    (root / "retired").mkdir()
+    (root / "retired/notes.toml").write_text("a = 1\n", encoding="utf-8")
+    git(root, "add", relative, ".config/ci.yml", "retired/notes.toml")
+    monkeypatch.setattr(format_selection, "ROOT", root)
+    monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
+    monkeypatch.setattr(format_selection, "audit", lambda _root, **_kwargs: _OWNERSHIP)
+
+    assert format_selection.main() == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["failures"] == [
+        {"path": "retired/", "reason": "policy root admits no tracked file: yaml_allowed_roots"}
+    ]
+
+
+_OWNERSHIP = {
+    "tracked_file_count": 1,
+    "assignment_count": 1,
+    "unowned_file_count": 0,
+    "multiply_owned_file_count": 0,
+    "unverified_file_count": 0,
+    "assignments": [],
+    "failures": [],
+}

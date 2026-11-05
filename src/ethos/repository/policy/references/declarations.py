@@ -375,11 +375,6 @@ def _declared_provider_references(
         for entry in _table_items(templates.get(section)):
             if isinstance(provider := entry.get("provider"), str):
                 owned["reference"].add(provider)
-            if isinstance(tool := entry.get("emulator_tool"), str):
-                owned["executable"].add(tool)
-            if entry.get("emulator_image"):
-                owned["executable"].add("docker")
-                owned["reference"].add("docker")
             selected_scripts.update(_string_items(entry.get("required_owner_scripts")))
             specific = entry.get("provider_specific_owner_scripts")
             if isinstance(specific, dict):

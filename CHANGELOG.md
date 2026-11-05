@@ -24,6 +24,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A locked supply refusal blames jdx/mise#15363 only under mise 2026.11.0 and 2026.11.1, and points
   to mise 2026.11.2 or later, which fixes it. Under 2026.11.2 it names trust or installation, as it
   does for an earlier mise.
+- A gate child's mise no longer reads the operator's own configuration. The locked execution
+  environment stopped mise's configuration walk only at a temporary directory, so a `mise` run from
+  the repository went up to the home directory and loaded `~/.config/mise/config.toml` and its
+  `conf.d` files as an ancestor's. archpub's npm test took the operator's npm 12.2.2 that way. The
+  walk now also stops at the repository's parent, as resolution already did.
 
 ## [0.2.0-beta.2] - 2026-11-05
 

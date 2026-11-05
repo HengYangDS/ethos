@@ -589,6 +589,12 @@ def locked_environment(
         yield {
             **environment,
             **_mise_environment(Path(directory), offline=True, files=files, execution=True),
+            # A gate child's mise starts in the repository and must stop below its parent, as
+            # resolution does; above it lies the operator's own configuration. mise splits this
+            # list on the platform's path separator.
+            "MISE_CEILING_PATHS": os.pathsep.join(
+                (str(Path(directory).parent), str(root.resolve().parent))
+            ),
             "PATH": os.pathsep.join(
                 (directory, *(str(path) for path in (*paths, *prepared)), *baseline)
             ),

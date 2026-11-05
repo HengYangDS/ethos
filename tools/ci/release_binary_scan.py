@@ -52,21 +52,22 @@ def scan_release(
         for name in sums
         if name.startswith(prefix) and name.endswith(suffix)
     )
+    archives: dict[str, dict[str, object]] = {}
     report: dict[str, object] = {
         "schema_version": 1,
         "kind": "ethos_release_binary_scan",
         "version": version,
         "scanner": {},
         "database": {},
-        "archives": {},
+        "archives": archives,
         "not_claimed": ["blocking", "reachability beyond Go symbols", "fixes available upstream"],
     }
     rows: dict[tuple[object, ...], dict[str, object]] = {}
     unidentified: set[tuple[str, str]] = set()
     for host in hosts:
         archive = f"{prefix}{host}{suffix}"
-        entry = {"archive": archive, "sha256": sums[archive]}
-        report["archives"][host] = entry  # type: ignore[index]
+        entry: dict[str, object] = {"archive": archive, "sha256": sums[archive]}
+        archives[host] = entry
         inventory = directory / f"{prefix}{host}.syft.json"
         if not inventory.is_file():
             entry |= {"state": "not_scanned", "reason": "inventory_missing"}

@@ -80,7 +80,7 @@ Non-goals:
 
 ## Follow-ups
 
-These come from audit rows 9–11, 13 and 14. Each is named with its next action:
+These come from audit rows 9–11, 12, 13 and 14. Each is named with its next action:
 
 - **Schemas with no reader.** Five kernel schemas are listed only in `repository/audit.py`:
   `assistant-projection`, `provenance`, `lane-lease`, `mutation-decision` and `host-capability`.
@@ -93,3 +93,7 @@ These come from audit rows 9–11, 13 and 14. Each is named with its next action
   This moves to Change `one-check-one-gate`.
 - **Retired ETHOS roots named in product code**, such as `tools/ci/scripts` and `evidence/`, and
   guards for retired names. The owner decides per name whether it is a catalog entry or residue.
+- **The `packages` catalog entry.** It stays, as decision 7 records, because di-effect and alphasim
+  track `packages/`. Its retirement is decided when those two families migrate, and both are
+  deferred. Owner: the repository-paradigm owner. No review date: the migration of di-effect and
+  alphasim is the trigger.

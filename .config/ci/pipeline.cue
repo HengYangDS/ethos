@@ -3,6 +3,7 @@ package ci
 import (
 	"encoding/json"
 	"list"
+	"strings"
 )
 
 // Native gate and Node declarations remain owners of their respective facts.
@@ -146,6 +147,8 @@ let journeyLegs = [for leg in releaseLegs if leg.host == "linux-x64" || leg.host
 let githubHostSupplyAt = {
 	checkout: string
 	python:   string
+	// The native tools a job stages before its steps run; a job that runs the supply chain adds syft.
+	native: [...string] | *["vale"]
 	out: [{
 		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 		with: {
@@ -167,7 +170,7 @@ let githubHostSupplyAt = {
 	}, {
 		name: "Prepare locked native build supply"
 		env: PYTHONPATH: "src"
-		run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale"
+		run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise \(strings.Join(native, " "))"
 	}, {
 		name: "Install locked npm packages"
 		env: PYTHONPATH: "src"
@@ -449,7 +452,7 @@ github: {
 					include: releaseLegs
 				}
 			}
-			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}"}).out, [{
+			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}", native: ["vale", "syft"]}).out, [{
 				name: "Bind operator commit trust"
 				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
 			}, {

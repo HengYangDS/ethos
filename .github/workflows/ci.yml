@@ -324,7 +324,7 @@ jobs:
       - name: Prepare locked native build supply
         env:
           PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale syft
       - name: Install locked npm packages
         env:
           PYTHONPATH: src

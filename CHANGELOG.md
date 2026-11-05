@@ -14,9 +14,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [0.2.0-beta.2] - 2026-11-05
 
-0.2.0-beta.2 is the first published beta. It upgrades directly from 0.2.0-alpha.30, because
-0.2.0-beta.1 was tagged but never published.
-
 ### Added
 
 - `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the
@@ -36,6 +33,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- 0.2.0-beta.2 is the first published beta. It upgrades directly from 0.2.0-alpha.30, because
+  0.2.0-beta.1 was tagged but never published.
 - A full proof's load admission waits for two consecutive 1-minute load samples within the limit,
   instead of one, so a short dip between busy phases no longer admits it. The limit comes from
   `ETHOS_PROOF_HOST_LOAD_LIMIT`, then `host.toml`'s `load_limit`, then half the CPUs. A wait that
@@ -82,13 +81,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [0.2.0-beta.1] - 2026-11-04
 
-Note, 2026-11-05: 0.2.0-beta.1 was tagged (`v0.2.0-beta.1`) but never published. The first release
-run had no macOS runtime, because GitHub cancelled that build without a runner. The rerun's
-dependency audit then refused npm 12.2.1, once npm 12.2.2 fixed six of its advisories. The owner
-chose not to ship it; 0.2.0-beta.2 supersedes it. The entry below is unchanged.
-
 ### Changed
 
+- Note, 2026-11-05: 0.2.0-beta.1 was tagged (`v0.2.0-beta.1`) but never published. The first
+  release run had no macOS runtime, because GitHub cancelled that build without a runner. The
+  rerun's dependency audit then refused npm 12.2.1, once npm 12.2.2 fixed six of its advisories.
+  The owner chose not to ship it; 0.2.0-beta.2 supersedes it.
 - 0.2.0-beta.1 promotes the code of 0.2.0-alpha.30 without product changes.
   - Its tag waited for alpha.30's release run, which proves the adopter journey from the published
     artifacts on macOS and Linux: a cold install, host-store pinning, hook binding, a full proof

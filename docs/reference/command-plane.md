@@ -207,6 +207,17 @@ resigning; the returned inspection command exposes the retained native object
 store. Completed plan persistence makes its staging store disposable. Exact
 inverse ref intents permit compensation; arbitrary rollback does not.
 
+A signed release tag whose target a completed signature or history repair replaced is re-created
+on the mapped commit with `ethos land --retag <tag> [--original-tag <tag>=<oid>] --json`. The
+original tag object comes from the local ref or `--original-tag`; a pruned original is restored from
+the repair's backup bundle while that bundle still hashes to its recorded digest. The new object
+keeps the original name, tagger, date and message; only its target and signature change. The
+preview names each refused tag with its gaps and reports one plan digest for the batch. Only
+`--apply --authorize --expect-plan-digest <digest>` moves the tag refs, by exact compare-and-swap
+from absent or from the original object, and records one `release:mapped-retag` attestation per
+tag. `ethos publish` then qualifies the re-created tag by the proof its original release record
+embeds.
+
 Delivery of verified accepted source is not another contribution integration.
 Publication checks its source, target policy, accepted effect and current proof
 without reclassifying accepted ancestors as new contributions. This does not

@@ -81,9 +81,15 @@ def untrusted_signer_repository(
     return repo, anchor, target, hashlib.sha256(anchor.read_bytes()).hexdigest()
 
 
-def repair_fixture_history(root: Path, backup: Path, *, corrections: Mapping[str, object]) -> str:
-    """Execute one positive native history repair with a verified original bundle."""
-    git(root, "bundle", "create", str(backup), "refs/heads/dev")
+def repair_fixture_history(
+    root: Path,
+    backup: Path,
+    *,
+    corrections: Mapping[str, object],
+    refs: tuple[str, ...] = ("refs/heads/dev",),
+) -> str:
+    """Execute one positive native history repair with a verified original bundle of `refs`."""
+    git(root, "bundle", "create", str(backup), *refs)
     result = repair.repair_signature(
         root=root,
         expect_head=git(root, "rev-parse", "HEAD"),

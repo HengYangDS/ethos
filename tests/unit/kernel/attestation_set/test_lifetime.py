@@ -113,6 +113,7 @@ def test_lifetime_classifies_product_members() -> None:
         ),
         (_publication(_C1, "github", hour=1), ("head", _C1)),
         (_ref_update("release.promote", {"refs/tags/v1": (_C0, _C1)}), ("lineage", "refs/tags/v1")),
+        (_ref_update("release.retag", {"refs/tags/v1": (_C1, _C2)}), ("lineage", "refs/tags/v1")),
         (
             _member("effect:commit-signature", body={"coordinates": {"old": _C0}}),
             ("lineage", f"repair:{_C0}"),
@@ -122,6 +123,7 @@ def test_lifetime_classifies_product_members() -> None:
             ("lineage", f"runtime:{'f' * 64}"),
         ),
         (_member("effect:starter-formation"), ("lineage", "repository")),
+        (_member("release:mapped-retag", body={"tag": "v1"}), ("lineage", "refs/tags/v1")),
         (takeover, ("window", takeover.id)),
         (
             _member("observation:git-merge-prepared", body={"observation": {"branch": "work/a"}}),

@@ -11,6 +11,7 @@ from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.release import accepted_release_source
 from ethos.adapters.repo.release import immutable_tag_commit
+from ethos.adapters.repo.release import mapped_release_provenance
 from ethos.adapters.repo.release import release_branch_policy
 from ethos.adapters.repo.release import release_provenance
 from ethos.adapters.repo.release import release_publication_head
@@ -30,9 +31,7 @@ def release_publication_selection(
     root: Path, refs: tuple[str, ...], head: str
 ) -> tuple[str, dict[str, object] | None]:
     """Select a tag's proof head as `release_publication_head` does, reading its record once."""
-    if not refs or not all(ref.startswith("refs/tags/") for ref in refs):
-        return head, None
-    tag = ref_head(root, refs[0])
+    tag = ref_head(root, refs[0]) if refs and all(r.startswith("refs/tags/") for r in refs) else ""
     if not tag:
         return head, None
     try:
@@ -42,11 +41,13 @@ def release_publication_selection(
         return head, None
     try:
         plan = release_provenance(root, ref=refs[0], oid=tag)
+        if plan is None and (mapped := mapped_release_provenance(root, ref=refs[0], oid=tag)):
+            return selected, release_qualification(mapped[0])
     except ValueError:
         return (current if selected == current else head), None
-    if plan is None:
-        return current, None
-    return selected, release_qualification(plan) if plan.facts.get("head") == selected else None
+    if plan is None or plan.facts.get("head") != selected:
+        return (current if plan is None else selected), None
+    return selected, release_qualification(plan)
 
 
 def publication_source_baseline(

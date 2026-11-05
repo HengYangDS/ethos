@@ -12,6 +12,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- `ethos land --retag <tag>` re-creates a signed release tag whose target a completed signature or
+  history repair replaced, on the mapped replacement commit, with the original name, tagger, date
+  and message; only the target and the signature change. The preview names each refused tag with
+  its gaps and reports one plan digest, and `--apply --authorize --expect-plan-digest <digest>`
+  moves the tag refs and records one `release:mapped-retag` attestation per tag. A pruned original
+  is restored from the repair's backup bundle. Publication qualifies the re-created tag by the
+  proof that its original release record embeds.
+
 ### Fixed
 
 - A release tag that an earlier ETHOS released publishes on the proof its own release effect

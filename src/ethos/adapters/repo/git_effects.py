@@ -438,7 +438,7 @@ def _ref_operation(root: Path, plan: TransitionPlan, ref_name: str, update: GitR
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.tag"
-        if operation == "release.promote" and ref_name.startswith("refs/tags/")
+        if operation in {"release.promote", "release.retag"} and ref_name.startswith("refs/tags/")
         else "commit.identity-replace"
         if operation == "commit.identity-replace"
         else "release.mirror"

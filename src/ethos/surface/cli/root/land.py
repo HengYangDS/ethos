@@ -30,6 +30,9 @@ class _LandOptions:
     release_head: Annotated[str, Parameter(name="--release-head")] = ""
     release_base: Annotated[str, Parameter(name="--release-base")] = ""
     tag: str = ""
+    retag: Annotated[tuple[str, ...], Parameter(name="--retag")] = ()
+    original_tag: Annotated[tuple[str, ...], Parameter(name="--original-tag")] = ()
+    expect_plan_digest: Annotated[str, Parameter(name="--expect-plan-digest")] = ""
     independent_verification_receipt: Annotated[
         Path | None, Parameter(name="--independent-verification-receipt")
     ] = None

@@ -9,11 +9,13 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
+from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
@@ -171,6 +173,12 @@ def accepted_release_source(
     plan = (
         release_provenance(root, ref=ref, oid=new) if ref.startswith("refs/tags/") and new else None
     )
+    mapped = (
+        mapped_release_provenance(root, ref=ref, oid=new)
+        if plan is None and ref.startswith("refs/tags/") and new
+        else None
+    )
+    plan = plan if mapped is None else mapped[0]
     maintenance = (
         str(plan.facts.get("values", {}).get("release_request", {}).get("base") or "")
         if plan
@@ -183,7 +191,7 @@ def accepted_release_source(
             "release_tag_source_untrusted",
         )
         require_release(head == current or plan is not None or base, "release_tag_source_untrusted")
-    if maintenance:
+    if maintenance and mapped is None:
         assert plan is not None
         require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
         require_release(not base or base == maintenance, "release_base_not_exact_ancestor")
@@ -347,8 +355,14 @@ def release_ref_subject(
     return head
 
 
-def release_provenance(root: Path, *, ref: str, oid: str) -> TransitionPlan | None:
-    """Read the original completed tag-only effect, never a new acceptance registry."""
+def release_provenance(
+    root: Path, *, ref: str, oid: str, accepted_as: str = ""
+) -> TransitionPlan | None:
+    """Read the original completed tag-only effect, never a new acceptance registry.
+
+    `accepted_as` is the replacement a verified repair mapped the released commit to; the
+    accepted-history check then applies to it, since the original commit left that history.
+    """
     plan = recover_plan(
         root,
         operation="release.promote",
@@ -376,16 +390,62 @@ def release_provenance(root: Path, *, ref: str, oid: str) -> TransitionPlan | No
             not source["required_gaps"]
             and effect.assertions.get(f"refs/heads/{policy.accepted_branch}") == released
             and plan.facts.get("head") == released
-            and is_ancestor(root, released, ref_head(root, policy.accepted_branch)),
+            and is_ancestor(root, accepted_as or released, ref_head(root, policy.accepted_branch)),
             "release_tag_source_untrusted",
         )
     return plan
 
 
+def mapped_release_provenance(
+    root: Path, *, ref: str, oid: str
+) -> tuple[TransitionPlan, str] | None:
+    """Follow a re-created tag to its original's release record, through its re-tag receipt.
+
+    Returns the original release plan and the original tag object. The receipt binds the exact
+    re-created object, and the original tag's own record decides its qualification (DR-0018).
+    """
+    policy = release_branch_policy(root)
+    _selected, members = read_attestation_set(root)
+    receipts = [
+        item
+        for item in members
+        if item.predicate == "release:mapped-retag" and item.subject == f"git:annotated-tag:{oid}"
+    ]
+    if len(receipts) != 1:
+        return None
+    body = receipts[0].payload.body
+    original = str(body.get("original_tag") or "")
+    source = observe_git_object(root, oid, "annotated-tag")
+    mapped = str(body.get("mapped_target") or "")
+    require_release(
+        body.get("tag") == ref.removeprefix("refs/tags/")
+        and not source["required_gaps"]
+        and source["peeled_commit"] == mapped,
+        "release_retag_receipt_mismatch",
+    )
+    released = str(observe_git_object(root, original, "annotated-tag")["peeled_commit"])
+    repair = repaired_object_provenance(
+        root, old=released, new=ref_head(root, policy.accepted_branch)
+    )
+    repaired = repair.get("mapping") if repair is not None else None
+    require_release(
+        isinstance(repaired, dict)
+        and repaired.get(released) == mapped
+        and repair is not None
+        and repair.get("attestation_id") == body.get("mapping_attestation_id"),
+        "release_retag_mapping_unverified",
+    )
+    plan = release_provenance(root, ref=ref, oid=original, accepted_as=mapped)
+    require_release(plan is not None, "release_qualification_missing")
+    assert plan is not None
+    return plan, original
+
+
 def release_qualification(plan: TransitionPlan) -> dict[str, object]:
-    """Return the proof a release record bound, as embedded, for admission as recorded."""
+    """Return the proof a release record bound, as embedded, and the commit that proof proved."""
     proof = plan.prior_attestations.get("proof")
     recorded = cast("dict[str, object]", mutable_json(proof)) if isinstance(proof, Mapping) else {}
+    recorded["proven_commit"] = str(plan.facts.get("head") or "")
     return {"proof_attestation_id": str(recorded.get("id") or ""), "proof": recorded}
 
 
@@ -400,6 +460,8 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
     if selected == current:
         return current
     plan = release_provenance(root, ref=ref, oid=new)
+    if plan is None and mapped_release_provenance(root, ref=ref, oid=new) is not None:
+        return selected
     return selected if plan is not None else current
 
 

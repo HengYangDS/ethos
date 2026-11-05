@@ -506,7 +506,8 @@ def proof_admission_report(
             "id": attestation.id,
             "predicate": attestation.predicate,
             "verdict": attestation.verdict,
-            "commit": head,
+            # A re-created tag's recorded proof attests its original commit, not `head`.
+            "commit": attestation.subject.removeprefix("git:commit:"),
             "tree": str(plan.facts.get("tree") or ""),
             "commitment": plan.commitment,
             "commitment_digest": attestation.commitment_digest,

@@ -8,6 +8,7 @@ from ethos.adapters.admission.control.replacement import control_replacement_rep
 from ethos.adapters.mutation.accepted.admission import candidate_to_accepted
 from ethos.adapters.mutation.accepted.promotion import current_acceptance
 from ethos.adapters.mutation.accepted.release import promote_release
+from ethos.adapters.mutation.accepted.retag import mapped_retag
 from ethos.adapters.mutation.branch_roles import rename_legacy_roles
 from ethos.adapters.mutation.branch_roles import resume_renamed_bindings
 from ethos.adapters.mutation.decision import admission_decision
@@ -318,6 +319,48 @@ def _candidate_land_result(
     )
 
 
+def _retag_result(
+    repo: Path,
+    *,
+    tags: tuple[str, ...],
+    original_tag: tuple[str, ...],
+    apply: bool,
+    authorize: bool,
+    expect_plan_digest: str,
+    conflict: bool,
+) -> EthosResult:
+    """Preview, or apply under the previewed digest, one batch of mapped release re-tags."""
+    parts = [item.partition("=") for item in original_tag]
+    originals = {tag: oid for tag, _separator, oid in parts}
+    malformed = len(originals) != len(parts) or any(
+        not (tag in tags and separator and oid) for tag, separator, oid in parts
+    )
+    gaps = [
+        *(["release_options_conflict"] if conflict else []),
+        *(["release_retag_original_tag_invalid"] if malformed else []),
+    ]
+    if gaps:
+        return EthosResult(
+            command="land", verdict="block", state="blocked", required_gaps=tuple(gaps)
+        )
+    report = mapped_retag(
+        repo,
+        tags=tags,
+        original_tags=originals,
+        apply=apply,
+        authorized=authorize,
+        expect_plan_digest=expect_plan_digest,
+    )
+    return EthosResult(
+        command="land",
+        verdict=report["verdict"],
+        state=report["state"],
+        required_gaps=tuple(report["required_gaps"]),
+        next_action=report["next_action"],
+        data=dict(report["data"]),
+    )
+
+
 @application_result("land")
 def land_repository(
     root: Path,
@@ -332,6 +375,9 @@ def land_repository(
     release_head: str = "",
     release_base: str = "",
     tag: str = "",
+    retag: tuple[str, ...] = (),
+    original_tag: tuple[str, ...] = (),
+    expect_plan_digest: str = "",
     independent_verification_receipt: Path | None = None,
     acceptance_purpose: AcceptancePurpose = "repository",
 ) -> EthosResult:
@@ -348,6 +394,16 @@ def land_repository(
         )
     if profile_blocks_operation(repo, closeout=closeout):
         return profile_failure_result("land")
+    if retag:
+        return _retag_result(
+            repo,
+            tags=retag,
+            original_tag=original_tag,
+            apply=apply,
+            authorize=authorize,
+            expect_plan_digest=expect_plan_digest,
+            conflict=bool(release or closeout or candidate_head),
+        )
     if release:
         report = (
             {

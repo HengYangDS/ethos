@@ -13,9 +13,11 @@ import ethos.adapters.repo.commit.creation as creation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
+from ethos.contracts.outcome import OutcomeError
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.private_addresses import PRIVATE_FORGE
 from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
@@ -77,7 +79,8 @@ def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
         root: Path, selected: CommitPolicy, revision: str, *, verify_trust: bool
     ) -> dict[str, object]:
         verified.append((root, selected, revision, verify_trust))
-        return {"required_gaps": ["git_signature_untrusted"] if case == "untrusted" else []}
+        untrusted = ["git_signature_untrusted", "git_signer_unbound"] if case == "untrusted" else []
+        return {"required_gaps": untrusted}
 
     monkeypatch.setattr(creation, "commit_policy_report", verify)
     calls = []
@@ -91,36 +94,64 @@ def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
             "git failed" if case == "git-failed" else "",
         )
 
-    result = creation.create_git_commit(
-        tmp_path, tree="a" * 40, parent="b" * 40, message="fix: exact subject", runner=runner
-    )
+    def create() -> subprocess.CompletedProcess[str]:
+        return creation.create_git_commit(
+            tmp_path, tree="a" * 40, parent="b" * 40, message="fix: exact subject", runner=runner
+        )
 
-    assert result.returncode == (
-        2 if case == "git-failed" else 1 if case in {"missing", "untrusted"} else 0
-    )
+    refused = {
+        "missing": ("git_effect_signed_commit_missing",),
+        "untrusted": ("git_signature_untrusted", "git_signer_unbound"),
+    }.get(case)
+    if refused is not None:
+        with pytest.raises(OutcomeError) as caught:
+            create()
+        assert caught.value.outcome.gaps == refused
+    else:
+        result = create()
+        assert result.returncode == (2 if case == "git-failed" else 0)
+        assert result.stderr == ("git failed" if case == "git-failed" else "")
     assert "-S" in calls[0][0]
     assert calls[0][1]["env"] == {"POLICY_SIGNER": "1"}
     assert verified == (
         [(tmp_path, policy, "c" * 40, True)] if case in {"signed", "untrusted"} else []
     )
-    assert result.stderr == {
-        "missing": "git_effect_signed_commit_missing",
-        "untrusted": "git_signature_untrusted",
-        "git-failed": "git failed",
-    }.get(case, "")
 
 
-def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("message", "gap"),
+    [
+        ("bootstrap Commitment v2", "commit_subject_invalid:bootstrap Commitment v2"),
+        (f"fix: mirror\n\nFrom http://{PRIVATE_FORGE}/team/repo", "commit_message_private_address"),
+    ],
+    ids=["subject", "private-address"],
+)
+def test_invalid_message_never_reaches_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, message: str, gap: str
+) -> None:
     policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
-    with pytest.raises(ValueError, match="commit_subject_invalid:bootstrap Commitment v2"):
+    with pytest.raises(ValueError, match=f"^{gap}$"):
         creation.create_git_commit(
             tmp_path,
             tree="a" * 40,
             parent="b" * 40,
-            message="bootstrap Commitment v2",
+            message=message,
             runner=lambda *_a, **_k: pytest.fail("Git must not run"),
         )
+
+
+def test_identity_refusal_carries_every_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
+    monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
+    monkeypatch.setattr(
+        creation, "prospective_identity_gaps", lambda *_a, **_k: ["first", "second"]
+    )
+    with pytest.raises(OutcomeError) as refused:
+        creation.create_git_commit(tmp_path, tree="a" * 40, parent="b" * 40, message="fix: one")
+    assert refused.value.outcome.gaps == ("first", "second")
 
 
 def _signature_repository(tmp_path: Path, object_format: str) -> Path:
@@ -313,6 +344,7 @@ def test_signed_replacement_preserves_created_oid_when_validation_fails(
         creation.create_signed_replacement(repo, old)
     observed = caught.value.observation
     assert observed["validation_verdict"] == ("unknown" if failure == "observe" else "block")
+    assert caught.value.outcome.verdict == observed["validation_verdict"]
     assert native_payload(repo, str(observed["replacement"])) == native_payload(repo, old)
     assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before
     assert list((repo / ".git").glob("ethos-signature-*")) == []

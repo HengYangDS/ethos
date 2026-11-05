@@ -63,7 +63,7 @@
       "type": "object"
     }
   },
-  "$id": "https://ethos.local/schemas/transition-plan.schema.json",
+  "$id": "https://ethos.invalid/schemas/transition-plan.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Canonical immutable receipt for one exact repository transition.",

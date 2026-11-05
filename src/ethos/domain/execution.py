@@ -34,16 +34,13 @@ def profile_failure_result(command: str) -> EthosResult:
 def process_failure_result(
     command: str, error: ProcessExecutionError, *, root: Path | None = None
 ) -> EthosResult:
-    """Distinguish an unavailable capability from a native observation that timed out."""
+    """Build the result from the decision the error carries, with its native evidence."""
     git_failure = isinstance(error, GitExecutionError)
-    unknown = git_failure and error.code == GIT_PROCESS_TIMED_OUT
     evidence = error.evidence()
     evidence["cwd"] = error.cwd or (str(root.resolve()) if root is not None else "")
-    return EthosResult(
-        command=command,
-        verdict="unknown" if unknown else "block",
-        state="unknown" if unknown else "gapped",
-        required_gaps=(error.code,),
+    return EthosResult.from_outcome(
+        command,
+        error.outcome,
         next_action=(
             "repair the reported process boundary and rerun the command"
             if not git_failure

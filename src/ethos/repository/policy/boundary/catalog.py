@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
 PERSONAL_PATTERNS = (
     # Product surfaces may use placeholders, reserved example domains, or
     # organization/team identities, but must not bake a real private mailbox
@@ -22,15 +24,11 @@ LOCAL_PATH_PATTERNS = (
     re.compile(rf"{re.escape(_MAC_HOME_PREFIX)}[^\s`'\")\]]+"),
     re.compile(rf"{re.escape(_HOME_PROJECT_PREFIX)}/[^\s`'\")\]]+"),
 )
+# The paradigm owns the private-class address pattern. A product surface also refuses a
+# localhost endpoint, which commit and tag messages may name.
 PRIVATE_INFRA_PATTERNS = (
-    re.compile(
-        r"\bhttps?://(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?::\d+)?[^\s`'\")\]]*",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bssh://git@(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?::\d+)?[^\s`'\")\]]*",
-        re.IGNORECASE,
-    ),
+    re.compile(load_repository_paradigm().private_address),
+    re.compile(r"\b(?:https?://|ssh://git@)localhost(?::\d+)?[^\s`'\")\]]*", re.IGNORECASE),
 )
 FIXED_KEY_PATTERNS = (
     re.compile(r"\bid_(?:rsa|dsa|ecdsa|ed25519)\b", re.IGNORECASE),

@@ -754,8 +754,10 @@ stable gaps, and one next action without performing a mutation.
 
 The package runtime SHALL execute a `commit-msg` hook that reads the final
 message file and compiles commit policy from the prospective index tree. It SHALL
-validate only the first message line before Git creates the commit and SHALL NOT
-claim that a not-yet-created object has a valid signature.
+validate the first message line against the commit grammar, and the whole message
+above Git's scissors line against the paradigm's private-address pattern, before
+Git creates the commit. It SHALL NOT claim that a not-yet-created object has a
+valid signature.
 
 #### Scenario: Raw Git commit has an invalid subject
 
@@ -777,6 +779,13 @@ claim that a not-yet-created object has a valid signature.
 - **THEN** no local pre-object claim is made
 - **AND** pre-push and hosted commit-range admission still validate the created
   object through the same policy owner.
+
+#### Scenario: A verbose commit removes a private address
+
+- **WHEN** `git commit --verbose` places a staged diff that removes a
+  private-class address below the scissors line
+- **THEN** `commit-msg` admits a message whose text above that line names no such
+  address.
 
 ### Requirement: Commit-policy enforcement capability is discoverable
 

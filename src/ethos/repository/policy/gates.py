@@ -97,7 +97,7 @@ class ResolvedGatePolicy:
         counts = Counter(check["action_id"] for check in checks)
         expected = {node.id: node.command for node in self.nodes}
         gaps = [f"gate_missing:{key}" for key in sorted(expected.keys() - counts.keys())]
-        gaps += [f"gate_unknown:{key}" for key in sorted(counts.keys() - expected.keys())]
+        gaps += [f"gate_undeclared:{key}" for key in sorted(counts.keys() - expected.keys())]
         gaps += [f"gate_duplicate:{key}" for key, count in sorted(counts.items()) if count != 1]
         for check in checks:
             name, command = check["action_id"], check.get("command")

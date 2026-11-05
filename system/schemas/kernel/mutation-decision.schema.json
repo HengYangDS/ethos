@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/mutation-decision.schema.json",
+  "$id": "https://ethos.invalid/schemas/mutation-decision.schema.json",
   "title": "ETHOS Mutation Decision",
   "type": "object",
   "required": [

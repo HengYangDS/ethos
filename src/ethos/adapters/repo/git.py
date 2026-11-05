@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import datetime
 
+    from ethos.contracts.verdict import Verdict
+
 _GIT_IDENTITY_ENV = (
     "GIT_AUTHOR_NAME",
     "GIT_AUTHOR_EMAIL",
@@ -39,6 +41,11 @@ GIT_PROCESS_TIMED_OUT = "git_process_timed_out"
 
 class GitExecutionError(process_adapter.ProcessExecutionError):
     """Stable failure boundary for resolving or spawning the Git executable."""
+
+    def __init__(self, code: str, *, verdict: Verdict | None = None, **details: Any) -> None:
+        # A Git command that ran out of time observed nothing, so its facts are unknown.
+        declared = verdict or ("unknown" if code == GIT_PROCESS_TIMED_OUT else "block")
+        super().__init__(code, verdict=declared, **details)
 
 
 def _git_config_overlay(*environments: Mapping[str, str]) -> dict[str, str]:

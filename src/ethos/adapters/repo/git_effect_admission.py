@@ -18,6 +18,7 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.outcome import refusal
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
@@ -125,7 +126,7 @@ def require_effect_proof(root: Path, plan: TransitionPlan) -> None:
         acceptance_purpose=purpose,
     )
     if gaps:
-        raise ValueError(gaps[0])
+        raise refusal(*gaps)
     if admitted is None or admitted.canonical_json() != proof.canonical_json():
         message = "repository_identity_transition_proof_invalid"
         raise ValueError(message)

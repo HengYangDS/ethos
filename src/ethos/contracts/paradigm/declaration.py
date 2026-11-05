@@ -349,6 +349,7 @@ class RepositoryParadigm(BaseModel):
     license: LicenseConventions
     configuration: ConfigurationPlane
     immutable_roots: FrozenTuple[str]
+    private_address: str
     formatter: FrozenTuple[FormatterBinding]
     release: ReleaseConventions
     parameter: FrozenTuple[Parameter] = Field(min_length=1)
@@ -382,6 +383,20 @@ class RepositoryParadigm(BaseModel):
             message = "repository paradigm identities must be unique"
             raise ValueError(message)
         return self
+
+    @model_validator(mode="after")
+    def require_compilable_private_address(self) -> Self:
+        """Reject a private-address pattern that does not compile."""
+        try:
+            re.compile(self.private_address)
+        except re.error as error:
+            message = f"private address pattern does not compile: {error}"
+            raise ValueError(message) from error
+        return self
+
+    def names_private_address(self, text: str) -> bool:
+        """Return whether text names a private-class network address."""
+        return re.search(self.private_address, text) is not None
 
     @property
     def module_suffixes(self) -> tuple[str, ...]:

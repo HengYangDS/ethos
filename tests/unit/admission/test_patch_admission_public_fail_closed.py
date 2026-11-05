@@ -229,3 +229,20 @@ def test_declared_dependency_replaces_a_deleted_package(manifest, expected):
     files = {"pyproject.toml": manifest, "tests/test_owner.py": "from pkg.owner import item\n"}
     gaps, _unknown = deleted_input_gaps(files, frozenset({"src/pkg/owner.py"}))
     assert gaps == ([] if expected == "pass" else [_OWNER_GAP])
+
+
+@pytest.mark.parametrize(
+    ("survivor", "expected"),
+    [
+        (None, ["deleted_input:.config/prettier:package.json:scripts.format"]),
+        (".config/prettier/overrides.json", []),
+    ],
+    ids=["emptied", "kept"],
+)
+def test_a_script_input_naming_an_emptied_directory_is_a_deleted_input(survivor, expected):
+    """A script that reads a directory whose every file a patch deletes has a dangling input."""
+    files = {"package.json": '{"scripts": {"format": "prettier --config .config/prettier/ ."}}'}
+    if survivor:
+        files[survivor] = "{}\n"
+    gaps, _unknown = deleted_input_gaps(files, frozenset({".config/prettier/base.json"}))
+    assert gaps == expected

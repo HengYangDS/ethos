@@ -1,5 +1,0 @@
-# No independent_verification table: default local-first behaviour is disabled.
-profile_id = "external-disabled"
-
-[openspec]
-material_paths = [".ethos/profile.toml"]

@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.gates import DECLARATION_PATH
+from ethos.contracts.outcome import refusal
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
@@ -418,7 +419,7 @@ def observe_quality_subjects(
             message = f"{language}_sources_missing"
             raise ValueError(message)
     if gaps := source_binding_gaps(subjects):
-        raise ValueError(gaps[0])
+        raise refusal(*gaps)
     if any(not (root / subject.path).is_file() for subject in subjects):
         message = "code_source_unavailable"
         raise ValueError(message)

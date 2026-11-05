@@ -39,12 +39,54 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- A result for a gate that the plan does not declare is `gate_undeclared:<gate>`, so
+  `gate_unknown:<gate>` means only a gate whose verdict is unknown.
+- The Python lock moves to the newest releases that have been public for at least 24 hours:
+  coverage 7.17.1, dnspython 2.9.2, filelock 4.2.8, joserfc 1.8.0, platformdirs 4.14.4,
+  python-discovery 1.9.4, uncalled-for 0.4.2 and virtualenv 21.15.5. filelock 4.2.9 and
+  platformdirs 4.14.5 were younger than that and wait for the next move.
+- The kernel schema identifiers move to `https://ethos.invalid/schemas/<name>`, a name reserved
+  never to resolve.
 - The `release-sbom` gate catalogs the runtime archive that the install smoke keeps, instead of
   the wheel, and now follows `local-install-smoke`. The wheel-only SBOM, which listed one package
   and no purls, is gone.
 
 ### Fixed
 
+- `ethos prove --json` keeps each failed gate's own cause after its class code (GitLab issue #2).
+  A gate that times out reports `gate_unknown:<gate>` and then `gate_timeout:<gate>`, and the
+  proof's verdict stays `unknown` instead of `block`. The result carries one bounded diagnostic per
+  failed gate, with its kind, timeout, elapsed time and the count of codes beyond five that it
+  omits, and its next action names the timeout to raise. Before, the cause appeared only in the gate
+  events and the proof artifact.
+- A gate whose prerequisite is unknown, or whose command is absent, is `unknown`; a failed
+  prerequisite still blocks it.
+- A refusal reports every gap it found, not only the first, and keeps the verdict class that its
+  producer declared: a Git timeout and an unknown Git compare-and-swap outcome are `unknown`.
+  Status keeps an unknown OpenSpec resolution `unknown`, and a retirement failure keeps its gap's
+  subject and the partial-retirement gap.
+- The integrity gate reports a generated artifact or received archive whose bytes differ from its
+  native owner or pinned original as `block`, with `source_generated_bytes_mismatch:<path>`,
+  `source_upstream_member_mismatch:<path>` or `source_upstream_archive_digest_mismatch:<path>`. A
+  member it cannot read or compare stays `unknown` with `source_integrity_unproven:<path>`.
+- A locked supply refusal blames jdx/mise#15363 only under mise 2026.11.0 and 2026.11.1, and points
+  to mise 2026.11.2 or later, which fixes it. Under 2026.11.2 it names trust or installation, as it
+  does for an earlier mise.
+- A gate child's mise no longer reads the operator's own configuration. The locked execution
+  environment stopped mise's configuration walk only at a temporary directory, so a `mise` run from
+  the repository went up to the home directory and loaded `~/.config/mise/config.toml` and its
+  `conf.d` files as an ancestor's. archpub's npm test took the operator's npm 12.2.2 that way. The
+  walk now also stops at the repository's parent, as resolution already did.
+- The release journey upgrades from the latest earlier release that GitHub published, not merely
+  from the next changelog entry. 0.2.0-beta.1 was tagged but never published, so beta.2's journey
+  failed to download it. The receipt names each skipped version as `skipped_unpublished`, and a
+  forge error other than a missing release refuses instead of skipping.
+- A beta's journey now has to cover every release that governed adopters still upgrade from.
+  beta.2 was qualified only on the upgrade from alpha.30, while 8 of 12 governed repositories
+  were still on alpha.29. The `journey_previous` dispatch input names earlier published prereleases,
+  comma-separated. The journey upgrades from each one, and rolls back to it, in its own host
+  store. The receipt lists every predecessor in `previous`, and keys `upgrade_and_rollback` by
+  predecessor tag. A name that is not an earlier published release refuses before any download.
 - A release tag that an earlier ETHOS released publishes on the proof its own release effect
   bound, verified as recorded from the copy that effect embeds: its identity, schema, subject,
   tree, artifact custody and recorded policy digest. Before, every publication re-judged it
@@ -53,6 +95,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   every peer already held it. A missing, altered or inconsistent bound proof refuses by name, and
   branches keep the current policy. A request that changes no peer now reports
   `remote_push: already_applied`. DR-0018 records the rule.
+
+### Security
+
+- Commit and tag admission refuse a message that names a private-class network address: an
+  RFC 1918 or RFC 4193 literal, a loopback or link-local literal, or a host under `.local`,
+  `.internal`, `.lan` or `.home.arpa`. The `commit-msg` hook reads the whole message above Git's
+  scissors line, and publication judges every commit and tag that it introduces. The gap names
+  the class and the revision, never the address. Documentation addresses, reserved example names
+  and `localhost` pass.
+- ETHOS's own secret scan refuses the same addresses in tracked and staged content. It never reads
+  history, and adopters' Gitleaks configurations are unchanged.
 
 ## [0.2.0-beta.2] - 2026-11-05
 

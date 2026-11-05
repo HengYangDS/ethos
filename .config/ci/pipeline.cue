@@ -30,7 +30,7 @@ let sourceCLI = "\(offlineRun) python -B -I -m ethos.cli"
 let nativeNpm = "python -B -m tools.ci.toolchain.npm"
 let supplyDockerfile = ".config/ci/supply/Dockerfile"
 let supplyImage = "ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:212d171511e98fd44dcd8e498772f971bd023041d3dd966ada5cd1f0fb3633f5"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:6afacee63683333f2eaa4c2e48e407b1b51a53043863145f4026111b775f7cc4"
 
 // Commit-scoped GitLab jobs verify a commit once: a main push at dev's commit leaves them to
 // the dev pipeline of the same commit, while commit-policy still admits every pushed ref.
@@ -224,6 +224,12 @@ github: {
 			}
 			journey_tag: {
 				description: "Qualify this published pre-release on the adopter journey alone"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			journey_previous: {
+				description: "Comma-separated earlier published pre-release tags that the journey upgrades from; empty selects the latest earlier published release"
 				required:    false
 				type:        "string"
 				default:     ""
@@ -558,7 +564,8 @@ github: {
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
 				name: "Qualify the published pre-release on the adopter journey"
-				run:  "uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }}"
+				env: JOURNEY_PREVIOUS: "${{ inputs.journey_previous }}"
+				run: "uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }} --previous \"$JOURNEY_PREVIOUS\""
 			}, {
 				name: "Upload the release journey receipt"
 				if:   "always()"

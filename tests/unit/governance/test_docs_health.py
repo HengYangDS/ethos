@@ -539,3 +539,24 @@ def test_json_navigation_uses_actual_safe_linked_child(tmp_path, kind):
     report = docs_health_report(tmp_path)
     expected = [] if kind == "file" else ["docs_readme_without_children:docs/README.md"]
     assert report["readme_disposition"] == expected
+
+
+def test_a_readme_outside_docs_that_is_its_directory_s_only_file_is_a_dead_carrier(
+    tmp_path: Path,
+) -> None:
+    """Every tracked README, not only those under docs/, must enter a directory with content."""
+    for relative, text in (
+        ("system/projections/README.md", "# Projections\n"),
+        ("system/schemas/README.md", "# Schemas\n\n[Contract](contract.json)\n"),
+        ("system/schemas/contract.json", "{}\n"),
+    ):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    tracked = ("system/projections/README.md", "system/schemas/README.md")
+
+    report = docs_health_report(tmp_path, tracked_documents=tracked)
+
+    assert report["readme_disposition"] == [
+        "docs_readme_without_children:system/projections/README.md"
+    ]

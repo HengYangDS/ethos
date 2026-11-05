@@ -20,7 +20,11 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import lane_start_arguments
+from tests.support.private_addresses import DOCUMENTATION_FORGE
+from tests.support.private_addresses import PRIVATE_FORGE
 from tests.unit.cli.land.publication.support import branch_publication_fixture
+
+PRIVATE_GAP = "commit_message_private_address"
 
 
 def _policy() -> CommitPolicy:
@@ -137,6 +141,36 @@ def test_commit_message_report_matrix(
 
     assert report["state"] == state
     assert report["required_gaps"] == ([gap] if gap else [])
+
+
+@pytest.mark.parametrize(
+    ("message", "gaps"),
+    [
+        (f"chore: mirror\n\nFrom http://{PRIVATE_FORGE}/team/repo\n", [PRIVATE_GAP]),
+        (f"Merge branch 'dev' of http://{PRIVATE_FORGE}/team/repo\n", [PRIVATE_GAP]),
+        (f"chore: mirror\n\nFrom http://{DOCUMENTATION_FORGE}/team/repo\n", []),
+        (f"chore: mirror\n\n# {'-' * 24} >8 {'-' * 24}\n-remote http://{PRIVATE_FORGE}\n", []),
+        ("chore: merge\n\nSee merge request dig/research/team/ethos!7\n", []),
+    ],
+    ids=["body", "subject", "documentation", "scissors", "merge-path"],
+)
+def test_commit_message_report_judges_the_whole_message(
+    tmp_path: Path, message: str, gaps: list[str]
+) -> None:
+    """A private address anywhere above the scissors line blocks, and no gap repeats it."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "COMMIT_EDITMSG").write_text(message, encoding="utf-8")
+    report = admission.commit_message_report(repo, repo / "COMMIT_EDITMSG")
+    assert report["required_gaps"] == gaps
+
+
+def test_introduced_commit_naming_a_private_address_blocks_the_range(tmp_path: Path) -> None:
+    """A publication's introduced range judges each whole message and names the revision."""
+    repo = init_git_repo(tmp_path / "repo")
+    baseline = git(repo, "rev-parse", "HEAD")
+    head = _commit(repo, f"chore: mirror\n\nFrom http://{PRIVATE_FORGE}/team/repo", "mirror")
+    report = _report(repo, proposed=head, remote=baseline)
+    assert report["required_gaps"] == [f"{PRIVATE_GAP}:{head}"]
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])

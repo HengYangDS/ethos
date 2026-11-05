@@ -82,7 +82,7 @@ def test_review_endpoint_is_explicit_when_git_transport_cannot_identify_the_api(
 
 
 @pytest.mark.parametrize(
-    "target", ["http://forge.internal:18086/team/repo", "https://github.com/team/repo"]
+    "target", ["http://forge.test:8080/team/repo", "https://github.com/team/repo"]
 )
 def test_peer_declaration_carries_api_coordinates_without_rewriting_git_transport(
     tmp_path: Path, target: str
@@ -117,14 +117,14 @@ def test_peer_declaration_carries_api_coordinates_without_rewriting_git_transpor
 def test_explicit_gitlab_api_endpoint_reaches_native_client(tmp_path: Path, monkeypatch):
     """The API scheme and port remain distinct from the SSH transport."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
-    target = "http://forge.internal:18086/team/repo"
+    target = "http://forge.test:8080/team/repo"
     native = retirement.process.run_command
 
     def provider_process(root, command, **kwargs):
         if command[0] != "glab":
             return native(root, command, **kwargs)
         assert command[command.index("--repo") + 1] == target
-        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.internal:18086"
+        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.test:8080"
         return subprocess.CompletedProcess(command, 0, "[]", "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)

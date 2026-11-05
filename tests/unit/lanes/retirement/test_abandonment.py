@@ -369,7 +369,7 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
     partial = apply_retirement_receipt(repo, receipt)
 
     assert written == [(), ("remove_worktree",), ("remove_worktree",)], partial
-    assert partial["required_gaps"] == ["git_process_spawn_failed"]
+    assert partial["required_gaps"] == ["lane_retirement_partial", "git_process_spawn_failed"]
     assert partial["process_failure"] == failure.evidence()
     assert "ethos lane retire recover" in str(partial["next_action"])
     assert partial["state"] == "partial_transition"

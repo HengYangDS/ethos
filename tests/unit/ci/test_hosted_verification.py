@@ -245,6 +245,8 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert receipt["verdict"] == ("pass" if expected_pass else "block")
     if fault == "allure":
         assert receipt["required_gaps"] == ["hosted_allure_report_invalid:allure_identities_differ"]
+    if fault == "unknown-gate":
+        assert "gate_undeclared:undeclared" in receipt["required_gaps"]
     assert (repo / "native-root.txt").read_text() == str(repo / "build/evidence/quality/tests")
     assert rendered == [Path("build/evidence/quality/tests")]
     (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())

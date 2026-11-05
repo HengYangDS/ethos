@@ -5,8 +5,9 @@ checks the archive against both and against its build attestation, and lets Mise
 declared URL as an adopter's repository does. On fresh host stores it then proves a cold install,
 host-store pinning, hook binding, status and uninstall; a full proof in a fixture adopter whose
 status then guides it to a ready repository; and an upgrade from the previous release with its
-rollback. Each leg writes one receipt with the stage events beside it, whether the journey passes
-or fails.
+rollback. A dispatch may name several earlier published releases to upgrade from instead; each
+upgrade and rollback then runs in its own host store. Each leg writes one receipt with the stage
+events beside it, whether the journey passes or fails.
 """
 
 from __future__ import annotations
@@ -41,6 +42,8 @@ from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import nox
 
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -69,17 +72,68 @@ class PublishedRelease:
     sha256: str
 
 
-def previous_version(changelog: str, version: str) -> str:
-    """Name the release whose changelog entry follows this prerelease's entry."""
+def previous_version(
+    changelog: str, version: str, *, published: Callable[[str], bool]
+) -> tuple[str, tuple[str, ...]]:
+    """Name the first earlier changelog entry the forge published, and the entries it skipped."""
     versions = _ENTRY.findall(changelog)
     if version not in versions:
         message = f"release_journey_entry_missing:{version}"
         raise ValueError(message)
-    later = versions[versions.index(version) + 1 :]
-    if not later:
-        message = f"release_journey_previous_missing:{version}"
+    skipped: list[str] = []
+    for candidate in versions[versions.index(version) + 1 :]:
+        if published(candidate):
+            return candidate, tuple(skipped)
+        skipped.append(candidate)
+    message = f"release_journey_previous_missing:{version}"
+    raise ValueError(message)
+
+
+def named_predecessors(
+    changelog: str, version: str, names: tuple[str, ...], *, published: Callable[[str], bool]
+) -> tuple[str, ...]:
+    """Check that each name is an earlier published changelog entry; return them newest first."""
+    versions = _ENTRY.findall(changelog)
+    if version not in versions:
+        message = f"release_journey_entry_missing:{version}"
         raise ValueError(message)
-    return later[0]
+    earlier = versions[versions.index(version) + 1 :]
+    selected: set[str] = set()
+    for name in names:
+        if _PRERELEASE.fullmatch(name) is None:
+            message = f"release_journey_previous_invalid:{name}"
+            raise ValueError(message)
+        candidate = name.removeprefix("v")
+        if candidate not in earlier:
+            message = f"release_journey_previous_not_earlier:{name}"
+            raise ValueError(message)
+        if candidate in selected:
+            continue
+        if not published(candidate):
+            message = f"release_journey_previous_unpublished:{name}"
+            raise ValueError(message)
+        selected.add(candidate)
+    return tuple(candidate for candidate in earlier if candidate in selected)
+
+
+def release_published(version: str) -> bool:
+    """Ask the forge whether this version's release exists; only a missing release reads False."""
+    try:
+        _gh(
+            "release",
+            "view",
+            f"v{version}",
+            "--repo",
+            REPOSITORY,
+            "--json",
+            "tagName",
+            failure=f"release_journey_release_lookup_failed:v{version}",
+        )
+    except ValueError as error:
+        if "release not found" in str(error):
+            return False
+        raise
+    return True
 
 
 def host_platform() -> str:
@@ -233,6 +287,34 @@ def prove_full(
 
 
 @observe_stage("published_upgrade")
+def upgrade_from(
+    release: PublishedRelease,
+    successor: SelectedRuntime,
+    work: Path,
+    *,
+    environment: dict[str, str],
+) -> dict[str, object]:
+    """Install one predecessor, then prove the upgrade from it and its rollback in its own store."""
+    installed = install_archive(
+        release.archive,
+        work / "previous" / release.version,
+        mise=prepare_mise(ROOT),
+        environment=environment,
+        declaration=release.declaration,
+    ).installed
+    generations = tuple((installed / "ethos/runtime").iterdir())
+    if len(generations) != 1:
+        message = f"release_journey_previous_generation_ambiguous:v{release.version}"
+        raise ValueError(message)
+    store = work / "upgrade" / release.version
+    return prove_upgrade(
+        successor,
+        require_installed_runtime(generations[0]),
+        store,
+        environment={**environment, "XDG_DATA_HOME": str(store / "host-data")},
+    )
+
+
 def prove_upgrade(
     successor: SelectedRuntime,
     predecessor: SelectedRuntime,
@@ -250,15 +332,23 @@ def prove_upgrade(
     )
 
 
-def qualify(tag: str, *, work: Path, platform: str, changelog: str) -> dict[str, object]:
+def qualify(
+    tag: str, *, work: Path, platform: str, changelog: str, previous: tuple[str, ...] = ()
+) -> dict[str, object]:
     """Run every journey step on one published prerelease and return each step's result."""
     version = tag.removeprefix("v")
-    previous = previous_version(changelog, version)
+    skipped: tuple[str, ...] = ()
+    if previous:
+        predecessors = named_predecessors(changelog, version, previous, published=release_published)
+    else:
+        latest, skipped = previous_version(changelog, version, published=release_published)
+        predecessors = (latest,)
     with observe_stage("published_assets"):
         subject = download_release(tag, work / "assets" / version, platform=platform, attested=True)
-        earlier = download_release(
-            f"v{previous}", work / "assets" / previous, platform=platform, attested=False
-        )
+        earlier = [
+            download_release(f"v{name}", work / "assets" / name, platform=platform, attested=False)
+            for name in predecessors
+        ]
     environment = independent_host_environment()[0]
     cold = work / "cold"
     # Installs through Mise, pins in the host store, binds repositories, reads status, uninstalls.
@@ -274,40 +364,36 @@ def qualify(tag: str, *, work: Path, platform: str, changelog: str) -> dict[str,
         work / "proof",
         environment={**environment, "XDG_DATA_HOME": str(cold / "host-data")},
     )
-    installed = install_archive(
-        earlier.archive,
-        work / "previous",
-        mise=prepare_mise(ROOT),
-        environment=environment,
-        declaration=earlier.declaration,
-    ).installed
-    generations = tuple((installed / "ethos/runtime").iterdir())
-    if len(generations) != 1:
-        message = "release_journey_previous_generation_ambiguous"
-        raise ValueError(message)
-    upgrade = prove_upgrade(
-        pinned,
-        require_installed_runtime(generations[0]),
-        work / "upgrade",
-        environment={**environment, "XDG_DATA_HOME": str(work / "upgrade/host-data")},
-    )
+    upgrades = {
+        f"v{release.version}": upgrade_from(release, pinned, work, environment=environment)
+        for release in earlier
+    }
     return {
         "tag": tag,
-        "previous": f"v{previous}",
+        "previous": [f"v{name}" for name in predecessors],
+        "previous_named": bool(previous),
+        "skipped_unpublished": [f"v{name}" for name in skipped],
         "assets": {
             release.version: {"archive": release.archive.name, "sha256": release.sha256}
-            for release in (subject, earlier)
+            for release in (subject, *earlier)
         },
         "attestation_verified": subject.archive.name,
         "steps": {
             "cold_install_pinning_binding_and_uninstall": shared,
             "full_proof_and_status": full,
-            "upgrade_and_rollback": upgrade,
+            "upgrade_and_rollback": upgrades,
         },
     }
 
 
-def run(session: nox.Session, *, tag: str, evidence: Path | None = None, work: Path = WORK) -> None:
+def run(
+    session: nox.Session,
+    *,
+    tag: str,
+    previous: tuple[str, ...] = (),
+    evidence: Path | None = None,
+    work: Path = WORK,
+) -> None:
     """Qualify the tag on this host and keep its receipt and stage events, passing or not."""
     if _PRERELEASE.fullmatch(tag) is None:
         session.error(f"release journey needs a published prerelease tag, not {tag!r}")
@@ -324,7 +410,9 @@ def run(session: nox.Session, *, tag: str, evidence: Path | None = None, work: P
                 work.mkdir(parents=True)
                 changelog = ROOT / load_repository_paradigm().release.changelog
                 history = changelog.read_text(encoding="utf-8")
-                payload |= qualify(tag, work=work, platform=host, changelog=history)
+                payload |= qualify(
+                    tag, work=work, platform=host, changelog=history, previous=previous
+                )
                 payload["state"] = "passed"
             finally:
                 remove_generated_tree(work)

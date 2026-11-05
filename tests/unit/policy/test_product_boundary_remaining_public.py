@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.boundary.product import release_visible_historical_files
+from tests.support.private_addresses import DOCUMENTATION_FORGE
+from tests.support.private_addresses import INTERNAL_FORGE
+from tests.support.private_addresses import PRIVATE_FORGE
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -40,3 +45,26 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
     assert report["verdict"] == "pass"
     assert report["findings"] == []
     assert report["summary"]["scanned_file_count"] == 4
+
+
+@pytest.mark.parametrize(
+    ("line", "found"),
+    [
+        (f"forge: http://{INTERNAL_FORGE}/team/repo", True),
+        (f"bind {PRIVATE_FORGE}", True),
+        ("api: http://" + "localhost:8080/v1", True),
+        (f"forge: http://{DOCUMENTATION_FORGE}/team/repo at forge.example.invalid", False),
+        ("bind ('localhost', 0)", False),
+    ],
+    ids=["internal-name", "private-literal", "localhost-url", "documentation", "localhost-name"],
+)
+def test_product_surfaces_refuse_the_paradigm_address_classes(
+    tmp_path: Path, line: str, *, found: bool
+) -> None:
+    """The boundary takes address classes from the paradigm and keeps refusing localhost URLs."""
+    _write(tmp_path / "README.md", line + "\n")
+
+    report = product_boundary_report(tmp_path)
+
+    kinds = {finding["kind"] for finding in report["findings"]}
+    assert kinds == ({"private_infrastructure_literal"} if found else set())

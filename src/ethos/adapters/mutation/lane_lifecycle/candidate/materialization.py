@@ -22,11 +22,12 @@ from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import canonical_json_digest
 
 
-def _fail(message: str) -> None:
-    raise ValueError(message)
+def _fail(*gaps: str) -> None:
+    raise refusal(*gaps)
 
 
 def _materialization_facts(
@@ -160,7 +161,7 @@ def materialize_candidate(
                 repo, policy, preserved_preimage, retention_ref, reason
             )
             if gaps or current != facts:
-                _fail(gaps[0] if gaps else "candidate_materialization_state_stale")
+                _fail(*(gaps or ["candidate_materialization_state_stale"]))
             result = sync_worktree(
                 repo,
                 Path(facts["path"]),

@@ -27,6 +27,7 @@ from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import git_effect_from_plan
@@ -43,10 +44,10 @@ if TYPE_CHECKING:
     from ethos.contracts.plan import TransitionPlan
 
 
-def require_release(condition: object, gap: str) -> None:
+def require_release(condition: object, *gaps: str) -> None:
     """Require one precise release invariant without converting unknown into success."""
     if not condition:
-        raise ValueError(gap)
+        raise refusal(*gaps)
 
 
 def release_branch_policy(root: Path) -> BranchRolePolicy:
@@ -224,7 +225,7 @@ def accepted_release_source(
             proposed_commit=head,
             policy=commit_policy,
         )
-        require_release(not gaps, gaps[0] if gaps else "")
+        require_release(not gaps, *gaps)
     source = observe_git_object(root, head, "commit")
     require_release(not source["required_gaps"], "release_source_signature_untrusted")
     closeout = accepted_provenance(
@@ -466,12 +467,14 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
 
 
 def immutable_tag_commit(root: Path, *, ref: str, old: str, new: str, allow_identical: bool) -> str:
-    """Validate signature, native header and immutable identity for any admitted tag."""
+    """Validate signature, native header, message and immutable identity for any admitted tag."""
     source = observe_git_object(root, new, "annotated-tag")
     require_release(not source["required_gaps"], "release_tag_source_untrusted")
-    header = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")[0]
+    header, _separator, message = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")
     names = [line.removeprefix("tag ") for line in header.splitlines() if line.startswith("tag ")]
     require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
+    named = load_repository_paradigm().names_private_address(message)
+    require_release(not named, "release_tag_message_private_address")
     require_release(
         old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
     )

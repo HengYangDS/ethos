@@ -31,6 +31,7 @@ from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import raw_worktree_records
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import strict_source_branch_role_policy
+from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -47,9 +48,9 @@ ATTEMPT = "observation:signature-repair-attempt"
 RESULT = "effect:commit-signature"
 
 
-def _require(condition: object, gap: str) -> None:
+def _require(condition: object, *gaps: str) -> None:
     if not condition:
-        raise ValueError(gap)
+        raise refusal(*gaps)
 
 
 def signature_coordinates(
@@ -107,7 +108,7 @@ def signature_coordinates(
             _require(equivalent_commit_identity(root, old, new), "signature_repair_payload_changed")
         report = commit_policy_report(root, signing, new, verify_trust=True)
         gaps = cast("list[str]", report["required_gaps"])
-        _require(not gaps, gaps[0] if gaps else "")
+        _require(not gaps, *gaps)
     return {
         "root": root.as_posix(),
         "common_dir": str(git_common_dir(root)),

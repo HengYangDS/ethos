@@ -30,6 +30,11 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import gate_outcome
+from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import refusal
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
@@ -42,6 +47,7 @@ from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
+from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -126,27 +132,30 @@ def assert_proof_execution_source(
     """Fence exact-commit execution and retain completed checks if source drifts."""
     head = str(plan.facts.get("head") or "")
     gaps = execution_source_gaps(plan.facts)
-    gap = gaps[0] if gaps else ""
     cause: ValueError | None = None
     try:
-        if not gap and (
+        if not gaps and (
             current_tracked_head(root) != head
             or observe_execution_source(root, head, str(plan.facts.get("tree") or ""))
             != plan.facts["values"]["execution_source"]
         ):
-            gap = "proof_execution_source_changed"
+            gaps = ("proof_execution_source_changed",)
     except ValueError as error:
-        gap, cause = str(error), error
-    if not gap:
+        gaps, cause = outcome_of(error).gaps, error
+    if not gaps:
         return
     if not checks:
-        raise ValueError(gap) from cause
+        raise refusal(*gaps) from cause
     artifact = write_proof_artifact(local_state_root(root), head, checks)
     raise ProcessExecutionError(
-        gap,
+        gaps[0],
         reason="execution_source_correspondence_failed",
         cwd=str(root),
-        observation={"artifact_reference": artifact, "proof_attestation_selected": False},
+        observation={
+            "required_gaps": list(gaps),
+            "artifact_reference": artifact,
+            "proof_attestation_selected": False,
+        },
     ) from cause
 
 
@@ -234,18 +243,21 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         normalized,
         acceptance_purpose=proof_acceptance_purpose(plan.policy),
     ):
-        raise ValueError(gaps[0])
+        raise refusal(*gaps)
     checks_pass = all(execution_succeeded(check) for check in normalized)
     if quality_gaps := policy.result_gaps(
         normalized, source_tree=str(plan.facts.get("tree") or "")
     ):
         artifact = write_proof_artifact(local_state_root(root), head, normalized)
-        raise ProcessExecutionError(
-            quality_gaps[0],
-            reason="proof_quality_observation_failed",
-            cwd=str(root),
+        declared = report_verdict({"verdict": verdict})
+        refused = Outcome.of(declared, *required_gaps, *quality_gaps).combine(
+            gate_outcome(normalized)
+        )
+        raise OutcomeError(
+            refused,
+            message=quality_gaps[0],
             observation={
-                "required_gaps": list(dict.fromkeys((*required_gaps, *quality_gaps))),
+                "required_gaps": list(refused.gaps),
                 "artifact_reference": artifact,
                 "proof_attestation_selected": False,
             },
@@ -303,7 +315,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         }
     )
     if structural_gaps:
-        raise ValueError(structural_gaps[0])
+        raise refusal(*structural_gaps)
     return attestation
 
 
@@ -328,7 +340,7 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
         }
     ]
     if structural_gaps:
-        raise ValueError(structural_gaps[0])
+        raise refusal(*structural_gaps)
     assert_proof_execution_source(root, plan_from_statement(attestation), checks=checks or ())
     return record_attestations(root, (attestation,))
 
@@ -343,8 +355,7 @@ def proof_plan(
 ) -> TransitionPlan:
     """Compile one plan solely from a passing frozen current resolution."""
     if resolution.verdict != "pass":
-        message = resolution.required_gaps[0] if resolution.required_gaps else resolution.verdict
-        raise ValueError(message)
+        raise refusal(*resolution.required_gaps, verdict=resolution.verdict)
     authority = resolution.authority
     if authority is None or not authority.current_head or not authority.current_tree:
         message = "current_authority_unavailable"

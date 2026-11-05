@@ -36,6 +36,7 @@ from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import string_mapping
@@ -44,8 +45,8 @@ from ethos.normalization.coercion import string_sequence
 MergeMode = Literal["inspect", "start", "continue", "abort"]
 
 
-def _fail(message: str) -> NoReturn:
-    raise ValueError(message)
+def _fail(*gaps: str) -> NoReturn:
+    raise refusal(*gaps)
 
 
 def _authority(root: Path, observed: MergeObservation) -> tuple[dict[str, object], str]:
@@ -59,7 +60,7 @@ def _authority(root: Path, observed: MergeObservation) -> tuple[dict[str, object
         _fail(authority.reason)
     runtime = hook_runtime_binding(root)
     if runtime["required_gaps"]:
-        _fail(runtime["required_gaps"][0])
+        _fail(*runtime["required_gaps"])
     binding = runtime_binding_check(
         {"runtime_binding": runtime_binding(root, hook_binding=runtime)}
     )
@@ -276,7 +277,7 @@ def _stage_admission(root: Path, head: str, incoming: str) -> dict[str, object]:
     )
     official = string_mapping(admission["openspec"])
     if gaps := incoming_change_gaps(root, str(official.get("change")), incoming, paths):
-        _fail(gaps[0])
+        _fail(*gaps)
     if official.get("verdict") == "pass" and admission["verdict"] != "pass":
         _fail(next(iter(string_sequence(admission["required_gaps"])), "merge_scope_unavailable"))
     return official
@@ -284,7 +285,7 @@ def _stage_admission(root: Path, head: str, incoming: str) -> dict[str, object]:
 
 def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
     if gaps := _mode_gaps(context.root, context.observed, mode, context.incoming):
-        _fail(gaps[0])
+        _fail(*gaps)
     if mode != "abort":
         official = (
             _stage_admission(context.root, context.observed.head, context.incoming)

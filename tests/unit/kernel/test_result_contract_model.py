@@ -48,7 +48,7 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
         schema
         | {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "https://ethos.local/schemas/result.schema.json",
+            "$id": "https://ethos.invalid/schemas/result.schema.json",
         }
     )
 

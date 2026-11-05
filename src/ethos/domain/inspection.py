@@ -15,7 +15,7 @@ from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.outcome import Outcome
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.execution import application_result
 from ethos.domain.land.closeout import closeout_command_from_status
@@ -107,7 +107,12 @@ def inspect_repository(root: Path) -> EthosResult:
         },
     }
     compact_coordination = data["coordination"]
-    verdict = reduce_verdicts(report_verdict(validation), required_gaps=gaps)
+    # Validation and the current resolution declare their own class; the other gaps block.
+    owned = Outcome.of(report_verdict(validation), *workspace_status_validation_gaps(validation))
+    if resolution is not None:
+        owned = owned.combine(Outcome.of(resolution.verdict, *resolution.required_gaps))
+    unowned = Outcome.of("pass", *(gap for gap in gaps if gap not in owned.gaps))
+    verdict = owned.combine(unowned).verdict
     closeout_action = closeout_command_from_status(repo, observed)
     stage_gates = cast("dict[str, object]", observed.get("stage_gates") or {})
     stage_action = str(stage_gates.get("next_action") or "")

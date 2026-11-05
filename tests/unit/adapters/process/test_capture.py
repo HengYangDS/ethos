@@ -324,7 +324,7 @@ def test_nested_scope_cancels_all_registered_groups_with_one_budget(
     source_root = str(Path(process_adapter.__file__).resolve().parents[2])
     native_communicate = subprocess.Popen.communicate
     with ExitStack() as resources:
-        listener = resources.enter_context(socket.create_server(("127.0.0.1", 0)))
+        listener = resources.enter_context(socket.create_server(("localhost", 0)))
         listener.settimeout(10)
         connections = []
         child = (

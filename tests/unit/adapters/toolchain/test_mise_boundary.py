@@ -122,6 +122,31 @@ def test_native_supply_resolution_leaves_no_host_mise_state(
 
 
 @POSIX_INSTALLS
+@pytest.mark.usefixtures("host_mise_state")
+def test_a_gate_childs_mise_reads_no_configuration_above_the_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mise_installs: Callable[[str, str, str], None]
+) -> None:
+    """The operator's own configuration, trusted where mise keeps it, stays out of a gate child."""
+    declared = _declared_node()
+    mise_installs("node", declared, f"v{declared}")
+    home = tmp_path / "home"
+    operator = home / ".config/mise/config.toml"
+    operator.parent.mkdir(parents=True)
+    operator.write_text('[tools]\n"npm:operator-global" = "1.0.0"\n')
+    # mise trusts its own configuration directory, which is under the home directory by default.
+    monkeypatch.setenv("HOME", str(home))
+    for name in ("XDG_CONFIG_HOME", "MISE_CONFIG_DIR"):
+        monkeypatch.delenv(name, raising=False)
+    repository = home / "projects/adopter"
+    files = _locked_repository(repository, declared, "")
+    # Locked listing silently drops a tool that the repository's lock lacks, so read what loads.
+    _environment, listed = _execute(repository, files, "config", "ls", "--json")
+    assert listed.returncode == 0, listed.stderr
+    loaded = [Path(entry["path"]).resolve() for entry in json.loads(listed.stdout)]
+    assert loaded == [(repository / mise.MISE_CONFIG).resolve()]
+
+
+@POSIX_INSTALLS
 @pytest.mark.parametrize("caller_safe", ["", "1", "true"])
 def test_locked_execution_runs_admitted_tasks_under_native_mise_policy(
     tmp_path: Path,

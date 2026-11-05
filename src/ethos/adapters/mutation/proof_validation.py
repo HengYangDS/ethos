@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.value import mutable_json
@@ -55,37 +57,11 @@ def assess_proof_execution(
     expected_head: str | None,
     current_head: str,
     scope_gaps: tuple[str, ...],
-) -> tuple[Verdict, tuple[str, ...]]:
+) -> Outcome:
     """Reduce current execution observations; issuance still independently validates proof."""
     verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
     trust_bearing_ok = any(
         check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
-    )
-    failed_gate_gaps = (
-        tuple(
-            f"gate_failed:{check['action_id']}"
-            if check["verdict"] == "block"
-            else f"gate_unknown:{check['action_id']}"
-            for check in checks
-            if check["verdict"] != "pass"
-        )
-        if execute
-        else ()
-    )
-    trust_gaps = (
-        ("trust_bearing_proof_missing",) if execute and verdicts_ok and not trust_bearing_ok else ()
-    )
-    required_gaps = tuple(
-        dict.fromkeys(
-            tuple(string_sequence(audit.get("required_gaps")))
-            + tuple(string_sequence(lifecycle.get("required_gaps")))
-            + plan.required_gaps
-            + failed_gate_gaps
-            + (("full_proof_requires_execute",) if full and not execute else ())
-            + trust_gaps
-            + expected_head_gaps(expected_head, current_head)
-            + scope_gaps
-        )
     )
     check_verdict: Verdict = (
         reduce_verdicts(*(cast("Verdict", check["verdict"]) for check in checks))
@@ -94,15 +70,22 @@ def assess_proof_execution(
         if checks
         else "unknown"
     )
-    return (
-        reduce_verdicts(
-            report_verdict(audit),
-            report_verdict(lifecycle),
-            plan.verdict,
-            check_verdict,
-            required_gaps=required_gaps,
+    return Outcome.of(report_verdict(audit), *string_sequence(audit.get("required_gaps"))).combine(
+        Outcome.of(report_verdict(lifecycle), *string_sequence(lifecycle.get("required_gaps"))),
+        Outcome.of(plan.verdict, *plan.required_gaps),
+        gate_outcome(checks) if execute else Outcome(),
+        Outcome.of(check_verdict),
+        Outcome.of(
+            "pass",
+            *(("full_proof_requires_execute",) if full and not execute else ()),
+            *(
+                ("trust_bearing_proof_missing",)
+                if execute and verdicts_ok and not trust_bearing_ok
+                else ()
+            ),
+            *expected_head_gaps(expected_head, current_head),
+            *scope_gaps,
         ),
-        required_gaps,
     )
 
 

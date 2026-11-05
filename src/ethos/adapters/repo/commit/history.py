@@ -16,6 +16,7 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import unsigned_commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
+from ethos.contracts.outcome import refusal
 from ethos.repository.paradigm.parameters import seconds
 
 
@@ -26,9 +27,9 @@ class PreparedHistoryRepair(TypedDict):
     mapping: dict[str, str]
 
 
-def _require(condition: object, gap: str) -> None:
+def _require(condition: object, *gaps: str) -> None:
     if not condition:
-        raise ValueError(gap)
+        raise refusal(*gaps)
 
 
 def _headers(payload: bytes) -> tuple[list[bytes], bytes]:

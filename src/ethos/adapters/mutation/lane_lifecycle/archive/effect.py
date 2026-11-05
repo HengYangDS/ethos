@@ -34,6 +34,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_effects import restore_git_index
 from ethos.adapters.repo.git_effects import stage_git_worktree
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -134,6 +135,19 @@ def compile_archive_plan(
     )
 
 
+def _archive_commit(
+    root: Path, tree: str, parent: str, subject: str
+) -> tuple[str, tuple[str, ...], str]:
+    """Create the archive commit: its head, or the policy's refusal gaps and Git's stderr."""
+    try:
+        committed = create_git_commit(root, tree=tree, parent=parent, message=subject)
+    except OutcomeError as error:
+        return "", error.outcome.gaps, ""
+    if committed.returncode:
+        return "", (), committed.stderr.strip()
+    return committed.stdout.strip(), (), ""
+
+
 def commit_archive_postimage(
     root: Path,
     branch: str,
@@ -218,27 +232,21 @@ def commit_archive_postimage(
                 user_decision_required=not bool(repair_action),
             ),
         )
-    committed = create_git_commit(
-        root,
-        tree=staged_tree,
-        parent=previous_head,
-        message=subject,
-    )
-    if committed.returncode:
+    target_head, refused, stderr = _archive_commit(root, staged_tree, previous_head, subject)
+    if not target_head:
         restore_failure_boundary()
         return lifecycle_report(
             branch,
             previous_head,
             "blocked",
-            ["openspec_archive_commit_failed"],
+            ["openspec_archive_commit_failed", *refused],
             change=change,
-            stderr=committed.stderr.strip(),
+            stderr=stderr,
             **lifecycle_effect_outcome(
                 kind="mutation_compensated",
                 next_action=archive_recovery_command(change, previous_head, subject=subject),
             ),
         )
-    target_head = committed.stdout.strip()
     try:
         plan = compile_archive_plan(
             root,

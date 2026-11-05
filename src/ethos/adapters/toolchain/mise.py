@@ -27,9 +27,11 @@ if TYPE_CHECKING:
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
 _LAYOUTS = ((MISE_CONFIG, MISE_LOCK), ("mise.toml", "mise.lock"), (".mise.toml", "mise.lock"))
-# The first mise whose safe mode drops the dependency graph a lock entry references, so trust cannot
-# select that install (https://github.com/jdx/mise/issues/15363).
+# The mise releases whose safe mode drops the dependency graph a lock entry references, so trust
+# cannot select that install (https://github.com/jdx/mise/issues/15363): from the regression up to,
+# not including, the release that fixed it.
 _GRAPH_SAFE_MODE_REGRESSION = (2026, 11, 0)
+_GRAPH_SAFE_MODE_FIX = (2026, 11, 2)
 # The caller's own mise storage and safe-mode choice; resolution overrides the last two.
 _CALLER_INPUTS = frozenset(
     ("MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR", "MISE_STATE_DIR", "MISE_SAFE")
@@ -443,14 +445,14 @@ def _supply_refusal(
     ]
     canonical = root.resolve()
     version = _mise_version(executable) if missing else None
-    if version is not None and version >= _GRAPH_SAFE_MODE_REGRESSION:
+    if version is not None and _GRAPH_SAFE_MODE_REGRESSION <= version < _GRAPH_SAFE_MODE_FIX:
         materials = files or repository_mise_files(canonical, executable=executable) or {}
         if _graph_locked(materials.get(MISE_LOCK, ""), missing):
             selected = ".".join(str(part) for part in version)
             return ValueError(
                 f"{message}; cause: mise {selected} drops the dependency graph that this lock"
                 " references in safe mode (https://github.com/jdx/mise/issues/15363); next:"
-                " select a mise release before 2026.11.0"
+                " select mise 2026.11.2 or later"
             )
     if missing and not _root_trusted(canonical, executable):
         return ValueError(
@@ -587,6 +589,12 @@ def locked_environment(
         yield {
             **environment,
             **_mise_environment(Path(directory), offline=True, files=files, execution=True),
+            # A gate child's mise starts in the repository and must stop below its parent, as
+            # resolution does; above it lies the operator's own configuration. mise splits this
+            # list on the platform's path separator.
+            "MISE_CEILING_PATHS": os.pathsep.join(
+                (str(Path(directory).parent), str(root.resolve().parent))
+            ),
             "PATH": os.pathsep.join(
                 (directory, *(str(path) for path in (*paths, *prepared)), *baseline)
             ),

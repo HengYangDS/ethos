@@ -16,6 +16,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.outcome import refusal
 from ethos.contracts.proof.plan import commitment_fact_gaps
 from ethos.contracts.proof.plan import validate_proof_plan
 from ethos.contracts.semantic import Attestation
@@ -246,7 +247,7 @@ class TransitionPlan(_PlanModel):
         """Return one dependency-complete canonical DAG closure."""
         ordered, gaps = cls._resolve_nodes(nodes, selected)
         if gaps:
-            raise ValueError(gaps[0])
+            raise refusal(*gaps)
         return ordered
 
     @classmethod
@@ -563,7 +564,7 @@ def terminal_schema_documents() -> dict[str, dict[str, Any]]:
     for name, model in contracts.items():
         schema = model.model_json_schema(mode="serialization", by_alias=True)
         schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-        schema["$id"] = f"https://ethos.local/schemas/{name}"
+        schema["$id"] = f"https://ethos.invalid/schemas/{name}"
         schema["title"] = f"ETHOS {model.__name__.removesuffix('Document')}"
         schemas[name] = schema
     return schemas

@@ -663,7 +663,8 @@ distinguishable; an unobserved external property SHALL NOT be reported as a pass
 
 - **WHEN** execution is requested and a gate has a failed, unknown or unexecuted prerequisite
 - **THEN** the shared runner does not execute that dependent gate
-- **AND** its result is blocked and identifies the unmet prerequisite
+- **AND** its result is unknown when an unmet prerequisite is unknown and blocked otherwise,
+  and identifies the unmet prerequisite
 - **AND** independent diagnostic checks may continue within the declared budget
 
 #### Scenario: Coverage fails before package delivery
@@ -765,7 +766,8 @@ failed-dependency blocking. Scheduler state SHALL be transient.
 #### Scenario: A dependency fails or remains unknown
 
 - **WHEN** a prerequisite does not return pass with exit code zero
-- **THEN** its dependent and transitive dependents are blocked without execution
+- **THEN** its dependent and transitive dependents do not execute
+- **AND** each of them is unknown when an unmet prerequisite is unknown, and blocked otherwise
 - **AND** independent diagnostics may complete
 
 ### Requirement: Inexpensive source failures precede heavy verification
@@ -2804,6 +2806,12 @@ The environment that ETHOS gives an admitted repository command SHALL expose the
 - **THEN** its PATH holds the locked tools ahead of the host's own command baseline, and nothing else from the caller's PATH
 - **AND** on Windows that baseline holds the system command directories and the shell-free Git launcher, but no shell and not the current directory
 
+#### Scenario: A mise configuration lies above the repository
+
+- **WHEN** an operator's mise configuration lies in a directory above the repository, such as the home directory
+- **THEN** native mise run by an admitted command from the repository reads only the repository's configuration, as resolution did
+- **AND** the operator's tools, environment and tasks do not reach the command
+
 ### Requirement: Disposable mise copies carry only native trust
 
 Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A refusal for an untrusted configuration SHALL name native `mise trust` where trust can select the locked install.
@@ -3159,12 +3167,13 @@ and every repository value looser than its default with the stated reason.
 #### Scenario: An undeclared gate runs too long
 
 - **WHEN** a gate without its own timeout runs longer than the repository's `timeout.gate_seconds`
-- **THEN** it fails as `gate_timeout` with the timeout, its source and the elapsed time.
+- **THEN** it reports `gate_timeout:<gate>` with verdict unknown, the timeout, its source and
+  the elapsed time
 
 #### Scenario: A command inside a gate hangs
 
 - **WHEN** a command inside a gate does not finish
-- **THEN** the gate's deadline ends it, and the gate fails as `gate_timeout`.
+- **THEN** the gate's deadline ends it, and the gate reports `gate_timeout:<gate>` as unknown
 
 #### Scenario: A gate declares a timeout beyond the bound
 
@@ -3345,13 +3354,19 @@ Before ETHOS returns a locked tool, native mise SHALL report the declared tool n
 
 ### Requirement: A locked supply refusal names the action that can help
 
-A refusal of incomplete locked supply SHALL name the next action that can complete it. When the selected mise's safe mode drops the dependency graph that a missing tool's lock entry references, as mise does from 2026.11.0, the refusal SHALL name that regression and an earlier mise instead of `mise trust`.
+A refusal of incomplete locked supply SHALL name the next action that can complete it. When the selected mise's safe mode drops the dependency graph that a missing tool's lock entry references, as mise 2026.11.0 and 2026.11.1 do, the refusal SHALL name that regression and a mise release that fixes it instead of `mise trust`.
 
 #### Scenario: The selected mise drops the locked graph
 
-- **WHEN** the selected mise is 2026.11.0 or later and a missing tool's lock entry references a dependency graph
-- **THEN** the refusal names that regression and an earlier mise
+- **WHEN** the selected mise is 2026.11.0 or 2026.11.1 and a missing tool's lock entry references a dependency graph
+- **THEN** the refusal names that regression and mise 2026.11.2 or later
 - **AND** it does not name `mise trust`
+
+#### Scenario: The selected mise has the fix
+
+- **WHEN** the selected mise is 2026.11.2 or later, a missing tool's lock entry references a dependency graph and its root is not trusted
+- **THEN** the refusal names `mise trust` as the next action
+- **AND** it does not name the regression
 
 #### Scenario: Trust can select the locked install
 
@@ -3434,3 +3449,17 @@ The common CI model SHALL set GitLab's `GET_SOURCES_ATTEMPTS` to `"3"` on every 
 
 - **WHEN** a Windows runner declaration sets `GET_SOURCES_ATTEMPTS` to another value
 - **THEN** compiling the projections fails and no projection is written
+
+### Requirement: Source integrity separates conflicts from unverifiable members
+
+The integrity provider SHALL report a member whose bytes differ from what its native owner renders or from its pinned original as `block`, with `source_generated_bytes_mismatch:<path>`, `source_upstream_member_mismatch:<path>` or `source_upstream_archive_digest_mismatch:<path>`. A member it cannot read, qualify or compare SHALL stay `unknown` with `source_integrity_unproven:<path>`.
+
+#### Scenario: A generated artifact drifts
+
+- **WHEN** a generated artifact's bytes differ from what its declared native owner renders
+- **THEN** the integrity gate reports `block` with `source_generated_bytes_mismatch:<path>`
+
+#### Scenario: A member cannot be compared
+
+- **WHEN** a declared member or its archive cannot be read or qualified
+- **THEN** the integrity gate reports `unknown` with `source_integrity_unproven:<path>`

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -9,6 +10,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -18,6 +20,8 @@ if TYPE_CHECKING:
     from ethos.repository.policy.commit import CommitPolicy
 
 _POLICY_PATH = binding_path("workspace")
+# Git removes everything below this line, where `git commit --verbose` places the staged diff.
+_SCISSORS = re.compile(r"^\S+ -{24} >8 -{24}$", re.MULTILINE)
 
 
 def _indexed_commit_policy(
@@ -65,10 +69,10 @@ def _indexed_commit_policy(
 def commit_message_report(
     root: Path, message_file: Path, *, index_env: Mapping[str, str] | None = None
 ) -> dict[str, object]:
-    """Validate the final commit subject against the prospective index policy."""
+    """Validate the final commit message above Git's scissors line against the index policy."""
     path = message_file if message_file.is_absolute() else root / message_file
     try:
-        subject = path.read_text(encoding="utf-8").partition("\n")[0]
+        message = _SCISSORS.split(path.read_text(encoding="utf-8"), maxsplit=1)[0]
     except (OSError, UnicodeError):
         return _blocked("commit_message_unreadable")
     candidate = _indexed_commit_policy(root, index_env=index_env)
@@ -76,8 +80,7 @@ def commit_message_report(
     incumbent = commit_policy_for_revision(root, head) if head else candidate
     gaps = []
     for policy in dict.fromkeys((candidate, incumbent)):
-        if gap := commit_subject_gap(policy, subject):
-            gaps.append(gap)
+        gaps.extend(commit_message_gaps(policy, message))
         gaps.extend(prospective_identity_gaps(root, policy))
     if gaps:
         return {**_blocked(gaps[0]), "required_gaps": list(dict.fromkeys(gaps))}
@@ -99,6 +102,19 @@ def prospective_identity_gaps(
             return [f"commit_{role}_identity_unavailable"]
         identities[role] = {"name": name, "email": email}
     return policy.identity_gaps(identities)
+
+
+def commit_message_gaps(
+    policy: CommitPolicy, message: str, *, subject: str | None = None, revision: str = ""
+) -> list[str]:
+    """Judge a whole message: no private-class address anywhere, then the subject grammar.
+
+    The address gap replaces the subject gap, which would repeat the subject's text.
+    """
+    if load_repository_paradigm().names_private_address(message):
+        return ["commit_message_private_address" + (f":{revision}" if revision else "")]
+    gap = commit_subject_gap(policy, message if subject is None else subject, revision=revision)
+    return [gap] if gap else []
 
 
 def commit_subject_gap(
@@ -151,8 +167,9 @@ def evaluate_commit_policy(
         key: observation.get(key, {}) for key in ("object_oid", "subject", "author", "committer")
     }
     gaps = [str(gap) for gap in cast("list[object]", observation.get("required_gaps", []))]
-    if not gaps and (gap := commit_subject_gap(policy, subject, revision=object_oid)):
-        gaps.append(gap)
+    if not gaps:
+        message = str(observation.get("message") or subject)
+        gaps.extend(commit_message_gaps(policy, message, subject=subject, revision=object_oid))
     gaps.extend(policy.identity_gaps(head, revision=object_oid))
     signature = _signature_policy_report(
         policy,

@@ -29,8 +29,14 @@
       "items": {
         "type": "object",
         "required": ["name"],
-        "properties": { "name": { "type": "string" } }
+        "properties": {
+          "name": { "type": "string" },
+          "purpose": { "type": "string" },
+          "carrier": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

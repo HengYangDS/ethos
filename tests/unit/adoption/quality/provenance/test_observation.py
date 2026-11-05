@@ -121,8 +121,11 @@ def test_generated_observer_rebuilds_complete_native_owner(tmp_path: Path, defec
                 "member": "generated.py",
             }
         }
+    elif defect == "bytes":
+        assert report["verdict"] == "block", report
+        assert report["required_gaps"] == ["source_generated_bytes_mismatch:generated.py"]
     else:
-        assert report["verdict"] != "pass", report
+        assert report["verdict"] == "unknown", report
         assert report["required_gaps"]
 
 

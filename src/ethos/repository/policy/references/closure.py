@@ -22,6 +22,8 @@ from ethos.repository.policy.references.declarations import ci_runner_owners
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.declarations import retained_ci_steps
+from ethos.repository.policy.references.declared_paths import content_directories
+from ethos.repository.policy.references.declared_paths import dead_declared_paths
 from ethos.repository.policy.references.markdown import markdown_tokens
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
@@ -174,13 +176,15 @@ def repository_semantic_closure(
         retained_steps=retained_ci_steps(files),
     )
     contract_report = system_contracts or system_contracts_report(root)
+    tracked = _tracked_paths(root)
     findings = [
         *_duplicate_command_owners(command_owners),
         *_missing_command_parents(command_owners),
         *_orphan_consumers(
             owners, consumption.sources, ci_runner_owners(files), _template_forges(files)
         ),
-        *_retired_reference_consumers(root, files),
+        *_retired_reference_consumers(root, files, tracked),
+        *_dead_declarations(files, tracked),
         *_superseded_current_carriers(root, files, retained_origins=retained_origins),
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
@@ -305,11 +309,12 @@ def _orphan_consumers(
 def _retired_reference_consumers(
     root: Path,
     files: dict[str, str],
+    tracked: tuple[str, ...],
 ) -> list[SemanticClosureFinding]:
     retired_paths = _retired_paths_since_candidate(root)
     if not retired_paths:
         return []
-    path_consumers = _retired_path_sources(files, retired_paths)
+    path_consumers = _retired_path_sources(files, retired_paths, tracked)
     findings = []
     current_modules = {module_name(path) for path in files if path.endswith(".py")}
     for retired_path in retired_paths:
@@ -368,32 +373,61 @@ def _is_change_intent_source(source: str) -> bool:
     return source.startswith("openspec/changes/")
 
 
-def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
-    candidate = load_branch_role_policy(root).candidate_branch
+def _git_fields(root: Path, *arguments: str) -> list[str] | None:
+    """Read one NUL-separated Git observation; an unavailable repository observes nothing."""
     try:
         completed = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--no-ext-diff",
-                "--name-status",
-                "-z",
-                "--find-renames",
-                "--diff-filter=DR",
-                f"refs/heads/{candidate}",
-                "HEAD",
-                "--",
-            ],
+            ["git", *arguments],
             cwd=root,
             check=False,
             capture_output=True,
             encoding="utf-8",
         )
     except OSError:
+        return None
+    return completed.stdout.split("\0") if completed.returncode == 0 else None
+
+
+def _tracked_paths(root: Path) -> tuple[str, ...]:
+    fields = _git_fields(root, "ls-files", "-z")
+    return tuple(field for field in fields or () if field)
+
+
+def _dead_declarations(
+    files: dict[str, str], tracked: tuple[str, ...]
+) -> list[SemanticClosureFinding]:
+    """A declared repository path must name content at the current head."""
+    sources: dict[str, set[str]] = {}
+    for value, source in dead_declared_paths(files, tracked):
+        sources.setdefault(value, set()).add(source)
+    return [
+        SemanticClosureFinding(
+            category="missing",
+            relation="declaration",
+            kind="path",
+            identity=value,
+            sources=tuple(sorted(found)),
+        )
+        for value, found in sources.items()
+    ]
+
+
+def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
+    candidate = load_branch_role_policy(root).candidate_branch
+    fields = _git_fields(
+        root,
+        "diff",
+        "--no-ext-diff",
+        "--name-status",
+        "-z",
+        "--find-renames",
+        "--diff-filter=DR",
+        f"refs/heads/{candidate}",
+        "HEAD",
+        "--",
+    )
+    if fields is None:
         return ()
-    if completed.returncode != 0:
-        return ()
-    fields = completed.stdout.split("\0")
     retired = []
     index = 0
     while index < len(fields) and fields[index]:
@@ -411,10 +445,20 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
 
 
 def _retired_path_sources(
-    files: dict[str, str], retired_paths: tuple[str, ...]
+    files: dict[str, str], retired_paths: tuple[str, ...], tracked: tuple[str, ...] = ()
 ) -> dict[str, tuple[str, ...]]:
-    """Join each current carrier's path references to retired identities once."""
+    """Join each current carrier's path references to retired identities once.
+
+    A reference to a directory whose retired files left it without content consumes them too.
+    """
     consumers: dict[str, set[str]] = {path: set() for path in retired_paths}
+    held = content_directories(tracked)
+    under: dict[str, list[str]] = {}
+    for path in retired_paths:
+        parent = posixpath.dirname(path)
+        while parent and parent not in held:
+            under.setdefault(parent, []).append(path)
+            parent = posixpath.dirname(parent)
     for source, text in files.items():
         if source.startswith("tests/") or _is_change_intent_source(source):
             continue
@@ -428,8 +472,8 @@ def _retired_path_sources(
                 if value.startswith(("./", "../"))
                 else posixpath.normpath(value)
             )
-            if observed in consumers:
-                consumers[observed].add(source)
+            for retired in under.get(observed, [observed] if observed in consumers else []):
+                consumers[retired].add(source)
     return {path: tuple(sorted(sources)) for path, sources in consumers.items()}
 
 

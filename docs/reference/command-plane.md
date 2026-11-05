@@ -307,7 +307,11 @@ signature on every commit, so a repository that tracks no `[commit_policy]` in
 and declare exact `author` and `committer` tables (`name`, `email`); undeclared
 identity constraints impose none on other adopters. The common compiler serves
 commit-msg, generated commits, replay, pre-push and `ethos hook commit-range`;
-there is no separate mutable Git identity policy. Prospective checks use the
+there is no separate mutable Git identity policy. The same checks refuse a
+whole message that names a private-class network address by the paradigm's
+`private_address` pattern, and tag admission refuses such a tag message.
+`commit-msg` reads the message above Git's scissors line, and no gap repeats the
+address. Prospective checks use the
 index and parent; generated commits use their exact parent and target tree.
 Introduced objects must satisfy trusted-baseline policy as well as candidate
 constraints. Removing policy cannot waive its own admission.

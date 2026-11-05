@@ -8,12 +8,15 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from functools import cache
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_record import proof_current_at
+from ethos.adapters.mutation.proof_record import proof_integrity
+from ethos.adapters.mutation.proof_record import proof_query_gaps
+from ethos.adapters.mutation.proof_record import recorded_proof
 from ethos.adapters.mutation.proof_validation import plan_from_statement
-from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.openspec.commitment import admissible_openspec_commitments
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
@@ -24,7 +27,6 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.adapters.repo.git import current_branch
-from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
@@ -34,7 +36,6 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
@@ -165,16 +166,25 @@ def proof_attestation(
     attestation_id: str = "",
     change_id: str | None = None,
     acceptance_purpose: AcceptancePurpose = "repository",
+    recorded: Mapping[str, object] | None = None,
 ) -> tuple[Attestation | None, list[str]]:
-    """Return one deterministic member of the current exact proof set."""
-    admitted, gaps = _admitted_proofs(
-        root,
-        head,
-        repository_transition=repository_transition,
-        store=store,
-        attestation_id=attestation_id,
-        change_id=change_id,
-        acceptance_purpose=acceptance_purpose,
+    """Return one deterministic member of the current exact proof set.
+
+    `recorded` is the proof a release record embeds; it is admitted as recorded, never against
+    the policy this runtime compiles for the old source.
+    """
+    admitted, gaps = (
+        recorded_proof(root, head, store, recorded)
+        if recorded is not None
+        else _admitted_proofs(
+            root,
+            head,
+            repository_transition=repository_transition,
+            store=store,
+            attestation_id=attestation_id,
+            change_id=change_id,
+            acceptance_purpose=acceptance_purpose,
+        )
     )
     if not admitted:
         return None, gaps
@@ -362,13 +372,13 @@ def _selected_candidates(
     )
     if not candidates:
         return (), ["proof_not_proven"]
-    current = tuple(item for item in candidates if _current_at(item, datetime.now(UTC)))
+    current = tuple(item for item in candidates if proof_current_at(item, datetime.now(UTC)))
     if not current:
         return (), ["unknown_required_fact"]
-    matching = tuple(item for item in current if not _query_gaps(item))
+    matching = tuple(item for item in current if not proof_query_gaps(item))
     if matching:
         return _purpose_candidates(matching, purpose, attestation_id)
-    return (), list(dict.fromkeys(gap for item in current for gap in _query_gaps(item)))
+    return (), list(dict.fromkeys(gap for item in current for gap in proof_query_gaps(item)))
 
 
 def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -> list[str]:
@@ -390,28 +400,6 @@ def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -
             and gap not in ignored
         )
     )
-
-
-def _current_at(attestation: Attestation, instant: datetime) -> bool:
-    return (attestation.valid_from or attestation.issued_at) <= instant and (
-        attestation.valid_until is None or instant <= attestation.valid_until
-    )
-
-
-def _query_gaps(attestation: Attestation) -> list[str]:
-    statement = attestation.payload.body
-    return [
-        gap
-        for gap, mismatch in (
-            ("proof_attestation_scope_mismatch", statement.get("scope") != ("repository",)),
-            ("proof_attestation_plane_mismatch", statement.get("plane") != "local"),
-            (
-                "proof_attestation_context_mismatch",
-                statement.get("context") != {"boundary": "repository"},
-            ),
-        )
-        if mismatch
-    ]
 
 
 def _bindings(attestation: Attestation, *, repository_transition: bool) -> tuple[str, ...]:
@@ -492,32 +480,16 @@ def _candidate_evaluation(
     attestations: tuple[Attestation, ...],
     source_intent: Callable[[str], tuple[Commitment, ...]],
 ) -> tuple[str, list[str]]:
-    if attestation.subject != f"git:commit:{head}":
-        return "", ["proof_attestation_head_mismatch"]
-    try:
-        plan = plan_from_statement(attestation)
-    except (TypeError, ValueError) as error:
-        return "", [str(error)]
-    gaps = [
-        "proof_attestation_plan_head_mismatch"
-        if plan.facts.get("head") != head
-        else "proof_attestation_live_tree_mismatch"
-        if current_tree(root, head) != plan.facts.get("tree")
-        else ""
-    ]
-    gaps = [gap for gap in gaps if gap]
-    if not repository_transition:
-        gaps.extend(_lane_proof_gaps(root, plan.facts))
-    if not gaps:
-        gaps.extend(archive_scope_gaps(plan.facts, plan.prior_attestations))
-    if gaps:
-        return "", gaps
-    checks, gaps = artifact_checks(store, attestation)
-    if checks is not None and not gaps:
-        gaps = proof_statement_gaps(attestation, checks)
-    if not gaps and checks is not None and repository_transition:
+    plan, checks, gaps = proof_integrity(
+        root,
+        head,
+        store,
+        attestation,
+        lane_gaps=None if repository_transition else partial(_lane_proof_gaps, root),
+    )
+    if not gaps and checks is not None and repository_transition and plan is not None:
         gaps = _source_intent_gaps(root, head, plan, attestations, source_intent=source_intent)
-    if gaps or checks is None:
+    if gaps or checks is None or plan is None:
         return "", gaps
     gaps = dependency_acceptance_gaps(
         root,

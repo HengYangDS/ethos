@@ -10,10 +10,11 @@ from typing import cast
 
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.repo.git as git
+from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.admission.publication import push_admission_report
-from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.attestation import terminal_publication_result
 from ethos.adapters.repo.git_object import observe_git_object
+from ethos.adapters.repo.release_publication import release_publication_selection
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.publication import PublicationSource
 from ethos.contracts.publication import PublicationTarget
@@ -284,8 +285,13 @@ def _publication_authority(
             ):
                 proof = observed
     if retain_bound_proof and proof is None:
-        proof = proof_admission_report(
-            root, effect.source.peeled_commit, repository_transition=True
+        refs = tuple(update.target_ref for peer in effect.targets for update in peer.updates)
+        qualification = release_publication_selection(root, refs, effect.source.peeled_commit)[1]
+        proof = publication_proof_admission(
+            root,
+            effect.source.peeled_commit,
+            ("release_publication",),
+            qualification=qualification,
         )
     proof_gaps = _proof_drift_gaps(
         plan=plan, admissions=tuple(admissions), proof=proof, retain_bound_proof=retain_bound_proof

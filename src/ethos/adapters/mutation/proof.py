@@ -416,6 +416,7 @@ def proof_for_repository_transition(
     head: str,
     *,
     attestation_id: str = "",
+    recorded: Mapping[str, object] | None = None,
 ) -> tuple[Attestation | None, list[str]]:
     """Resolve the proof authority applicable to one repository transition."""
     return ethos.adapters.mutation.proof_admission.proof_attestation(
@@ -424,6 +425,7 @@ def proof_for_repository_transition(
         repository_transition=True,
         store=local_state_root(root),
         attestation_id=attestation_id,
+        recorded=recorded,
     )
 
 
@@ -453,10 +455,13 @@ def proof_admission_report(
     *,
     repository_transition: bool = False,
     attestation_id: str = "",
+    recorded: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Project the one exact proof authority consumed by guarded transitions."""
     attestation, gaps = (
-        proof_for_repository_transition(root, head, attestation_id=attestation_id)
+        proof_for_repository_transition(
+            root, head, attestation_id=attestation_id, recorded=recorded
+        )
         if repository_transition
         else ethos.adapters.mutation.proof_admission.proof_attestation(
             root,

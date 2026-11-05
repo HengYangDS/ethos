@@ -20,7 +20,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
-from ethos.adapters.repo.release import publication_source_baseline
+from ethos.adapters.repo.release_publication import publication_source_baseline
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
@@ -287,8 +287,13 @@ def publication_proof_admission(
     *,
     observed: object = None,
     attestation_id: str = "",
+    qualification: object = None,
 ) -> dict[str, object]:
-    """Select the strongest actual target obligation without inventing review proof."""
+    """Select the strongest actual target obligation without inventing review proof.
+
+    A release tag's `qualification` is the proof its own release record bound; the destination
+    derives it, so a repository-transition target then admits that proof as recorded.
+    """
     selections = {publication_proof_selection(role) for role in roles}
     if selections == {"review_object"}:
         return {
@@ -301,6 +306,15 @@ def publication_proof_admission(
         }
     repository_transition = "repository_transition" in selections
     selection = "repository_transition" if repository_transition else "current_commitment"
+    recorded = (
+        qualification.get("proof")
+        if repository_transition and isinstance(qualification, Mapping)
+        else None
+    )
+    if recorded is not None:
+        attestation_id = str(
+            cast("Mapping[str, object]", qualification).get("proof_attestation_id") or ""
+        )
     if (
         isinstance(observed, Mapping)
         and observed.get("selection") == selection
@@ -318,7 +332,11 @@ def publication_proof_admission(
         ):
             return dict(observed)
     return proof_admission_report(
-        root, head, repository_transition=repository_transition, attestation_id=attestation_id
+        root,
+        head,
+        repository_transition=repository_transition,
+        attestation_id=attestation_id,
+        recorded=recorded if isinstance(recorded, Mapping) else None,
     )
 
 
@@ -383,6 +401,7 @@ def push_admission_report(
             (str(preliminary["role"]),),
             observed=observed_proof,
             attestation_id=str(closeout.get("proof_attestation_id") or ""),
+            qualification=closeout.get("release_qualification"),
         )
         accepted_content = (
             observed_proof["verdict"] == "pass"
@@ -430,6 +449,7 @@ def push_admission_report(
             (role,),
             observed=observed_proof,
             attestation_id=str((closeout or {}).get("proof_attestation_id") or ""),
+            qualification=(closeout or {}).get("release_qualification"),
         )
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))

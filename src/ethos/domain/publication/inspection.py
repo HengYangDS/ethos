@@ -15,7 +15,7 @@ from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
 from ethos.adapters.repo.commit.integration import peer_publication_baseline
-from ethos.adapters.repo.release import publication_proof_head
+from ethos.adapters.repo.release_publication import release_publication_selection
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -252,14 +252,17 @@ def observe_publication(
         if review_only
         else repository_audit_after_admission(repo, decision)
     )
-    proof_head = (
-        publication_proof_head(repo, target_refs, current_head)
+    proof_head, qualification = (
+        release_publication_selection(repo, target_refs, current_head)
         if target_roles and all(role == "release_publication" for role in target_roles)
-        else current_head
+        else (current_head, None)
     )
     proof_admission = (
         publication_proof_admission(
-            repo, proof_head, target_roles or (str(status_payload["role"]),)
+            repo,
+            proof_head,
+            target_roles or (str(status_payload["role"]),),
+            qualification=qualification,
         )
         if decision.verdict != "block"
         else unavailable_proof_admission()

@@ -158,7 +158,7 @@ def create_git_commit(
     )
     for policy in policies:
         if gaps := commit_message_gaps(policy, message):
-            raise ValueError(gaps[0])
+            raise refusal(*gaps)
         if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
             raise refusal(*gaps)
     completed = runner(

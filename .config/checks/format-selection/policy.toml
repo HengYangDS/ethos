@@ -340,14 +340,12 @@ budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"], accounti
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
 unregistered_extension = "block"
-jsonl_allowed_roots = ["build/"]
+jsonl_allowed_roots = []
 yaml_allowed_roots = [
   ".github/",
   ".gitlab-ci.yml",
-  ".config/ci/",
   ".config/checks/",
   "openspec/",
-  "system/projections/",
 ]
 
 [policy.extension_paths]
@@ -356,8 +354,6 @@ yaml_allowed_roots = [
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [
   "system/schemas/",
-  "system/openspec/",
-  "system/projections/",
   "tests/fixtures/",
   "distributions/npm/",
 ], files = [

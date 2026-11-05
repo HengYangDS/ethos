@@ -1,7 +1,0 @@
-profile_id = "external-optional"
-
-[openspec]
-material_paths = [".ethos/profile.toml"]
-
-[independent_verification.actions.publish]
-mode = "optional"

@@ -89,7 +89,10 @@ def docs_health_report(
         )
         unindexed_plans = plan_index_gaps(root, registry)
         readme_disposition = readme_disposition_gaps(
-            root, registry, generated_outputs=generated_outputs
+            root,
+            registry,
+            generated_outputs=generated_outputs,
+            tracked_documents=tracked_documents or (),
         )
         decision_identity = decision_record_gaps(root, registry)
         length_gaps = current_document_length_gaps(
@@ -259,13 +262,21 @@ def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     ]
 
 
+_INERT_CHILDREN = frozenset({"README.md", "__pycache__", ".DS_Store"})
+
+
 def readme_disposition_gaps(
     root: Path,
     registry: list[dict[str, Any]],
     *,
     generated_outputs: frozenset[str] = frozenset(),
+    tracked_documents: tuple[str, ...] = (),
 ) -> list[str]:
-    """Require a real directory entrance and reject inert README markers."""
+    """Require a real directory entrance and reject inert README markers.
+
+    Outside the documentation root, every tracked README must still enter a directory with
+    content: one that is its directory's only file is a carrier its content has left.
+    """
     docs = docs_root(root)
     authored = set(authored_document_paths(registry, (), generated_outputs))
     by_parent: dict[Path, set[Path]] = {}
@@ -306,7 +317,22 @@ def readme_disposition_gaps(
             for _line, link in markdown_links(path)
         ):
             gaps.append(f"docs_readme_without_local_route:{entry['path']}")
+    gaps.extend(_childless_readmes(root, docs, tracked_documents))
     return gaps + _normative_route_gaps(root, registry, generated_outputs)
+
+
+def _childless_readmes(root: Path, docs: Path, tracked_documents: tuple[str, ...]) -> list[str]:
+    """Report each tracked README outside the documentation root that is its folder's only file."""
+    gaps = []
+    for relative in tracked_documents:
+        path = root / relative
+        if path.name != "README.md" or path.parent == root or path.is_relative_to(docs):
+            continue
+        if path.is_file() and not any(
+            child.name not in _INERT_CHILDREN for child in path.parent.iterdir()
+        ):
+            gaps.append(f"docs_readme_without_children:{relative}")
+    return gaps
 
 
 def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]) -> list[str]:

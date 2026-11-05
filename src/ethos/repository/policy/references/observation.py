@@ -343,7 +343,8 @@ def deleted_input_gaps(
     This bounded observation does not claim whole-program reference coverage.
     Unknown native input expressions stay distinct from known dangling inputs.
     A deleted module whose top-level package a declared dependency of the same
-    normalized name provides is served by that dependency, not dangling.
+    normalized name provides is served by that dependency, not dangling. An input
+    that names a directory dangles once the patch deletes every file under it.
     """
     manifest = PythonManifest.read(files["pyproject.toml"]) if "pyproject.toml" in files else None
     provided = manifest.dependency_distributions() if manifest is not None else frozenset()
@@ -374,7 +375,10 @@ def deleted_input_gaps(
                 unknown.append(f"deleted_input_observation_unknown:{path}:{name}")
             for value in inputs:
                 target = posixpath.normpath(posixpath.join(posixpath.dirname(path), value))
-                if target in deleted:
+                if target in deleted or (
+                    any(item.startswith(f"{target}/") for item in deleted)
+                    and not any(item.startswith(f"{target}/") for item in files)
+                ):
                     gaps.append(f"deleted_input:{target}:{path}:scripts.{name}")
     return sorted(set(gaps)), sorted(set(unknown))
 

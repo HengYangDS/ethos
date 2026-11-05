@@ -202,10 +202,12 @@ owned attempt, verify descendant exit and scratch cleanup, then rederive the
 correct closure and controls. Do not label an intentionally interrupted attempt
 a product regression or erase its evidence with the replacement run.
 
-`tools/ci/python_test_gate.py` owns test-attempt isolation. Under its existing
-coverage lock, it invalidates the previous completion marker before preparation
-and writes a new marker only after tests, cleanup and source freshness succeed.
-Single-attempt execution clears prior partial and sharded output. Cleanup must
-not follow directory links or change permissions on external hard-linked files.
+The shipped behavior probe, `behavior_report` in
+`src/ethos/adapters/gates/python_quality.py`, owns test-attempt isolation. Each
+attempt runs in a fresh owned scratch directory that holds its reports, coverage
+data, environment, bytecode cache and Hypothesis store, so no attempt reads
+another's output; the probe binds the source tree it observed before and after
+the run and then removes the directory. Cleanup must not follow directory links
+or change permissions on external hard-linked files.
 Normal cleanup is not proof of SIGKILL recovery or sustained storage boundedness;
 those require real fault and retention tests at the responsible owner.

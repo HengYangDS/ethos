@@ -139,6 +139,7 @@ def test_repository_reference_closure_reports_orphan_consumers(tmp_path: Path) -
 def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: Path) -> None:
     """An active carrier cannot keep consuming a path deleted after candidate."""
     declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 0")
     write_reference_source(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -234,6 +235,7 @@ def test_repository_reference_closure_does_not_treat_change_intent_as_a_live_con
 ) -> None:
     """OpenSpec migration prose names old paths without consuming them."""
     declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 0")
     write_reference_source(tmp_path, "src/example/retired.py", "VALUE = 1")
     _commit_candidate_baseline(tmp_path)
     (tmp_path / "src/example/retired.py").unlink()
@@ -502,3 +504,69 @@ def test_repository_reference_closure_owns_recorded_glue(tmp_path: Path, *, reco
 
     orphan = "semantic_consumer_orphan:executable:Write-Host:.gitlab-ci.yml"
     assert (orphan in report["required_gaps"]) is not recorded, report["required_gaps"]
+
+
+def test_a_declared_path_that_names_no_tracked_content_is_a_dead_carrier(
+    tmp_path: Path,
+) -> None:
+    """A declaration may name only a path that holds tracked content other than a README."""
+    declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 1")
+    write_reference_source(tmp_path, "system/projections/README.md", "# Projections")
+    write_reference_source(
+        tmp_path,
+        "system/surfaces.toml",
+        'schema = "system/schemas/contracts/surfaces.schema.json"\n'
+        '[[surface]]\nname = "runtime"\ncarrier = "src/example"\n'
+        '[[surface]]\nname = "projections"\ncarrier = "system/projections/"\n',
+    )
+    write_reference_source(
+        tmp_path,
+        ".ethos/rules.toml",
+        '[[rule]]\nid = "owner"\npath_globs = ["src/example/**", "tools/ci/scripts/**"]\n',
+    )
+    _commit_candidate_baseline(tmp_path)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["missing"] == [
+        {
+            "relation": "declaration",
+            "kind": "path",
+            "identity": "system/projections/",
+            "sources": ["system/surfaces.toml"],
+        },
+        {
+            "relation": "declaration",
+            "kind": "path",
+            "identity": "tools/ci/scripts/**",
+            "sources": [".ethos/rules.toml"],
+        },
+    ]
+
+
+def test_a_retired_directory_is_matched_by_its_prefix(tmp_path: Path) -> None:
+    """A path under a removed directory, or the directory itself, is a retired consumer."""
+    declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, "src/example/retired/model.json", "{}")
+    write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "src/example/retired/model.json").unlink()
+    write_reference_source(tmp_path, "docs/reference/runtime.md", "Read `src/example/retired/`.")
+    write_reference_source(
+        tmp_path, "src/example/runtime.py", 'ROOT = "src/example/retired/"\nVALUE = 1'
+    )
+    _commit_current_tree(tmp_path)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["superseded"] == [
+        {
+            "relation": "consumer",
+            "kind": "path",
+            "identity": "src/example/retired/model.json",
+            "sources": ["src/example/runtime.py"],
+        }
+    ]

@@ -96,6 +96,7 @@ REFERENCE_CARRIERS = (
             (binding_path("profile"), "profile"),
             ("system/surfaces.toml", "surfaces"),
             (binding_path("release"), "release"),
+            (binding_path("rules"), "rules"),
             (".config/checks/ci-projection/policy.toml", "providers"),
         ),
         entrypoints=(".config/checks/pytest/pytest.toml",),
@@ -104,6 +105,22 @@ REFERENCE_CARRIERS = (
 )
 
 REFERENCE_KINDS = ("import", "distribution", "executable", "reference", "command", "value")
+# Declared fields that name the declaring repository's own content, by declaration kind. A
+# shipped catalog, such as the packaged gate registry, the paradigm or the artifact topology,
+# names adopter paths and has no row.
+REPOSITORY_PATH_FIELDS: dict[str, tuple[str, ...]] = {
+    "surfaces": ("surface.carrier",),
+    "rules": ("rule.path_globs",),
+    "profile": ("proof.gate_registry", "openspec.material_paths"),
+    "release": ("host_profile.surfaces.*", "publication.peers.ci_surface"),
+    "providers": (
+        "projection.projection",
+        "projection.required_owner_scripts",
+        "forge_surface.projection",
+        "compiler.source",
+    ),
+    "python-import-policy": ("package.root", "package.config"),
+}
 REFERENCE_SCAN_ROOTS = (".agents/skills", "src/ethos", "tests", "tools")
 
 

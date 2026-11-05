@@ -62,16 +62,8 @@ carrier = "src/ethos"
 name = "skills"
 purpose = "Agent workflow packages generated from repository truth."
 carrier = ".agents/skills"
-projection = "generated_host_projections"
 
 [[surface]]
 name = "distributions"
 purpose = "Thin launchers and runner packages."
 carrier = "distributions/"
-
-# Host projection generation remains derived and optional.
-# Generated projection output must carry a source digest and fail drift checks when stale.
-[projection]
-inputs = [".agents/skills/", "system/projections/", "system/surfaces.toml"]
-output = "host_projection"
-drift_check = "source_digest_required"

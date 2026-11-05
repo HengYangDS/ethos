@@ -535,3 +535,31 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         "continuation",
         "digest",
     }
+
+
+@pytest.mark.parametrize(
+    "unread",
+    ['\n[projection]\ninputs = ["system/surfaces.toml"]\n', 'projection = "host"\n'],
+    ids=["top-level-table", "surface-field"],
+)
+def test_the_surfaces_contract_refuses_a_table_or_field_nothing_reads(
+    tmp_path: Path, unread: str
+) -> None:
+    """A declared key that no reader consumes is a dead carrier, not a passing contract."""
+    root = Path(__file__).resolve().parents[3]
+    schema = tmp_path / "system/schemas/contracts/surfaces.schema.json"
+    schema.parent.mkdir(parents=True)
+    schema.write_bytes((root / "system/schemas/contracts/surfaces.schema.json").read_bytes())
+    contract = (
+        'schema = "system/schemas/contracts/surfaces.schema.json"\n\n'
+        '[[surface]]\nname = "cli"\npurpose = "Workflow."\ncarrier = "src/ethos"\n'
+    )
+    (tmp_path / "system/surfaces.toml").write_text(contract + unread, encoding="utf-8")
+
+    report = system_contracts_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert any(
+        str(gap).startswith("system_contract_schema_violation:surfaces:")
+        for gap in report["required_gaps"]
+    )

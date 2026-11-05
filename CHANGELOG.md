@@ -63,9 +63,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Security
 
-- The wheels and installed runtimes still ship npm 12.2.1 with the eight bundled advisories that
-  the `0.2.0-alpha.22` entry lists, under the owner's acceptance until 2026-12-13 that the
-  `0.2.0-alpha.29` entry describes. The release build's audit reports no other advisory.
+- The locked npm moves to 12.2.2, which bundles undici 6.29.1 and ip-address 10.7.5. That removes
+  six of the eight advisories that the `0.2.0-alpha.22` entry lists from the wheels and installed
+  runtimes:
+  - undici: GHSA-2m5v-pch6-74hx, GHSA-4qv8-2p9j-2685, GHSA-9fm3-97px-rjf6, GHSA-qrxm-fqhp-jwvm
+    and GHSA-xjj6-f33q-929c;
+  - ip-address: GHSA-rxp7-6hxx-x8q5.
+
+  The owner took npm 12.2.2 before its 24-hour release age, as an exception to the supply rule,
+  because it fixes known vulnerabilities in what ETHOS ships.
+
+- Two advisories remain, because npm 12.2.2 still bundles glob 13.0.6 (GHSA-3g3m-2fjr-6pw4) and
+  minimatch 10.2.5 (GHSA-g3hv-75wg-m249). No npm release fixes them, so the release build's audit
+  reports them as unfixed upstream. It reports no other advisory.
 
 ## [0.2.0-beta.1] - 2026-11-04
 

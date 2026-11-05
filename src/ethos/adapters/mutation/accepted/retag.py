@@ -19,7 +19,7 @@ from filelock import FileLock
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.creation import create_signed_tag
-from ethos.adapters.repo.commit.signature import RESULT as REPAIR_RESULT
+from ethos.adapters.repo.commit.signature import RESULT
 from ethos.adapters.repo.commit.signature import repaired_object_provenance
 from ethos.adapters.repo.commit.signature import signature_record_coordinates
 from ethos.adapters.repo.git import git_common_dir
@@ -209,7 +209,7 @@ def _restore_original(root: Path, original: str) -> None:
 
 def _bound_backup(record: Attestation) -> tuple[Path, str] | None:
     """Return the backup bundle a valid history repair record bound, with its digest."""
-    if record.predicate != REPAIR_RESULT:
+    if record.predicate != RESULT:
         return None
     try:
         history = signature_record_coordinates(record).get("history")

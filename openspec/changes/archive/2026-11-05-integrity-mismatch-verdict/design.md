@@ -16,6 +16,10 @@ Non-goals:
 - Changing what the provider compares, or the native archive helper. A member mismatch that the
   native helper (`archive.mjs`) finds still reaches the provider as an unqualified archive, so it
   stays `unknown` until the helper reports its own code.
+- That fix is the named follow-up Change `archive-member-mismatch-verdict`, owned by the provenance
+  producer. A locked archive member whose bytes differ from the expected bytes is an observed
+  conflict, so `archive.mjs` itself reports it as `block` with its own mismatch code. The provider
+  carries the helper's class unchanged and does not re-classify its message in Python.
 
 ## Decisions
 

@@ -704,7 +704,8 @@ gitlab: {
 		script: [
 			"\(offlineRun) python -m nox -s hosted_verification",
 		]
-		// GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
+		// GitHub retains raw Allure results and the Python distributions, which its release job
+		// downloads; GitLab's instance artifact limit cannot hold them, so GitLab archives evidence.
 		artifacts: {
 			when: "always"
 			paths: [
@@ -713,7 +714,6 @@ gitlab: {
 				"build/evidence/quality/tests/coverage/coverage.xml",
 				"build/evidence/quality/security/",
 				"build/evidence/quality/secrets/",
-				"build/artifacts/python/",
 				"build/evidence/release/",
 			]
 			reports: {

@@ -129,7 +129,6 @@ ethos:verify:
       - build/evidence/quality/tests/coverage/coverage.xml
       - build/evidence/quality/security/
       - build/evidence/quality/secrets/
-      - build/artifacts/python/
       - build/evidence/release/
     reports:
       junit: build/evidence/quality/tests/pytest/junit*.xml

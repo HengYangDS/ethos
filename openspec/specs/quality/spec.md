@@ -2806,6 +2806,12 @@ The environment that ETHOS gives an admitted repository command SHALL expose the
 - **THEN** its PATH holds the locked tools ahead of the host's own command baseline, and nothing else from the caller's PATH
 - **AND** on Windows that baseline holds the system command directories and the shell-free Git launcher, but no shell and not the current directory
 
+#### Scenario: A mise configuration lies above the repository
+
+- **WHEN** an operator's mise configuration lies in a directory above the repository, such as the home directory
+- **THEN** native mise run by an admitted command from the repository reads only the repository's configuration, as resolution did
+- **AND** the operator's tools, environment and tasks do not reach the command
+
 ### Requirement: Disposable mise copies carry only native trust
 
 Resolution and provisioning SHALL carry to their disposable copy of the exact declared bytes only the trust that native mise, under the caller's own trust inputs, already reports for the repository's configuration, and only for that invocation. They SHALL write no trust record and SHALL NOT trust a configuration that native mise does not report as trusted. A refusal for an untrusted configuration SHALL name native `mise trust` where trust can select the locked install.

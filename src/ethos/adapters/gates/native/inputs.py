@@ -12,6 +12,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import received_paths
+from ethos.contracts.outcome import refusal
 from ethos.repository.policy.gates import compile_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
@@ -62,7 +63,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
     generated = {item.output for item in projection_relations(declarations)}
     policy, gaps = policy_for_root(canonical_resource())
     if policy is None or gaps:
-        raise ValueError(gaps[0] if gaps else "source_budget_policy_invalid")
+        raise refusal(*(gaps or ["source_budget_policy_invalid"]))
     dependencies = tuple(
         pattern
         for item in policy.carriers
@@ -80,7 +81,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
     if any(relative.endswith(".md") for relative in selected):
         origins = observed_document_origins(root)
         if origins.required_gaps:
-            raise ValueError(origins.required_gaps[0])
+            raise refusal(*origins.required_gaps)
         selected = [relative for relative in selected if relative not in origins.entries]
     return selected
 

@@ -14,6 +14,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- A result for a gate that the plan does not declare is `gate_undeclared:<gate>`, so
+  `gate_unknown:<gate>` means only a gate whose verdict is unknown.
 - The Python lock moves to the newest releases that have been public for at least 24 hours:
   coverage 7.17.1, dnspython 2.9.2, filelock 4.2.8, joserfc 1.8.0, platformdirs 4.14.4,
   python-discovery 1.9.4, uncalled-for 0.4.2 and virtualenv 21.15.5. filelock 4.2.9 and
@@ -21,6 +23,22 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- `ethos prove --json` keeps each failed gate's own cause after its class code (GitLab issue #2).
+  A gate that times out reports `gate_unknown:<gate>` and then `gate_timeout:<gate>`, and the
+  proof's verdict stays `unknown` instead of `block`. The result carries one bounded diagnostic per
+  failed gate, with its kind, timeout, elapsed time and the count of codes beyond five that it
+  omits, and its next action names the timeout to raise. Before, the cause appeared only in the gate
+  events and the proof artifact.
+- A gate whose prerequisite is unknown, or whose command is absent, is `unknown`; a failed
+  prerequisite still blocks it.
+- A refusal reports every gap it found, not only the first, and keeps the verdict class that its
+  producer declared: a Git timeout and an unknown Git compare-and-swap outcome are `unknown`.
+  Status keeps an unknown OpenSpec resolution `unknown`, and a retirement failure keeps its gap's
+  subject and the partial-retirement gap.
+- The integrity gate reports a generated artifact or received archive whose bytes differ from its
+  native owner or pinned original as `block`, with `source_generated_bytes_mismatch:<path>`,
+  `source_upstream_member_mismatch:<path>` or `source_upstream_archive_digest_mismatch:<path>`. A
+  member it cannot read or compare stays `unknown` with `source_integrity_unproven:<path>`.
 - A locked supply refusal blames jdx/mise#15363 only under mise 2026.11.0 and 2026.11.1, and points
   to mise 2026.11.2 or later, which fixes it. Under 2026.11.2 it names trust or installation, as it
   does for an earlier mise.

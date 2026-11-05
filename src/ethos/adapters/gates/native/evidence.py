@@ -10,6 +10,7 @@ from ethos.adapters.gates.native.python import runtime_scopes
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
+from ethos.contracts.outcome import refusal
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.quality.formats import lcov_files
 from ethos.repository.policy.quality.formats import sarif_report
@@ -37,7 +38,7 @@ def _custody(
         raise ValueError(msg)
     type(evidence.gate).model_validate(evidence.gate.to_dict())
     if evidence.gaps:
-        raise ValueError(evidence.gaps[0])
+        raise refusal(*evidence.gaps)
     if execution.cwd != root.resolve() or not evidence.artifact:
         msg = "native_custody_missing"
         raise ValueError(msg)

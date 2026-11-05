@@ -14,6 +14,7 @@ from typing import cast
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protected_from_untrusted_write
+from ethos.contracts.outcome import refusal
 from ethos.repository.paradigm.parameters import seconds
 
 _ANCHOR = "gpg.ssh.allowedsignersfile"
@@ -114,7 +115,7 @@ class _TrustInputs:
                 continue
             path, gaps = trust_anchor(root, configured)
             if gaps:
-                raise ValueError(gaps[0])
+                raise refusal(*gaps)
             paths[key] = path
         anchor = cast("Path", paths[_ANCHOR])
         revocation = paths[_REVOCATION]

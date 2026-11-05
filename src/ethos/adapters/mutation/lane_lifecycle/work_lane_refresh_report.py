@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.process import ProcessExecutionError
+from ethos.contracts.outcome import outcome_of
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,6 +33,14 @@ def refresh_report(
         "candidate_path": candidate_path,
         **details,
     }
+
+
+def failure_report(
+    context: tuple[str, str, str, str], head: str, error: BaseException
+) -> dict[str, object]:
+    """Project one refused refresh with every gap and the verdict class its error carries."""
+    failed = outcome_of(error)
+    return refresh_report(context, head, "blocked", list(failed.gaps)) | {"verdict": failed.verdict}
 
 
 def process_failure(error: Exception) -> dict[str, object]:

@@ -21,6 +21,7 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
+from ethos.contracts.outcome import outcome_of
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 from ethos.surface.cli.version import version_text
@@ -111,8 +112,9 @@ def _emit_invalid_profile(command: str, argv: list[str]) -> None:
 
 
 def _emit_contract_failure(command: str, argv: list[str], error: Exception) -> None:
-    """Close one public contract failure without leaking a traceback."""
-    gap = str(error).strip() or "public_command_contract_failure"
+    """Close one public contract failure with every gap it carries, without a traceback."""
+    outcome = outcome_of(error, fallback="public_command_contract_failure")
+    gap = outcome.gaps[0]
     root = _argument_root(argv)
     data: dict[str, object] = {"error_boundary": "public_command_contract"}
     schema: dict[str, object] | None = None
@@ -126,13 +128,8 @@ def _emit_contract_failure(command: str, argv: list[str], error: Exception) -> N
             }
         data["state_schema"] = schema
     import_module("ethos.surface.cli.output").emit(
-        EthosResult(
-            command=command,
-            verdict="block",
-            state="gapped",
-            required_gaps=(gap,),
-            next_action=_contract_failure_action(gap, root, schema),
-            data=data,
+        EthosResult.from_outcome(
+            command, outcome, next_action=_contract_failure_action(gap, root, schema), data=data
         ),
         json_output="--json" in argv,
         enforce=True,

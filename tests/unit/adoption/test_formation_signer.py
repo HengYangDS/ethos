@@ -1,11 +1,11 @@
 """Exercise the reviewed SSH signer that signs a formed repository's initial commit."""
 
-import subprocess
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.repo.starter.formation as formation_effect
+from ethos.contracts.outcome import refusal
 from ethos.domain.adoption import adopt_repository
 from tests.support.fixture_signer import fixture_signer_inputs
 
@@ -22,13 +22,13 @@ def test_greenfield_unverified_initial_commit_publishes_nothing(
         **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
-    monkeypatch.setattr(
-        formation_effect,
-        "create_git_commit",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess(
-            (), 1, "", "commit_signature_untrusted"
-        ),
-    )
+
+    refused = refusal("commit_signature_untrusted", "commit_signer_unbound")
+
+    def refuse(*_args, **_kwargs):
+        raise refused
+
+    monkeypatch.setattr(formation_effect, "create_git_commit", refuse)
 
     result = adopt_repository(
         target,
@@ -40,7 +40,7 @@ def test_greenfield_unverified_initial_commit_publishes_nothing(
 
     assert result.verdict == "block"
     assert result.required_gaps == ("formation_git_commit_failed",)
-    assert result.data["detail"] == "commit_signature_untrusted"
+    assert result.data["detail"] == "commit_signature_untrusted commit_signer_unbound"
     assert not target.exists()
     assert not target.with_name("new-project-candidate-dev").exists()
 

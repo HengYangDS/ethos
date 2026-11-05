@@ -24,6 +24,9 @@ from ethos.adapters.repo.content.source import MAX_MEMBER_BYTES
 from ethos.adapters.repo.content.source import MAX_OBSERVATION_BYTES
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import locked_archive
@@ -74,8 +77,8 @@ def _generated(snapshot: SourceTree, contracts: tuple[SourceContract, ...]) -> N
                 else relation.render(original.decode("utf-8")).encode("utf-8")
             )
             if snapshot.read(relation.output) != expected:
-                message = f"source_generated_bytes_mismatch:{relation.output}"
-                raise ValueError(message)
+                gap = f"source_generated_bytes_mismatch:{relation.output}"
+                raise refusal(gap)
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,8 +206,8 @@ def _received(
     for (path, digest), members in received.items():
         data = snapshot.read(path)
         if hashlib.sha256(data).hexdigest() != digest:
-            message = f"source_upstream_archive_digest_mismatch:{path}"
-            raise ValueError(message)
+            gap = f"source_upstream_archive_digest_mismatch:{path}"
+            raise refusal(gap)
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 entries = archive.infolist()
@@ -231,8 +234,8 @@ def _received(
                         raise ValueError(message)
                     with archive.open(entry) as stream:
                         if stream.read() != relation.expected:
-                            message = f"source_upstream_member_mismatch:{artifact}"
-                            raise ValueError(message)
+                            gap = f"source_upstream_member_mismatch:{artifact}"
+                            raise refusal(gap)
         except (zipfile.BadZipFile, zipfile.LargeZipFile, zlib.error, EOFError) as error:
             message = f"source_upstream_archive_unqualified:{path}"
             raise ValueError(message) from error
@@ -313,6 +316,15 @@ def integrity_report(root: Path, *, timeout_seconds: float | None = None) -> dic
         ProcessExecutionError,
         subprocess.CalledProcessError,
     ) as error:
+        conflict = outcome_of(error)
+        if conflict.verdict == "block" and isinstance(error, OutcomeError):
+            # Bytes that differ from their native owner or pinned original are an observed conflict.
+            return {
+                "verdict": "block",
+                "state": "conflict",
+                "required_gaps": list(conflict.gaps),
+                "diagnostics": [{"reason": str(error)}],
+            }
         paths = [artifact for contract in contracts for artifact in contract.members]
         return {
             "verdict": "unknown",

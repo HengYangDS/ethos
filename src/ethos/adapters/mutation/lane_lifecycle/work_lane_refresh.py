@@ -16,6 +16,7 @@ from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import clea
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import read_pending_refresh
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import write_pending_refresh
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import exact_refresh_command
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import failure_report
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import process_failure
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import refresh_report
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import with_refresh_action
@@ -41,6 +42,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import GitEffect
@@ -118,7 +120,7 @@ def refresh_work_lane_base(
             context = ("detached", policy.candidate_branch, candidate_head, candidate_path)
             return with_refresh_action(
                 root,
-                refresh_report(context, current_head, "blocked", [str(error)]),
+                failure_report(context, current_head, error),
                 apply=apply,
             )
     context = (branch, policy.candidate_branch, candidate_head, candidate_path)
@@ -200,7 +202,7 @@ def _refresh_work_lane(
             ),
         )
     except (OSError, TypeError, ValueError) as error:
-        return refresh_report(context, current_head, "blocked", [str(error)])
+        return failure_report(context, current_head, error)
     completed = run_git(
         root,
         "-c",
@@ -465,7 +467,7 @@ def _restore_interrupted_refresh(
         msg = "git_effect_recovery_unproven"
         raise ValueError(msg)
     if gaps := _restore_original_work_lane(root, pending.branch, pending.previous_head):
-        raise ValueError(gaps[0])
+        raise refusal(*gaps)
     return refresh_report(
         (pending.branch, *candidate),
         pending.previous_head,

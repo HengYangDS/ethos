@@ -663,7 +663,8 @@ distinguishable; an unobserved external property SHALL NOT be reported as a pass
 
 - **WHEN** execution is requested and a gate has a failed, unknown or unexecuted prerequisite
 - **THEN** the shared runner does not execute that dependent gate
-- **AND** its result is blocked and identifies the unmet prerequisite
+- **AND** its result is unknown when an unmet prerequisite is unknown and blocked otherwise,
+  and identifies the unmet prerequisite
 - **AND** independent diagnostic checks may continue within the declared budget
 
 #### Scenario: Coverage fails before package delivery
@@ -765,7 +766,8 @@ failed-dependency blocking. Scheduler state SHALL be transient.
 #### Scenario: A dependency fails or remains unknown
 
 - **WHEN** a prerequisite does not return pass with exit code zero
-- **THEN** its dependent and transitive dependents are blocked without execution
+- **THEN** its dependent and transitive dependents do not execute
+- **AND** each of them is unknown when an unmet prerequisite is unknown, and blocked otherwise
 - **AND** independent diagnostics may complete
 
 ### Requirement: Inexpensive source failures precede heavy verification
@@ -3159,12 +3161,13 @@ and every repository value looser than its default with the stated reason.
 #### Scenario: An undeclared gate runs too long
 
 - **WHEN** a gate without its own timeout runs longer than the repository's `timeout.gate_seconds`
-- **THEN** it fails as `gate_timeout` with the timeout, its source and the elapsed time.
+- **THEN** it reports `gate_timeout:<gate>` with verdict unknown, the timeout, its source and
+  the elapsed time
 
 #### Scenario: A command inside a gate hangs
 
 - **WHEN** a command inside a gate does not finish
-- **THEN** the gate's deadline ends it, and the gate fails as `gate_timeout`.
+- **THEN** the gate's deadline ends it, and the gate reports `gate_timeout:<gate>` as unknown
 
 #### Scenario: A gate declares a timeout beyond the bound
 
@@ -3434,3 +3437,17 @@ The common CI model SHALL set GitLab's `GET_SOURCES_ATTEMPTS` to `"3"` on every 
 
 - **WHEN** a Windows runner declaration sets `GET_SOURCES_ATTEMPTS` to another value
 - **THEN** compiling the projections fails and no projection is written
+
+### Requirement: Source integrity separates conflicts from unverifiable members
+
+The integrity provider SHALL report a member whose bytes differ from what its native owner renders or from its pinned original as `block`, with `source_generated_bytes_mismatch:<path>`, `source_upstream_member_mismatch:<path>` or `source_upstream_archive_digest_mismatch:<path>`. A member it cannot read, qualify or compare SHALL stay `unknown` with `source_integrity_unproven:<path>`.
+
+#### Scenario: A generated artifact drifts
+
+- **WHEN** a generated artifact's bytes differ from what its declared native owner renders
+- **THEN** the integrity gate reports `block` with `source_generated_bytes_mismatch:<path>`
+
+#### Scenario: A member cannot be compared
+
+- **WHEN** a declared member or its archive cannot be read or qualified
+- **THEN** the integrity gate reports `unknown` with `source_integrity_unproven:<path>`

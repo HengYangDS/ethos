@@ -23,6 +23,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import observe_commit
+from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.commit import commit_policy_from_text
@@ -30,6 +31,8 @@ from ethos.repository.policy.commit import commit_policy_from_text
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
+
+    from ethos.contracts.verdict import Verdict
 
 
 def _config(root: Path, name: str) -> str:
@@ -145,7 +148,8 @@ def create_git_commit(
 ) -> Any:
     """Create and verify one signed commit object under the repository commit policy.
 
-    A root commit, such as a formed repository's first, has no parent.
+    A root commit, such as a formed repository's first, has no parent. Git's own failure returns
+    its completed process; a created object that the policy refuses raises every refusal gap.
     """
     parents = (*(() if parent is None else (parent,)), *additional_parents)
     policies = tuple(
@@ -155,7 +159,7 @@ def create_git_commit(
         if gap := commit_subject_gap(policy, message):
             raise ValueError(gap)
         if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
-            raise ValueError(gaps[0])
+            raise refusal(*gaps)
     completed = runner(
         root,
         "commit-tree",
@@ -182,14 +186,9 @@ def create_git_commit(
         if revision
         else ["git_effect_signed_commit_missing"]
     )
-    if revision and not gaps:
-        return completed
-    return subprocess.CompletedProcess(
-        completed.args,
-        1,
-        completed.stdout,
-        gaps[0],
-    )
+    if gaps:
+        raise refusal(*gaps)
+    return completed
 
 
 def create_signed_replacement(root: Path, revision: str) -> str:
@@ -208,7 +207,7 @@ def create_signed_replacement(root: Path, revision: str) -> str:
         error = "signature_repair_payload_unavailable"
         raise ValueError(error)
     replacement = create_signed_payload(root, payload)
-    validation_verdict = "block"
+    validation_verdict: Verdict = "block"
     try:
         gaps = (
             cast(
@@ -231,7 +230,9 @@ def create_signed_replacement(root: Path, revision: str) -> str:
                 "replacement": replacement,
                 "refs_changed": False,
                 "validation_verdict": validation_verdict,
+                "required_gaps": list(gaps),
             },
+            verdict=validation_verdict,
         )
     return replacement
 

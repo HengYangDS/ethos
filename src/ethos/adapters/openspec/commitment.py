@@ -14,6 +14,7 @@ from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import Commitment
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -377,7 +378,7 @@ def _load_commitments(
             ):
                 return (archived,)
             if selected is None:
-                raise ValueError(gaps[0])
+                raise refusal(*gaps)
             change_id = selected
         if logical_change_identifier_issue(change_id):
             msg = "openspec_change_required"

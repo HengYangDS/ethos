@@ -112,4 +112,26 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                     ),
                 }
             )
+        elif gap.startswith("gate_timeout:"):
+            hints.append(
+                {
+                    "gap": gap,
+                    "kind": "gate_timeout",
+                    "next_action": (
+                        f"raise the timeout_seconds of gate {gap.partition(':')[2]} within the "
+                        "timeout bound, or timeout.gate_seconds with a reason, then rerun the proof"
+                    ),
+                }
+            )
+        elif gap.startswith("missing_command:"):
+            hints.append(
+                {
+                    "gap": gap,
+                    "kind": "missing_command",
+                    "next_action": (
+                        f"provide {gap.partition(':')[2]} through the repository's locked supply, "
+                        "then rerun the proof"
+                    ),
+                }
+            )
     return hints

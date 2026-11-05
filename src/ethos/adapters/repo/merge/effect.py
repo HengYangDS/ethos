@@ -29,6 +29,7 @@ from ethos.adapters.repo.merge.recovery import preserve_merge
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
+from ethos.contracts.outcome import refusal
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -42,8 +43,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _fail(message: str) -> NoReturn:
-    raise ValueError(message)
+def _fail(*gaps: str) -> NoReturn:
+    raise refusal(*gaps)
 
 
 def _subject(root: Path, state: str, mode: str) -> dict[str, object]:
@@ -402,7 +403,7 @@ def _continue(
         root, tree=tree, parent=observed.head, additional_parents=observed.parents, message=message
     )
     if created.returncode:
-        raise ValueError(created.stderr.strip() or "merge_commit_creation_failed")
+        _fail(created.stderr.strip() or "merge_commit_creation_failed")
     desired = created.stdout.strip()
     admission = commit_range_admission_report(
         root,
@@ -412,7 +413,7 @@ def _continue(
         remote_name="",
     )
     if admission["verdict"] != "pass":
-        _fail(str(cast("list[str]", admission["required_gaps"])[0]))
+        _fail(*cast("list[str]", admission["required_gaps"]))
     recheck()
     effect = GitEffect(
         updates={

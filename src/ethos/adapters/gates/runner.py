@@ -35,6 +35,9 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import gate_outcome
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
@@ -195,10 +198,11 @@ class LocalGateRunner:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
             missing = str(exc.__cause__.filename or command[0])
+            # A gate whose command is absent observed nothing, so its facts are unknown.
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
-                verdict="block",
+                verdict="unknown",
                 exit_code=127,
                 stderr=str(exc.__cause__),
                 diagnostics=(
@@ -304,6 +308,7 @@ def observe_gate_execution(
     source: dict[str, str] = {}
     checks: list[dict[str, Any]] = []
     gaps = ["proof_head_missing"] if not head else []
+    after = failure = Outcome()
     if expect_head is not None and expect_head != head:
         gaps.append("expected_head_mismatch")
     policy = None
@@ -336,7 +341,8 @@ def observe_gate_execution(
                 parallel=True,
             )
             checks = [asdict(result) for result in results]
-            gaps.extend(policy.result_gaps(checks, source_tree=tree))
+            consequences = policy.result_gaps(checks, source_tree=tree)
+            after = Outcome.of(gate_outcome(checks).verdict, *consequences)
             if exact and (
                 current_tracked_head(root) != head
                 or observe_execution_source(root, head, tree) != source
@@ -344,15 +350,17 @@ def observe_gate_execution(
             ):
                 gaps.append("proof_execution_source_changed")
     except ValueError as error:
-        gaps.append(str(error))
+        failure = outcome_of(error)
+    observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), after, failure)
     return {
-        "verdict": "block" if gaps or not checks else "pass",
+        "verdict": observed.verdict,
         "head": head,
         "policy_digest": policy.digest if policy is not None else "",
         "execution_source": source,
         "executed": bool(checks),
         "checks": checks,
-        "required_gaps": gaps,
+        "required_gaps": list(observed.gaps),
+        "diagnostics": list(observed.causes),
     }
 
 
@@ -495,18 +503,14 @@ def _run_ready_gate(
     epoch: float,
 ) -> ActionRunResult:
     """Execute only when every settled prerequisite carries successful evidence."""
-    gaps = [
-        f"gate_dependency_not_proven:{key}"
-        for key in node.depends_on
-        if not execution_succeeded(asdict(results[key]))
-    ]
-    if gaps and not isinstance(runner, DryRunRunner):
+    unmet = [key for key in node.depends_on if not execution_succeeded(asdict(results[key]))]
+    if unmet and not isinstance(runner, DryRunRunner):
+        # A gate that cannot run takes its unmet prerequisites' class: unknown stays unknown.
+        held = ("unknown" if results[key].verdict == "unknown" else "block" for key in unmet)
+        gaps = [f"gate_dependency_not_proven:{key}" for key in unmet]
+        cause = ({"kind": "gate_dependency", "required_gaps": gaps},)
         return ActionRunResult(
-            node.id,
-            node.command,
-            "block",
-            None,
-            diagnostics=({"kind": "gate_dependency", "required_gaps": gaps},),
+            node.id, node.command, reduce_verdicts(*held), None, diagnostics=cause
         )
     started = monotonic()
     result = runner.run(node, gate, root=root)

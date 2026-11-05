@@ -17,6 +17,7 @@ from typing import cast
 
 from cyclopts import Parameter
 
+import ethos.adapters.mutation.remediation.guidance as remediation
 import ethos.domain.status as status_domain
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
@@ -32,9 +33,9 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_validation import assess_proof_execution
 from ethos.adapters.mutation.proof_validation import expected_head_gaps
-from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import execution_succeeded
@@ -270,6 +271,7 @@ def _proof_next_action(
     *,
     options: _ProofOptions,
     result_state: str,
+    gaps: tuple[str, ...] = (),
 ) -> str:
     """Return the next public lifecycle command for one proof outcome."""
     if result_state == "proven":
@@ -277,22 +279,26 @@ def _proof_next_action(
         return "ethos prove --json" if focused else "ethos land"
     if result_state == "ready":
         return "ethos prove --execute"
-    return "ethos plan --changed --json"
+    return _gap_remedy(gaps) or "ethos plan --changed --json"
+
+
+def _gap_remedy(gaps: tuple[str, ...]) -> str:
+    """Return the first remedy that the gaps' owner declares, if any."""
+    return next((str(hint["next_action"]) for hint in remediation.remediation_for_gaps(gaps)), "")
 
 
 def _emit_proof_gap(error: ValueError, *, json_output: bool, head: str = "") -> None:
-    """Project one proof failure with its original diagnostics and no second claim."""
-    observation = error.observation if isinstance(error, ProcessExecutionError) else {}
-    gaps = tuple(string_sequence(observation.get("required_gaps"))) or (str(error),)
+    """Project one proof failure with its carried verdict, causes and evidence, and no claim."""
+    outcome = outcome_of(error)
     refresh = f"ethos lane refresh-base --apply --authorize --expect-head {head} --json"
     emit(
-        EthosResult(
-            command="prove",
-            verdict="block",
+        EthosResult.from_outcome(
+            "prove",
+            outcome,
             state="gapped",
-            required_gaps=gaps,
-            next_action=refresh if gaps == (STALE,) else "ethos plan --changed --json",
-            data=observation,
+            next_action=refresh if outcome.gaps == (STALE,) else _gap_remedy(outcome.gaps),
+            fallback="ethos plan --changed --json",
+            data=getattr(error, "observation", {}),
         ),
         json_output=json_output,
     )
@@ -316,9 +322,10 @@ def _apply_proof_effect(
             try:
                 persist_proof_attestation(repo, attestation)
             except ValueError as error:
-                required_gaps = tuple(
-                    dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
+                failed = (
+                    f"proof_attestation_persistence_failed:{gap}" for gap in outcome_of(error).gaps
                 )
+                required_gaps = tuple(dict.fromkeys((*required_gaps, *failed)))
                 verdict = "block"
                 attestation = issue_proof_attestation(
                     repo,
@@ -430,7 +437,7 @@ def prove(
         host_probe_boundary(host=options.host, probe=options.probe),
     )
     focused = bool(options.gate) or scope_binding["scope"] != "repository"
-    verdict, required_gaps = assess_proof_execution(
+    assessed = assess_proof_execution(
         audit=audit,
         lifecycle=openspec_lifecycle,
         plan=plan,
@@ -442,6 +449,7 @@ def prove(
         current_head=current_head,
         scope_gaps=tuple(cast("list[str]", scope_binding["required_gaps"])),
     )
+    verdict, required_gaps = assessed.verdict, assessed.gaps
     boundary = "focused" if focused else "repository"
     payload = {
         "plan": plan,
@@ -516,7 +524,10 @@ def prove(
             "gate_count": len(checks),
         },
         required_gaps=required_gaps,
-        next_action=_proof_next_action(options=options, result_state=result_state),
+        diagnostics=assessed.causes,
+        next_action=_proof_next_action(
+            options=options, result_state=result_state, gaps=required_gaps
+        ),
         governance_context=cast("dict[str, object]", audit["governance_context"]),
         data=data,
     )

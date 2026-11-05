@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -15,23 +14,16 @@ from ethos.adapters.repo.release import immutable_tag_commit
 from ethos.adapters.repo.release import release_branch_policy
 from ethos.adapters.repo.release import release_provenance
 from ethos.adapters.repo.release import release_publication_head
+from ethos.adapters.repo.release import release_qualification
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.adapters.repo.release import require_release
-from ethos.contracts.value import mutable_json
 from ethos.repository.release.publication import publication_proof_selection
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.branch.roles import BranchRolePolicy
-    from ethos.contracts.plan import TransitionPlan
-
-
-def release_qualification(plan: TransitionPlan) -> dict[str, object]:
-    """Return the proof a release record bound, as embedded, for admission as recorded."""
-    proof = plan.prior_attestations.get("proof")
-    recorded = cast("dict[str, object]", mutable_json(proof)) if isinstance(proof, Mapping) else {}
-    return {"proof_attestation_id": str(recorded.get("id") or ""), "proof": recorded}
 
 
 def release_publication_selection(

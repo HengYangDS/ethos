@@ -11,9 +11,11 @@
 
 ## 2. Rule owners
 
-- [ ] 2.1 Record DR-0018 and the `repository-governance` requirement. Done when strict validation
-      and the archive simulation pass and the decision index lists DR-0018.
-- [ ] 2.2 Name the change in the Unreleased notes. Done when `changelog_errors` reports nothing.
+- [x] 2.1 Record DR-0018 and the `repository-governance` requirement. Done when strict validation
+      and the archive simulation pass and the decision index lists DR-0018. At `fac8f276c` the
+      archive simulation finds 12 of 12 specs valid, and the index lists DR-0018.
+- [x] 2.2 Name the change in the Unreleased notes. Done when `changelog_errors` reports nothing.
+      It reports nothing before and after the `### Fixed` entry.
 
 ## 3. Acceptance
 

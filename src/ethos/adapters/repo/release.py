@@ -255,12 +255,7 @@ def accepted_release_source(
             if maintenance and plan is not None
             else {}
         ),
-        **(
-            {"qualification": {"proof_attestation_id": str(proof["id"]), "proof": proof}}
-            if plan is not None
-            and isinstance(proof := plan.prior_attestations.get("proof"), Mapping)
-            else {}
-        ),
+        **({"qualification": release_qualification(plan)} if plan is not None else {}),
     }
 
 
@@ -385,6 +380,13 @@ def release_provenance(root: Path, *, ref: str, oid: str) -> TransitionPlan | No
             "release_tag_source_untrusted",
         )
     return plan
+
+
+def release_qualification(plan: TransitionPlan) -> dict[str, object]:
+    """Return the proof a release record bound, as embedded, for admission as recorded."""
+    proof = plan.prior_attestations.get("proof")
+    recorded = cast("dict[str, object]", mutable_json(proof)) if isinstance(proof, Mapping) else {}
+    return {"proof_attestation_id": str(recorded.get("id") or ""), "proof": recorded}
 
 
 def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str:

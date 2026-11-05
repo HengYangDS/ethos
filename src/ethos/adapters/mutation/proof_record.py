@@ -14,6 +14,7 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import current_tree
 from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -107,7 +108,7 @@ def _binding_gaps(bound: Attestation | None, recorded: Mapping[str, object]) -> 
     """Require the set member the release record names, byte-equal to its embedded copy."""
     if bound is None or bound.predicate != "proof:execution":
         return ["release_qualification_missing"]
-    if bound.model_dump(mode="json") != dict(recorded):
+    if mutable_json(bound.model_dump(mode="json")) != mutable_json(recorded):
         return ["release_qualification_binding_mismatch"]
     if gaps := proof_query_gaps(bound):
         return gaps

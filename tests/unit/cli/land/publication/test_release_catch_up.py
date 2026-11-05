@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import ethos.adapters.repo.release as release_owner
+import ethos.adapters.repo.release_publication as publication_reads
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.hook.protocol import execute_hook
@@ -93,8 +94,19 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
             == head
         )
         assert (provenance.call_count, source.call_count) == (1, 1)
-        provenance.reset_mock()
-        source.reset_mock()
+    with (
+        patch.object(
+            publication_reads, "release_provenance", wraps=release_owner.release_provenance
+        ) as provenance,
+        patch.object(
+            publication_reads,
+            "accepted_release_source",
+            wraps=release_owner.accepted_release_source,
+        ) as source,
+        patch.object(
+            release_owner, "release_provenance", wraps=release_owner.release_provenance
+        ) as owner_provenance,
+    ):
         admitted = push_admission_report(
             root=repo,
             target_ref=TAG_REF,
@@ -103,7 +115,8 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
             remote_name="gitlab",
         )
         assert admitted["verdict"] == "pass", admitted
-        assert (provenance.call_count, source.call_count) == (1, 1)
+        assert source.call_count == 1
+        assert provenance.call_count + owner_provenance.call_count == 1
     assert _pre_push(repo, tag, "0" * len(head)) == (0, [])
     assert _pre_push(repo, tag, tag) == (0, [])
 

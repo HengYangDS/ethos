@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The Python lock moves to the newest releases that have been public for at least 24 hours:
+  coverage 7.17.1, dnspython 2.9.2, filelock 4.2.8, joserfc 1.8.0, platformdirs 4.14.4,
+  python-discovery 1.9.4, uncalled-for 0.4.2 and virtualenv 21.15.5. filelock 4.2.9 and
+  platformdirs 4.14.5 were younger than that and wait for the next move.
+
 ## [0.2.0-beta.2] - 2026-11-05
 
 ### Added

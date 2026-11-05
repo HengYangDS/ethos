@@ -1,4 +1,4 @@
-"""GitLab archives hold evidence: its instance artifact limit cannot hold the Python distributions."""
+"""GitLab archives hold evidence; its instance artifact limit cannot hold the Python wheels."""
 
 from __future__ import annotations
 

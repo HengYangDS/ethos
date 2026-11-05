@@ -1,5 +1,8 @@
 """Compose transport-independent repository observations and continuations."""
 
+from collections.abc import Mapping
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 
@@ -25,9 +28,39 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
 
+# Under two hours left, the Lease outlasts no loaded full proof, so status points at its renewal.
+_RENEWAL_THRESHOLD_SECONDS = 2 * 60 * 60
+
 
 def _count(value: object) -> int:
     return len(value) if isinstance(value, list | tuple) else 0
+
+
+def lease_summary(
+    authority: Mapping[str, object], *, role: str, now: datetime
+) -> dict[str, object]:
+    """Name a Work Lane's Lease generation, expiry and seconds left; nothing for other roles."""
+    generation, expires_at = authority.get("generation"), str(authority.get("expires_at") or "")
+    if role != ROLE_WORK_LANE or not isinstance(generation, int) or generation < 1:
+        return {}
+    try:
+        left = int((datetime.fromisoformat(expires_at) - now).total_seconds())
+    except ValueError:
+        return {}
+    return {
+        "lease_generation": generation,
+        "lease_expires_at": expires_at,
+        "lease_seconds_left": left,
+    }
+
+
+def renewal_action(summary: Mapping[str, object], *, root: Path) -> str:
+    """Point at the renewal preview under two hours left, and at resumption once expired."""
+    left = summary.get("lease_seconds_left")
+    if not isinstance(left, int) or left >= _RENEWAL_THRESHOLD_SECONDS:
+        return ""
+    verb = "renew" if left > 0 else "resume"
+    return f"ethos lane lease {verb} --root {root.as_posix()}"
 
 
 @application_result("status")
@@ -73,6 +106,9 @@ def inspect_repository(root: Path) -> EthosResult:
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
     authority_projection = authority.projection() if authority is not None else {}
+    lease = lease_summary(
+        authority_projection, role=str(observed.get("role") or ""), now=datetime.now(UTC)
+    )
     commit_policy = commit_policy_enforcement(
         repo, runtime, signer_required=observed.get("role") in LIFECYCLE_COMMIT_ROLES
     )
@@ -138,6 +174,7 @@ def inspect_repository(root: Path) -> EthosResult:
         else candidate_action
         or runtime_action
         or commit_policy_action
+        or renewal_action(lease, root=repo)
         or closeout_action
         or (
             "repair the selected Commitment scope for the uncovered current-generation paths"
@@ -181,7 +218,8 @@ def inspect_repository(root: Path) -> EthosResult:
             "coordination_detail_state": compact_coordination["detail_state"],
             "coordination_advisory_count": compact_coordination["advisory_count"],
             "coordination_blocking": compact_coordination["blocking"],
-        },
+        }
+        | lease,
         diagnostics=(validation,),
         required_gaps=gaps,
         next_action=next_action,

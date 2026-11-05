@@ -12,6 +12,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- A Work Lane's holder reads and renews its Lease through native commands. `ethos status` names
+  `lease_generation`, `lease_expires_at` and `lease_seconds_left` in its summary, which stays inline
+  when the detail moves to an artifact, and points at the renewal with less than two hours left, or
+  at resumption once the Lease has expired. `ethos lane lease renew` and `resume` without
+  coordinates preview from the current Lease and return the exact apply command; an apply without
+  all four coordinates refuses with `lease_coordinates_required`.
+
 ### Changed
 
 - A result for a gate that the plan does not declare is `gate_undeclared:<gate>`, so

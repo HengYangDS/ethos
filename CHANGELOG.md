@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.3] - 2026-11-06
+
 ### Added
 
 - Each release publishes two inventories beside every runtime archive: an SPDX 2.3 SBOM, for
@@ -45,6 +47,25 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- 0.2.0-beta.3 upgrades directly from 0.2.0-beta.2 and from 0.2.0-alpha.29, the releases that
+  governed adopters selected when it was released. Its hosted journey upgrades from, and rolls back
+  to, each of them on macOS and Linux.
+- A command now reports `unknown` where it reported `block` before: for a gate that timed out, a
+  command that is absent and a prerequisite whose state is unknown. A script that reads ETHOS
+  verdicts treats `pass`, `block` and `unknown` as the whole closed set and stops on anything that
+  is not `pass`.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+  - The dependency audit gives up on one network reset from `api.osv.dev`, and a proof then names
+    only `finding_identity_unavailable` instead of the reset.
 - A result for a gate that the plan does not declare is `gate_undeclared:<gate>`, so
   `gate_unknown:<gate>` means only a gate whose verdict is unknown.
 - The Python lock moves to the newest releases that have been public for at least 24 hours:

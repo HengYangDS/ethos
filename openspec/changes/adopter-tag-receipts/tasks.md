@@ -2,12 +2,17 @@
 
 ## 1. Qualification
 
-- [ ] 1.1 Admit one release-bound proof as recorded. Done when publication tests under a later
+- [x] 1.1 Admit one release-bound proof as recorded. Done when publication tests under a later
       policy show a historical tag catching up, held by every peer and passing the pre-push hook,
       while a missing, altered or inconsistent bound proof refuses by name and a branch keeps the
-      current policy; each test fails first.
-- [ ] 1.2 Report `already_applied` when no peer changes. Done when the held-tag test reads
-      `remote_push: already_applied` with every attempt already applied.
+      current policy; each test fails first. The first tests failed first at `fac8f276c`. The proof
+      is now read from the release record's embedded copy, because the set member ends once its
+      tag moves (`mapped-release-retag`). Over `a07259539` the qualification tests pass 5 of 5, the
+      proof admission tests 29 of 29 and the publication suite 145 of 145. The mutants that drop
+      the passing-proof, identity or policy-digest rule are killed, and the destination-derived
+      mode was killed at `fac8f276c`.
+- [x] 1.2 Report `already_applied` when no peer changes. Done when the held-tag test reads
+      `remote_push: already_applied` with every attempt already applied. It does, in the same runs.
 
 ## 2. Rule owners
 

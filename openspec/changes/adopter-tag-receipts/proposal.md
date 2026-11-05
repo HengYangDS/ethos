@@ -18,9 +18,10 @@ Re-proving an old source under today's policy fails on obligations it predates. 
 
 - A release tag whose completed `release.promote` effect created the exact tag object is qualified
   by the passing proof that effect bound. Publication admits that proof as recorded:
+  - the copy that the release effect embeds verifies as the content-addressed attestation it
+    names, so the proof's set member, whose lifetime may have ended, is not read;
   - its schema, subject, plan head, live tree and artifact custody verify under the current
     runtime;
-  - the set member equals the copy the release effect embeds;
   - its policy closure hashes to its recorded policy digest.
 
   It is never judged against the policy the current runtime compiles for the old source.

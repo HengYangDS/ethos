@@ -44,9 +44,11 @@ A historical artifact is judged by the attestation made when it was produced.
   under the trust anchor in force, the declared target policy and each peer's exact ref.
 - **Qualification is the attested fact from that time.** A release tag whose completed release
   effect created the exact tag object is qualified by the passing proof that effect bound. ETHOS
-  verifies that proof under the current runtime: its schema, subject, plan head, live tree, artifact
-  custody and recorded results, its equality with the copy the release effect embeds, and that its
-  policy closure hashes to its recorded policy digest.
+  verifies the copy the release effect embeds, which is the content-addressed attestation made at
+  that time, under the current runtime: its identity, schema, subject, plan head, live tree,
+  artifact custody and recorded results, and that its policy closure hashes to its recorded policy
+  digest. It does not read the proof's set member, whose lifetime ends once no ref or tag pins the
+  commit.
 - **No later re-judgment.** ETHOS does not compile today's policy for the old source, does not
   re-evaluate dependency acceptance against today's advisories and does not recompile its
   Commitment. There is no policy-version floor: the floor is verifiability, and anything that
@@ -68,7 +70,8 @@ A historical artifact is judged by the attestation made when it was produced.
 
 - A release qualified under an earlier, weaker policy stays publishable to new peers. Its receipt
   names the proof and its policy digest; a consumer that wants today's bar releases a new identity.
-- Loss of the bound proof or its artifact makes the tag unpublishable. This fails closed.
+- Loss of the release record or of the proof's artifact makes the tag unpublishable. This fails
+  closed.
 - The 0.3.0 channel model's qualification attestations rest on this rule: a channel move reads a
   build's attestations as recorded.
 - Other historical re-derivations, such as a maintenance range under today's commit policy, move to

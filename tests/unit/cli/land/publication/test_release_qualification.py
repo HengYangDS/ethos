@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from contextlib import redirect_stderr
 from io import StringIO
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -23,6 +22,7 @@ from tests.support.proof import seed_executed_proof
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
+from tests.unit.cli.land.publication.support import later_policy
 from tests.unit.cli.land.publication.support import publication_peers
 from tests.unit.cli.land.publication.support import release_cli
 
@@ -30,12 +30,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 TAG_REF = "refs/tags/v1.2.3"
-
-
-def _later_policy(*_args: object, **_kwargs: object) -> tuple[tuple[str, object], ...]:
-    """Compile what a later runtime would: a policy no historical proof executed."""
-    policy = SimpleNamespace(digest="0" * 64, nodes=(), gaps=())
-    return (("full", policy), ("default", policy))
 
 
 def _pre_push(repo: Path, tag: str, remote_oid: str) -> tuple[int, list[str]]:
@@ -92,7 +86,7 @@ def test_a_historical_release_publishes_under_its_recorded_policy(tmp_path: Path
     """A later policy neither blocks catch-up nor the receipt for a peer that holds the tag."""
     repo, peers, head, accepted, tag = _historical_release(tmp_path)
     bound = _bound_proof(repo, tag)
-    with patch.object(proof_admission, "resolve_proof_policies", _later_policy):
+    with patch.object(proof_admission, "resolve_proof_policies", later_policy):
         assert _pre_push(repo, tag, "0" * len(head)) == (0, [])
         preview = branch_publication(repo, accepted, "--peer", "gitlab", target_ref=TAG_REF)
         assert preview["verdict"] == "pass", preview
@@ -120,7 +114,7 @@ def test_a_branch_keeps_the_current_policy(tmp_path: Path) -> None:
     """Only a release tag with a release record reads its recorded qualification."""
     repo, peers, _head, accepted, _tag = _historical_release(tmp_path)
     before = git(peers["gitlab"], "rev-parse", "refs/heads/main")
-    with patch.object(proof_admission, "resolve_proof_policies", _later_policy):
+    with patch.object(proof_admission, "resolve_proof_policies", later_policy):
         blocked = branch_publication(
             repo, accepted, "--peer", "gitlab", target_ref="refs/heads/main", blocked=True
         )
@@ -132,35 +126,28 @@ def test_a_branch_keeps_the_current_policy(tmp_path: Path) -> None:
     ("case", "gap"),
     [
         ("missing", "release_qualification_missing"),
-        ("altered", "release_qualification_binding_mismatch"),
+        ("altered", "release_qualification_unverified"),
         ("inconsistent", "proof_attestation_recorded_policy_inconsistent"),
     ],
 )
 def test_an_unverifiable_qualification_refuses_by_name(tmp_path: Path, case: str, gap: str) -> None:
-    """The release-bound proof must exist, equal its embedded copy and hash to its policy."""
+    """The release record must embed a passing proof that verifies and hashes to its policy."""
     repo, peers, head, accepted, tag = _historical_release(tmp_path)
-    bound = _bound_proof(repo, tag)
-    original = proof_record.read_attestation_set
+    original = proof_admission.recorded_proof
 
-    def without_bound(root: Path) -> tuple[object, tuple[object, ...]]:
-        selected, members = original(root)
-        return selected, tuple(item for item in members if item.id != bound)
+    def embedded(root: Path, proven: str, store: Path, recorded: dict[str, object]) -> object:
+        changed = {
+            "missing": {"proven_commit": recorded["proven_commit"]},
+            "altered": {**recorded, "valid_until": recorded["issued_at"]},
+        }[case]
+        return original(root, proven, store, changed)
 
-    def altered(root: Path) -> tuple[object, tuple[object, ...]]:
-        selected, members = original(root)
-        return selected, tuple(
-            item.model_copy(update={"valid_until": item.issued_at}) if item.id == bound else item
-            for item in members
-        )
-
-    replacement = {
-        "missing": patch.object(proof_record, "read_attestation_set", without_bound),
-        "altered": patch.object(proof_record, "read_attestation_set", altered),
-        "inconsistent": patch.object(
-            proof_record, "canonical_json_digest", lambda _value: "f" * 64
-        ),
-    }[case]
-    with patch.object(proof_admission, "resolve_proof_policies", _later_policy), replacement:
+    replacement = (
+        patch.object(proof_record, "canonical_json_digest", lambda _value: "f" * 64)
+        if case == "inconsistent"
+        else patch.object(proof_admission, "recorded_proof", embedded)
+    )
+    with patch.object(proof_admission, "resolve_proof_policies", later_policy), replacement:
         code, hook_gaps = _pre_push(repo, tag, "0" * len(head))
         blocked = branch_publication(
             repo, accepted, "--peer", "gitlab", target_ref=TAG_REF, blocked=True

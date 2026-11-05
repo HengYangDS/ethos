@@ -32,15 +32,19 @@ Non-goals:
 
 1. **Option B, original-policy proof.** AIGW chose it over effect-free observation, which would
    publish a tag whose original proof is missing and weaken the fresh-admission requirement.
-2. **Recorded admission.** `proof_attestation(..., recorded=<embedded proof>)` selects exactly the
-   bound ID and requires the set member to equal the embedded copy
-   (`release_qualification_binding_mismatch`). It then runs the integrity stages as today: subject,
-   plan head, live tree, archive scope, artifact custody and statement results. Instead of
-   comparing with today's compile, it requires the recorded policy closure to hash to the recorded
-   digest (`proof_attestation_recorded_policy_inconsistent`). It repeats no judgment that moves with
-   time or runtime: no policy compile, no dependency acceptance and no Commitment recompile. A
-   missing member refuses as `release_qualification_missing`. This is AIGW's answer 5: the floor is
-   verifiability under the current runtime, with no policy-version floor.
+2. **Recorded admission.** `proof_attestation(..., recorded=<embedded proof>)` admits the copy the
+   release record embeds. That copy is the content-addressed Attestation made at release time,
+   and the record's plan digest binds it, so it is validated as that Attestation
+   (`release_qualification_unverified`) and never looked up in the set. A set member lives only
+   while a ref or tag pins its commit: re-creating the tag (`mapped-release-retag`) or deleting it
+   locally ends the member, and a runtime that predates this rule prunes it the same way. A record
+   without a passing proof refuses as `release_qualification_missing`. The admission then runs the
+   integrity stages as today: subject, plan head, live tree, archive scope, artifact custody and
+   statement results. Instead of comparing with today's compile, it requires the recorded policy
+   closure to hash to the recorded digest (`proof_attestation_recorded_policy_inconsistent`). It
+   repeats no judgment that moves with time or runtime: no policy compile, no dependency
+   acceptance and no Commitment recompile. This is AIGW's answer 5: the floor is verifiability
+   under the current runtime, with no policy-version floor.
 3. **One release read.** `accepted_release_source` already reads the release record once per
    admission. It now returns `qualification` (the bound proof ID and its embedded copy) for every
    release record, beside the maintenance-only `release` binding. The publication context reads the
@@ -68,6 +72,7 @@ Non-goals:
 
 - A release qualified under an earlier, weaker policy stays publishable to new peers. The receipt
   names the proof and its policy digest; a consumer that wants today's bar releases a new identity.
-- Custody loss of the bound proof or its artifact makes the tag unpublishable. This fails closed.
+- Loss of the release record or of the proof's artifact makes the tag unpublishable. This fails
+  closed. The proof's set member is not needed.
 - Proof admission still runs other stages at the old source. They pass for the known cases; a
   failing one moves to the same release record, not to a special case.

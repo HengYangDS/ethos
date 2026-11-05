@@ -15,13 +15,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 ### Fixed
 
 - A release tag that an earlier ETHOS released publishes on the proof its own release effect
-  bound, verified as recorded: its schema, subject, tree, artifact custody, embedded copy and
-  recorded policy digest. Before, every publication re-judged it against the policy the running
-  runtime compiled for the old source, so after a policy change every historical tag refused
-  with `proof_attestation_repository_policy_mismatch`, also when every peer already held it.
-  A missing, altered or inconsistent bound proof refuses by name, and branches keep the current
-  policy. A request that changes no peer now reports `remote_push: already_applied`. DR-0018
-  records the rule.
+  bound, verified as recorded from the copy that effect embeds: its identity, schema, subject,
+  tree, artifact custody and recorded policy digest. Before, every publication re-judged it
+  against the policy the running runtime compiled for the old source, so after a policy change
+  every historical tag refused with `proof_attestation_repository_policy_mismatch`, also when
+  every peer already held it. A missing, altered or inconsistent bound proof refuses by name, and
+  branches keep the current policy. A request that changes no peer now reports
+  `remote_push: already_applied`. DR-0018 records the rule.
 
 ## [0.2.0-beta.1] - 2026-11-04
 

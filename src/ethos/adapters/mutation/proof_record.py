@@ -10,9 +10,9 @@ from typing import Any
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
-from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import current_tree
 from ethos.contracts.proof.plan import archive_scope_gaps
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.plan import TransitionPlan
-    from ethos.contracts.semantic import Attestation
 
 
 def proof_current_at(attestation: Attestation, instant: datetime) -> bool:
@@ -87,29 +86,29 @@ def proof_integrity(
 def recorded_proof(
     root: Path, head: str, store: Path, recorded: Mapping[str, object]
 ) -> tuple[tuple[Attestation, ...], list[str]]:
-    """Admit the one proof a release record bound, verified as recorded under this runtime."""
+    """Admit the proof a release record embeds, verified as that record bound it (DR-0018).
+
+    The embedded copy is the content-addressed Attestation made at release time, so it is
+    verified itself and never looked up in the set, whose member ends once no tag pins its
+    commit. `head` is the commit being published; a re-created tag's proof is verified on the
+    original commit that its release record names.
+    """
+    embedded = {key: value for key, value in recorded.items() if key != "proven_commit"}
+    if embedded.get("predicate") != "proof:execution" or embedded.get("verdict") != "pass":
+        return (), ["release_qualification_missing"]
     try:
-        _selected_root, attestations = read_attestation_set(root)
-    except ValueError as error:
-        return (), [str(error)]
-    bound = next((item for item in attestations if item.id == recorded.get("id")), None)
-    gaps = _binding_gaps(bound, recorded)
-    if bound is None or gaps:
+        bound = Attestation.model_validate(mutable_json(embedded))
+    except (TypeError, ValueError):
+        return (), ["release_qualification_unverified"]
+    gaps = proof_query_gaps(bound) or (
+        [] if proof_current_at(bound, datetime.now(UTC)) else ["unknown_required_fact"]
+    )
+    if gaps:
         return (), gaps
-    plan, checks, gaps = proof_integrity(root, head, store, bound)
+    proven = str(recorded.get("proven_commit") or head)
+    plan, checks, gaps = proof_integrity(root, proven, store, bound)
     if not gaps and plan is not None and canonical_json_digest(plan.policy) != plan.inputs.policy:
         gaps = ["proof_attestation_recorded_policy_inconsistent"]
     if gaps or checks is None:
         return (), gaps or ["proof_attestation_artifact_missing"]
     return (bound,), []
-
-
-def _binding_gaps(bound: Attestation | None, recorded: Mapping[str, object]) -> list[str]:
-    """Require the set member the release record names, byte-equal to its embedded copy."""
-    if bound is None or bound.predicate != "proof:execution":
-        return ["release_qualification_missing"]
-    if mutable_json(bound.model_dump(mode="json")) != mutable_json(recorded):
-        return ["release_qualification_binding_mismatch"]
-    if gaps := proof_query_gaps(bound):
-        return gaps
-    return [] if proof_current_at(bound, datetime.now(UTC)) else ["unknown_required_fact"]

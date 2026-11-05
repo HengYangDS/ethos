@@ -2,7 +2,7 @@
 
 ### Requirement: A release tag publishes on its recorded qualification
 
-For a release tag whose completed release effect created the exact tag object, publication SHALL admit the passing proof that effect bound, verifying its schema, subject, tree, artifact custody, embedded copy and recorded policy digest under the current runtime, without compiling the current policy for its source. Identity, signature, target policy and peer refs SHALL be checked now. Other targets keep the current policy.
+For a release tag whose completed release effect created the exact tag object, publication SHALL admit the passing proof that effect embedded, verifying its identity, schema, subject, tree, artifact custody and recorded policy digest under the current runtime, without reading its set member or compiling the current policy for its source. Identity, signature, target policy and peer refs SHALL be checked now. Other targets keep the current policy.
 
 #### Scenario: A later runtime changes the policy
 
@@ -12,7 +12,7 @@ For a release tag whose completed release effect created the exact tag object, p
 
 #### Scenario: The bound proof cannot be verified
 
-- **WHEN** the bound proof is missing from the set, differs from its embedded copy, or its policy closure does not hash to its recorded digest
+- **WHEN** the release record embeds no passing proof, its copy does not verify as the attestation it names, or its policy closure does not hash to its recorded digest
 - **THEN** publication refuses by name before any peer changes
 
 #### Scenario: A branch under a later policy

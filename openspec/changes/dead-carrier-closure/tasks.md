@@ -28,5 +28,7 @@
 
 - [x] 3.1 Add the `repository-governance` requirement. Done when strict validation and the
       cumulative archive simulation pass.
-- [ ] 3.2 Run the gates and the affected test suites. Done when every gate passes and every
-      affected suite passes at the lane head.
+- [x] 3.2 Run the gates and the affected test suites. Done when every gate passes and every
+      affected suite passes at the lane head. At `af37c7a7a` ten gate sessions, the product and
+      repository audits and the archive simulation pass; 3,252 affected tests pass in four
+      batches.

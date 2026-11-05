@@ -41,6 +41,8 @@ from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.toolchain.native import prepare_mise
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import nox
 
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -69,17 +71,41 @@ class PublishedRelease:
     sha256: str
 
 
-def previous_version(changelog: str, version: str) -> str:
-    """Name the release whose changelog entry follows this prerelease's entry."""
+def previous_version(
+    changelog: str, version: str, *, published: Callable[[str], bool]
+) -> tuple[str, tuple[str, ...]]:
+    """Name the first earlier changelog entry the forge published, and the entries it skipped."""
     versions = _ENTRY.findall(changelog)
     if version not in versions:
         message = f"release_journey_entry_missing:{version}"
         raise ValueError(message)
-    later = versions[versions.index(version) + 1 :]
-    if not later:
-        message = f"release_journey_previous_missing:{version}"
-        raise ValueError(message)
-    return later[0]
+    skipped: list[str] = []
+    for candidate in versions[versions.index(version) + 1 :]:
+        if published(candidate):
+            return candidate, tuple(skipped)
+        skipped.append(candidate)
+    message = f"release_journey_previous_missing:{version}"
+    raise ValueError(message)
+
+
+def release_published(version: str) -> bool:
+    """Ask the forge whether this version's release exists; only a missing release reads False."""
+    try:
+        _gh(
+            "release",
+            "view",
+            f"v{version}",
+            "--repo",
+            REPOSITORY,
+            "--json",
+            "tagName",
+            failure=f"release_journey_release_lookup_failed:v{version}",
+        )
+    except ValueError as error:
+        if "release not found" in str(error):
+            return False
+        raise
+    return True
 
 
 def host_platform() -> str:
@@ -253,7 +279,7 @@ def prove_upgrade(
 def qualify(tag: str, *, work: Path, platform: str, changelog: str) -> dict[str, object]:
     """Run every journey step on one published prerelease and return each step's result."""
     version = tag.removeprefix("v")
-    previous = previous_version(changelog, version)
+    previous, skipped = previous_version(changelog, version, published=release_published)
     with observe_stage("published_assets"):
         subject = download_release(tag, work / "assets" / version, platform=platform, attested=True)
         earlier = download_release(
@@ -294,6 +320,7 @@ def qualify(tag: str, *, work: Path, platform: str, changelog: str) -> dict[str,
     return {
         "tag": tag,
         "previous": f"v{previous}",
+        "skipped_unpublished": [f"v{name}" for name in skipped],
         "assets": {
             release.version: {"archive": release.archive.name, "sha256": release.sha256}
             for release in (subject, earlier)

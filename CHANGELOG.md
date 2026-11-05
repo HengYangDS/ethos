@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- The release journey upgrades from the latest earlier release that GitHub published, not merely
+  from the next changelog entry. 0.2.0-beta.1 was tagged but never published, so beta.2's journey
+  failed to download it. The receipt names each skipped version as `skipped_unpublished`, and a
+  forge error other than a missing release refuses instead of skipping.
+
 ## [0.2.0-beta.2] - 2026-11-05
 
 ### Added

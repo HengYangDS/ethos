@@ -35,14 +35,44 @@ def _digest(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def test_the_previous_release_is_the_next_changelog_entry() -> None:
-    assert journey.previous_version(CHANGELOG, VERSION) == "0.2.0-alpha.28"
+def test_the_previous_release_is_the_next_published_changelog_entry() -> None:
+    """The forge, not the changelog, says which earlier version was published."""
+    every = {"0.2.0-alpha.28", "0.2.0-alpha.27"}.__contains__
+    assert journey.previous_version(CHANGELOG, VERSION, published=every) == ("0.2.0-alpha.28", ())
+    only_older = {"0.2.0-alpha.27"}.__contains__
+    assert journey.previous_version(CHANGELOG, VERSION, published=only_older) == (
+        "0.2.0-alpha.27",
+        ("0.2.0-alpha.28",),
+    )
     with pytest.raises(ValueError, match=re.escape("release_journey_entry_missing:0.2.0-alpha.30")):
-        journey.previous_version(CHANGELOG, "0.2.0-alpha.30")
-    with pytest.raises(
-        ValueError, match=re.escape("release_journey_previous_missing:0.2.0-alpha.27")
-    ):
-        journey.previous_version(CHANGELOG, "0.2.0-alpha.27")
+        journey.previous_version(CHANGELOG, "0.2.0-alpha.30", published=every)
+    for version, published in (("0.2.0-alpha.27", every), (VERSION, set().__contains__)):
+        with pytest.raises(
+            ValueError, match=re.escape(f"release_journey_previous_missing:{version}")
+        ):
+            journey.previous_version(CHANGELOG, version, published=published)
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stderr", "expected"),
+    [(0, "", "published"), (1, "release not found", "unpublished"), (1, "HTTP 502", "refused")],
+)
+def test_only_a_missing_release_counts_as_unpublished(
+    monkeypatch: pytest.MonkeyPatch, returncode: int, stderr: str, expected: str
+) -> None:
+    """A forge error other than a missing release refuses instead of skipping the version."""
+
+    def gh(_cwd: Path, command: tuple[str, ...], **_options: object) -> subprocess.CompletedProcess:
+        assert command[:3] == ("gh", "release", "view")
+        assert command[3] == "v0.2.0-alpha.28"
+        return subprocess.CompletedProcess(command, returncode, "", stderr)
+
+    monkeypatch.setattr(journey, "run_command", gh)
+    if expected == "refused":
+        with pytest.raises(ValueError, match=re.escape("release_journey_release_lookup_failed")):
+            journey.release_published("0.2.0-alpha.28")
+    else:
+        assert journey.release_published("0.2.0-alpha.28") is (expected == "published")
 
 
 @pytest.mark.parametrize(
@@ -129,3 +159,38 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
     else:
         assert (receipt["state"], receipt["error"]) == ("failed", "journey_step_failed")
         session.error.assert_called_once()
+
+
+def test_the_receipt_names_the_versions_it_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A qualified tag's receipt says which predecessor it used and which entries it skipped."""
+    downloads: list[str] = []
+
+    def download(tag: str, target: Path, **_options: object) -> journey.PublishedRelease:
+        downloads.append(tag)
+        return journey.PublishedRelease(tag.removeprefix("v"), "", target / "a.tar.gz", "0" * 64)
+
+    generation = tmp_path / "previous-install" / "ethos/runtime" / "0123456789abcdef"
+    generation.mkdir(parents=True)
+    installed = Mock(installed=tmp_path / "previous-install")
+    passed = {"state": "passed", "runtime_digest": "f" * 64}
+    for name, value in (
+        ("release_published", {"0.2.0-alpha.27"}.__contains__),
+        ("download_release", download),
+        ("independent_host_environment", lambda: ({}, "git")),
+        ("prove_shared_supply", lambda *_a, **_k: passed),
+        ("require_selected_runtime", lambda path: path),
+        ("prove_full", lambda *_a, **_k: passed),
+        ("prepare_mise", lambda _root: Path("mise")),
+        ("install_archive", lambda *_a, **_k: installed),
+        ("require_installed_runtime", lambda path: path),
+        ("prove_upgrade", lambda *_a, **_k: passed),
+    ):
+        monkeypatch.setattr(journey, name, value)
+    receipt = journey.qualify(f"v{VERSION}", work=tmp_path, platform=PLATFORM, changelog=CHANGELOG)
+    assert downloads == [f"v{VERSION}", "v0.2.0-alpha.27"]
+    assert (receipt["previous"], receipt["skipped_unpublished"]) == (
+        "v0.2.0-alpha.27",
+        ["v0.2.0-alpha.28"],
+    )

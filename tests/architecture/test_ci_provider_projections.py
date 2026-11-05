@@ -256,7 +256,7 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
             if name.startswith("ethos:")
         )
         assert gitlab["ethos:verify"]["image"] == gitlab["ethos:npm"]["image"]
-        assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
+        assert "build/artifacts/python/" not in gitlab["ethos:verify"]["artifacts"]["paths"]
         assert "stuck_or_timeout_failure" not in gitlab["default"]["retry"]["when"]
 
 

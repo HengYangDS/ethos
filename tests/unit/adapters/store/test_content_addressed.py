@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.store.content_addressed as content_addressed
+import ethos.adapters.store.durable as durable
 
 if TYPE_CHECKING:
     import pytest
@@ -25,7 +26,7 @@ def test_windows_publication_does_not_open_parent_directory(
         return original_open(path, flags, mode)
 
     with monkeypatch.context() as patch:
-        patch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", False, raising=False)
+        patch.setattr(durable, "_DIRECTORY_FSYNC_SUPPORTED", False, raising=False)
         patch.setattr(content_addressed.os, "open", reject_directory_open)
         assert (
             content_addressed.write_content_addressed(target, b"wheel", collision="collision")
@@ -46,7 +47,7 @@ def test_posix_publication_synchronizes_parent_directory(
         return original_open(path, flags, mode)
 
     with monkeypatch.context() as patch:
-        patch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", True, raising=False)
+        patch.setattr(durable, "_DIRECTORY_FSYNC_SUPPORTED", True, raising=False)
         patch.setattr(content_addressed.os, "open", observe_open)
         content_addressed.write_content_addressed(target, b"wheel", collision="collision")
 

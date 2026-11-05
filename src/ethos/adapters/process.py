@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_PROCESS_OBSERVER_UNAVAILABLE = "native_process_observer_unavailable"
+# The idle and system processes have no command line and run no program.
+_KERNEL_PROCESS_IDS = frozenset({0, 4})
 # Darwin needs a moment to reap an exited group's members before it can report the group absent.
 _GROUP_REAPING_GRACE_SECONDS = 0.5
 _GROUP_REAPING_POLL_SECONDS = 0.01
@@ -260,7 +262,7 @@ def command_scope(
         _COMMAND_SCOPE.reset(token)
 
 
-def process_listing_command() -> tuple[str, ...]:
+def process_listing_command(*, with_pid: bool = False) -> tuple[str, ...]:
     """Observe full native command text on POSIX, independent of PATH or display width."""
     executable = shutil.which("ps", path=os.defpath)
     if executable is None or not Path(executable).is_file():
@@ -268,12 +270,20 @@ def process_listing_command() -> tuple[str, ...]:
             NATIVE_PROCESS_OBSERVER_UNAVAILABLE,
             reason="native_executable_missing",
         )
-    return (Path(executable).resolve().as_posix(), "-axww", "-o", "command=")
+    columns = "pid=,command=" if with_pid else "command="
+    return (Path(executable).resolve().as_posix(), "-axww", "-o", columns)
 
 
-def windows_command_lines(*, timeout: float) -> tuple[str, ...]:
-    """Read every visible process's command line from WMI on a worker thread within a bound."""
+def windows_command_lines(
+    *, timeout: float, exclude_pid: int | None = None, strict: bool = False
+) -> tuple[str, ...]:
+    """Read every visible process's command line from WMI on a worker thread within a bound.
+
+    Strictly, a process whose command line Windows withholds makes the listing unknown, except
+    the kernel's idle and system processes, which run no program.
+    """
     lines: list[str] = []
+    unreadable: list[int] = []
     complete = Event()
 
     def query() -> None:
@@ -284,8 +294,14 @@ def windows_command_lines(*, timeout: float) -> tuple[str, ...]:
             return
         com.CoInitialize()
         try:
-            rows = client.GetObject("winmgmts:").ExecQuery("SELECT CommandLine FROM Win32_Process")
-            lines.extend(str(row.CommandLine) for row in rows if row.CommandLine)
+            query = "SELECT ProcessId, CommandLine FROM Win32_Process"
+            for row in client.GetObject("winmgmts:").ExecQuery(query):
+                if row.ProcessId == exclude_pid:
+                    continue
+                if row.CommandLine:
+                    lines.append(str(row.CommandLine))
+                elif row.ProcessId not in _KERNEL_PROCESS_IDS:
+                    unreadable.append(int(row.ProcessId))
             complete.set()
         except com.com_error:
             return
@@ -298,6 +314,10 @@ def windows_command_lines(*, timeout: float) -> tuple[str, ...]:
     if not complete.is_set():
         raise ProcessExecutionError(
             NATIVE_PROCESS_OBSERVER_UNAVAILABLE, reason="management_query_unavailable"
+        )
+    if strict and unreadable:
+        raise ProcessExecutionError(
+            NATIVE_PROCESS_OBSERVER_UNAVAILABLE, reason="process_command_line_unreadable"
         )
     return tuple(lines)
 

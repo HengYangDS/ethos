@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from stat import S_ISREG
 
-_DIRECTORY_FSYNC_SUPPORTED = os.name == "posix"
+from ethos.adapters.store.durable import sync_directory
 
 
 def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Path:
@@ -22,12 +22,7 @@ def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Pa
             os.fsync(stream.fileno())
         try:
             os.link(temporary, path)
-            if _DIRECTORY_FSYNC_SUPPORTED:
-                directory = os.open(path.parent, os.O_RDONLY)
-                try:
-                    os.fsync(directory)
-                finally:
-                    os.close(directory)
+            sync_directory(path.parent)
         except FileExistsError:
             try:
                 if not S_ISREG(path.lstat().st_mode):

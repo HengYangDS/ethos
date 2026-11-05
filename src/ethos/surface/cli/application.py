@@ -22,6 +22,7 @@ _COMMAND_MODULES = {
     "lane": "ethos.surface.cli.lane.lifecycle",
     "hook": "ethos.surface.cli.hook.commands",
     "attestation": "ethos.surface.cli.root.attestation",
+    "host": "ethos.surface.cli.root.host",
 }
 
 

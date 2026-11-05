@@ -8,6 +8,7 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.admission.role_rename import legacy_role_ref_protected
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.conservation import accepted_contribution
@@ -195,13 +196,15 @@ def prepared_ref_intent_gaps(
 
 
 def resolve_ref_move_policy(
-    repo: Path, ref_name: str, old_value: str, new_value: str
+    repo: Path, ref_name: str, old_value: str, new_value: str, *, claim: bool = True
 ) -> BranchRolePolicy:
     """Resolve the strict policy that governs one ref transition.
 
     The incumbent strict policy remains authoritative. When it predates the
     current schema, the promoted strict policy performs the one-control
-    bootstrap. No legacy policy parser participates in admission.
+    bootstrap. No legacy policy parser participates in admission. Without
+    `claim`, an absorbed-ref retirement's intent is assumed rather than claimed,
+    so a preview reads the same resolution that the prepared hook applies.
     """
     branch = ref_name.removeprefix("refs/heads/")
     policy = _strict_ref_policy(repo, old_value)
@@ -215,7 +218,7 @@ def resolve_ref_move_policy(
                     policy = BranchRolePolicy()
                     break
     if policy is None:
-        policy = _absorbed_ref_transition_policy(repo, branch, old_value, new_value)
+        policy = _absorbed_ref_transition_policy(repo, branch, old_value, new_value, claim=claim)
     if policy is None:
         message = "ref_move_policy_unavailable"
         raise ValueError(message)
@@ -231,7 +234,7 @@ def resolve_ref_move_policy(
 
 
 def _absorbed_ref_transition_policy(
-    repo: Path, branch: str, old_value: str, new_value: str
+    repo: Path, branch: str, old_value: str, new_value: str, *, claim: bool
 ) -> BranchRolePolicy | None:
     """Resolve accepted policy for exact retirement of an older local topic."""
     deleting = new_value in _ZERO_OIDS and old_value not in _ZERO_OIDS
@@ -251,6 +254,8 @@ def _absorbed_ref_transition_policy(
         )
     ):
         return None
+    if not claim:
+        return accepted_policy
     intent = claim_ref_intent(
         root=repo,
         ref_name=f"refs/heads/{branch}",
@@ -259,6 +264,23 @@ def _absorbed_ref_transition_policy(
         phase="prepared",
     )
     return accepted_policy if intent.get("present") and not intent.get("gap") else None
+
+
+def prepared_deletion_gaps(repo: Path, ref_name: str, old_value: str) -> list[str]:
+    """Name the prepared hook's refusal of deleting one ref, before the deletion's intent exists.
+
+    The hook protects a legacy role ref until its rename, then requires a strict policy that
+    governs the deletion. Both read committed declarations and current refs through the hook's
+    own predicates; only the hook claims the recorded intent.
+    """
+    zero = "0" * len(old_value)
+    if legacy_role_ref_protected(repo, ref_name, old_value, zero):
+        return ["legacy_role_ref_protected"]
+    try:
+        resolve_ref_move_policy(repo, ref_name, old_value, zero, claim=False)
+    except (TypeError, ValueError):
+        return ["ref_move_policy_unavailable"]
+    return []
 
 
 def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:

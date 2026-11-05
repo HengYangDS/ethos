@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import committed_ref_intent
+from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.process import ProcessExecutionError
@@ -102,6 +103,9 @@ def retire_absorbed_ref(
         )
         if failed
     ]
+    if not gaps and current_ref == expect_head:
+        # The prepared hook refuses these deletions; the preview names its gap instead of an apply.
+        gaps.extend(prepared_deletion_gaps(repo, f"refs/heads/{branch}", expect_head))
     contribution_verdict = report_verdict(contribution)
     verdict = reduce_verdicts("block" if gaps else "pass", contribution_verdict)
     if expect_head and accepted_head and contribution_verdict != "pass":
@@ -352,6 +356,11 @@ def _continuation(
             {"authorization_required", "irreversible_confirmation_required"}
         ):
             action = _apply_command(repo, branch, expect_head, accepted_head)
+        elif "legacy_role_ref_protected" in required_gaps:
+            action = (
+                f"ethos land --closeout --expect-head {accepted_head} "
+                f"--root {shlex.quote(repo.as_posix())} --json"
+            )
         else:
             action = f"ethos lane status --root {shlex.quote(repo.as_posix())} --json"
         return {"next_action": action, "user_decision_required": decision_required}

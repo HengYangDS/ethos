@@ -153,3 +153,9 @@ verdicts and gaps. Skills remain below repository truth.
 
 - **WHEN** a package declares evaluation metrics, treatment identity and evidence references
 - **THEN** the same package owner validates them without converting them into task progress
+
+#### Scenario: A package that no record routes is reported
+
+- **WHEN** a package directory under the Skills root holds `SKILL.md` and neither an active record nor a retirement routes it
+- **THEN** the report names it with `skill_package_unregistered`
+- **AND** a partial registry no longer passes while other packages stay routed elsewhere

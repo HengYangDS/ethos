@@ -36,6 +36,98 @@ historical bindings are governed by the [distribution specification](openspec/sp
   the wheel, and now follows `local-install-smoke`. The wheel-only SBOM, which listed one package
   and no purls, is gone.
 
+## [0.2.0-beta.2] - 2026-11-05
+
+### Added
+
+- `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the
+  host-wide queue admits it, and exits with the command's own status.
+  - The queue is one per host. It admits runs in arrival order, up to the slots that `host.toml`
+    in ETHOS's host root declares, and a holder that exits frees its place without cleanup.
+  - A full proof takes the same host slot after its repository's proof slot, so the proofs of two
+    repositories no longer overlap.
+  - The child receives `ETHOS_HOST_ADMISSION`, so work that it starts joins the admission instead
+    of queueing again. It also receives a worker cap in `ETHOS_HOST_CPU_CAP` and
+    `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `reserved_cpus` leaves, at least one.
+  - A wait that reaches its bound names the holder's repository, executable and start time.
+  - Only work that runs through ETHOS joins the queue. Renders, model runs and other test runners
+    join it by wrapping their command in `ethos host run`.
+- `host.toml` declares the host's `slots` (default 1), `reserved_cpus` (default 0) and
+  `load_limit`. An out-of-range value is refused with a named gap and never clamped.
+
+### Changed
+
+- 0.2.0-beta.2 is the first published beta. It upgrades directly from 0.2.0-alpha.30, because
+  0.2.0-beta.1 was tagged but never published.
+- A full proof's load admission waits for two consecutive 1-minute load samples within the limit,
+  instead of one, so a short dip between busy phases no longer admits it. The limit comes from
+  `ETHOS_PROOF_HOST_LOAD_LIMIT`, then `host.toml`'s `load_limit`, then half the CPUs. A wait that
+  reaches its bound names the load, the limit and where the limit came from.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet;
+  - a repository's exit from ETHOS's hook runtime, which has no native command yet;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - `ethos prove --json` reduces a gate's own cause, such as `gate_timeout:<gate>`, to
+    `gate_unknown:<gate>` or `gate_failed:<gate>`, and reports a proof whose gate timed out as
+    `block`. The gate events and the proof artifact keep the cause.
+  - jdx/mise#15363 upstream, which ETHOS refuses with its cause.
+
+### Fixed
+
+- `ethos lane retire absorbed-ref` previews the deletion with the same predicates that the
+  reference-transaction hook applies. A ref that the hook would refuse now blocks the preview with
+  the hook's own gap, instead of an apply that the hook then refuses.
+- A legacy role ref whose standard successor already holds its exact commit can be retired on its
+  own, without renaming any other legacy role.
+- The Skill portfolio report names each package directory under the Skills root that no active
+  record or retirement routes, as `skill_package_unregistered:<directory>`.
+- The generated Windows verification jobs retry their source checkout up to three times. A Windows
+  runner can briefly hold the executables of the previous job, which made `git clean` fail on
+  back-to-back jobs. Adopters receive the retry when they regenerate their CI projections.
+
+### Security
+
+- The locked npm moves to 12.2.2, which bundles undici 6.29.1 and ip-address 10.7.5. That removes
+  six of the eight advisories that the `0.2.0-alpha.22` entry lists from the wheels and installed
+  runtimes:
+  - undici: GHSA-2m5v-pch6-74hx, GHSA-4qv8-2p9j-2685, GHSA-9fm3-97px-rjf6, GHSA-qrxm-fqhp-jwvm
+    and GHSA-xjj6-f33q-929c;
+  - ip-address: GHSA-rxp7-6hxx-x8q5.
+
+  The owner took npm 12.2.2 before its 24-hour release age, as an exception to the supply rule,
+  because it fixes known vulnerabilities in what ETHOS ships.
+
+- Two advisories remain, because npm 12.2.2 still bundles glob 13.0.6 (GHSA-3g3m-2fjr-6pw4) and
+  minimatch 10.2.5 (GHSA-g3hv-75wg-m249). No npm release fixes them, so the release build's audit
+  reports them as unfixed upstream. It reports no other advisory.
+
+## [0.2.0-beta.1] - 2026-11-04
+
+### Changed
+
+- Note, 2026-11-05: 0.2.0-beta.1 was tagged (`v0.2.0-beta.1`) but never published. The first
+  release run had no macOS runtime, because GitHub cancelled that build without a runner. The
+  rerun's dependency audit then refused npm 12.2.1, once npm 12.2.2 fixed six of its advisories.
+  The owner chose not to ship it; 0.2.0-beta.2 supersedes it.
+- 0.2.0-beta.1 promotes the code of 0.2.0-alpha.30 without product changes.
+  - Its tag waited for alpha.30's release run, which proves the adopter journey from the published
+    artifacts on macOS and Linux: a cold install, host-store pinning, hook binding, a full proof
+    and status, an upgrade from 0.2.0-alpha.29 with its rollback, and uninstall.
+  - It also waited for hosted verification of this head on every supported platform.
+  - alpha.30 closed the last known defect that could admit a wrong proof: a locked npm that Mise
+    reported as missing resolved silently to Node's bundled npm.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - an absorbed-ref retirement preview that the reference-transaction hook then refuses;
+  - no route to retire a legacy role ref that equals its standard successor;
+  - unregistered Skill package directories that the portfolio report does not name;
+  - jdx/mise#15363 upstream, which ETHOS refuses with its cause.
+
 ## [0.2.0-alpha.30] - 2026-11-04
 
 ### Changed

@@ -96,6 +96,8 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
                 registry_gaps.append(".agents/skills")
         except OSError:
             registry_gaps.append(".agents/skills:unreadable")
+        if not missing:
+            registry_gaps.extend(_unregistered_package_gaps(skills_root, registry))
     required_gaps = [*registry_gaps, *dict.fromkeys(record_gaps)]
     package_quality_gaps = list(
         dict.fromkeys(
@@ -125,6 +127,28 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
         "advisory_gaps": list(dict.fromkeys(advisory_gaps)),
         "required_gaps": list(dict.fromkeys(required_gaps)),
     }
+
+
+def _unregistered_package_gaps(skills_root: Path, registry: dict[str, Any]) -> list[str]:
+    """Name each package directory that neither an active record nor a retirement routes.
+
+    A registry that lists only some packages would otherwise pass while the rest stay routed by
+    another owner.
+    """
+    try:
+        packages = sorted(path.parent.name for path in skills_root.glob("*/SKILL.md"))
+    except OSError:
+        return []
+    records = registry.get("records")
+    routed = {
+        Path(str(record.get("path") or "")).parent.name
+        for record in (records if isinstance(records, list) else [])
+        if isinstance(record, dict)
+    }
+    retired = {str(skill_id) for skill_id in registry.get("retired") or {}}
+    return [
+        f"skill_package_unregistered:{name}" for name in packages if name not in routed | retired
+    ]
 
 
 def _collect_skill_records(

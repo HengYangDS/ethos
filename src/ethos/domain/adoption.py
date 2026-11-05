@@ -6,6 +6,7 @@ from pathlib import Path
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.repo.adoption import adoption_plan
+from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
 from ethos.contracts.verdict import report_verdict
@@ -61,8 +62,23 @@ def adopt_repository(
     expect_head: str | None = None,
     expect_plan_digest: str | None = None,
     select_runtime: bool = False,
+    exit_repository: bool = False,
 ) -> EthosResult:
-    """Plan or apply native adoption with unchanged exact-request admission."""
+    """Plan or apply native adoption with unchanged exact-request admission.
+
+    `exit_repository` previews a repository's exit. With `apply`, `authorize`, `expect_head` and
+    the previewed `expect_plan_digest`, it restores the configuration that adoption replaced and
+    removes the runtime selectors; a later `ethos hook install` adopts the repository again.
+    """
+    if exit_repository:
+        return _exit(
+            root,
+            combined=create or evolve_starter or select_runtime,
+            apply=apply,
+            authorize=authorize,
+            expect_head=expect_head,
+            expect_plan_digest=expect_plan_digest,
+        )
     if select_runtime and (create or evolve_starter):
         return EthosResult(
             command="adopt",
@@ -172,6 +188,38 @@ def adopt_repository(
                 "current_head": current_head,
             }
         },
+    )
+
+
+def _exit(
+    root: Path,
+    *,
+    combined: bool,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    expect_plan_digest: str | None,
+) -> EthosResult:
+    """Preview a repository's exit or apply its previewed plan, never with an adoption step."""
+    if combined:
+        return EthosResult(
+            command="adopt",
+            verdict="block",
+            state="blocked",
+            required_gaps=("adoption_exit_combined_with_adoption",),
+            next_action="Run the exit alone: ethos adopt --exit --json",
+        )
+    target = root.resolve()
+    head = git.current_head(target)
+    gaps = request_gaps(
+        apply=apply, authorized=authorize, expect_head=expect_head, current_head=head
+    )
+    return adopt_exit(
+        target,
+        head=head,
+        request_gaps=tuple(gaps),
+        apply=apply,
+        expect_plan_digest=expect_plan_digest,
     )
 
 

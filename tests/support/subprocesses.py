@@ -31,7 +31,7 @@ def ready_descendant(monkeypatch, before_communication):
     communicate = subprocess.Popen.communicate
     connection = None
     with ExitStack() as resources:
-        listener = resources.enter_context(socket.create_server(("127.0.0.1", 0)))
+        listener = resources.enter_context(socket.create_server(("localhost", 0)))
         listener.settimeout(10)
         child = (
             f"import socket; s=socket.create_connection({listener.getsockname()!r},timeout=10); "

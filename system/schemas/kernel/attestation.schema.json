@@ -47,7 +47,7 @@
       "type": "object"
     }
   },
-  "$id": "https://ethos.local/schemas/attestation.schema.json",
+  "$id": "https://ethos.invalid/schemas/attestation.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Immutable open-predicate input that never mints authority.",

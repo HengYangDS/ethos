@@ -47,6 +47,7 @@ None.
   `release.py`.
 - `src/ethos/contracts/plan.py` and `system/schemas/kernel/`: the schema identifiers.
 - The rule, commit admission and tag admission tests, and the moved test fixtures.
+- `CONTRIBUTING.md` and the command reference describe the message rule.
 - Out of scope: `forge_repository`, artifacts, release notes, the changelog link format and the
   GitLab image source, which belong to `peer-neutral-artifacts`; a push-time exact check of named
   peer hosts and project paths; adopters' own content scans and records.

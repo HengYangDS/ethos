@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/assistant-projection.schema.json",
+  "$id": "https://ethos.invalid/schemas/assistant-projection.schema.json",
   "title": "ETHOS Assistant Projection",
   "type": "object",
   "required": ["truth", "surfaces", "rules"],

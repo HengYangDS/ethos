@@ -4,9 +4,9 @@
 
 - [ ] 1.1 Declare the private-address pattern in the paradigm and carry the identical string in
       ETHOS's Gitleaks configuration. Done when tests show the two equal, one corpus judged alike
-      by Python and Gitleaks, red on the LAN forge fixture, and green on documentation forms, the
-      public identity and a redaction marker. Evidence: `test_private_address_scan.py`; a mutant of
-      the pattern fails it.
+      by Python and Gitleaks, red on every private class, including a private forge URL, and green
+      on documentation forms, the public identity and a redaction marker. Evidence:
+      `test_private_address_scan.py`; a mutant of the pattern fails it.
 - [ ] 1.2 Keep both content scans to content and staged modes. Done when a test shows a repository
       whose history alone holds an address passing the hook's staged scan and the `secrets`
       session's scan, while a history scan finds it. Evidence: `test_private_address_scan.py`.

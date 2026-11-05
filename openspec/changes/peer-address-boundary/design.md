@@ -129,6 +129,11 @@ Non-goals:
      tier guard's loopback reading do not change.
    - The retirement review fixture's self-hosted GitLab URL moves to `forge.test` and keeps its
      scheme and a non-default port. The module layout fixture's address value moves to RFC 5737.
+10. **Neutral fixtures.** The tests join each private fixture when they use it, so tracked text
+    names no private literal, and each one is a neutral example of its class. None is a real
+    peer's address: a tracked test that joined the LAN forge's address would disclose it again in
+    current content. The rule was shown red on the LAN forge's own address in a local run whose
+    input stays outside the repository.
 
 ## Risks / Trade-offs
 

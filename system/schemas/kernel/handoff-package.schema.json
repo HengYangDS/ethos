@@ -1,5 +1,5 @@
 {
-  "$id": "https://ethos.local/schemas/handoff-package.schema.json",
+  "$id": "https://ethos.invalid/schemas/handoff-package.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {

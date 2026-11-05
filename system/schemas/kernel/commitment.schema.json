@@ -1,5 +1,5 @@
 {
-  "$id": "https://ethos.local/schemas/commitment.schema.json",
+  "$id": "https://ethos.invalid/schemas/commitment.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Acceptance semantics compiled from one exact official OpenSpec Change.",

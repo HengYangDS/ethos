@@ -253,7 +253,7 @@ def test_protocol_values_do_not_define_numbered_code_entities(tmp_path) -> None:
         tmp_path,
         "src/ethos/planning.py",
         'protocol_version = "schema-v2"\n'
-        'ipv4 = "127.0.0.1"\n'
+        'ipv4 = "192.0.2.1"\n'
         "class Revision: pass\n"
         "def compile_plan(current): return current\n",
     )

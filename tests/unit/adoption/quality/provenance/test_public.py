@@ -161,8 +161,8 @@ def test_public_quality_gate_requires_native_artifact_integrity(
         }
     else:
         assert result.returncode != 0, report
-        # The integrity provider reports drift as unproven, and dependents keep that class.
-        assert report["verdict"] == ("unknown" if defect.endswith("drift") else "block"), report
+        # A generated artifact's drift is a conflict; a locked upstream member stays unproven.
+        assert report["verdict"] == ("unknown" if defect == "upstream-drift" else "block"), report
         assert report["required_gaps"]
     assert report["summary"]["proof_attestation_issued"] is False
 
@@ -429,7 +429,14 @@ def test_javascript_artifact_analysis_cannot_certify_changed_supply(
     assert (repo / "supply.js").read_bytes() != original
     commit_fixture(repo, "record altered artifact without changing its native input")
     integrity = integrity_report(repo)
-    assert integrity["verdict"] == "unknown", integrity
+    # A generated artifact is compared here; a locked archive member is compared by its native
+    # helper, which reports any difference as an unqualified archive.
+    verdict, gap = (
+        ("block", "source_generated_bytes_mismatch:supply.js")
+        if kind == "generated"
+        else ("unknown", "source_integrity_unproven:supply.js")
+    )
+    assert integrity["verdict"] == verdict, integrity
     gaps = integrity["required_gaps"]
     assert isinstance(gaps, list)
-    assert "source_integrity_unproven:supply.js" in gaps
+    assert gap in gaps

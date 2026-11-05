@@ -31,6 +31,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   producer declared: a Git timeout and an unknown Git compare-and-swap outcome are `unknown`.
   Status keeps an unknown OpenSpec resolution `unknown`, and a retirement failure keeps its gap's
   subject and the partial-retirement gap.
+- The integrity gate reports a generated artifact or received archive whose bytes differ from its
+  native owner or pinned original as `block`, with `source_generated_bytes_mismatch:<path>`,
+  `source_upstream_member_mismatch:<path>` or `source_upstream_archive_digest_mismatch:<path>`. A
+  member it cannot read or compare stays `unknown` with `source_integrity_unproven:<path>`.
 
 ## [0.2.0-beta.1] - 2026-11-04
 

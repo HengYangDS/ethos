@@ -284,8 +284,10 @@ def test_source_integrity_observes_every_typed_generated_member(tmp_path):
     (root / "package.json").write_text(json.dumps({**PACKAGE, "private": False}), encoding="utf-8")
     commit_fixture(root, "change native input without regenerating either provider")
     rejected = integrity_report(root)
-    assert rejected["verdict"] == "unknown", rejected
-    assert rejected["required_gaps"] == [f"source_integrity_unproven:{path}" for path in outputs]
+    assert rejected["verdict"] == "block", rejected
+    (gap,) = rejected["required_gaps"]
+    assert gap.startswith("source_generated_bytes_mismatch:"), rejected
+    assert gap.partition(":")[2] in outputs, rejected
     profile = root / ".ethos/profile.toml"
     del configuration["proof"]["source_contracts"][0]["members"][".gitlab-ci.yml"]
     profile.write_text(tomli_w.dumps(configuration), encoding="utf-8")

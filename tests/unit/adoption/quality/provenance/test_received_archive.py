@@ -84,6 +84,13 @@ def test_received_archive_entries_match_their_pinned_original(
         assert integrity["members"] == {
             "supply/archify.mjs": {"kind": "upstream", "input_ref": reference, "member": MEMBER}
         }
+    elif defect in {"archive-bytes", "artifact-bytes"}:
+        assert report["verdict"] == "block", report
+        assert report["required_gaps"] == [
+            "source_upstream_archive_digest_mismatch:supply/archify.zip"
+            if defect == "archive-bytes"
+            else "source_upstream_member_mismatch:supply/archify.mjs"
+        ]
     else:
         assert report["verdict"] == "unknown", report
         assert report["required_gaps"] == ["source_integrity_unproven:supply/archify.mjs"]

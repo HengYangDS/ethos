@@ -148,7 +148,8 @@ def create_git_commit(
 ) -> Any:
     """Create and verify one signed commit object under the repository commit policy.
 
-    A root commit, such as a formed repository's first, has no parent.
+    A root commit, such as a formed repository's first, has no parent. Git's own failure returns
+    its completed process; a created object that the policy refuses raises every refusal gap.
     """
     parents = (*(() if parent is None else (parent,)), *additional_parents)
     policies = tuple(
@@ -185,14 +186,9 @@ def create_git_commit(
         if revision
         else ["git_effect_signed_commit_missing"]
     )
-    if revision and not gaps:
-        return completed
-    return subprocess.CompletedProcess(
-        completed.args,
-        1,
-        completed.stdout,
-        gaps[0],
-    )
+    if gaps:
+        raise refusal(*gaps)
+    return completed
 
 
 def create_signed_replacement(root: Path, revision: str) -> str:

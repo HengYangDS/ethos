@@ -26,6 +26,7 @@ def test_product_code_never_transports_only_the_first_gap() -> None:
         ("_fail(str(report['required_gaps'][0]))", 1),
         ("require_release(ready, gaps[0])", 1),
         ("raise ProcessExecutionError(gaps[0], reason='r')", 1),
+        ("return subprocess.CompletedProcess(args, 1, out, gaps[0])", 1),
         ("raise ProcessExecutionError(gaps[0], reason='r', observation={'required_gaps': g})", 0),
         ("raise OutcomeError(outcome, message=gaps[0])", 0),
         ("raise refusal(*gaps)", 0),
@@ -51,10 +52,10 @@ def _single_gap_transports(root: Path) -> list[str]:
 
 
 def _transports(call: ast.Call) -> bool:
-    """A refusal call whose positional argument is a first gap, with no carrier of the rest."""
+    """A refusal or native result whose positional argument is a first gap, without the rest."""
     func = call.func
     name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
-    if not (name.endswith("Error") or _HELPERS.match(name)):
+    if not (name.endswith("Error") or name == "CompletedProcess" or _HELPERS.match(name)):
         return False
     carried = any(keyword.arg == "observation" for keyword in call.keywords)
     return not carried and any(_first_gap(argument) for argument in call.args)

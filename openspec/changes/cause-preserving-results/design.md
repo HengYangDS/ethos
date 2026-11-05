@@ -88,7 +88,7 @@ Non-goals:
   Both stay non-pass and keep exit status 1, so only scripts that match `block` exactly notice.
 - The five-code bound can hide a cause. The diagnostic counts what it omits, and the proof
   artifact keeps every diagnostic.
-- One transport form remains outside the algebra. `create_git_commit` returns a failed native
-  process whose standard error is the first commit-policy gap, because its callers compensate on
-  the return code, and the ratchet does not cover that form. A later Change can return the
-  refusal beside the process.
+- `create_git_commit` returns Git's own failed process, as before, but a created object that the
+  commit policy refuses raises a refusal with every gap instead of returning a process whose
+  standard error is the first gap. Its three callers keep their class code first and append the
+  refusal's gaps. The ratchet also refuses a `CompletedProcess` built from a first gap.

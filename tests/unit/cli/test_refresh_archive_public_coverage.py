@@ -16,6 +16,7 @@ import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
+from ethos.contracts.outcome import refusal
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -286,6 +287,7 @@ def test_archive_public_commit_failure_compensates_native_delta(
 
     assert report["required_gaps"] == ["openspec_archive_commit_failed"]
     assert report["stderr"] == "hook rejected"
+
     assert_lifecycle_outcome(
         report,
         "mutated",
@@ -295,6 +297,35 @@ def test_archive_public_commit_failure_compensates_native_delta(
         f"--subject 'chore(openspec): archive {CHANGE}' --apply --json",
     )
     assert compensated == [f"{ARCHIVE_PATH}.preserved" if collision else ARCHIVE_PATH]
+
+
+def test_archive_policy_refusal_keeps_its_gaps_and_compensates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    stub_archive_public(monkeypatch, tmp_path, collision=False)
+    monkeypatch.setattr(archive, "move_tracked_tree", lambda *_args: None)
+
+    refused = refusal("git_signature_untrusted", "git_signer_unbound")
+
+    def refuse(*_args, **_kwargs):
+        raise refused
+
+    monkeypatch.setattr(archive_effect, "create_git_commit", refuse)
+    compensated: list[str] = []
+    monkeypatch.setattr(
+        archive_effect,
+        "compensate_git_worktree",
+        lambda _root, **kwargs: compensated.append(str(kwargs["untracked_path"])),
+    )
+
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
+
+    assert report["required_gaps"] == [
+        "openspec_archive_commit_failed",
+        "git_signature_untrusted",
+        "git_signer_unbound",
+    ]
+    assert compensated == [ARCHIVE_PATH]
 
 
 @pytest.mark.parametrize(

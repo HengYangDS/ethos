@@ -403,7 +403,7 @@ def _continue(
         root, tree=tree, parent=observed.head, additional_parents=observed.parents, message=message
     )
     if created.returncode:
-        raise ValueError(created.stderr.strip() or "merge_commit_creation_failed")
+        _fail(created.stderr.strip() or "merge_commit_creation_failed")
     desired = created.stdout.strip()
     admission = commit_range_admission_report(
         root,

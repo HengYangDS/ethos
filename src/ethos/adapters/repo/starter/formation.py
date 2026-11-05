@@ -25,6 +25,7 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.paradigm.parameters import seconds
@@ -286,13 +287,16 @@ def _prepare_history(
             return "", gap, result.stderr.strip()
         tree = result.stdout.strip()
     # The shared creator signs the root commit and verifies it against the reviewed anchor.
-    created = create_git_commit(
-        candidate,
-        tree=tree,
-        parent=None,
-        message="chore: initialize project",
-        environment=identity,
-    )
+    try:
+        created = create_git_commit(
+            candidate,
+            tree=tree,
+            parent=None,
+            message="chore: initialize project",
+            environment=identity,
+        )
+    except OutcomeError as error:
+        return "", "formation_git_commit_failed", " ".join(error.outcome.gaps)
     head = created.stdout.strip() if not created.returncode else ""
     if (
         not head

@@ -78,7 +78,8 @@ def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
         root: Path, selected: CommitPolicy, revision: str, *, verify_trust: bool
     ) -> dict[str, object]:
         verified.append((root, selected, revision, verify_trust))
-        return {"required_gaps": ["git_signature_untrusted"] if case == "untrusted" else []}
+        untrusted = ["git_signature_untrusted", "git_signer_unbound"] if case == "untrusted" else []
+        return {"required_gaps": untrusted}
 
     monkeypatch.setattr(creation, "commit_policy_report", verify)
     calls = []
@@ -92,23 +93,28 @@ def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
             "git failed" if case == "git-failed" else "",
         )
 
-    result = creation.create_git_commit(
-        tmp_path, tree="a" * 40, parent="b" * 40, message="fix: exact subject", runner=runner
-    )
+    def create() -> subprocess.CompletedProcess[str]:
+        return creation.create_git_commit(
+            tmp_path, tree="a" * 40, parent="b" * 40, message="fix: exact subject", runner=runner
+        )
 
-    assert result.returncode == (
-        2 if case == "git-failed" else 1 if case in {"missing", "untrusted"} else 0
-    )
+    refused = {
+        "missing": ("git_effect_signed_commit_missing",),
+        "untrusted": ("git_signature_untrusted", "git_signer_unbound"),
+    }.get(case)
+    if refused is not None:
+        with pytest.raises(OutcomeError) as caught:
+            create()
+        assert caught.value.outcome.gaps == refused
+    else:
+        result = create()
+        assert result.returncode == (2 if case == "git-failed" else 0)
+        assert result.stderr == ("git failed" if case == "git-failed" else "")
     assert "-S" in calls[0][0]
     assert calls[0][1]["env"] == {"POLICY_SIGNER": "1"}
     assert verified == (
         [(tmp_path, policy, "c" * 40, True)] if case in {"signed", "untrusted"} else []
     )
-    assert result.stderr == {
-        "missing": "git_effect_signed_commit_missing",
-        "untrusted": "git_signature_untrusted",
-        "git-failed": "git failed",
-    }.get(case, "")
 
 
 def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

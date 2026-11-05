@@ -27,6 +27,7 @@ import pytest
 from hypothesis import settings
 from hypothesis.configuration import set_hypothesis_home_dir
 
+import ethos.adapters.gates.host_admission as host_admission
 import tests.support.runtime_scenarios as runtime_scenarios
 import tests.support.tier_guard as tier_guard
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
@@ -158,6 +159,10 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "user-state"))
     # Fixture full proofs keep their per-repository slot but never wait on the test host's load.
     monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")
+    # A proof that runs this suite is itself admitted and exports its admission to its gates; no
+    # test inherits it, and a test that needs an admission sets one.
+    for name in (host_admission.TOKEN, host_admission.CPU_CAP):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
     # Commands a case runs cannot write into the attempt's report root.

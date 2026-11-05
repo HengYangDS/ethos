@@ -8,6 +8,7 @@ import re
 import stat
 import subprocess
 from pathlib import Path
+from typing import Any
 from typing import Literal
 from typing import NoReturn
 from typing import NotRequired
@@ -71,20 +72,34 @@ def _digest(value: str) -> bool:
     return len(value) == 64 and not set(value) - set("0123456789abcdef")
 
 
-def process_commands(root: Path, *, platform_name: str | None = None) -> str:
-    """Observe native running commands within a bounded, fail-closed boundary."""
+def process_commands(
+    root: Path,
+    *,
+    platform_name: str | None = None,
+    exclude_pid: int | None = None,
+    strict: bool = False,
+) -> str:
+    """Observe native running commands within a bounded, fail-closed boundary.
+
+    `exclude_pid` leaves out one process, such as the observer itself. `strict` makes a process
+    whose command line the platform withholds an unknown observation instead of a skipped one.
+    """
     if (platform_name or os.name) == "nt":
         try:
-            lines = windows_command_lines(timeout=seconds("probe"))
+            lines = windows_command_lines(
+                timeout=seconds("probe"), exclude_pid=exclude_pid, strict=strict
+            )
         except ProcessExecutionError:
             _fail("hook_runtime_consumers_unknown")
         return "\n".join(lines)
-    completed = run_command(
-        root, process_listing_command(), timeout=seconds("probe"), remove_env_prefixes=("GIT_",)
-    )
+    listing = process_listing_command(with_pid=exclude_pid is not None)
+    completed = run_command(root, listing, timeout=seconds("probe"), remove_env_prefixes=("GIT_",))
     if completed.returncode or completed.stderr:
         _fail("hook_runtime_consumers_unknown")
-    return completed.stdout
+    if exclude_pid is None:
+        return completed.stdout
+    rows = (line.strip().partition(" ") for line in completed.stdout.splitlines())
+    return "\n".join(command for pid, _, command in rows if pid != str(exclude_pid))
 
 
 def _interpreter_bindings(worktree: Path) -> tuple[str, ...]:
@@ -136,6 +151,40 @@ def _operational_references(root: Path) -> str:
 def operational_reference_paths(root: Path) -> frozenset[Path]:
     """Return the paths that running commands and this repository's bindings refer to."""
     return _reference_paths(_operational_references(root))
+
+
+def process_reference_paths(
+    root: Path, *, exclude_pid: int | None = None, strict: bool = False
+) -> frozenset[Path]:
+    """Return the paths that running commands alone refer to, in either separator."""
+    commands = process_commands(root, exclude_pid=exclude_pid, strict=strict)
+    return _reference_paths(commands.replace("\\", "/"))
+
+
+def retirement_plan(root: Path, *, references: frozenset[Path]) -> dict[str, list[Any]]:
+    """Classify the local generations an unselected retirement removes, and keep the rest named.
+
+    A generation is kept while a reference reaches it or its reclamation is unproven; wheel
+    packages are kept and named, because only a selected runtime proves which ones are free.
+    """
+    common = Path(git_common_dir(root)).resolve()
+    remove: list[str] = []
+    keep: list[dict[str, str]] = []
+    for path in _generations(common):
+        used = any(reference.is_relative_to(path) for reference in references)
+        reason = "in_use" if used else "unproven" if _reclamation_unproven(path, common) else ""
+        if reason:
+            keep.append({"path": str(path), "reason": reason})
+        else:
+            remove.append(str(path))
+    store = common / "ethos/packages"
+    if store.is_dir() and not store.is_symlink():
+        keep.extend(
+            {"path": str(path), "reason": "package"}
+            for path in sorted(store.iterdir())
+            if _digest(path.name)
+        )
+    return {"remove": remove, "keep": keep}
 
 
 def _reference_paths(references: str) -> frozenset[Path]:
@@ -285,14 +334,32 @@ def _retire_packages(
             _fail("hook_runtime_package_cleanup_failed")
 
 
+def _unplanned(
+    identities: dict[Path, tuple[int, int, int, int]],
+    selected: set[Path],
+    only: frozenset[Path] | None,
+) -> set[Path]:
+    """The generations outside a planned removal, which retirement keeps untouched."""
+    if only is None:
+        return set()
+    return {path for path in identities if path not in selected and path not in only}
+
+
 def retire_generations(
-    root: Path, *, hooks: Path, runtime: Path, unnamed_predecessor: bool = False
+    root: Path,
+    *,
+    hooks: Path | None,
+    runtime: Path | None,
+    unnamed_predecessor: bool = False,
+    only: frozenset[Path] | None = None,
 ) -> GenerationCleanup:
     """Retire only currently unused generations, conserving partial outcomes.
 
     An unnamed predecessor keeps every runtime generation: one of them may be the only rollback.
+    Without a selection, after an exit, every generation is a candidate while `CURRENT` stays
+    absent. `only` limits removal to a planned set; every other generation and package is kept.
     """
-    selected = {hooks, runtime}
+    selected = {path for path in (hooks, runtime) if path is not None}
     identities: dict[Path, tuple[int, int, int, int]] = {}
     candidates: tuple[Path, ...] = ()
     packages: list[Path] = []
@@ -302,15 +369,16 @@ def retire_generations(
     error = ""
     try:
         common = Path(git_common_dir(root)).resolve()
-        expected = runtime_selection_bytes(common, runtime)
+        expected = runtime_selection_bytes(common, runtime) if runtime is not None else None
         with runtime_selection_transaction(common, expected_current=expected):
             candidates = _generations(common)
             identities = {
                 path: _directory_identity(path) for path in sorted({*candidates, *selected})
             }
             _require_identities(selected, identities)
+        retained.update(skipped := selected | _unplanned(identities, selected, only))
         for path, identity in identities.items():
-            if path in selected:
+            if path in skipped:
                 continue
             with runtime_selection_transaction(common, expected_current=expected):
                 _require_identities(selected, identities)
@@ -342,14 +410,15 @@ def retire_generations(
                     _fail("hook_runtime_generation_cleanup_failed")
         with runtime_selection_transaction(common, expected_current=expected):
             _require_identities(retained, identities)
-            _retire_packages(
-                root,
-                common,
-                checked=packages,
-                retained=retained,
-                removed=removed,
-                unproven=unproven,
-            )
+            if only is None:
+                _retire_packages(
+                    root,
+                    common,
+                    checked=packages,
+                    retained=retained,
+                    removed=removed,
+                    unproven=unproven,
+                )
     except Timeout:
         error = "hook_runtime_selection_busy"
     except (OSError, RuntimeError, UnicodeError, ValueError, subprocess.TimeoutExpired) as failure:

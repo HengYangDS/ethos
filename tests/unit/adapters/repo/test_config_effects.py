@@ -50,3 +50,20 @@ def test_exact_config_is_recognized_without_rewriting(
     assert config_effects.config_values(repo, ("gc.packRefs",), scope="local") == {
         "gc.packRefs": ("true",)
     }
+
+
+def test_a_write_refuses_a_value_that_changed_since_its_plan(tmp_path: Path) -> None:
+    """Another writer's value is never replaced: the planned value must still be there."""
+    repo = init_git_repo(tmp_path / "repo")
+    config_effects.replace_config_values(repo, {"core.hooksPath": (".husky",)}, scope="local")
+
+    with pytest.raises(ValueError, match=r"git_config_effect_stale:core\.hooksPath"):
+        config_effects.replace_config_values(
+            repo,
+            {"core.hooksPath": ()},
+            scope="local",
+            expected={"core.hooksPath": ("/planned",)},
+        )
+
+    observed = config_effects.config_values(repo, ("core.hooksPath",), scope="local")
+    assert observed == {"core.hooksPath": (".husky",)}

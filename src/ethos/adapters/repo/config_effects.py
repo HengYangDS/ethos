@@ -36,16 +36,26 @@ def replace_config_values(
     values: dict[str, tuple[str, ...]],
     *,
     scope: str,
+    expected: dict[str, tuple[str, ...]] | None = None,
 ) -> None:
-    """Recognize exact values, replace only differing keys and prove the postcondition."""
+    """Recognize exact values, replace only differing keys and prove the postcondition.
+
+    With `expected`, each key must still hold its planned values immediately before the write,
+    so a value another writer set since the plan is refused rather than replaced. Git has no
+    compare-and-swap across invocations; the postcondition reports a change after the write.
+    """
     before = config_values(root, tuple(values), scope=scope)
-    for key, expected in values.items():
-        if before[key] == expected:
+    stale = [key for key in values if expected is not None and before[key] != expected[key]]
+    if stale:
+        message = "git_config_effect_stale:" + ",".join(stale)
+        raise ValueError(message)
+    for key, wanted in values.items():
+        if before[key] == wanted:
             continue
         removed = run_git(root, "config", f"--{scope}", "--unset-all", key, check=False)
         if removed.returncode not in {0, 5}:
             raise ValueError(removed.stderr.strip() or "git_config_effect_failed")
-        for value in expected:
+        for value in wanted:
             added = run_git(root, "config", f"--{scope}", "--add", key, value, check=False)
             if added.returncode:
                 raise ValueError(added.stderr.strip() or "git_config_effect_failed")

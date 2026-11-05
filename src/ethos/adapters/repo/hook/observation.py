@@ -20,6 +20,7 @@ from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import HookContract
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
+from ethos.adapters.repo.hook.preimage import exit_fact
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
@@ -68,6 +69,7 @@ class HookRuntimeBinding(TypedDict):
     rollback_supply: NotRequired[dict[str, str]]
     host_store_cleanup: NotRequired[dict[str, object]]
     contract_observation: NotRequired[dict[str, object]]
+    exit: NotRequired[dict[str, str]]
 
 
 class CommitPolicyEnforcement(TypedDict):
@@ -160,12 +162,14 @@ def hook_runtime_binding(
         and hooks.name != contract["generation_digest"]
     ):
         gaps.append("write_admission_not_armed:hook_generation_digest")
+    # A repository that exited keeps no hooks unless its profile still declares governance.
+    exit_record = exit_fact(common)
+    exited = exit_record is not None and exit_record["state"] == "exited"
     return {
         "required": (
             load_repository_profile(repo).exists
             or valid_generation
-            or runtime_root.exists()
-            or runtime_root.is_symlink()
+            or (not exited and (runtime_root.exists() or runtime_root.is_symlink()))
         ),
         "hooks_path": hooks.as_posix(),
         "runtime_manifest_path": selected.manifest.as_posix() if selected else "",
@@ -219,6 +223,7 @@ def hook_runtime_binding(
         "scripts": list(scripts),
         "required_gaps": gaps,
         **({"contract_observation": observation} if observation else {}),
+        **({"exit": exit_record} if exit_record is not None else {}),
     }
 
 

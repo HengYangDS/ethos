@@ -155,6 +155,8 @@ def test_a_complete_supply_resolves_an_undeclared_executable(
     ("version", "trusted", "expected", "absent"),
     [
         ((2026, 11, 0), False, "jdx/mise/issues/15363", "trust"),
+        ((2026, 11, 1), False, "select mise 2026.11.2 or later", "trust"),
+        ((2026, 11, 2), False, "trust", "15363"),
         ((2026, 10, 25), False, "trust", "install --locked"),
         ((2026, 10, 25), True, "install --locked", "trust"),
     ],

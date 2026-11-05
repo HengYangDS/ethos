@@ -19,6 +19,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   python-discovery 1.9.4, uncalled-for 0.4.2 and virtualenv 21.15.5. filelock 4.2.9 and
   platformdirs 4.14.5 were younger than that and wait for the next move.
 
+### Fixed
+
+- A locked supply refusal blames jdx/mise#15363 only under mise 2026.11.0 and 2026.11.1, and points
+  to mise 2026.11.2 or later, which fixes it. Under 2026.11.2 it names trust or installation, as it
+  does for an earlier mise.
+
 ## [0.2.0-beta.2] - 2026-11-05
 
 ### Added

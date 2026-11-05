@@ -65,6 +65,72 @@ def test_declared_lease_cli_compiles_exact_request_and_emits_json(
     assert captured["request"].operation == operation
 
 
+CURRENT = {
+    "branch": "work/example",
+    "holder_ref": "agent:test:case:holder",
+    "generation": 3,
+    "expires_at": "2026-08-10T00:00:00+00:00",
+}
+
+
+@pytest.mark.parametrize("operation", ["renew", "resume"])
+def test_a_preview_without_coordinates_plans_on_the_current_lease(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    """The preview reads the current Lease and names the exact apply command."""
+    captured = {}
+
+    def execute(*, request, **_options):
+        captured.update(request=request)
+        return {
+            "verdict": "pass",
+            "state": "planned",
+            "branch": request.branch,
+            "lease": {},
+            "required_gaps": [],
+        }
+
+    monkeypatch.setattr(lease_cli, "execute_lease_operation", execute)
+    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
+    monkeypatch.setattr(lease_cli, "current_lease_coordinates", lambda _root: CURRENT)
+    completed = run_ethos_raw("lane", "lease", operation, "--root", tmp_path.as_posix(), "--json")
+
+    assert completed.returncode == 0, completed.stderr
+    request = captured["request"]
+    assert (request.branch, request.holder_ref, request.generation, request.expires_at) == (
+        "work/example",
+        "agent:test:case:holder",
+        3,
+        "2026-08-10T00:00:00+00:00",
+    )
+    assert request.apply is False
+    assert json.loads(completed.stdout)["next_action"] == (
+        f"ethos lane lease {operation} --generation 3 --expires-at 2026-08-10T00:00:00+00:00"
+        " --branch work/example --holder-ref agent:test:case:holder"
+        f" --root {tmp_path.as_posix()} --apply"
+    )
+
+
+def test_an_apply_without_coordinates_refuses_before_any_effect(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The compare-and-swap still needs every coordinate that the caller saw."""
+    called: list[object] = []
+    monkeypatch.setattr(lease_cli, "execute_lease_operation", lambda **kw: called.append(kw))
+    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
+    monkeypatch.setattr(lease_cli, "current_lease_coordinates", lambda _root: CURRENT)
+    completed = run_ethos_raw(
+        "lane", "lease", "renew", "--root", tmp_path.as_posix(), "--apply", "--json"
+    )
+
+    payload = json.loads(completed.stdout)
+    assert (payload["verdict"], payload["required_gaps"]) == (
+        "block",
+        ["lease_coordinates_required"],
+    )
+    assert not called
+
+
 def test_lease_result_summary_uses_the_minimal_applied_lease(monkeypatch) -> None:
     emitted = []
     monkeypatch.setattr(lease_cli, "emit", lambda result, **_kwargs: emitted.append(result))

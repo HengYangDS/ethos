@@ -122,3 +122,16 @@ reacquisition does not overwrite it. The recovered relation does not grant
 OpenSpec acceptance or tracked-write permission: obtain fresh prewrite admission
 before editing. A partial result identifies a committed Lease separately from
 missing effect evidence, so its continuation does not repeat the insertion.
+
+A holder reads its own Lease in `ethos status`: the summary names `lease_generation`,
+`lease_expires_at` and `lease_seconds_left`, also when the status detail moves to an artifact. With
+less than two hours left, status names the renewal as its next action. Preview the renewal without
+coordinates, then run the exact apply command that the preview returns:
+
+```bash
+ethos lane lease renew --root <worktree> --json
+```
+
+The apply binds the lane ref, holder ref, generation and expiry that the preview read, so a Lease
+that changed in between refuses. An expired Lease is resumed the same way with
+`ethos lane lease resume`.

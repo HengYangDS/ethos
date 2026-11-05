@@ -15,6 +15,10 @@ from pydantic import ConfigDict
 from ethos.adapters.mutation.lane_lifecycle.lease.acquisition import reacquire_lease
 from ethos.adapters.mutation.lane_lifecycle.lease.operation import execute_lease_operation
 from ethos.adapters.mutation.lane_lifecycle.lease.takeover import execute_lease_takeover
+from ethos.adapters.repo.git import current_branch
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.semantic import Attestation
@@ -60,10 +64,16 @@ class DeclaredLeaseOperationOptions(LeaseProofOptions):
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
-class _RenewOptions(DeclaredLeaseOperationOptions):
-    command = "lane lease renew"
-    operation = "renew"
+class _RenewOptions(LeaseCommandOptions):
+    """Renew the current Lease; a preview may omit the coordinates and read them."""
 
+    command: ClassVar[str] = "lane lease renew"
+    operation: ClassVar[str] = "renew"
+
+    generation: Annotated[int | None, Parameter(name="--generation")] = None
+    expires_at: Annotated[str | None, Parameter(name="--expires-at")] = None
+    branch: Annotated[str | None, Parameter(name="--branch")] = None
+    holder_ref: Annotated[str | None, Parameter(name="--holder-ref")] = None
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
@@ -85,7 +95,9 @@ class TakeoverOptions(LeaseProofOptions):
     ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
-def emit_lease_result(command: str, report: dict[str, object], *, json_output: bool) -> None:
+def emit_lease_result(
+    command: str, report: dict[str, object], *, json_output: bool, next_action: str | None = None
+) -> None:
     """Project one Lease transition through the command result contract."""
     lease = report.get("lease")
     summary = lease if isinstance(lease, dict) else {}
@@ -106,7 +118,13 @@ def emit_lease_result(command: str, report: dict[str, object], *, json_output: b
                 if isinstance(item, dict)
             ),
             required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-            next_action="ethos lane status --json" if report["verdict"] == "pass" else "",
+            next_action=(
+                next_action
+                if next_action is not None
+                else "ethos lane status --json"
+                if report["verdict"] == "pass"
+                else ""
+            ),
             data=report,
         ),
         json_output=json_output,
@@ -125,16 +143,79 @@ def execute_declared_lease_operation(options: DeclaredLeaseOperationOptions) -> 
     emit_lease_result(options.command, report, json_output=options.json_output)
 
 
+_COORDINATES = ("branch", "holder_ref", "generation", "expires_at")
+
+
+def current_lease_coordinates(root: pathlib.Path) -> dict[str, object]:
+    """Read the current Work Lane's exact Lease coordinates through native state."""
+    repo = repository_root(root)
+    branch = current_branch(repo)
+    lease = lease_generation(leases_by_branch(repo).get(branch, {}))
+    return {"branch": branch, **{name: lease[name] for name in _COORDINATES[1:]}}
+
+
+def execute_current_lease_operation(options: _RenewOptions) -> None:
+    """Preview on the current Lease when coordinates are omitted; apply only on all four."""
+    given = {name: getattr(options, name) for name in _COORDINATES}
+    root = resolve_root(options.root)
+    if None in given.values():
+        if options.apply:
+            gap = "lease_coordinates_required"
+            report = _refusal(str(given["branch"] or ""), gap)
+            emit_lease_result(options.command, report, json_output=options.json_output)
+            return
+        current = current_lease_coordinates(root)
+        given = {name: current[name] if value is None else value for name, value in given.items()}
+    if not isinstance(given["generation"], int) or given["generation"] < 1:
+        report = _refusal(str(given["branch"]), f"work_lane_lease_missing:{given['branch']}")
+        emit_lease_result(options.command, report, json_output=options.json_output)
+        return
+    fields = options.model_dump(exclude={"root", "json_output", *_COORDINATES})
+    request = LeaseOperationRequest(operation=options.operation, **fields, **given)
+    report = execute_lease_operation(root=root, request=request)
+    apply = (
+        f"ethos {options.command} --generation {given['generation']}"
+        f" --expires-at {given['expires_at']} --branch {given['branch']}"
+        f" --holder-ref {given['holder_ref']} --root {root.as_posix()} --apply"
+    )
+    preview = not options.apply and report["verdict"] == "pass"
+    emit_lease_result(
+        options.command,
+        report,
+        json_output=options.json_output,
+        next_action=apply if preview else None,
+    )
+
+
+# Every option is optional for a preview, so the commands default to these frozen instances.
+_RENEW_DEFAULTS = _RenewOptions()
+_RESUME_DEFAULTS = _ResumeOptions()
+
+
+def _refusal(branch: str, gap: str) -> dict[str, object]:
+    return {
+        "verdict": "block",
+        "state": "blocked",
+        "branch": branch,
+        "lease": {},
+        "required_gaps": [gap],
+    }
+
+
 @_app.command(name="renew")
-def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> None:
-    """Renew one exact unexpired local Lease generation."""
-    execute_declared_lease_operation(options)
+def lane_lease_renew(
+    options: Annotated[_RenewOptions, Parameter(name="*")] = _RENEW_DEFAULTS,
+) -> None:
+    """Renew one exact unexpired local Lease generation; a preview reads the current one."""
+    execute_current_lease_operation(options)
 
 
 @_app.command(name="resume")
-def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
-    """Resume an expired Lease for the same holder and generation."""
-    execute_declared_lease_operation(options)
+def lane_lease_resume(
+    options: Annotated[_ResumeOptions, Parameter(name="*")] = _RESUME_DEFAULTS,
+) -> None:
+    """Resume an expired Lease for the same holder and generation; a preview reads it."""
+    execute_current_lease_operation(options)
 
 
 @_app.command(name="reacquire")

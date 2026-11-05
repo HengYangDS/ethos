@@ -564,7 +564,7 @@ def terminal_schema_documents() -> dict[str, dict[str, Any]]:
     for name, model in contracts.items():
         schema = model.model_json_schema(mode="serialization", by_alias=True)
         schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-        schema["$id"] = f"https://ethos.local/schemas/{name}"
+        schema["$id"] = f"https://ethos.invalid/schemas/{name}"
         schema["title"] = f"ETHOS {model.__name__.removesuffix('Document')}"
         schemas[name] = schema
     return schemas

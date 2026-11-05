@@ -83,7 +83,7 @@ import socket
 
 
 def test_connects_to_loopback():
-    with socket.create_server(("127.0.0.1", 0)) as server:
+    with socket.create_server(("localhost", 0)) as server:
         socket.create_connection(server.getsockname()).close()
 """
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/host-capability.schema.json",
+  "$id": "https://ethos.invalid/schemas/host-capability.schema.json",
   "title": "ETHOS Host Capability",
   "type": "object",
   "required": ["id", "kind", "truth_boundary", "repository_truth"],

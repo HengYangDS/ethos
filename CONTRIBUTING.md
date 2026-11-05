@@ -61,6 +61,11 @@ owns those obligations.
 
 Avoid vague subjects such as `Update files` or product claims without evidence.
 
+A commit or tag message names no private-class network address: no RFC 1918,
+RFC 4193, loopback or link-local literal, and no host under `.local`,
+`.internal`, `.lan` or `.home.arpa`. Admission refuses such a message; write a
+documentation address, a reserved example name or `localhost` instead.
+
 ## Verification
 
 Use scoped checks while editing and the standard proof at acceptance. A small

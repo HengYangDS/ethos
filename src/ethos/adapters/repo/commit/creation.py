@@ -14,6 +14,7 @@ from typing import cast
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.commit.admission import commit_message_gaps
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import commit_subject_gap
@@ -156,8 +157,8 @@ def create_git_commit(
         dict.fromkeys(commit_policy_for_revision(root, revision) for revision in (*parents, tree))
     )
     for policy in policies:
-        if gap := commit_subject_gap(policy, message):
-            raise ValueError(gap)
+        if gaps := commit_message_gaps(policy, message):
+            raise ValueError(gaps[0])
         if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
             raise refusal(*gaps)
     completed = runner(

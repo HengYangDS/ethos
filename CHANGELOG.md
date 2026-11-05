@@ -20,6 +20,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   coverage 7.17.1, dnspython 2.9.2, filelock 4.2.8, joserfc 1.8.0, platformdirs 4.14.4,
   python-discovery 1.9.4, uncalled-for 0.4.2 and virtualenv 21.15.5. filelock 4.2.9 and
   platformdirs 4.14.5 were younger than that and wait for the next move.
+- The kernel schema identifiers move to `https://ethos.invalid/schemas/<name>`, a name reserved
+  never to resolve.
 
 ### Fixed
 
@@ -57,6 +59,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   comma-separated. The journey upgrades from each one, and rolls back to it, in its own host
   store. The receipt lists every predecessor in `previous`, and keys `upgrade_and_rollback` by
   predecessor tag. A name that is not an earlier published release refuses before any download.
+
+### Security
+
+- Commit and tag admission refuse a message that names a private-class network address: an
+  RFC 1918 or RFC 4193 literal, a loopback or link-local literal, or a host under `.local`,
+  `.internal`, `.lan` or `.home.arpa`. The `commit-msg` hook reads the whole message above Git's
+  scissors line, and publication judges every commit and tag that it introduces. The gap names
+  the class and the revision, never the address. Documentation addresses, reserved example names
+  and `localhost` pass.
+- ETHOS's own secret scan refuses the same addresses in tracked and staged content. It never reads
+  history, and adopters' Gitleaks configurations are unchanged.
 
 ## [0.2.0-beta.2] - 2026-11-05
 

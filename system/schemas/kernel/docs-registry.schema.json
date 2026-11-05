@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/docs-registry.schema.json",
+  "$id": "https://ethos.invalid/schemas/docs-registry.schema.json",
   "title": "ETHOS Docs Registry",
   "type": "object",
   "required": ["verdict", "document_count", "missing_metadata", "required_gaps", "registry"],

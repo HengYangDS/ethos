@@ -39,7 +39,7 @@
       "type": "object"
     }
   },
-  "$id": "https://ethos.local/schemas/lane-lease.schema.json",
+  "$id": "https://ethos.invalid/schemas/lane-lease.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "One expiring lane-to-holder coordination relation.",

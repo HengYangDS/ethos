@@ -1,5 +1,5 @@
 {
-  "$id": "https://ethos.local/schemas/facts.schema.json",
+  "$id": "https://ethos.invalid/schemas/facts.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Fresh observation input; this value is derived and never persisted as truth.",

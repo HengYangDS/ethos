@@ -145,7 +145,7 @@ def test_native_git_transport_timeout_kills_and_reaps_the_owned_process(
     late = tmp_path / "late"
     observed: list[subprocess.Popen] = []
     with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
+        listener.bind(("localhost", 0))
         listener.listen(1)
         listener.settimeout(10)
         program = (

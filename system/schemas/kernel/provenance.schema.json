@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/provenance.schema.json",
+  "$id": "https://ethos.invalid/schemas/provenance.schema.json",
   "title": "ETHOS Provenance",
   "type": "object",
   "required": ["_type", "predicateType", "subject", "predicate"],

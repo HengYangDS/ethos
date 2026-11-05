@@ -27,6 +27,8 @@ The daily workflow and transport operations are:
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers.                                                                             | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
 | `ethos publish --retire --ref <full-ref> --probe-remote --expect-head <head> --json`                       | Derive an exact retirement request for one proposal or legacy role ref whose content an accepted peer branch contains.                                     | Read-only; the returned receipt action applies it after each peer is re-observed.                                                                                  |
 | `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
+| `ethos adopt --exit --root <repo> --json`                                                                  | Preview one repository's exit: each key after it, the keys it keeps or leaves, the selectors and generations it removes, its blockers and one digest.      | Read-only; its next action is the exact apply request.                                                                                                             |
+| `ethos adopt --exit --apply --authorize --expect-head <head> --expect-plan-digest <digest> --json`         | Apply exactly the previewed exit, or resume an interrupted one: restore the keys ETHOS still owns, then remove the record and the selectors.               | Holds the selection lock and the state transaction, writes a durable receipt first and attempts every compensation step; consumer records stay.                    |
 | `ethos mcp --root <repo>`                                                                                  | Serve MCP over stdio for one exact repository.                                                                                                             | Tool calls retain native admission; launching the transport grants no authority.                                                                                   |
 
 An exact `publish --ref` request selects every declared peer by default.
@@ -52,6 +54,24 @@ reobserve before retrying. Synchronous work drains before queued work; filesyste
 record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
+
+`ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
+admits it, and exits with the command's own status.
+
+- **One queue per host.** It sits under ETHOS's host root. Waiters are admitted in arrival order,
+  at most the number of slots that `host.toml` declares.
+- **Live holders.** A holder that exits frees its place without any cleanup.
+- **Bounded waits.** A wait that reaches its bound ends with `host_admission_contended`, naming
+  the holder's repository, executable and start time. A queue record never holds the command's
+  arguments.
+- **Shared with proofs.** A full proof takes the same host slot after its repository's proof
+  slot.
+- **What the child receives.** The child gets `ETHOS_HOST_ADMISSION`, so work that it starts joins
+  the admission instead of waiting for itself. It also gets `ETHOS_HOST_CPU_CAP` and
+  `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `host.toml` does not reserve, at least one.
+- **The declaration.** `host.toml` declares `slots`, default 1, `reserved_cpus`, default 0, and
+  `load_limit`, default half the CPUs. A value out of range is refused with a named gap and never
+  clamped.
 
 ## Native CI Projection
 
@@ -365,7 +385,7 @@ execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
 
-Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks) before its test and package gates. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
+Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and the host slot, and waits for two consecutive 1-minute load samples within the limit before its test and package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else `load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, which names the load, the limit and its source, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
 

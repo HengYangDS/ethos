@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import TYPE_CHECKING
 
 import pytest
 from filelock import FileLock
 from filelock import Timeout
 
+import ethos.adapters.gates.host_admission as host_admission
 import ethos.adapters.gates.proof_slot as proof_slot
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.governed_repository import commit_fixture_file
@@ -51,7 +53,7 @@ class _Host:
             repo,
             head=_HEAD,
             current=current,
-            limit=lambda: limit,
+            limit=lambda: (limit, "test"),
             load=self.load,
             clock=lambda: self.now,
             sleep=self.sleep,
@@ -76,8 +78,8 @@ def test_an_uncontended_full_proof_starts_without_waiting(tmp_path: Path) -> Non
     with host.admit(repo) as admission:
         holder = json.loads(_slot(repo)[1].read_text(encoding="utf-8"))
 
-    assert host.sleeps == []
-    assert (admission.waited_seconds, admission.load, admission.limit) == (0.0, 2.0, 8.0)
+    assert host.sleeps == [15.0]
+    assert (admission.waited_seconds, admission.load, admission.limit) == (15.0, 2.0, 8.0)
     assert holder["head"] == _HEAD
     assert host.events[-1]["event"] == "proof_admission_granted"
     assert not _slot(repo)[1].exists()
@@ -91,7 +93,7 @@ def test_a_loaded_host_delays_the_proof_until_load_drops(tmp_path: Path) -> None
     with host.admit(repo) as admission:
         pass
 
-    assert len(host.sleeps) == 2
+    assert len(host.sleeps) == 3
     assert (admission.load, admission.waited_seconds) == (6.0, sum(host.sleeps))
     assert [(event["reason"], event["load"]) for event in host.waits()] == [("host_load", 20.0)]
 
@@ -126,9 +128,9 @@ def test_a_second_full_proof_waits_for_the_running_one(
     with host.admit(repo) as admission:
         assert json.loads(holder_path.read_text(encoding="utf-8"))["head"] == _HEAD
 
-    assert len(host.sleeps) == 2
+    assert len(host.sleeps) == 3
     assert admission.waited_seconds == sum(host.sleeps)
-    assert [event["reason"] for event in host.waits()] == ["slot_held"]
+    assert [event["reason"] for event in host.waits()] == ["slot_held", "host_load"]
     assert host.waits()[0]["holder"] == named
 
 
@@ -140,7 +142,7 @@ def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(
     host = _Host([30.0])
 
     with (
-        pytest.raises(ValueError, match=r"^proof_admission_contended$") as contended,
+        pytest.raises(ValueError, match=r"^proof_admission_contended:load=30.0:") as contended,
         host.admit(repo, seconds=60.0),
     ):
         pytest.fail("no gate may run under contention")
@@ -148,7 +150,7 @@ def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(
     assert sum(host.sleeps) == 60.0
     lock_path, holder_path = _slot(repo)
     # The failed admission's frame is still referenced, so only an explicit release frees it.
-    assert contended.value.args == (proof_slot.CONTENDED,)
+    assert contended.value.args == (f"{proof_slot.CONTENDED}:load=30.0:limit=8.0:source=test",)
     assert FileLock(lock_path).acquire(timeout=0)
     assert not holder_path.exists()
 
@@ -204,7 +206,9 @@ def test_admission_judges_its_own_lane_by_default(tmp_path: Path) -> None:
 
     with (
         pytest.raises(ValueError, match=r"^candidate_base_stale$"),
-        proof_slot.admitted_full_proof(repo, head=head, limit=lambda: None, report=[].append),
+        proof_slot.admitted_full_proof(
+            repo, head=head, limit=lambda: (None, "test"), report=[].append
+        ),
     ):
         pytest.fail("no gate may run for a lane that can no longer land")
 
@@ -245,18 +249,21 @@ def test_unobservable_load_or_a_disabled_limit_admits_on_the_slot_alone(
     assert (admission.load, admission.limit) == ((None, 8.0) if limit else (None, None))
 
 
-@pytest.mark.parametrize(("raw", "expected"), [(None, 9.0), ("0", None), ("12.5", 12.5)])
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [(None, (9.0, "default")), ("0", (None, "environment")), ("12.5", (12.5, "environment"))],
+)
 def test_the_load_limit_defaults_to_half_the_cpus(
-    monkeypatch: pytest.MonkeyPatch, raw: str | None, expected: float | None
+    monkeypatch: pytest.MonkeyPatch, raw: str | None, expected: tuple[float | None, str]
 ) -> None:
-    """Half the CPUs stays free for others unless the host declares another limit."""
+    """Half the CPUs stays free for others unless the run or the host declares another limit."""
     monkeypatch.setattr(proof_slot.os, "cpu_count", lambda: 18)
     if raw is None:
         monkeypatch.delenv(proof_slot.LOAD_LIMIT_VARIABLE, raising=False)
     else:
         monkeypatch.setenv(proof_slot.LOAD_LIMIT_VARIABLE, raw)
 
-    assert proof_slot.load_limit() == expected
+    assert proof_slot.effective_load_limit() == expected
 
 
 @pytest.mark.parametrize("raw", ["-1", "nan", "inf", "many"])
@@ -265,18 +272,18 @@ def test_an_invalid_load_limit_is_refused(monkeypatch: pytest.MonkeyPatch, raw: 
     monkeypatch.setenv(proof_slot.LOAD_LIMIT_VARIABLE, raw)
 
     with pytest.raises(ValueError, match=r"^proof_host_load_limit_invalid$"):
-        proof_slot.load_limit()
+        proof_slot.effective_load_limit()
 
 
 @pytest.mark.parametrize(
-    ("averages", "expected"), [((3.5, 2.0, 1.0), 3.5), ((3.5, 12.0, 20.0), 12.0), (None, None)]
+    ("averages", "expected"), [((3.5, 2.0, 1.0), 3.5), ((3.5, 12.0, 20.0), 3.5), (None, None)]
 )
-def test_the_host_load_is_the_sustained_load_where_the_host_reports_it(
+def test_the_host_load_is_the_one_minute_load_where_the_host_reports_it(
     monkeypatch: pytest.MonkeyPatch,
     averages: tuple[float, float, float] | None,
     expected: float | None,
 ) -> None:
-    """A lull between other jobs is not room: the 5-minute average counts beside the 1-minute."""
+    """The 5-minute average lags a finished run by minutes; two calm 1-minute samples admit."""
     if averages is not None:
         monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
     else:
@@ -291,14 +298,108 @@ def test_admission_reports_its_grant_on_stderr(
     """Admission events stay diagnostic stderr lines beside the proof's gate progress."""
     repo = init_git_repo(tmp_path / "repo")
 
-    with proof_slot.admitted_full_proof(repo, head=_HEAD, limit=lambda: None, clock=lambda: 0.0):
+    with proof_slot.admitted_full_proof(
+        repo, head=_HEAD, limit=lambda: (None, "test"), clock=lambda: 0.0
+    ):
         pass
 
     granted = json.loads(capsys.readouterr().err.splitlines()[-1])
     assert granted == {
         "event": "proof_admission_granted",
         "head": _HEAD,
+        "load_measured": False,
+        "limit_source": "test",
         "waited_seconds": 0.0,
         "load": None,
         "limit": None,
     }
+
+
+def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Path) -> None:
+    """Another heavy run that holds the host delays the proof after its repository slot is held."""
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "film", "renderer")
+
+    class _RenderEnds(_Host):
+        def sleep(self, seconds: float) -> None:
+            super().sleep(seconds)
+            if len(self.sleeps) == 1:
+                queue.leave(*render)
+
+    host = _RenderEnds([20.0, 4.0])
+    with host.admit(repo) as admission:
+        token = os.environ[host_admission.TOKEN]
+        assert queue.holds(token)
+
+    assert [event["reason"] for event in host.waits()] == ["host_slot_held", "host_load"]
+    holder = host.waits()[0]["holder"]
+    assert isinstance(holder, dict)
+    assert holder["executable"] == "renderer"
+    assert admission.load == 4.0
+    assert host_admission.TOKEN not in os.environ
+    assert not queue.live()
+
+
+def test_a_host_without_a_load_average_records_it_unmeasured(tmp_path: Path) -> None:
+    """The host slot still serializes, and the admission says that load was not measured."""
+    repo = init_git_repo(tmp_path / "repo")
+    host = _Host([None])
+
+    with host.admit(repo) as admission:
+        pass
+
+    assert admission.load is None
+    assert host.events[-1]["load_measured"] is False
+
+
+def test_two_calm_one_minute_samples_admit_the_proof(tmp_path: Path) -> None:
+    """A single dip between busy phases does not admit; two consecutive calm samples do."""
+    repo = init_git_repo(tmp_path / "repo")
+    host = _Host([5.0, 20.0, 5.0, 6.0])
+
+    with host.admit(repo) as admission:
+        pass
+
+    assert len(host.sleeps) == 3
+    assert admission.load == 6.0
+    assert [event["reason"] for event in host.waits()] == ["host_load"]
+
+
+def test_a_contended_load_names_its_limit_and_where_it_came_from(tmp_path: Path) -> None:
+    """A wait that reaches its bound on load explains itself: the load, the limit, the source."""
+    repo = init_git_repo(tmp_path / "repo")
+    host = _Host([30.0])
+
+    with (
+        pytest.raises(
+            ValueError, match=r"^proof_admission_contended:load=30\.0:limit=8\.0:source=test$"
+        ),
+        host.admit(repo, seconds=60.0),
+    ):
+        pytest.fail("no gate may run under contention")
+
+
+@pytest.mark.parametrize(
+    ("variable", "declared", "expected"),
+    [
+        ("7", "load_limit = 14\n", (7.0, "environment")),
+        (None, "load_limit = 14\n", (14.0, "host.toml")),
+        (None, None, (max(1.0, (os.cpu_count() or 1) / 2), "default")),
+    ],
+)
+def test_the_load_limit_has_one_declared_source(
+    monkeypatch: pytest.MonkeyPatch, variable: str | None, declared: str | None, expected: object
+) -> None:
+    """A run's explicit variable, then the host declaration, then half the CPUs."""
+    if variable is None:
+        monkeypatch.delenv(proof_slot.LOAD_LIMIT_VARIABLE, raising=False)
+    else:
+        monkeypatch.setenv(proof_slot.LOAD_LIMIT_VARIABLE, variable)
+    root = host_admission.host_store_root()
+    assert root is not None
+    if declared is not None:
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "host.toml").write_text(declared, encoding="utf-8")
+
+    assert proof_slot.effective_load_limit() == expected

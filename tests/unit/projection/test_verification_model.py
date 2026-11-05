@@ -275,8 +275,10 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
                 *parameters["supply"]["checks"]["gitlab"],
                 mkdir,
             ]
+            retry = {"GET_SOURCES_ATTEMPTS": "3"} if runner["system"] == "windows" else {}
             assert job["variables"] == {
                 "GIT_DEPTH": "0",
+                **retry,
                 **parameters["gitlab"]["variables"],
                 **runner.get("variables", {}),
             }
@@ -406,6 +408,14 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
         (
             {"parameters": {"gitlab": {"runners": {"windows": {"variables": {"GIT_DEPTH": "1"}}}}}},
             "GIT_DEPTH",
+        ),
+        (
+            {
+                "parameters": {
+                    "gitlab": {"runners": {"windows": {"variables": {"GET_SOURCES_ATTEMPTS": "1"}}}}
+                }
+            },
+            "GET_SOURCES_ATTEMPTS",
         ),
         (
             {"parameters": {"evidence_paths": ["build/evidence/../secret"]}},

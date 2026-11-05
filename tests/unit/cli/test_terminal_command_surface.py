@@ -66,7 +66,7 @@ def test_registered_command_roots_are_exactly_the_terminal_surface() -> None:
     load_command_groups([])
     registered = {command for command in app.resolved_commands() if not command.startswith("-")}
 
-    assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook", "attestation"}
+    assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook", "attestation", "host"}
 
 
 def test_bare_help_loads_the_terminal_root_surface() -> None:

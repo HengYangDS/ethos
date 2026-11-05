@@ -243,3 +243,22 @@ def test_skill_schema_cannot_be_replaced_by_adopter_checkout(tmp_path: Path) -> 
     assert expected["verdict"] == "pass"
     _write(tmp_path / "system/schemas/kernel/skill-package-manifest.schema.json", "false\n")
     assert validate_skill_package_manifest(tmp_path, manifest) == expected
+
+
+def test_a_package_that_no_record_routes_is_reported(tmp_path: Path) -> None:
+    """Every package under the Skills root has one route: an active record or a retirement."""
+    skills = tmp_path / ".agents/skills"
+    _write(skills / "README.md", "# Skills\n")
+    for skill_id in ("routed", "unrouted"):
+        _package(tmp_path, skill_id)
+    _write(
+        skills / "activation.toml",
+        '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
+        "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n\n"
+        + _record("routed", package_manifest=".agents/skills/routed/package.toml"),
+    )
+
+    gaps = skill_portfolio_report(tmp_path)["required_gaps"]
+
+    assert "skill_package_unregistered:unrouted" in gaps
+    assert "skill_package_unregistered:routed" not in gaps

@@ -109,7 +109,11 @@ import "strings"
 							tags:          selectedTags
 							timeout:       "\(policy.timeout_minutes) minutes"
 							interruptible: true
-							variables: {GIT_DEPTH: "0"} & policy.gitlab.variables & runner.variables
+							variables: {
+								GIT_DEPTH: "0"
+								// Windows can still hold the previous job's executables when GitLab cleans.
+								if runner.system == "windows" {GET_SOURCES_ATTEMPTS: "3"}
+							} & policy.gitlab.variables & runner.variables
 							if runner.image != _|_ {image: runner.image}
 							if runner.resource_group != _|_ {resource_group: runner.resource_group}
 							if trust == "review" {rules: reviewRules}

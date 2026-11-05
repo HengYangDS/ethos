@@ -137,9 +137,28 @@ def role_rename_ref_report(
             )
             gaps = [str(claimed["gap"])] if claimed["gap"] else []
         return _report(ref_name, old_value, new_value, gaps, "legacy_role_rename")
-    if old_value in _ZERO_OIDS or ref_name not in _legacy_refs(repo, old_value):
+    if not legacy_role_ref_protected(repo, ref_name, old_value, new_value):
         return None
     return _report(ref_name, old_value, new_value, ["legacy_role_ref_protected"], "")
+
+
+def legacy_role_ref_protected(repo: Path, ref_name: str, old_value: str, new_value: str) -> bool:
+    """Whether a move of one ref waits for its legacy role rename.
+
+    The committed table at the ref's old value names its legacy role refs; any move of one is
+    the closeout rename's alone. A legacy ref whose standard successor already holds its exact
+    commit carries nothing that ref lacks, so deleting it alone stays admitted.
+    """
+    if old_value in _ZERO_OIDS:
+        return False
+    try:
+        renames = legacy_role_renames(repo, old_value)
+    except (TypeError, ValueError):
+        return False
+    if ref_name not in renames:
+        return False
+    successor, _value = renames[ref_name]
+    return not (new_value in _ZERO_OIDS and ref_head(repo, successor) == old_value)
 
 
 def _rename_shape_gaps(repo: Path, intents: tuple[tuple[str, str, str], ...]) -> list[str]:
@@ -180,14 +199,6 @@ def _rename_shape_gaps(repo: Path, intents: tuple[tuple[str, str, str], ...]) ->
     ):
         return ["legacy_role_rename_shape_invalid"]
     return []
-
-
-def _legacy_refs(repo: Path, head: str) -> set[str]:
-    """Return the legacy role refs that the committed table at head still declares."""
-    try:
-        return set(legacy_role_renames(repo, head))
-    except (TypeError, ValueError):
-        return set()
 
 
 def _report(

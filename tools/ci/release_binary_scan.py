@@ -19,6 +19,7 @@ from typing import cast
 from urllib.parse import parse_qs
 from urllib.parse import urlsplit
 
+import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
@@ -138,7 +139,7 @@ def run(session: nox.Session) -> None:
     work.mkdir(parents=True)
     patterns = ("--pattern", "*.syft.json", "--pattern", "SHA256SUMS")
     command = ("gh", "release", "download", tag, "--repo", REPOSITORY, "--dir", str(work))
-    run_command(ROOT, (*command, *patterns), check=True, timeout=600)
+    run_command(ROOT, (*command, *patterns), check=True, timeout=parameters.seconds("download"))
     report = scan_release(
         work,
         version=tag.removeprefix("v"),
@@ -165,7 +166,8 @@ def _native_grype() -> Callable[[Path, Path], None]:
             ROOT,
             (str(executable), f"sbom:{inventory}", "--output", "json", "--file", str(output), "-q"),
             check=True,
-            timeout=1800,
+            # The scan may fetch Grype's database first, so it takes the gate wait.
+            timeout=parameters.seconds("gate"),
             env={"GRYPE_CHECK_FOR_APP_UPDATE": "false", "GRYPE_DB_CACHE_DIR": str(database)},
             remove_env_prefixes=("GIT_", "GRYPE_", "SYFT_"),
         )
@@ -177,7 +179,13 @@ def _audited_lock(tag: str) -> str:
     """Digest the lock at the scanned tag, the one that release's audit checked."""
     accept = ("-H", "Accept: application/vnd.github.raw")
     path = f"repos/{REPOSITORY}/contents/package-lock.json?ref={tag}"
-    completed = run_command(ROOT, ("gh", "api", *accept, path), text=False, check=True, timeout=120)
+    completed = run_command(
+        ROOT,
+        ("gh", "api", *accept, path),
+        text=False,
+        check=True,
+        timeout=parameters.seconds("request"),
+    )
     return hashlib.sha256(completed.stdout).hexdigest()
 
 

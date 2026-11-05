@@ -76,3 +76,16 @@ A historical artifact is judged by the attestation made when it was produced.
   build's attestations as recorded.
 - Other historical re-derivations, such as a maintenance range under today's commit policy, move to
   the same record if one is found failing, never to a special case.
+
+## Evidence and Revisit
+
+- The `adopter-tag-receipts` and `mapped-release-retag` Change proposals and designs record the
+  incident: a repaired release tag could not publish under a later runtime's policy, and once its
+  tag moved, the attestation set no longer held the proof.
+- Publication tests verify the embedded proof on the original commit under a later runtime, refuse
+  a missing or altered embedded proof, and publish a re-created tag only through its mapped-retag
+  receipt. Mutation checks that remove each refusal make those tests fail.
+
+Revisit when a release record changes what it embeds, or when ETHOS starts retaining proofs
+independently of tags. Retire this record when the repository-governance specification itself
+states these alternatives and limits.

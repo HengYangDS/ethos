@@ -12,6 +12,22 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Security
+
+- Commit and tag admission refuse a message that names a private-class network address: an
+  RFC 1918 or RFC 4193 literal, a loopback or link-local literal, or a host under `.local`,
+  `.internal`, `.lan` or `.home.arpa`. The `commit-msg` hook reads the whole message above Git's
+  scissors line, and publication judges every commit and tag that it introduces. The gap names
+  the class and the revision, never the address. Documentation addresses, reserved example names
+  and `localhost` pass.
+- ETHOS's own secret scan refuses the same addresses in tracked and staged content. It never reads
+  history, and adopters' Gitleaks configurations are unchanged.
+
+### Changed
+
+- The kernel schema identifiers move to `https://ethos.invalid/schemas/<name>`, a name reserved
+  never to resolve.
+
 ## [0.2.0-beta.2] - 2026-11-05
 
 ### Added

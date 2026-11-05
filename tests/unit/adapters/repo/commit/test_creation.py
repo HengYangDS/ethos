@@ -16,6 +16,7 @@ from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.repository.policy.commit import CommitPolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.private_addresses import PRIVATE_FORGE
 from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
@@ -110,15 +111,25 @@ def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
     }.get(case, "")
 
 
-def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("message", "gap"),
+    [
+        ("bootstrap Commitment v2", "commit_subject_invalid:bootstrap Commitment v2"),
+        (f"fix: mirror\n\nFrom http://{PRIVATE_FORGE}/team/repo", "commit_message_private_address"),
+    ],
+    ids=["subject", "private-address"],
+)
+def test_invalid_message_never_reaches_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, message: str, gap: str
+) -> None:
     policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
-    with pytest.raises(ValueError, match="commit_subject_invalid:bootstrap Commitment v2"):
+    with pytest.raises(ValueError, match=f"^{gap}$"):
         creation.create_git_commit(
             tmp_path,
             tree="a" * 40,
             parent="b" * 40,
-            message="bootstrap Commitment v2",
+            message=message,
             runner=lambda *_a, **_k: pytest.fail("Git must not run"),
         )
 

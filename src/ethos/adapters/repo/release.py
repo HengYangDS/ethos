@@ -411,12 +411,14 @@ def publication_proof_head(root: Path, refs: tuple[str, ...], head: str) -> str:
 def _immutable_tag_commit(
     root: Path, *, ref: str, old: str, new: str, allow_identical: bool
 ) -> str:
-    """Validate signature, native header and immutable identity for any admitted tag."""
+    """Validate signature, native header, message and immutable identity for any admitted tag."""
     source = observe_git_object(root, new, "annotated-tag")
     require_release(not source["required_gaps"], "release_tag_source_untrusted")
-    header = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")[0]
+    header, _separator, message = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")
     names = [line.removeprefix("tag ") for line in header.splitlines() if line.startswith("tag ")]
     require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
+    named = load_repository_paradigm().names_private_address(message)
+    require_release(not named, "release_tag_message_private_address")
     require_release(
         old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
     )

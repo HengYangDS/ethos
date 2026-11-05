@@ -117,6 +117,7 @@ def _commit_observation(
         "state": "current" if available else "unavailable",
         "object_oid": object_oid,
         "subject": parts[1],
+        "message": raw.partition(b"\n\n")[2].decode("utf-8", "replace") if available else "",
         "author": {"name": parts[2], "email": parts[3]},
         "committer": {"name": parts[4], "email": parts[5]},
         "signature": {

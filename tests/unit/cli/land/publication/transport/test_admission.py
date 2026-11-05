@@ -13,6 +13,7 @@ from ethos.adapters.repo.git_object import zero_oid
 from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
+from tests.support.private_addresses import INTERNAL_FORGE
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
@@ -162,6 +163,16 @@ def test_transport_keeps_native_signature_header_and_immutable_ref_checks(tmp_pa
         remote_head=zero_oid(repo),
     )
     assert "release_tag_source_untrusted" in string_sequence(denied["required_gaps"])
+    message = f"Signed input from http://{INTERNAL_FORGE}/team/repo"
+    git(repo, "tag", "-s", "-m", message, "evidence-private", head)
+    leaked = push_admission_report(
+        root=repo,
+        pushed_head=git(repo, "rev-parse", "refs/tags/evidence-private"),
+        target_ref="refs/tags/evidence-private",
+        remote_name="github",
+        remote_head=zero_oid(repo),
+    )
+    assert "release_tag_message_private_address" in string_sequence(leaked["required_gaps"])
     assert git(repo, "rev-parse", ref) == tag
 
 

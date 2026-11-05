@@ -4,7 +4,9 @@ The install smoke keeps each runtime archive it qualified and records its SHA-25
 reads that archive's bytes under its published name and writes two inventories: an SPDX 2.3 SBOM,
 which consumers read, and a Syft JSON inventory that captures Go symbols, which binary scans
 read. Both must name the archive and its digest, and hold every component that the runtime's
-owners declare: the bundled Go tools, uv, Node and each shipped Python distribution.
+owners declare: the bundled Go tools, uv, Node and each shipped Python distribution. Syft finds Node
+only in a file named `node`, so when it misses a Windows `node.exe`, the locked Node supply declares
+it in both inventories, bound to the shipped bytes.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from pathlib import PurePosixPath
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 
@@ -45,6 +48,7 @@ _DIST = re.compile(r"site-packages/([^/]+?)-([^/-]+)\.dist-info/METADATA$")
 _NATIVE = re.compile(r"ethos/resources/native/([^/]+)/\1(?:\.exe)?$")
 _UV = re.compile(r"(?:^|/)(?:bin/uv|Scripts/uv\.exe)$")
 _NODE = re.compile(r"ethos/resources/node/(?:bin/node|node\.exe)$")
+_DECLARER = "ethos-locked-supply"
 
 
 def native_syft(executable: Path) -> Callable[[tuple[str, ...]], None]:
@@ -144,6 +148,95 @@ def missing_components(
     return sorted(f"release_inventory_component_missing:{item}" for item in missing)
 
 
+def declare_locked_node(
+    documents: tuple[dict, dict], *, member: str, digest: str, locked: str, version: str
+) -> dict[str, str] | None:
+    """Declare the shipped Node from its locked supply when the catalog misses it.
+
+    The record mirrors Syft's own, so Grype matches it by the same CPE, and names its declarer. It
+    vouches only for the locked supply's exact bytes, and it lapses once the catalog finds Node.
+    """
+    spdx, inventory = documents
+    path = "/" + member
+    if any(
+        artifact.get("name") == "node"
+        and any(location.get("path") == path for location in artifact.get("locations") or ())
+        for artifact in _sequence(inventory, "artifacts")
+        if isinstance(artifact, dict)
+    ):
+        return None
+    if digest != locked:
+        message = "release_inventory_component_unverified:node"
+        raise RuntimeError(message)
+    identity = hashlib.sha256(f"{_DECLARER}/node/{version}/{member}".encode()).hexdigest()[:16]
+    cpe = f"cpe:2.3:a:nodejs:node.js:{version}:*:*:*:*:*:*:*"
+    purl = f"pkg:generic/node@{version}"
+    inventory.setdefault("artifacts", []).append(
+        {
+            "id": identity,
+            "name": "node",
+            "version": version,
+            "type": "binary",
+            "foundBy": _DECLARER,
+            "locations": [
+                {"path": path, "accessPath": path, "annotations": {"evidence": "primary"}}
+            ],
+            "licenses": [],
+            "language": "",
+            "cpes": [{"cpe": cpe, "source": _DECLARER}],
+            "purl": purl,
+        }
+    )
+    if parent := (inventory.get("source") or {}).get("id"):
+        relationship = {"parent": parent, "child": identity, "type": "contains"}
+        inventory.setdefault("artifactRelationships", []).append(relationship)
+    package = f"SPDXRef-Package-binary-node-{identity}"
+    spdx.setdefault("packages", []).append(
+        {
+            "name": "node",
+            "SPDXID": package,
+            "versionInfo": version,
+            "supplier": "NOASSERTION",
+            "downloadLocation": "NOASSERTION",
+            "filesAnalyzed": False,
+            "checksums": [{"algorithm": "SHA256", "checksumValue": digest}],
+            "sourceInfo": f"declared by ETHOS from its locked Node supply: {path}",
+            "licenseConcluded": "NOASSERTION",
+            "licenseDeclared": "NOASSERTION",
+            "copyrightText": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "SECURITY",
+                    "referenceType": "cpe23Type",
+                    "referenceLocator": cpe,
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": purl,
+                },
+            ],
+        }
+    )
+    spdx.setdefault("relationships", []).extend(
+        {"spdxElementId": root, "relatedSpdxElement": package, "relationshipType": "CONTAINS"}
+        for root in [
+            relation.get("relatedSpdxElement")
+            for relation in _sequence(spdx, "relationships")
+            if isinstance(relation, dict)
+            and relation.get("spdxElementId") == "SPDXRef-DOCUMENT"
+            and relation.get("relationshipType") == "DESCRIBES"
+        ]
+    )
+    return {
+        "name": "node",
+        "version": version,
+        "path": member,
+        "sha256": digest,
+        "source": "locked Node supply",
+    }
+
+
 def run(session: nox.Session) -> None:
     """Catalog the archive the install smoke kept and record the inventories' bounded claims."""
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
@@ -173,7 +266,7 @@ def run(session: nox.Session) -> None:
     config.write_text(json.dumps(policy["syft_config"], indent=2) + "\n", encoding="utf-8")
     supply = NativeSupply.read(ROOT, "syft")
     syft = native_syft(materialize_tool(ROOT, "syft") / supply.executable_name)
-    _spdx, inventory = catalog(archive, name=name, outputs=outputs, config=config, run=syft)
+    spdx, inventory = catalog(archive, name=name, outputs=outputs, config=config, run=syft)
     manifest = _manifest(archive)
     tools = {
         match[1]
@@ -182,6 +275,7 @@ def run(session: nox.Session) -> None:
     }
     native = {tool: NativeSupply.read(ROOT, tool).version for tool in tools & set(NATIVE_BACKENDS)}
     node = NodeSupply.read(ROOT).version
+    declared = _declare_shipped_node((spdx, inventory), archive, outputs, version=node)
     if missing := missing_components(inventory, manifest, native=native, node=node):
         raise RuntimeError(",".join(missing[:20]))
     payload = {
@@ -202,6 +296,7 @@ def run(session: nox.Session) -> None:
                 1 for path in _sequence(manifest, "runtime_files") if _DIST.search(str(path))
             ),
         },
+        "declared": declared,
         "generator": {"tool": "syft", "version": supply.version, "config": policy["syft_config"]},
         "not_claimed": policy["boundary"]["not_claimed"],
     }
@@ -210,6 +305,36 @@ def run(session: nox.Session) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
     session.log(rendered)
+
+
+def _declare_shipped_node(
+    documents: tuple[dict, dict], archive: Path, outputs: tuple[Path, Path], *, version: str
+) -> list[dict[str, str]]:
+    """Declare a shipped Node that the catalog missed, and rewrite both inventories if so."""
+    shipped = shipped_node(archive)
+    if shipped is None:
+        return []
+    member, digest = shipped
+    locked = _sha256(materialize_tool(ROOT, "node") / PurePosixPath(member).name)
+    record = declare_locked_node(
+        documents, member=member, digest=digest, locked=locked, version=version
+    )
+    if record is None:
+        return []
+    for path, document in zip(outputs, documents, strict=True):
+        path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return [record]
+
+
+def shipped_node(archive: Path) -> tuple[str, str] | None:
+    """Return the archive's Node executable and its SHA-256, if the runtime ships one."""
+    with tarfile.open(archive) as packed:
+        for member in packed:
+            if member.isfile() and _RUNTIME.match(member.name) and _NODE.search(member.name):
+                stream = packed.extractfile(member)
+                if stream is not None:
+                    return member.name, hashlib.file_digest(stream, "sha256").hexdigest()
+    return None
 
 
 def _manifest(archive: Path) -> dict:

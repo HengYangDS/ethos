@@ -225,6 +225,12 @@ github: {
 				type:        "string"
 				default:     ""
 			}
+			journey_previous: {
+				description: "Comma-separated earlier published pre-release tags that the journey upgrades from; empty selects the latest earlier published release"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
 		}
 	}
 	permissions: contents: "read"
@@ -516,7 +522,8 @@ github: {
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
 				name: "Qualify the published pre-release on the adopter journey"
-				run:  "uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }}"
+				env: JOURNEY_PREVIOUS: "${{ inputs.journey_previous }}"
+				run: "uv run --frozen python -m nox -s release_journey -- --tag ${{ inputs.release_tag || inputs.journey_tag }} --previous \"$JOURNEY_PREVIOUS\""
 			}, {
 				name: "Upload the release journey receipt"
 				if:   "always()"

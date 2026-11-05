@@ -27,8 +27,13 @@ def test_the_journey_follows_publication_on_macos_and_linux(workflow: dict[str, 
     ]
     assert "needs.release-publish.result == 'success'" in job["if"]
     assert "inputs.journey_tag != ''" in job["if"]
-    runs = [str(step.get("run", "")) for step in job["steps"]]
-    assert f"uv run --frozen python -m nox -s release_journey -- --tag {TAG}" in runs
+    (step,) = (step for step in job["steps"] if "release_journey" in str(step.get("run", "")))
+    assert step["run"] == (
+        f"uv run --frozen python -m nox -s release_journey -- --tag {TAG}"
+        ' --previous "$JOURNEY_PREVIOUS"'
+    )
+    # A dispatch value reaches the shell only through the environment, never the script text.
+    assert step["env"] == {"JOURNEY_PREVIOUS": "${{ inputs.journey_previous }}"}
     (upload,) = (
         step
         for step in job["steps"]
@@ -39,7 +44,8 @@ def test_the_journey_follows_publication_on_macos_and_linux(workflow: dict[str, 
 
 
 def test_a_journey_dispatch_runs_no_regular_job(workflow: dict[str, Any]) -> None:
-    assert workflow["on"]["workflow_dispatch"]["inputs"]["journey_tag"]["default"] == ""
+    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+    assert (inputs["journey_tag"]["default"], inputs["journey_previous"]["default"]) == ("", "")
     regular = [
         name for name, job in workflow["jobs"].items() if "!inputs.release_tag" in job.get("if", "")
     ]

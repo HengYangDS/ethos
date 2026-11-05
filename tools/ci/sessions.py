@@ -199,8 +199,12 @@ def install_smoke(session) -> None:
 def release_journey(session) -> None:
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--tag", required=True)
+    parser.add_argument("--previous", default="")
     options = parser.parse_args(tuple(session.posargs))
-    import_module("tools.ci.delivery.acceptance.journey").run(session, tag=options.tag)
+    previous = tuple(name.strip() for name in options.previous.split(",") if name.strip())
+    import_module("tools.ci.delivery.acceptance.journey").run(
+        session, tag=options.tag, previous=previous
+    )
 
 
 def host_conformance(session) -> None:

@@ -4,11 +4,9 @@
 
 Review observation for a declared GitHub or GitLab peer SHALL run that provider's native client
 noninteractively within a bound. It SHALL resolve the peer's web repository from local connection
-metadata only, where `<name>` is the peer's Git remote: the local `remote.<name>.forgeRepository`,
-else an `http` or `https` Git remote without userinfo. SSH-only coordinates and failed or
-unavailable queries SHALL remain unknown; a plain Git peer has no review system. Tracked
-configuration SHALL NOT carry the coordinate, and neither coordinates nor client credentials SHALL
-grant deletion authority.
+metadata only, never from tracked configuration. SSH-only coordinates and failed or unavailable
+queries SHALL remain unknown, and a plain Git peer has no review system. Neither coordinates nor
+client credentials SHALL grant deletion authority.
 
 #### Scenario: A peer is reachable only over SSH
 

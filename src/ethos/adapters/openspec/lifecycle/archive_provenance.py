@@ -49,6 +49,8 @@ def resolve_archive_head(
         distance = _ancestor_distance(root, commit, current_head)
         if distance is not None:
             candidates.append((commit, distance, chain))
+            # Current history preserves this commit; a later refresh only moved a branch past it.
+            continue
         refreshes = (
             validated_refresh_edge(root, branch=branch, attestation=record, previous=commit)
             for record in attestations

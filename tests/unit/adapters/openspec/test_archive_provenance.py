@@ -236,6 +236,38 @@ def test_archive_resolution_selects_exact_refresh_predecessor(tmp_path, monkeypa
     assert git(root, "show-ref") == refs
 
 
+def test_a_fast_forward_refresh_does_not_carry_an_archive_already_in_history(tmp_path, monkeypatch):
+    """The rebased archive in current history is the archive; a later refresh only moved past it."""
+    root = init_git_repo(tmp_path / "repo")
+    archive_path = "openspec/changes/archive/2026-09-16-fixture"
+    artifact = root / archive_path / "proposal.md"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("Preserved official archive.\n")
+    archived = commit_fixture(root, "archive before the rebase")
+    tree = git(root, "rev-parse", f"{archived}^{{tree}}")
+    rebased = git(root, "commit-tree", tree, "-p", f"{archived}^", "-m", "archive after the rebase")
+    current = git(root, "commit-tree", tree, "-p", rebased, "-m", "another lane's archive")
+    edges = {
+        archived: rewrite.RewriteEdge(archived, rebased, "first-refresh", "refresh"),
+        rebased: rewrite.RewriteEdge(rebased, current, "fast-forward-refresh", "refresh"),
+    }
+    monkeypatch.setattr(
+        provenance, "validated_refresh_edge", lambda _root, **kwargs: edges.get(kwargs["previous"])
+    )
+
+    resolved = provenance.resolve_archive_head(
+        root,
+        archived_head=archived,
+        current_head=current,
+        branch="work/fixture",
+        archive_path=archive_path,
+        attestations=(SimpleNamespace(predicate="effect:git-ref-update"),),
+        repairs={},
+    )
+
+    assert resolved == (rebased, 1, (edges[archived],))
+
+
 @pytest.mark.parametrize("reader", ["archive", "refresh"])
 @pytest.mark.parametrize("relevant", [False, True])
 @pytest.mark.parametrize("same_branch", [False, True])

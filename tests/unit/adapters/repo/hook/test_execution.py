@@ -228,6 +228,12 @@ def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> 
         ("missing", "", "candidate_semantic_runner_unavailable"),
         ("invalid-json", "not-json", "candidate_semantic_runner_invalid"),
         ("invalid-envelope", "{}", "candidate_semantic_runner_invalid"),
+        # A bound whose detail cannot be read never stands for the candidate's full report.
+        (
+            "bounded",
+            '{"data":{"verdict":"pass"},"bound":{"detail":{"path":"/absent","size_bytes":0}}}',
+            "candidate_semantic_runner_invalid",
+        ),
         ("pass", '{"data":{"verdict":"pass","state":"admitted","required_gaps":[]}}', ""),
     ],
 )

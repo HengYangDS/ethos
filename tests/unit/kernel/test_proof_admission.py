@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from datetime import UTC
@@ -53,13 +54,15 @@ _issue = partial(issue_conformant_proof, issuer="agent:test:case:proof")
 
 
 @pytest.mark.parametrize(
-    "case", ["malformed_json", "wrong_head", "invalid_gaps", "registry_invalid", "missing_plan"]
+    "case",
+    ["malformed_json", "wrong_head", "invalid_gaps", "registry_invalid", "missing_plan", "bounded"],
 )
 def test_predecessor_policy_probe_preserves_failure_identity(
     case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A planned result is not proof, and malformed predecessor facts do not pass."""
     head = "a" * 40
+    registry = "gate_registry_invalid:system/gates.toml"
     report: dict[str, object] = {
         "command": "prove",
         "required_gaps": ["full_proof_requires_execute"],
@@ -72,7 +75,14 @@ def test_predecessor_policy_probe_preserves_failure_identity(
     elif case == "invalid_gaps":
         report["required_gaps"] = "full_proof_requires_execute"
     elif case == "registry_invalid":
-        report["required_gaps"] = ["gate_registry_invalid:system/gates.toml"]
+        report["required_gaps"] = [registry]
+    elif case == "bounded":
+        # The bound shortened the gaps; only its digest-bound detail names the registry gap.
+        detail = tmp_path / "detail.json"
+        detail.write_text(json.dumps(report | {"required_gaps": [registry]}), encoding="utf-8")
+        digest = f"sha256:{hashlib.sha256(detail.read_bytes()).hexdigest()}"
+        size = detail.stat().st_size
+        report["bound"] = {"detail": {"path": str(detail), "sha256": digest, "size_bytes": size}}
     payload = "{" if case == "malformed_json" else json.dumps(report)
     monkeypatch.setattr(proof_admission, "git_common_dir", str)
     monkeypatch.setattr(
@@ -98,11 +108,8 @@ def test_predecessor_policy_probe_preserves_failure_identity(
 
     gaps = proof_admission.predecessor_policy_gaps(tmp_path, head, Mock())
 
-    assert gaps == (
-        ["gate_registry_invalid:system/gates.toml"]
-        if case == "registry_invalid"
-        else ["predecessor_policy_probe_invalid"]
-    )
+    expected = [registry] if case in {"registry_invalid", "bounded"} else []
+    assert gaps == (expected or ["predecessor_policy_probe_invalid"])
 
 
 def _policy_proof_pair(repo: Path, head: str) -> tuple[Attestation, Attestation]:

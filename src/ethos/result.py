@@ -239,18 +239,21 @@ def expand_result(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Return the full result a bounded payload names, verified against its digest and size.
 
     A payload that was never bounded is returned as it is. The full result must agree with the
-    bounded one on every field the bound keeps, so a changed or substituted artifact refuses.
+    bounded one on every field the bound keeps, so a changed or substituted artifact refuses. It
+    comes back as its producer wrote it, so another build's result stays readable; a caller that
+    needs this build's model validates it with `EthosResult.from_payload`.
     """
     bound = payload.get("bound")
     if not isinstance(bound, Mapping):
         return dict(payload)
     if "detail" not in bound:
         raise ValueError(_DETAIL_UNAVAILABLE)
-    content = _detail_bytes(bound["detail"])
     try:
-        full = EthosResult.from_payload(json.loads(content)).to_dict()
-    except (TypeError, ValueError) as error:
+        full = json.loads(_detail_bytes(bound["detail"]))
+    except ValueError as error:
         raise ValueError(_DETAIL_MISMATCH) from error
+    if not isinstance(full, dict) or "bound" in full:
+        raise ValueError(_DETAIL_MISMATCH)
     # The bound may truncate the gaps, and an unknown verdict repeats them.
     reduced = {"bound", "data", "required_gaps", "missing_facts_or_evidence"}
     if any(full.get(key) != value for key, value in payload.items() if key not in reduced):

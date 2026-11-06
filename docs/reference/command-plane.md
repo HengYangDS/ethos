@@ -405,10 +405,13 @@ fields, its own `data` entries of at most 1 KiB and the scalar fields of a large
 a top-level `bound`. `bound.detail` names the digest-bound artifact of the full result; `bound`
 also lists each failing step's id, exit code and first 20 output lines, the entries it shortened
 (`partial`) or moved (`moved`), and counts of what it left out. `ethos.result.expand_result` reads
-the full result and refuses an artifact whose digest or size differs. Detail is a cache, not a
-receipt: detail older than seven days is removed whenever new detail is written, and a store that
-refuses it leaves the result inline with the reason in `bound.detail_unavailable`. A reader
-re-derives `next` from `next_action` and never trusts a carried one.
+the full result and refuses an artifact whose digest or size differs, or that disagrees with a
+field the bound keeps. It returns the result as its producer wrote it, so ETHOS reads another ETHOS
+process's result, such as the installed runtime's proof plan, in full before it reads a moved or
+shortened field. Detail is a cache, not a receipt: detail older than seven days is removed whenever
+new detail is written, and a store that refuses it leaves the result inline with the reason in
+`bound.detail_unavailable`. A reader re-derives `next` from `next_action` and never trusts a carried
+one.
 
 ## Proof Depth
 

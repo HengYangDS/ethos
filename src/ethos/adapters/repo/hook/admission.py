@@ -34,6 +34,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.paradigm.parameters import seconds
+from ethos.result import expand_result
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -468,7 +469,9 @@ def _candidate_report(
     )
     try:
         payload = json.loads(completed.stdout)
-    except json.JSONDecodeError:
+        # The candidate's report may exceed the result budget; read it in full or refuse.
+        payload = expand_result(payload) if isinstance(payload, dict) else payload
+    except ValueError:
         return blocked_report("reference-transaction", "candidate_semantic_runner_invalid")
     data = payload.get("data") if isinstance(payload, dict) else None
     return (

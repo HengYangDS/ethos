@@ -42,6 +42,7 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.paradigm.parameters import seconds
+from ethos.result import expand_result
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -118,6 +119,8 @@ def _predecessor_plan(stdout: str, head: str) -> tuple[TransitionPlan | None, li
     """Extract the installed reader's exact policy without treating dry-run as proof."""
     try:
         report = json.loads(stdout)
+        # A plan over the result budget sits in the detail that the bound names.
+        report = expand_result(report) if isinstance(report, dict) else report
     except (TypeError, ValueError):
         return None, ["predecessor_policy_probe_invalid"]
     data = report.get("data") if isinstance(report, dict) else None

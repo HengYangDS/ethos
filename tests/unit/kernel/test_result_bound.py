@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import time
 from pathlib import Path
@@ -240,6 +241,17 @@ def test_detail_that_names_another_result_refuses(tmp_path: Path) -> None:
     Path(payload["bound"]["detail"]["path"]).unlink()
     with pytest.raises(ValueError, match="result_detail_mismatch"):
         expand_result(payload)
+
+
+def test_expansion_returns_another_builds_result_as_it_was_written(tmp_path: Path) -> None:
+    """Digest, size and kept fields bind the detail; this build's result model does not."""
+    result = _land([_check("ruff", "block", 5)], padding=40_000)
+    payload = apply_payload_budget(result, root=tmp_path).to_dict() | {"producer": "next build"}
+    full = result.to_dict() | {"producer": "next build"}
+
+    assert expand_result(_rebound(payload, json.dumps(full).encode())) == full
+    with pytest.raises(ValueError, match="result_detail_mismatch"):
+        expand_result(_rebound(payload, b"[]"))
 
 
 def test_stale_detail_that_cannot_be_removed_stays_without_failing(tmp_path: Path) -> None:

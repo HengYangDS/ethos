@@ -13,7 +13,7 @@
       lists the declared components. 28 release tests pass. Locked Grype 0.121.1 finds the same 73
       Node advisories in the beta.3 linux-x64 inventory with Syft's record and with the declared one.
 
-## 2. Hosted acceptance
+## Workflow follow-up
 
-- [ ] 2.1 Catalog a Windows archive with the declaration. Done when a hosted Windows run on Python
-      3.14 catalogs its kept archive with Node declared and the inventory checks passing.
+- After landing, a hosted Windows host-conformance run on Python 3.14 catalogs its kept archive
+  with Node declared from the locked supply and the inventory checks passing.

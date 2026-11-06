@@ -81,10 +81,7 @@ over the same application operations without creating lifecycle authority.
 The schema-version-`3` result SHALL carry `user_decision_required` as an explicit typed fact
 selected by the owning resolution. `continuation` SHALL be a pure projection from verdict, the
 presence of the sole next action, and that fact. ETHOS SHALL NOT infer an authority boundary by
-parsing command text, English phrases, or gap-name suffixes. The structured `next` step SHALL be
-derived only from the exact ETHOS argv that `next_action` renders, by a lossless split and join;
-its effects come from the admission classification of that argv, and prose or a template stays an
-instruction without an argv.
+parsing command text, English phrases, or gap-name suffixes.
 
 #### Scenario: A mutating-looking command is already authorized
 
@@ -102,3 +99,29 @@ instruction without an argv.
 - **THEN** `user_decision_required` is true
 - **AND** Continuation is `await-user` without inspecting the action string or gap spelling
 - **AND** `next` is a `decision` with no argv
+
+## ADDED Requirements
+
+### Requirement: The structured next step derives from the exact rendered argv
+
+ETHOS SHALL derive `next` only from the exact ETHOS argv that `next_action` renders, by a lossless
+split and join, and SHALL take its effects from the admission classification of that argv. Prose
+or a template SHALL stay an instruction without an argv. Every reader SHALL re-derive `next` and
+check a carried one only for shape.
+
+#### Scenario: A rendered command becomes a structured step
+
+- **WHEN** a result's `next_action` is one exact ETHOS argv
+- **THEN** `next` carries that argv, its effects, its authorization and the values its flags bind
+
+#### Scenario: Prose stays an instruction
+
+- **WHEN** a result's `next_action` is prose, a template with a placeholder, or another tool's
+  command
+- **THEN** `next` is an `instruction` with no argv
+
+#### Scenario: A reader never trusts a carried step
+
+- **WHEN** a reader validates a payload whose `next` differs from its own derivation
+- **THEN** it keeps its own derivation, and refuses the payload only when the carried `next` is
+  malformed

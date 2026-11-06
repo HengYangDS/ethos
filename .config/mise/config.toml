@@ -12,9 +12,9 @@ go = "1.27.3"
 "github:rhysd/actionlint" = "1.7.12"
 "github:boyter/scc" = "4.1.0"
 "github:gitleaks/gitleaks" = "8.30.1"
-"github:anchore/syft" = "1.56.0"
+"github:anchore/syft" = "1.57.0"
 # Grype publishes no Windows arm64 build; the release run scans on Linux.
-"github:anchore/grype" = { version = "0.121.1", os = ["linux", "macos"] }
+"github:anchore/grype" = { version = "0.121.2", os = ["linux", "macos"] }
 "github:vale-cli/vale" = "3.26.0"
 [tasks.bootstrap]
 description = "Synchronize the locked Python environment, native tools, npm packages and test fixtures"

@@ -139,12 +139,7 @@ def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: P
     report = native_quality.behavior_report(repo)
 
     assert report["verdict"] == "pass", report
-    assert report["native"][0]["tests"] == {
-        "total": 3,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0,
-    }
+    assert report["native"][0]["tests"] == {"total": 3, "failures": 0, "errors": 0, "skipped": 0}
 
 
 def test_generic_provider_binds_exercised_tooling_coverage(tmp_path: Path) -> None:
@@ -172,17 +167,10 @@ def test_generic_provider_binds_exercised_tooling_coverage(tmp_path: Path) -> No
 
 @pytest.mark.parametrize(
     ("axis", "session", "provider"),
-    [
-        ("behavior", "tests", "behavior_report"),
-        ("static-analysis", "quality", "static_report"),
-    ],
+    [("behavior", "tests", "behavior_report"), ("static-analysis", "quality", "static_report")],
 )
 def test_python_verified_command_does_not_replay_without_native_evidence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    axis: str,
-    session: str,
-    provider: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, axis: str, session: str, provider: str
 ) -> None:
     """Text-only success cannot justify a second test or static invocation."""
     repo = committed_source_repo(
@@ -207,10 +195,7 @@ def test_python_verified_command_does_not_replay_without_native_evidence(
         stderr="",
     )
     reports, verdict, _ = provider_reports(
-        session,
-        (f"ethos.adapters.gates.code_quality:{provider}",),
-        repo,
-        execution=execution,
+        session, (f"ethos.adapters.gates.code_quality:{provider}",), repo, execution=execution
     )
     assert verdict == "block"
     report = reports[0]["report"]
@@ -339,9 +324,7 @@ def test_python_behavior_distinguishes_command_failure_from_missing_report(
 
 @pytest.mark.parametrize("identity", ["exact", "base-binary", "bytecode-enabled"])
 def test_python_static_reuses_exact_native_ruff_output(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    identity: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, identity: str
 ) -> None:
     """Reuse the native attempt once, distinguishing invocation from its base file."""
     repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
@@ -378,10 +361,7 @@ def test_python_static_reuses_exact_native_ruff_output(
 
     monkeypatch.setattr(python_quality, "run_command", replay)
     reports, verdict, _ = provider_reports(
-        "static",
-        ("ethos.adapters.gates.code_quality:static_report",),
-        repo,
-        execution=execution,
+        "static", ("ethos.adapters.gates.code_quality:static_report",), repo, execution=execution
     )
     expected = "pass" if identity == "exact" else "block"
     assert verdict == expected, reports
@@ -443,18 +423,10 @@ def test_python_static_requires_exact_committed_bytes_before_and_after(
 
 
 @pytest.mark.parametrize("staged", [False, True])
-def test_python_static_retains_deleted_committed_subjects(
-    tmp_path: Path,
-    *,
-    staged: bool,
-) -> None:
+def test_python_static_retains_deleted_committed_subjects(tmp_path: Path, *, staged: bool) -> None:
     """Removing an index entry cannot silently narrow the committed source obligation."""
     repo = committed_source_repo(
-        tmp_path,
-        {
-            "src/app.py": "answer = 42\n",
-            "src/other.py": "answer = 43\n",
-        },
+        tmp_path, {"src/app.py": "answer = 42\n", "src/other.py": "answer = 43\n"}
     )
     (repo / "src/app.py").unlink()
     if staged:

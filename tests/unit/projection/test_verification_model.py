@@ -25,11 +25,7 @@ def test_product_common_model_has_real_repository_instance_and_native_inputs(tmp
             "inputs": {"ci": ".config/checks/ci-projection/parameters.toml"},
         },
         "projection": [
-            {
-                "kind": "cue",
-                "provider": "github",
-                "projection": ".github/workflows/ci.yml",
-            },
+            {"kind": "cue", "provider": "github", "projection": ".github/workflows/ci.yml"},
             {"kind": "cue", "provider": "gitlab", "projection": ".gitlab-ci.yml"},
         ],
     }
@@ -103,11 +99,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
             "inputs": {"ci": "parameters.toml"},
         },
         "projection": [
-            {
-                "kind": "cue",
-                "provider": "github",
-                "projection": ".github/workflows/ci.yml",
-            },
+            {"kind": "cue", "provider": "github", "projection": ".github/workflows/ci.yml"},
             {"kind": "cue", "provider": "gitlab", "projection": ".gitlab-ci.yml"},
         ],
     }
@@ -118,12 +110,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
         "report_path": "build/evidence/ci/verification.json",
         "timeout_minutes": 20,
         "github": {
-            "runners": [
-                "ubuntu-latest",
-                "ubuntu-24.04-arm",
-                "macos-latest",
-                "windows-latest",
-            ]
+            "runners": ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]
         },
         "gitlab": {
             "variables": {
@@ -223,11 +210,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
     assert "offline" not in github_jobs
     cold_steps = github_jobs["verify"]["steps"]
     assert cold_steps[1]["uses"].startswith("jdx/mise-action@")
-    assert cold_steps[1]["with"] == {
-        "version": "2026.10.17",
-        "install": False,
-        "cache": False,
-    }
+    assert cold_steps[1]["with"] == {"version": "2026.10.17", "install": False, "cache": False}
     assert cold_steps[2]["run"] == "mise install --locked --jobs=1"
     assert [
         step["run"] for step in cold_steps if step.get("name") == "Check locked supply"
@@ -351,10 +334,7 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
             "extends": ".offline:verify",
             "tags": ["ci-linux-arm64-container-protected"],
         },
-        "offline:verify:macos": {
-            "extends": ".offline:verify",
-            "tags": ["ci-macos-arm64-shell"],
-        },
+        "offline:verify:macos": {"extends": ".offline:verify", "tags": ["ci-macos-arm64-shell"]},
         "offline:verify:windows": {
             "extends": ".offline:verify",
             "tags": ["ci-windows-arm64-shell"],
@@ -375,10 +355,7 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
         candidate_rule,
         exclusion_rule,
         {"if": '$CI_PIPELINE_SOURCE == "merge_request_event"'},
-        {
-            "if": "$CI_COMMIT_BRANCH =~ /^proposal\\// && $CI_OPEN_MERGE_REQUESTS",
-            "when": "never",
-        },
+        {"if": "$CI_COMMIT_BRANCH =~ /^proposal\\// && $CI_OPEN_MERGE_REQUESTS", "when": "never"},
         {
             "if": (
                 '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || '
@@ -417,10 +394,7 @@ def test_product_common_verification_preserves_additive_offline_jobs(tmp_path, c
             },
             "GET_SOURCES_ATTEMPTS",
         ),
-        (
-            {"parameters": {"evidence_paths": ["build/evidence/../secret"]}},
-            "evidence_paths",
-        ),
+        ({"parameters": {"evidence_paths": ["build/evidence/../secret"]}}, "evidence_paths"),
         (
             {"providers": {"gitlab": {"verify:windows:protected": {"script": ["echo bypass"]}}}},
             "script",

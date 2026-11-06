@@ -41,10 +41,7 @@ def _profile(*, valid: bool = True) -> SimpleNamespace:
 
 
 def _git(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    collision: bool = False,
-    preserved: bool = True,
+    monkeypatch: pytest.MonkeyPatch, *, collision: bool = False, preserved: bool = True
 ) -> None:
     source_tree = "source-tree"
     prior_tree = "prior-tree" if collision else ""
@@ -78,11 +75,7 @@ def _scope(
     _git(monkeypatch, collision=collision, preserved=preserved)
     monkeypatch.setattr(archive, "load_repository_profile", lambda _root: _profile())
     return archive.archive_postimage_scope_report(
-        tmp_path,
-        changed_paths=changed_paths,
-        requested_change=CHANGE,
-        tree=TREE,
-        source_head=HEAD,
+        tmp_path, changed_paths=changed_paths, requested_change=CHANGE, tree=TREE, source_head=HEAD
     )
 
 
@@ -98,11 +91,7 @@ def test_archive_scope_accepts_only_exact_official_change_relocation(
     assert report["changes"] == [{"name": CHANGE, "path": ARCHIVE}]
     assert report["uncovered_paths"] == []
 
-    retired = _scope(
-        monkeypatch,
-        tmp_path,
-        changed_paths=(f"{ARCHIVE}/extra.txt",),
-    )
+    retired = _scope(monkeypatch, tmp_path, changed_paths=(f"{ARCHIVE}/extra.txt",))
     assert retired is not None
     assert retired["verdict"] == "block"
     assert _scope(monkeypatch, tmp_path, changed_paths=(f"{ARCHIVE}/tasks.md", "README.md")) is None
@@ -134,23 +123,10 @@ def test_archive_scope_requires_exact_collision_preservation(
 ) -> None:
     moved = tuple(path.replace(ACTIVE, ARCHIVE, 1) for path in SOURCE_ARTIFACTS)
     assert (
-        _scope(
-            monkeypatch,
-            tmp_path,
-            changed_paths=moved,
-            collision=True,
-            preserved=False,
-        )
-        is None
+        _scope(monkeypatch, tmp_path, changed_paths=moved, collision=True, preserved=False) is None
     )
 
-    report = _scope(
-        monkeypatch,
-        tmp_path,
-        changed_paths=moved,
-        collision=True,
-        preserved=True,
-    )
+    report = _scope(monkeypatch, tmp_path, changed_paths=moved, collision=True, preserved=True)
     assert report is not None
     assert str(report["preserved_archive_path"]).startswith(f"{ARCHIVE}-")
 
@@ -164,16 +140,10 @@ def test_committed_archive_scope_is_inferred_without_a_lease_or_carrier(
     monkeypatch.setattr(archive, "current_tree", lambda *_args: TREE)
 
     def git_stdout(_root: Path, *args: str) -> str:
-        return {
-            ("rev-parse", "HEAD"): "c" * 40,
-            ("rev-parse", f"{'c' * 40}^"): HEAD,
-        }.get(args, "")
+        return {("rev-parse", "HEAD"): "c" * 40, ("rev-parse", f"{'c' * 40}^"): HEAD}.get(args, "")
 
     monkeypatch.setattr(archive, "git_stdout", git_stdout)
-    report = archive.lease_bound_archive_scope_report(
-        tmp_path,
-        changed_paths=moved,
-    )
+    report = archive.lease_bound_archive_scope_report(tmp_path, changed_paths=moved)
 
     assert report is not None
     assert report["verdict"] == "pass"
@@ -190,11 +160,7 @@ def test_archive_scope_rejects_invalid_profile(
 
     with pytest.raises(ValueError, match=INVALID_PROFILE_ERROR):
         archive.archive_postimage_scope_report(
-            tmp_path,
-            changed_paths=moved,
-            requested_change=CHANGE,
-            tree=TREE,
-            source_head=HEAD,
+            tmp_path, changed_paths=moved, requested_change=CHANGE, tree=TREE, source_head=HEAD
         )
 
 

@@ -123,11 +123,7 @@ def test_indexed_policy_projection_matrix(
     ],
 )
 def test_commit_message_report_matrix(
-    tmp_path: Path,
-    subject: str | None,
-    policy: CommitPolicy | None,
-    state: str,
-    gap: str,
+    tmp_path: Path, subject: str | None, policy: CommitPolicy | None, state: str, gap: str
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     if policy is not None:
@@ -175,9 +171,7 @@ def test_introduced_commit_naming_a_private_address_blocks_the_range(tmp_path: P
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 def test_fast_forward_range_is_oldest_first_and_excludes_old_history(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    object_format: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, object_format: str
 ) -> None:
     repo = init_git_repo(tmp_path / object_format, object_format=object_format)
     baseline = git(repo, "rev-parse", "HEAD")
@@ -216,10 +210,7 @@ def test_non_fast_forward_range_is_the_newly_reachable_set(tmp_path: Path) -> No
     assert report["revisions"] == [proposed]
 
 
-@pytest.mark.parametrize(
-    "case",
-    ["proposal", "diverged", "explicit", "missing", "unreadable"],
-)
+@pytest.mark.parametrize("case", ["proposal", "diverged", "explicit", "missing", "unreadable"])
 def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     baseline = git(repo, "rev-parse", "HEAD")
@@ -292,10 +283,7 @@ def test_diverged_proposal_selects_its_accepted_native_lane_birth(tmp_path: Path
 
 
 @pytest.mark.parametrize("tagged_endpoint", ["baseline", "proposed"])
-def test_delete_and_annotated_tag_endpoints(
-    tmp_path: Path,
-    tagged_endpoint: str,
-) -> None:
+def test_delete_and_annotated_tag_endpoints(tmp_path: Path, tagged_endpoint: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     baseline = git(repo, "rev-parse", "HEAD")
     proposed = _commit(repo, "fix: tagged", "tagged", policy=_policy_text())
@@ -366,13 +354,7 @@ def test_invalid_subject_identifies_the_exact_introduced_commit(tmp_path: Path) 
 @pytest.mark.parametrize(
     ("policy", "signature", "trust", "expected", "state"),
     [
-        (
-            _policy(),
-            "ssh",
-            None,
-            ["commit_subject_invalid:{revision}:invalid"],
-            "present",
-        ),
+        (_policy(), "ssh", None, ["commit_subject_invalid:{revision}:invalid"], "present"),
         (_policy(), "", None, ["commit_signature_missing:{revision}"], "missing"),
         (
             _policy(),
@@ -382,13 +364,7 @@ def test_invalid_subject_identifies_the_exact_introduced_commit(tmp_path: Path) 
             "format_mismatch",
         ),
         (_policy(), "ssh", [], [], "present"),
-        (
-            _policy(),
-            "ssh",
-            ["git_signature_untrusted"],
-            ["git_signature_untrusted"],
-            "present",
-        ),
+        (_policy(), "ssh", ["git_signature_untrusted"], ["git_signature_untrusted"], "present"),
     ],
 )
 def test_object_policy_and_optional_trust_matrix(
@@ -430,10 +406,7 @@ def test_object_policy_and_optional_trust_matrix(
     monkeypatch.setattr(integration, "verify_commit_trust", admission.verify_commit_trust)
 
     report = admission.commit_policy_report(
-        tmp_path,
-        policy,
-        revision,
-        verify_trust=trust is not None,
+        tmp_path, policy, revision, verify_trust=trust is not None
     )
 
     formatted = [gap.format(revision=revision) for gap in expected]
@@ -465,11 +438,7 @@ def test_object_policy_and_optional_trust_matrix(
         ("remote", "commit_range_remote_unreadable:missing"),
     ],
 )
-def test_unreadable_endpoint_fails_closed(
-    tmp_path: Path,
-    coordinate: str,
-    expected: str,
-) -> None:
+def test_unreadable_endpoint_fails_closed(tmp_path: Path, coordinate: str, expected: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
 
@@ -483,8 +452,7 @@ def test_unreadable_endpoint_fails_closed(
 
 
 def test_unreadable_introduced_range_fails_closed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     baseline = git(repo, "rev-parse", "HEAD")

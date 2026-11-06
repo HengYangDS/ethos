@@ -134,12 +134,7 @@ def test_landed_public_pre_effect_matrix_is_fail_closed(
     ("lease_state", "holder", "actor", "expected"),
     [
         ("valid", "agent:test:holder", "agent:test:holder", set()),
-        (
-            "valid",
-            "agent:test:holder",
-            "",
-            {f"invocation_actor_missing:{SOURCE}"},
-        ),
+        ("valid", "agent:test:holder", "", {f"invocation_actor_missing:{SOURCE}"}),
         (
             "valid",
             "agent:test:holder",
@@ -147,12 +142,7 @@ def test_landed_public_pre_effect_matrix_is_fail_closed(
             {"foreign_work_lane_retire_authority_required"},
         ),
         ("expired", "agent:test:former", "agent:test:cleanup", set()),
-        (
-            "expired",
-            "agent:test:former",
-            "",
-            {f"invocation_actor_missing:{SOURCE}"},
-        ),
+        ("expired", "agent:test:former", "", {f"invocation_actor_missing:{SOURCE}"}),
         ("missing", "", "agent:test:cleanup", set()),
         ("missing", "", "", {f"invocation_actor_missing:{SOURCE}"}),
         ("unknown", "", "agent:test:cleanup", {f"work_lane_lease_unknown:{SOURCE}"}),
@@ -169,10 +159,7 @@ def test_landed_public_actor_and_lease_state_matrix(
 ) -> None:
     lane = _lane(lease_state=lease_state, holder=holder)
     _stub_retirement(
-        monkeypatch,
-        worktrees=[_worktree()],
-        lanes={SOURCE: lane},
-        stub_holder_gaps=False,
+        monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane}, stub_holder_gaps=False
     )
     monkeypatch.setattr(effects, "actor_ref", lambda: actor)
 
@@ -221,10 +208,7 @@ def test_superseded_public_target_resolution_rejects_invalid_subjects(
         root=tmp_path,
         mode="superseded",
         request=LinkedRetirementRequest(
-            branch=branch,
-            expect_head=SOURCE_HEAD,
-            absorbed_by=ACCEPTED,
-            reason="absorbed",
+            branch=branch, expect_head=SOURCE_HEAD, absorbed_by=ACCEPTED, reason="absorbed"
         ),
     )
 
@@ -237,8 +221,7 @@ def test_superseded_public_successor_filters_only_missing_source_lease(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     source = _lane(
-        gaps=[f"work_lane_missing_lease:{SOURCE}", "work_lane_dirty"],
-        lease_state="valid",
+        gaps=[f"work_lane_missing_lease:{SOURCE}", "work_lane_dirty"], lease_state="valid"
     )
     successor = _lane(branch=SUCCESSOR, head=SUCCESSOR_HEAD)
     content_observer = _stub_retirement(
@@ -296,19 +279,14 @@ def test_superseded_public_absorption_authority_matrix(
     monkeypatch.setattr(linked_admission, "is_ancestor", lambda *_args: ancestor)
     if archive_absorption:
         monkeypatch.setattr(
-            effects,
-            "archived_carrier_absorption",
-            lambda *_args, **_kwargs: {"change": "archived"},
+            effects, "archived_carrier_absorption", lambda *_args, **_kwargs: {"change": "archived"}
         )
 
     report = retire_linked_work_lane(
         root=tmp_path,
         mode="superseded",
         request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head=SOURCE_HEAD,
-            absorbed_by=absorbed_by,
-            reason="absorbed",
+            branch=SOURCE, expect_head=SOURCE_HEAD, absorbed_by=absorbed_by, reason="absorbed"
         ),
     )
 
@@ -354,23 +332,16 @@ def test_linked_apply_preserves_order_receipt_and_exact_effect_result(
         lambda *_args, **_kwargs: calls.append("compile") or compiled,
     )
     monkeypatch.setattr(
-        linked,
-        "persist_operation",
-        lambda *_args, **_kwargs: calls.append("persist") or receipt,
+        linked, "persist_operation", lambda *_args, **_kwargs: calls.append("persist") or receipt
     )
     monkeypatch.setattr(
-        linked,
-        "apply_operation",
-        lambda *_args, **_kwargs: calls.append("apply") or outcome,
+        linked, "apply_operation", lambda *_args, **_kwargs: calls.append("apply") or outcome
     )
     report = retire_linked_work_lane(
         root=tmp_path,
         mode="landed",
         request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head=SOURCE_HEAD,
-            authorize=True,
-            apply=True,
+            branch=SOURCE, expect_head=SOURCE_HEAD, authorize=True, apply=True
         ),
     )
 

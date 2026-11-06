@@ -84,7 +84,7 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = True) ->
     if completed.returncode != 0:
         raise AssertionError(completed.stderr or completed.stdout)
     payload = json.loads(completed.stdout)
-    return expand_payload(payload) if full_payload else payload
+    return expand_result(payload) if full_payload else payload
 
 
 def _externalized(payload: object) -> bool:
@@ -92,14 +92,9 @@ def _externalized(payload: object) -> bool:
     return isinstance(payload, dict) and isinstance(payload.get("bound"), dict)
 
 
-def expand_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return the full result a bounded payload references, verified against its digest."""
-    return expand_result(payload)
-
-
 def full_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     """Parse one CLI run's JSON result, reading the full result a bounded payload references."""
-    return expand_payload(json.loads(completed.stdout))
+    return expand_result(json.loads(completed.stdout))
 
 
 def result_data(payload: dict[str, Any]) -> dict[str, Any]:
@@ -122,7 +117,7 @@ def run_ethos_blocked(
         msg = f"expected a blocked (non-zero exit) verdict, got exit 0: {completed.stdout}"
         raise AssertionError(msg)
     payload = json.loads(completed.stdout)
-    return expand_payload(payload) if full_payload else payload
+    return expand_result(payload) if full_payload else payload
 
 
 def _reject_implicit_apply_against_repository_checkout(

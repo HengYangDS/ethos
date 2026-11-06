@@ -296,7 +296,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         {"path": "openspec/changes/static-delivery/tasks.md", "changes": ["static-delivery"]}
     ]
     for arguments in (("plan",), ("plan", "--change", "static-delivery")):
-        planned = run_ethos(*arguments, "--json", cwd=next_lane, full_payload=True)
+        planned = run_ethos(*arguments, "--json", cwd=next_lane)
         assert planned["verdict"] == "pass", planned
         assert result_data(planned)["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
@@ -401,7 +401,7 @@ def test_process_intent_carries_product_work_through_native_integration(
         ((), "second-local"),
         (("--change", "fixture-change"), "fixture-change"),
     ):
-        planned = run_ethos("plan", *choice, "--json", cwd=work, full_payload=True)
+        planned = run_ethos("plan", *choice, "--json", cwd=work)
         assert result_data(planned)["commitment"]["id"] == f"change:{expected}"
     _prove(work, head)
     assert (selected := proof_attestation(work, head)) is not None
@@ -471,5 +471,5 @@ def test_process_intent_carries_product_work_through_native_integration(
     )
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
-    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work, full_payload=True)
+    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work)
     assert result_data(planned)["commitment"]["id"] == "change:second-local"

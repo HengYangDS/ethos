@@ -113,7 +113,7 @@ def branch_publication(
     if head is not None:
         command += ["--expect-head", head]
     runner = run_ethos_blocked if blocked or head is None else run_ethos
-    return runner(*command, "--json", cwd=repo, full_payload=True)
+    return runner(*command, "--json", cwd=repo)
 
 
 def apply_receipt(repo: Path, receipt: dict[str, object], head: str, *, blocked: bool = False):
@@ -130,7 +130,6 @@ def apply_receipt(repo: Path, receipt: dict[str, object], head: str, *, blocked:
         head,
         "--json",
         cwd=repo,
-        full_payload=True,
     )
 
 
@@ -160,7 +159,6 @@ def release_cli(
         *args,
         "--json",
         cwd=repo,
-        full_payload=True,
     )
 
 

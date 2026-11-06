@@ -97,7 +97,7 @@ def _land_source(
 
     with monkeypatch.context() as interrupted:
         interrupted.setattr(landing, "sync_worktree", fail_sync)
-        blocked = run_ethos_blocked(*args, cwd=work, full_payload=True)
+        blocked = run_ethos_blocked(*args, cwd=work)
     assert blocked["required_gaps"] == ["candidate_worktree_sync_failed"]
     state = blocked["data"]["candidate_update"]
     effect_id = state["attestation"]["id"]
@@ -106,7 +106,7 @@ def _land_source(
     assert git(work, "rev-parse", ref) == proof.subject.removeprefix("git:commit:")
     _expired_recovery(work, args, proof, monkeypatch)
     _product_drift_refusal(work, args, monkeypatch)
-    landed = run_ethos(*args, cwd=work, full_payload=True)
+    landed = run_ethos(*args, cwd=work)
     completed = landed["data"]["candidate_update"]
     assert completed["cas_attempts"] == 0
     assert completed["attestation"]["plan_digest"] == plan_digest

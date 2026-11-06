@@ -80,9 +80,7 @@ def _land_forward(repo: Path, candidate: Path, baseline: str) -> str:
 def _publish_preview(repo: Path, head: str, old: str, peers: Iterable[Path]) -> dict:
     """Preview both protected branches as exact CAS from the peers' unchanged heads."""
     request = ("--ref", "refs/heads/dev", "--ref", "refs/heads/main", "--probe-remote")
-    preview = run_ethos(
-        "publish", *request, "--expect-head", head, "--json", cwd=repo, full_payload=True
-    )
+    preview = run_ethos("publish", *request, "--expect-head", head, "--json", cwd=repo)
     assert preview["verdict"] == "pass", preview
     assert {
         (update["expected"], update["desired"])

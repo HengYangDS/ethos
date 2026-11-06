@@ -367,7 +367,6 @@ def test_cli_path_token(worktree: Path) -> None:
         "--require-editor-root",
         "--json",
         cwd=worktree,
-        full_payload=True,
     )["data"]
     assert data["decision"] == {
         "action": "block",

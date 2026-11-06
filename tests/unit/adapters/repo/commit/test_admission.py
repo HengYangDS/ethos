@@ -268,9 +268,7 @@ def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
 def test_diverged_proposal_selects_its_accepted_native_lane_birth(tmp_path: Path) -> None:
     """Real lane.start and candidate.accept effects select the range; a lane name alone cannot."""
     accepted_root, _, accepted = branch_publication_fixture(tmp_path, accepted=True)
-    started = run_ethos(*lane_start_arguments(accepted_root), cwd=accepted_root, full_payload=True)[
-        "data"
-    ]
+    started = run_ethos(*lane_start_arguments(accepted_root), cwd=accepted_root)["data"]
     lane = Path(started["path"])
     proposed = commit_fixture_file(lane, "FIX.md", "# fix\n", "fix: historical maintenance")
     git(lane, "checkout", "-q", "--detach", f"{accepted}~1")

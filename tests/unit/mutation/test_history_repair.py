@@ -261,9 +261,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     assert resolved is not None
     chain = resolved[1]["repair_attestation_ids"]
     assert len(chain) == (2 if continuation == "repeated" else 1)
-    proof = run_ethos(
-        "prove", "--execute", "--expect-head", repaired_head, "--json", cwd=repo, full_payload=True
-    )
+    proof = run_ethos("prove", "--execute", "--expect-head", repaired_head, "--json", cwd=repo)
     assert proof["verdict"] == "pass", proof
     assert proof["data"]["attestation"]["subject"] == f"git:commit:{repaired_head}"
     original_set, records = archive.read_attestation_set(repo)

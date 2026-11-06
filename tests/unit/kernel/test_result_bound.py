@@ -108,25 +108,6 @@ def test_the_handles_a_next_step_needs_stay_inline(tmp_path: Path) -> None:
     assert len(bounded.to_json().encode()) <= 16 * 1024
 
 
-def test_a_commands_own_evidence_reference_survives_beside_the_detail_handle(
-    tmp_path: Path,
-) -> None:
-    """Prove names its evidence artifact; the bound adds its own handle and never replaces it."""
-    evidence = {"path": "artifact.json", "sha256": "sha256:" + "b" * 64}
-    result = EthosResult(
-        command="prove",
-        verdict="pass",
-        state="ready",
-        data={"artifact_reference": evidence, "attestation": {"body": "x" * 40_000}},
-    )
-
-    bounded = apply_payload_budget(result, root=tmp_path)
-
-    assert bounded.data["artifact_reference"] == evidence
-    assert Path(bounded.bound["detail"]["path"]).is_file()
-    assert "attestation" not in bounded.data
-
-
 def test_a_bounded_result_reads_in_full_and_refuses_a_changed_artifact(tmp_path: Path) -> None:
     """A consumer that needs the evidence reads the digest-bound artifact, never a stale copy."""
     result = _land([_check("ruff", "block", 5)], padding=40_000)
@@ -199,17 +180,25 @@ def test_a_store_that_refuses_detail_leaves_the_result_inline(tmp_path: Path) ->
         expand_result(bounded.to_dict())
 
 
-def test_a_commands_own_detail_entry_is_never_replaced(tmp_path: Path) -> None:
-    """`adopt` names a failure in `data.detail`; the bound lives beside data, not inside it."""
+@pytest.mark.parametrize(
+    ("command", "entry"),
+    [
+        (
+            "prove",
+            {"artifact_reference": {"path": "artifact.json", "sha256": "sha256:" + "b" * 64}},
+        ),
+        ("adopt", {"detail": "commit_signature_untrusted"}),
+    ],
+)
+def test_a_commands_own_data_entries_survive_beside_the_bound(
+    tmp_path: Path, command: str, entry: dict[str, object]
+) -> None:
+    """Prove names its evidence and adopt its failure in `data`; the bound never replaces them."""
     result = EthosResult(
-        command="adopt",
-        verdict="block",
-        state="gapped",
-        required_gaps=("formation_git_commit_failed",),
-        data={"detail": "commit_signature_untrusted", "log": ["z" * 100] * 400},
+        command=command, verdict="pass", state="ready", data=entry | {"log": ["z" * 100] * 400}
     )
 
     bounded = apply_payload_budget(result, root=tmp_path)
 
-    assert bounded.data["detail"] == "commit_signature_untrusted"
+    assert {key: bounded.data[key] for key in entry} == entry
     assert Path(bounded.bound["detail"]["path"]).is_file()

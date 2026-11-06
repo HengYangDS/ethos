@@ -25,7 +25,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import repository_audit_after_admission
-from ethos.domain.publication.fallback import local_ci_fallback as fallback_projection
+from ethos.domain.publication.fallback import fallback_projection
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config

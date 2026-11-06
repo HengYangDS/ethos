@@ -10,7 +10,7 @@ import tomli_w
 
 import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.fallback import local_ci_fallback
+from ethos.domain.publication.fallback import fallback_projection
 from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -56,7 +56,7 @@ def test_the_fallback_projects_every_proof_admission_state(state: str) -> None:
     """Each state carries text; an unknown state is unavailable, and no hosted CI is claimed."""
     attestation = {"id": "proof-1"} if state == "admitted" else {}
     action = "ethos prove --full --execute --expect-head abc --json" if state == "missing" else ""
-    fallback = local_ci_fallback(
+    fallback = fallback_projection(
         {"state": state, "attestation": attestation, "next_action": action}
     )
     assert (fallback["kind"], fallback["evidence_class"]) == ("local_ci_fallback", "local_fallback")

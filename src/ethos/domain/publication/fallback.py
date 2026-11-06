@@ -16,7 +16,7 @@ _TEXT = {
 }
 
 
-def local_ci_fallback(proof_admission: Mapping[str, object]) -> dict[str, object]:
+def fallback_projection(proof_admission: Mapping[str, object]) -> dict[str, object]:
     """Project publish's proof admission as fallback evidence; an unknown state is unavailable."""
     state = str(proof_admission.get("state") or "")
     state = state if state in _TEXT else "unavailable"

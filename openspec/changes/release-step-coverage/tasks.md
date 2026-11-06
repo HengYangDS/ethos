@@ -13,5 +13,10 @@
 - [x] 2.1 Catalog the kept archive on the host-conformance legs that match a release leg. Done when
       a projection test that compares those legs with the declared release legs passes and the
       projection conforms. The test passes, and 369 CI, delivery and supply tests pass.
-- [ ] 2.2 Accept the per-commit inventory on hosted runners. Done when a proposal run's windows-x64
-      leg on Python 3.14 and a dev run's legs on the release Python catalog their archives.
+
+## Workflow follow-up
+
+- The proposal run's windows-x64 leg on Python 3.14 and dev's legs on the release Python catalog
+  their kept archives.
+- After landing, a `scan_tag=v0.2.0-beta.3` dispatch produces the binary scan report that beta.3's
+  release run could not.

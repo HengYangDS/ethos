@@ -40,6 +40,11 @@
 - [x] 4.2 Add the activation preflight and the status guidance. Done when those tests and the
       runtime-activation tests pass. Green at 22:48:30: 22 passed; 878 hook and runtime tests at
       22:50:53, and 294 with the status guidance at 23:19:01.
+- [x] 4.3 Read the target's publish result through `expand_result`, because a bound can shorten
+      `required_gaps`. Done when a bounded result whose detail alone names the repaired-declaration
+      gap refuses with `runtime_rollback_declaration_repaired`. Red at 05:49:25: the preflight
+      admitted a bounded answer whose detail alone named the repaired declaration. Green at
+      05:50:25: 22 rollback and preflight tests pass.
 
 ## 5. Acceptance
 

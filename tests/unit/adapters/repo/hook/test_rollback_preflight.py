@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -18,6 +19,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 _TARGET = SimpleNamespace(build="predecessor", python=Path("/runtime/python/bin/python"))
+_REPAIRED = "publication_topology_declaration_invalid"
 
 
 def _probe(monkeypatch: pytest.MonkeyPatch, outcome: object) -> list[tuple[str, ...]]:
@@ -67,6 +69,18 @@ def test_a_restored_declaration_admits_the_rollback(
     repo = init_git_repo(tmp_path / "repo")
     _probe(monkeypatch, json.dumps({"required_gaps": ["proof_not_proven"]}))
     rollback.rollback_preflight(repo, _TARGET, invoking="successor")
+
+
+def test_a_bounded_answer_is_read_in_full(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bound may shorten the gaps; the digest-bound detail decides the refusal."""
+    repo = init_git_repo(tmp_path / "repo")
+    full = {"command": "publish", "required_gaps": ["proof_not_proven", _REPAIRED]}
+    detail = tmp_path / "detail.json"
+    detail.write_text(json.dumps(full), encoding="utf-8")
+    digest = f"sha256:{hashlib.sha256(detail.read_bytes()).hexdigest()}"
+    bound = {"detail": {"path": str(detail), "sha256": digest, "size_bytes": detail.stat().st_size}}
+    _probe(monkeypatch, json.dumps(full | {"required_gaps": ["proof_not_proven"], "bound": bound}))
+    assert _refusal(repo).gap == "runtime_rollback_declaration_repaired"
 
 
 def test_the_invoking_build_is_never_probed(

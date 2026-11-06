@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.paradigm.parameters import seconds
+from ethos.result import expand_result
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -64,6 +65,8 @@ def _publication_gaps(root: Path, python: Path) -> tuple[str, ...]:
     try:
         run = process.run_command(root, command, stdin="", timeout=seconds("tool"), check=False)
         payload = json.loads(run.stdout)
+        # A bound may shorten the gaps; the digest-bound detail holds all of them.
+        payload = expand_result(payload) if isinstance(payload, dict) else payload
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         raise failed from error
     gaps = payload.get("required_gaps") if isinstance(payload, dict) else None

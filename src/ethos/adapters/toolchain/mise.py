@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.observation import read_regular_bytes
+from ethos.adapters.toolchain.mise_lock import graph_locked
+from ethos.adapters.toolchain.mise_lock import lock_sidecars
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
@@ -147,46 +149,13 @@ def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict
             materials[relative] = _mise_input(canonical, relative)
             origins[relative] = relative
     # mise 2026.11.2 resolves an aube-installed tool from the sidecar its lock names.
-    for relative in _lock_sidecars(canonical, lock, materials[MISE_LOCK]):
+    for relative in lock_sidecars(canonical, lock, materials[MISE_LOCK]):
         materials[relative] = _mise_input(canonical, relative)
         origins[relative] = relative
     if any(_mise_input(canonical, path) != materials[name] for name, path in origins.items()):
         message = "mise_declaration_changed"
         raise ValueError(message)
     return materials
-
-
-def _lock_sidecars(root: Path, lock: str, content: str) -> tuple[str, ...]:
-    """Name every file of each aube sidecar directory the lock declares, relative to root."""
-    try:
-        tools = tomllib.loads(content).get("tools", {})
-    except tomllib.TOMLDecodeError as error:
-        message = "locked_toolchain_invalid"
-        raise ValueError(message) from error
-    base = (root / lock).parent
-    directories = {
-        entry["aube"]["path"]
-        for entries in (tools.values() if isinstance(tools, dict) else ())
-        for entry in (entries if isinstance(entries, list) else ())
-        if isinstance(entry, dict)
-        and isinstance(entry.get("aube"), dict)
-        and isinstance(entry["aube"].get("path"), str)
-    }
-    files: list[str] = []
-    for directory in sorted(directories):
-        sidecar = (base / directory).resolve()
-        if not sidecar.is_relative_to(root):
-            message = f"mise_lock_sidecar_outside_root:{directory}"
-            raise ValueError(message)
-        if not sidecar.is_dir():
-            # Native mise reports a sidecar the lock names but the tree lacks.
-            continue
-        files.extend(
-            path.relative_to(root).as_posix()
-            for path in sorted(sidecar.rglob("*"))
-            if path.is_file() and not path.is_symlink()
-        )
-    return tuple(files)
 
 
 def _mise_declaration_paths(
@@ -454,19 +423,6 @@ def mise_version(executable: Path | None = None) -> tuple[int, ...] | None:
         return None
 
 
-def _graph_locked(lock: str, tools: list[str]) -> bool:
-    """Whether a missing tool's lock entry references a dependency graph, such as an aube entry."""
-    try:
-        entries = tomllib.loads(lock).get("tools", {})
-    except tomllib.TOMLDecodeError:
-        return False
-    return isinstance(entries, dict) and any(
-        isinstance(entry, dict) and "aube" in entry
-        for tool in tools
-        for entry in (entries.get(tool) if isinstance(entries.get(tool), list) else ())
-    )
-
-
 def _supply_refusal(
     gaps: tuple[str, ...],
     root: Path,
@@ -484,7 +440,7 @@ def _supply_refusal(
     version = mise_version(executable) if missing else None
     if version is not None and _GRAPH_SAFE_MODE_REGRESSION <= version < _GRAPH_SAFE_MODE_FIX:
         materials = files or repository_mise_files(canonical, executable=executable) or {}
-        if _graph_locked(materials.get(MISE_LOCK, ""), missing):
+        if graph_locked(materials.get(MISE_LOCK, ""), missing):
             selected = ".".join(str(part) for part in version)
             return ValueError(
                 f"{message}; cause: mise {selected} drops the dependency graph that this lock"

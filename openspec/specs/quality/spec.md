@@ -1005,6 +1005,14 @@ depend on online advisory availability or claiming hosted assurance.
 - **THEN** the aggregate audit passes with exact identities and raw evidence
 - **AND** it makes no claim that hosted CI, deployment or user benefit has succeeded
 
+#### Scenario: The advisory service resets connections for a few minutes
+
+- **WHEN** a native audit's advisory request fails and writes no report
+- **THEN** the audit repeats the request after pauses of 60, 120 and 240 seconds and keeps every
+  attempt in its receipt
+- **AND** a request that still fails leaves that ecosystem unknown, and the audit's decision names
+  its native reason, `advisory_request_failed`
+
 ### Requirement: Exact commit proof binds observed execution source
 
 An exact-commit proof SHALL bind matching working content and index to its commit

@@ -7,14 +7,28 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.surface.cli.proof.host as host
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import readiness_tier
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.surface.cli.proof import host
+from ethos.contracts.gates import Gate
+from ethos.contracts.plan import PlanNode
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
-from tests.unit.gates.test_parallel_proof import _graph
+
+
+def _graph() -> tuple[tuple[PlanNode, ...], dict[str, Gate]]:
+    """A readiness gate and a test gate, so the tier holds lint and leaves the test gate out."""
+    nodes = (
+        PlanNode(id="lint", kind="check", command=("lint",)),
+        PlanNode(id="tests", kind="check", command=("tests",)),
+    )
+    registry = {
+        "lint": Gate(id="lint", kind="check", command=("lint",), trust_bearing=True),
+        "tests": Gate(id="tests", kind="test", command=("tests",), trust_bearing=True),
+    }
+    return nodes, registry
 
 
 @pytest.mark.parametrize("lint", ["pass", "block"])
@@ -23,8 +37,7 @@ def test_the_readiness_run_executes_only_the_tier_and_names_the_rest_not_run(
 ) -> None:
     """Lint runs; the test gate is reported as not run; nothing is attested."""
     repo = init_git_repo(tmp_path / "repo")
-    nodes, registry = _graph({"lint": (), "tests": ()}, trust_bearing=True)
-    registry["lint"] = registry["lint"].model_copy(update={"kind": "check"})
+    nodes, registry = _graph()
     executed: list[str] = []
 
     class Runner:

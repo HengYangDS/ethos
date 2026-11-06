@@ -24,6 +24,7 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
+from tests.support.ethos_cli_runner import expand_payload
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -111,7 +112,7 @@ def test_public_proof_rejects_source_changes_during_successful_gates(
     assert payload["verdict"] != "pass", payload
     assert "proof_execution_source" in json.dumps(payload)
     if host:
-        evidence = payload["data"]
+        evidence = expand_payload(payload)["data"]
         assert not evidence["attestation"]
     else:
         descriptor = payload["data"]["artifact_reference"]
@@ -162,7 +163,7 @@ def test_clean_source_and_ignored_outputs_allow_exact_commit_proof(
     assert completed.returncode == 0
     assert (root / "build/ran").is_file()
     assert not git(root, "status", "--porcelain=v1")
-    attestation = payload["data"]["attestation"]
+    attestation = expand_payload(payload)["data"]["attestation"]
     assert not attestation if host else attestation["subject"] == f"git:commit:{head}"
 
 

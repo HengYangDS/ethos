@@ -16,6 +16,7 @@ from ethos.domain.execution import process_failure_result
 from ethos.domain.execution import profile_failure_result
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+from ethos.surface.cli.root_binding import resolved_root
 
 if TYPE_CHECKING:
     from ethos.adapters.process import ProcessExecutionError
@@ -31,9 +32,11 @@ def emit(
     artifact_root: Path | None = None,
 ) -> None:
     """Render CLI results without writing diagnostics into an MCP protocol stream."""
-    if json_output and artifact_root is not None:
-        common_dir = git_common_dir(artifact_root)
-        receipt_root = Path(common_dir) / "ethos" if common_dir else artifact_root / ".ethos"
+    if json_output:
+        # Every command's result is bounded; detail goes under the target repository's store.
+        anchor = artifact_root or resolved_root() or Path.cwd()
+        common_dir = git_common_dir(anchor)
+        receipt_root = Path(common_dir) / "ethos" if common_dir else anchor / ".ethos"
         result = apply_payload_budget(result, root=receipt_root)
     stream = sys.stderr if result.command == "mcp" else sys.stdout
     if json_output:

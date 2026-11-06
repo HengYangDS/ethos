@@ -19,7 +19,6 @@ from unittest.mock import patch
 from cyclopts.exceptions import CycloptsError
 
 from ethos.adapters.repo.invocation_facts import invocation_scope
-from ethos.result import PAYLOAD_BUDGETS
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
@@ -85,12 +84,22 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -
     if completed.returncode != 0:
         raise AssertionError(completed.stderr or completed.stdout)
     payload = json.loads(completed.stdout)
-    if (
-        full_payload
-        and payload["command"] in PAYLOAD_BUDGETS
-        and set(payload["data"]) == {"artifact_reference"}
-    ):
-        reference = payload["data"]["artifact_reference"]
+    return expand_payload(payload) if full_payload else payload
+
+
+def _externalized(payload: object) -> bool:
+    """Every command's result is bounded; tests that read detail read the bound artifact."""
+    return (
+        isinstance(payload, dict)
+        and isinstance(payload.get("data"), dict)
+        and "detail" in payload["data"]
+    )
+
+
+def expand_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the full result a bounded payload references, verified against its digest."""
+    if _externalized(payload):
+        reference = payload["data"]["detail"]
         content = Path(reference["path"]).read_bytes()
         assert reference["media_type"] == "application/json", "payload_artifact_mismatch"
         assert len(content) == reference["size_bytes"], "payload_artifact_mismatch"
@@ -98,17 +107,24 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -
             "payload_artifact_mismatch"
         )
         expanded = EthosResult.from_payload(json.loads(content)).to_dict()
-        assert all(expanded[key] == value for key, value in payload.items() if key != "data"), (
+        # A bounded result may truncate its gaps, and an unknown verdict repeats them.
+        kept = {"data", "required_gaps", "missing_facts_or_evidence"}
+        assert all(expanded[key] == value for key, value in payload.items() if key not in kept), (
             "payload_artifact_mismatch"
         )
         return expanded
     return payload
 
 
+def full_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+    """Parse one CLI run's JSON result, reading the full result a bounded payload references."""
+    return expand_payload(json.loads(completed.stdout))
+
+
 def result_data(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a result's data, read from the artifact that an oversized result points at."""
     data = payload["data"]
-    reference = data.get("artifact_reference")
+    reference = data.get("detail")
     if not isinstance(reference, dict):
         return data
     content = Path(reference["path"]).read_bytes()
@@ -116,7 +132,9 @@ def result_data(payload: dict[str, Any]) -> dict[str, Any]:
     return json.loads(content)["data"]
 
 
-def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:
+def run_ethos_blocked(
+    *args: str, cwd: Path | None = None, full_payload: bool = False
+) -> dict[str, Any]:
     """Run a command expected to BLOCK: assert non-zero exit, return JSON.
 
     Admission and transition commands enforce blocking verdicts via a non-zero
@@ -128,7 +146,8 @@ def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:
     if completed.returncode == 0:
         msg = f"expected a blocked (non-zero exit) verdict, got exit 0: {completed.stdout}"
         raise AssertionError(msg)
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    return expand_payload(payload) if full_payload else payload
 
 
 def _reject_implicit_apply_against_repository_checkout(

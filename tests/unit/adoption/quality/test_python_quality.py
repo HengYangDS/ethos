@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import tomli_w
 
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -106,7 +107,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     if defect in {"none", "strict-config", "plugin-disabled"}:
         assert result.returncode == 0, payload["required_gaps"]
@@ -172,7 +173,7 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
     )
     head = git(repo, "rev-parse", "HEAD")
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
     if evidence_case == "complete":
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
@@ -196,7 +197,7 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
             "--json",
             cwd=repo,
         )
-        explicit = json.loads(selected.stdout)
+        explicit = full_result(selected)
         assert selected.returncode == 0, explicit["required_gaps"]
         checks = {check["action_id"]: check for check in explicit["data"]["checks"]}
         assert set(checks) == {"quality", "optional"}

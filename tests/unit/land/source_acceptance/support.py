@@ -298,6 +298,7 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
         "local-source",
         "--json",
         cwd=work,
+        full_payload=True,
     )
     proof = Attestation.model_validate(proved["data"]["attestation"])
     assert proof.subject == f"git:commit:{head}"

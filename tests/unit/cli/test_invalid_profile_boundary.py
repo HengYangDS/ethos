@@ -102,7 +102,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path, monke
     assert bounded.verdict == "block"
     assert bounded.required_gaps == result.required_gaps
     assert bounded.next_action == result.next_action
-    reference = bounded.data["artifact_reference"]
+    reference = bounded.data["detail"]
     artifact = Path(reference["path"])
     assert artifact.is_file()
     assert reference["sha256"].startswith("sha256:")

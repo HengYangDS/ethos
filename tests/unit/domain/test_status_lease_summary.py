@@ -54,5 +54,6 @@ def test_the_lease_summary_survives_the_payload_budget(tmp_path: Path) -> None:
         command="status", verdict="pass", state="ready", summary=summary, data={"x": "y" * 40_000}
     )
     bounded = apply_payload_budget(result, root=tmp_path)
-    assert set(bounded.data) == {"artifact_reference"}
+    assert "x" not in bounded.data
+    assert "detail" in bounded.data
     assert bounded.summary == summary

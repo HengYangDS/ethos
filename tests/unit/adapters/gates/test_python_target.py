@@ -18,6 +18,7 @@ import ethos.adapters.gates.python_quality as python_quality
 from ethos.adapters.gates.python_target import PythonTarget
 from ethos.adapters.gates.python_target import compatibility_target
 from ethos.adapters.repo.git import current_tree
+from tests.support.ethos_cli_runner import full_result
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
@@ -309,7 +310,7 @@ def test_the_public_proof_reports_an_undeclared_target_as_a_static_gap(tmp_path:
         (repo / path).write_text(content, encoding="utf-8")
     head = commit_fixture(repo, "bind quality without a declared Python target")
 
-    payload = json.loads(run_quality_proof(repo, head).stdout)
+    payload = full_result(run_quality_proof(repo, head))
 
     static = next(check for check in payload["data"]["checks"] if check["action_id"] == "static")
     report = json.loads(static["stdout"])["providers"][0]["report"]

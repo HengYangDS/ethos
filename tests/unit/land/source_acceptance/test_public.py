@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import tomllib
 from datetime import datetime
 from datetime import timedelta
@@ -20,6 +19,7 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -97,7 +97,7 @@ def _land_source(
 
     with monkeypatch.context() as interrupted:
         interrupted.setattr(landing, "sync_worktree", fail_sync)
-        blocked = run_ethos_blocked(*args, cwd=work)
+        blocked = run_ethos_blocked(*args, cwd=work, full_payload=True)
     assert blocked["required_gaps"] == ["candidate_worktree_sync_failed"]
     state = blocked["data"]["candidate_update"]
     effect_id = state["attestation"]["id"]
@@ -106,7 +106,7 @@ def _land_source(
     assert git(work, "rev-parse", ref) == proof.subject.removeprefix("git:commit:")
     _expired_recovery(work, args, proof, monkeypatch)
     _product_drift_refusal(work, args, monkeypatch)
-    landed = run_ethos(*args, cwd=work)
+    landed = run_ethos(*args, cwd=work, full_payload=True)
     completed = landed["data"]["candidate_update"]
     assert completed["cas_attempts"] == 0
     assert completed["attestation"]["plan_digest"] == plan_digest
@@ -216,7 +216,7 @@ def test_public_native_source_acceptance(
         "--json",
     )
     completed = run_ethos_raw(*arguments, cwd=work)
-    result = json.loads(completed.stdout)
+    result = full_result(completed)
     assert completed.returncode == (0 if scan_passes else 1), result
     roles = load_branch_role_policy(work)
     if not scan_passes:

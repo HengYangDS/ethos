@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from difflib import unified_diff
 from pathlib import Path
@@ -12,6 +11,7 @@ import pytest
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_relocation_scope
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -78,7 +78,7 @@ def _prewrite(root: Path, postimages: dict[str, tuple[str, str]], patch_file: Pa
         "--json",
         cwd=root,
     )
-    return json.loads(result.stdout)
+    return full_result(result)
 
 
 def test_supporting_template_repair_has_exact_native_scope_without_mutation(tmp_path: Path):
@@ -132,7 +132,7 @@ def test_supporting_relocation_repair_does_not_grant_ordinary_write(tmp_path: Pa
     result = run_ethos_raw(
         "lane", "prewrite", SOURCE, "--editor-root", root.as_posix(), "--json", cwd=root
     )
-    report = json.loads(result.stdout)
+    report = full_result(result)
     assert result.returncode != 0
     assert report["verdict"] == "block"
     assert "openspec_specs_root_entry_unexpected:template.md" in report["required_gaps"]
@@ -244,7 +244,7 @@ def test_supporting_move_rejects_unrelated_permission_changes(tmp_path: Path):
         "--json",
         cwd=root,
     )
-    report = json.loads(result.stdout)
+    report = full_result(result)
     assert result.returncode != 0
     assert report["verdict"] == "block", report
     assert (root / GUIDE).stat().st_mode & 0o777 == 0o644

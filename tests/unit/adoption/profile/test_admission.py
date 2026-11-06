@@ -14,6 +14,7 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -37,7 +38,7 @@ def _profile_prewrite(
     arguments.append("--json")
     completed = run_ethos_raw(*arguments, cwd=root)
     assert completed.stdout, completed.stderr
-    return completed, json.loads(completed.stdout)
+    return completed, full_result(completed)
 
 
 @pytest.mark.parametrize("rejection", [None, "scope", "strict-spec", "supporting-template"])

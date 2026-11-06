@@ -21,7 +21,11 @@ from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
-PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
+# Every command's JSON result is bounded; a command declares a budget only to differ.
+DEFAULT_PAYLOAD_BUDGET = 16 * 1024
+PAYLOAD_BUDGETS = {"status": DEFAULT_PAYLOAD_BUDGET, "plan": 32 * 1024}
+_INLINE_LINES = 20
+_INLINE_ENTRY_BYTES = 1024
 _ARTIFACT_HOME = Path("payloads")
 _UNKNOWN_WITHOUT_GAPS = "unknown_without_required_gaps"
 _BLOCK_WITHOUT_REASON = "block_without_reason"
@@ -147,30 +151,92 @@ class EthosResult(BaseModel):
 
 
 def apply_payload_budget(result: EthosResult, *, root: Path) -> EthosResult:
-    """Externalize oversized command detail while preserving the verdict."""
-    limit = PAYLOAD_BUDGETS.get(result.command)
+    """Externalize oversized command detail while keeping what an agent needs to act inline.
+
+    The verdict, gaps and continuation always stay. Each failing step keeps its id, exit code and
+    first output lines inline, with counts of what was left out. A result that still does not fit
+    drops failing steps from the end and counts them; it never refuses for its size.
+    """
+    limit = PAYLOAD_BUDGETS.get(result.command, DEFAULT_PAYLOAD_BUDGET)
     payload = result.to_json().encode()
-    if limit is None or len(payload) <= limit:
+    if len(payload) <= limit:
         return result
     digest = hashlib.sha256(payload).hexdigest()
     relative = _ARTIFACT_HOME / result.command / f"{digest}.json"
     artifact = root / relative
     artifact.parent.mkdir(parents=True, exist_ok=True)
     artifact.write_bytes(payload)
-    bounded = EthosResult.model_validate(
-        result.model_dump(exclude_computed_fields=True)
-        | {
-            "data": {
-                "artifact_reference": {
-                    "path": artifact.resolve().as_posix(),
-                    "sha256": f"sha256:{digest}",
-                    "size_bytes": len(payload),
-                    "media_type": "application/json",
-                }
-            }
-        },
-    )
-    if len(bounded.to_json().encode()) > limit:
-        msg = f"bounded {result.command} payload exceeds {limit} bytes"
-        raise ValueError(msg)
+    reference = {
+        "path": artifact.resolve().as_posix(),
+        "sha256": f"sha256:{digest}",
+        "size_bytes": len(payload),
+        "media_type": "application/json",
+    }
+    checks = [item for item in result.data.get("checks") or () if isinstance(item, Mapping)]
+    failing = [_inline_step(item) for item in checks if item.get("verdict") != "pass"]
+    inline: dict[str, Any] = {
+        "failing": failing,
+        "passing_count": len(checks) - len(failing),
+        "omitted_failing": 0,
+        "partial": [],
+        "moved": [],
+    }
+    base = result.model_dump(exclude_computed_fields=True)
+    # Small entries are how the next call binds (a receipt, a lane path, a plan digest); they stay.
+    # A larger mapping keeps its scalar fields, which name its state; the rest moves to detail.
+    kept: dict[str, Any] = {}
+    for key, value in result.data.items():
+        if _size(value) <= _INLINE_ENTRY_BYTES:
+            kept[key] = value
+        elif (scalars := _scalars(value)) and _size(scalars) <= _INLINE_ENTRY_BYTES:
+            kept[key] = scalars
+            inline["partial"].append(key)
+        else:
+            inline["moved"].append(key)
+
+    def build(gaps: tuple[str, ...]) -> EthosResult:
+        data = kept | {"detail": reference, "inline": inline}
+        return EthosResult.model_validate(base | {"required_gaps": gaps, "data": data})
+
+    bounded = build(result.required_gaps)
+    while len(bounded.to_json().encode()) > limit and inline["failing"]:
+        inline["failing"] = inline["failing"][:-1]
+        inline["omitted_failing"] += 1
+        bounded = build(result.required_gaps)
+    while len(bounded.to_json().encode()) > limit and kept:
+        largest = max(kept, key=lambda key: _size(kept[key]))
+        kept.pop(largest)
+        inline["partial"] = [key for key in inline["partial"] if key != largest]
+        inline["moved"] = sorted({*inline["moved"], largest})
+        bounded = build(result.required_gaps)
+    gaps = result.required_gaps
+    while len(bounded.to_json().encode()) > limit and len(gaps) > 1:
+        gaps = gaps[: max(1, len(gaps) // 2)]
+        inline["omitted_gaps"] = len(result.required_gaps) - len(gaps)
+        bounded = build(gaps)
     return bounded
+
+
+def _size(value: object) -> int:
+    return len(json.dumps(value, default=str).encode())
+
+
+def _scalars(value: object) -> dict[str, Any]:
+    """Return a mapping's scalar fields, which name its state, without its nested detail."""
+    if not isinstance(value, Mapping):
+        return {}
+    return {
+        key: item for key, item in value.items() if not isinstance(item, Mapping | list | tuple)
+    }
+
+
+def _inline_step(check: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep one failing step's identity and its first output lines, counting the rest."""
+    lines = f"{check.get('stdout') or ''}{check.get('stderr') or ''}".splitlines()
+    return {
+        "action_id": check.get("action_id"),
+        "verdict": check.get("verdict"),
+        "exit_code": check.get("exit_code"),
+        "output": lines[:_INLINE_LINES],
+        "omitted_lines": max(0, len(lines) - _INLINE_LINES),
+    }

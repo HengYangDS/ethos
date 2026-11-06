@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+from tests.support.ethos_cli_runner import full_result
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -67,7 +68,7 @@ def test_document_only_profile_executes_both_native_proof_roots(document_reposit
     head = git(repo, "rev-parse", "HEAD")
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert payload["verdict"] == "pass"
@@ -106,7 +107,7 @@ def test_document_profile_cannot_omit_observed_code_obligations(
     head = commit_fixture(repo, "introduce code into the document repository")
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"

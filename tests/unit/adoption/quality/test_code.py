@@ -15,6 +15,7 @@ import tomli_w
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.javascript.analysis as native_analysis
 import ethos.adapters.toolchain.mise as native_mise
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -137,7 +138,7 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
     completed = run_ethos_raw(
         "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
     )
-    payload = json.loads(completed.stdout)
+    payload = full_result(completed)
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
     report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]
 
@@ -315,7 +316,7 @@ def test_native_code_provider_checks_real_sources(
     head = commit_fixture(repo, "declare native code quality", format_paths=format_paths)
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert payload["summary"]["proof_attestation_issued"] is False
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
@@ -359,7 +360,7 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
     )
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert result.returncode == 0, payload["required_gaps"]
     assert payload["verdict"] == "pass"
@@ -393,7 +394,7 @@ def test_public_proof_rejects_test_forged_precise_coverage(tmp_path: Path) -> No
     )
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
@@ -423,7 +424,7 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
     head = commit_fixture(repo, "claim command-authored native evidence")
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
@@ -461,7 +462,7 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
         format_paths=(".ethos/profile.toml", "package.json", "answer.js", "answer.test.js"),
     )
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
     tested = "--test" in command
     assert (result.returncode == 0) == tested
     assert payload["verdict"] == ("pass" if tested else "block")
@@ -518,7 +519,7 @@ def test_public_python_quality_covers_repository_tool_sources(
     )
 
     result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
+    payload = full_result(result)
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
 
     if exercise_tool == "exercised":

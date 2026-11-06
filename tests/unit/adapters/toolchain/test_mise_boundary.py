@@ -293,6 +293,17 @@ def test_resolution_carries_only_native_trust_to_its_copy(
     assert _state(host_mise_state) == before
 
 
+def test_an_aliased_configuration_carries_no_trust(tmp_path: Path) -> None:
+    """Only the root's own regular configuration bytes can carry its native trust to a copy."""
+    root = tmp_path / "repository"
+    (root / ".config/mise").mkdir(parents=True)
+    target = tmp_path / "elsewhere.toml"
+    target.write_text("[tools]\n", encoding="utf-8")
+    (root / mise.MISE_CONFIG).symlink_to(target)
+    with patch.object(mise, "run_command", side_effect=AssertionError("trust was probed")):
+        assert mise.carried_trust(root, tmp_path / "copy", "[tools]\n") == {}
+
+
 @pytest.mark.parametrize(
     ("windows", "system_root", "git", "expected"),
     [

@@ -429,6 +429,7 @@ def test_hosts_without_descriptor_chains_read_declarations_and_refuse_aliases(
         ("incomplete", "locked_toolchain_missing"),
         ("outside", "mise_declaration_path_invalid"),
         ("invalid-settings", "mise_idiomatic_settings_invalid"),
+        ("settings-not-table", "mise_idiomatic_settings_invalid"),
     ],
 )
 def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
@@ -440,8 +441,10 @@ def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
         files.pop(mise.MISE_LOCK)
     elif fault == "outside":
         files["../external.json"] = "{}"
-    else:
+    elif fault == "invalid-settings":
         files[mise.MISE_CONFIG] = "[settings]\nidiomatic_version_file_enable_tools = [7]\n"
+    else:
+        files[mise.MISE_CONFIG] = 'settings = "locked"\n\n[tools]\nnode = "26"\n'
     before = files.copy()
     entries = set(tmp_path.iterdir())
     monkeypatch.setattr(

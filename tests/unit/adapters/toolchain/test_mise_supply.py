@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -333,3 +334,25 @@ def test_a_changed_sidecar_refuses_before_mise_runs(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match=f"mise_version_carrier_changed:{changed}"):
         mise.run_mise(root, ("ls", "--current", "--json"), files=materials, offline=True)
+
+
+@pytest.mark.parametrize(
+    ("lock", "refusal"),
+    [
+        ("not toml [", "locked_toolchain_invalid"),
+        (
+            GRAPH_LOCK.replace("locks/npm/12.2.1", "../../.."),
+            "mise_lock_sidecar_outside_root:../../..",
+        ),
+    ],
+    ids=["unparseable", "outside-root"],
+)
+def test_a_lock_whose_sidecars_cannot_be_named_refuses(
+    tmp_path: Path, lock: str, refusal: str
+) -> None:
+    """Neither an unparseable lock nor a sidecar outside the repository reaches mise."""
+    root = _sidecar_repository(tmp_path / "repository")
+    (root / ".config/mise/mise.lock").write_text(lock, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=f"^{re.escape(refusal)}$"):
+        mise.repository_mise_files(root)

@@ -52,5 +52,12 @@
       the rollback limit in the upgrade receipt. Done when the acceptance tests pass. At 00:16:00:
       222 delivery and architecture tests pass. The full sweep ending 00:08:24 passed 8,165; of its
       3 failures, two were fixed at 00:16 and the third, the mise trust test, is fixed on dev.
-- [ ] 5.2 Run the both-runtime checks and compare the plans before landing. Done when each check has
-      its receipt.
+- [x] 5.2 Run the both-runtime checks and compare the plans before landing. Done when each check has
+      its receipt. At 07:42:54 and 07:42:59 a raw proposal push of 82d140d70 from the unrepaired
+      canonical root passed the predecessor's pre-push admission on both peers. A scratch clone with
+      local peers (`both-runtime-20261107b/receipt.json` in the lane kit) showed the rest: the
+      predecessor admits the unrepaired declaration and refuses the repaired one with
+      `publication_topology_declaration_invalid`, and the successor names the retired fields of the
+      unrepaired one and admits the repaired one. The clone lacks the trust anchor, so the plans
+      were compared on the lane: at 07:42 both runtimes' full proof plans for 82d140d70 had the same
+      34 nodes, policy and policy input.

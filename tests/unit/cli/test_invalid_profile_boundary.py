@@ -143,7 +143,7 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     profile = root / ".ethos/profile.toml"
     profile.parent.mkdir(exist_ok=True)
     profile.write_text(
-        'profile_id = "invalid"\n[openspec]\nmaterial_paths = ["openspec/**"]\n'
+        'schema_version = 1\nprofile_id = "invalid"\n[openspec]\nmaterial_paths = ["openspec/**"]\n'
         '[roots]\nrules = "."\n',
     )
     payload = _invoke(
@@ -159,6 +159,12 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     assert payload["command"] == command
     assert payload["verdict"] == "block"
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
+    # Each problem is named by kind and key path, never by the value it holds.
+    problems = ["value_error:roots.rules", "extra_forbidden:schema_version"]
+    assert (payload["data"]["profile_problems"], payload["data"]["profile_problem_count"]) == (
+        problems,
+        2,
+    )
     reader = {"status": inspect_repository, "plan": plan_repository}.get(command)
     if reader is not None:
         # The CLI adds only the identity of the build that answered.

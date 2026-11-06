@@ -242,6 +242,8 @@ class RepositoryProfile(_ProfileModel):
     exists: bool
     source: str = ""
     declaration: RepositoryProfileDeclaration | None = None
+    # Each validation problem as `<kind>:<key path>`; never a value the profile holds.
+    problems: tuple[str, ...] = ()
 
     @property
     def state(self) -> Literal["missing", "valid", "invalid"]:
@@ -256,17 +258,27 @@ def render_repository_profile(declaration: RepositoryProfileDeclaration) -> str:
 def repository_profile_from_text(root: Path, *, exists: bool, text: str) -> RepositoryProfile:
     """Parse one already-observed repository profile material."""
     repo = root.resolve()
-    declaration = None
+    declaration, problems = None, ()
     if exists:
         try:
             declaration = RepositoryProfileDeclaration.model_validate(tomllib.loads(text))
-        except (tomllib.TOMLDecodeError, ValidationError):
-            declaration = None
+        except tomllib.TOMLDecodeError:
+            problems = ("toml_invalid",)
+        except ValidationError as error:
+            problems = tuple(
+                dict.fromkeys(
+                    f"{item['type']}:{'.'.join(map(str, item['loc']))}"
+                    for item in error.errors(
+                        include_url=False, include_input=False, include_context=False
+                    )
+                )
+            )
     return RepositoryProfile(
         root=repo,
         exists=exists,
         source=binding_path("profile") if exists else "",
         declaration=declaration,
+        problems=problems,
     )
 
 

@@ -125,9 +125,11 @@ def _human_gap(gap: str) -> str:
     return f"{label}: {detail}" if separator else label
 
 
-def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce: bool) -> None:
+def emit_invalid_repository_profile(
+    *, command: str, json_output: bool, enforce: bool, root: Path | None = None
+) -> None:
     """Render the shared invalid-profile result with the requested CLI enforcement."""
-    emit(profile_failure_result(command), json_output=json_output, enforce=enforce)
+    emit(profile_failure_result(command, root), json_output=json_output, enforce=enforce)
 
 
 def emit_process_execution_failure(

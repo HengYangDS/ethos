@@ -13,21 +13,38 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import load_repository_profile
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-def profile_failure_result(command: str) -> EthosResult:
-    """Project the repository profile owner's stable failure without transport policy."""
+# The problems an invalid-profile result names; its count says how many there are in all.
+_PROFILE_PROBLEM_LIMIT = 20
+
+
+def profile_failure_result(command: str, root: Path | None = None) -> EthosResult:
+    """Project the profile owner's stable failure, naming the root's problems by key path."""
+    problems = load_repository_profile(root).problems if root is not None else ()
+    path = binding_path("profile")
+    data: dict[str, object] = {"error_boundary": "repository_profile_validation"}
+    if problems:
+        data |= {
+            "profile_problems": list(problems[:_PROFILE_PROBLEM_LIMIT]),
+            "profile_problem_count": len(problems),
+        }
     return EthosResult(
         command=command,
         verdict="block",
         state="gapped",
         required_gaps=(INVALID_PROFILE_ERROR,),
-        next_action=f"repair {binding_path('profile')} and rerun the command",
-        data={"error_boundary": "repository_profile_validation"},
+        next_action=(
+            f"repair the problems that data.profile_problems names in {path} and rerun the command"
+            if problems
+            else f"repair {path} and rerun the command"
+        ),
+        data=data,
     )
 
 
@@ -79,7 +96,8 @@ def application_result[**P](
             except ValueError as error:
                 if str(error) != INVALID_PROFILE_ERROR:
                     raise
-                return profile_failure_result(command)
+                root = kwargs.get("root", args[0] if args else None)
+                return profile_failure_result(command, root if isinstance(root, Path) else None)
 
         return invoke
 

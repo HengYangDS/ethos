@@ -108,6 +108,7 @@ def _emit_invalid_profile(command: str, argv: list[str]) -> None:
         command=command,
         json_output="--json" in argv,
         enforce=command == "prove" or (command in {"land", "publish"} and "--apply" in argv),
+        root=_argument_root(argv),
     )
 
 

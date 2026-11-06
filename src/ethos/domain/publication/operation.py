@@ -437,7 +437,7 @@ def publish_repository(
     """Observe or apply exact peer publication without owning local-ref retirement effects."""
     repo = root.resolve()
     if load_repository_profile(repo).state == "invalid":
-        return profile_failure_result("publish")
+        return profile_failure_result("publish", repo)
     if target_refs or peer_ids or receipt is not None or retire:
         return _publish_projection(
             repo,

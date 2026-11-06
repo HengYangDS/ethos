@@ -393,7 +393,7 @@ def land_repository(
             next_action="produce strict repository proof before accepted or release integration",
         )
     if profile_blocks_operation(repo, closeout=closeout):
-        return profile_failure_result("land")
+        return profile_failure_result("land", repo)
     if retag:
         return _retag_result(
             repo,

@@ -27,7 +27,7 @@ from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from ethos.surface.cli.runtime_identity import with_runtime
+from ethos.surface.runtime_identity import with_runtime
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case

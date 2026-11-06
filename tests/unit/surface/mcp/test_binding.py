@@ -10,6 +10,7 @@ from fastmcp import Client
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 from ethos.domain.adoption import adopt_repository
 from ethos.surface.mcp.server import create_server
+from ethos.surface.runtime_identity import with_runtime
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -55,14 +56,14 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
                     assert result.is_error
                     assert not (root / ".ethos").exists()
             observed = await client.call_tool("adopt")
-            assert observed.structured_content == adopt_repository(root).to_dict()
+            assert observed.structured_content == with_runtime(adopt_repository(root)).to_dict()
             evolution = await client.call_tool(
                 "adopt", {"evolve_starter": True, "purpose": "Revised project purpose"}
             )
             assert (
                 evolution.structured_content
-                == adopt_repository(
-                    root, evolve_starter=True, purpose="Revised project purpose"
+                == with_runtime(
+                    adopt_repository(root, evolve_starter=True, purpose="Revised project purpose")
                 ).to_dict()
             )
             monkeypatch.setenv("ETHOS_ACTOR", "changed-actor")

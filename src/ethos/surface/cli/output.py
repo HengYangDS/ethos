@@ -17,7 +17,7 @@ from ethos.domain.execution import profile_failure_result
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from ethos.surface.cli.root_binding import resolved_root
-from ethos.surface.cli.runtime_identity import with_runtime
+from ethos.surface.runtime_identity import with_runtime
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 

@@ -1,7 +1,7 @@
-"""Name the build that produced a result, without loading the command framework.
+"""Name the build that produced a result, for every surface that returns one.
 
-`ethos --version` renders a result without Cyclopts, so this module imports only the result model
-and the build identity owner.
+The CLI and the MCP server share it, and `ethos --version` renders a result without Cyclopts, so
+this module imports only the result model and the build identity owner.
 """
 
 from __future__ import annotations

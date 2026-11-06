@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-import ethos.surface.cli.runtime_identity as runtime_identity
+import ethos.surface.runtime_identity as runtime_identity
 from ethos.adapters.repo.runtime.authority import committed_build_identity
 from ethos.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos_raw

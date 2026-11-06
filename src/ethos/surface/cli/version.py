@@ -10,7 +10,7 @@ from ethos.adapters.openspec.cli import OFFICIAL_VERSION
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.result import EthosResult
-from ethos.surface.cli.runtime_identity import with_runtime
+from ethos.surface.runtime_identity import with_runtime
 
 
 def version_text() -> str:

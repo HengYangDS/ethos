@@ -2,8 +2,11 @@
 
 import math
 import os
+from collections.abc import Callable
 from functools import partial
+from functools import wraps
 from pathlib import Path
+from typing import Any
 
 import anyio
 from fastmcp import FastMCP
@@ -22,6 +25,8 @@ from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
 from ethos.repository.paradigm.parameters import seconds
+from ethos.result import EthosResult
+from ethos.surface.runtime_identity import with_runtime
 
 
 class _BoundCalls(Middleware):
@@ -65,6 +70,16 @@ class _BoundCalls(Middleware):
             raise ToolError(message) from None
         else:
             return result
+
+
+def _naming_runtime(operation: Callable[..., EthosResult]) -> Callable[..., EthosResult]:
+    """Return the operation's result naming the build that produced it, as the CLI does."""
+
+    @wraps(operation)
+    def named(*args: Any, **kwargs: Any) -> EthosResult:
+        return with_runtime(operation(*args, **kwargs))
+
+    return named
 
 
 def create_server(
@@ -132,7 +147,7 @@ def create_server(
     ):
         server.add_tool(
             FunctionTool.from_function(
-                partial(operation, target),
+                partial(_naming_runtime(operation), target),
                 name=name,
                 description=operation.__doc__,
                 run_in_thread=True,

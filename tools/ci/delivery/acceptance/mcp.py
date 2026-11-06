@@ -23,6 +23,7 @@ from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
+from ethos.surface.runtime_identity import with_runtime
 
 
 def _run(
@@ -122,7 +123,8 @@ async def _call(
             "land": land_repository,
             "publish": publish_repository,
         }[name]
-        return operation(root, **arguments).to_dict()
+        # Every surface names the build that answered, so the SDK call does the same.
+        return with_runtime(operation(root, **arguments)).to_dict()
     options: list[str] = []
     for key, value in arguments.items():
         if value is not False:
@@ -204,7 +206,7 @@ async def _adoption(
         assert before == {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in retained}
     async with Client(transport, timeout=30) as client:
         observed = (await client.call_tool("status")).structured_content
-        expected = inspect_repository(root).to_dict()
+        expected = with_runtime(inspect_repository(root)).to_dict()
         assert observed == expected, {
             "different_fields": sorted(
                 key
@@ -245,16 +247,18 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
     )
     async with Client(transport, timeout=30) as client:
         with patch.dict(os.environ, env, clear=True):
-            expected = adopt_repository(
-                target,
-                create=True,
-                starter="foundation",
-                purpose=purpose,
-                author_name=author_name,
-                author_email=author_email,
-                signing_key=signer["signing_key"],
-                trust_anchor=signer["trust_anchor"],
-                signing_program=signer["signing_program"],
+            expected = with_runtime(
+                adopt_repository(
+                    target,
+                    create=True,
+                    starter="foundation",
+                    purpose=purpose,
+                    author_name=author_name,
+                    author_email=author_email,
+                    signing_key=signer["signing_key"],
+                    trust_anchor=signer["trust_anchor"],
+                    signing_program=signer["signing_program"],
+                )
             ).to_dict()
         assert expected["verdict"] == "pass", expected
         for surface in ("cli", "mcp"):
@@ -277,7 +281,7 @@ async def _observations(
     client: Client, command: tuple[str, ...], root: Path, env: dict[str, str]
 ) -> None:
     """Compare successful planning and live profile failure once across all transports."""
-    planning = plan_repository(root, changed=True).to_dict()
+    planning = with_runtime(plan_repository(root, changed=True)).to_dict()
     assert (planning["verdict"], planning["state"]) == ("pass", "no_changes"), planning
     for caller in ("cli", "mcp"):
         assert (
@@ -336,9 +340,8 @@ async def _native_failure(
                 os.environ.clear()
                 os.environ.update(previous)
                 locator.symlink_to(git)
-            assert (await client.call_tool("adopt")).structured_content == adopt_repository(
-                root
-            ).to_dict()
+            observed = (await client.call_tool("adopt")).structured_content
+            assert observed == with_runtime(adopt_repository(root)).to_dict()
 
 
 def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:

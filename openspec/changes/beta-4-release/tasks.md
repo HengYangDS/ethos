@@ -9,8 +9,8 @@
 - [x] 1.2 Curate the `0.2.0-beta.4` entry from the landed Changes and the release build's audit.
       Done when the changelog validates with 0.2.0-beta.4 as its release target and the entry names
       every advisory that the audit reports. `changelog_errors` reports nothing with 0.2.0-beta.4 as
-      the release target. The entry names the two npm advisories that the audit reports, GHSA-3g3m-2fjr-6pw4
-      and GHSA-g3hv-75wg-m249, and no Python advisory.
+      the release target. The entry names the two npm advisories that the audit reports,
+      GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249, and no Python advisory.
 
 ## Workflow follow-up
 

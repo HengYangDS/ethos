@@ -92,8 +92,8 @@ ETHOS SHALL emit schema-version-`3` JSON result envelopes with `verdict`, `state
   one `continuation` value
 - **AND** `missing_facts_or_evidence` equals `required_gaps` only for an `unknown` verdict
 - **AND** every reader re-derives `next` from `next_action` and `continuation`; a carried `next` must
-  be well formed and is never trusted, so an older runtime's payload of the same schema stays
-  readable
+  be well formed in this vocabulary and is never trusted, so another runtime's payload of the same
+  schema stays readable unless its carried `next` uses a value this vocabulary does not name
 - **AND** only a bounded result carries `bound`, which names the full result's detail artifact and
   what the bound left out
 

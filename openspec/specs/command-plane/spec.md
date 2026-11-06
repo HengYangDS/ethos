@@ -51,11 +51,19 @@ over the same application operations without creating lifecycle authority.
 - **WHEN** a result selects a next step
 - **THEN** `next` names its kind (`command`, `instruction`, `decision` or `done`), and a `command`
   carries the exact ETHOS argv, its effects ordered from `read`, `remote-read`, `execute`,
-  `local-evidence-write` and `local-write` to `remote-write`, whether running it embeds an
-  authorization, the values its flags bind (root, head, candidate head, receipt, plan digest and
-  lease expiry) and why
+  `local-evidence-write`, `local-write` and `host-write` to `remote-write` and the unbounded
+  `opaque`, whether it is destructive, its authorization, the values its flags bind (root, head,
+  candidate head, receipt, plan digest and lease expiry), an empty `form` and why
+- **AND** the authorization is the strongest authority token in the argv (`attestation`,
+  `confirm-irreversible`, `authorize` or `apply`), `none` without one, or `human` for a decision or
+  an opaque step
+- **AND** `destructive` says whether the argv selects the deletion of something it does not
+  recreate; cleanup that another operation performs under a liveness check is not counted, and that
+  operation reports it in its result
 - **AND** `next_action` renders the same step for humans
-- **AND** a step that needs a human decision carries no argv
+- **AND** a decision whose text is one exact ETHOS argv carries that argv, its effects,
+  `destructive` and binding, with authorization `human`: the argv is what a person approves, and no
+  reader runs it without that approval
 
 #### Scenario: A result names its runtime
 
@@ -273,6 +281,14 @@ candidate head, just like accepted-root closeout.
 - **AND** the command still requires `--expect-head` and reports
   `candidate_refresh_from_accepted_failed` if the reset fails
 
+#### Scenario: A refresh that would drop candidate commits needs confirmation
+
+- **WHEN** `ethos lane candidate --refresh-from-accepted --apply --authorize` would move a candidate
+  head that the accepted branch does not contain
+- **THEN** it refuses with `candidate_refresh_unaccepted_commits` before any ref effect
+- **AND** its next action is the same command with `--confirm-irreversible`, for a person to
+  approve, and that form is destructive
+
 ### Requirement: Publish reports local readiness without remote publication
 
 `ethos publish` SHALL report local publish readiness and deferred remote
@@ -351,6 +367,13 @@ modes of this command, not separate commands or hook exceptions.
 - **WHEN** request bytes and all bound coordinates remain current
 - **THEN** `ethos publish --receipt ... --apply --authorize` SHALL execute only the request's effects
 - **AND** it SHALL reject any repository, object, proof, ref, peer, or expected-OID drift
+
+#### Scenario: A retirement receipt shows its deletion
+
+- **WHEN** a request retires peer refs
+- **THEN** its apply command carries `--retire`, and `next` reports it as destructive
+- **AND** applying a retirement request without `--retire`, or a publication request with it,
+  refuses with `remote_publication_receipt_retire_mismatch` before any peer effect
 
 #### Scenario: missing proof is actionable
 
@@ -561,8 +584,8 @@ parsing command text, English phrases, or gap-name suffixes.
   is required
 - **THEN** `user_decision_required` remains false
 - **AND** Continuation is `continue` for a passing result or `blocked` for a non-passing result
-- **AND** `next` names the argv's write effects and an `embedded` authorization, so a harness can
-  ask before it runs the step
+- **AND** `next` names the argv's write effects and its strongest authority token, so a harness
+  can ask before it runs the step
 
 #### Scenario: Human authority is required
 
@@ -570,7 +593,8 @@ parsing command text, English phrases, or gap-name suffixes.
   required
 - **THEN** `user_decision_required` is true
 - **AND** Continuation is `await-user` without inspecting the action string or gap spelling
-- **AND** `next` is a `decision` with no argv
+- **AND** `next` is a `decision` with authorization `human`, which carries the argv a person
+  approves when the action is one exact ETHOS argv
 
 ### Requirement: Result projection preserves diagnostic execution facts
 
@@ -1393,7 +1417,8 @@ Lease renewal and resumption without coordinates SHALL preview from the current 
 ### Requirement: The structured next step derives from the exact rendered argv
 
 ETHOS SHALL derive `next` only from the exact ETHOS argv that `next_action` renders, by a lossless
-split and join, and SHALL take its effects from the admission classification of that argv. Prose
+split and join, and SHALL take its effects, authorization and destructiveness from the admission
+classification of that argv. Prose
 or a template SHALL stay an instruction without an argv. Every reader SHALL re-derive `next` and
 check a carried one only for shape.
 
@@ -1413,6 +1438,23 @@ check a carried one only for shape.
 - **WHEN** a reader validates a payload whose `next` differs from its own derivation
 - **THEN** it keeps its own derivation, and refuses the payload only when the carried `next` is
   malformed
+
+#### Scenario: A deleting argv is destructive
+
+- **WHEN** `next_action` selects the deletion of something the command does not recreate, such as a
+  retirement apply, `publish --retire`, `attestation release` or `land --retag`
+- **THEN** `next.destructive` is true
+
+#### Scenario: An opaque step needs a person
+
+- **WHEN** `next_action` is `ethos host run` or `ethos mcp`, whose argv cannot bound what it runs
+- **THEN** `next` reports the `opaque` effect, `destructive` true and authorization `human`
+
+#### Scenario: Hook admission keeps its readers
+
+- **WHEN** hook admission classifies an ETHOS argv
+- **THEN** only `status` and `plan` without a mutating token are read-only, whatever `next` reports
+  for the same argv
 
 ### Requirement: Readers of another ETHOS process read its result in full
 

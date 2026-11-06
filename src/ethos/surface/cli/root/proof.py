@@ -48,6 +48,7 @@ from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.proof.host import host_gate_observation
 from ethos.surface.cli.proof.host import host_probe_boundary
+from ethos.surface.cli.proof.host import readiness_observation
 from ethos.surface.cli.proof.report import compact_proof_context
 from ethos.surface.cli.proof.report import proof_scope_binding
 from ethos.surface.cli.proof.report import summarize_checks
@@ -79,6 +80,7 @@ class _ProofOptions:
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     host: bool = False
     probe: bool = False
+    readiness: bool = False
     acceptance_purpose: Annotated[AcceptancePurpose, Parameter(name="--acceptance-purpose")] = (
         "repository"
     )
@@ -99,6 +101,16 @@ def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bo
         _emit_proof_gap(
             ValueError("local_source_proof_requires_full_repository"), json_output=json_output
         )
+        return True
+    if options.readiness:
+        conflicting = options.gate or options.change or options.host or not options.execute
+        if conflicting:
+            _emit_proof_gap(ValueError("proof_readiness_options_invalid"), json_output=json_output)
+        else:
+            emit(
+                readiness_observation(repo=repo, expect_head=options.expect_head),
+                json_output=json_output,
+            )
         return True
     if not (options.host and options.execute):
         return False

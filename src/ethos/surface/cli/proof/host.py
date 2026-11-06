@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.runner import observe_gate_execution
+from ethos.adapters.gates.runner import readiness_tier
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
@@ -56,5 +59,40 @@ def host_gate_observation(
                 "current": current_head,
                 "matches": expect_head is None or expect_head == current_head,
             },
+        },
+    )
+
+
+def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult:
+    """Run the full plan's readiness tier alone; the gates after it are named, never passed."""
+    policy = resolve_gate_policy(repo, tree_ref=current_tracked_head(repo), full=True)
+    tier = readiness_tier(policy.nodes, policy.registry)
+    observed = observe_gate_execution(repo, gate_ids=tier, expect_head=expect_head)
+    not_run = [node.id for node in policy.nodes if node.id not in tier]
+    checks, required_gaps = observed["checks"], tuple(observed["required_gaps"])
+    verdict = observed["verdict"]
+    return EthosResult(
+        command="prove",
+        verdict=verdict,
+        state="observed" if verdict == "pass" else "gapped",
+        summary={
+            "boundary": "readiness",
+            "gate_count": len(checks),
+            "not_run": not_run,
+            "proof_attestation_issued": False,
+        },
+        diagnostics=tuple(observed["diagnostics"]),
+        required_gaps=required_gaps,
+        next_action="repair the failed readiness gate"
+        if required_gaps
+        else "ethos prove --full --execute",
+        data={
+            "executed": bool(checks),
+            "execution_source": observed["execution_source"],
+            "policy_digest": observed["policy_digest"],
+            "boundary": "readiness",
+            "checks": checks,
+            "not_run": not_run,
+            "attestation": {},
         },
     )

@@ -389,7 +389,10 @@ def shipped_node(archive: Path) -> tuple[str, str] | None:
             if member.isfile() and _RUNTIME.match(member.name) and _NODE.search(member.name):
                 stream = packed.extractfile(member)
                 if stream is not None:
-                    return member.name, hashlib.file_digest(stream, "sha256").hexdigest()
+                    digest = hashlib.sha256()
+                    while chunk := stream.read(1 << 20):
+                        digest.update(chunk)
+                    return member.name, digest.hexdigest()
     return None
 
 

@@ -886,7 +886,7 @@ multi-segment branch role value.
 
 ### Requirement: Tracked content and commit and tag messages carry no private-class network address
 
-The paradigm SHALL declare one pattern of private-class network addresses: RFC 1918 and RFC 4193 literals, loopback and link-local literals, and names under `.local`, `.internal`, `.lan` or `.home.arpa` in host position. Commit and tag admission SHALL refuse a message that matches it, and ETHOS's content scans SHALL refuse a match in tracked or staged content. No scan SHALL read history, and no gap SHALL repeat the address.
+The paradigm SHALL declare one pattern of private-class network addresses: RFC 1918 and RFC 4193 literals, and names under `.local`, `.internal`, `.lan` or `.home.arpa` in host position. Commit and tag admission SHALL refuse a message that matches it, and ETHOS's content scans SHALL refuse a match in tracked or staged content. No scan SHALL read history, and no gap SHALL repeat the address.
 
 #### Scenario: A commit message names a private forge
 
@@ -923,3 +923,9 @@ The paradigm SHALL declare one pattern of private-class network addresses: RFC 1
 
 - **WHEN** a record replaces a private literal with `[redacted:private-network-address:hmac-sha256:<64 lowercase hex>]`
 - **THEN** the content scans pass.
+
+#### Scenario: Loopback and link-local literals pass
+
+- **WHEN** content or a message names a loopback or link-local literal, such as a port bound to the
+  loopback interface
+- **THEN** the content scans and message admission pass, because such a literal discloses no peer

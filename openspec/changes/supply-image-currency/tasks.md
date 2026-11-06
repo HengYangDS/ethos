@@ -10,5 +10,6 @@
       `690e75069`, which built `sha256:36acefde2cda…`. With one input changed, the CI projection
       check refuses `supply_image_stale:package-lock.json` and names the route.
 - [x] 1.3 Keep GitLab's bootstrap tool list equal to the Dockerfile's. Done when a projection
-      test compares the two lists and the projection conforms. The parity test passes on the identical
+      test compares the two lists and the projection conforms. The parity test passes on the
+      identical
       lists, and 124 CI architecture tests pass.

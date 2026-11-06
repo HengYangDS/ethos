@@ -64,7 +64,7 @@ def _npm_sequence(monkeypatch: pytest.MonkeyPatch, outputs: list[tuple[int, str]
         code, output = pending.pop(0)
         return subprocess.CompletedProcess(command, code, output, f"npm diagnostic {code}")
 
-    monkeypatch.setattr(audit, "_RETRY_PAUSE_SECONDS", 0)
+    monkeypatch.setattr(audit.time, "sleep", lambda _seconds: None)
     return native_transport(monkeypatch, respond)
 
 
@@ -86,15 +86,15 @@ def test_a_failed_request_followed_by_a_clean_report_passes_with_both_attempts(
     assert len(observed) == 3
 
 
-def test_repeated_request_failure_stops_after_three_attempts(repository, monkeypatch) -> None:
-    observed = _npm_sequence(monkeypatch, [(1, _request_failed())] * 3)
+def test_repeated_request_failure_stops_after_four_attempts(repository, monkeypatch) -> None:
+    observed = _npm_sequence(monkeypatch, [(1, _request_failed())] * 4)
 
     payload = invoke_audit(repository)
 
     npm = payload["checks"][1]
     assert (payload["verdict"], npm["reason"]) == ("unknown", "advisory_request_failed")
-    assert len(npm["attempts"]) == 3
-    assert len(observed) == 4
+    assert len(npm["attempts"]) == 4
+    assert len(observed) == 5
     assert payload["decision"]["verdict"] != "pass"
 
 

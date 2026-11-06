@@ -465,6 +465,8 @@ tool_adapter = "vulnerabilities"
 writes_files = true
 network_policy = "required"
 version_source = "locked-toolchain"
+# Four attempts of at most 120 s each, with 420 s of backoff between them, fit in 1,200 s.
+timeout_seconds = 1200
 
 [[gates]]
 id = "release-sbom"

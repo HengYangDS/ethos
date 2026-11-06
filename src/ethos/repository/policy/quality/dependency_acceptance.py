@@ -321,9 +321,16 @@ def _npm_advisory_request_failed(output: str) -> bool:
     )
 
 
+def _python_advisory_request_failed(output: str, exit_code: int, stderr: str) -> bool:
+    """Recognize uv's diagnostic for an advisory query that never answered and wrote no report."""
+    return bool(exit_code) and not output.strip() and "error sending request for url" in stderr
+
+
 def interpret_native_audit(
-    ecosystem: str, output: str, exit_code: int
+    ecosystem: str, output: str, exit_code: int, stderr: str = ""
 ) -> tuple[Verdict, str, dict]:
+    if ecosystem == "python" and _python_advisory_request_failed(output, exit_code, stderr):
+        return "unknown", "advisory_request_failed", {}
     try:
         raw = json.loads(output)
         dependencies, findings = (_python_counts if ecosystem == "python" else _npm_counts)(raw)
@@ -357,7 +364,7 @@ def _native_observation_gaps(payload: dict, lock_source: bytes) -> tuple[str, st
         if check["ecosystem"] != ecosystem or type(check["exit_code"]) is not int:
             return "unknown", "native_execution_failed"
         verdict, reason, _details = interpret_native_audit(
-            ecosystem, check["stdout"], check["exit_code"]
+            ecosystem, check["stdout"], check["exit_code"], check.get("stderr") or ""
         )
         if verdict != check["verdict"] or reason != check["reason"]:
             return "unknown", "native_audit_verdict_mismatch"
@@ -390,11 +397,12 @@ def evaluate_dependency_acceptance(
             return {**decision, "verdict": verdict, "reason": reason}
         decision["verdict"] = payload["verdict"]
         checks = payload["checks"]
+        # An ecosystem that observed nothing has no findings to identify: its native reason stands.
+        if unobserved := [check["reason"] for check in checks if check["verdict"] == "unknown"]:
+            return {**decision, "verdict": "unknown", "reason": unobserved[0]}
         python = python_findings(checks[0])
         if payload["verdict"] == "pass" or python is None:
             return decision
-        if checks[1]["verdict"] not in ("pass", "block") or checks[1]["exit_code"] not in (0, 1):
-            return {**decision, "verdict": "unknown", "reason": "native_execution_failed"}
         subjects, aggregates = (
             _npm_subjects(lock_source, checks[1]) if checks[1]["verdict"] == "block" else (set(), 0)
         )

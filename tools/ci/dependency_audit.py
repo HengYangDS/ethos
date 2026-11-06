@@ -42,9 +42,9 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = "build/evidence/quality/security"
-# npm never retries POST, so a dropped bulk advisory request is observed again here.
-_ATTEMPTS = 3
-_RETRY_PAUSE_SECONDS = 2
+# A failed advisory request is observed again after each pause. npm never retries POST, and
+# uv's own quick retries fall inside one burst; observed bursts of resets lasted 3 to 6 minutes.
+BACKOFF_SECONDS = (60, 120, 240)
 
 
 def requested_scope(arguments: tuple[str, ...]) -> AuditScope:
@@ -141,16 +141,16 @@ def _command(ecosystem: str, root: Path) -> tuple[str, ...]:
 
 
 def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
-    """Repeat only a failed npm advisory request; every attempt stays in the receipt."""
+    """Repeat only a failed advisory request, after each backoff; every attempt is kept."""
     attempts: list[dict] = []
     while True:
         result = _observe_once(root, ecosystem, timeout)
         attempts.append(
             {key: result.get(key) for key in ("verdict", "reason", "exit_code", "stderr")}
         )
-        if result["reason"] != "advisory_request_failed" or len(attempts) == _ATTEMPTS:
+        if result["reason"] != "advisory_request_failed" or len(attempts) > len(BACKOFF_SECONDS):
             return {**result, "attempts": attempts}
-        time.sleep(_RETRY_PAUSE_SECONDS)
+        time.sleep(BACKOFF_SECONDS[len(attempts) - 1])
 
 
 def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict:
@@ -160,7 +160,7 @@ def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict:
         command = _command(ecosystem, root)
         completed = run_command(root, command, timeout=timeout, remove_env_prefixes=("GIT_",))
         verdict, reason, details = interpret_native_audit(
-            ecosystem, completed.stdout, completed.returncode
+            ecosystem, completed.stdout, completed.returncode, completed.stderr
         )
 
     except (

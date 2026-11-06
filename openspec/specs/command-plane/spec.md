@@ -32,18 +32,41 @@ over the same application operations without creating lifecycle authority.
 
 #### Scenario: Default payloads stay bounded
 
-- **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
-  default payload budget
-- **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`,
-  `next_action`, `continuation`, `missing_facts_or_evidence`, and
-  `user_decision_required`
-- **AND** oversized detail is replaced by a digest-bound artifact reference
+- **WHEN** any command's JSON result would exceed its declared default payload budget
+- **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`, `next`,
+  `next_action`, `continuation`, `missing_facts_or_evidence`, and `user_decision_required`
+- **AND** `data` keeps the command's own small entries, such as receipts, paths and evidence
+  references, and the scalar fields of a larger mapping
+- **AND** a top-level `bound` names the digest-bound detail artifact of the full result, each
+  failing step's id, exit code and first 20 output lines, and the entries it shortened or moved,
+  with counts of what was omitted
+- **AND** detail older than seven days is removed whenever new detail is written
+- **AND** detail is a cache, not an effect: when it cannot be written, the result stays inline,
+  names the reason in `bound.detail_unavailable`, and still fits
+- **AND** a result that would still exceed its budget is truncated with counts, never refused
 - **AND** no alternate reader command or truth source is introduced
+
+#### Scenario: The next step is structured data
+
+- **WHEN** a result selects a next step
+- **THEN** `next` names its kind (`command`, `instruction`, `decision` or `done`), and a `command`
+  carries the exact ETHOS argv, its effects ordered from `read`, `remote-read`, `execute`,
+  `local-evidence-write` and `local-write` to `remote-write`, whether running it embeds an
+  authorization, the values its flags bind (root, head, candidate head, receipt, plan digest and
+  lease expiry) and why
+- **AND** `next_action` renders the same step for humans
+- **AND** a step that needs a human decision carries no argv
+
+#### Scenario: A result names its runtime
+
+- **WHEN** any command returns a JSON result
+- **THEN** `summary.runtime` names the product version, distribution version and source commit of
+  the committed build that produced it
 
 #### Scenario: a reader derives continuation
 
 - **WHEN** current authoritative facts are sufficient to select the next boundary
-- **THEN** the schema-version-`2` result preserves `state` and `required_gaps`,
+- **THEN** the schema-version-`3` result preserves `state` and `required_gaps`,
   exposes one `next_action`, and derives exactly one `continuation`: `continue`,
   `await-user`, `blocked`, or `done`
 - **AND** `missing_facts_or_evidence` derives from `required_gaps` only when
@@ -527,23 +550,27 @@ and SHALL NOT reselect intent.
 
 ### Requirement: Continuation derives from explicit result facts
 
-The schema-version-`2` result SHALL carry `user_decision_required` as an
-explicit typed fact selected by the owning resolution. `continuation` SHALL be a
-pure projection from verdict, the presence of the sole next action, and that
-fact. ETHOS SHALL NOT infer an authority boundary by parsing command text,
-English phrases, or gap-name suffixes.
+The schema-version-`3` result SHALL carry `user_decision_required` as an explicit typed fact
+selected by the owning resolution. `continuation` SHALL be a pure projection from verdict, the
+presence of the sole next action, and that fact. ETHOS SHALL NOT infer an authority boundary by
+parsing command text, English phrases, or gap-name suffixes.
 
 #### Scenario: A mutating-looking command is already authorized
 
-- **WHEN** a result exposes an executable next action and explicitly states that no user decision is required
+- **WHEN** a result exposes an executable next action and explicitly states that no user decision
+  is required
 - **THEN** `user_decision_required` remains false
 - **AND** Continuation is `continue` for a passing result or `blocked` for a non-passing result
+- **AND** `next` names the argv's write effects and an `embedded` authorization, so a harness can
+  ask before it runs the step
 
 #### Scenario: Human authority is required
 
-- **WHEN** the owning resolution explicitly marks that handoff, authorization, or confirmation is required
+- **WHEN** the owning resolution explicitly marks that handoff, authorization, or confirmation is
+  required
 - **THEN** `user_decision_required` is true
 - **AND** Continuation is `await-user` without inspecting the action string or gap spelling
+- **AND** `next` is a `decision` with no argv
 
 ### Requirement: Result projection preserves diagnostic execution facts
 
@@ -1362,3 +1389,27 @@ Lease renewal and resumption without coordinates SHALL preview from the current 
 - **THEN** the preview plans the exact operation on the current Lease
 - **AND** it names the apply command with lane ref, holder ref, generation and expiry
 - **AND** an apply without those coordinates refuses with `lease_coordinates_required`
+
+### Requirement: The structured next step derives from the exact rendered argv
+
+ETHOS SHALL derive `next` only from the exact ETHOS argv that `next_action` renders, by a lossless
+split and join, and SHALL take its effects from the admission classification of that argv. Prose
+or a template SHALL stay an instruction without an argv. Every reader SHALL re-derive `next` and
+check a carried one only for shape.
+
+#### Scenario: A rendered command becomes a structured step
+
+- **WHEN** a result's `next_action` is one exact ETHOS argv
+- **THEN** `next` carries that argv, its effects, its authorization and the values its flags bind
+
+#### Scenario: Prose stays an instruction
+
+- **WHEN** a result's `next_action` is prose, a template with a placeholder, or another tool's
+  command
+- **THEN** `next` is an `instruction` with no argv
+
+#### Scenario: A reader never trusts a carried step
+
+- **WHEN** a reader validates a payload whose `next` differs from its own derivation
+- **THEN** it keeps its own derivation, and refuses the payload only when the carried `next` is
+  malformed

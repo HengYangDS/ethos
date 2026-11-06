@@ -23,6 +23,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
+from ethos.result import expand_result
 from tools.ci.toolchain.environment import ProjectRuntime
 
 PROVE = (
@@ -129,7 +130,8 @@ def _receipt(
     try:
         policy = _policy(root, observed, supply_exit)
         raw = proof.read_bytes()
-        observation = json.loads(raw)
+        # An over-budget result is bounded; its digest-bound detail holds the checks.
+        observation = expand_result(json.loads(raw))
         data, summary = observation["data"], observation["summary"]
         coordinates, checks = data["expected_head"], data["checks"]
         _require_check_objects(checks)

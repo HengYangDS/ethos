@@ -11,6 +11,8 @@ import pytest
 
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.result import EthosResult
+from ethos.result import apply_payload_budget
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci import hosted_verification
@@ -270,6 +272,42 @@ def test_hosted_receipt_requires_exact_executed_observation(
         if evidence in {"valid", "failed", "skipped"} and fault not in {"malformed", "empty"}
         else "Coverage: unavailable"
     ) in summary
+
+
+def test_hosted_receipt_reads_a_bounded_proof_in_full(
+    tmp_path: Path,
+    hosted_proof_transport: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An over-budget host proof is judged from its digest-bound detail, never refused for size."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    payload = _observation_payload(head, "none", "valid")
+    payload["data"]["checks"][0]["stdout"] = "gate output\n" * 4000
+    result = EthosResult(
+        command="prove",
+        verdict="pass",
+        state="observed",
+        summary=payload["summary"],
+        data=payload["data"],
+    )
+    bounded = apply_payload_budget(result, root=tmp_path / "store").to_dict()
+    assert "checks" not in bounded["data"]
+    case = {"output": json.dumps(bounded), "exit_code": 0}
+    (repo / "proof-case.json").write_text(json.dumps(case))
+    binary = tmp_path / "bin/uv"
+    binary.parent.mkdir()
+    binary.symlink_to(hosted_proof_transport)
+    _hosted_supply(repo, hosted_proof_transport, "exit 0\n")
+    monkeypatch.setattr(hosted_verification, "render_allure", lambda _root, _reports: None)
+    summary = tmp_path / "summary.md"
+    status, out, err = _run_hosted(
+        repo, binary.parent, monkeypatch, capsys, head, GITHUB_STEP_SUMMARY=str(summary)
+    )
+    receipt = json.loads(out)
+    assert (status, receipt["verdict"], receipt["required_gaps"]) == (0, "pass", []), out + err
+    assert receipt["gate_count"] == len(payload["data"]["checks"])
 
 
 @pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft", "vale"])

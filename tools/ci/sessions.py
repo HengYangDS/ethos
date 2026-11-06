@@ -265,8 +265,7 @@ def secrets(session) -> None:
     Secret scanning is a source-quality gate: ignored caches and local evidence
     cannot fail it, while a tracked finding fails it deterministically.
     """
-    supply = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
-    gitleaks = supply.materialize_tool(ROOT, "gitleaks") / "gitleaks"
+    gitleaks = import_module("tools.ci.toolchain.native").supply_tool(ROOT, "gitleaks") / "gitleaks"
     if not gitleaks.is_file():
         session.error(f"locked gitleaks is missing: {gitleaks}")
     report = ROOT / "build/evidence/quality/secrets/report.json"

@@ -150,6 +150,9 @@ jobs:
         run: uv sync --locked --group dev
       - name: Execute wheel conformance
         run: uv run --frozen python -m nox -s host_conformance
+      - name: Declare the components of the kept runtime archive
+        if: ${{ contains(fromJSON('["ubuntu-latest 3.14","ubuntu-24.04-arm 3.14","macos-latest 3.14","windows-latest 3.14","windows-11-arm cpython-3.14-windows-x86_64-none"]'), format('{0} {1}', matrix.os, matrix.python)) }}
+        run: uv run --frozen python -m nox -s supply_chain
       - name: Execute npm launcher
         run: uv run --frozen python -B -m tools.ci.toolchain.npm run ethos -- --version
       - name: Execute native npm package tests
@@ -334,7 +337,7 @@ jobs:
       - name: Prepare locked native build supply
         env:
           PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale syft
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
       - name: Install locked npm packages
         env:
           PYTHONPATH: src

@@ -27,9 +27,9 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.runtime.materialization.native_supply import NATIVE_BACKENDS
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
-from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from tools.ci.delivery.release_assets import inventory_gaps
+from tools.ci.toolchain.native import supply_tool
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -298,7 +298,7 @@ def locked_node_digest(runtime: str) -> str:
     if supply.target != runtime:
         message = "release_inventory_component_unverified:node"
         raise RuntimeError(message)
-    directory = materialize_tool(ROOT, "node")
+    directory = supply_tool(ROOT, "node")
     return _sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
 
 
@@ -329,7 +329,7 @@ def run(session: nox.Session) -> None:
     # YAML is a superset of JSON, so the policy's table is Syft's whole explicit configuration.
     config.write_text(json.dumps(policy["syft_config"], indent=2) + "\n", encoding="utf-8")
     supply = NativeSupply.read(ROOT, "syft")
-    syft = native_syft(materialize_tool(ROOT, "syft") / supply.executable_name)
+    syft = native_syft(supply_tool(ROOT, "syft") / supply.executable_name)
     spdx, inventory = catalog(archive, name=name, outputs=outputs, config=config, run=syft)
     manifest = _manifest(archive)
     tools = {

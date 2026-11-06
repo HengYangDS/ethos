@@ -23,6 +23,7 @@ from packaging.version import Version
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.manifest import process_machine
+from ethos.adapters.repo.runtime.materialization.native_supply import NATIVE_BACKENDS
 from ethos.adapters.repo.runtime.materialization.native_supply import download_tool
 from ethos.adapters.repo.runtime.materialization.native_supply import ensure_native_directory
 from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
@@ -171,6 +172,15 @@ def prepare_mise(root: Path) -> Path:
     return executable
 
 
+def supply_tool(root: Path, name: str) -> Path:
+    """Materialize one locked native tool through the repository's own mise, on any host.
+
+    A hosted job keeps the staged mise in the tool cache, not on PATH, so a session that relied
+    on PATH would fail there and succeed on the operator's host.
+    """
+    return materialize_tool(root, name, mise=prepare_mise(root))
+
+
 def declared_go_version(root: Path) -> str | None:
     """Read the one project declaration without inferring an ambient Go tool."""
     declared = tomllib.loads((root / MISE_CONFIG).read_text(encoding="utf-8")).get("tools", {})
@@ -258,9 +268,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--mise", action="store_true")
-    parser.add_argument(
-        "tools", nargs="*", choices=("scc", "gitleaks", "syft", "vale", "cue", "node")
-    )
+    parser.add_argument("tools", nargs="*", choices=(*NATIVE_BACKENDS, "node"))
     arguments = parser.parse_args()
     try:
         mise = prepare_mise(arguments.root) if arguments.mise else None

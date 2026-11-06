@@ -140,6 +140,7 @@ let releaseLegs = [
 	{host: "windows-x64", os: "windows-latest", python: "3.14", required: false, emulated: false},
 	windowsArmLeg & {host: "windows-arm64", required: false, emulated: true},
 ]
+let releaseLegRun = "${{ contains(fromJSON('\(json.Marshal([for leg in releaseLegs {"\(leg.os) \(leg.python)"}]))'), format('{0} {1}', matrix.os, matrix.python)) }}"
 let releaseHosts = "--required \(strings.Join([for leg in releaseLegs if leg.required {leg.host}], ",")) --optional \(strings.Join([for leg in releaseLegs if !leg.required {leg.host}], ","))"
 
 // The adopter journey runs from the published artifacts on the platforms a beta must qualify.
@@ -150,8 +151,6 @@ let journeyLegs = [for leg in releaseLegs if leg.host == "linux-x64" || leg.host
 let githubHostSupplyAt = {
 	checkout: string
 	python:   string
-	// The native tools a job stages before its steps run; a job that runs the supply chain adds syft.
-	native: [...string] | *["vale"]
 	out: [{
 		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 		with: {
@@ -173,7 +172,7 @@ let githubHostSupplyAt = {
 	}, {
 		name: "Prepare locked native build supply"
 		env: PYTHONPATH: "src"
-		run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise \(strings.Join(native, " "))"
+		run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale"
 	}, {
 		name: "Install locked npm packages"
 		env: PYTHONPATH: "src"
@@ -336,6 +335,13 @@ github: {
 				name: "Execute wheel conformance"
 				run:  "uv run --frozen python -m nox -s host_conformance"
 			}, {
+				// A leg on a release leg's runner and Python catalogs the archive its smoke kept, as the
+				// release leg will, so the release's inventory step never first runs at release time. Its
+				// log carries the evidence, including any component declared from the locked supply.
+				name: "Declare the components of the kept runtime archive"
+				if:   releaseLegRun
+				run:  "uv run --frozen python -m nox -s supply_chain"
+			}, {
 				name: "Execute npm launcher"
 				run:  "uv run --frozen \(nativeNpm) run ethos -- --version"
 			}, {
@@ -462,7 +468,7 @@ github: {
 					include: releaseLegs
 				}
 			}
-			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}", native: ["vale", "syft"]}).out, [{
+			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}"}).out, [{
 				name: "Bind operator commit trust"
 				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
 			}, {

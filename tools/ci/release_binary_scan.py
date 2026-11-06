@@ -22,8 +22,8 @@ from urllib.parse import urlsplit
 import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
-from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
 from ethos.adapters.toolchain.mise import native_tool_cache
+from tools.ci.toolchain.native import supply_tool
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -159,7 +159,7 @@ def run(session: nox.Session) -> None:
 
 def _native_grype() -> Callable[[Path, Path], None]:
     supply = NativeSupply.read(ROOT, "grype")
-    executable = materialize_tool(ROOT, "grype") / supply.executable_name
+    executable = supply_tool(ROOT, "grype") / supply.executable_name
     database = native_tool_cache(ROOT) / "grype-db"
 
     def scan(inventory: Path, output: Path) -> None:

@@ -525,3 +525,31 @@ def test_a_provider_keeps_its_native_outcome(
             "o" * 2140,
             "e" * 2140,
         )
+
+
+def test_a_provider_that_returns_late_keeps_its_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A late report decides nothing, but the result keeps what the provider observed."""
+    clock = [100.0]
+    monkeypatch.setattr(gate_verification, "monotonic", lambda: clock[0])
+    observed = {"verdict": "pass", "native": {"stdout": "220 passed", "exit_code": 0}}
+
+    def report(_root: Path, *, timeout_seconds: float | None = None) -> dict[str, object]:
+        clock[0] += (timeout_seconds or 0) + 1
+        return observed
+
+    gate = Gate.model_validate(
+        {"id": "late", "kind": "test", "timeout_seconds": 5, "providers": ("ethos.test:report",)}
+    )
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+
+    (diagnostic,) = result.diagnostics
+    assert (result.verdict, diagnostic["kind"], diagnostic["required_gaps"]) == (
+        "unknown",
+        "gate_timeout",
+        ["gate_timeout:late"],
+    )
+    assert json.loads(result.stdout)["providers"] == [
+        {"provider": "ethos.test:report", "report": observed}
+    ]

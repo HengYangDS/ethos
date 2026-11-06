@@ -144,7 +144,6 @@ def provider_reports(
                     timeout_seconds=remaining,
                     candidate=candidate,
                 )
-            _time_left(deadline, reference, timeout_seconds)
         except subprocess.TimeoutExpired as exc:
             # The provider did not decide, as a command gate's exit 124 does not.
             reports.append({"provider": reference, "report": {"verdict": "unknown"}})
@@ -180,6 +179,19 @@ def provider_reports(
             )
             continue
         reports.append({"provider": reference, "report": dict(report)})
+        if deadline is not None and monotonic() >= deadline:
+            # A report that arrived after its deadline decides nothing; it stays as evidence.
+            verdicts.append("unknown")
+            diagnostics.append(
+                {
+                    "kind": "gate_timeout",
+                    "provider": reference,
+                    "timeout_seconds": timeout_seconds,
+                    "elapsed_seconds": monotonic() - started,
+                    "required_gaps": [f"gate_timeout:{gate_id}"],
+                }
+            )
+            continue
         gaps = string_sequence(report.get("required_gaps"), drop_empty=True)
         warnings = string_sequence(report.get("warnings"), drop_empty=True)
         warning_gaps = tuple(

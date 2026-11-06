@@ -18,9 +18,9 @@ import tomli_w
 from markdown_it import MarkdownIt
 
 import ethos.adapters.repo.content.observation as content_observation
-import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import ethos.repository.policy.schema as schema_owner
 import tools.ci.local_ci as local_ci
+import tools.ci.toolchain.native as native_owner
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -190,7 +190,7 @@ def test_secrets_scans_a_mirror_of_only_the_tracked_files(
     supply.mkdir()
     (supply / "gitleaks").write_text("", encoding="utf-8")
     (supply / "gitleaks").chmod(0o755)
-    monkeypatch.setattr(native_supply, "materialize_tool", lambda _root, _name: supply)
+    monkeypatch.setattr(native_owner, "supply_tool", lambda _root, _name: supply)
     monkeypatch.setattr(sessions, "ROOT", repo)
     observed: list[tuple[tuple[str, ...], list[str], bool]] = []
 

@@ -12,6 +12,56 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.5] - 2026-11-07
+
+### Added
+
+- `ethos prove --readiness --execute` runs the full plan's readiness tier alone: every gate that is
+  not a test or package gate and does not depend on one. It never waits for the proof slot or host
+  load, writes no attestation, can never satisfy landing, and reports each test and package gate as
+  `not_run`.
+
+### Changed
+
+- The paradigm's private-address class no longer includes the IPv4 and IPv6 loopback and
+  link-local literals. They disclose no peer, and in adopters they often carry security controls.
+  ETHOS's own product boundary still refuses them on its product surfaces.
+- The locks take the newest stable releases at least 24 hours old, among them coverage 7.17.2,
+  Syft 1.57.0 and Grype 0.121.2. The declared floors of filelock, platformdirs and ty rise to their
+  locked versions.
+- ETHOS's CI refuses a stale supply image before any proof gate. The image binding records the
+  commit its image was built from, and the CI projection check refuses with
+  `supply_image_stale:<path>` when one of the image's inputs changed since.
+- 0.2.0-beta.5 upgrades directly from 0.2.0-beta.4, 0.2.0-beta.2 and 0.2.0-alpha.29, the releases
+  that governed adopters select. Its hosted journey upgrades from, and rolls back to, each of them
+  on macOS and Linux. It changes neither the result schema nor the release declaration, so adopter
+  kits and declarations move unchanged.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+
+### Fixed
+
+- Locked npm tools resolve under mise 2026.11.2.
+  - **Cause.** mise 2026.11.2 resolves a locked npm tool from the aube lock sidecar that its lock
+    names, under `.config/mise/locks/<tool>/<version>/`. ETHOS resolved the supply in a copy that
+    held only the mise configuration and lock, so those tools read as not installed, and adopters'
+    behavior gates refused with `mise_supply_incomplete`.
+  - **Fix.** The supply closure carries every file of each sidecar directory that the lock names,
+    and checks each again against the repository before mise runs. A sidecar directory outside the
+    repository refuses with `mise_lock_sidecar_outside_root:<directory>`, and a changed sidecar
+    refuses as a changed version carrier.
+  - **Trust.** From mise 2026.11.2, native mise also resolves a locked aube install for an
+    untrusted copy. ETHOS still records and carries no trust of its own.
+
 ## [0.2.0-beta.4] - 2026-11-06
 
 ### Fixed

@@ -282,7 +282,11 @@ be absent.
 
 ### Requirement: Results compose their parts' causes
 
-An aggregate result SHALL reduce its parts' verdicts, block before unknown before pass, and SHALL keep every part's own gaps: the part's class code first, then at most five of its cause codes, with one bounded diagnostic that counts the rest. An exception that carries a result SHALL carry all of its gaps and its verdict class, and a boundary SHALL NOT turn an unknown part into block.
+An aggregate result SHALL reduce its parts' verdicts, block before unknown before pass, and SHALL
+keep every part's own gaps: the part's class code first, then at most five of its cause codes, with
+one bounded diagnostic that counts the rest. An exception that carries a result SHALL carry all of
+its gaps and its verdict class, and a boundary SHALL NOT turn an unknown part into block. A part
+that exceeds its deadline SHALL keep what it observed.
 
 #### Scenario: A gate times out during an executed proof
 
@@ -290,6 +294,12 @@ An aggregate result SHALL reduce its parts' verdicts, block before unknown befor
 - **THEN** the proof's required gaps list `gate_unknown:<gate>` and then `gate_timeout:<gate>`
 - **AND** the proof's verdict is unknown, with one diagnostic that names the gate, its bound and
   its elapsed seconds
+
+#### Scenario: A provider returns after its deadline
+
+- **WHEN** a provider gate's provider returns a report after the gate's deadline
+- **THEN** the gate's result keeps that report as returned
+- **AND** the gate is unknown with `gate_timeout:<gate>`
 
 #### Scenario: A refusal finds several gaps
 

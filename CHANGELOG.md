@@ -12,6 +12,60 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.4] - 2026-11-06
+
+### Fixed
+
+- Windows runtimes are published again.
+  - **Cause.** Syft classifies Node.js only in a file named `node`, so the inventories of a Windows
+    archive missed its bundled `node.exe`, and both Windows release legs of beta.3 failed their
+    component check. The upstream report is
+    [Syft issue 5533](https://github.com/anchore/syft/issues/5533).
+  - **Declaration.** When the catalog lacks the runtime's Node executable, the inventory owner
+    declares it in both inventories from the locked Node supply. The declaration is bound to the
+    shipped file's SHA-256 and to the archive's runtime platform. It carries Syft's identity fields
+    and `foundBy` `ethos-locked-supply`.
+  - **Refusal.** A different file refuses with `release_inventory_component_unverified:node`.
+  - **Scan.** The binary scan matches the declared Node as it matches Syft's own record, and no
+    longer lists that file as unidentified.
+  - **Removal.** The declaration lapses once a locked Syft classifies `node.exe`.
+- A release names every declared platform it does not publish.
+  - Each release leg declares whether its platform is required. The workflow's failure tolerance
+    and the assembler's `--required` and `--optional` hosts derive from that declaration.
+  - A failed optional leg is left out with the cause `leg_incomplete`. The notes say that an
+    adopter that installs ETHOS on such a host keeps its current release.
+  - Assembly refuses an undeclared host. CUE refuses an emulated required leg and an optional
+    journey leg.
+  - beta.3's notes needed a hand amendment for this.
+- Release assembly checks each leg's source commit against the release head, and its distribution
+  version against the tag.
+- Repository sessions obtain Gitleaks, Syft, Grype and Node through the repository's own mise.
+  - A hosted job no longer depends on which tools its staging list fetched. beta.3's release runs
+    failed on Syft, and then on Grype, for that reason.
+  - The staging command accepts every registered native tool.
+- The dependency audit rides out network resets from OSV with a bounded backoff. It reports a
+  Python audit that produced no output by its native reason, instead of as an unidentified finding.
+
+### Changed
+
+- 0.2.0-beta.4 upgrades directly from 0.2.0-beta.3, 0.2.0-beta.2 and 0.2.0-alpha.29, the releases
+  that governed adopters select. Its hosted journey upgrades from, and rolls back to, each of them
+  on macOS and Linux.
+- Each host-conformance leg that matches a release leg's runner and Python catalogs the runtime
+  archive that its install smoke kept, on every commit, so the release's inventory step no longer
+  first runs at release time.
+- Not qualified by this beta:
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+
 ## [0.2.0-beta.3] - 2026-11-06
 
 ### Added

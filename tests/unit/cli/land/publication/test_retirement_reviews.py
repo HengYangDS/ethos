@@ -140,7 +140,7 @@ def test_local_remote_api_locator_does_not_need_a_tracked_private_address(
 ):
     """Local connection metadata feeds the native client without becoming repository policy."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
-    target = "http://forge.example:18086/team/repo"
+    target = "http://forge.example:8443/team/repo"
     git(repo, "config", "--local", "remote.gitlab.forgeRepository", target)
     native = retirement.process.run_command
 
@@ -148,7 +148,7 @@ def test_local_remote_api_locator_does_not_need_a_tracked_private_address(
         if command[0] != "glab":
             return native(root, command, **kwargs)
         assert command[command.index("--repo") + 1] == target
-        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.example:18086"
+        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.example:8443"
         return subprocess.CompletedProcess(command, 0, "[]", "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)

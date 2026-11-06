@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 import ethos.adapters.repo.hook.admission as hook_runtime
-import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
+import tools.ci.toolchain.native as native_owner
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.paradigm.declaration import RepositoryParadigm
@@ -131,7 +131,7 @@ def test_history_alone_fails_neither_content_scan(
     assert "staged_secret_scan_failed" in capsys.readouterr().err
     assert git_process(repo, "reset", "--quiet", "--hard").returncode == 0
     supply = Path(_gitleaks()).parent
-    monkeypatch.setattr(native_supply, "materialize_tool", lambda _root, _name: supply)
+    monkeypatch.setattr(native_owner, "supply_tool", lambda _root, _name: supply)
     monkeypatch.setattr(sessions, "ROOT", repo)
     outcomes: list[int] = []
 

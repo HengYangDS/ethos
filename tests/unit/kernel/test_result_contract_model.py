@@ -227,8 +227,10 @@ def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> N
         "missing_facts_or_evidence": [],
         "next": {
             "kind": "command",
+            "form": "",
             "argv": ["ethos", "prove", "--json"],
             "effects": ["local-evidence-write"],
+            "destructive": False,
             "authorization": "none",
             "binding": {},
             "why": "gap-a",

@@ -185,6 +185,10 @@ def test_npm_launcher_reaches_the_source_command_plane(tmp_path: Path) -> None:
         (("ethos", "plan", "--json"), True),
         (("ethos", "prove", "--json"), False),
         (("ethos", "land", "--json"), False),
+        # The next step may read, but hook admission's readers do not widen with it.
+        (("ethos", "lane", "status", "--json"), False),
+        (("ethos", "publish", "--ref", "refs/heads/dev", "--probe-remote", "--json"), False),
+        (("ethos", "hook", "install", "--json"), False),
     ],
 )
 def test_command_readonly_classification_is_public_and_fail_closed(

@@ -390,12 +390,20 @@ of the committed build that produced the result.
 
 `next` is the step that `next_action` renders, as data, so an agent never parses text:
 
-- `kind` is `command`, `instruction`, `decision` or `done`. Only a `command` has an `argv`: the
-  exact ETHOS invocation to run.
+- `kind` is `command`, `instruction`, `decision` or `done`. A `command` has an `argv`: the exact
+  ETHOS invocation to run. A `decision` whose text is one exact ETHOS argv carries it too, as the
+  invocation a person approves; no reader runs it without that approval.
 - `effects` lists what the argv does, ordered `read`, `remote-read`, `execute`,
-  `local-evidence-write`, `local-write`, `remote-write`.
-- `authorization` is `none`; `embedded` when running the argv performs a write it already
-  authorizes; or `human` when only a person can take the step.
+  `local-evidence-write`, `local-write`, `host-write`, `remote-write` and `opaque`. `host run` and
+  `mcp` are `opaque`: their argv cannot bound what they run.
+- `authorization` is the strongest authority token in the argv: `attestation`
+  (`--authorization <file>`), `confirm-irreversible`, `authorize` or `apply`. It is `none` without
+  one, and `human` for a decision or an opaque step.
+- `destructive` says whether the argv selects the deletion of something it does not recreate.
+  Cleanup that another operation performs under a liveness check is not counted, and that operation
+  reports it in its result. A retirement receipt applies only with `--retire`, and a candidate
+  refresh that would drop commits accepted lacks needs `--confirm-irreversible`.
+- `form` is empty until command forms are declared.
 - `binding` names the values the argv binds: `root`, `head`, `candidate_head`, `receipt`,
   `plan_digest` and `lease_expires_at`.
 - `why` is the first required gap, or else the state.

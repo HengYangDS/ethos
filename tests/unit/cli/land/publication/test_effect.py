@@ -73,7 +73,12 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
     for key in ("verdict", "state", "required_gaps", "next_action"):
         assert direct_preview[key] == dry_run[key]
     assert direct_preview["data"]["transition_plan"] == dry_run["data"]["transition_plan"]
-    applied = apply_receipt(repo, dry_run["data"]["request_receipt"], head)
+    receipt = dry_run["data"]["request_receipt"]
+    # A publication request never applies as a retirement: the argv must say what it deletes.
+    refused = apply_receipt(repo, receipt, head, blocked=True, retire=True)
+    assert "remote_publication_receipt_retire_mismatch" in refused["required_gaps"]
+    assert {proposal_ref(remote) for remote in remotes.values()} == {""}
+    applied = apply_receipt(repo, receipt, head)
 
     assert report["verdict"] == "pass"
     assert applied["state"] == "published"

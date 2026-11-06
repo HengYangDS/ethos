@@ -116,8 +116,13 @@ def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
     main = git(repo, "rev-parse", "main")
     preview = branch_publication(repo, accepted, "--retire")
     assert preview["state"] == "ready_to_retire"
+    # The apply an agent is handed says that it deletes, and refuses an argv that hides it.
+    assert ("--retire" in preview["next"]["argv"], preview["next"]["destructive"]) == (True, True)
+    receipt = preview["data"]["request_receipt"]
+    hidden = apply_receipt(repo, receipt, accepted, blocked=True)
+    assert "remote_publication_receipt_retire_mismatch" in hidden["required_gaps"]
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
-    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
+    applied = apply_receipt(repo, receipt, accepted, retire=True)
     assert applied["state"] == ("retired" if local == "absent" else "retirement_pending")
     assert applied["summary"]["remote_push"] == "applied"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
@@ -143,7 +148,7 @@ def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
         assert proposal_ref(repo) == ""
     assert git(repo, "rev-parse", "dev") == accepted
     assert git(repo, "rev-parse", "main") == main
-    replay = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
+    replay = apply_receipt(repo, receipt, accepted, retire=True)
     assert replay["state"] == "retired"
     assert {item["state"] for item in replay["data"]["remote_effect"]["attempts"]} == {
         "already_applied"
@@ -210,7 +215,7 @@ def test_retirement_retires_a_published_legacy_role_ref(
         assert remaining == {legacy}
         return
     assert preview["state"] == "ready_to_retire"
-    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
+    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted, retire=True)
     assert applied["state"] == "retired"
     assert {
         git(peer, "for-each-ref", "--format=%(objectname)", f"refs/heads/{target}")
@@ -224,7 +229,9 @@ def test_retirement_rechecks_peer_absorption_between_preview_and_effect(tmp_path
     preview = branch_publication(repo, accepted, "--retire")
     parent = git(repo, "rev-parse", f"{proposal}^")
     git(peers["github"], "update-ref", "refs/heads/dev", parent, accepted)
-    blocked = apply_receipt(repo, preview["data"]["request_receipt"], accepted, blocked=True)
+    blocked = apply_receipt(
+        repo, preview["data"]["request_receipt"], accepted, blocked=True, retire=True
+    )
     assert "proposal_retirement_peer_not_accepted" in blocked["required_gaps"]
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
 
@@ -277,12 +284,12 @@ def test_retirement_recovers_partial_effects_without_redeleting_completed_peers(
         return native(root, *args, **kwargs)
 
     monkeypatch.setattr(publication_execution.git, "run_network_git", network)
-    result = apply_receipt(repo, receipt, accepted, blocked=True)
+    result = apply_receipt(repo, receipt, accepted, blocked=True, retire=True)
     assert result["state"] == ("partial" if failure == "rejected" else "outcome_unknown")
     assert proposal_ref(peers["gitlab"]) == ""
     assert proposal_ref(peers["github"]) == ("" if failure == "lost_ack" else proposal)
     monkeypatch.setattr(publication_execution.git, "run_network_git", native)
-    recovered = apply_receipt(repo, receipt, accepted)
+    recovered = apply_receipt(repo, receipt, accepted, retire=True)
     assert recovered["state"] == "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
     assert recovered["data"]["remote_effect"]["attempts"][0]["state"] == "already_applied"
@@ -326,7 +333,8 @@ def test_native_pre_push_consumes_deletions_instead_of_skipping_them(tmp_path: P
     )
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
     preview = branch_publication(repo, accepted, "--retire")
-    assert apply_receipt(repo, preview["data"]["request_receipt"], accepted)["state"] == "retired"
+    receipt = preview["data"]["request_receipt"]
+    assert apply_receipt(repo, receipt, accepted, retire=True)["state"] == "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {""}
 
 

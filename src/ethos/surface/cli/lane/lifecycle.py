@@ -229,6 +229,7 @@ def candidate(
     reason: str = "",
     expect_state: Annotated[str | None, Parameter(name="--expect-state")] = None,
     authorize: bool = False,
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -257,6 +258,7 @@ def candidate(
             apply=apply,
             authorized=authorize,
             expect_head=expect_head,
+            confirm_irreversible=confirm_irreversible,
         )
         if refresh_from_accepted
         else bootstrap_candidate(

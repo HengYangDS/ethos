@@ -176,7 +176,10 @@ def _require_live_next(stdout: str) -> None:
     except ValueError:
         return
     step = payload.get("next") if isinstance(payload, dict) else None
-    if not isinstance(step, dict) or step.get("kind") != "command":
+    # A decision carries the argv a person approves, so it must parse as well.
+    if not isinstance(step, dict) or step.get("kind") not in {"command", "decision"}:
+        return
+    if not step["argv"]:
         return
     tokens = list(step["argv"][1:])
     load_command_groups(tokens)

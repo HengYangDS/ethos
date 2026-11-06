@@ -2,7 +2,7 @@
   "$defs": {
     "NextStep": {
       "additionalProperties": false,
-      "description": "One next step: only a `command` has an argv, and only a `decision` needs a human.",
+      "description": "One next step: a `command` an agent runs, or a `decision` whose argv a person approves.",
       "properties": {
         "argv": {
           "default": [],
@@ -12,7 +12,7 @@
         },
         "authorization": {
           "default": "none",
-          "enum": ["none", "embedded", "human"],
+          "enum": ["none", "apply", "authorize", "confirm-irreversible", "attestation", "human"],
           "title": "Authorization",
           "type": "string"
         },
@@ -21,6 +21,7 @@
           "title": "Binding",
           "type": "object"
         },
+        "destructive": { "default": false, "title": "Destructive", "type": "boolean" },
         "effects": {
           "default": [],
           "items": {
@@ -30,13 +31,16 @@
               "execute",
               "local-evidence-write",
               "local-write",
-              "remote-write"
+              "host-write",
+              "remote-write",
+              "opaque"
             ],
             "type": "string"
           },
           "title": "Effects",
           "type": "array"
         },
+        "form": { "default": "", "title": "Form", "type": "string" },
         "kind": {
           "enum": ["command", "instruction", "decision", "done"],
           "title": "Kind",

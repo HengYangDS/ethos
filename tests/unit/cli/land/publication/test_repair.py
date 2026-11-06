@@ -139,7 +139,8 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     assert {
         report["contribution"]["state"] for report in preview["data"]["push_admission"].values()
     } == {"repaired"}
-    assert apply_receipt(repo, preview["data"]["request_receipt"], accepted)["state"] == "retired"
+    receipt = preview["data"]["request_receipt"]
+    assert apply_receipt(repo, receipt, accepted, retire=True)["state"] == "retired"
     assert {proposal_ref(peer) for peer in peers} == {""}
     local = retire_absorbed_ref(
         root=repo,

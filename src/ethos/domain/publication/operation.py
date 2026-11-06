@@ -117,6 +117,9 @@ def _publish_projection(
             repo, str(request["path"]), str(request["sha256"])
         )
     retirement = effect.retirement if effect is not None else retire
+    if effect is not None and effect.retirement != retire:
+        # The argv shows a deletion: a retirement applies only with --retire, nothing else with it.
+        gaps.append("remote_publication_receipt_retire_mismatch")
     projection_verdict: Verdict = "block" if gaps else "pass"
     selected_ids = tuple(target.id for target in effect.targets) if effect is not None else peer_ids
     context = observe_publication(
@@ -271,6 +274,7 @@ def _publication_result(
             (
                 "ethos",
                 "publish",
+                *(("--retire",) if retirement else ()),
                 "--receipt",
                 str(request["path"]),
                 "--receipt-sha256",

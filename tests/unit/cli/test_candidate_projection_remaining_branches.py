@@ -28,6 +28,8 @@ def candidate(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(projection, "_recovery_plan", lambda *_a: None)
     monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a: "")
+    # The stubbed candidate holds nothing that accepted lacks.
+    monkeypatch.setattr(projection, "is_ancestor", lambda *_a: True)
     return status["candidate"]
 
 

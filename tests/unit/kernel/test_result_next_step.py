@@ -10,6 +10,7 @@ from ethos.result import EthosResult
 
 _HEAD = "a" * 40
 _CANDIDATE = "c" * 40
+_EVIDENCE_WRITE = ["local-evidence-write", "local-write"]
 
 
 def _next(next_action: str, **fields: object) -> dict[str, object]:
@@ -18,8 +19,8 @@ def _next(next_action: str, **fields: object) -> dict[str, object]:
     return result.to_dict()["next"]
 
 
-def test_a_publish_apply_names_its_remote_write_and_embedded_authorization() -> None:
-    """A harness sees that running this argv writes a remote and carries its authorization."""
+def test_a_publish_apply_names_its_remote_write_and_its_authority() -> None:
+    """A harness sees that running this argv writes a remote and which token authorizes it."""
     argv = (
         *("ethos", "publish", "--receipt", "/store/r.json", "--apply", "--authorize"),
         *("--expect-head", _HEAD, "--root", "/repo", "--json"),
@@ -29,9 +30,11 @@ def test_a_publish_apply_names_its_remote_write_and_embedded_authorization() -> 
 
     assert step == {
         "kind": "command",
+        "form": "",
         "argv": list(argv),
         "effects": ["remote-read", "local-evidence-write", "remote-write"],
-        "authorization": "embedded",
+        "destructive": False,
+        "authorization": "authorize",
         "binding": {"receipt": "/store/r.json", "head": _HEAD, "root": "/repo"},
         "why": "ready_to_publish",
     }
@@ -48,8 +51,8 @@ def test_a_land_closeout_binds_both_heads_and_writes_locally() -> None:
     step = _next(shlex.join(argv), verdict="block", state="gapped", required_gaps=gaps)
 
     assert step["kind"] == "command"
-    assert step["effects"] == ["local-evidence-write", "local-write"]
-    assert step["authorization"] == "embedded"
+    assert step["effects"] == _EVIDENCE_WRITE
+    assert step["authorization"] == "authorize"
     assert step["binding"] == {"head": _HEAD, "candidate_head": _CANDIDATE, "root": "/repo"}
     assert step["why"] == "accepted_head_unadmitted"
 
@@ -70,17 +73,31 @@ def test_a_land_closeout_binds_both_heads_and_writes_locally() -> None:
 def test_a_step_without_a_command_carries_no_argv(
     text: str, fields: dict[str, object], kind: str, authorization: str, why: str
 ) -> None:
-    """A decision only a person can take, or a done result: nothing for an agent to run."""
+    """A decision in prose, or a done result: nothing for an agent to run."""
     step = _next(text, **fields)
 
     assert step == {
         "kind": kind,
+        "form": "",
         "argv": [],
         "effects": [],
+        "destructive": False,
         "authorization": authorization,
         "binding": {},
         "why": why,
     }
+
+
+def test_a_decision_carries_the_command_a_person_approves() -> None:
+    """The destructive apply a preview hands to a person is data, never hidden behind prose."""
+    argv = ("ethos", "lane", "retire", "abandon", "--receipt", "/r.json", "--receipt-sha256", "x")
+    argv += ("--apply", "--authorize", "--json")
+
+    step = _next(shlex.join(argv), user_decision_required=True)
+
+    assert (step["kind"], step["argv"], step["authorization"]) == ("decision", list(argv), "human")
+    assert (step["destructive"], step["effects"]) == (True, _EVIDENCE_WRITE)
+    assert step["binding"] == {"receipt": "/r.json"}
 
 
 @pytest.mark.parametrize(
@@ -102,31 +119,44 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
     assert step["why"] == "gate_failed:static"
 
 
+_HOST = [*_EVIDENCE_WRITE, "host-write"]
+_REMOTE = ["remote-read", "local-evidence-write", "remote-write"]
+_RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
+_REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm-irreversible"
+
+
 @pytest.mark.parametrize(
-    ("argv", "effects"),
+    ("command", "effects", "authorization", "destructive"),
     [
-        (("ethos", "status", "--json"), ["read"]),
-        (("ethos", "lane", "status", "--root", "/lane", "--json"), ["read"]),
-        (("ethos", "prove", "--full", "--execute", "--json"), ["execute", "local-evidence-write"]),
-        (
-            ("ethos", "hook", "install", "--authorize", "--json"),
-            ["local-evidence-write", "local-write"],
-        ),
-        (("ethos", "host", "run", "nox"), ["execute", "local-evidence-write", "local-write"]),
-        (
-            ("ethos", "publish", "--ref", "refs/heads/dev", "--json"),
-            ["remote-read", "local-evidence-write"],
-        ),
+        ("status --json", ["read"], "none", False),
+        ("lane status --root /lane --json", ["read"], "none", False),
+        ("prove --full --execute --json", ["execute", "local-evidence-write"], "none", False),
+        ("hook install --json", _HOST, "none", False),
+        ("hook install --reset-state --authorize --json", _HOST, "authorize", True),
+        ("host run nox", ["execute", "opaque"], "human", True),
+        ("mcp --root /repo", ["execute", "opaque"], "human", True),
+        ("publish --ref refs/heads/dev --json", _REMOTE[:2], "none", False),
+        ("publish --retire --receipt /r --apply --authorize", _REMOTE, "authorize", True),
+        ("lane handoff revoke-source --apply", _EVIDENCE_WRITE, "apply", True),
+        ("lane handoff transfer --apply", _EVIDENCE_WRITE, "apply", False),
+        (_RETIRE, _EVIDENCE_WRITE, "confirm-irreversible", True),
+        ("lane lease takeover --authorization /a --apply", _EVIDENCE_WRITE, "attestation", False),
+        (_REFRESH, _HOST, "confirm-irreversible", True),
+        ("lane candidate --refresh-from-accepted --apply --authorize", _HOST, "authorize", False),
+        ("land --retag v1 --apply --authorize", _EVIDENCE_WRITE, "authorize", True),
+        ("land --closeout --json", _EVIDENCE_WRITE, "none", False),
+        ("lane start --apply", _HOST, "apply", False),
+        ("attestation release --apply", _EVIDENCE_WRITE, "apply", True),
     ],
 )
-def test_effects_order_from_the_least_to_the_most_consequential(
-    argv: tuple[str, ...], effects: list[str]
+def test_an_argv_names_its_effects_authority_and_any_deletion(
+    command: str, effects: list[str], authorization: str, *, destructive: bool
 ) -> None:
-    """Readers need no authorization; anything that writes or executes says so."""
-    step = _next(shlex.join(argv))
+    """Effects run from the least to the most consequential; only a selected deletion counts."""
+    step = _next(shlex.join(("ethos", *shlex.split(command))))
 
-    assert step["effects"] == effects
-    assert step["authorization"] == ("embedded" if "local-write" in effects else "none")
+    assert (step["effects"], step["authorization"]) == (effects, authorization)
+    assert step["destructive"] is destructive
 
 
 def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
@@ -138,6 +168,7 @@ def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
     payload["next"] = {**payload["next"], "argv": ["ethos", "publish", "--apply"]}
 
     assert EthosResult.from_payload(payload).to_dict()["next"] == result.to_dict()["next"]
-    payload["next"] = {**payload["next"], "kind": "launch"}
-    with pytest.raises(ValueError, match="kind"):
-        EthosResult.from_payload(payload)
+    for field, value in (("kind", "launch"), ("authorization", "embedded")):
+        payload["next"] = {**result.to_dict()["next"], field: value}
+        with pytest.raises(ValueError, match=field):
+            EthosResult.from_payload(payload)

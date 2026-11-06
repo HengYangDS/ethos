@@ -13,12 +13,14 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
+from ethos.contracts.admission import StepAuthorization
 from ethos.contracts.admission import StepEffect
+from ethos.contracts.admission import ethos_step_authorization
+from ethos.contracts.admission import ethos_step_destructive
 from ethos.contracts.admission import ethos_step_effects
 from ethos.contracts.value import JsonObject
 
 StepKind = Literal["command", "instruction", "decision", "done"]
-Authorization = Literal["none", "embedded", "human"]
 # The flags whose values an agent must pass unchanged, by the name a binding reads.
 _BINDINGS = {
     "--root": "root",
@@ -28,38 +30,42 @@ _BINDINGS = {
     "--expect-plan-digest": "plan_digest",
     "--expires-at": "lease_expires_at",
 }
-_WRITES = frozenset({"local-write", "remote-write"})
 
 
 class NextStep(BaseModel):
-    """One next step: only a `command` has an argv, and only a `decision` needs a human."""
+    """One next step: a `command` an agent runs, or a `decision` whose argv a person approves."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     kind: StepKind
+    # Empty until a declared command form selects the invocation.
+    form: str = ""
     argv: tuple[str, ...] = ()
     effects: tuple[StepEffect, ...] = ()
-    authorization: Authorization = "none"
+    destructive: bool = False
+    authorization: StepAuthorization = "none"
     binding: JsonObject = Field(default_factory=dict)
     why: str
 
 
 def derive_next_step(text: str, *, continuation: str, why: str) -> NextStep:
     """Return the structured form of one rendered next action; prose stays an instruction."""
-    if continuation == "await-user":
-        return NextStep(kind="decision", authorization="human", why=why)
     if continuation == "done":
         return NextStep(kind="done", why=why)
     argv = _exact_ethos_argv(text)
+    decision = continuation == "await-user"
     if not argv:
+        if decision:
+            return NextStep(kind="decision", authorization="human", why=why)
         return NextStep(kind="instruction", why=why)
     effects = ethos_step_effects(argv)
-    embedded = "--authorize" in argv or bool(_WRITES.intersection(effects))
     return NextStep(
-        kind="command",
+        kind="decision" if decision else "command",
         argv=argv,
         effects=effects,
-        authorization="embedded" if embedded else "none",
+        destructive=ethos_step_destructive(argv, effects),
+        # What a person approves carries its argv, and no reader runs it without that approval.
+        authorization="human" if decision else ethos_step_authorization(argv, effects),
         binding=_binding(argv),
         why=why,
     )

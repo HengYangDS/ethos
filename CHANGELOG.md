@@ -12,6 +12,36 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking for agent kits: result schema 3.** A schema-2 payload is refused, and no schema-2
+  reader remains.
+  - Every JSON result fits its budget: 16 KiB, or 32 KiB for `plan`. A larger result keeps its wire
+    fields, its small `data` entries and each failing step's first 20 output lines, and adds a
+    top-level `bound`. `bound.detail` names the digest-bound artifact of the full result, which
+    `ethos.result.expand_result` reads. Detail older than seven days is removed whenever new detail
+    is written.
+  - `summary.runtime` names the product version, distribution version and source commit of the
+    build that produced the result.
+  - `next` is the step that `next_action` renders, as data. A `command` carries its exact ETHOS
+    `argv`. `effects` are ordered `read`, `remote-read`, `execute`, `local-evidence-write`,
+    `local-write`, `host-write`, `remote-write` and the unbounded `opaque`. `authorization` is the
+    strongest authority token in the argv (`apply`, `authorize`, `confirm-irreversible`,
+    `attestation`), `none`, or `human` for a decision or an opaque step. `destructive` says whether
+    the argv selects the deletion of something it does not recreate; cleanup that another operation
+    performs under a liveness check is not counted, and that operation reports it in its result.
+    `form` stays empty until command forms are declared. `binding` names the values the argv binds.
+  - A decision whose text is one exact ETHOS argv carries that argv with authorization `human`, for
+    a person to approve. Kits run only `kind == "command"`.
+  - Plain `hook install`, `lane start --apply` and `lane candidate --apply` still retire unused
+    runtime generations under that liveness check, and report it.
+- **Breaking:** a retirement receipt applies only with `--retire`, and a publication receipt refuses
+  it. Either mismatch refuses with `remote_publication_receipt_retire_mismatch` before any peer
+  effect. The dry run's continuation carries the flag.
+- **Breaking:** `ethos lane candidate --refresh-from-accepted --apply` refuses with
+  `candidate_refresh_unaccepted_commits` when the candidate holds commits that accepted does not
+  contain, unless `--confirm-irreversible` is given.
+
 ## [0.2.0-beta.5] - 2026-11-07
 
 ### Added

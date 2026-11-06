@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
@@ -301,6 +302,7 @@ def refresh_candidate_from_accepted(
     apply: bool = False,
     authorized: bool = False,
     expect_head: str | None = None,
+    confirm_irreversible: bool = False,
 ) -> dict[str, object]:
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
@@ -312,8 +314,12 @@ def refresh_candidate_from_accepted(
     path = Path(str(candidate.get("worktree_path") or ""))
     details = {"previous_head": previous, "path": str(path)}
     status_action = f"ethos status --root {shlex.quote(repo.as_posix())} --json"
+    # A candidate head that accepted does not contain holds commits this refresh would drop.
+    unaccepted = bool(head and previous) and not is_ancestor(repo, previous, head)
+    unconfirmed = unaccepted and not confirm_irreversible
     refresh_action = (
         "ethos lane candidate --refresh-from-accepted --apply --authorize "
+        f"{'--confirm-irreversible ' if unaccepted else ''}"
         f"--expect-head {head} --root {shlex.quote(repo.as_posix())} --json"
     )
     start_action = "ethos lane start --help"
@@ -331,6 +337,7 @@ def refresh_candidate_from_accepted(
             ("authorization_required", apply and not authorized),
             ("expect_head_required", apply and expect_head is None),
             ("expect_head_mismatch", apply and expect_head not in {None, head}),
+            ("candidate_refresh_unaccepted_commits", apply and unconfirmed),
         )
         if present
     ]
@@ -353,6 +360,15 @@ def refresh_candidate_from_accepted(
                 else "candidate_worktree_dirty"
             )
             gaps.append(gap)
+    if gaps == ["candidate_refresh_unaccepted_commits"]:
+        # The drop is irreversible, so a person approves the exact confirming command.
+        return _report(
+            policy.candidate_branch,
+            head,
+            "blocked",
+            gaps,
+            **(details | {"next_action": refresh_action, "user_decision_required": True}),
+        )
     if gaps:
         action = (
             _head_recovery_action(repo, policy.accepted_branch)

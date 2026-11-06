@@ -504,3 +504,28 @@ def test_candidate_exact_cas_projection_and_recovery(tmp_path, monkeypatch, inte
     assert blocked["stderr"] == "worktree_index_mismatch"
     assert (candidate / "payload.txt").read_text() == "user overlay\n"
     assert git(repo, "rev-parse", "candidate/dev") == head
+
+
+def test_a_refresh_that_drops_candidate_commits_needs_confirmation(tmp_path, monkeypatch):
+    """Commits that accepted lacks are lost by a refresh, so a person must confirm the drop."""
+    repo, previous = _repo_without_candidate(tmp_path)
+    candidate = tmp_path / "candidate"
+    monkeypatch.setattr(projection, "install_hook_launchers", install_fixture_hook_runtime)
+    projection.bootstrap_candidate(root=repo, path=candidate, expect_head=previous, apply=True)
+    dropped = commit_fixture_file(candidate, "only.txt", "candidate only\n", "fix: candidate only")
+    head = commit_fixture_file(repo, "payload.txt", "accepted\n", "advance accepted")
+    apply = {"root": repo, "apply": True, "authorized": True, "expect_head": head}
+
+    preview = projection.refresh_candidate_from_accepted(root=repo)
+    refused = projection.refresh_candidate_from_accepted(**apply)
+
+    assert "--confirm-irreversible" in preview["next_action"]
+    assert refused["required_gaps"] == ["candidate_refresh_unaccepted_commits"]
+    assert (refused["next_action"], refused["user_decision_required"]) == (
+        preview["next_action"],
+        True,
+    )
+    assert git(repo, "rev-parse", "candidate/dev") == dropped
+    refreshed = projection.refresh_candidate_from_accepted(**apply, confirm_irreversible=True)
+    assert refreshed["state"] == "refreshed_from_accepted", refreshed
+    assert git(repo, "rev-parse", "candidate/dev") == head

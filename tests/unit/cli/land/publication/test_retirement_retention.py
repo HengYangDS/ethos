@@ -43,7 +43,7 @@ def test_a_work_lane_that_keeps_the_exact_tip_lets_its_projection_retire(tmp_pat
 
     preview = branch_publication(repo, accepted, "--retire")
     assert preview["state"] == "ready_to_retire", preview
-    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
+    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted, retire=True)
 
     assert applied["state"] == "retired", applied
     assert {proposal_ref(peer) for peer in peers.values()} == {""}

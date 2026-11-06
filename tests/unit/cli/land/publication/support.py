@@ -116,10 +116,18 @@ def branch_publication(
     return runner(*command, "--json", cwd=repo)
 
 
-def apply_receipt(repo: Path, receipt: dict[str, object], head: str, *, blocked: bool = False):
+def apply_receipt(
+    repo: Path,
+    receipt: dict[str, object],
+    head: str,
+    *,
+    blocked: bool = False,
+    retire: bool = False,
+):
     runner = run_ethos_blocked if blocked else run_ethos
     return runner(
         "publish",
+        *(("--retire",) if retire else ()),
         "--receipt",
         str(receipt["path"]),
         "--receipt-sha256",

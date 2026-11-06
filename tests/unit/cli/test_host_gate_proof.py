@@ -12,9 +12,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 import ethos.adapters.gates.runner as gate_execution
+import ethos.surface.cli.root.proof as proof_cli
 import ethos.surface.cli.root.reference as reference
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -192,3 +194,18 @@ def test_host_invalid_policy_is_a_reported_nonexecution(tmp_path: Path, *, full:
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
     assert payload["data"]["checks"] == []
     assert payload["data"]["executed"] is False
+
+
+@pytest.mark.parametrize("verdict", ["block", "unknown"])
+def test_an_executing_full_host_proof_exits_one_unless_it_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verdict: str
+) -> None:
+    """Adopter CI gates on this exit, so a blocked or unknown full host proof never exits 0."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    observed = EthosResult(command="prove", verdict=verdict, state="observed", required_gaps=("x",))
+    monkeypatch.setattr(proof_cli, "host_gate_observation", lambda **_kwargs: observed)
+
+    completed = _host(repo, head, "--full")
+
+    assert (completed.returncode, json.loads(completed.stdout)["verdict"]) == (1, verdict)

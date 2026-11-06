@@ -10,6 +10,7 @@ from typing import Any
 from typing import Literal
 from typing import Self
 from typing import cast
+from typing import get_args
 
 from pydantic import BaseModel
 from pydantic import BeforeValidator
@@ -81,25 +82,71 @@ def ethos_command_mutates(command: list[str] | tuple[str, ...]) -> bool:
 
 # What one ETHOS step does, ordered from the least to the most consequential effect.
 StepEffect = Literal[
-    "read", "remote-read", "execute", "local-evidence-write", "local-write", "remote-write"
-]
-STEP_EFFECTS: tuple[StepEffect, ...] = (
     "read",
     "remote-read",
     "execute",
     "local-evidence-write",
     "local-write",
+    "host-write",
     "remote-write",
+    "opaque",
+]
+STEP_EFFECTS: tuple[StepEffect, ...] = get_args(StepEffect)
+# The authority a step's argv carries, from none to a person's decision.
+StepAuthorization = Literal[
+    "none", "apply", "authorize", "confirm-irreversible", "attestation", "human"
+]
+# The strongest authority token in an argv names its kind; a person decides the rest.
+_AUTHORITY_TOKENS: tuple[tuple[str, StepAuthorization], ...] = (
+    ("--authorization", "attestation"),
+    ("--confirm-irreversible", "confirm-irreversible"),
+    ("--authorize", "authorize"),
+    ("--apply", "apply"),
 )
 # Hook admission admits only root readers; a step also reads when it names a lane reader.
 _READ_COMMAND_PATHS = frozenset({*((name,) for name in READONLY_ROOT_COMMANDS), ("lane", "status")})
 _REMOTE_ROOT_COMMANDS = frozenset({"publish"})
+_Row = tuple[tuple[str, ...], frozenset[str]]
+
+
+def _rows(*shapes: str) -> tuple[_Row, ...]:
+    """Read `path words: tokens` shapes; a row matches a path prefix with every token present."""
+    rows = (shape.partition(":") for shape in shapes)
+    return tuple((tuple(path.split()), frozenset(tokens.split())) for path, _sep, tokens in rows)
+
+
 # A command that runs a caller's command cannot see that command's effects.
-_DELEGATING_COMMAND_PATHS = frozenset({("host", "run")})
+_OPAQUE = _rows("host run", "mcp")
+_TOKENLESS_WRITES = _rows("hook install", "land: --closeout")
+_HOST_WRITES = _rows(
+    "hook install",
+    "hook retire-supply: --apply",
+    "lane start: --apply",
+    "lane candidate: --apply",
+    "adopt: --select-runtime --apply",
+)
+# Each shape selects the deletion of something it does not recreate. Cleanup that another
+# operation performs under a liveness check is not counted; that operation reports it.
+_DESTRUCTIVE = _rows(
+    "lane retire abandon: --receipt --receipt-sha256 --apply --authorize",
+    "lane retire recover: --receipt --receipt-sha256 --apply --authorize",
+    "lane retire superseded: --apply --authorize",
+    "lane retire landed: --apply --authorize",
+    "lane retire absorbed-ref: --apply --authorize --confirm-irreversible",
+    "lane housekeeping: --apply --authorize",
+    "lane handoff revoke-source: --apply",
+    "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
+    "publish: --retire --apply --authorize",
+    "attestation release: --apply",
+    "adopt: --exit --apply --authorize --expect-head --expect-plan-digest",
+    "land: --retag --apply --authorize",
+    "hook retire-supply: --apply --authorize --expect-plan",
+    "hook install: --reset-state --authorize",
+)
 
 
 def ethos_command_path(arguments: list[str] | tuple[str, ...]) -> tuple[str, ...]:
-    """Return up to two command words of one ETHOS argv, never an option value."""
+    """Return up to three command words of one ETHOS argv, never an option value."""
     words: list[str] = []
     skip_value = False
     for argument in arguments[1:]:
@@ -110,30 +157,60 @@ def ethos_command_path(arguments: list[str] | tuple[str, ...]) -> tuple[str, ...
         elif argument.startswith("-"):
             if words:
                 break
-        elif len(words) == 2:
+        elif len(words) == 3:
             break
         else:
             words.append(argument)
     return tuple(words)
 
 
+def _flags(arguments: list[str] | tuple[str, ...]) -> frozenset[str]:
+    return frozenset(
+        argument.partition("=")[0] for argument in arguments if argument.startswith("--")
+    )
+
+
+def _matched(arguments: list[str] | tuple[str, ...], rows: tuple[_Row, ...]) -> bool:
+    path, flags = ethos_command_path(arguments), _flags(arguments)
+    return any(path[: len(words)] == words and tokens <= flags for words, tokens in rows)
+
+
 def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffect, ...]:
     """Return what one ETHOS argv does, from the least to the most consequential effect."""
+    if _matched(arguments, _OPAQUE):
+        return ("execute", "opaque")
     path = ethos_command_path(arguments)
-    flags = {argument.partition("=")[0] for argument in arguments if argument.startswith("--")}
+    flags = _flags(arguments)
     if path in _READ_COMMAND_PATHS and not flags & MUTATING_COMMAND_FLAGS:
         return ("read",)
     remote = bool(path) and path[0] in _REMOTE_ROOT_COMMANDS
-    delegates = path in _DELEGATING_COMMAND_PATHS
-    writes = delegates or bool(flags & {"--apply", "--authorize"})
+    writes = bool(flags & {"--apply", "--authorize"}) or _matched(arguments, _TOKENLESS_WRITES)
     present = {
         "remote-read": remote,
-        "execute": delegates or "--execute" in flags,
+        "execute": "--execute" in flags,
         "local-evidence-write": True,
         "local-write": writes and not remote,
+        "host-write": _matched(arguments, _HOST_WRITES),
         "remote-write": writes and remote,
     }
     return tuple(effect for effect in STEP_EFFECTS if present.get(effect, False))
+
+
+def ethos_step_authorization(
+    arguments: list[str] | tuple[str, ...], effects: tuple[StepEffect, ...]
+) -> StepAuthorization:
+    """Name the strongest authority token in one argv; an opaque step needs a person."""
+    if "opaque" in effects:
+        return "human"
+    flags = _flags(arguments)
+    return next((kind for token, kind in _AUTHORITY_TOKENS if token in flags), "none")
+
+
+def ethos_step_destructive(
+    arguments: list[str] | tuple[str, ...], effects: tuple[StepEffect, ...]
+) -> bool:
+    """Return whether one argv selects the deletion of something it does not recreate."""
+    return "opaque" in effects or _matched(arguments, _DESTRUCTIVE)
 
 
 def _path_text(value: object) -> str:

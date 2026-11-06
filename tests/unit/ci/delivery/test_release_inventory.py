@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.support.release_legs import HEAD
 from tests.support.release_legs import VERSION
 from tests.support.release_legs import inventory_documents
 from tests.support.release_legs import qualified_leg
@@ -41,6 +42,7 @@ def _assembled(tmp_path: Path, change=None, host: str = "linux-x64"):
         "changelog": changelog,
         "required": frozenset({"linux-x64", "linux-arm64", "macos-arm64"}),
         "optional": frozenset({"windows-x64"}),
+        "expect_head": HEAD,
     }
     return tmp_path / "out", release_assets.assemble(inputs, tmp_path / "out", **options)
 

@@ -383,7 +383,7 @@ jobs:
         with:
           path: build/release/inputs
       - name: Assemble the qualified release assets
-        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md --required linux-x64,linux-arm64,macos-arm64 --optional windows-x64,windows-arm64
+        run: uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} --required linux-x64,linux-arm64,macos-arm64 --optional windows-x64,windows-arm64
       - name: Attest the release archives and wheels
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:

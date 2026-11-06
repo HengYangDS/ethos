@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.release_legs import HEAD
 from tests.support.release_legs import qualified_leg
 from tools.ci.delivery import pipeline
 from tools.ci.delivery import release_assets
@@ -108,6 +109,7 @@ def _options(changelog: Path, *, optional: set[str]) -> dict:
         "changelog": changelog,
         "required": frozenset({"linux-x64", "linux-arm64", "macos-arm64"}),
         "optional": frozenset(optional),
+        "expect_head": HEAD,
     }
 
 

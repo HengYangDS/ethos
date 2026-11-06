@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.support.release_legs import HEAD
 from tests.support.release_legs import VERSION
 from tests.support.release_legs import qualified_leg
 from tools.ci.delivery import release_assets
@@ -33,7 +34,7 @@ def _assemble(tmp_path: Path, *, required=_REQUIRED, optional=frozenset({"window
             qualified_leg(inputs, host, *leg)
     output = tmp_path / "out"
     shutil.rmtree(output, ignore_errors=True)
-    options = {"tag": f"v{VERSION}", "base_url": "https://example.invalid/v"}
+    options = {"tag": f"v{VERSION}", "base_url": "https://example.invalid/v", "expect_head": HEAD}
     release_assets.assemble(
         inputs, output, changelog=changelog, required=required, optional=optional, **options
     )

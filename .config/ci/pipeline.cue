@@ -522,7 +522,7 @@ github: {
 			}, {
 				// The assembler admits only archives whose qualification evidence matches their bytes.
 				name: "Assemble the qualified release assets"
-				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md \(releaseHosts)"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} \(releaseHosts)"
 			}, {
 				// Mise's github backend verifies these attestations when it installs a pinned release;
 				// they also bind each runtime archive's two inventories to the release workflow.

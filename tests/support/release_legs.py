@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 VERSION = "0.2.0-alpha.5"
+# The commit every fixture leg records as its source, which assembly expects as the release head.
+HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 
 def inventory_documents(name: str, digest: str, *, components: int = 1) -> tuple[dict, dict]:
@@ -90,6 +92,8 @@ def qualified_leg(
         "platform": platform,
         "architecture": machine,
         "product_version": VERSION,
+        "distribution_version": "0.2.0a5",
+        "source_commit": HEAD,
     }
     evidence.write_text(json.dumps({"distribution": distribution}), encoding="utf-8")
     write_inventories(job, f"ethos-{VERSION}-{host}.tar.gz", digest)

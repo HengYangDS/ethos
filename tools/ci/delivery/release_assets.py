@@ -29,6 +29,8 @@ _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
 _HOSTS = frozenset(f"{os}-{cpu}" for os in _SYSTEMS.values() for cpu in _MACHINES.values())
 _JOB = "release-runtime-"
 _PRERELEASE = re.compile(r"v\d+\.\d+\.\d+-(?:alpha|beta|rc)\.\d+")
+_HEAD = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_STAGES = {"alpha": "a", "beta": "b", "rc": "rc"}
 _INVENTORIES = (".spdx.json", ".syft.json")
 # GitHub's attestation tooling reads at most 16 MB, so a larger inventory is not admitted.
 INVENTORY_LIMIT = 16 * 1024 * 1024
@@ -76,6 +78,15 @@ def inventory_gaps(spdx: object, syft: object, *, name: str, digest: str) -> tup
     return tuple(gaps)
 
 
+def distribution_version(version: str) -> str:
+    """Return the PEP 440 version that a build of this prerelease product version records."""
+    match = re.fullmatch(r"(\d+\.\d+\.\d+)-(alpha|beta|rc)\.(\d+)", version)
+    if match is None:
+        message = "release_assets_prerelease_required"
+        raise ValueError(message)
+    return f"{match[1]}{_STAGES[match[2]]}{match[3]}"
+
+
 def declared_hosts(required: str, optional: str) -> tuple[frozenset[str], frozenset[str]]:
     """Read the pipeline's comma-separated required and optional release hosts."""
 
@@ -94,6 +105,7 @@ def assemble(
     changelog: Path,
     required: frozenset[str],
     optional: frozenset[str],
+    expect_head: str,
 ) -> dict[str, str]:
     """Verify every qualified archive of the declared legs and write the publication's assets."""
     if _PRERELEASE.fullmatch(tag) is None:
@@ -102,8 +114,14 @@ def assemble(
     if not required or required & optional or not required | optional <= _HOSTS:
         message = "release_assets_hosts_invalid"
         raise ValueError(message)
+    if _HEAD.fullmatch(expect_head) is None:
+        message = "release_assets_head_invalid"
+        raise ValueError(message)
     version = tag.removeprefix("v")
-    archives, left_out = _admitted_legs(source, version, required=required, optional=optional)
+    identity = (expect_head, distribution_version(version))
+    archives, left_out = _admitted_legs(
+        source, version, required=required, optional=optional, identity=identity
+    )
     notes = _release_notes(changelog, version)
     if left_out:
         hosts = ", ".join(item["host"] for item in left_out)
@@ -142,7 +160,12 @@ def assemble(
 
 
 def _admitted_legs(
-    source: Path, version: str, *, required: frozenset[str], optional: frozenset[str]
+    source: Path,
+    version: str,
+    *,
+    required: frozenset[str],
+    optional: frozenset[str],
+    identity: tuple[str, str],
 ) -> tuple[dict[str, tuple[Path, Path, bool, tuple[Path, ...]]], list[dict[str, str]]]:
     """Admit each declared leg's qualified upload and name every optional host left out."""
     archives, left_out = {}, []
@@ -154,6 +177,13 @@ def _admitted_legs(
             message = f"release_assets_host_undeclared:{platform}"
             raise ValueError(message)
         distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
+        # Only the tagged commit's build of the tag's version may publish, whatever else matches.
+        if (
+            distribution.get("source_commit"),
+            distribution.get("distribution_version"),
+        ) != identity:
+            message = f"release_assets_identity_mismatch:{platform}"
+            raise ValueError(message)
         runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
         native = platform == runtime
         # Each runner records its own path syntax; Windows rules read both separators.
@@ -272,6 +302,7 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--changelog", type=Path, required=True)
     parser.add_argument("--required", required=True)
     parser.add_argument("--optional", default="")
+    parser.add_argument("--expect-head", required=True)
     options = parser.parse_args(arguments)
     required, optional = declared_hosts(options.required, options.optional)
     sums = assemble(
@@ -282,6 +313,7 @@ def main(arguments: list[str] | None = None) -> int:
         changelog=options.changelog,
         required=required,
         optional=optional,
+        expect_head=options.expect_head,
     )
     left_out = json.loads((options.output / "left-out.json").read_text(encoding="utf-8"))
     print(json.dumps({"left_out": left_out, "sums": sums}, indent=2, sort_keys=True))

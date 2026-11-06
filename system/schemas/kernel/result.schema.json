@@ -1,8 +1,63 @@
 {
+  "$defs": {
+    "NextStep": {
+      "additionalProperties": false,
+      "description": "One next step: only a `command` has an argv, and only a `decision` needs a human.",
+      "properties": {
+        "argv": {
+          "default": [],
+          "items": { "type": "string" },
+          "title": "Argv",
+          "type": "array"
+        },
+        "authorization": {
+          "default": "none",
+          "enum": ["none", "embedded", "human"],
+          "title": "Authorization",
+          "type": "string"
+        },
+        "binding": {
+          "additionalProperties": {},
+          "title": "Binding",
+          "type": "object"
+        },
+        "effects": {
+          "default": [],
+          "items": {
+            "enum": [
+              "read",
+              "remote-read",
+              "execute",
+              "local-evidence-write",
+              "local-write",
+              "remote-write"
+            ],
+            "type": "string"
+          },
+          "title": "Effects",
+          "type": "array"
+        },
+        "kind": {
+          "enum": ["command", "instruction", "decision", "done"],
+          "title": "Kind",
+          "type": "string"
+        },
+        "why": { "title": "Why", "type": "string" }
+      },
+      "required": ["kind", "why"],
+      "title": "NextStep",
+      "type": "object"
+    }
+  },
   "$id": "https://ethos.invalid/schemas/result.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "bound": {
+      "anyOf": [{ "additionalProperties": {}, "type": "object" }, { "type": "null" }],
+      "default": null,
+      "title": "Bound"
+    },
     "command": { "title": "Command", "type": "string" },
     "continuation": {
       "enum": ["continue", "await-user", "blocked", "done"],
@@ -28,6 +83,11 @@
       "title": "Missing Facts Or Evidence",
       "type": "array"
     },
+    "next": {
+      "$ref": "#/$defs/NextStep",
+      "description": "The step `next_action` renders, as data an agent acts on without parsing text.",
+      "readOnly": true
+    },
     "next_action": { "default": "", "title": "Next Action", "type": "string" },
     "required_gaps": {
       "default": [],
@@ -36,8 +96,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -70,7 +130,8 @@
     "user_decision_required",
     "data",
     "continuation",
-    "missing_facts_or_evidence"
+    "missing_facts_or_evidence",
+    "next"
   ],
   "title": "ETHOS Result",
   "type": "object"

@@ -17,6 +17,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.repository.release.identity import build_identity
 from ethos.result import EthosResult
+from ethos.result import apply_payload_budget
 from tests.support.installed_guidance import installed_guidance
 from tests.support.windows_host import translate_like_windows
 from tools.ci.delivery.acceptance import adopter as fixture
@@ -464,3 +465,39 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     assert "plan --changed" in observation["commands"]
     assert sum(command[1:3] == ("plan", "--changed") for command in commands) == 1
     assert not any(command[1] == "plan" and "--changed" not in command for command in commands[1:])
+
+
+def test_package_cli_invocation_reads_a_bounded_result_in_full(tmp_path: Path) -> None:
+    """Acceptance reads the evidence a large result moved to its digest-bound detail."""
+    full = EthosResult(command="land", verdict="pass", state="landed", data={"log": "x" * 40_000})
+    bounded = apply_payload_budget(full, root=tmp_path).to_json()
+    echo = (sys.executable, "-I", "-c", "import sys; print(sys.argv[1])", bounded)
+
+    returncode, observed, _diagnostic = invocation.invoke(tmp_path, echo, environment={})
+
+    assert returncode == 0
+    assert observed == full.to_dict()
+
+
+def test_package_cli_invocation_reads_a_predecessor_result(tmp_path: Path) -> None:
+    """An upgrade journey runs the previous release, whose results use the previous schema."""
+    predecessor = {
+        "schema_version": 2,
+        "command": "hook install",
+        "verdict": "pass",
+        "state": "installed",
+        "summary": {},
+        "diagnostics": [],
+        "required_gaps": [],
+        "next_action": "",
+        "user_decision_required": False,
+        "data": {"runtime_digest": "d" * 64},
+        "continuation": "done",
+        "missing_facts_or_evidence": [],
+    }
+    echo = (sys.executable, "-I", "-c", "import sys; print(sys.argv[1])", json.dumps(predecessor))
+
+    returncode, observed, _diagnostic = invocation.invoke(tmp_path, echo, environment={})
+
+    assert returncode == 0
+    assert observed == predecessor

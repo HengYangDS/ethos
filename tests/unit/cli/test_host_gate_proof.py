@@ -60,7 +60,9 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     payload = json.loads(completed.stdout)
     assert payload["verdict"] == verdict
     assert payload["state"] == ("observed" if verdict == "pass" else "gapped")
-    assert payload["summary"] == {
+    summary = dict(payload["summary"])
+    assert summary.pop("runtime")["source_commit"]
+    assert summary == {
         "boundary": "host",
         "gate_count": 1,
         "proof_attestation_issued": False,

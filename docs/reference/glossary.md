@@ -121,7 +121,7 @@ A result that carries one cannot pass, and only `pass` authorizes an effect.
 
 ## Continuation
 
-The pure, non-persistent projection of a schema-version-`2` result: `await-user`
+The pure, non-persistent projection of a schema-version-`3` result: `await-user`
 when `user_decision_required` is true, otherwise `blocked` for a non-passing
 verdict, `continue` when a passing result names its one `next_action`, and `done`
 when it names none. `done` ends that observation, not the repository, delivery, or

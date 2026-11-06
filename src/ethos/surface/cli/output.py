@@ -5,21 +5,19 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import TextIO
 
 from cyclopts import Parameter
 
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.domain.execution import process_failure_result
 from ethos.domain.execution import profile_failure_result
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from ethos.surface.cli.root_binding import resolved_root
-
-if TYPE_CHECKING:
-    from ethos.adapters.process import ProcessExecutionError
+from ethos.surface.cli.runtime_identity import with_runtime
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 
@@ -33,11 +31,11 @@ def emit(
 ) -> None:
     """Render CLI results without writing diagnostics into an MCP protocol stream."""
     if json_output:
-        # Every command's result is bounded; detail goes under the target repository's store.
-        anchor = artifact_root or resolved_root() or Path.cwd()
-        common_dir = git_common_dir(anchor)
-        receipt_root = Path(common_dir) / "ethos" if common_dir else anchor / ".ethos"
-        result = apply_payload_budget(result, root=receipt_root)
+        # Every command's result is bounded. The store is resolved only when detail is written, so
+        # a small result, including the report of a failed process, never spawns one.
+        result = apply_payload_budget(
+            with_runtime(result), root=lambda: _detail_store(artifact_root)
+        )
     stream = sys.stderr if result.command == "mcp" else sys.stdout
     if json_output:
         frame = f"{result.to_json()}\n"
@@ -53,6 +51,17 @@ def emit(
     native_failure = result.data.get("error_boundary") in {"git_execution", "process_execution"}
     if (enforce or native_failure) and result.verdict != "pass":
         raise SystemExit(1)
+
+
+def _detail_store(artifact_root: Path | None) -> Path:
+    """Return the ETHOS store of the repository the command resolved, for its detail cache."""
+    anchor = artifact_root or resolved_root() or Path.cwd()
+    try:
+        common_dir = git_common_dir(anchor)
+    except ProcessExecutionError as error:
+        # The bound treats an unresolvable store like an unwritable one: the result stays inline.
+        raise OSError(error.code) from error
+    return Path(common_dir) / "ethos" if common_dir else anchor / ".ethos"
 
 
 def _write_frame(stream: TextIO, frame: str) -> None:

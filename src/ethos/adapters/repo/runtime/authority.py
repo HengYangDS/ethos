@@ -54,6 +54,11 @@ def invoking_build_identity() -> BuildIdentity:
     return _invoking_build(include_overlay=True)
 
 
+def committed_build_identity() -> BuildIdentity:
+    """Resolve the committed build the running code comes from, without its dirty overlay."""
+    return _invoking_build(include_overlay=False)
+
+
 def expected_runtime_build(root: Path, *, installed_runtime: Path | None = None) -> RuntimeBuild:
     """Keep accepted self-hosted authority distinct from explicit adopter supply."""
     package_source = Path(__file__).resolve().parents[5]

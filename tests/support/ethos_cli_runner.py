@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 from contextlib import chdir
@@ -19,7 +19,7 @@ from unittest.mock import patch
 from cyclopts.exceptions import CycloptsError
 
 from ethos.adapters.repo.invocation_facts import invocation_scope
-from ethos.result import EthosResult
+from ethos.result import expand_result
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 
@@ -78,8 +78,8 @@ def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str,
     return clean
 
 
-def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -> dict[str, Any]:
-    """Preserve native output; read exact bounded detail only when explicitly requested."""
+def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = True) -> dict[str, Any]:
+    """Return the full result; `full_payload=False` returns the bounded payload an agent sees."""
     completed = run_ethos_raw(*args, cwd=cwd)
     if completed.returncode != 0:
         raise AssertionError(completed.stderr or completed.stdout)
@@ -89,31 +89,12 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -
 
 def _externalized(payload: object) -> bool:
     """Every command's result is bounded; tests that read detail read the bound artifact."""
-    return (
-        isinstance(payload, dict)
-        and isinstance(payload.get("data"), dict)
-        and "detail" in payload["data"]
-    )
+    return isinstance(payload, dict) and isinstance(payload.get("bound"), dict)
 
 
 def expand_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Return the full result a bounded payload references, verified against its digest."""
-    if _externalized(payload):
-        reference = payload["data"]["detail"]
-        content = Path(reference["path"]).read_bytes()
-        assert reference["media_type"] == "application/json", "payload_artifact_mismatch"
-        assert len(content) == reference["size_bytes"], "payload_artifact_mismatch"
-        assert f"sha256:{hashlib.sha256(content).hexdigest()}" == reference["sha256"], (
-            "payload_artifact_mismatch"
-        )
-        expanded = EthosResult.from_payload(json.loads(content)).to_dict()
-        # A bounded result may truncate its gaps, and an unknown verdict repeats them.
-        kept = {"data", "required_gaps", "missing_facts_or_evidence"}
-        assert all(expanded[key] == value for key, value in payload.items() if key not in kept), (
-            "payload_artifact_mismatch"
-        )
-        return expanded
-    return payload
+    return expand_result(payload)
 
 
 def full_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -123,17 +104,11 @@ def full_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
 
 def result_data(payload: dict[str, Any]) -> dict[str, Any]:
     """Return a result's data, read from the artifact that an oversized result points at."""
-    data = payload["data"]
-    reference = data.get("detail")
-    if not isinstance(reference, dict):
-        return data
-    content = Path(reference["path"]).read_bytes()
-    assert reference["sha256"] == f"sha256:{hashlib.sha256(content).hexdigest()}"
-    return json.loads(content)["data"]
+    return expand_result(payload)["data"]
 
 
 def run_ethos_blocked(
-    *args: str, cwd: Path | None = None, full_payload: bool = False
+    *args: str, cwd: Path | None = None, full_payload: bool = True
 ) -> dict[str, Any]:
     """Run a command expected to BLOCK: assert non-zero exit, return JSON.
 
@@ -190,12 +165,31 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
         except CycloptsError as exc:
             returncode = 1
             stderr.write(f"{type(exc).__name__}: {exc}")
+    _require_live_next(stdout.getvalue())
     return subprocess.CompletedProcess(
         [sys.executable, "-m", "ethos.cli", *args],
         returncode,
         stdout.getvalue(),
         stderr.getvalue(),
     )
+
+
+def _require_live_next(stdout: str) -> None:
+    """Every structured next step is an invocation the live CLI parses, never misread prose."""
+    try:
+        payload = json.loads(stdout)
+    except ValueError:
+        return
+    step = payload.get("next") if isinstance(payload, dict) else None
+    if not isinstance(step, dict) or step.get("kind") != "command":
+        return
+    tokens = list(step["argv"][1:])
+    load_command_groups(tokens)
+    try:
+        app.parse_args(tokens, exit_on_error=False, print_error=False)
+    except CycloptsError as error:
+        message = f"next_argv_not_parsed:{shlex.join(step['argv'])}"
+        raise AssertionError(message) from error
 
 
 def _run_subprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:

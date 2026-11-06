@@ -55,5 +55,5 @@ def test_the_lease_summary_survives_the_payload_budget(tmp_path: Path) -> None:
     )
     bounded = apply_payload_budget(result, root=tmp_path)
     assert "x" not in bounded.data
-    assert "detail" in bounded.data
+    assert bounded.bound["detail"]
     assert bounded.summary == summary

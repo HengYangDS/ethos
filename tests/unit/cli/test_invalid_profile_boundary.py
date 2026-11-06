@@ -27,6 +27,7 @@ from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+from ethos.surface.cli.runtime_identity import with_runtime
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
@@ -102,7 +103,7 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path, monke
     assert bounded.verdict == "block"
     assert bounded.required_gaps == result.required_gaps
     assert bounded.next_action == result.next_action
-    reference = bounded.data["detail"]
+    reference = bounded.bound["detail"]
     artifact = Path(reference["path"])
     assert artifact.is_file()
     assert reference["sha256"].startswith("sha256:")
@@ -112,10 +113,10 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path, monke
         "tests.support.ethos_cli_runner.run_ethos_raw",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, bounded.to_json(), ""),
     )
-    assert run_ethos("plan", "--json", cwd=tmp_path) == bounded.to_dict()
+    assert run_ethos("plan", "--json", cwd=tmp_path, full_payload=False) == bounded.to_dict()
     assert run_ethos("plan", "--json", cwd=tmp_path, full_payload=True) == result.to_dict()
     artifact.write_bytes(artifact.read_bytes() + b" ")
-    with pytest.raises(AssertionError, match="payload_artifact_mismatch"):
+    with pytest.raises(ValueError, match="result_detail_mismatch"):
         run_ethos("plan", "--json", cwd=tmp_path, full_payload=True)
 
 
@@ -160,7 +161,8 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
     reader = {"status": inspect_repository, "plan": plan_repository}.get(command)
     if reader is not None:
-        assert reader(root).to_dict() == payload
+        # The CLI adds only the identity of the build that answered.
+        assert with_runtime(reader(root)).to_dict() == payload
         assert not capsys.readouterr().out
 
 

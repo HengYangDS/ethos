@@ -9,6 +9,8 @@ from pathlib import Path
 from ethos.adapters.openspec.cli import OFFICIAL_VERSION
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.result import EthosResult
+from ethos.surface.cli.runtime_identity import with_runtime
 
 
 def version_text() -> str:
@@ -20,30 +22,18 @@ def version_text() -> str:
         "runtime_digest": runtime_digest,
     }
     if "--json" in sys.argv[1:]:
-        return json.dumps(
-            {
-                "schema_version": 2,
-                "command": "version",
-                "verdict": "pass",
-                "state": "identified",
-                "summary": {
-                    "product_version": identity.product_version,
-                    "distribution_version": identity.distribution_version,
-                },
-                "diagnostics": [],
-                "required_gaps": [],
-                "next_action": "",
-                "data": {
-                    "identity": projection,
-                    "openspec_version": OFFICIAL_VERSION,
-                },
-                "user_decision_required": False,
-                "continuation": "done",
-                "missing_facts_or_evidence": [],
+        result = EthosResult(
+            command="version",
+            verdict="pass",
+            state="identified",
+            summary={
+                "product_version": identity.product_version,
+                "distribution_version": identity.distribution_version,
             },
-            ensure_ascii=False,
-            separators=(",", ":"),
+            data={"identity": projection, "openspec_version": OFFICIAL_VERSION},
         )
+        payload = with_runtime(result).to_dict()
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     return (
         f"ethos {identity.product_version} "
         f"({identity.distribution_version}; {identity.source_commit[:12]}; "

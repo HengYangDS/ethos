@@ -17,7 +17,9 @@ from uuid import uuid4
 from ethos.adapters.process import run_command
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
+from ethos.result import SCHEMA_VERSION
 from ethos.result import EthosResult
+from ethos.result import expand_result
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -37,6 +39,7 @@ _OBSERVATION: ContextVar[AcceptanceObservation | None] = ContextVar(
     "acceptance_observation", default=None
 )
 _PARENT_SPAN: ContextVar[str | None] = ContextVar("acceptance_parent_span", default=None)
+_PREDECESSOR_RESULT_INVALID = "predecessor_result_invalid"
 
 
 @contextmanager
@@ -136,6 +139,27 @@ def require_installed_guidance(status_json: str, origin: str) -> None:
         raise RuntimeError(message)
 
 
+def _read_result(payload: object) -> dict[str, object]:
+    """Read this schema in full; read a predecessor release's result exactly as it wrote it.
+
+    An upgrade journey runs the previous release, whose results carry the previous schema. Only
+    its verdict and data are read, so it is held to that shape rather than to this schema.
+    """
+    if not isinstance(payload, dict):
+        raise TypeError(_PREDECESSOR_RESULT_INVALID)
+    version = payload.get("schema_version")
+    if version == SCHEMA_VERSION:
+        return EthosResult.from_payload(expand_result(payload)).to_dict()
+    if not (
+        isinstance(version, int)
+        and version < SCHEMA_VERSION
+        and payload.get("verdict") in {"pass", "block", "unknown"}
+        and isinstance(payload.get("data"), dict)
+    ):
+        raise ValueError(_PREDECESSOR_RESULT_INVALID)
+    return payload
+
+
 def invoke(
     root: Path,
     command: tuple[str, ...],
@@ -152,14 +176,13 @@ def invoke(
             root, command, env=environment, inherit_environment=False, timeout=600
         )
     try:
-        result = EthosResult.from_payload(json.loads(completed.stdout))
+        payload = _read_result(json.loads(completed.stdout))
     except (json.JSONDecodeError, TypeError, ValueError) as error:
         message = f"package_cli_result_invalid:{shlex.join(command)}:{completed.stderr.strip()}"
         raise RuntimeError(message) from error
     if "Traceback" in completed.stdout + completed.stderr:
         message = f"package_cli_traceback:{shlex.join(command)}"
         raise RuntimeError(message)
-    payload = result.to_dict()
     diagnostic = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     if stderr := completed.stderr.strip():
         diagnostic = f"{diagnostic}\nstderr:{stderr}"

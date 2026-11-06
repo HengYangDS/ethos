@@ -182,7 +182,7 @@ ETHOS compiles `(Commitment, Facts, prior Attestations)` into a TransitionPlan,
 then freshly admits exact CAS effects, post-observes and attests them. CLI, SDK,
 CI, forge, docs and agent views project results without acquiring authority.
 
-`Continuation` is a pure, non-persistent projection from the schema-version-`2`
+`Continuation` is a pure, non-persistent projection from the schema-version-`3`
 result and current authoritative facts. The result preserves `state` and
 `required_gaps`, exposes singular `next_action` and `user_decision_required`,
 and derives `continuation` as exactly one of `continue`, `await-user`,

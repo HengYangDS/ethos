@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 
 import pytest
 
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from tests.support.ethos_cli_runner import expand_payload
+from ethos.result import expand_result
 
 
 def _check(action_id: str, verdict: str, lines: int) -> dict[str, object]:
@@ -41,7 +43,7 @@ def test_a_command_without_its_own_budget_is_bounded_by_the_default(tmp_path: Pa
     bounded = apply_payload_budget(result, root=tmp_path)
 
     assert len(bounded.to_json().encode()) <= 16 * 1024
-    assert Path(bounded.data["detail"]["path"]).is_file()
+    assert Path(bounded.bound["detail"]["path"]).is_file()
 
 
 def test_failing_steps_stay_inline_with_their_first_lines(tmp_path: Path) -> None:
@@ -50,7 +52,7 @@ def test_failing_steps_stay_inline_with_their_first_lines(tmp_path: Path) -> Non
     checks.append(_check("ruff", "block", 200))
     bounded = apply_payload_budget(_land(checks, padding=40_000), root=tmp_path)
 
-    inline = bounded.data["inline"]
+    inline = bounded.bound
     (failing,) = inline["failing"]
     assert failing["action_id"] == "ruff"
     assert failing["exit_code"] == 1
@@ -67,7 +69,7 @@ def test_a_result_that_cannot_shrink_is_truncated_never_refused(tmp_path: Path) 
 
     payload = json.loads(bounded.to_json())
     assert len(bounded.to_json().encode()) <= 16 * 1024
-    assert payload["data"]["inline"]["omitted_failing"] > 0
+    assert payload["bound"]["omitted_failing"] > 0
     assert payload["verdict"] == "block"
 
 
@@ -80,7 +82,7 @@ def test_an_oversized_gap_list_is_truncated_with_its_count(tmp_path: Path) -> No
 
     assert len(bounded.to_json().encode()) <= 16 * 1024
     assert bounded.required_gaps[0] == gaps[0]
-    assert bounded.data["inline"]["omitted_gaps"] == len(gaps) - len(bounded.required_gaps)
+    assert bounded.bound["omitted_gaps"] == len(gaps) - len(bounded.required_gaps)
     assert bounded.verdict == "block"
 
 
@@ -121,19 +123,20 @@ def test_a_commands_own_evidence_reference_survives_beside_the_detail_handle(
     bounded = apply_payload_budget(result, root=tmp_path)
 
     assert bounded.data["artifact_reference"] == evidence
-    assert Path(bounded.data["detail"]["path"]).is_file()
+    assert Path(bounded.bound["detail"]["path"]).is_file()
     assert "attestation" not in bounded.data
 
 
-def test_the_runner_expands_detail_and_refuses_a_changed_artifact(tmp_path: Path) -> None:
-    """A test that needs the evidence reads the digest-bound artifact, never a stale copy."""
+def test_a_bounded_result_reads_in_full_and_refuses_a_changed_artifact(tmp_path: Path) -> None:
+    """A consumer that needs the evidence reads the digest-bound artifact, never a stale copy."""
     result = _land([_check("ruff", "block", 5)], padding=40_000)
     payload = apply_payload_budget(result, root=tmp_path).to_dict()
 
-    assert expand_payload(payload) == result.to_dict()
-    Path(payload["data"]["detail"]["path"]).write_text("{}", encoding="utf-8")
-    with pytest.raises(AssertionError, match="payload_artifact_mismatch"):
-        expand_payload(payload)
+    assert expand_result(payload) == result.to_dict()
+    assert expand_result(result.to_dict()) == result.to_dict()
+    Path(payload["bound"]["detail"]["path"]).write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="result_detail_mismatch"):
+        expand_result(payload)
 
 
 def test_a_large_entry_keeps_its_scalar_fields_and_says_what_it_shortened(tmp_path: Path) -> None:
@@ -156,6 +159,57 @@ def test_a_large_entry_keeps_its_scalar_fields_and_says_what_it_shortened(tmp_pa
         "state": "candidate_validated",
         "path": "/lanes/one",
     }
-    assert bounded.data["inline"]["partial"] == ("candidate_update",)
-    assert bounded.data["inline"]["moved"] == ("log",)
+    assert bounded.bound["partial"] == ("candidate_update",)
+    assert bounded.bound["moved"] == ("log",)
     assert "log" not in bounded.data
+
+
+def test_detail_has_an_agent_safe_path_and_stale_detail_is_removed(tmp_path: Path) -> None:
+    """A path an agent can pass unquoted; detail older than a week goes when new detail arrives."""
+    stale = tmp_path / "payloads" / "status" / ("0" * 64 + ".json")
+    stale.parent.mkdir(parents=True)
+    stale.write_text("{}", encoding="utf-8")
+    week = 7 * 24 * 3600
+    os.utime(stale, (time.time() - week - 60, time.time() - week - 60))
+    result = EthosResult(
+        command="lane prewrite", verdict="pass", state="admitted", data={"x": "y" * 40_000}
+    )
+
+    detail = Path(apply_payload_budget(result, root=tmp_path).bound["detail"]["path"])
+
+    assert " " not in detail.as_posix()
+    assert detail.parent.name == "lane-prewrite"
+    assert detail.is_file()
+    assert not stale.exists()
+
+
+def test_a_store_that_refuses_detail_leaves_the_result_inline(tmp_path: Path) -> None:
+    """Detail is a cache: when it cannot be written, the result still fits and says why."""
+    blocked = tmp_path / "store"
+    blocked.write_text("not a directory", encoding="utf-8")
+    result = _land([_check("ruff", "block", 5)], padding=40_000)
+
+    bounded = apply_payload_budget(result, root=blocked)
+
+    assert "detail" not in bounded.bound
+    assert bounded.bound["detail_unavailable"]
+    assert len(bounded.to_json().encode()) <= 16 * 1024
+    assert bounded.verdict == "block"
+    with pytest.raises(ValueError, match="result_detail_unavailable"):
+        expand_result(bounded.to_dict())
+
+
+def test_a_commands_own_detail_entry_is_never_replaced(tmp_path: Path) -> None:
+    """`adopt` names a failure in `data.detail`; the bound lives beside data, not inside it."""
+    result = EthosResult(
+        command="adopt",
+        verdict="block",
+        state="gapped",
+        required_gaps=("formation_git_commit_failed",),
+        data={"detail": "commit_signature_untrusted", "log": ["z" * 100] * 400},
+    )
+
+    bounded = apply_payload_budget(result, root=tmp_path)
+
+    assert bounded.data["detail"] == "commit_signature_untrusted"
+    assert Path(bounded.bound["detail"]["path"]).is_file()

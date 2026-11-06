@@ -79,6 +79,63 @@ def ethos_command_mutates(command: list[str] | tuple[str, ...]) -> bool:
     )
 
 
+# What one ETHOS step does, ordered from the least to the most consequential effect.
+StepEffect = Literal[
+    "read", "remote-read", "execute", "local-evidence-write", "local-write", "remote-write"
+]
+STEP_EFFECTS: tuple[StepEffect, ...] = (
+    "read",
+    "remote-read",
+    "execute",
+    "local-evidence-write",
+    "local-write",
+    "remote-write",
+)
+# Hook admission admits only root readers; a step also reads when it names a lane reader.
+_READ_COMMAND_PATHS = frozenset({*((name,) for name in READONLY_ROOT_COMMANDS), ("lane", "status")})
+_REMOTE_ROOT_COMMANDS = frozenset({"publish"})
+# A command that runs a caller's command cannot see that command's effects.
+_DELEGATING_COMMAND_PATHS = frozenset({("host", "run")})
+
+
+def ethos_command_path(arguments: list[str] | tuple[str, ...]) -> tuple[str, ...]:
+    """Return up to two command words of one ETHOS argv, never an option value."""
+    words: list[str] = []
+    skip_value = False
+    for argument in arguments[1:]:
+        if skip_value:
+            skip_value = False
+        elif argument == "--root":
+            skip_value = True
+        elif argument.startswith("-"):
+            if words:
+                break
+        elif len(words) == 2:
+            break
+        else:
+            words.append(argument)
+    return tuple(words)
+
+
+def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffect, ...]:
+    """Return what one ETHOS argv does, from the least to the most consequential effect."""
+    path = ethos_command_path(arguments)
+    flags = {argument.partition("=")[0] for argument in arguments if argument.startswith("--")}
+    if path in _READ_COMMAND_PATHS and not flags & MUTATING_COMMAND_FLAGS:
+        return ("read",)
+    remote = bool(path) and path[0] in _REMOTE_ROOT_COMMANDS
+    delegates = path in _DELEGATING_COMMAND_PATHS
+    writes = delegates or bool(flags & {"--apply", "--authorize"})
+    present = {
+        "remote-read": remote,
+        "execute": delegates or "--execute" in flags,
+        "local-evidence-write": True,
+        "local-write": writes and not remote,
+        "remote-write": writes and remote,
+    }
+    return tuple(effect for effect in STEP_EFFECTS if present.get(effect, False))
+
+
 def _path_text(value: object) -> str:
     """Normalize one filesystem path-like value into the portable request form."""
     if isinstance(value, str):

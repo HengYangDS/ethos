@@ -34,8 +34,8 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
     assert exc_info.value.errors()[0]["type"] == "frozen_instance"
     schema = EthosResult.model_json_schema(mode="serialization")
     assert schema["properties"]["schema_version"] == {
-        "const": 2,
-        "default": 2,
+        "const": 3,
+        "default": 3,
         "title": "Schema Version",
         "type": "integer",
     }
@@ -213,7 +213,7 @@ def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> N
     payload = json.loads(result.to_json())
 
     assert payload == {
-        "schema_version": 2,
+        "schema_version": 3,
         "command": "plan",
         "verdict": "block",
         "state": "planned",
@@ -225,6 +225,14 @@ def test_projection_preserves_blocking_gaps_without_parallel_success_flag() -> N
         "data": {"value": 1},
         "continuation": "blocked",
         "missing_facts_or_evidence": [],
+        "next": {
+            "kind": "command",
+            "argv": ["ethos", "prove", "--json"],
+            "effects": ["local-evidence-write"],
+            "authorization": "none",
+            "binding": {},
+            "why": "gap-a",
+        },
     }
 
 
@@ -253,5 +261,13 @@ def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
     )
 
     with pytest.raises(TypeError):
-        bounded.data["detail"]["path"] = "changed"
-    assert Path(bounded.data["detail"]["path"]).is_file()
+        bounded.bound["detail"]["path"] = "changed"
+    assert Path(bounded.bound["detail"]["path"]).is_file()
+
+
+def test_a_version_2_payload_is_refused() -> None:
+    """Schema 3 derives the structured next step; an older payload is never read as a newer one."""
+    payload = _payload() | {"schema_version": 2}
+
+    with pytest.raises(ValueError, match="result_schema_version_unsupported:2"):
+        EthosResult.from_payload(payload)

@@ -381,11 +381,34 @@ operator-selected trust boundary.
 
 ## Result Envelope
 
-JSON results use schema version `2`: `verdict` alone decides authorization,
-`state` projects command state, `required_gaps` lists every blocker, and
-`next_action` is singular. Derived `continuation` is `continue`, `await-user`,
-`blocked`, or `done`; `missing_facts_or_evidence` derives from gaps only for
-`verdict=unknown`. `user_decision_required` identifies needed user judgment.
+JSON results use schema version `3`: `verdict` alone decides authorization, `state` projects
+command state, `required_gaps` lists every blocker, and `next_action` is singular. Derived
+`continuation` is `continue`, `await-user`, `blocked`, or `done`; `missing_facts_or_evidence`
+derives from gaps only for `verdict=unknown`. `user_decision_required` identifies needed user
+judgment, and `summary.runtime` names the product version, distribution version and source commit
+of the committed build that produced the result.
+
+`next` is the step that `next_action` renders, as data, so an agent never parses text:
+
+- `kind` is `command`, `instruction`, `decision` or `done`. Only a `command` has an `argv`: the
+  exact ETHOS invocation to run.
+- `effects` lists what the argv does, ordered `read`, `remote-read`, `execute`,
+  `local-evidence-write`, `local-write`, `remote-write`.
+- `authorization` is `none`; `embedded` when running the argv performs a write it already
+  authorizes; or `human` when only a person can take the step.
+- `binding` names the values the argv binds: `root`, `head`, `candidate_head`, `receipt`,
+  `plan_digest` and `lease_expires_at`.
+- `why` is the first required gap, or else the state.
+
+Every JSON result fits its budget: 16 KiB, or 32 KiB for `plan`. A larger result keeps its wire
+fields, its own `data` entries of at most 1 KiB and the scalar fields of a larger mapping, and adds
+a top-level `bound`. `bound.detail` names the digest-bound artifact of the full result; `bound`
+also lists each failing step's id, exit code and first 20 output lines, the entries it shortened
+(`partial`) or moved (`moved`), and counts of what it left out. `ethos.result.expand_result` reads
+the full result and refuses an artifact whose digest or size differs. Detail is a cache, not a
+receipt: detail older than seven days is removed whenever new detail is written, and a store that
+refuses it leaves the result inline with the reason in `bound.detail_unavailable`. A reader
+re-derives `next` from `next_action` and never trusts a carried one.
 
 ## Proof Depth
 

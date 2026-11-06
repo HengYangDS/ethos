@@ -30,31 +30,60 @@ Non-goals:
 ## Decisions
 
 - **One budget rule for every command.** `PAYLOAD_BUDGETS` becomes a default of 16 KiB with
-  per-command overrides. `emit` always applies it under the Git common directory, so callers no
-  longer opt in.
-- **What stays inline.** Externalizing keeps the wire fields and reduces `data` to three parts:
-  - the command's own entries of at most 1 KiB, such as receipts, paths, digests and evidence
-    references, because the next call binds to them;
-  - `data.detail`, the digest-bound artifact of the full result;
-  - `data.inline`: for each failing check, its id, exit code and first 20 output lines, with the
-    omitted counts.
+  per-command overrides. `emit` always applies it, so callers no longer opt in, and writes detail
+  under the ETHOS store of the repository the command resolved, never under the caller's working
+  directory.
+- **What stays inline.** Bounding keeps the wire fields, reduces `data`, and adds a top-level
+  `bound`:
+  - `data` keeps the command's own entries of at most 1 KiB, such as receipts, paths, digests and
+    evidence references, because the next call binds to them; a larger mapping keeps its scalar
+    fields, so a land result still names `candidate_update.state`;
+  - `bound` holds the budget and full size, `detail` (the digest-bound artifact of the full
+    result), each failing check's id, exit code and first 20 output lines, the entries shortened
+    (`partial`) or moved (`moved`), and the omitted counts.
+
+  The bound lives beside `data`, never inside it, because commands already use keys such as
+  `detail` (`adopt`) and `artifact_reference` (`prove`) for their own facts.
 
   If that is still too large, the failing steps, then the largest kept entries, then the gaps are
-  truncated, with counts, never raising. `detail` and `inline` are reserved names: `prove` already
-  emits `artifact_reference` for its evidence, and the bound must not replace it.
+  truncated, with counts, never raising. Detail is a convenience copy of a result, not a receipt: it
+  lives at `payloads/<command-with-hyphens>/<digest>.json`, a path an agent passes unquoted, and
+  detail older than seven days is removed whenever new detail is written, until the store retention
+  design (register row 27) owns the policy. Detail is a cache, not an effect, so a reader that
+  writes it still only reads; a store that refuses it leaves the result inline, with the reason in
+  `bound.detail_unavailable`.
 
-- **`next` derives from one owner.** Each command already computes `next_action` from its own
-  facts. A small `NextStep` value object holds argv, effects, authorization and binding.
-  `next_action` becomes its rendering for humans, so the two can never disagree. Commands that set
-  only prose get `argv: null` and `authorization: human`.
-- **Runtime identity.** It is read once per process from the running product's build identity, and
-  placed in `summary.runtime`.
-- **Schema 3.** `schema_version` becomes `Literal[3]`. `from_payload` refuses version 2, and the
-  test runner and every internal reader move in the same commit.
+- **`next` derives from the rendered argv, by one owner.** Every command already renders its next
+  step as `next_action`, built from an argv with `shlex.join`. `next` is a derived field: when
+  `next_action` is exactly one ETHOS argv (a lossless split and join, with no `<placeholder>`),
+  `next` carries that argv, its effects from the admission classification in
+  `contracts/admission.py`, and the values its flags bind. Anything else is an `instruction` with
+  no argv, and a result that needs a person is a `decision`. No producer changes, and the text and
+  the data cannot disagree. The command catalog slice replaces the path tables with declared
+  per-command effects and lets producers return argv directly.
+- **Runtime identity.** `emit` places the committed build identity in `summary.runtime`: product
+  version, distribution version and source commit, read once per invocation. The committed identity
+  costs about 13 ms; adding the dirty overlay costs about 200 ms in a checkout, so it is left to
+  `ethos version`.
+- **Schema 3.** `schema_version` becomes `Literal[3]`, and `from_payload` refuses version 2 with
+  `result_schema_version_unsupported:2`. `ethos.result.expand_result` is the one reader of a
+  bounded result; the test runner delegates to it. The release tooling reads its own schema in full
+  and a predecessor release's result as written, because an upgrade journey runs the previous
+  release, and only its verdict and data are read.
 
 ## Risks / Trade-offs
 
-- Every command that builds a continuation is touched. Mitigation: `NextStep` gets a constructor
-  from today's command list, and the command-plane tests pin each command's next step.
-- Some tests read the whole `data`. They read it through the runner's existing artifact expansion
-  (`full_payload=True`, `result_data`).
+- `next` relies on producers rendering exact argv. Mitigation: prose and templates stay
+  instructions, and the test runner parses every structured next step with the live CLI, so a
+  misread step fails the test that produced it. The command catalog removes the rendering step.
+- `next` is derived from ETHOS's own rendering, which the continuation requirement now permits
+  explicitly; authority boundaries (`user_decision_required`, `continuation`) remain explicit facts.
+  Each reader re-derives `next` and checks a carried one only for shape, so a classification that
+  changes between runtimes cannot make an older payload of the same schema unreadable. The
+  `command-forms` slice makes `next` a wire field set by producers.
+- The test runner returns the full result by default, because each new result field moves some
+  results across the budget; tests that verify the bound itself ask for `full_payload=False`.
+- Some tests read the whole `data`. They read it through `full_result`, `full_payload=True` or
+  `result_data`, which delegate to `expand_result`.
+- MCP tools still return unbounded results without `next`; the command catalog slice moves them
+  onto this contract.

@@ -26,7 +26,7 @@ uv run ethos status --json
 
 Read `required_gaps`, singular `next_action`, derived `continuation`,
 `missing_facts_or_evidence`, and `user_decision_required` before changing
-tracked files. The schema-version-`2` result preserves `state` and
+tracked files. The schema-version-`3` result preserves `state` and
 `required_gaps`. A readiness result is not executed proof, landing,
 publication, or remote push. Follow only the selected boundary, not a fixed
 status/plan/prove pipeline. When `continuation=done`, the requested observation

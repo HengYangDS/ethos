@@ -4,8 +4,8 @@
 
 See [proposal.md](proposal.md). `_observe` in `tools/ci/dependency_audit.py` repeats only an npm
 observation whose reason is `advisory_request_failed`, three times with two-second pauses.
-`interpret_native_audit` reads stdout and the exit code. `evaluate_dependency_acceptance` checks that
-the receipt is consistent, then parses each check's output for findings.
+`interpret_native_audit` reads stdout and the exit code. `evaluate_dependency_acceptance` checks
+that the receipt is consistent, then parses each check's output for findings.
 
 ## Goals / Non-Goals
 

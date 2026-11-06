@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -201,4 +202,65 @@ def test_a_commands_own_data_entries_survive_beside_the_bound(
     bounded = apply_payload_budget(result, root=tmp_path)
 
     assert {key: bounded.data[key] for key in entry} == entry
+    assert Path(bounded.bound["detail"]["path"]).is_file()
+
+
+def test_small_entries_move_largest_first_until_the_result_fits(tmp_path: Path) -> None:
+    """Entries under the inline size still go when together they exceed the budget."""
+    entries = {f"entry_{index:02}": "e" * (600 + index) for index in range(40)}
+    result = EthosResult(command="lane status", verdict="pass", state="ready", data=entries)
+
+    bounded = apply_payload_budget(result, root=tmp_path)
+
+    assert len(bounded.to_json().encode()) <= 16 * 1024
+    assert bounded.bound["moved"] == tuple(sorted(set(entries) - set(bounded.data)))
+    assert all(
+        len(entries[key]) >= len(entries[kept])
+        for key in bounded.bound["moved"]
+        for kept in bounded.data
+    )
+
+
+def _rebound(payload: dict[str, object], content: bytes) -> dict[str, object]:
+    """Point a bounded payload at other detail bytes whose digest and size it then names."""
+    detail = dict(payload["bound"]["detail"])
+    Path(detail["path"]).write_bytes(content)
+    detail |= {
+        "sha256": f"sha256:{hashlib.sha256(content).hexdigest()}",
+        "size_bytes": len(content),
+    }
+    return payload | {"bound": payload["bound"] | {"detail": detail}}
+
+
+def test_detail_that_names_another_result_refuses(tmp_path: Path) -> None:
+    """Matching bytes are not enough: the detail must be a result that agrees with the bound."""
+    result = _land([_check("ruff", "block", 5)], padding=40_000)
+    payload = apply_payload_budget(result, root=tmp_path).to_dict()
+    other = EthosResult(command="land", verdict="pass", state="landed").to_json().encode()
+
+    for content in (b"{}", other):
+        with pytest.raises(ValueError, match="result_detail_mismatch"):
+            expand_result(_rebound(payload, content))
+    Path(payload["bound"]["detail"]["path"]).unlink()
+    with pytest.raises(ValueError, match="result_detail_mismatch"):
+        expand_result(payload)
+
+
+def test_stale_detail_that_cannot_be_removed_stays_without_failing(tmp_path: Path) -> None:
+    """Retention is best effort: an undeletable stale file never blocks the new result."""
+    stale = tmp_path / "payloads" / "status" / ("0" * 64 + ".json")
+    stale.parent.mkdir(parents=True)
+    stale.write_text("{}", encoding="utf-8")
+    week = 7 * 24 * 3600
+    os.utime(stale, (time.time() - week - 60, time.time() - week - 60))
+    stale.parent.chmod(0o500)
+    try:
+        # The new detail goes to its own command's directory; only the stale one is read-only.
+        result = EthosResult(
+            command="lane status", verdict="pass", state="ready", data={"x": "y" * 40_000}
+        )
+        bounded = apply_payload_budget(result, root=tmp_path)
+    finally:
+        stale.parent.chmod(0o700)
+    assert stale.exists()
     assert Path(bounded.bound["detail"]["path"]).is_file()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -9,6 +10,7 @@ import sys
 import pytest
 
 import ethos.surface.cli.output as output
+from ethos.adapters.process import ProcessExecutionError
 from ethos.result import EthosResult
 
 
@@ -213,3 +215,21 @@ def test_real_full_nonblocking_pipe_preserves_one_failed_exit() -> None:
         if write_fd >= 0:
             os.close(write_fd)
         os.close(read_fd)
+
+
+def test_an_unresolvable_store_leaves_the_result_inline(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """When Git cannot name the store, the bound keeps the result inline and says why."""
+    failure = ProcessExecutionError(
+        "git_process_spawn_failed", reason="missing_binary", command=("git",), cwd="/"
+    )
+
+    def unavailable(_anchor):
+        raise failure
+
+    monkeypatch.setattr(output, "git_common_dir", unavailable)
+    result = EthosResult(command="status", verdict="pass", state="ready", data={"x": "y" * 40_000})
+    output.emit(result, json_output=True, artifact_root=tmp_path)
+    bound = json.loads(capsys.readouterr().out)["bound"]
+    assert (bound["detail_unavailable"], "detail" in bound) == ("OSError", False)

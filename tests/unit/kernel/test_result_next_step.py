@@ -6,6 +6,7 @@ import shlex
 
 import pytest
 
+from ethos.contracts.next_step import derive_next_step
 from ethos.result import EthosResult
 
 _HEAD = "a" * 40
@@ -139,3 +140,9 @@ def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
     payload["next"] = {**payload["next"], "kind": "launch"}
     with pytest.raises(ValueError, match="kind"):
         EthosResult.from_payload(payload)
+
+
+def test_a_next_action_that_does_not_split_is_an_instruction() -> None:
+    """An unbalanced quote is prose to an agent, never a command it could run."""
+    step = derive_next_step('ethos land --subject "unterminated', continuation=None, why="gapped")
+    assert (step.kind, step.argv) == ("instruction", ())

@@ -23,6 +23,7 @@ from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_input_bindings
+from tools.ci import supply_image
 from tools.ci.toolchain.environment import ProjectRuntime
 from tools.ci.toolchain.native import mise_executables
 
@@ -291,6 +292,18 @@ def _forge_surface_reports() -> tuple[list[dict[str, Any]], list[dict[str, str]]
     return surfaces, failures
 
 
+def _supply_image_failures() -> list[dict[str, str]]:
+    """Refuse a head whose supply-image inputs differ from the bound image's build commit."""
+    if not (ROOT / supply_image.DOCKERFILE).is_file():
+        return []
+    try:
+        _digest, source = supply_image.binding(ROOT)
+        gaps = supply_image.stale_inputs(ROOT, source)
+    except (OSError, ValueError, IndexError, subprocess.SubprocessError) as error:
+        gaps = [str(error)]
+    return [{"provider": "supply-image", "reason": f"{gap}: {supply_image.ROUTE}"} for gap in gaps]
+
+
 def check_templates(*, json_output: bool) -> int:
     failures: list[dict[str, str]] = []
     projections: list[dict[str, Any]] = []
@@ -352,6 +365,7 @@ def check_templates(*, json_output: bool) -> int:
         )
     surfaces, surface_failures = _forge_surface_reports()
     failures.extend(surface_failures)
+    failures.extend(_supply_image_failures())
     evidence = {
         "schema_version": 1,
         "kind": "ethos_ci_template_consistency",

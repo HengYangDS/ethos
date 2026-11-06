@@ -22,6 +22,7 @@ variables:
   UV_PYTHON_INSTALL_DIR: /opt/ethos-supply/python
   NPM_CONFIG_CACHE: /opt/ethos-supply/npm-cache
   ETHOS_CI_SUPPLY_MANIFEST: /opt/ethos-supply/input.sha256
+  ETHOS_CI_SUPPLY_SOURCE: 690e75069775cb2b70b96a102ebf0ad782f6cafb
   FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: "true"
 default:
   tags:

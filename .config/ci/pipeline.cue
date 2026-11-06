@@ -33,6 +33,9 @@ let supplyDockerfile = ".config/ci/supply/Dockerfile"
 let supplyImage = "ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
 let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:36acefde2cda6b0724d9fe72c08e83a55c339b63504791507f41f3fd93834ef6"
 
+// The commit the bound image was built from; the CI projection check compares its manifest inputs.
+let gitlabImageSource = "690e75069775cb2b70b96a102ebf0ad782f6cafb"
+
 // Commit-scoped GitLab jobs verify a commit once: a main push at dev's commit leaves them to
 // the dev pipeline of the same commit, while commit-policy still admits every pushed ref.
 let commitScopedRules = [{
@@ -630,6 +633,8 @@ gitlab: {
 		UV_PYTHON_INSTALL_DIR:    "/opt/ethos-supply/python"
 		NPM_CONFIG_CACHE:         "/opt/ethos-supply/npm-cache"
 		ETHOS_CI_SUPPLY_MANIFEST: "/opt/ethos-supply/input.sha256"
+		// The commit the bound image was built from, so a job log names the image's source.
+		ETHOS_CI_SUPPLY_SOURCE: gitlabImageSource
 		// The runner gives the checkout to the image's unprivileged user instead of a zero umask.
 		FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: "true"
 	}

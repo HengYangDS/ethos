@@ -38,22 +38,22 @@ from tests.unit.cli.land.publication.support import publication_peers
 from tests.unit.cli.land.publication.support import release_cli
 
 
+def _pre_push(repo: Path, line: str, remote: str = "gitlab") -> tuple[int, str]:
+    """Run the native pre-push hook on one ref line; return its exit code and its report."""
+    stream = StringIO()
+    with redirect_stderr(stream):
+        code = execute_hook(repo, "pre-push", (remote,), stdin=StringIO(f"{line}\n"))
+    return code, stream.getvalue()
+
+
 def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) -> None:
     """A signed commit cannot masquerade as the signed annotated tag object."""
     repo, _main, _old, head = accepted_release_fixture(tmp_path)
     publication_peers(repo, tmp_path)
     zero = "0" * len(head)
-    stream = StringIO()
-    with redirect_stderr(stream):
-        code = execute_hook(
-            repo,
-            "pre-push",
-            ("gitlab",),
-            stdin=StringIO(f"refs/heads/dev {head} refs/tags/v1.2.3 {zero}\n"),
-        )
+    code, report = _pre_push(repo, f"refs/heads/dev {head} refs/tags/v1.2.3 {zero}")
     assert code == 1
-    report = json.loads(stream.getvalue())
-    assert "release_tag_source_untrusted" in report["required_gaps"]
+    assert "release_tag_source_untrusted" in json.loads(report)["required_gaps"]
 
 
 def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
@@ -71,55 +71,26 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
     assert release_ref_subject(repo, ref="refs/tags/v1.2.3", old=zero, new=tag) == head
     assert observed.call_count == 1
     for remote_oid in (zero, tag):
-        stream = StringIO()
-        with redirect_stderr(stream):
-            code = execute_hook(
-                repo,
-                "pre-push",
-                ("gitlab",),
-                stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {remote_oid}\n"),
-            )
-        assert (code, stream.getvalue()) == (0, "")
-    stream = StringIO()
-    with redirect_stderr(stream):
-        code = execute_hook(
-            repo,
-            "pre-push",
-            ("gitlab",),
-            stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {old}\n"),
-        )
+        assert _pre_push(repo, f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {remote_oid}") == (0, "")
+    code, report = _pre_push(repo, f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {old}")
     assert code == 1
-    assert "release_tag_immutable" in json.loads(stream.getvalue())["required_gaps"]
+    assert "release_tag_immutable" in json.loads(report)["required_gaps"]
     git(repo, "tag", "-s", "-m", "wrong name", "v9.9.9", head)
     wrong = git(repo, "rev-parse", "refs/tags/v9.9.9")
     for target, gap in (
         ("refs/tags/v1.2.3", "release_tag_name_mismatch"),
         ("refs/tags/v9.9.9", "release_tag_version_mismatch"),
     ):
-        stream = StringIO()
-        with redirect_stderr(stream):
-            code = execute_hook(
-                repo,
-                "pre-push",
-                ("gitlab",),
-                stdin=StringIO(f"refs/tags/v9.9.9 {wrong} {target} {zero}\n"),
-            )
+        code, report = _pre_push(repo, f"refs/tags/v9.9.9 {wrong} {target} {zero}")
         assert code == 1
-        assert gap in json.loads(stream.getvalue())["required_gaps"]
+        assert gap in json.loads(report)["required_gaps"]
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
     original = anchor.read_text(encoding="utf-8")
     try:
         anchor.write_text("", encoding="utf-8")
-        stream = StringIO()
-        with redirect_stderr(stream):
-            code = execute_hook(
-                repo,
-                "pre-push",
-                ("gitlab",),
-                stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {zero}\n"),
-            )
+        code, report = _pre_push(repo, f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {zero}")
         assert code == 1
-        assert "release_tag_source_untrusted" in json.loads(stream.getvalue())["required_gaps"]
+        assert "release_tag_source_untrusted" in json.loads(report)["required_gaps"]
     finally:
         anchor.write_text(original, encoding="utf-8")
 
@@ -337,15 +308,10 @@ def test_accepted_dev_delivery_preserves_history_and_exact_peer_cas(tmp_path: Pa
         assert commits["remote_head"] == remote_head
         assert commits["baseline_ref"] == "refs/heads/dev"
         assert commits["history_signature_claimed"] is False
-        stream = StringIO()
-        with redirect_stderr(stream):
-            code = execute_hook(
-                repo,
-                "pre-push",
-                (remote,),
-                stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {remote_head}\n"),
-            )
-        assert code == 0, stream.getvalue()
+        code, report = _pre_push(
+            repo, f"refs/heads/dev {head} refs/heads/dev {remote_head}", remote
+        )
+        assert code == 0, report
     assert git(repo, "show-ref") == refs
 
     preview = branch_publication(repo, head, target_ref="refs/heads/dev")

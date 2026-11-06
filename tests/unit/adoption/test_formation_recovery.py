@@ -1,6 +1,9 @@
 """Formation recovery observes a created repository instead of replaying or deleting it."""
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,18 +15,35 @@ from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
+if TYPE_CHECKING:
+    from ethos.result import EthosResult
+
+
+def _request(purpose: str = "Verifiable changes.", **fields: str) -> dict[str, object]:
+    """Request the foundation starter with the fixture signer."""
+    return {
+        "create": True,
+        "purpose": purpose,
+        "starter": "foundation",
+        **fields,
+        **fixture_signer_inputs(),
+    }
+
+
+def _apply(target: Path, request: dict[str, object], preview: EthosResult) -> EthosResult:
+    """Apply one request against the plan digest its preview reviewed."""
+    digest = str(preview.data["plan_digest"])
+    return adopt_repository(
+        target, **request, apply=True, authorize=True, expect_plan_digest=digest
+    )
+
 
 def test_greenfield_copy_failure_preserves_unknown_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A partial output is observed, not deleted or blindly regenerated."""
     target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Steward a new project with verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request("Steward a new project with verifiable changes.")
     preview = adopt_repository(target, **request)
 
     def partial_copy(_candidate: Path, destination: Path, **_options: object) -> None:
@@ -33,13 +53,7 @@ def test_greenfield_copy_failure_preserves_unknown_target(
         raise OSError(message)
 
     monkeypatch.setattr(formation_effect.shutil, "copytree", partial_copy)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
+    result = _apply(target, request, preview)
 
     assert result.verdict == "unknown"
     assert (target / "foreign.txt").read_text(encoding="utf-8") == "preserve"
@@ -51,12 +65,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
 ) -> None:
     """Post-copy runtime failure keeps the exact Git repository for safe recovery."""
     target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request()
     preview = adopt_repository(target, **request)
 
     def fail_activation(_root: Path) -> None:
@@ -64,13 +73,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
         raise ValueError(message)
 
     monkeypatch.setattr(candidate_projection, "install_hook_launchers", fail_activation)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
+    result = _apply(target, request, preview)
 
     assert result.verdict == "unknown"
     assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
@@ -102,12 +105,7 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
 ) -> None:
     """A completed ref effect must lead to worktree recovery, not a fresh formation."""
     target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request()
     preview = adopt_repository(target, **request)
 
     def fail_worktree(*_args: object, **_kwargs: object) -> None:
@@ -116,13 +114,7 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
 
     with monkeypatch.context() as failure:
         failure.setattr(candidate_projection, "add_worktree", fail_worktree)
-        result = adopt_repository(
-            target,
-            **request,
-            apply=True,
-            authorize=True,
-            expect_plan_digest=str(preview.data["plan_digest"]),
-        )
+        result = _apply(target, request, preview)
 
     candidate = target.with_name("new-project-candidate-dev")
     head = git(target, "rev-parse", "HEAD")
@@ -159,14 +151,7 @@ def test_greenfield_postpublication_failures_preserve_recovery_boundary(
 ) -> None:
     """A published target is observed, not silently rolled back or replayed."""
     target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Verifiable changes.",
-        "starter": "foundation",
-        "author_name": "Test Contributor",
-        "author_email": "test@example.invalid",
-        **fixture_signer_inputs(),
-    }
+    request = _request(author_name="Test Contributor", author_email="test@example.invalid")
     preview = adopt_repository(target, **request)
     assert preview.verdict == "pass"
     monkeypatch.setattr(
@@ -195,13 +180,7 @@ def test_greenfield_postpublication_failures_preserve_recovery_boundary(
             raise OSError(message)
 
         monkeypatch.setattr(formation_effect, "bootstrap_candidate", no_candidate)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
+    result = _apply(target, request, preview)
     assert result.verdict == "unknown"
     assert result.required_gaps == (gap,)
     assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"

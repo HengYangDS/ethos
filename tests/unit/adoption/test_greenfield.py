@@ -21,6 +21,11 @@ from tests.support.windows_host import translate_like_windows
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def _request(purpose: str = "Steward a new project with verifiable changes.") -> dict[str, object]:
+    """Request the foundation starter with the fixture signer."""
+    return {"create": True, "purpose": purpose, "starter": "foundation", **fixture_signer_inputs()}
+
+
 def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> None:
     """Minimal adoption is not silently upgraded into a project scaffolder."""
     root = init_git_repo(tmp_path / "existing")
@@ -69,13 +74,7 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     """A reviewed foundation exists before any repository or Git ref does."""
     target = tmp_path / "new-project"
 
-    result = adopt_repository(
-        target,
-        create=True,
-        purpose="Steward a new project with verifiable changes.",
-        starter="foundation",
-        **fixture_signer_inputs(),
-    )
+    result = adopt_repository(target, **_request())
 
     assert result.verdict == "pass"
     assert result.state == "planned"
@@ -93,12 +92,7 @@ def test_greenfield_plan_is_identical_under_windows_text_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Formation writes LF content on every host, so its reviewed plan cannot vary."""
-    request = {
-        "create": True,
-        "purpose": "Steward a new project with verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request()
     native = adopt_repository(tmp_path / "new-project", **request)
     translate_like_windows(monkeypatch)
     translated = adopt_repository(tmp_path / "new-project", **request)
@@ -221,12 +215,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         "install_hook_launchers",
         install_fixture_hook_runtime,
     )
-    request = {
-        "create": True,
-        "purpose": "Steward a new project with verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request()
     preview = adopt_repository(target, **request)
 
     applied = adopt_repository(
@@ -270,12 +259,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
 def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str) -> None:
     """A stale request or foreign target cannot be overwritten."""
     target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Steward a new project with verifiable changes.",
-        "starter": "foundation",
-        **fixture_signer_inputs(),
-    }
+    request = _request()
     preview = adopt_repository(target, **request)
     if defect == "collision":
         target.mkdir()
@@ -303,13 +287,7 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     (sibling / "foreign.txt").write_text("preserve", encoding="utf-8")
     target = tmp_path / "new-project"
 
-    result = adopt_repository(
-        target,
-        create=True,
-        purpose="Verifiable changes.",
-        starter="foundation",
-        **fixture_signer_inputs(),
-    )
+    result = adopt_repository(target, **_request("Verifiable changes."))
 
     assert result.verdict == "block"
     assert result.required_gaps == ("formation_candidate_path_exists",)

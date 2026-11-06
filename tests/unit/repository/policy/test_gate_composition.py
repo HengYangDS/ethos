@@ -28,23 +28,22 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _gated(root: Path, gate: Gate, profile_id: str = "document-repository") -> RepositoryProfile:
+    """Declare a repository whose one gate owns both behavior and static analysis."""
+    owners = {"behavior": gate.id, "static-analysis": gate.id}
+    proof = ProofPolicy(
+        code_correctness_gates=(gate.id,), gates=(gate,), code_correctness_map=owners
+    )
+    declaration = RepositoryProfileDeclaration(profile_id=profile_id, proof=proof)
+    return RepositoryProfile(root=root, exists=True, declaration=declaration)
+
+
 @pytest.mark.parametrize("mode", ["default", "full", "focused"])
 def test_applicable_common_document_floor_preserves_native_increment_and_focus(
     tmp_path: Path, mode: str
 ) -> None:
     """Actual documents require shared owners without importing a product toolchain."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="document-repository",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                gates=(Gate(id="native", kind="test", command=("native-check",)),),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-            ),
-        ),
-    )
+    profile = _gated(tmp_path, Gate(id="native", kind="test", command=("native-check",)))
     policy = compile_gate_policy(
         profile=profile,
         repository_paths=("README.md", "docs/design.md", "openspec/config.yaml"),
@@ -75,21 +74,7 @@ def test_required_common_verifier_cannot_be_replaced_by_same_named_native_comman
     tmp_path: Path,
 ) -> None:
     """Native increments remain local, but cannot impersonate a shared required owner."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="document-repository",
-            proof=ProofPolicy(
-                code_correctness_gates=("markdown-lint",),
-                gates=(Gate(id="markdown-lint", kind="test", command=("true",)),),
-                code_correctness_map={
-                    "behavior": "markdown-lint",
-                    "static-analysis": "markdown-lint",
-                },
-            ),
-        ),
-    )
+    profile = _gated(tmp_path, Gate(id="markdown-lint", kind="test", command=("true",)))
     with pytest.raises(ValueError, match="common_gate_execution_conflict:markdown-lint"):
         compile_gate_policy(profile=profile, repository_paths=("README.md",), full=True)
 
@@ -101,18 +86,7 @@ def test_the_packaged_registry_holds_only_the_shared_obligations(
     tmp_path: Path, requested: tuple[str, ...]
 ) -> None:
     """A repository imports what every repository runs; ETHOS's own gates stay ETHOS's."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="document-repository",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                gates=(Gate(id="native", kind="test", command=("native-check",)),),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-            ),
-        ),
-    )
+    profile = _gated(tmp_path, Gate(id="native", kind="test", command=("native-check",)))
     with pytest.raises(ValueError, match=r"^unknown proof gate$"):
         compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
     imported = compile_gate_policy(profile=profile, gate_ids=("prose",), repository_python="python")
@@ -256,31 +230,16 @@ def test_same_executor_preserves_the_complete_applicable_common_contract(
     tmp_path: Path, mode: str
 ) -> None:
     """A native redeclaration cannot lower the shared floor's policy or evidence bounds."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="document-repository",
-            proof=ProofPolicy(
-                code_correctness_gates=("markdown-lint",),
-                gates=(
-                    Gate(
-                        id="markdown-lint",
-                        kind="native",
-                        providers=("ethos.adapters.gates.tool:markdown_lint_report",),
-                        policy="advisory",
-                        network_policy="unrestricted",
-                        trust_bearing=False,
-                        writes_files=True,
-                    ),
-                ),
-                code_correctness_map={
-                    "behavior": "markdown-lint",
-                    "static-analysis": "markdown-lint",
-                },
-            ),
-        ),
+    lint = Gate(
+        id="markdown-lint",
+        kind="native",
+        providers=("ethos.adapters.gates.tool:markdown_lint_report",),
+        policy="advisory",
+        network_policy="unrestricted",
+        trust_bearing=False,
+        writes_files=True,
     )
+    profile = _gated(tmp_path, lint)
     policy = compile_gate_policy(
         profile=profile,
         repository_paths=("README.md",),
@@ -310,18 +269,7 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         command=("tools/check.py",),
         verification_providers=("ethos.adapters.gates.python_quality:behavior_report",),
     )
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-                gates=(native,),
-            ),
-        ),
-    )
+    profile = _gated(tmp_path, native, "target")
     materials = {
         "tools/check.py": b"print('target check')\n",
         "@ethos/adapters/gates/python_quality.py": b"native verification\n",

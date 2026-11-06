@@ -12,10 +12,23 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.domain.status import product_audit
 
 if TYPE_CHECKING:
+    from ethos.repository.audit import CommitPolicyObserver
     from ethos.repository.policy.commit import CommitPolicy
 
 ROOT = Path(__file__).resolve().parents[2]
 TRACKED_DOCUMENTS = tuple(git_files(ROOT, "*.md"))
+
+
+def _audit(observer: CommitPolicyObserver) -> dict[str, object]:
+    """Audit this repository's own tree with a passing OpenSpec shape and one commit observer."""
+    return repository_audit_module.repository_audit(
+        ROOT,
+        openspec_mode="shape",
+        openspec_shape={"verdict": "pass", "required_gaps": []},
+        tracked_documents=TRACKED_DOCUMENTS,
+        retained_origins=observed_document_origins(ROOT),
+        commit_policy_observer=observer,
+    )
 
 
 def _passing_commit_observation(
@@ -82,14 +95,7 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
 
     monkeypatch.setattr(repository_audit_module, "load_commit_policy", reject_policy)
 
-    report = repository_audit_module.repository_audit(
-        ROOT,
-        openspec_mode="shape",
-        openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=TRACKED_DOCUMENTS,
-        retained_origins=observed_document_origins(ROOT),
-        commit_policy_observer=observe,
-    )
+    report = _audit(observe)
 
     assert report["verdict"] == "block"
     assert report["commit_policy"] == {
@@ -143,14 +149,7 @@ def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(
         },
     )
 
-    report = repository_audit_module.repository_audit(
-        ROOT,
-        openspec_mode="shape",
-        openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=TRACKED_DOCUMENTS,
-        retained_origins=observed_document_origins(ROOT),
-        commit_policy_observer=_passing_commit_observation,
-    )
+    report = _audit(_passing_commit_observation)
 
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == [
@@ -193,14 +192,7 @@ def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch
         lambda _root, **_observations: closure,
     )
 
-    report = repository_audit_module.repository_audit(
-        ROOT,
-        openspec_mode="shape",
-        openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=TRACKED_DOCUMENTS,
-        retained_origins=observed_document_origins(ROOT),
-        commit_policy_observer=_passing_commit_observation,
-    )
+    report = _audit(_passing_commit_observation)
 
     required_gaps = report["required_gaps"]
     assert isinstance(required_gaps, list)

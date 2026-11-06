@@ -21,6 +21,15 @@ def _old_files() -> dict[str, str]:
     return {"pyproject.toml": hashlib.sha256(b'description = "old"\n').hexdigest()}
 
 
+_NEW = {"pyproject.toml": b'description = "new"\n'}
+
+
+def _evolve(repo: Path, baseline: str, current: str, **files: object) -> dict[str, object]:
+    """Compose the reviewed new starter output onto one history; files override either side."""
+    sides = {"old_files": _old_files(), "new_files": _NEW} | files
+    return compose_starter_evolution(repo, baseline=baseline, current=current, **sides)
+
+
 def _history(
     tmp_path: Path, *, customize_template: bool, object_format: str = "sha1"
 ) -> tuple[Path, str, str]:
@@ -65,13 +74,7 @@ def test_starter_evolution_requires_exact_source_history(
         old_files["src/missing.py"] = hashlib.sha256(b"missing\n").hexdigest()
     before = git(repo, "rev-parse", "HEAD")
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=old_files,
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current, old_files=old_files)
 
     assert report["required_gaps"] == [gap]
     assert report["patch"] == ""
@@ -95,13 +98,7 @@ def test_starter_evolution_revalidates_head_after_object_merge(
         return original_run_git(root, *args, **kwargs)
 
     monkeypatch.setattr(evolution, "run_git", changed_head)
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=_old_files(),
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current)
     assert report["required_gaps"] == ["starter_evolution_head_changed"]
     assert git(repo, "rev-parse", "HEAD") == current
 
@@ -118,13 +115,7 @@ def test_starter_evolution_reports_unavailable_object_sandbox(
         raise OSError(message)
 
     monkeypatch.setattr(evolution, "isolated_git_objects", unavailable)
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=_old_files(),
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current)
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == ["starter_evolution_observation_unknown"]
     assert report["patch"] == ""
@@ -142,13 +133,7 @@ def test_starter_evolution_composes_disjoint_changes_without_source_effect(
     )
     refs = git(repo, "show-ref")
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=_old_files(),
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current)
 
     assert report["verdict"] == "pass"
     assert report["changed_paths"] == ["pyproject.toml"]
@@ -165,13 +150,7 @@ def test_starter_evolution_conflict_preserves_authored_bytes(tmp_path: Path) -> 
     before = (repo / "pyproject.toml").read_bytes()
     refs = git(repo, "show-ref")
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=_old_files(),
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current)
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["starter_evolution_conflict"]
@@ -193,10 +172,10 @@ def test_starter_removal_preserves_authored_history(
     authored = (repo / "src/custom.py").read_bytes()
     old_files = _old_files() | {"src/custom.py": hashlib.sha256(b"value = 1\n").hexdigest()}
 
-    report = compose_starter_evolution(
+    report = _evolve(
         repo,
-        baseline=baseline,
-        current=current,
+        baseline,
+        current,
         old_files=old_files,
         new_files={"pyproject.toml": b'description = "old"\n'},
     )
@@ -216,13 +195,7 @@ def test_starter_evolution_rejects_false_prior_output_digest(tmp_path: Path) -> 
     before = (repo / "pyproject.toml").read_bytes()
     refs = git(repo, "show-ref")
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files={"pyproject.toml": "0" * 64},
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, baseline, current, old_files={"pyproject.toml": "0" * 64})
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["starter_evolution_baseline_content_mismatch"]
@@ -234,13 +207,7 @@ def test_starter_evolution_rejects_unreviewed_path_scope(tmp_path: Path) -> None
     """Generated path traversal cannot become an object-store or filesystem effect."""
     repo, baseline, current = _history(tmp_path, customize_template=False)
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=baseline,
-        current=current,
-        old_files=_old_files(),
-        new_files={"../outside": b"unsafe"},
-    )
+    report = _evolve(repo, baseline, current, new_files={"../outside": b"unsafe"})
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["starter_evolution_path_unsafe"]
@@ -259,13 +226,7 @@ def test_starter_evolution_rejects_linked_baseline_file(tmp_path: Path) -> None:
     git(repo, "commit", "-m", "chore: linked baseline")
     head = git(repo, "rev-parse", "HEAD")
 
-    report = compose_starter_evolution(
-        repo,
-        baseline=head,
-        current=head,
-        old_files={"pyproject.toml": "0" * 64},
-        new_files={"pyproject.toml": b'description = "new"\n'},
-    )
+    report = _evolve(repo, head, head, old_files={"pyproject.toml": "0" * 64})
 
     assert report["required_gaps"] == ["starter_evolution_baseline_paths_unsafe"]
     assert target.is_symlink()

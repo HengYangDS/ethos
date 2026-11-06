@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import time
 from pathlib import Path
@@ -53,14 +52,11 @@ def test_failing_steps_stay_inline_with_their_first_lines(tmp_path: Path) -> Non
     checks.append(_check("ruff", "block", 200))
     bounded = apply_payload_budget(_land(checks, padding=40_000), root=tmp_path)
 
-    inline = bounded.bound
-    (failing,) = inline["failing"]
-    assert failing["action_id"] == "ruff"
-    assert failing["exit_code"] == 1
-    assert len(failing["output"]) == 20
-    assert failing["output"][0] == "ruff line 0"
-    assert failing["omitted_lines"] == 180
-    assert inline["passing_count"] == 30
+    (failing,) = bounded.bound["failing"]
+    observed = (failing["action_id"], failing["exit_code"], len(failing["output"]))
+    assert observed == ("ruff", 1, 20)
+    assert (failing["output"][0], failing["omitted_lines"]) == ("ruff line 0", 180)
+    assert bounded.bound["passing_count"] == 30
 
 
 def test_a_result_that_cannot_shrink_is_truncated_never_refused(tmp_path: Path) -> None:
@@ -68,10 +64,8 @@ def test_a_result_that_cannot_shrink_is_truncated_never_refused(tmp_path: Path) 
     checks = [_check(f"gate-{index}", "block", 50) for index in range(400)]
     bounded = apply_payload_budget(_land(checks, padding=10), root=tmp_path)
 
-    payload = json.loads(bounded.to_json())
     assert len(bounded.to_json().encode()) <= 16 * 1024
-    assert payload["bound"]["omitted_failing"] > 0
-    assert payload["verdict"] == "block"
+    assert (bounded.bound["omitted_failing"] > 0, bounded.verdict) == (True, "block")
 
 
 def test_an_oversized_gap_list_is_truncated_with_its_count(tmp_path: Path) -> None:
@@ -82,9 +76,8 @@ def test_an_oversized_gap_list_is_truncated_with_its_count(tmp_path: Path) -> No
     bounded = apply_payload_budget(result, root=tmp_path)
 
     assert len(bounded.to_json().encode()) <= 16 * 1024
-    assert bounded.required_gaps[0] == gaps[0]
+    assert (bounded.required_gaps[0], bounded.verdict) == (gaps[0], "block")
     assert bounded.bound["omitted_gaps"] == len(gaps) - len(bounded.required_gaps)
-    assert bounded.verdict == "block"
 
 
 def test_the_handles_a_next_step_needs_stay_inline(tmp_path: Path) -> None:
@@ -146,13 +139,19 @@ def test_a_large_entry_keeps_its_scalar_fields_and_says_what_it_shortened(tmp_pa
     assert "log" not in bounded.data
 
 
-def test_detail_has_an_agent_safe_path_and_stale_detail_is_removed(tmp_path: Path) -> None:
-    """A path an agent can pass unquoted; detail older than a week goes when new detail arrives."""
-    stale = tmp_path / "payloads" / "status" / ("0" * 64 + ".json")
+def _stale(root: Path) -> Path:
+    """Write one `status` detail file older than the week-long retention window."""
+    stale = root / "payloads" / "status" / ("0" * 64 + ".json")
     stale.parent.mkdir(parents=True)
     stale.write_text("{}", encoding="utf-8")
     week = 7 * 24 * 3600
     os.utime(stale, (time.time() - week - 60, time.time() - week - 60))
+    return stale
+
+
+def test_detail_has_an_agent_safe_path_and_stale_detail_is_removed(tmp_path: Path) -> None:
+    """A path an agent can pass unquoted; detail older than a week goes when new detail arrives."""
+    stale = _stale(tmp_path)
     result = EthosResult(
         command="lane prewrite", verdict="pass", state="admitted", data={"x": "y" * 40_000}
     )
@@ -214,11 +213,8 @@ def test_small_entries_move_largest_first_until_the_result_fits(tmp_path: Path) 
 
     assert len(bounded.to_json().encode()) <= 16 * 1024
     assert bounded.bound["moved"] == tuple(sorted(set(entries) - set(bounded.data)))
-    assert all(
-        len(entries[key]) >= len(entries[kept])
-        for key in bounded.bound["moved"]
-        for kept in bounded.data
-    )
+    moved = min(len(entries[key]) for key in bounded.bound["moved"])
+    assert moved >= max(len(entries[key]) for key in bounded.data)
 
 
 def _rebound(payload: dict[str, object], content: bytes) -> dict[str, object]:
@@ -248,11 +244,7 @@ def test_detail_that_names_another_result_refuses(tmp_path: Path) -> None:
 
 def test_stale_detail_that_cannot_be_removed_stays_without_failing(tmp_path: Path) -> None:
     """Retention is best effort: an undeletable stale file never blocks the new result."""
-    stale = tmp_path / "payloads" / "status" / ("0" * 64 + ".json")
-    stale.parent.mkdir(parents=True)
-    stale.write_text("{}", encoding="utf-8")
-    week = 7 * 24 * 3600
-    os.utime(stale, (time.time() - week - 60, time.time() - week - 60))
+    stale = _stale(tmp_path)
     stale.parent.chmod(0o500)
     try:
         # The new detail goes to its own command's directory; only the stale one is read-only.

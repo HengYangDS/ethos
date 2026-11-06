@@ -6,7 +6,6 @@ import shlex
 
 import pytest
 
-from ethos.contracts.next_step import derive_next_step
 from ethos.result import EthosResult
 
 _HEAD = "a" * 40
@@ -55,17 +54,32 @@ def test_a_land_closeout_binds_both_heads_and_writes_locally() -> None:
     assert step["why"] == "accepted_head_unadmitted"
 
 
-def test_a_human_decision_carries_no_argv() -> None:
-    """Only a person can take this step, so there is nothing for an agent to run."""
-    step = _next("approve the release risk", user_decision_required=True)
+@pytest.mark.parametrize(
+    ("text", "fields", "kind", "authorization", "why"),
+    [
+        (
+            "approve the release risk",
+            {"user_decision_required": True},
+            "decision",
+            "human",
+            "ready",
+        ),
+        ("", {"state": "landed"}, "done", "none", "landed"),
+    ],
+)
+def test_a_step_without_a_command_carries_no_argv(
+    text: str, fields: dict[str, object], kind: str, authorization: str, why: str
+) -> None:
+    """A decision only a person can take, or a done result: nothing for an agent to run."""
+    step = _next(text, **fields)
 
     assert step == {
-        "kind": "decision",
+        "kind": kind,
         "argv": [],
         "effects": [],
-        "authorization": "human",
+        "authorization": authorization,
         "binding": {},
-        "why": "ready",
+        "why": why,
     }
 
 
@@ -76,6 +90,7 @@ def test_a_human_decision_carries_no_argv() -> None:
         "openspec new change <name>",
         "ethos land --expect-head <head> --json",
         "run ethos status --json",
+        'ethos land --subject "unterminated',
     ],
 )
 def test_prose_and_templates_stay_instructions(text: str) -> None:
@@ -114,20 +129,6 @@ def test_effects_order_from_the_least_to_the_most_consequential(
     assert step["authorization"] == ("embedded" if "local-write" in effects else "none")
 
 
-def test_a_done_result_says_so_in_its_next_step() -> None:
-    """The shape never changes: an agent reads `kind`, not whether a field exists."""
-    step = _next("", state="landed")
-
-    assert step == {
-        "kind": "done",
-        "argv": [],
-        "effects": [],
-        "authorization": "none",
-        "binding": {},
-        "why": "landed",
-    }
-
-
 def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
     """A carried step is only checked for shape; every reader derives its own from the text."""
     result = EthosResult(
@@ -140,9 +141,3 @@ def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
     payload["next"] = {**payload["next"], "kind": "launch"}
     with pytest.raises(ValueError, match="kind"):
         EthosResult.from_payload(payload)
-
-
-def test_a_next_action_that_does_not_split_is_an_instruction() -> None:
-    """An unbalanced quote is prose to an agent, never a command it could run."""
-    step = derive_next_step('ethos land --subject "unterminated', continuation=None, why="gapped")
-    assert (step.kind, step.argv) == ("instruction", ())

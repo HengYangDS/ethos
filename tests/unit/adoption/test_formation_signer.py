@@ -30,12 +30,9 @@ def test_greenfield_unverified_initial_commit_publishes_nothing(
 
     monkeypatch.setattr(formation_effect, "create_git_commit", refuse)
 
+    plan = str(preview.data["plan_digest"])
     result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
+        target, **request, apply=True, authorize=True, expect_plan_digest=plan
     )
 
     assert result.verdict == "block"

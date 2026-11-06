@@ -11,5 +11,6 @@
       names the new version. Syft 1.57.0 and Grype 0.121.2 are locked for 10 targets and install.
       Syft 1.57.0 still catalogs `node` but not `node.exe`, so the declaration stays; the pin test
       names 1.57.0, and 29 tests pass.
-- [ ] 1.3 Rebuild and bind the CI supply image. Done when the image's manifest matches the moved
-      files and the bound digest is in `.config/ci/pipeline.cue`.
+- [x] 1.3 Rebuild and bind the CI supply image. Done when the image's manifest matches the moved
+      files and the bound digest is in `.config/ci/pipeline.cue`. Supply run 42176217472 built
+      `sha256:36acefde2cda…` from `690e75069`, and all 5 GitLab jobs select it.

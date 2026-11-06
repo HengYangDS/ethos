@@ -20,7 +20,6 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from pathlib import PurePosixPath
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 
@@ -49,6 +48,7 @@ _NATIVE = re.compile(r"ethos/resources/native/([^/]+)/\1(?:\.exe)?$")
 _UV = re.compile(r"(?:^|/)(?:bin/uv|Scripts/uv\.exe)$")
 _NODE = re.compile(r"ethos/resources/node/(?:bin/node|node\.exe)$")
 _DECLARER = "ethos-locked-supply"
+_UNIDENTIFIED = "no package identified in executable file"
 
 
 def native_syft(executable: Path) -> Callable[[tuple[str, ...]], None]:
@@ -148,26 +148,53 @@ def missing_components(
     return sorted(f"release_inventory_component_missing:{item}" for item in missing)
 
 
-def declare_locked_node(
-    documents: tuple[dict, dict], *, member: str, digest: str, locked: str, version: str
-) -> dict[str, str] | None:
-    """Declare the shipped Node from its locked supply when the catalog misses it.
+def complete_inventory(
+    documents: tuple[dict, dict],
+    manifest: Mapping[str, object],
+    *,
+    native: Mapping[str, str],
+    node: str,
+    shipped: Callable[[], tuple[str, str] | None],
+    locked: Callable[[], str],
+    creator: str,
+) -> tuple[list[dict[str, str]], list[str]]:
+    """Declare a locked Node that the catalog misses, then name each component still missing."""
+    missing = missing_components(documents[1], manifest, native=native, node=node)
+    member = (
+        shipped() if f"release_inventory_component_missing:node:node@{node}" in missing else None
+    )
+    if member is None:
+        return [], missing
+    record = declare_locked_node(
+        documents,
+        member=member[0],
+        digest=member[1],
+        locked=locked(),
+        version=node,
+        creator=creator,
+    )
+    return [record], missing_components(documents[1], manifest, native=native, node=node)
 
-    The record mirrors Syft's own, so Grype matches it by the same CPE, and names its declarer. It
-    vouches only for the locked supply's exact bytes, and it lapses once the catalog finds Node.
+
+def declare_locked_node(
+    documents: tuple[dict, dict],
+    *,
+    member: str,
+    digest: str,
+    locked: str,
+    version: str,
+    creator: str,
+) -> dict[str, str]:
+    """Declare the shipped Node in both inventories from the locked supply that vouches for it.
+
+    The record carries Syft's identity fields, so Grype matches it by the same CPE, and names its
+    declarer. The shipped file is no longer an unidentified executable, as Syft marks one it found.
     """
-    spdx, inventory = documents
-    path = "/" + member
-    if any(
-        artifact.get("name") == "node"
-        and any(location.get("path") == path for location in artifact.get("locations") or ())
-        for artifact in _sequence(inventory, "artifacts")
-        if isinstance(artifact, dict)
-    ):
-        return None
     if digest != locked:
         message = "release_inventory_component_unverified:node"
         raise RuntimeError(message)
+    spdx, inventory = documents
+    path = "/" + member
     identity = hashlib.sha256(f"{_DECLARER}/node/{version}/{member}".encode()).hexdigest()[:16]
     cpe = f"cpe:2.3:a:nodejs:node.js:{version}:*:*:*:*:*:*:*"
     purl = f"pkg:generic/node@{version}"
@@ -183,13 +210,27 @@ def declare_locked_node(
             ],
             "licenses": [],
             "language": "",
-            "cpes": [{"cpe": cpe, "source": _DECLARER}],
+            "cpes": [{"cpe": cpe, "source": "nvd-cpe-dictionary"}],
             "purl": purl,
         }
     )
+    edges = inventory.setdefault("artifactRelationships", [])
     if parent := (inventory.get("source") or {}).get("id"):
-        relationship = {"parent": parent, "child": identity, "type": "contains"}
-        inventory.setdefault("artifactRelationships", []).append(relationship)
+        edges.append({"parent": parent, "child": identity, "type": "contains"})
+    for item in _sequence(inventory, "files"):
+        if isinstance(item, dict) and (item.get("location") or {}).get("path") == path:
+            notes = [note for note in item.get("unknowns") or () if _UNIDENTIFIED not in note]
+            item.pop("unknowns", None)
+            item.update({"unknowns": notes} if notes else {})
+            evidence = {"kind": "primary"}
+            edges.append(
+                {
+                    "parent": identity,
+                    "child": item["id"],
+                    "type": "evident-by",
+                    "metadata": evidence,
+                }
+            )
     package = f"SPDXRef-Package-binary-node-{identity}"
     spdx.setdefault("packages", []).append(
         {
@@ -218,16 +259,30 @@ def declare_locked_node(
             ],
         }
     )
-    spdx.setdefault("relationships", []).extend(
+    relationships = spdx.setdefault("relationships", [])
+    roots = [
+        relation.get("relatedSpdxElement")
+        for relation in relationships
+        if relation.get("spdxElementId") == "SPDXRef-DOCUMENT"
+        and relation.get("relationshipType") == "DESCRIBES"
+    ]
+    relationships.extend(
         {"spdxElementId": root, "relatedSpdxElement": package, "relationshipType": "CONTAINS"}
-        for root in [
-            relation.get("relatedSpdxElement")
-            for relation in _sequence(spdx, "relationships")
-            if isinstance(relation, dict)
-            and relation.get("spdxElementId") == "SPDXRef-DOCUMENT"
-            and relation.get("relationshipType") == "DESCRIBES"
-        ]
+        for root in roots
     )
+    relationships.extend(
+        {
+            "spdxElementId": package,
+            "relatedSpdxElement": item["SPDXID"],
+            "relationshipType": "OTHER",
+            "comment": "evident-by: indicates the package's existence is evident by the given file",
+        }
+        for item in _sequence(spdx, "files")
+        if isinstance(item, dict) and item.get("fileName") == member
+    )
+    creators = spdx.setdefault("creationInfo", {}).setdefault("creators", [])
+    if f"Tool: {creator}" not in creators:
+        creators.append(f"Tool: {creator}")
     return {
         "name": "node",
         "version": version,
@@ -235,6 +290,16 @@ def declare_locked_node(
         "sha256": digest,
         "source": "locked Node supply",
     }
+
+
+def locked_node_digest(runtime: str) -> str:
+    """Return the SHA-256 of the locked Node executable for the archive's runtime platform."""
+    supply = NodeSupply.read(ROOT)
+    if supply.target != runtime:
+        message = "release_inventory_component_unverified:node"
+        raise RuntimeError(message)
+    directory = materialize_tool(ROOT, "node")
+    return _sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
 
 
 def run(session: nox.Session) -> None:
@@ -255,9 +320,8 @@ def run(session: nox.Session) -> None:
     if digest != distribution["sha256"]:
         message = "release_inventory_archive_mismatch"
         raise RuntimeError(message)
-    host = options.host or (
-        f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
-    )
+    runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
+    host = options.host or runtime
     name = f"ethos-{distribution['product_version']}-{host}.tar.gz"
     outputs = (ROOT / str(policy["spdx"]), ROOT / str(policy["syft"]))
     config = ROOT / "build/runtime/work/release-sbom/syft.yaml"
@@ -275,9 +339,20 @@ def run(session: nox.Session) -> None:
     }
     native = {tool: NativeSupply.read(ROOT, tool).version for tool in tools & set(NATIVE_BACKENDS)}
     node = NodeSupply.read(ROOT).version
-    declared = _declare_shipped_node((spdx, inventory), archive, outputs, version=node)
-    if missing := missing_components(inventory, manifest, native=native, node=node):
+    declared, missing = complete_inventory(
+        (spdx, inventory),
+        manifest,
+        native=native,
+        node=node,
+        shipped=lambda: shipped_node(archive),
+        locked=lambda: locked_node_digest(runtime),
+        creator=f"ethos-{distribution['product_version']}",
+    )
+    if missing:
         raise RuntimeError(",".join(missing[:20]))
+    if declared:
+        for path, document in zip(outputs, (spdx, inventory), strict=True):
+            path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     payload = {
         "schema_version": 2,
         "kind": "ethos_release_supply_chain_evidence",
@@ -305,25 +380,6 @@ def run(session: nox.Session) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
     session.log(rendered)
-
-
-def _declare_shipped_node(
-    documents: tuple[dict, dict], archive: Path, outputs: tuple[Path, Path], *, version: str
-) -> list[dict[str, str]]:
-    """Declare a shipped Node that the catalog missed, and rewrite both inventories if so."""
-    shipped = shipped_node(archive)
-    if shipped is None:
-        return []
-    member, digest = shipped
-    locked = _sha256(materialize_tool(ROOT, "node") / PurePosixPath(member).name)
-    record = declare_locked_node(
-        documents, member=member, digest=digest, locked=locked, version=version
-    )
-    if record is None:
-        return []
-    for path, document in zip(outputs, documents, strict=True):
-        path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
-    return [record]
 
 
 def shipped_node(archive: Path) -> tuple[str, str] | None:

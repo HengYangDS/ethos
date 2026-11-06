@@ -29,15 +29,21 @@ Non-goals:
 - **Declare from the supply, not from a second scan.** Renaming or copying `node.exe` so that Syft
   matches it would scan bytes at a path the archive does not have. The locked supply already states
   the version, and the digest comparison binds that statement to the shipped file.
-- **Mirror Syft's record.** The beta.3 linux-x64 inventories record Node as a `binary` artifact
-  with purl `pkg:generic/node@<version>` and CPE `cpe:2.3:a:nodejs:node.js:<version>:*:*:*:*:*:*:*`,
-  contained by the source. The declaration uses the same fields, so Grype matches it as it matches
-  Syft's record. The Syft JSON artifact sets `foundBy` to `ethos-locked-supply`. The SPDX package
-  adds the SHA-256 checksum, a `sourceInfo` naming the locked supply, and a `CONTAINS` relationship
-  from the document root.
-- **Only fill gaps.** Before declaring, the owner checks whether the catalog already lists Node at
-  the shipped path. If it does, nothing is added. So the declaration lapses when Syft classifies
-  `node.exe`, which is also its removal condition.
+- **Use Syft's identity fields.** The beta.3 linux-x64 inventories record Node as a `binary`
+  artifact with purl `pkg:generic/node@<version>`, CPE `cpe:2.3:a:nodejs:node.js:<version>:*:*:*:*:*:*:*`
+  (source `nvd-cpe-dictionary`) and a location, contained by the source and evident by its file. The
+  declaration uses the same fields, so Grype matches it as it matches Syft's record. It has no
+  binary-signature metadata, because no signature matched; `foundBy` is `ethos-locked-supply`. The
+  file entry loses Syft's "no package identified" note, as a file whose package Syft found does. The
+  SPDX package adds the SHA-256 checksum and a `sourceInfo` naming the locked supply, with `CONTAINS`
+  from the document root, `evident-by` to the file and ETHOS among the creators.
+- **Bind to the archive's platform.** The locked supply that vouches is the one whose target is the
+  archive's runtime platform. A Windows on Arm leg builds an x64 runtime, and its x64 interpreter
+  selects the x64 supply; a supply for any other platform refuses.
+- **One definition of a gap.** The owner declares Node only when `missing_components` reports it
+  missing, so the declaration lapses when Syft classifies `node.exe`. A test pins the locked Syft
+  version: a new Syft fails it until someone checks `node.exe` again and removes the declaration
+  path or moves the pinned version.
 - **Node only.** Node is the one locked executable that the catalog misses today, so the owner
   declares Node and nothing else. A second component would get its own declaration when a catalog
   gap shows one.

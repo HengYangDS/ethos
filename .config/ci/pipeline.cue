@@ -131,13 +131,16 @@ let concurrencyGroup = "\(proposalPush) && format('{0}-{1}', github.workflow, gi
 let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
 
 // Each release leg qualifies the one host platform it declares, on the runner that provides it.
+// A required platform must publish; an optional one is left out and named when its leg fails.
+// An emulated leg publishes no wheel, so it cannot stand in for a required platform.
 let releaseLegs = [
-	{host: "linux-x64", os: "ubuntu-latest", python: "3.14"},
-	{host: "linux-arm64", os: "ubuntu-24.04-arm", python: "3.14"},
-	{host: "macos-arm64", os: "macos-latest", python: "3.14"},
-	{host: "windows-x64", os: "windows-latest", python: "3.14"},
-	windowsArmLeg & {host: "windows-arm64"},
+	{host: "linux-x64", os: "ubuntu-latest", python: "3.14", required: true, emulated: false},
+	{host: "linux-arm64", os: "ubuntu-24.04-arm", python: "3.14", required: true, emulated: false},
+	{host: "macos-arm64", os: "macos-latest", python: "3.14", required: true, emulated: false},
+	{host: "windows-x64", os: "windows-latest", python: "3.14", required: false, emulated: false},
+	windowsArmLeg & {host: "windows-arm64", required: false, emulated: true},
 ]
+let releaseHosts = "--required \(strings.Join([for leg in releaseLegs if leg.required {leg.host}], ",")) --optional \(strings.Join([for leg in releaseLegs if !leg.required {leg.host}], ","))"
 
 // The adopter journey runs from the published artifacts on the platforms a beta must qualify.
 let journeyLegs = [for leg in releaseLegs if leg.host == "linux-x64" || leg.host == "macos-arm64" {leg}]
@@ -184,7 +187,14 @@ let githubHostSupplyAt = {
 compiled: {
 	checks: {
 		uniqueGates: true & list.UniqueItems(_gateIDs)
-		uniqueFull:  true & list.UniqueItems(_inputs.gate_registry.proof_sets.full)
+		uniqueReleaseHosts: true & list.UniqueItems([for leg in releaseLegs {leg.host}])
+		for leg in releaseLegs if leg.required {
+			"release-required-native:\(leg.host)": true & !leg.emulated
+		}
+		for leg in journeyLegs {
+			"journey-leg-required:\(leg.host)": true & leg.required
+		}
+		uniqueFull: true & list.UniqueItems(_inputs.gate_registry.proof_sets.full)
 		for id in _inputs.gate_registry.proof_sets.full {
 			"full:\(id)": true & list.Contains(_gateIDs, id)
 		}
@@ -439,8 +449,8 @@ github: {
 			name:      "release runtime ${{ matrix.host }}"
 			"runs-on": "${{ matrix.os }}"
 			if:        "${{ \(releaseRun) }}"
-			// Windows hosts remain optional platforms until their delivered artifacts qualify.
-			"continue-on-error": "${{ startsWith(matrix.host, 'windows') }}"
+			// Only a leg that the declaration marks optional may fail without failing the run.
+			"continue-on-error": "${{ !matrix.required }}"
 			env: {
 				ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 				UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
@@ -506,7 +516,7 @@ github: {
 			}, {
 				// The assembler admits only archives whose qualification evidence matches their bytes.
 				name: "Assemble the qualified release assets"
-				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md \(releaseHosts)"
 			}, {
 				// Mise's github backend verifies these attestations when it installs a pinned release;
 				// they also bind each runtime archive's two inventories to the release workflow.

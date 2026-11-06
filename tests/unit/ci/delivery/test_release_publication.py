@@ -101,6 +101,16 @@ _NATIVE = {
 }
 
 
+def _options(changelog: Path, *, optional: set[str]) -> dict:
+    return {
+        "tag": _TAG,
+        "base_url": "https://example.invalid/v",
+        "changelog": changelog,
+        "required": frozenset({"linux-x64", "linux-arm64", "macos-arm64"}),
+        "optional": frozenset(optional),
+    }
+
+
 def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     """Each platform publishes the wheel it built and the archive its smoke qualified.
 
@@ -109,7 +119,7 @@ def test_release_assets_publish_only_the_qualified_bytes(tmp_path):
     inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
     changelog.write_text(_CHANGELOG, encoding="utf-8")
     qualified = {host: qualified_leg(inputs, host, *leg) for host, leg in _NATIVE.items()}
-    options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
+    options = _options(changelog, optional={"windows-x64"})
     unreleased = tmp_path / "UNRELEASED.md"
     unreleased.write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
     for change, gap in (
@@ -159,7 +169,7 @@ def test_an_emulating_host_publishes_the_archive_itqualified_leg(tmp_path):
     changelog.write_text(_CHANGELOG, encoding="utf-8")
     for host, leg in (_NATIVE | {"windows-arm64": ("windows", "x86_64", "win_amd64")}).items():
         qualified_leg(inputs, host, *leg)
-    options = {"tag": _TAG, "base_url": "https://example.invalid/v", "changelog": changelog}
+    options = _options(changelog, optional={"windows-x64", "windows-arm64"})
     sums = release_assets.assemble(inputs, tmp_path / "out", **options)
     declared = tomllib.loads((tmp_path / "out/assets/ethos-0.2.0-alpha.5.mise.toml").read_text())
     platforms = declared["tools"]["http:ethos"]["platforms"]

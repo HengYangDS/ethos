@@ -26,7 +26,6 @@ from pathlib import PureWindowsPath
 
 _SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
-_REQUIRED = frozenset({"linux-arm64", "linux-x64", "macos-arm64"})
 _HOSTS = frozenset(f"{os}-{cpu}" for os in _SYSTEMS.values() for cpu in _MACHINES.values())
 _JOB = "release-runtime-"
 _PRERELEASE = re.compile(r"v\d+\.\d+\.\d+-(?:alpha|beta|rc)\.\d+")
@@ -77,56 +76,41 @@ def inventory_gaps(spdx: object, syft: object, *, name: str, digest: str) -> tup
     return tuple(gaps)
 
 
+def declared_hosts(required: str, optional: str) -> tuple[frozenset[str], frozenset[str]]:
+    """Read the pipeline's comma-separated required and optional release hosts."""
+
+    def hosts(text: str) -> frozenset[str]:
+        return frozenset(host.strip() for host in text.split(",") if host.strip())
+
+    return hosts(required), hosts(optional)
+
+
 def assemble(
-    source: Path, output: Path, *, tag: str, base_url: str, changelog: Path
+    source: Path,
+    output: Path,
+    *,
+    tag: str,
+    base_url: str,
+    changelog: Path,
+    required: frozenset[str],
+    optional: frozenset[str],
 ) -> dict[str, str]:
-    """Verify every qualified archive and write the publication's exact assets."""
+    """Verify every qualified archive of the declared legs and write the publication's assets."""
     if _PRERELEASE.fullmatch(tag) is None:
         message = "release_assets_prerelease_required"
         raise ValueError(message)
-    version = tag.removeprefix("v")
-    archives, left_out = {}, []
-    for evidence in sorted(source.glob(f"{_JOB}*/evidence/local-install/release-smoke.json")):
-        job = evidence.parents[2]
-        # The leg declares its host, so an emulated interpreter's reports cannot rename it.
-        platform = job.name.removeprefix(_JOB)
-        distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
-        runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
-        native = platform == runtime
-        # Each runner records its own path syntax; Windows rules read both separators.
-        name = PureWindowsPath(distribution["path"]).name
-        wheel = _single(
-            job.glob("artifacts/release/python/ethos-*.whl"),
-            f"release_assets_wheel_invalid:{platform}",
-        )
-        archive = _single(
-            job.glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
-            f"release_assets_archive_invalid:{platform}",
-        )
-        published_wheels = {other.name for _archive, other, own, _ in archives.values() if own}
-        if (
-            platform not in _HOSTS
-            or runtime.partition("-")[0] != platform.partition("-")[0]
-            or (native and wheel.name in published_wheels)
-            or _sha256(archive) != distribution["sha256"]
-            or _sha256(wheel) != distribution["wheel_sha256"]
-            or distribution["product_version"] != version
-        ):
-            message = f"release_assets_distribution_mismatch:{platform}"
-            raise ValueError(message)
-        published = f"ethos-{version}-{platform}.tar.gz"
-        inventories = _inventories(job, platform, name=published, digest=distribution["sha256"])
-        if inventories is None:
-            left_out.append({"host": platform, "reason": "inventories_incomplete"})
-            continue
-        archives[platform] = (archive, wheel, native, inventories)
-    if missing := sorted(_REQUIRED - {name for name, (_, _, own, _) in archives.items() if own}):
-        message = "release_assets_platform_missing:" + ",".join(missing)
+    if not required or required & optional or not required | optional <= _HOSTS:
+        message = "release_assets_hosts_invalid"
         raise ValueError(message)
+    version = tag.removeprefix("v")
+    archives, left_out = _admitted_legs(source, version, required=required, optional=optional)
     notes = _release_notes(changelog, version)
     if left_out:
         hosts = ", ".join(item["host"] for item in left_out)
-        notes += f"\nNot published: {hosts}, whose release leg declared no complete inventories.\n"
+        notes += (
+            f"\nNot published: {hosts}. An adopter that installs ETHOS on these hosts from its Mise"
+            " declaration keeps its current release until a later release publishes them.\n"
+        )
     assets = output / "assets"
     assets.mkdir(parents=True)
     sums = {}
@@ -157,7 +141,67 @@ def assemble(
     return sums
 
 
-def _inventories(job: Path, platform: str, *, name: str, digest: str) -> tuple[Path, ...] | None:
+def _admitted_legs(
+    source: Path, version: str, *, required: frozenset[str], optional: frozenset[str]
+) -> tuple[dict[str, tuple[Path, Path, bool, tuple[Path, ...]]], list[dict[str, str]]]:
+    """Admit each declared leg's qualified upload and name every optional host left out."""
+    archives, left_out = {}, []
+    for evidence in sorted(source.glob(f"{_JOB}*/evidence/local-install/release-smoke.json")):
+        job = evidence.parents[2]
+        # The leg declares its host, so an emulated interpreter's reports cannot rename it.
+        platform = job.name.removeprefix(_JOB)
+        if platform not in required | optional:
+            message = f"release_assets_host_undeclared:{platform}"
+            raise ValueError(message)
+        distribution = json.loads(evidence.read_text(encoding="utf-8"))["distribution"]
+        runtime = f"{_SYSTEMS[distribution['platform']]}-{_MACHINES[distribution['architecture']]}"
+        native = platform == runtime
+        # Each runner records its own path syntax; Windows rules read both separators.
+        name = PureWindowsPath(distribution["path"]).name
+        wheel = _single(
+            job.glob("artifacts/release/python/ethos-*.whl"),
+            f"release_assets_wheel_invalid:{platform}",
+        )
+        archive = _single(
+            job.glob(f"artifacts/native/{distribution['runtime_digest']}/{name}"),
+            f"release_assets_archive_invalid:{platform}",
+        )
+        published_wheels = {other.name for _archive, other, own, _ in archives.values() if own}
+        if (
+            platform not in _HOSTS
+            or runtime.partition("-")[0] != platform.partition("-")[0]
+            or (native and wheel.name in published_wheels)
+            or _sha256(archive) != distribution["sha256"]
+            or _sha256(wheel) != distribution["wheel_sha256"]
+            or distribution["product_version"] != version
+        ):
+            message = f"release_assets_distribution_mismatch:{platform}"
+            raise ValueError(message)
+        published = f"ethos-{version}-{platform}.tar.gz"
+        inventories = _inventories(
+            job,
+            platform,
+            name=published,
+            digest=distribution["sha256"],
+            optional=platform in optional,
+        )
+        if inventories is None:
+            left_out.append({"host": platform, "reason": "inventories_incomplete"})
+            continue
+        archives[platform] = (archive, wheel, native, inventories)
+    if missing := sorted(required - {name for name, (_, _, own, _) in archives.items() if own}):
+        message = "release_assets_platform_missing:" + ",".join(missing)
+        raise ValueError(message)
+    # A leg that failed before its upload left nothing behind, yet the release still names it.
+    named = set(archives) | {item["host"] for item in left_out}
+    left_out += [{"host": host, "reason": "leg_incomplete"} for host in optional - named]
+    left_out.sort(key=lambda item: item["host"])
+    return archives, left_out
+
+
+def _inventories(
+    job: Path, platform: str, *, name: str, digest: str, optional: bool
+) -> tuple[Path, ...] | None:
     """Return a leg's two admitted inventories; an optional host without them is left out."""
     directory = job / "evidence/release"
     paths = tuple(directory / f"runtime{suffix}" for suffix in _INVENTORIES)
@@ -166,7 +210,7 @@ def _inventories(job: Path, platform: str, *, name: str, digest: str) -> tuple[P
     if declared - set(paths):
         message = f"release_assets_inventory_mismatch:{platform}"
         raise ValueError(message)
-    if platform not in _REQUIRED and not all(path.is_file() for path in paths):
+    if optional and not all(path.is_file() for path in paths):
         return None
     try:
         selected = tuple(
@@ -226,13 +270,18 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--changelog", type=Path, required=True)
+    parser.add_argument("--required", required=True)
+    parser.add_argument("--optional", default="")
     options = parser.parse_args(arguments)
+    required, optional = declared_hosts(options.required, options.optional)
     sums = assemble(
         options.source,
         options.output,
         tag=options.tag,
         base_url=options.base_url.rstrip("/"),
         changelog=options.changelog,
+        required=required,
+        optional=optional,
     )
     left_out = json.loads((options.output / "left-out.json").read_text(encoding="utf-8"))
     print(json.dumps({"left_out": left_out, "sums": sums}, indent=2, sort_keys=True))

@@ -39,6 +39,8 @@ def _assembled(tmp_path: Path, change=None, host: str = "linux-x64"):
         "tag": f"v{VERSION}",
         "base_url": "https://example.invalid/v",
         "changelog": changelog,
+        "required": frozenset({"linux-x64", "linux-arm64", "macos-arm64"}),
+        "optional": frozenset({"windows-x64"}),
     }
     return tmp_path / "out", release_assets.assemble(inputs, tmp_path / "out", **options)
 

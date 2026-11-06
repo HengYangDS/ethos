@@ -146,10 +146,47 @@ def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict
         if relative != config:
             materials[relative] = _mise_input(canonical, relative)
             origins[relative] = relative
+    # mise 2026.11.2 resolves an aube-installed tool from the sidecar its lock names.
+    for relative in _lock_sidecars(canonical, lock, materials[MISE_LOCK]):
+        materials[relative] = _mise_input(canonical, relative)
+        origins[relative] = relative
     if any(_mise_input(canonical, path) != materials[name] for name, path in origins.items()):
         message = "mise_declaration_changed"
         raise ValueError(message)
     return materials
+
+
+def _lock_sidecars(root: Path, lock: str, content: str) -> tuple[str, ...]:
+    """Name every file of each aube sidecar directory the lock declares, relative to root."""
+    try:
+        tools = tomllib.loads(content).get("tools", {})
+    except tomllib.TOMLDecodeError as error:
+        message = "locked_toolchain_invalid"
+        raise ValueError(message) from error
+    base = (root / lock).parent
+    directories = {
+        entry["aube"]["path"]
+        for entries in (tools.values() if isinstance(tools, dict) else ())
+        for entry in (entries if isinstance(entries, list) else ())
+        if isinstance(entry, dict)
+        and isinstance(entry.get("aube"), dict)
+        and isinstance(entry["aube"].get("path"), str)
+    }
+    files: list[str] = []
+    for directory in sorted(directories):
+        sidecar = (base / directory).resolve()
+        if not sidecar.is_relative_to(root):
+            message = f"mise_lock_sidecar_outside_root:{directory}"
+            raise ValueError(message)
+        if not sidecar.is_dir():
+            # Native mise reports a sidecar the lock names but the tree lacks.
+            continue
+        files.extend(
+            path.relative_to(root).as_posix()
+            for path in sorted(sidecar.rglob("*"))
+            if path.is_file() and not path.is_symlink()
+        )
+    return tuple(files)
 
 
 def _mise_declaration_paths(
@@ -401,7 +438,7 @@ def supply_gaps(
     return tuple(gaps)
 
 
-def _mise_version(executable: Path | None) -> tuple[int, ...] | None:
+def mise_version(executable: Path | None = None) -> tuple[int, ...] | None:
     """The selected mise's release, or None when it cannot be read."""
     try:
         selected = executable or mise_executable()
@@ -444,7 +481,7 @@ def _supply_refusal(
         if gap.startswith("mise_supply_incomplete:")
     ]
     canonical = root.resolve()
-    version = _mise_version(executable) if missing else None
+    version = mise_version(executable) if missing else None
     if version is not None and _GRAPH_SAFE_MODE_REGRESSION <= version < _GRAPH_SAFE_MODE_FIX:
         materials = files or repository_mise_files(canonical, executable=executable) or {}
         if _graph_locked(materials.get(MISE_LOCK, ""), missing):

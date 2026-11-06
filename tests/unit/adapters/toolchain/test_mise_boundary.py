@@ -208,7 +208,7 @@ def test_locked_execution_leaves_trust_to_native_mise(
 
 
 def _trust_keyed_repository(root: Path) -> dict[str, str]:
-    """Lock one npm tool through an aube entry, which mise honors only for trusted configuration."""
+    """Lock one npm tool through an aube entry; mise before 2026.11.2 honors it only if trusted."""
     config = root / mise.MISE_CONFIG
     config.parent.mkdir(parents=True)
     config.write_text('[settings]\nlocked = true\n[tools]\n"npm:ethos-probe" = "1.0.0"\n')
@@ -264,8 +264,11 @@ def test_resolution_carries_only_native_trust_to_its_copy(
     else:
         outside_ci(monkeypatch, repository)
     before = _initialized_state(repository, host_mise_state)
+    # From 2026.11.2, safe mode keeps the aube graph (jdx/mise#15401), so native mise also resolves
+    # the locked install for an untrusted copy; ETHOS still carries and records no trust for it.
+    honored = bool(trust) or (mise.mise_version() or (0,)) >= (2026, 11, 2)
     with patch.object(mise, "run_command", wraps=mise.run_command) as native:
-        if trust:
+        if honored:
             tool = mise.locked_tool(repository, "npm-ethos-probe", files)
             assert run_command(repository, (str(tool),), timeout=15).stdout.strip() == "aube"
             with mise.locked_environment(repository, files) as environment:

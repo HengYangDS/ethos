@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import os
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
+from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.runner import readiness_tier
+from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.worktree_postimage import observe_execution_source
+from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import gate_outcome
+from ethos.contracts.outcome import outcome_of
+from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
@@ -65,12 +75,46 @@ def host_gate_observation(
 
 def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult:
     """Run the full plan's readiness tier alone; the gates after it are named, never passed."""
-    policy = resolve_gate_policy(repo, tree_ref=current_tracked_head(repo), full=True)
-    tier = readiness_tier(policy.nodes, policy.registry)
-    observed = observe_gate_execution(repo, gate_ids=tier, expect_head=expect_head)
-    not_run = [node.id for node in policy.nodes if node.id not in tier]
-    checks, required_gaps = observed["checks"], tuple(observed["required_gaps"])
-    verdict = observed["verdict"]
+    head = current_tracked_head(repo)
+    tree = current_tree(repo, head) if head else ""
+    gaps = ["proof_head_missing"] if not head else []
+    if expect_head is not None and expect_head != head:
+        gaps.append("expected_head_mismatch")
+    checks: list[dict[str, object]] = []
+    not_run: list[str] = []
+    source: dict[str, str] = {}
+    digest = ""
+    failure = Outcome()
+    try:
+        if not gaps:
+            policy = resolve_gate_policy(repo, tree_ref=head, full=True)
+            digest = policy.digest
+            gaps.extend(policy.gaps)
+            tier = set(readiness_tier(policy.nodes, policy.registry))
+            not_run = [node.id for node in policy.nodes if node.id not in tier]
+            source = observe_execution_source(repo, head, tree)
+            gaps.extend(
+                execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
+            )
+            if not gaps:
+                results = run_gate_graph(
+                    LocalGateRunner(),
+                    tuple(node for node in policy.nodes if node.id in tier),
+                    policy.registry,
+                    root=repo,
+                    capacity=max(1, os.cpu_count() or 1),
+                    parallel=True,
+                )
+                checks = [asdict(result) for result in results]
+                if (
+                    current_tracked_head(repo) != head
+                    or observe_execution_source(repo, head, tree) != source
+                ):
+                    gaps.append("proof_execution_source_changed")
+    except ValueError as error:
+        failure = outcome_of(error)
+    observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), failure)
+    verdict = observed.verdict
     return EthosResult(
         command="prove",
         verdict=verdict,
@@ -81,15 +125,15 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
             "not_run": not_run,
             "proof_attestation_issued": False,
         },
-        diagnostics=tuple(observed["diagnostics"]),
-        required_gaps=required_gaps,
+        diagnostics=tuple(observed.causes),
+        required_gaps=tuple(observed.gaps),
         next_action="repair the failed readiness gate"
-        if required_gaps
+        if observed.gaps
         else "ethos prove --full --execute",
         data={
             "executed": bool(checks),
-            "execution_source": observed["execution_source"],
-            "policy_digest": observed["policy_digest"],
+            "execution_source": source,
+            "policy_digest": digest,
             "boundary": "readiness",
             "checks": checks,
             "not_run": not_run,

@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.gates.runner as runner
 from ethos.adapters.gates.runner import ActionRunResult
+from ethos.adapters.gates.runner import readiness_tier
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.surface.cli.proof import host
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
 from tests.unit.gates.test_parallel_proof import _graph
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.mark.parametrize("lint", ["pass", "block"])
@@ -37,15 +36,13 @@ def test_the_readiness_run_executes_only_the_tier_and_names_the_rest_not_run(
             verdict = lint if node.id == "lint" else "pass"
             return ActionRunResult(node.id, node.command, verdict, 0 if verdict == "pass" else 1)
 
-    full = SimpleNamespace(nodes=nodes, registry=registry)
-    selected = SimpleNamespace(
-        nodes=nodes[:1], registry=registry, gaps=(), digest="d", result_gaps=lambda *_a, **_k: ()
-    )
+    full = SimpleNamespace(nodes=nodes, registry=registry, gaps=(), digest="d")
     monkeypatch.setattr(host, "resolve_gate_policy", lambda *_a, **_k: full)
-    monkeypatch.setattr(runner, "resolve_gate_policy", lambda *_a, **_k: selected)
-    monkeypatch.setattr(runner, "LocalGateRunner", Runner)
-    monkeypatch.setattr(runner, "observe_execution_source", lambda *_a: {"tree": "t"})
-    monkeypatch.setattr(runner, "execution_source_gaps", lambda *_a: [])
+    monkeypatch.setattr(host, "LocalGateRunner", Runner)
+    monkeypatch.setattr(
+        host, "observe_execution_source", lambda *_a: {"worktree": "t", "index": "t"}
+    )
+    monkeypatch.setattr(host, "current_tree", lambda *_a: "t")
 
     result = host.readiness_observation(repo=repo, expect_head=None)
 
@@ -63,3 +60,39 @@ def test_the_readiness_mode_refuses_a_selection_or_a_dry_run(tmp_path: Path) -> 
     for extra in (("--execute", "--gate", "lint"), ("--execute", "--host"), ()):
         result = run_ethos_blocked("prove", "--readiness", *extra, "--json", cwd=repo)
         assert "proof_readiness_options_invalid" in result["required_gaps"]
+
+
+def test_a_readiness_run_owes_no_test_bound_obligation_of_the_real_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ETHOS maps behavior to a test gate; its readiness run must not owe that obligation.
+
+    A readiness run once re-resolved its tier as a selection, which refused at once with
+    `quality_obligation_unproven:behavior` on this repository and ran nothing. Here the real
+    committed gate policy, tier and obligation checks run; only the gates and the source binding,
+    which a working checkout under test cannot hold still, are replaced.
+    """
+    root = Path(__file__).resolve().parents[3]
+    head = current_tracked_head(root)
+    full = resolve_gate_policy(root, tree_ref=head, full=True)
+    tier = set(readiness_tier(full.nodes, full.registry))
+    executed: list[str] = []
+
+    class Runner:
+        def __init__(self, **_options) -> None:
+            pass
+
+        def run(self, node, _gate, **_context):
+            executed.append(node.id)
+            return ActionRunResult(node.id, node.command, "pass", 0)
+
+    monkeypatch.setattr(host, "LocalGateRunner", Runner)
+    monkeypatch.setattr(
+        host, "observe_execution_source", lambda *_a: {"worktree": "t", "index": "t"}
+    )
+    monkeypatch.setattr(host, "current_tree", lambda *_a: "t")
+    result = host.readiness_observation(repo=root, expect_head=head)
+
+    assert not any(gap.startswith("quality_obligation_unproven") for gap in result.required_gaps)
+    assert set(executed) == tier
+    assert set(result.summary["not_run"]) == {node.id for node in full.nodes} - tier

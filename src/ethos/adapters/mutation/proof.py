@@ -489,6 +489,7 @@ def proof_admission_report(
                 "prove",
                 "--root",
                 root.resolve().as_posix(),
+                "--full",
                 "--execute",
                 "--expect-head",
                 head,

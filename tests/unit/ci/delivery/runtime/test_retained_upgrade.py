@@ -51,6 +51,8 @@ def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Pa
     assert "- [ ] 1.2" in (original / "tasks.md").read_text()
     assert not (repository / "openspec/changes/smoke-change").exists()
     assert 'work_branch_prefix = "task/"' in (repository / ".ethos/workspace.toml").read_text()
+    # Only the retained predecessor adopter keeps the publication fields its runtime requires.
+    assert "local_verification_command" in (repository / ".ethos/release.toml").read_text()
     assert run_git(repository, "rev-parse", "HEAD").stdout.strip() == head
     assert run_git(repository, "rev-parse", "candidate/dev").stdout.strip() == head
     candidate = repository.with_name(f"{repository.name}-candidate-dev")
@@ -99,8 +101,16 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
             return commits[-1]
         return run_git(root, *args, **options)
 
-    def prewrite(root, _command, *, environment):
-        del environment
+    retired = [
+        f"repository_paradigm_publication_declaration:.ethos/release.toml:publication.{field}"
+        for field in ("local_verification_command", "local_installation_command")
+    ]
+
+    def prewrite(root, command, *, environment):
+        if "repair-paradigm" in command:
+            assert environment["ETHOS_CHANGE"] == "smoke-change"
+            state = "repaired" if "--apply" in command else "planned"
+            return 0, {"state": state, "data": {"repaired_gaps": retired}}, ""
         target = root / "openspec/changes/smoke-change/proposal.md"
         collision = target.is_file() and target.read_bytes() == b"Existing independent intent\n"
         return int(collision), {"verdict": "block" if collision else "pass"}, ""
@@ -115,6 +125,7 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
     assert report["state"] == "passed"
     assert report["unrelated_index_preserved"] is True
     assert report["renewed_authoring"] == "admitted_write_and_restore"
+    assert report["publication_repair"] == "repaired"
     run_git(repository, "verify-commit", "HEAD")
 
 

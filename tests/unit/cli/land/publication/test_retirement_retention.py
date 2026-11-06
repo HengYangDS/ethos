@@ -82,12 +82,9 @@ def test_the_closed_review_ref_on_the_same_peer_retains_the_exact_tip(
     declared = release.read_text().replace(
         'id = "github"\nprovider = "git"\n', 'id = "github"\nprovider = "github"\n', 1
     )
-    release.write_text(
-        declared.replace(
-            'git_remote = "github"\n', f'git_remote = "github"\nforge_repository = "{_FORGE}"\n', 1
-        )
-    )
+    release.write_text(declared)
     git(repo, "commit", "-am", "chore: declare the GitHub review peer")
+    git(repo, "config", "--local", "remote.github.forgeRepository", _FORGE)
     accepted = git(repo, "rev-parse", "HEAD")
     tip = _unaccepted(repo, accepted)
     review_head = accepted if case == "names_another_object" else tip

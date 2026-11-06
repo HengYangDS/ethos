@@ -29,13 +29,16 @@ from ethos.adapters.repo.hook.preimage import file_bytes
 from ethos.adapters.repo.hook.preimage import hooks_preimage_path
 from ethos.adapters.repo.hook.preimage import record_hooks_preimage
 from ethos.adapters.repo.hook.preimage import restore_file
+from ethos.adapters.repo.hook.rollback import rollback_preflight
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
@@ -77,6 +80,10 @@ def install_hook_launchers(
         _fail("hook_runtime_python_invalid")
     expected = expected_runtime_build(repo, installed_runtime=installed_runtime)
     expected_build, build_source = expected.identity, expected.source
+    if installed_runtime is not None:
+        # Before anything is pinned: a named runtime must accept the root's declaration.
+        target = require_installed_runtime(installed_runtime)
+        rollback_preflight(repo, target, invoking=invoking_build_identity())
     common = Path(git_common_dir(repo))
     # Retention reads a held selection lock as a selection in progress, so it is held from the
     # selector read before the pins that record this repository until the selector writes.

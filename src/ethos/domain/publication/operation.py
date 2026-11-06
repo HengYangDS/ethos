@@ -21,6 +21,7 @@ from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.domain.publication.inspection import blocked_publication_action
 from ethos.domain.publication.inspection import observe_publication
 from ethos.domain.publication.inspection import publication_readiness_result
 from ethos.normalization.coercion import string_mapping
@@ -292,8 +293,7 @@ def _publication_result(
         else ""
         if apply and verdict == "pass"
         else retirement_next_action
-        or str(context.independent_verification.get("next_action") or "")
-        or str(context.proof_admission.get("next_action") or "")
+        or blocked_publication_action(context)
         or shlex.join(
             (
                 "ethos",

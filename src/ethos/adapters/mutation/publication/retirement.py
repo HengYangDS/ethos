@@ -18,11 +18,11 @@ import ethos.adapters.process as process
 from ethos.adapters.admission.role_rename import legacy_proposal_prefix
 from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
+from ethos.adapters.mutation.publication.forge import forge_web_repository
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_head
-from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -77,23 +77,24 @@ _LISTING_OPTIONS = {
 
 
 def observe_proposal_review(
-    root: Path, remote: str, provider: str, branch: str, *, repository: str = ""
+    root: Path, remote: str, provider: str, branch: str
 ) -> dict[str, object]:
     """Ask the declared provider for open reviews of one exact source branch."""
     if provider == "git":
         return {"verdict": "pass", "state": "not_applicable", "provider": provider}
-    url = _forge_url(root, remote, repository)
-    parsed = urlsplit(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+    resolved = forge_web_repository(root, remote)
+    if resolved.gap:
         return {
             "verdict": "unknown",
             "state": "unavailable",
             "provider": provider,
             "remote": remote,
             "source_branch": branch,
-            "reason": "forge_repository_required",
-            "next_action": f"Declare this peer's forge_repository in {binding_path('release')}",
+            "reason": resolved.gap,
+            "next_action": resolved.next_action,
         }
+    url = resolved.url
+    parsed = urlsplit(url)
     commands = {
         "github": (
             "gh",
@@ -134,7 +135,7 @@ def observe_proposal_review(
         "command": list(command),
         "next_action": shlex.join(command) if command else "ethos status --json",
     }
-    if not command or not url:
+    if not command:
         return result
     environment = {"GH_PROMPT_DISABLED": "1", "GLAB_NO_PROMPT": "1"}
     if provider == "gitlab":
@@ -171,15 +172,6 @@ def observe_proposal_review(
     return result
 
 
-def _forge_url(root: Path, remote: str, repository: str) -> str:
-    """Use the declared review API, then local connection metadata, then the Git transport."""
-    return (
-        repository
-        or git_stdout(root, "config", "--local", "--get", f"remote.{remote}.forgeRepository")
-        or git_stdout(root, "remote", "get-url", remote)
-    )
-
-
 def _local_retainers(root: Path, target_ref: str, old: str) -> list[str]:
     """Name the owned Work Lane refs that still reach one exact tip."""
     if run_git(root, "cat-file", "-e", f"{old}^{{commit}}", check=False).returncode:
@@ -200,12 +192,15 @@ def _local_retainers(root: Path, target_ref: str, old: str) -> list[str]:
 
 
 def _review_retainers(
-    root: Path, remote: str, provider: str, branch: str, old: str, *, repository: str = ""
+    root: Path, remote: str, provider: str, branch: str, old: str
 ) -> dict[str, object]:
     """Name the same peer's refs that keep one exact tip for a closed review of its branch."""
     if provider not in _REVIEW_LISTINGS:
         return {"verdict": "block", "state": "not_applicable", "retainers": []}
-    url = _forge_url(root, remote, repository)
+    resolved = forge_web_repository(root, remote)
+    if resolved.gap:
+        return {"verdict": "unknown", "state": "unavailable", "reason": resolved.gap}
+    url = resolved.url
     listing, keys = _REVIEW_LISTINGS[provider]
     command = (
         *(part.format(url=url, branch=branch) for part in listing),
@@ -271,15 +266,14 @@ def _retained_observations(
     target_ref: str,
     old: str,
     remote: str,
-    peer: tuple[str, str],
+    provider: str,
 ) -> dict[str, object]:
     """Admit an unaccepted projection only while an owned retainer keeps its exact tip."""
-    provider, repository = peer
     local = _local_retainers(root, target_ref, old)
     if not local and provider not in {"github", "gitlab"}:
         return {**result, "verdict": "block", "required_gaps": ["proposal_retirement_not_accepted"]}
     branch = target_ref.removeprefix("refs/heads/")
-    review = observe_proposal_review(root, remote, provider, branch, repository=repository)
+    review = observe_proposal_review(root, remote, provider, branch)
     if review["verdict"] != "pass":
         gap = "open" if review["state"] == "open" else "unknown"
         return {
@@ -292,7 +286,7 @@ def _retained_observations(
     retention = (
         {"verdict": "pass", "state": "retained", "retainers": local}
         if local
-        else _review_retainers(root, remote, provider, branch, old, repository=repository)
+        else _review_retainers(root, remote, provider, branch, old)
     )
     gaps = {
         "pass": [],
@@ -329,7 +323,7 @@ def _retirement_role(root: Path, policy: BranchRolePolicy, target_ref: str, old:
 
 def _retirement_context(
     root: Path, target_ref: str, remote: str, old: str
-) -> tuple[str, str, str, str, str]:
+) -> tuple[str, str, str, str]:
     """Read the accepted policy rather than letting unaccepted configuration grant deletion."""
     policy = load_branch_role_policy(root)
     accepted = ref_head(root, policy.accepted_branch)
@@ -359,22 +353,14 @@ def _retirement_context(
     gap = "proposal_retirement_peer_unknown"
     if len(peers) != 1:
         raise ValueError(gap)
-    return (
-        accepted,
-        policy.accepted_branch,
-        str(peers[0]["provider"]),
-        str(peers[0].get("forge_repository", "")),
-        role,
-    )
+    return accepted, policy.accepted_branch, str(peers[0]["provider"]), role
 
 
 def _retirement_observations(
     root: Path, *, target_ref: str, old: str, remote: str
 ) -> dict[str, object]:
     """Keep absorption failures separate from unavailable peer/review observations."""
-    accepted, accepted_branch, provider, repository, role = _retirement_context(
-        root, target_ref, remote, old
-    )
+    accepted, accepted_branch, provider, role = _retirement_context(root, target_ref, remote, old)
     zero = zero_oid(root)
     contribution = (
         {"verdict": "pass", "state": "already_absent", "replacement": zero}
@@ -390,7 +376,7 @@ def _retirement_observations(
         }
     if report_verdict(contribution) != "pass":
         return _retained_observations(
-            root, result, target_ref=target_ref, old=old, remote=remote, peer=(provider, repository)
+            root, result, target_ref=target_ref, old=old, remote=remote, provider=provider
         )
     peer = observe_remote_ref(root, remote, f"refs/heads/{accepted_branch}")
     result["peer_accepted"] = peer
@@ -410,9 +396,7 @@ def _retirement_observations(
             "verdict": "block",
             "required_gaps": ["proposal_retirement_peer_not_accepted"],
         }
-    review = observe_proposal_review(
-        root, remote, provider, target_ref.removeprefix("refs/heads/"), repository=repository
-    )
+    review = observe_proposal_review(root, remote, provider, target_ref.removeprefix("refs/heads/"))
     gaps = (
         []
         if review["verdict"] == "pass"

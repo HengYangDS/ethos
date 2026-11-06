@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.publication.retirement as retirement
-from ethos.repository.release.publication import publication_topology
 from tests.support.governed_repository import git
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.test_retirement import retirement_fixture
@@ -53,7 +52,7 @@ def test_review_observation_is_bound_and_does_not_default_unknown_to_closed(
             return native(root, command, **kwargs)
         # These preconditions establish that the fake result answers the real query.
         assert root == repo
-        assert command[command.index("--repo") + 1] == target
+        assert command[command.index("--repo") + 1] == target.removesuffix(".git")
         assert branch in command
         assert kwargs["stdin"] == ""
         assert kwargs["timeout"] == 60
@@ -78,46 +77,15 @@ def test_review_endpoint_is_explicit_when_git_transport_cannot_identify_the_api(
         repo, "gitlab", "gitlab", PROPOSAL_REF.removeprefix("refs/heads/")
     )
     assert result["verdict"] == "unknown"
-    assert result["reason"] == "forge_repository_required"
+    assert result["reason"] == "forge_repository_unresolved:gitlab"
+    assert result["next_action"] == "git config --local remote.gitlab.forgeRepository <web-url>"
 
 
-@pytest.mark.parametrize(
-    "target", ["http://forge.test:8080/team/repo", "https://github.com/team/repo"]
-)
-def test_peer_declaration_carries_api_coordinates_without_rewriting_git_transport(
-    tmp_path: Path, target: str
-):
-    """Keep distinct native API and Git endpoints within one existing peer owner."""
-    peer = {
-        "id": "review",
-        "provider": "gitlab",
-        "role": "collaboration",
-        "git_remote": "gitlab",
-        "capabilities": ["repository", "publication"],
-        "forge_repository": target,
-    }
-    for name in ("verify", "install"):
-        path = tmp_path / name
-        path.write_text("#!/bin/sh\nexit 0\n")
-        path.chmod(0o755)
-    topology = publication_topology(
-        tmp_path,
-        {
-            "publication": {
-                "local_verification_command": "verify",
-                "local_installation_command": "install",
-                "peers": [peer],
-            }
-        },
-    )
-    assert topology["required_gaps"] == []
-    assert topology["remotes"][0]["forge_repository"] == target
-
-
-def test_explicit_gitlab_api_endpoint_reaches_native_client(tmp_path: Path, monkeypatch):
-    """The API scheme and port remain distinct from the SSH transport."""
+def test_an_http_remote_reaches_the_native_client_with_its_port(tmp_path: Path, monkeypatch):
+    """The remote's scheme and port become the client's host; `.git` is not part of it."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
     target = "http://forge.test:8080/team/repo"
+    git(repo, "remote", "set-url", "gitlab", f"{target}.git")
     native = retirement.process.run_command
 
     def provider_process(root, command, **kwargs):
@@ -128,9 +96,7 @@ def test_explicit_gitlab_api_endpoint_reaches_native_client(tmp_path: Path, monk
         return subprocess.CompletedProcess(command, 0, "[]", "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)
-    result = retirement.observe_proposal_review(
-        repo, "gitlab", "gitlab", "proposal/finished", repository=target
-    )
+    result = retirement.observe_proposal_review(repo, "gitlab", "gitlab", "proposal/finished")
     assert result["verdict"] == "pass"
     assert result["state"] == "closed"
 

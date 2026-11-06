@@ -59,7 +59,6 @@ PUBLIC_SESSIONS = (
     "product_boundary",
     "import_boundaries",
     "schemas",
-    "local_ci",
 )
 
 
@@ -396,10 +395,6 @@ def schemas(session) -> None:
     session.log(json.dumps(report, sort_keys=True))
     if report["verdict"] != "pass":
         session.error("schema validation failed: " + ", ".join(report["required_gaps"]))
-
-
-def local_ci(session) -> None:
-    import_module("tools.ci.local_ci").run(session)
 
 
 def javascript_tests(session) -> None:

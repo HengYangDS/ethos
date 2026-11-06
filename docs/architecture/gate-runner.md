@@ -70,22 +70,13 @@ stdout and stderr; they do not infer success from missing evidence.
 
 ## Local Fallback Evidence
 
-```sh
-uv run --frozen --offline python -m nox -s local_ci
-```
-
-The outer command selects the locked Python environment; it does not assert
-that every selected check is offline. Local fallback requires clean committed
-source. It binds HEAD, source overlay and policy, rejects missing, duplicate or
-mismatched execution results, and checks source stability before finalization.
-The existing fallback receipt is replaced with a non-passing running record
-before checks start, so interruption cannot leave an earlier success as this
-run's result. An incomplete record does not assert that a child is still alive.
-Final logs retain each check's output.
-
-This receipt is local diagnostic evidence, not a proof Attestation, hosted CI
-success, remote publication or installed-runtime acceptance. Those claims each
-need their own current evidence.
+When no peer is reachable, `ethos publish` falls back to the proof Attestation
+it already admits for the head: the proof runs the owner's declared gates.
+`local_ci_fallback` reports that admission as `admitted`, `missing`,
+`unavailable` or `not_required`, with text, and a missing proof names the full
+proof command. The fallback never claims hosted CI success, remote publication
+or installed-runtime acceptance. Those claims each need their own current
+evidence.
 
 See also: [Command Plane](../reference/command-plane.md) and
 [Quality Gate Governance](../../.agents/skills/ethos-quality-gate-governance/SKILL.md).

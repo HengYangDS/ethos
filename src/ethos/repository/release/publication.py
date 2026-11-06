@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import re
-import shlex
-import shutil
 from collections.abc import Mapping
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 from typing import cast
-from urllib.parse import urlsplit
 
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
@@ -20,10 +16,13 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-LOCAL_COMMAND_FIELDS = ("local_verification_command", "local_installation_command")
-_DECLARATION_FIELDS = frozenset((*LOCAL_COMMAND_FIELDS, "peers", "transport_tags"))
+# Retired fields refuse by name until `lane repair-paradigm` removes them: a peer's web
+# repository is local connection metadata, and publish admits the proof Attestation itself.
+RETIRED_PUBLICATION_FIELDS = ("local_verification_command", "local_installation_command")
+RETIRED_PEER_FIELDS = ("forge_repository",)
+_DECLARATION_FIELDS = frozenset(("peers", "transport_tags", *RETIRED_PUBLICATION_FIELDS))
 _PEER_FIELDS = frozenset(
-    ("id", "provider", "role", "git_remote", "capabilities", "ci_surface", "forge_repository")
+    ("id", "provider", "role", "git_remote", "capabilities", "ci_surface", *RETIRED_PEER_FIELDS)
 )
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
@@ -77,32 +76,34 @@ def publication_target_ref_for_source(policy: BranchRolePolicy, branch: str) -> 
 
 
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
-    """Compile and validate the repository's sole publication declaration."""
-    raw = config.get("publication")
+    """Compile and validate the repository's sole publication declaration; absence is no peers."""
+    raw = config.get("publication", {})
     if not isinstance(raw, Mapping) or set(raw) - _DECLARATION_FIELDS:
-        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+        return _topology(peers=(), gaps=("publication_topology_declaration_invalid",))
     try:
         transport_tags = publication_transport_tags(config)
     except ValueError as error:
-        return _topology(local={}, peers=(), gaps=(str(error),))
-    if any(not isinstance(raw.get(field), str) for field in LOCAL_COMMAND_FIELDS):
-        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+        return _topology(peers=(), gaps=(str(error),))
     raw_peers = raw.get("peers", [])
     if not isinstance(raw_peers, list):
-        return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
-    local = {field: str(raw.get(field) or "") for field in LOCAL_COMMAND_FIELDS}
+        return _topology(peers=(), gaps=("publication_topology_declaration_invalid",))
+    retired = [field for field in RETIRED_PUBLICATION_FIELDS if field in raw]
+    retired.extend(
+        field
+        for raw_peer in raw_peers
+        if isinstance(raw_peer, Mapping)
+        for field in RETIRED_PEER_FIELDS
+        if field in raw_peer
+    )
+    gaps = [f"publication_declaration_field_retired:{field}" for field in retired]
     peers: list[dict[str, object]] = []
-    gaps = _local_path_gaps(root, local)
     for index, raw_peer in enumerate(raw_peers):
         peer, peer_gaps = _compile_peer(root, raw_peer, index=index)
         peers.append(peer)
         gaps.extend(peer_gaps)
     gaps.extend(_duplicate_peer_gaps(peers))
     return _topology(
-        local=local,
-        peers=tuple(peers),
-        gaps=tuple(dict.fromkeys(gaps)),
-        transport_tags=transport_tags,
+        peers=tuple(peers), gaps=tuple(dict.fromkeys(gaps)), transport_tags=transport_tags
     )
 
 
@@ -261,28 +262,7 @@ def _compile_peer(root: Path, raw: object, *, index: int) -> tuple[dict[str, obj
         "ci_surface": ci_surface,
         "capabilities": capabilities,
     }
-    if "forge_repository" in raw:
-        target = raw["forge_repository"]
-        if not isinstance(target, str) or not _forge_repository_valid(target):
-            return {}, [f"publication_topology_peer_forge_repository_invalid:{peer_id}"]
-        peer["forge_repository"] = target
     return peer, _peer_gaps(root, peer)
-
-
-def _forge_repository_valid(value: str) -> bool:
-    """Admit explicit API repository coordinates without embedded credentials."""
-    try:
-        url = urlsplit(value)
-        return (
-            value == value.strip()
-            and url.scheme in {"http", "https"}
-            and bool(url.hostname)
-            and url.port != 0
-            and not (url.username or url.password or url.query or url.fragment)
-            and len(tuple(filter(None, url.path.split("/")))) >= 2
-        )
-    except ValueError:
-        return False
 
 
 def _peer_gaps(root: Path, peer: Mapping[str, object]) -> list[str]:
@@ -312,12 +292,7 @@ def _peer_ci_surface_gap(root: Path, peer_id: str, ci_surface: str) -> str:
     return (
         f"publication_topology_peer_ci_surface_missing:{peer_id}"
         if not ci_surface
-        else _repository_path_gap(
-            root,
-            f"peer_ci_surface:{peer_id}",
-            ci_surface,
-            executable=False,
-        )
+        else _repository_path_gap(root, f"peer_ci_surface:{peer_id}", ci_surface)
     )
 
 
@@ -333,62 +308,29 @@ def _duplicate_peer_gaps(peers: list[dict[str, object]]) -> list[str]:
     return gaps
 
 
-def _local_path_gaps(root: Path, values: Mapping[str, str]) -> list[str]:
-    return [
-        gap
-        for field in LOCAL_COMMAND_FIELDS
-        if (gap := _repository_path_gap(root, field, values[field], executable=True))
-    ]
-
-
-def _repository_path_gap(root: Path, field: str, value: str, *, executable: bool) -> str:
+def _repository_path_gap(root: Path, field: str, value: str) -> str:
+    """Require one regular repository file at a relative path that stays inside the root."""
     prefix = f"publication_topology_{field}"
-    if not value:
-        return f"{prefix}_missing"
-    try:
-        argv = shlex.split(value) if executable else [value]
-    except ValueError:
-        return f"{prefix}_invalid:{value}"
-    return _resolved_path_gap(root, prefix, value, argv, executable=executable)
-
-
-def _resolved_path_gap(
-    root: Path, prefix: str, value: str, argv: list[str], *, executable: bool
-) -> str:
-    if not argv:
-        return f"{prefix}_missing"
-    relative, resolved_root = Path(argv[0]), root.resolve()
+    relative, resolved_root = Path(value), root.resolve()
     resolved = (resolved_root / relative).resolve()
     if relative.is_absolute() or not resolved.is_relative_to(resolved_root):
         return f"{prefix}_path_escape:{value}"
     if not resolved.exists():
-        return "" if executable and shutil.which(argv[0]) else f"{prefix}_missing:{value}"
-    if not resolved.is_file():
-        return f"{prefix}_not_regular:{value}"
-    return (
-        f"{prefix}_not_executable:{value}"
-        if executable and not os.access(resolved, os.X_OK)
-        else ""
-    )
+        return f"{prefix}_missing:{value}"
+    return "" if resolved.is_file() else f"{prefix}_not_regular:{value}"
 
 
 def _topology(
     *,
-    local: Mapping[str, str],
     peers: tuple[dict[str, object], ...],
     gaps: tuple[str, ...],
     transport_tags: tuple[str, ...] = (),
 ) -> dict[str, object]:
+    retired = any(gap.startswith("publication_declaration_field_retired:") for gap in gaps)
     return {
         "kind": "ethos_publication_topology",
         "state": "ready" if not gaps else "invalid",
-        "local": {
-            "id": "local",
-            "role": "local_verification_install",
-            "mode": "offline",
-            "verification_command": local.get("local_verification_command", ""),
-            "installation_command": local.get("local_installation_command", ""),
-        },
+        "next_action": "ethos lane repair-paradigm --apply --json" if retired else "",
         "ref_admission": {
             "branch_roles": sorted(_BRANCH_PUBLICATION_ROLES),
             "tag_role": _RELEASE_PUBLICATION,

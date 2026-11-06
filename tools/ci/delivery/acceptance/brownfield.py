@@ -20,6 +20,7 @@ from ethos.adapters.store.state.lease.projection import lease_row
 from ethos.adapters.store.state.lease.projection import lease_rows
 from ethos.adapters.store.state.schema import state_database
 from ethos.adapters.store.state.schema import state_schema_report
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.paradigm.repair import CarrierEdit
 from tools.ci.delivery.acceptance.invocation import invoke
 
@@ -254,13 +255,38 @@ def prove_retained_authoring(
         message = "package_retained_topic_state_changed"
         raise RuntimeError(message)
     change = _prove_retained_change(lane, prefix, environment=env)
+    repair = _repair_retired_publication(lane, prefix, environment=env)
     return {
         **change,
         "source_topic": source,
         "target_topic": target,
         "lease_generation": rows[0].generation,
         "topic_migration": "migrated" if source != target else "not_required",
+        "publication_repair": repair,
     }
+
+
+# The only gaps the successor's repair may change in the predecessor's retained adopter.
+_RETIRED_PUBLICATION_GAPS = tuple(
+    f"repository_paradigm_publication_declaration:{binding_path('release')}:publication.{field}"
+    for field in ("local_verification_command", "local_installation_command")
+)
+
+
+def _repair_retired_publication(
+    lane: Path, prefix: tuple[str, ...], *, environment: Mapping[str, str]
+) -> str:
+    """Remove the predecessor's retired publication fields with the successor's pure repair."""
+    repair = (*prefix, "lane", "repair-paradigm", "--root", str(lane))
+    env = {**environment, "ETHOS_CHANGE": "smoke-change"}
+    for options, state in (((), "planned"), (("--apply",), "repaired")):
+        code, report, detail = invoke(lane, (*repair, *options, "--json"), environment=env)
+        data = report.get("data")
+        repaired = tuple(data.get("repaired_gaps") or ()) if isinstance(data, dict) else ()
+        if code or report.get("state") != state or repaired != _RETIRED_PUBLICATION_GAPS:
+            message = f"package_retained_publication_repair_failed:{detail}"
+            raise RuntimeError(message)
+    return "repaired"
 
 
 def _prove_retained_change(

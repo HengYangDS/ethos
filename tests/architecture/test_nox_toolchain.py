@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shlex
 import subprocess
 import sys
 import tomllib
@@ -19,12 +18,10 @@ from markdown_it import MarkdownIt
 
 import ethos.adapters.repo.content.observation as content_observation
 import ethos.repository.policy.schema as schema_owner
-import tools.ci.local_ci as local_ci
 import tools.ci.toolchain.native as native_owner
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.gates import load_gate_registry_declaration
-from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.registries import repository_registry_path
@@ -73,11 +70,7 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
     assert gates["local-install-smoke"]["depends_on"] == ["build"]
     assert gates["local-install-smoke"]["network_policy"] == "offline"
     assert gates["local-install-smoke"]["writes_files"] is True
-    expected = resolve_gate_policy(ROOT, full=True)
-    assert local_ci.owner_commands() == [
-        shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
-    ]
-    assert expected.gate_ids.count("local-install-smoke") == 1
+    assert resolve_gate_policy(ROOT, full=True).gate_ids.count("local-install-smoke") == 1
 
 
 def test_project_runtime_is_the_only_executable_resolution_owner() -> None:

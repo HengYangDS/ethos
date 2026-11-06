@@ -6,7 +6,6 @@ import json
 import os
 import re
 import tomllib
-from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -15,17 +14,11 @@ from unittest.mock import Mock
 
 import pytest
 
-import ethos.adapters.gates.runner as gate_execution
-import ethos.repository.policy.gates as gate_policy
 import tools.ci.dependency_hygiene as dependency_hygiene
-import tools.ci.local_ci as local_ci
 import tools.ci.sessions as ci_sessions
-from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
-from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
-from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from tests.support.architecture import isolated_path
 from tests.support.runtime_scenarios import empty_node_package_supply
@@ -94,14 +87,6 @@ def test_direct_python_bounds_equal_the_locked_resolution(monkeypatch: pytest.Mo
     ]
 
 
-def test_local_ci_logs_use_declared_disposable_runtime_home() -> None:
-    declaration = load_generated_artifact_topology_declaration()
-    relative = local_ci.LOG_ROOT.relative_to(ROOT).as_posix()
-
-    assert relative == "build/runtime/work/local-ci/logs"
-    assert path_policy_from_declaration(relative, declaration)["decision"] == "allow"
-
-
 def test_direct_node_declarations_equal_the_lock_root() -> None:
     package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     locked = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))["packages"][""]
@@ -121,111 +106,6 @@ def test_current_node_package_supply_read_has_one_observed_owner() -> None:
     assert observed.sources["value"].get("ETHOS_NODE_PACKAGE_SUPPLY") == frozenset(
         {"src/ethos/adapters/repo/runtime/materialization/node_package_supply.py"}
     )
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
-        "pass",
-        "coverage",
-        "dirty",
-        "head-missing",
-        "policy",
-        "empty",
-        "missing",
-        "duplicate",
-        "command",
-        "no-exit",
-        "bad-exit",
-        "overlay",
-        "head",
-        "policy-drift",
-        "crash",
-    ],
-)
-def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch, case):
-    """A transport cannot mint HEAD success from an overlay or incomplete execution."""
-    monkeypatch.setattr(local_ci, "EVIDENCE", tmp_path / "result.json")
-    monkeypatch.setattr(local_ci, "LOG_ROOT", tmp_path / "logs")
-    monkeypatch.setattr(
-        gate_execution,
-        "current_tracked_head",
-        lambda _root: "" if case == "head-missing" else "a" * 40,
-    )
-    monkeypatch.setattr(local_ci, "current_tracked_head", gate_execution.current_tracked_head)
-    monkeypatch.setattr(gate_execution, "current_tree", lambda *_a: "b" * 40)
-    monkeypatch.setattr(
-        gate_execution,
-        "observe_execution_source",
-        lambda *_a: {"index": "b" * 40, "worktree": "dirty" if case == "dirty" else "b" * 40},
-    )
-    policy = local_ci.resolve_gate_policy(ROOT, full=True)
-    if case == "policy":
-        policy = replace(policy, gaps=("invalid_policy",))
-    monkeypatch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
-    observed = []
-    base_run = gate_execution.run_gate_graph
-
-    class Runner:
-        def __init__(self, *, candidate: bool = False):
-            assert candidate is False
-
-        def run(self, node, _gate, **_context):
-            observed.append(node.id)
-            verdict = "block" if case == "coverage" and node.id == "unit-architecture" else "pass"
-            return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))
-
-    def execute(*args, **kwargs):
-        if case == "crash":
-            message = "interrupted runner"
-            raise RuntimeError(message)
-        result = base_run(*args, **kwargs)
-        if case in {"overlay", "head", "policy-drift"}:
-            name, value = {
-                "overlay": ("observe_execution_source", {"index": "b" * 40, "worktree": "changed"}),
-                "head": ("current_tracked_head", "b" * 40),
-                "policy-drift": (
-                    "resolve_gate_policy",
-                    replace(
-                        policy, sources=(("ruff", ((".config/checks/ruff/ruff.toml", "changed"),)),)
-                    ),
-                ),
-            }[case]
-            monkeypatch.setattr(gate_execution, name, lambda *_a, **_k: value)
-        return (
-            ()
-            if case == "empty"
-            else result[:-1]
-            if case == "missing"
-            else (
-                (*result, result[0])
-                if case == "duplicate"
-                else (replace(result[0], command=("wrong",)), *result[1:])
-                if case == "command"
-                else (replace(result[0], exit_code=None if case == "no-exit" else 7), *result[1:])
-                if case in {"no-exit", "bad-exit"}
-                else result
-            )
-        )
-
-    monkeypatch.setattr(gate_execution, "LocalGateRunner", Runner)
-    monkeypatch.setattr(gate_execution, "run_gate_graph", execute)
-    # The verifier payloads have their own regressions; this transport keeps only its own claim.
-    monkeypatch.setattr(gate_policy, "quality_obligation_gaps", lambda *_a, **_k: ())
-    session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
-    if case == "pass":
-        local_ci.run(cast("nox.Session", session))
-        assert observed.index("build") < observed.index("local-install-smoke")
-    else:
-        with pytest.raises((pytest.fail.Exception, RuntimeError)):
-            local_ci.run(cast("nox.Session", session))
-    payload = json.loads(local_ci.EVIDENCE.read_text())
-    assert payload["verdict"] == ("pass" if case == "pass" else "block")
-    if case in {"dirty", "head-missing", "policy", "crash"}:
-        assert not observed
-    else:
-        assert observed.count("unit-architecture") == 1
-    assert len(observed) == len(set(observed))
 
 
 def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypatch) -> None:

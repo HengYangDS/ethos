@@ -10,7 +10,7 @@ import tomli_w
 
 import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.fallback import local_ci_owner_scripts
+from ethos.domain.publication.fallback import local_ci_fallback
 from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -20,6 +20,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_role_policy
 from tests.support.proof import seed_executed_proof
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 def _publish_fixture(tmp_path: Path) -> tuple[Path, str]:
@@ -35,12 +36,11 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
 
     assert payload["summary"]["remote_push"] == "not_performed"
-    assert (
-        payload["data"]["local_ci_fallback"] == payload["data"]["publication"]["fallback_evidence"]
-    )
     fallback = payload["data"]["local_ci_fallback"]
-    assert fallback["owner_scripts"] == local_ci_owner_scripts(
-        root=Path.cwd(), command=fallback["command"]
+    assert fallback == payload["data"]["publication"]["fallback_evidence"]
+    assert (fallback["evidence_class"], fallback["hosted_ci_status_claimed"]) == (
+        "local_fallback",
+        False,
     )
 
     publication = payload["data"]["publication"]
@@ -51,45 +51,66 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_action"]
 
 
-@pytest.mark.parametrize("case", ["invalid", "custom", "retired"])
-def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
+@pytest.mark.parametrize("state", ["admitted", "missing", "unavailable", "not_required", ""])
+def test_the_fallback_projects_every_proof_admission_state(state: str) -> None:
+    """Each state carries text; an unknown state is unavailable, and no hosted CI is claimed."""
+    attestation = {"id": "proof-1"} if state == "admitted" else {}
+    action = "ethos prove --full --execute --expect-head abc --json" if state == "missing" else ""
+    fallback = local_ci_fallback(
+        {"state": state, "attestation": attestation, "next_action": action}
+    )
+    assert (fallback["kind"], fallback["evidence_class"]) == ("local_ci_fallback", "local_fallback")
+    assert (fallback["state"], fallback["next_action"]) == (state or "unavailable", action)
+    assert fallback["attestation_id"] == attestation.get("id", "")
+    assert fallback["text"]
+    assert fallback["hosted_ci_status_claimed"] is False
+
+
+def test_publish_falls_back_to_the_proof_of_its_own_head(tmp_path: Path) -> None:
+    """The admitted proof Attestation is the fallback; a new head names the full proof."""
     repo, head = _publish_fixture(tmp_path)
-    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
-    command = "uv run --locked --no-sync nox -s full"
+    install_fixture_hook_runtime(repo)
+    admitted = run_ethos("publish", "--json", cwd=repo)["data"]["local_ci_fallback"]
+    assert (admitted["state"], bool(admitted["attestation_id"])) == ("admitted", True)
+    (repo / "README.md").write_text("# Changed\n", encoding="utf-8")
+    head = commit_fixture(repo, "docs: change the readme")
+    blocked = run_ethos("publish", "--json", cwd=repo)
+    missing = blocked["data"]["local_ci_fallback"]
+    assert (blocked["verdict"], missing["state"]) == ("block", "missing")
+    continuation = f"prove --root {repo.resolve().as_posix()} --full --execute --expect-head {head}"
+    assert continuation in missing["next_action"]
+    assert blocked["next_action"] == missing["next_action"]
+
+
+def test_a_refused_publish_names_the_declaration_repair(tmp_path: Path) -> None:
+    """A retired field blocks readiness and an exact ref alike, and both name the repair."""
+    repo, head = _publish_fixture(tmp_path)
     release = repo / ".ethos/release.toml"
-    declaration = tomllib.loads(release.read_text())
-    default_command = declaration["publication"]["local_verification_command"]
-    if case == "custom":
-        declaration["publication"]["local_verification_command"] = command
-        release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
-        head = commit_fixture(repo, "docs(release): declare canonical local verification")
-        seed_executed_proof(repo, head)
-    else:
-        manifest.parent.mkdir(parents=True)
-        content = (
-            "{not-json"
-            if case == "invalid"
-            else (
-                f'{{"command":"retired/verify","head":"{head}","required_gaps":[],"verdict":"pass"}}\n'
-            )
-        )
-        manifest.write_text(content, encoding="utf-8")
-    payload = run_ethos("publish", "--json", cwd=repo)
-    evidence = payload["data"]["local_ci_fallback"]["evidence_status"]
-    expected = {
-        "invalid": (
-            "invalid",
-            f"rerun {default_command} to refresh local fallback evidence",
+    release.write_text(
+        release.read_text().replace(
+            "[[publication.peers]]",
+            '[publication]\nlocal_verification_command = "true"\n\n[[publication.peers]]',
+            1,
         ),
-        "custom": ("missing", f"run {command} as local fallback evidence"),
-        "retired": ("stale", f"run {default_command} as local fallback evidence"),
-    }[case]
-    assert (evidence["state"], evidence["next_action"]) == expected
-    if case == "custom":
-        assert (payload["data"]["local_ci_fallback"]["command"], payload["next_action"]) == (
-            command,
-            f"run {command} as local fallback evidence",
-        )
+        encoding="utf-8",
+    )
+    head = commit_fixture(repo, "chore(release): keep a retired command")
+    seed_executed_proof(repo, head)
+    readiness = run_ethos("publish", "--json", cwd=repo)
+    exact = run_ethos_blocked(
+        "publish",
+        "--ref",
+        "refs/heads/dev",
+        "--probe-remote",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+    retired = "publication_declaration_field_retired:local_verification_command"
+    for result in (readiness, exact):
+        assert (result["verdict"], retired in result["required_gaps"]) == ("block", True)
+        assert "ethos lane repair-paradigm --apply" in result["next_action"]
 
 
 @pytest.mark.parametrize("probe_remote", [False, True])
@@ -163,21 +184,20 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
 
 def test_publication_readiness_selects_fallback_or_admitted_proposal_observation() -> None:
     policy = load_branch_role_policy(Path.cwd())
-    fallback = "run dev/verify as local fallback evidence"
+    proof = f"ethos prove --full --execute --expect-head {'a' * 40} --json"
     unprobed = {"gitlab": {"availability": {"state": "not_probed"}}}
-    for branch, evidence_status, remotes, expected in (
-        ("dev", {}, {}, fallback),
-        ("dev", None, {}, fallback),
-        (policy.work_branch("topic"), None, unprobed, "refs/heads/proposal/topic"),
-        (policy.candidate_branch, None, unprobed, "select an admitted publication target ref"),
+    for branch, action, remotes, expected in (
+        ("dev", proof, {}, proof),
+        ("dev", "", {}, "ethos publish --ref refs/heads/dev --probe-remote"),
+        (policy.work_branch("topic"), proof, unprobed, "refs/heads/proposal/topic"),
+        (policy.candidate_branch, "", unprobed, "select an admitted publication target ref"),
     ):
         publication = publication_readiness(
             branch=branch,
             head="a" * 40,
             local_ok=True,
             policy=policy,
-            local_ci_fallback={"evidence_status": evidence_status},
-            local_verification_command="dev/verify",
+            local_ci_fallback={"next_action": action},
             remote_observations=remotes,
         )
         assert expected in publication["next_action"]

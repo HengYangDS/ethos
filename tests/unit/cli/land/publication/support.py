@@ -53,12 +53,7 @@ def publication_peers(repo: Path, root: Path, *refs: str, object_format: str = "
 
 def configure_signature_publication(candidate: Path) -> None:
     """Keep repair tests focused on signed Git effects, not synthetic script quality."""
-    write_publication_topology(
-        candidate,
-        verification_command="git fsck --no-reflogs",
-        installation_command="git --version",
-        materialize_commands=False,
-    )
+    write_publication_topology(candidate)
     declare_fixture_documentation_proof(candidate, profile_id="signature-fixture")
 
 
@@ -73,12 +68,7 @@ def branch_publication_fixture(
 ) -> tuple[Path, dict[str, Path], str]:
     repo = init_git_repo(tmp_path / "proposal-repo", object_format=object_format)
     adopt_and_commit(repo, docs_only=True)
-    write_publication_topology(
-        repo,
-        verification_command="git fsck --no-reflogs",
-        installation_command="git --version",
-        materialize_commands=False,
-    )
+    write_publication_topology(repo)
     if peer_ids == ("gitlab",):
         release = repo / ".ethos/release.toml"
         release.write_text(release.read_text().rsplit("[[publication.peers]]", 1)[0])

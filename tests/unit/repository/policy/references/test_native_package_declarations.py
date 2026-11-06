@@ -346,14 +346,17 @@ def test_public_patch_admission_reports_invalid_native_declaration(
     assert package.read_text(encoding="utf-8") == before
 
 
-def test_local_publication_commands_declare_their_executables() -> None:
-    """The release declaration's local commands own the executables they invoke, and no others."""
+def test_the_publication_declaration_owns_no_executable() -> None:
+    """Retired local commands own nothing; an adopter's tool stays owned by its native supply."""
     release = (
-        "[publication]\n"
-        'local_verification_command = "pixi run --locked ci-local"\n'
-        'local_installation_command = "pixi run --locked hosted-package"\n'
+        '[publication]\nlocal_verification_command = "pixi run --locked ci-local"\n\n'
+        '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "gitlab"\n'
     )
-    executables = native_owned_references_from_files({".ethos/release.toml": release})["executable"]
+    declared = native_owned_references_from_files({".ethos/release.toml": release})
+    supplied = native_owned_references_from_files(
+        {".ethos/release.toml": release, ".config/mise/config.toml": '[tools]\npixi = "0.50.0"\n'}
+    )
 
-    assert "pixi" in executables
-    assert "gitlab-ci-local" not in executables
+    assert "pixi" not in declared["executable"]
+    assert "gitlab" in declared["reference"]
+    assert "pixi" in supplied["executable"]

@@ -28,6 +28,7 @@ from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from collections.abc import Mapping
     from pathlib import Path
 
@@ -254,24 +255,24 @@ def _front_matter(
     return "\n".join([*lines[1 : closing + 1], *lines[closing + 2 :]]), ""
 
 
+def _peer_blocks(lines: list[str]) -> Iterator[tuple[int, int, dict[str, Any] | None]]:
+    """Yield each `[[publication.peers]]` block's header, end and parse; None does not parse."""
+    for start in (index for index, line in enumerate(lines) if _PEERS.fullmatch(line)):
+        end = _block_end(lines, start)
+        try:
+            yield start, end, tomllib.loads("\n".join(lines[start + 1 : end]))
+        except tomllib.TOMLDecodeError:
+            yield start, end, None
+
+
 def _peer_remote(
     _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
     """Name one peer's Git remote after the peer and name the matching local rename."""
     identity = gap.carrier.partition(":")[2].removeprefix(_PEER_KEY)
     lines = (text or "").rstrip("\n").split("\n")
-    for start in (index for index, line in enumerate(lines) if _PEERS.fullmatch(line)):
-        end = next(
-            (
-                index
-                for index in range(start + 1, len(lines))
-                if lines[index].lstrip().startswith("[")
-            ),
-            len(lines),
-        )
-        try:
-            peer = tomllib.loads("\n".join(lines[start + 1 : end]))
-        except tomllib.TOMLDecodeError:
+    for start, end, peer in _peer_blocks(lines):
+        if peer is None:
             return None
         if peer.get("id") != identity:
             continue
@@ -289,6 +290,84 @@ def _peer_remote(
         )
         return "\n".join(lines) + "\n", action
     return None
+
+
+def _publication_declaration(
+    _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
+) -> Repair | None:
+    """Delete one retired publication field's line, never reading or repeating its value.
+
+    A `[publication]` header left without keys goes: with no sub-table left, together with
+    the comments above it, as an emptied workspace table does. The result must parse as the
+    declaration without that field; any other shape stays report-only.
+    """
+    key = gap.carrier.partition(":")[2]
+    declared = _parsed(text)
+    publication = declared.get("publication") if declared is not None else None
+    if declared is None or not isinstance(publication, dict):
+        return None
+    lines = (text or "").rstrip("\n").split("\n")
+    if key.startswith(_PEER_KEY):
+        identity, _, field = key.removeprefix(_PEER_KEY).rpartition(".")
+        spans = [
+            (start, end)
+            for start, end, peer in _peer_blocks(lines)
+            if peer is not None and peer.get("id", peer.get("provider")) == identity
+        ]
+        peers = [
+            {name: value for name, value in peer.items() if name != field}
+            if peer.get("id", peer.get("provider")) == identity
+            else peer
+            for peer in publication.get("peers", [])
+        ]
+        expected = {**declared, "publication": {**publication, "peers": peers}}
+    else:
+        field = key.removeprefix("publication.")
+        start = next(
+            (index for index, line in enumerate(lines) if _table(line) == "publication"), None
+        )
+        spans = [] if start is None else [(start, _block_end(lines, start))]
+        remaining = {name: value for name, value in publication.items() if name != field}
+        expected = (
+            {**declared, "publication": remaining}
+            if remaining
+            else _without(declared, "publication")
+        )
+    found = [
+        index
+        for start, end in spans
+        for index in range(start + 1, end)
+        if _key(lines[index]) == field
+    ]
+    if len(spans) != 1 or len(found) != 1:
+        return None
+    del lines[found[0]]
+    repaired = "\n".join(lines) + "\n"
+    if "publication" not in expected:
+        repaired = _without_table(repaired, "publication")
+    elif not key.startswith(_PEER_KEY):
+        repaired = _without_bare_header(repaired, "publication")
+    return _exact(repaired, expected)
+
+
+def _block_end(lines: list[str], start: int) -> int:
+    """Return the index of the next table header after one header, or the end of the text."""
+    return next(
+        (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
+        len(lines),
+    )
+
+
+def _without_bare_header(text: str, table: str) -> str:
+    """Drop a `[table]` header and its blank lines when its block holds no key."""
+    lines = text.rstrip("\n").split("\n")
+    start = next((index for index, line in enumerate(lines) if _table(line) == table), None)
+    if start is None:
+        return text
+    end = _block_end(lines, start)
+    if any(lines[index].strip() for index in range(start + 1, end)):
+        return text
+    return "\n".join([*lines[:start], *lines[end:]]) + "\n"
 
 
 def _restated_field(
@@ -310,10 +389,7 @@ def _restated_field(
         return None
     lines = (text or "").rstrip("\n").split("\n")
     start = next((index for index, line in enumerate(lines) if _table(line) == table), len(lines))
-    end = next(
-        (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
-        len(lines),
-    )
+    end = _block_end(lines, start)
     found = [index for index in range(start + 1, end) if _key(lines[index]) == name]
     # Only a field on exactly one line of its own table is deleted. Any other shape leaves
     # the text as it was, which the comparison below refuses.
@@ -413,6 +489,7 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "formatter-setting": _formatter,
     "front-matter": _front_matter,
     "peer-remote": _peer_remote,
+    "publication-declaration": _publication_declaration,
     "branch-roles": _restated_field,
     "commit-grammar": _restated_field,
     "commit-signature": _restated_field,

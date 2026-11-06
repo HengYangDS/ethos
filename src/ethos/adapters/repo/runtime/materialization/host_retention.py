@@ -26,7 +26,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
-from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import named_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.repository.paradigm.parameters import seconds
 
@@ -90,28 +90,12 @@ def _consumer_state(
         # no selection, is read without one.
         lock = runtime_selection_lock(consumer) if (consumer / "ethos").is_dir() else None
         with lock.acquire(blocking=False) if lock is not None else contextlib.nullcontext():
-            named = [_named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
+            named = [named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
     except (OSError, UnicodeError, ValueError):
         return "unknown"
     return (
         "needs" if any(path and path.is_relative_to(installation) for path in named) else "released"
     )
-
-
-def _named_runtime(common: Path, name: str) -> Path | None:
-    """Read one runtime selector in the `CURRENT` encoding; an absent selector names nothing."""
-    selector = common / "ethos/runtime" / name
-    if not selector.exists() and not selector.is_symlink():
-        return None
-    if selector.is_symlink():
-        raise ValueError(name)
-    raw = selector.read_bytes()
-    parts = raw.decode("utf-8").removesuffix("\n").split("\n")
-    root = common.resolve()
-    candidate = root / "ethos/runtime" / parts[0] if len(parts) == 1 else Path(parts[-1])
-    if len(parts) not in {1, 2} or runtime_selection_bytes(root, candidate) != raw:
-        raise ValueError(name)
-    return candidate
 
 
 def _index(value: str) -> bool:

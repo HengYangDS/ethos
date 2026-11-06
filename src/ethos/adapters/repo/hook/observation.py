@@ -26,6 +26,7 @@ from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import inspection_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
+from ethos.adapters.repo.runtime.selection import named_runtime
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
@@ -67,6 +68,7 @@ class HookRuntimeBinding(TypedDict):
     linked_worktrees: NotRequired[list[dict[str, str]]]
     state_transition: NotRequired[dict[str, object]]
     rollback_supply: NotRequired[dict[str, str]]
+    rollback: NotRequired[dict[str, str]]
     host_store_cleanup: NotRequired[dict[str, object]]
     contract_observation: NotRequired[dict[str, object]]
     exit: NotRequired[dict[str, str]]
@@ -83,6 +85,25 @@ class CommitPolicyEnforcement(TypedDict):
     next_action: str
     signature_trust: NotRequired[dict[str, object]]
     lifecycle_signer: NotRequired[dict[str, object]]
+
+
+def _rollback_guidance(
+    repo: Path, common: Path, selected: SelectedRuntime | None
+) -> dict[str, str]:
+    """Name the one supported rollback: the CURRENT runtime activating the ROLLBACK selection.
+
+    Only the CURRENT console reaches activation's declaration preflight; a predecessor's own
+    console skips it.
+    """
+    try:
+        rollback = named_runtime(common, "ROLLBACK")
+    except (OSError, UnicodeError, ValueError):
+        return {}
+    if selected is None or rollback is None:
+        return {}
+    command = (selected.python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli", "hook", "install")
+    arguments = ("--root", repo.as_posix(), "--runtime", rollback.as_posix(), "--json")
+    return {"runtime": rollback.as_posix(), "command": shlex.join((*command, *arguments))}
 
 
 def hook_runtime_binding(
@@ -162,6 +183,7 @@ def hook_runtime_binding(
         and hooks.name != contract["generation_digest"]
     ):
         gaps.append("write_admission_not_armed:hook_generation_digest")
+    rollback = _rollback_guidance(repo, common, selected)
     # A repository that exited keeps no hooks unless its profile still declares governance.
     exit_record = exit_fact(common)
     exited = exit_record is not None and exit_record["state"] == "exited"
@@ -186,6 +208,7 @@ def hook_runtime_binding(
             if expected is not None and expected.invoking and build_source is not None
             else {}
         ),
+        **({"rollback": rollback} if rollback else {}),
         "current": not gaps,
         "state": "unknown"
         if observation

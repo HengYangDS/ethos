@@ -17,10 +17,12 @@ from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.adopter_content import ADOPTER_FILES
+from tools.ci.delivery.acceptance.adopter_content import RETAINED_PUBLICATION
 from tools.ci.delivery.acceptance.adopter_content import SMOKE_CHANGE
 from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -114,6 +116,8 @@ def materialize_adopter(
             for relative, content in authored.items()
         }
         authored[f"{SMOKE_CHANGE}-20261008/tasks.md"] += "- [ ] 1.2 Verify retained authoring.\n"
+        release = binding_path("release")
+        authored[release] = RETAINED_PUBLICATION + authored[release]
         authored[".ethos/workspace.toml"] = (
             '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
             'candidate_branch = "candidate/dev"\nwork_branch_prefix = "task/"\n'

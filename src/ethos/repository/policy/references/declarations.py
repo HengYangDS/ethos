@@ -29,7 +29,6 @@ from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
 from ethos.repository.profile import RepositoryProfileDeclaration
-from ethos.repository.release.publication import LOCAL_COMMAND_FIELDS
 from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
@@ -351,10 +350,6 @@ def _declared_release_references(files: dict[str, str], owned: dict[str, set[str
     for peer in _table_items(publication.get("peers")):
         names = {peer.get("provider"), peer.get("git_remote")}
         owned["reference"].update(name for name in names if isinstance(name, str))
-    # The local publication commands own the executables they invoke.
-    commands = [publication.get(key) for key in LOCAL_COMMAND_FIELDS]
-    text = "\n".join(command for command in commands if isinstance(command, str))
-    owned["executable"].update(command_references.shell_executables(text, {}))
 
 
 def _declared_tool_supply(files: dict[str, str], owned: dict[str, set[str]]) -> None:

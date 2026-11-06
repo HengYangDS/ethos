@@ -4,15 +4,17 @@ from __future__ import annotations
 
 # The adopted repository's authored files, written as LF bytes on every host.
 SMOKE_CHANGE = "openspec/changes/smoke-change"
+# The retained fixture is the predecessor's adopter, so it keeps the publication fields that
+# runtime requires; the successor's repair removes them. Drop this once no predecessor needs them.
+RETAINED_PUBLICATION = (
+    '[publication]\nlocal_verification_command = "git fsck --no-reflogs"\n'
+    'local_installation_command = "git --version"\n\n'
+)
 ADOPTER_FILES = {
     ".ethos/profile.toml": (
         'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n'
     ),
-    ".ethos/release.toml": """[publication]
-local_verification_command = "git fsck --no-reflogs"
-local_installation_command = "git --version"
-
-[[publication.peers]]
+    ".ethos/release.toml": """[[publication.peers]]
 id = "file"
 provider = "git"
 role = "package_smoke"

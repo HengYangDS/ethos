@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -198,3 +199,28 @@ def test_apply_preserves_a_preimage_changed_during_admission(
 
     assert result["verdict"] == "block", result
     assert guide.read_bytes() == intervening
+
+
+def test_a_retired_forge_repository_goes_without_echoing_its_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Neither the preview nor the applied result repeats the removed web address."""
+    web = "https://forge.test:8443/team/repo"
+    release = (
+        f'[[publication.peers]]\nid = "gitlab"\ngit_remote = "gitlab"\nforge_repository = "{web}"\n'
+    )
+    repo = _repository(tmp_path, {".ethos/release.toml": release})
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", []))
+    preview = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")
+    applied = run_ethos("lane", "repair-paradigm", "--apply", "--root", repo.as_posix(), "--json")
+    for result in (preview, applied):
+        assert web not in json.dumps(result)
+        assert "patch" not in result["data"]
+    assert "-forge_repository = <withheld>" in preview["data"]["edits"][0]["diff"]
+    carrier = ".ethos/release.toml:publication.peers.gitlab.forge_repository"
+    assert applied["data"]["repaired_gaps"] == [
+        f"repository_paradigm_publication_declaration:{carrier}"
+    ]
+    assert "forge_repository" not in (repo / ".ethos/release.toml").read_text(encoding="utf-8")
+    again = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
+    assert (again["state"], again["edits"]) == ("conforming", [])

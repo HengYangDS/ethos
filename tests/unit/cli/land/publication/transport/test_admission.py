@@ -22,6 +22,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _transport_scope(text: str, tags: str) -> str:
+    """Declare transport tags in the publication table ahead of the first peer."""
+    table = f"[publication]\ntransport_tags = {tags}\n\n[[publication.peers]]\n"
+    return text.replace("[[publication.peers]]\n", table, 1)
+
+
 @pytest.mark.parametrize(("product_proof", "historical"), [(False, True), (True, False)])
 def test_declared_signed_transport_shares_publish_and_native_push_admission(
     tmp_path: Path, *, product_proof: bool, historical: bool
@@ -29,9 +35,7 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
     """Object transport preserves trust and CAS without requiring product release proof."""
     repo, peers, prior = branch_publication_fixture(tmp_path, proof=product_proof)
     declaration = repo / ".ethos/release.toml"
-    text = declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-    )
+    text = _transport_scope(declaration.read_text(), '["evidence-*"]')
     baseline = commit_fixture_file(
         repo, ".ethos/release.toml", text, "test: declare object transport"
     )
@@ -102,9 +106,7 @@ def test_transport_uses_only_the_peer_standard_accepted_authority(
     head = commit_fixture_file(
         repo,
         ".ethos/release.toml",
-        declaration.read_text().replace(
-            "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-        ),
+        _transport_scope(declaration.read_text(), '["evidence-*"]'),
         "test: propose object transport scope",
     )
     if peer_root == "missing":
@@ -138,9 +140,7 @@ def test_transport_keeps_native_signature_header_and_immutable_ref_checks(tmp_pa
     """Review qualification never authorizes an altered tag or an untrusted envelope."""
     repo, _, _ = branch_publication_fixture(tmp_path, proof=False)
     declaration = repo / ".ethos/release.toml"
-    text = declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-    )
+    text = _transport_scope(declaration.read_text(), '["evidence-*"]')
     head = commit_fixture_file(repo, ".ethos/release.toml", text, "test: declare transport scope")
     git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
     ref = "refs/tags/evidence-input"
@@ -180,8 +180,8 @@ def test_transport_declaration_cannot_downgrade_declared_product_tags(tmp_path: 
     """Product patterns retain release obligations even when transport also matches."""
     repo, _, prior = branch_publication_fixture(tmp_path, proof=False)
     declaration = repo / ".ethos/release.toml"
-    text = '[protected_refs]\ntags = ["v*"]\n\n' + declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["*"]\n'
+    text = '[protected_refs]\ntags = ["v*"]\n\n' + _transport_scope(
+        declaration.read_text(), '["*"]'
     )
     head = commit_fixture_file(repo, ".ethos/release.toml", text, "test: preserve release role")
     git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
@@ -211,8 +211,6 @@ def test_invalid_transport_declaration_is_not_treated_as_absent(
         tmp_path,
         {
             "publication": {
-                "local_verification_command": "git --version",
-                "local_installation_command": "git --version",
                 "transport_tags": tags,
                 "peers": [],
             }
@@ -231,9 +229,7 @@ def test_existing_transport_tag_keeps_current_peer_policy(
     source = commit_fixture_file(
         repo,
         ".ethos/release.toml",
-        declaration.read_text().replace(
-            "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-        ),
+        _transport_scope(declaration.read_text(), '["evidence-*"]'),
         "test: accept object transport",
     )
     git(repo, "push", "--no-verify", "github", f"{source}:refs/heads/dev")
@@ -275,9 +271,7 @@ def test_signed_transport_for_another_head_does_not_persist_a_request(tmp_path: 
     policy = commit_fixture_file(
         repo,
         ".ethos/release.toml",
-        declaration.read_text().replace(
-            "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-        ),
+        _transport_scope(declaration.read_text(), '["evidence-*"]'),
         "test: accept object transport",
     )
     git(repo, "push", "--no-verify", "github", f"{policy}:refs/heads/dev")

@@ -9,6 +9,8 @@ import pytest
 import ethos.surface.cli.hook.commands as commands
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.hook.rollback import RESTORE_ACTION
+from ethos.adapters.repo.hook.rollback import RollbackRefusalError
 from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
@@ -128,4 +130,21 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
     ) == (2, 1, 0 if deferred else 1)
     assert result.next_action == (
         f"ethos hook install --root {tmp_path} --json" if deferred else ""
+    )
+
+
+def test_a_refused_rollback_reports_its_exact_gap_and_the_restore(
+    monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult]
+) -> None:
+    """The refusal is not wrapped as an install failure; its next action restores first."""
+    refusal = RollbackRefusalError("runtime_rollback_declaration_repaired", RESTORE_ACTION)
+    monkeypatch.setattr(
+        commands, "install_hook_launchers", lambda *_a, **_k: (_ for _ in ()).throw(refusal)
+    )
+    commands.install(json_output=True)
+    result = emitted[-1]
+    assert (result.verdict, result.required_gaps, result.next_action) == (
+        "block",
+        ("runtime_rollback_declaration_repaired",),
+        RESTORE_ACTION,
     )

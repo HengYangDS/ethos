@@ -312,7 +312,7 @@ def test_a_field_that_is_its_table_goes_with_the_table(tmp_path: Path, workspace
 
 
 _RELEASE_BINDING = ".ethos/release.toml"
-_PUBLICATION = '[publication]\nlocal_verification_command = "check"\n'
+_PUBLICATION = '[publication]\ntransport_tags = ["native-inputs-*"]\n'
 
 
 @pytest.mark.parametrize(

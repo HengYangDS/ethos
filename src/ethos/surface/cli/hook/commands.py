@@ -5,6 +5,7 @@ import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
+from typing import Any
 
 from cyclopts import App
 from cyclopts import Group
@@ -21,6 +22,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.hook.rollback import RollbackRefusalError
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import legacy_supply
 from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
@@ -260,6 +262,23 @@ def ref_transaction(
     emit(result, json_output=json_output, enforce=True)
 
 
+def _uninstalled(next_action: str = "") -> dict[str, Any]:
+    """Describe an install that activated nothing, with the action that can proceed."""
+    return {
+        "hooks_path": "",
+        "python": "",
+        "scripts": [],
+        "linked_worktrees": [],
+        "generation_cleanup": {
+            "checked": [],
+            "removed": [],
+            "retained": [],
+            "unproven_removals": [],
+        },
+        **({"next_action": next_action} if next_action else {}),
+    }
+
+
 @_app.command
 def install(
     *,
@@ -278,22 +297,14 @@ def install(
             reset_state=reset_state,
             authorized=authorize,
         )
+    except RollbackRefusalError as refusal:
+        gaps = (refusal.gap,)
+        runtime = _uninstalled(refusal.next_action)
     except (OSError, RuntimeError, ValueError) as error:
         reason = str(error).strip() or error.__class__.__name__
         state_failure = reason.startswith("state_")
         gaps = (reason,) if state_failure else (f"hook_install_failed:{reason}",)
-        runtime = {
-            "hooks_path": "",
-            "python": "",
-            "scripts": [],
-            "linked_worktrees": [],
-            "generation_cleanup": {
-                "checked": [],
-                "removed": [],
-                "retained": [],
-                "unproven_removals": [],
-            },
-        }
+        runtime = _uninstalled()
         if isinstance(error, (ProcessExecutionError, HookActivationError)):
             if isinstance(error, ProcessExecutionError):
                 runtime["process_failure"] = error.evidence()

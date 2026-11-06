@@ -380,12 +380,7 @@ def adopt_and_commit(
     declare_fixture_documentation_proof(repo)
     _enable_openspec_profile(repo)
     if not docs_only:
-        write_publication_topology(
-            repo,
-            verification_command="git fsck --no-reflogs",
-            installation_command="git --version",
-            materialize_commands=False,
-        )
+        write_publication_topology(repo)
     if release_mirror != "independent":
         write_release_mirror(repo, release_mirror)
     _write_openspec_baseline(repo)
@@ -402,22 +397,13 @@ def write_publication_topology(
     *,
     gitlab_remote: str = "gitlab",
     github_remote: str = "github",
-    verification_command: str = "dev/verify",
-    installation_command: str = "dev/install",
     gitlab_ci_surface: str = ".gitlab-ci.yml",
     github_ci_surface: str = ".github/workflows/verify.yml",
-    materialize_commands: bool = True,
     host_provider: str = "",
 ) -> None:
     """Declare the canonical independent GitLab and GitHub test peers and optional host."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
-    if materialize_commands:
-        for command in (verification_command, installation_command):
-            path = repo / command
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-            path.chmod(0o755)
     for surface in (gitlab_ci_surface, github_ci_surface):
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -433,10 +419,6 @@ def write_publication_topology(
         "\n".join(
             (
                 *host,
-                "[publication]",
-                f'local_verification_command = "{verification_command}"',
-                f'local_installation_command = "{installation_command}"',
-                "",
                 "[[publication.peers]]",
                 'id = "gitlab"',
                 'provider = "gitlab"',

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ import pytest
 import ethos.adapters.repo.hook.activation as activation
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.selection import activate_runtime
@@ -74,6 +76,15 @@ def test_cutover_preserves_exact_predecessor_after_local_reclamation(
     assert str(previous) in result["generation_cleanup"]["removed"]
     assert current_runtime(Path(git_common_dir(repo))).digest == supplied.name
     assert result["required_gaps"] == []
+    # Status names the one supported rollback: the CURRENT runtime selecting the preserved one.
+    guidance = hook_runtime_binding(repo)["rollback"]
+    command = shlex.split(guidance["command"])
+    assert guidance["runtime"] == str(rollback)
+    assert command[0] == current_runtime(Path(git_common_dir(repo))).python.as_posix()
+    assert command[-7:] == [
+        *("hook", "install", "--root", repo.resolve().as_posix()),
+        *("--runtime", str(rollback), "--json"),
+    ]
     before = {path.name for path in rollback.parents[1].parent.iterdir()}
     for _ in range(2):
         repeated = activation.install_hook_launchers(repo, installed_runtime=supplied)

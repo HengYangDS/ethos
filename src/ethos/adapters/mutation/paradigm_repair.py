@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import re
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.native.inputs import paradigm_received_paths
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from ethos.repository.paradigm.repair import CarrierEdit
 
 _APPLY = "ethos lane repair-paradigm --apply --json"
+# A retired peer web repository is identity; no diff line repeats it, context included.
+_WITHHELD = re.compile(r"^([ +-]\s*forge_repository\s*=).*$")
 
 
 def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
@@ -60,7 +63,9 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         apply=apply,
         next_action=str(planned["next_action"]),
     )
-    result = {**planned, **effect, "edits": planned["edits"]}
+    # The edit views are the preview; the native patch would repeat every removed value.
+    result = {key: value for key, value in effect.items() if key != "patch"}
+    result = {**planned, **result, "edits": planned["edits"]}
     if not effect["applied"]:
         if report_verdict(effect) == "pass":
             result["state"] = planned["state"]
@@ -96,7 +101,7 @@ def _edit_view(edit: CarrierEdit) -> dict[str, object]:
         "path": edit.path,
         "created": edit.before is None,
         "removed": edit.after is None,
-        "diff": "".join(diff),
+        "diff": "".join(_WITHHELD.sub(r"\1 <withheld>", line) for line in diff),
     }
 
 

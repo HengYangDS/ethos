@@ -16,11 +16,8 @@ from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from tests.support.literal_cases import literal_case
 
-_LOCAL = literal_case("release.test_policy_attestation:assign:_LOCAL:0")
 _PRODUCT = product_version(Path(__file__).resolve().parents[3])
 _PUBLICATION = {
-    "local_verification_command": "uv run --frozen --offline python -m nox -s local_ci",
-    "local_installation_command": "uv run --frozen --offline python -m nox -s install_smoke",
     "peers": [
         {
             "id": "gitlab",
@@ -51,11 +48,9 @@ _INVALID_IDENTITIES = [
     (_RUNTIME, b"\xff"),
     (_RUNTIME.replace("sample", "first") + "\n" + _RUNTIME.replace("sample", "second"), "1"),
 ]
-_MISSING_LOCAL = literal_case("release.test_policy_attestation:assign:_MISSING_LOCAL:1")
 _DECLARATIONS = [
     ({"publication": {"remote": []}}, ["publication_topology_declaration_invalid"]),
     ({"publication": {"remotes": ["origin"]}}, ["publication_topology_declaration_invalid"]),
-    ({}, ["publication_topology_declaration_invalid"]),
     ({"publication": "invalid"}, ["publication_topology_declaration_invalid"]),
 ]
 _HOST_SURFACES = """[host_profile]
@@ -103,13 +98,7 @@ def _fields(actual: dict[str, object], **expected: object) -> None:
 
 
 def _declared_publication(*peers: dict[str, object]) -> dict[str, object]:
-    return {
-        "publication": {
-            "local_verification_command": "dev/verify",
-            "local_installation_command": "dev/install",
-            "peers": list(peers),
-        }
-    }
+    return {"publication": {"peers": list(peers)}}
 
 
 def _peer(
@@ -200,8 +189,8 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         },
     )
     topology = report["publication_topology"]
-    _fields(topology, state="ready", local=_LOCAL)
-    assert "legacy" not in topology
+    _fields(topology, state="ready")
+    assert not ({"legacy", "local"} & set(topology))
     peers = {peer["id"]: peer for peer in topology["remotes"]}
     assert {peer["git_remote"] for peer in peers.values()} == {"gitlab", "github"}
     assert all(
@@ -216,7 +205,7 @@ def test_release_policy_ignores_malformed_publication_gap_collection(
     monkeypatch.setattr(
         release_core,
         "publication_topology",
-        lambda _root, _config: {"local": _LOCAL, "required_gaps": "malformed"},
+        lambda _root, _config: {"required_gaps": "malformed"},
     )
     _fields(release_policy_report(Path.cwd()), verdict="pass", required_gaps=[])
 
@@ -283,8 +272,6 @@ def test_release_topology_admits_only_positive_full_ref_roles(
     proof_selection: str,
     state: str,
 ) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
     topology = publication_topology(
         tmp_path,
         _declared_publication(_peer("gitlab", "gitlab", "origin")),
@@ -314,21 +301,11 @@ def test_release_topology_admits_only_positive_full_ref_roles(
     )
 
 
-def test_release_topology_uses_declared_repository_native_commands_and_ci_surfaces(
-    tmp_path: Path,
-) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
+def test_release_topology_uses_declared_ci_surfaces(tmp_path: Path) -> None:
     for path in (".gitlab-ci.yml", ".github/workflows/verify.yml"):
         _write(tmp_path, path, "jobs: {}\n")
-    topology = publication_topology(
-        tmp_path,
-        _config(local_verification_command="dev/verify", local_installation_command="dev/install"),
-    )
+    topology = publication_topology(tmp_path, _config())
     _fields(topology, state="ready")
-    _fields(
-        topology["local"], verification_command="dev/verify", installation_command="dev/install"
-    )
     assert {peer["id"]: peer["ci_surface"] for peer in topology["remotes"]} == {
         "gitlab": ".gitlab-ci.yml",
         "github": ".github/workflows/verify.yml",
@@ -393,9 +370,6 @@ def test_release_topology_supports_every_declared_peer_cardinality(
     peers: tuple[dict[str, object], ...],
     expected: dict[str, str],
 ) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
-
     topology = publication_topology(tmp_path, _declared_publication(*peers))
 
     _fields(topology, state="ready", required_gaps=[])
@@ -406,8 +380,6 @@ def test_release_topology_supports_every_declared_peer_cardinality(
 
 @pytest.mark.parametrize("field", ["id", "git_remote"])
 def test_release_topology_rejects_duplicate_peer_identity(tmp_path: Path, field: str) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
     left = _peer("gitlab", "gitlab", "origin")
     right = _peer("github", "github", "github")
     right[field] = left[field]
@@ -419,9 +391,6 @@ def test_release_topology_rejects_duplicate_peer_identity(tmp_path: Path, field:
 
 
 def test_release_topology_allows_multiple_peers_from_one_provider(tmp_path: Path) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
-
     topology = publication_topology(
         tmp_path,
         _declared_publication(
@@ -438,8 +407,6 @@ def test_release_topology_allows_multiple_peers_from_one_provider(tmp_path: Path
 
 
 def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Path) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
     declaration = _declared_publication(_peer("gitlab", "gitlab", "origin"))
     declaration["publication"]["github_remote"] = "github"
 
@@ -449,8 +416,6 @@ def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Pa
 
 
 def test_release_topology_requires_ci_surface_only_for_ci_capability(tmp_path: Path) -> None:
-    for path in ("dev/verify", "dev/install"):
-        _write(tmp_path, path, "#!/bin/sh\n", executable=True)
     repository_only = publication_topology(
         tmp_path,
         _declared_publication(_peer("gitlab", "gitlab", "origin")),
@@ -469,29 +434,6 @@ def test_release_topology_requires_ci_surface_only_for_ci_capability(tmp_path: P
 
     assert repository_only["state"] == "ready"
     assert ci_peer["required_gaps"] == ["publication_topology_peer_ci_surface_missing:gitlab"]
-
-
-@pytest.mark.parametrize(
-    ("updates", "gap"),
-    [
-        (
-            {"local_verification_command": ""},
-            "publication_topology_local_verification_command_missing",
-        ),
-        (
-            {"local_installation_command": "../install"},
-            "publication_topology_local_installation_command_path_escape:../install",
-        ),
-        (
-            {"local_verification_command": "missing"},
-            "publication_topology_local_verification_command_missing:missing",
-        ),
-    ],
-)
-def test_release_topology_rejects_invalid_declared_paths(
-    tmp_path: Path, updates: dict[str, object], gap: str
-) -> None:
-    assert gap in publication_topology(tmp_path, _config(**updates))["required_gaps"]
 
 
 @pytest.mark.parametrize("declared", [False, True])

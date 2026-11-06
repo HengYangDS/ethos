@@ -25,8 +25,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import repository_audit_after_admission
-from ethos.domain.publication.fallback import fallback_action
-from ethos.domain.publication.fallback import local_ci_fallback_package
+from ethos.domain.publication.fallback import local_ci_fallback as fallback_projection
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
@@ -51,14 +50,7 @@ def publication_readiness(
     topology = options.get("topology")
     remote_observations = options.get("remote_observations")
     observations = {key: _object(value) for key, value in _object(remote_observations).items()}
-    fallback = (
-        local_ci_fallback
-        if isinstance(local_ci_fallback, dict)
-        else local_ci_fallback_package(command=str(options.get("local_verification_command") or ""))
-    )
-    fallback_command = str(
-        fallback.get("command") or options.get("local_verification_command") or ""
-    )
+    fallback = local_ci_fallback if isinstance(local_ci_fallback, dict) else fallback_projection({})
     available = [
         item
         for item in observations.values()
@@ -78,7 +70,6 @@ def publication_readiness(
         if available
         else "deferred"
     )
-    evidence = fallback.get("evidence_status")
     ref = publication_target_ref_for_source(policy, branch)
     probe_action = "select an admitted publication target ref"
     if ref:
@@ -93,9 +84,7 @@ def publication_readiness(
         if synchronized
         else probe_action
         if available
-        else str(evidence.get("next_action") or fallback_action(fallback_command))
-        if isinstance(evidence, dict)
-        else fallback_action(fallback_command)
+        else str(fallback.get("next_action") or probe_action)
     )
     return {
         "mode": "local_readiness",
@@ -303,6 +292,17 @@ def observe_publication(
     )
 
 
+def blocked_publication_action(context: PublicationContext) -> str:
+    """Name a blocked publish's first owned continuation: repair, peer policy, then proof."""
+    reports = (
+        context.audit,
+        context.topology,
+        context.independent_verification,
+        context.proof_admission,
+    )
+    return next((str(report["next_action"]) for report in reports if report.get("next_action")), "")
+
+
 def publication_readiness_result(
     context: PublicationContext,
     *,
@@ -313,9 +313,6 @@ def publication_readiness_result(
 ) -> EthosResult:
     """Return the complete no-push readiness result for any thin transport."""
     target_ref = publication_target_ref_for_source(context.role_policy, context.branch)
-    local_verification_command = str(
-        _object(context.topology.get("local")).get("verification_command") or ""
-    )
     ref_admissions = {
         peer_id: publication_ref_admission(
             context.topology,
@@ -332,11 +329,7 @@ def publication_readiness_result(
         remotes=context.remotes,
         probe_remote=probe_remote,
     )
-    local_ci_fallback = local_ci_fallback_package(
-        root=context.root,
-        current_head=context.head,
-        command=local_verification_command,
-    )
+    local_ci_fallback = fallback_projection(context.proof_admission)
     publication = publication_readiness(
         branch=str(context.branch),
         head=context.head,
@@ -345,7 +338,6 @@ def publication_readiness_result(
         local_ci_fallback=local_ci_fallback,
         topology=context.topology,
         remote_observations=remote_observations,
-        local_verification_command=local_verification_command,
     )
     remote_push = str(publication.get("remote_push") or "not_performed")
     publish_summary = {
@@ -375,7 +367,7 @@ def publication_readiness_result(
     publish_next_action = (
         str(publication.get("next_action") or "")
         if context.verdict == "pass"
-        else str(context.independent_verification.get("next_action") or "ethos land --json")
+        else blocked_publication_action(context) or "ethos land --json"
     )
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.

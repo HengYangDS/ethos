@@ -29,6 +29,8 @@ from ethos.repository.paradigm.size import code_size_gaps
 from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
 from ethos.repository.release.changelog import changelog_errors
+from ethos.repository.release.publication import RETIRED_PEER_FIELDS
+from ethos.repository.release.publication import RETIRED_PUBLICATION_FIELDS
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -84,6 +86,7 @@ def repository_paradigm_report(
         *document_gaps(paradigm, root, tracked),
         *openspec_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, release),
+        *_publication_declaration_gaps(paradigm, release),
         *workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked, release),
         *authored_name_gaps(paradigm, tracked, received),
@@ -393,6 +396,35 @@ def _peer_remote_gaps(
                 f"{paradigm.binding.path('release')}:publication.peers.{identity}",
                 f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
             )
+
+
+def _publication_declaration_gaps(
+    paradigm: RepositoryParadigm, declared: Mapping[str, object]
+) -> Iterator[ParadigmGap]:
+    """Name each retired publication field by its carrier; a gap never repeats a value."""
+    publication = declared.get("publication", {})
+    if not isinstance(publication, dict):
+        return
+    carrier = paradigm.binding.path("release")
+    for field in RETIRED_PUBLICATION_FIELDS:
+        if field in publication:
+            yield ParadigmGap(
+                "publication-declaration",
+                f"{carrier}:publication.{field}",
+                f"remove {field} with ethos lane repair-paradigm --apply; "
+                "publish admits the proof Attestation instead",
+            )
+    peers = publication.get("peers", [])
+    for peer in peers if isinstance(peers, list) else ():
+        identity = peer.get("id", peer.get("provider")) if isinstance(peer, dict) else None
+        for field in RETIRED_PEER_FIELDS if isinstance(identity, str) else ():
+            if field in peer:
+                yield ParadigmGap(
+                    "publication-declaration",
+                    f"{carrier}:publication.peers.{identity}.{field}",
+                    f"remove {field} with ethos lane repair-paradigm --apply; review "
+                    "observation reads the peer's web repository from local Git metadata",
+                )
 
 
 def _release_gaps(

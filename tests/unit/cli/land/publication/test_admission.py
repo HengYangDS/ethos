@@ -139,7 +139,6 @@ def test_publish_preserves_source_trust_gap_before_remote_observation(tmp_path: 
 
 
 def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
-    local = {"local_verification_command": "python", "local_installation_command": "python"}
     peer = {
         "id": "gitlab",
         "provider": "gitlab",
@@ -147,8 +146,7 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         "git_remote": "gitlab",
         "capabilities": ["repository", "publication"],
     }
-    (tmp_path / "folder").mkdir()
-    cases = [({**local, "peers": {}}, "declaration_invalid")]
+    cases = [({"peers": {}}, "declaration_invalid")]
     for field, value, gap in (
         ("extra", 1, "peer_declaration_invalid"),
         ("id", 1, "peer_declaration_invalid"),
@@ -159,17 +157,7 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         ("capabilities", [*peer["capabilities"], "ci_cd"], "ci_surface_missing"),
         ("ci_surface", "ci.yml", "ci_surface_without_capability"),
     ):
-        cases.append(({**local, "peers": [{**peer, field: value}]}, gap))
-    cases.extend(
-        ({**local, "local_verification_command": value, "peers": []}, gap)
-        for value, gap in (
-            ("", "command_missing"),
-            ("'", "command_invalid"),
-            ('""', "command_not_regular"),
-            ("/bin/sh", "command_path_escape"),
-            ("folder", "command_not_regular"),
-        )
-    )
+        cases.append(({"peers": [{**peer, field: value}]}, gap))
     for declaration, gap in cases:
         topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
         assert isinstance(topology["required_gaps"], list)
@@ -440,7 +428,15 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
         action = ""
     else:
         action = runtime_command(
-            repo, "prove", "--root", str(repo), "--execute", "--expect-head", head, "--json"
+            repo,
+            "prove",
+            "--root",
+            str(repo),
+            "--full",
+            "--execute",
+            "--expect-head",
+            head,
+            "--json",
         )
         assert payload["required_gaps"] == ["proof_not_proven"]
         assert payload["next_action"] == action

@@ -140,6 +140,22 @@ def selected_runtime_path(common: Path) -> Path:
     return runtime_root / digest
 
 
+def named_runtime(common: Path, name: str) -> Path | None:
+    """Read one runtime selector in the `CURRENT` encoding; an absent selector names nothing."""
+    selector = common / "ethos/runtime" / name
+    if not selector.exists() and not selector.is_symlink():
+        return None
+    if selector.is_symlink():
+        raise ValueError(name)
+    raw = selector.read_bytes()
+    parts = raw.decode("utf-8").removesuffix("\n").split("\n")
+    root = common.resolve()
+    candidate = root / "ethos/runtime" / parts[0] if len(parts) == 1 else Path(parts[-1])
+    if len(parts) not in {1, 2} or runtime_selection_bytes(root, candidate) != raw:
+        raise ValueError(name)
+    return candidate
+
+
 def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
     """Encode one exact local or externally installed runtime without granting authority."""
     _require_runtime_location(runtime)

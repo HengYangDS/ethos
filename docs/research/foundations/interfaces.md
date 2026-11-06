@@ -182,4 +182,4 @@ marketing claims were not used as evidence of comparative performance.
 [brew-python]: https://docs.brew.sh/Language-Specific-Formulae
 [uv-tools]: https://docs.astral.sh/uv/concepts/tools/
 [frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html
-[fastmcp-tools]: https://gofastmcp.com/servers/tools
+[fastmcp-tools]: https://gofastmcp.com/docs/servers/tools

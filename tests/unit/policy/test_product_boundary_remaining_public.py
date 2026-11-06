@@ -47,6 +47,23 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
     assert report["summary"]["scanned_file_count"] == 4
 
 
+# ETHOS's own surfaces keep refusing loopback and link-local literals in every form; joined here.
+LOOPBACK_AND_LINK_LOCAL_IDS = ["loopback", "link-local", "link-local-v6", "loopback-v6", "ssh-user"]
+
+
+def _dotted(*octets: int) -> str:
+    return ".".join(map(str, octets))
+
+
+LOOPBACK_AND_LINK_LOCAL = [
+    '("' + _dotted(127, 0, 0, 1) + '", 0)',
+    "addr=" + _dotted(169, 254, 1, 1),
+    "fe" + "80::1%en0",
+    "http://[" + ":" + ":1]:9/",
+    "ssh://deploy@" + _dotted(127, 0, 0, 1) + "/repo",
+]
+
+
 @pytest.mark.parametrize(
     ("line", "found"),
     [
@@ -55,8 +72,16 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
         ("api: http://" + "localhost:8080/v1", True),
         (f"forge: http://{DOCUMENTATION_FORGE}/team/repo at forge.example.invalid", False),
         ("bind ('localhost', 0)", False),
+        *((text, True) for text in LOOPBACK_AND_LINK_LOCAL),
     ],
-    ids=["internal-name", "private-literal", "localhost-url", "documentation", "localhost-name"],
+    ids=[
+        "internal-name",
+        "private-literal",
+        "localhost-url",
+        "documentation",
+        "localhost-name",
+        *LOOPBACK_AND_LINK_LOCAL_IDS,
+    ],
 )
 def test_product_surfaces_refuse_the_paradigm_address_classes(
     tmp_path: Path, line: str, *, found: bool

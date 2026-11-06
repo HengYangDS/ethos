@@ -25,9 +25,19 @@ LOCAL_PATH_PATTERNS = (
     re.compile(rf"{re.escape(_HOME_PROJECT_PREFIX)}/[^\s`'\")\]]+"),
 )
 # The paradigm owns the private-class address pattern. A product surface also refuses a
-# localhost endpoint, which commit and tag messages may name.
+# localhost endpoint, which commit and tag messages may name, and every loopback or link-local
+# form that the paradigm class excluded because such a literal discloses no peer to an adopter.
+_OCTET = r"(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+_LOOPBACK_AND_LINK_LOCAL = (
+    r"(?i)(?:^|[^0-9a-z._])((?:127(?:\." + _OCTET + r"){3}|169\.254(?:\." + _OCTET + r"){2}))"
+    r"(?:$|[^0-9a-z.]|\.(?:$|[^0-9a-z]))"
+    r"|(?:^|[^0-9a-z.:_-])((?:fe[89ab][0-9a-f]):[0-9a-f:]*[0-9a-f])"
+    r"(?:$|[^0-9a-z.:]|\.(?:$|[^0-9a-z]))"
+    r"""|(?://\[|["'])(::1)(?:\]|["'])"""
+)
 PRIVATE_INFRA_PATTERNS = (
     re.compile(load_repository_paradigm().private_address),
+    re.compile(_LOOPBACK_AND_LINK_LOCAL),
     re.compile(r"\b(?:https?://|ssh://git@)localhost(?::\d+)?[^\s`'\")\]]*", re.IGNORECASE),
 )
 FIXED_KEY_PATTERNS = (

@@ -31,12 +31,8 @@ PRIVATE_TEXTS = {
     "private-forge-url": f"remote http://{PRIVATE_FORGE}/team/repo",
     "rfc1918-bare": "host " + _ipv4(10, 1, 2, 3) + " is up",
     "rfc1918-upper-edge": "[" + _ipv4(172, 31, 255, 1) + "]",
-    "loopback": '("' + _ipv4(127, 0, 0, 1) + '", 0)',
-    "link-local": "addr=" + _ipv4(169, 254, 1, 1),
     "sentence-end": "the forge is at " + _ipv4(10, 0, 0, 9) + ".",
     "unique-local-v6": "http://[" + "fd12" + ":3456::1]:8080/",
-    "link-local-v6": "fe" + "80::1%en0",
-    "loopback-v6": "http://[" + ":" + ":1]:9/",
     "internal-port": f"http://{INTERNAL_FORGE}/team/repo",
     "lan-scp": "git@forge." + "lan:group/repo.git",
     "local-url": "https://ethos." + "local/schemas/result.schema.json",
@@ -58,5 +54,10 @@ DOCUMENTATION_TEXTS = {
     "public-neighbours": "8.8.8.8, 172.32.0.1, 192.169.1.1 and 11.0.0.1",
     "digest": "sha256:fd12ab34cd56ef7890",
     "localhost": "localhost:8080 and ('localhost', 0)",
+    # Loopback and link-local literals disclose no peer, so they pass outside ETHOS's surfaces.
+    "loopback": '("' + _ipv4(127, 0, 0, 1) + '", 0)',
+    "link-local": "addr=" + _ipv4(169, 254, 1, 1),
+    "link-local-v6": "fe" + "80::1%en0",
+    "loopback-v6": "http://[" + ":" + ":1]:9/",
     "redaction": redaction_marker(PRIVATE_FORGE, b"record owner key"),
 }

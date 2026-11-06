@@ -2018,6 +2018,12 @@ executing proof. Package execution SHALL still validate supply in its own curren
 - **THEN** the lane binds an image built from its own proposal commit before it lands
 - **AND** GitLab verifies the landed head with that image instead of refusing it
 
+#### Scenario: A manifest input changes without a rebuilt image
+
+- **WHEN** a manifest input differs from its bytes at the commit that the bound image was built from
+- **THEN** the CI projection check refuses with `supply_image_stale:<path>` and names the rebuild
+  and bind route, before any proof gate runs
+
 #### Scenario: One selected Forge remains executable without its peer
 
 - **GIVEN** two selected Forges project the same exact source and required CI graph

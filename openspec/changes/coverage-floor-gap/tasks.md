@@ -15,5 +15,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass lint, the quality tests and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 2.1 Pass lint, the quality tests and readiness at the lane head. Done when each passes on the
+      committed head. The precheck at 01:50:37 passed ruff, the format check, ty, the per-file
+      ceiling and import-linter on the changed files, and readiness passed its 28 gates at
+      `0c73c2fec` at 01:53:58.

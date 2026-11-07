@@ -7,71 +7,20 @@ out of the canonical command plane.
 
 ## Requirements
 
-### Requirement: Launcher Adapter Boundary
-
-Distribution adapters SHALL forward to the ETHOS command plane and SHALL NOT
-define independent governance behavior.
-
-#### Scenario: npm launcher uses command plane
-
-- **WHEN** a user invokes the npm launcher from an ETHOS source checkout
-- **THEN** it executes the Python `ethos` command plane through the repository
-  environment
-- **AND** the Node package remains a launcher-only adapter
-
-### Requirement: Package Manager Isolation
-
-Distribution adapters SHALL remain outside the Python distribution declared by
-the repository-root `pyproject.toml`.
-
-#### Scenario: uv workspace remains Python-only
-
-- **WHEN** the repository contains a Node distribution adapter under
-  `distributions/npm`
-- **THEN** the wheel package remains `src/ethos`
-- **AND** `distributions/npm` launcher metadata does not alter Python builds
-
-### Requirement: Published Distribution Boundary
-
-Distribution manifests SHALL publish only neutral launcher assets and SHALL NOT
-ship historical evidence, host-local state, tests, adopter-private records, or
-person attribution metadata as product defaults.
-
-#### Scenario: npm package scope is allowlisted
-
-- **WHEN** `ethos prove --gate product-boundary --json` audits distribution manifests
-- **THEN** a root package that declares workspaces is non-publishable
-- **AND** the npm distribution manifest declares an explicit `files` allowlist
-- **AND** that allowlist is limited to launcher assets and neutral package docs
-- **AND** author, authors, maintainers, and contributors metadata are absent
-
-### Requirement: Distribution Adapter Outside Python Packages
-
-ETHOS SHALL keep npm launcher metadata under `distributions/npm` and outside
-the Python package workspace.
-
-#### Scenario: npm launcher is checked
-
-- **WHEN** the npm launcher package is inspected
-- **THEN** it is the standalone package at `distributions/npm`, not a workspace of the root package
-- **AND** it is not included in the Python wheel
-- **AND** the launcher forwards to the Python ETHOS command plane
-
 ### Requirement: Exact Node Runtime Compatibility Policy
 
-ETHOS SHALL select exactly one Node release in `.config/mise/config.toml`,
-verify its official archive against `.config/mise/mise.lock`, and execute hosted
-npm acceptance through `tools/ci/toolchain/npm.py` and the `javascript_tests` Nox
-session rather than provider-inline npm command bodies.
+ETHOS SHALL select exactly one Node release in `.config/mise/config.toml` for its JavaScript tools,
+verify its official archive against `.config/mise/mise.lock`, and execute hosted Node acceptance
+through `tools/ci/toolchain/npm.py` and the `javascript_tests` Nox session rather than
+provider-inline npm command bodies.
 
 #### Scenario: Hosted npm compatibility is executed for an exact release
 
-- **WHEN** a hosted npm acceptance job runs
+- **WHEN** a hosted JavaScript acceptance job runs
 - **THEN** Node is the single release pinned in `.config/mise/config.toml`
 - **AND** its official archive matches the `mise.lock` SHA-256 before extraction
 - **AND** `tools/ci/toolchain/npm.py` enables npm engine-strict behavior and runs
-  `npm ci --ignore-scripts` and `npm run ethos -- --version`, then
-  `nox -s javascript_tests` runs `npm run test:npm`
+  `npm ci --ignore-scripts`, then `nox -s javascript_tests` runs the repository's JavaScript tests
 - **AND** hosted provider YAML invokes the reusable owner instead of restating
   the acceptance command body.
 
@@ -93,7 +42,7 @@ that pin.
 #### Scenario: Current stable release becomes the packaging default
 
 - **WHEN** a newer stable Node release has current upstream release evidence and
-  passes the hosted npm acceptance
+  passes the hosted Node acceptance
 - **THEN** a separate reviewed change moves the `.config/mise/config.toml` pin, and
   its lock and the Node packaged in the wheel follow that pin
 - **AND** no second compatibility release is retained beside the pin.
@@ -1001,3 +950,15 @@ other upload SHALL refuse the release, naming its host.
 
 - **WHEN** an uploaded leg records a distribution version other than the tag's
 - **THEN** assembly fails with `release_assets_identity_mismatch:<host>`
+
+### Requirement: Root Node manifests stay unpublishable
+
+The root `package.json`, which declares the repository's JavaScript tools, SHALL stay private when
+it declares workspaces and SHALL carry no person attribution metadata, so no Node manifest can
+publish product assets.
+
+#### Scenario: A root package declares workspaces
+
+- **WHEN** `ethos prove --gate product-boundary --json` audits the root `package.json`
+- **THEN** a root package that declares workspaces without `private: true` is reported
+- **AND** author, authors, maintainers, and contributors metadata are absent

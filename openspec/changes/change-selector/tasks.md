@@ -28,6 +28,12 @@
 
 ## 2. Documentation and acceptance
 
-- [ ] 2.1 Document the option in `docs/reference/command-plane.md`. Done when the docs gates pass.
-- [ ] 2.2 Pass lint, the focused tests and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 2.1 Document the option in `docs/reference/command-plane.md`. Done when the docs gates pass.
+      At 22:18:01 the readiness tier passed its 28 gates at `f925de964`, among them `docs-registry`,
+      `markdown-lint`, `markdown-links`, `prose` and `source-format`.
+- [x] 2.2 Pass lint, the focused tests and readiness at the lane head. Done when each passes on the
+      committed head. The first readiness, at `285148e63`, found `surface/cli/root/proof.py` at 505
+      effective lines, over the per-file ceiling of 500; `prove` now binds and calls `_prove`, and
+      the module measures 498. At 22:15:57 ruff, the format check and ty passed and 205 prove,
+      merge-selection and change-selection tests passed, and at 22:18:01 the 28 readiness gates
+      passed at `f925de964`.

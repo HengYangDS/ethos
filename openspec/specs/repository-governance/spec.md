@@ -1395,7 +1395,10 @@ its tip or its accepted replacement and its review is observed as not open.
 ETHOS SHALL inventory detached Git worktrees without treating detachment as
 cleanup authority. It SHALL remove a worktree only after explicit authorization
 when the entry is detached, clean, unlocked, below a controlled temporary root,
-not the audited checkout, and unchanged at immediate reobservation.
+not the audited checkout, holds a `HEAD` that a retaining ref reaches, holds no
+ignored file outside the regenerable roots, and is unchanged at immediate
+reobservation. Retaining refs are heads, tags, remote-tracking refs and
+`refs/keep/*`.
 
 #### Scenario: Clean detached temporary worktree is removable
 
@@ -1407,7 +1410,10 @@ not the audited checkout, and unchanged at immediate reobservation.
 #### Scenario: Valuable or active worktree remains protected
 
 - **WHEN** a worktree is dirty, unreadable, branch-bound, Git-locked, outside
-  controlled temporary roots, or is the audited checkout
+  controlled temporary roots, or is the audited checkout, or holds a `HEAD` that
+  no retaining ref reaches or whose reachability Git cannot report, or holds
+  ignored files outside a root `.venv`, a root `node_modules` and bytecode beside
+  its source
 - **THEN** housekeeping reports a machine-readable protection reason
 - **AND** it does not remove the worktree even in authorized apply mode.
 

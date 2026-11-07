@@ -24,10 +24,10 @@ Non-goals:
   `refs/tags`, `refs/remotes` and `refs/keep`. `refs/stash` and foreign refs, such as
   `refs/codex/snapshots`, do not vouch for a commit. `rev-list --all` is not used, because it counts
   every worktree's own `HEAD`.
-- **Ignored content by native Git.** `git ls-files --others --ignored --exclude-standard
---directory` lists the worktree's ignored entries. A root `.venv/`, a root `node_modules/`, and a
-  `__pycache__/` whose files are all `.pyc` beside their own source are regenerable. Anything else
-  protects the worktree. The residue-class design owns this root list.
+- **Ignored content by native Git.** Housekeeping lists the worktree's ignored entries with
+  `git ls-files --others --ignored --exclude-standard --directory`. A root `.venv/`, a root
+  `node_modules/`, and a `__pycache__/` whose files are all `.pyc` beside their own source are
+  regenerable. Anything else protects the worktree. The residue-class design owns this root list.
 - **Only otherwise removable entries pay.** The checks run after every existing reason, at
   inventory and at the reobservation before removal.
 

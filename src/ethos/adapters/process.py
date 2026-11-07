@@ -485,9 +485,11 @@ def _terminate_commands(
             if os.name == "posix" and process.poll() is None:
                 os.killpg(process.pid, signal.SIGINT)
         except OSError as error:
-            # Darwin refuses a group whose leader exited after its poll and awaits its reaper; the
-            # bounded group close below settles that. A running leader's refusal fails cleanup.
-            exited = isinstance(error, PermissionError) and process.poll() is not None
+            # Darwin refuses a group whose leader is exiting or exited and awaits its reaper; the
+            # bounded group close below settles that. A lasting refusal fails cleanup.
+            exited = isinstance(error, PermissionError) and _reapable_within(
+                process, monotonic() + _GROUP_REAPING_GRACE_SECONDS
+            )
             if not isinstance(error, ProcessLookupError) and not exited:
                 errors.append(error)
     deadline = monotonic() + grace_seconds
@@ -501,6 +503,15 @@ def _terminate_commands(
     if errors:
         message = "command_scope_cleanup_failed"
         raise ExceptionGroup(message, errors)
+
+
+def _reapable_within(process: subprocess.Popen[Any], bound: float) -> bool:
+    """Wait until the bound for an exiting leader to become reapable, and say whether it did."""
+    while process.poll() is None:
+        if monotonic() >= bound:
+            return False
+        sleep(_GROUP_REAPING_POLL_SECONDS)
+    return True
 
 
 def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None = None) -> None:
@@ -517,12 +528,12 @@ def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None
             finally:
                 os.killpg(process.pid, signal.SIGKILL)
         except PermissionError:
-            if process.poll() is None:
-                raise
-            # Darwin refuses to signal a group whose members exited but await their reaper.
-            # Only observed absence within the bound resolves it; a lasting refusal or a
-            # signalable member is a survivor, which must not be ignored.
+            # Darwin refuses to signal a leader that is exiting, or a group whose members exited
+            # but await their reaper. Only observed absence within the bound resolves it; a lasting
+            # refusal or a signalable member is a survivor, which must not be ignored.
             bound = max(deadline or 0.0, monotonic() + _GROUP_REAPING_GRACE_SECONDS)
+            if not _reapable_within(process, bound):
+                raise
             while True:
                 try:
                     os.killpg(process.pid, 0)

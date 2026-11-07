@@ -34,6 +34,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   with `quality_behavior_coverage_below_floor` instead of `quality_behavior_tests_failed`, and its
   coverage evidence names the floor.
 
+### Fixed
+
+- Cancelling a command no longer fails cleanup when Darwin refuses the group signal while the group
+  leader is still exiting: the process owner waits within its reaping grace for the leader to become
+  reapable, and a lasting refusal still fails as a survivor.
+
 ### Removed
 
 - **Breaking for `npm run ethos`:** the npm launcher under `distributions/npm`, its test and the

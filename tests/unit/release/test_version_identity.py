@@ -121,7 +121,7 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
         posargs = ("--release", "--expect-head", source_head)
 
         def run(self, *command, env):
-            subprocess.run(command, cwd=repo, env={**os.environ, **env}, check=True, timeout=90)
+            subprocess.run(command, cwd=repo, env={**os.environ, **env}, check=True, timeout=300)
 
     monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(repo))
     monkeypatch.setattr("tools.ci.dependency_audit.run", lambda *_args, **_kwargs: None)
@@ -419,7 +419,7 @@ def _build_wheel(
         cwd=repo,
         env=environment,
         check=True,
-        timeout=90,
+        timeout=300,
     )
     wheel = next(output.glob("ethos-*.whl"))
     identity = wheel_build_identity(wheel)

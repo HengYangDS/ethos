@@ -327,8 +327,10 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(
     assert selected == resolve_gate_policy(repo, tree_ref=missing, full=floor == "full")
     assert selected.gaps == (f"gate_policy_source_missing:check:{script}", *_MISSING_QUALITY)
 
-    object_id = next(iter(objects)).decode()
+    object_id = min(objects).decode()
     damaged_blob = repo / ".git/objects" / object_id[:2] / object_id[2:]
+    if not damaged_blob.is_file():
+        pytest.fail(f"blob {object_id} is not loose: {git(repo, 'count-objects', '-v')}")
     original = damaged_blob.read_bytes()
     with pytest.raises(ValueError, match="git_object_batch_invalid"):
         resolve_proof_policies(repo, tree_ref=head)

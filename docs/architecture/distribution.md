@@ -3,7 +3,7 @@ subject: ethos:distribution
 role: explanation
 state: canonical
 relations:
-  canonical_for: npm and package distribution adapters
+  canonical_for: package distribution adapters
 ---
 
 # Distribution
@@ -11,12 +11,10 @@ relations:
 ETHOS distribution adapters make the command plane reachable from ecosystem
 package managers without owning command semantics.
 
-`distributions/npm` is the current transitional npm launcher. It discovers
-a checkout from either the working directory or its own distribution path,
-then runs the Python command plane through `uv`. Outside a checkout it falls back to an installed Python
-`ethos` module through `python -P -m ethos.cli`. The Node package does not
-implement governance logic, mutate repository truth, or define separate public
-commands.
+ETHOS ships no npm launcher: the 2026-11-07 channel resolution lists npm
+among the channels it never ships, and the transitional launcher under
+`distributions/npm` was retired. Node remains a build tool for the
+repository's locked JavaScript tools.
 
 The terminal boundary separates installed product identity, exact repository
 selection and the repository's own build toolchain. CLI, MCP, SDK and

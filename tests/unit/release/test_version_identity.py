@@ -30,8 +30,8 @@ from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import load_build_identity_bytes
+from ethos.repository.release.identity import node_manifests_without_version
 from ethos.repository.release.identity import product_version
-from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.identity import wheel_build_identity
 from tools.ci import sessions
 from tools.ci.delivery import pipeline
@@ -42,13 +42,13 @@ _RELEASE = Version(product_version(Path(__file__).resolve().parents[3]))
 
 def test_version_file_is_the_single_product_owner_and_manifests_are_projections() -> None:
     root = Path.cwd()
-    product = product_version(root)
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert "version" not in pyproject["project"]
     assert "version" in pyproject["project"]["dynamic"]
     assert "version" not in json.loads((root / "package.json").read_text(encoding="utf-8"))
-    assert projected_package_versions(root) == {"distributions/npm/package.json": product}
+    node_manifests_without_version(root)
+    assert not (root / "distributions").exists()
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
@@ -273,24 +273,21 @@ def test_product_version_rejects_noncanonical_semver(tmp_path: Path, raw: str) -
     ("root_package", "packages", "owner"),
     [
         ('{"version":"1.2.2"}', {"": {}}, "package.json"),
-        ("{}", {"": {}, "distributions/npm": {"version": "1.2.3"}}, "package-lock.json"),
+        ("{}", {"": {"version": "1.2.3"}}, "package-lock.json"),
     ],
 )
-def test_projected_package_versions_refuse_parallel_owners(
+def test_root_node_manifests_refuse_a_parallel_version_owner(
     tmp_path: Path, root_package: str, packages: dict[str, object], owner: str
 ) -> None:
-    """A launcher workspace would record the version in the lock that hosted supply hashes."""
+    """A version in the root manifest or its lock would compete with `VERSION`."""
     (tmp_path / "VERSION").write_text("1.2.3\n", encoding="utf-8")
     (tmp_path / "package.json").write_text(root_package + "\n", encoding="utf-8")
     (tmp_path / "package-lock.json").write_text(
         json.dumps({"packages": packages}), encoding="utf-8"
     )
-    package = tmp_path / "distributions/npm/package.json"
-    package.parent.mkdir(parents=True)
-    package.write_text('{"version":"1.2.3"}\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match=f"package_version_parallel_owner:{owner}$"):
-        projected_package_versions(tmp_path)
+        node_manifests_without_version(tmp_path)
 
 
 def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:

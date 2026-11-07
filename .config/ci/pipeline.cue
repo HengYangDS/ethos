@@ -345,9 +345,6 @@ github: {
 				if:   releaseLegRun
 				run:  "uv run --frozen python -m nox -s supply_chain"
 			}, {
-				name: "Execute npm launcher"
-				run:  "uv run --frozen \(nativeNpm) run ethos -- --version"
-			}, {
 				name: "Execute native npm package tests"
 				run:  "uv run --frozen python -m nox -s javascript_tests"
 			}, {
@@ -769,7 +766,6 @@ gitlab: {
 		image:         gitlabImage
 		before_script: gitlabBootstrap
 		script: [
-			"\(offlineRun) \(nativeNpm) run ethos -- --version",
 			"\(offlineRun) python -m nox -s javascript_tests",
 		]
 	}

@@ -414,7 +414,6 @@ def javascript_tests(session) -> None:
             f"--reports-dir={reports}",
             f"--temp-directory={Path(scratch) / 'raw'}",
             "--include=src/**/*.mjs",
-            "--include=distributions/**/*.mjs",
             node,
             "--test",
             "--test-reporter=junit",

@@ -44,7 +44,6 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
         not {
             "pyproject.toml",
             "package.json",
-            "distributions/npm/package.json",
             "tests/fixtures/quality-sample/pyproject.toml",
         }
         & inputs

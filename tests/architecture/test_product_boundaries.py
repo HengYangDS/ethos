@@ -3,18 +3,14 @@
 from __future__ import annotations
 
 import ast
-import json
-import shutil
 from pathlib import Path
 
 import pytest
 
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.admission import ethos_command_is_readonly
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import repository_semantic_closure
-from tests.support.architecture import isolated_path
 
 ROOT = Path(__file__).resolve().parents[2]
 COMMIT_ADMISSION_OWNER = ROOT / "src/ethos/adapters/repo/commit/admission.py"
@@ -52,127 +48,12 @@ def test_commit_policy_execution_has_one_semantic_owner() -> None:
     assert range_owners == {ROOT / "src/ethos/adapters/repo/commit/integration.py"}
 
 
-def _launcher(tmp_path: Path) -> Path:
-    target = tmp_path / "package/bin/ethos.mjs"
-    target.parent.mkdir(parents=True)
-    target.write_text(
-        (ROOT / "distributions/npm/bin/ethos.mjs").read_text(encoding="utf-8"), encoding="utf-8"
-    )
-    return target
-
-
 def test_current_product_boundary_reports_close_without_unowned_references() -> None:
     reports = (product_boundary_report(ROOT),)
 
     assert all(report["verdict"] == "pass" for report in reports), reports
     closure = repository_semantic_closure(ROOT, retained_origins=observed_document_origins(ROOT))
     assert closure["verdict"] == "pass", closure["required_gaps"]
-
-
-def test_product_boundary_requires_an_explicit_distribution_allowlist(tmp_path: Path) -> None:
-    """An npm bin declaration alone cannot authorize an unrestricted package payload."""
-    path = tmp_path / "distributions/npm/package.json"
-    path.parent.mkdir(parents=True)
-    path.write_text('{"bin": {"ethos": "bin/ethos.mjs"}}', encoding="utf-8")
-    report = product_boundary_report(tmp_path)
-    assert report["required_gaps"] == [
-        "distribution_files_allowlist_missing:distributions/npm/package.json:1"
-    ]
-
-
-def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:
-    if not (node := shutil.which("node")):
-        pytest.skip("node is unavailable")
-    checkout = tmp_path / "source-checkout"
-    uv_log = tmp_path / "uv.log"
-    for path in (checkout / "src/ethos", checkout / "distributions/npm/bin"):
-        path.mkdir(parents=True)
-    (checkout / "pyproject.toml").write_text('[project]\nname = "ethos"\n', encoding="utf-8")
-    (checkout / "src/ethos/cli.py").write_text("", encoding="utf-8")
-    (checkout / "distributions/npm/bin/ethos.mjs").write_text("", encoding="utf-8")
-    environment = isolated_path(
-        tmp_path, {"uv": f'#!/bin/sh\nprintf \'%s\\n\' "$*" > "{uv_log}"\n'}
-    )
-
-    result = run_command(
-        checkout, (node, str(_launcher(tmp_path)), "status", "--json"), env=environment, timeout=30
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert uv_log.read_text(encoding="utf-8").strip() == (
-        f"run --project {checkout} ethos status --json"
-    )
-
-
-@pytest.mark.parametrize("mode", ["python3", "python", "untrusted"])
-def test_npm_launcher_fallback_is_interpreter_selective_and_trust_bound(
-    tmp_path: Path, mode: str
-) -> None:
-    if not (node := shutil.which("node")):
-        pytest.skip("node is unavailable")
-    log = tmp_path / "python.log"
-    uv_marker = tmp_path / "uv-called"
-    python3_check = 0 if mode == "python3" else 1
-    executables = {
-        "uv": f"#!/bin/sh\ntouch '{uv_marker}'\n",
-        "python3": (
-            f'#!/bin/sh\nif [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit {python3_check}; fi\n'
-            f"printf '%s\\n' \"$*\" >> \"{log}\"\nprintf '0.1.0a1\\n'\n"
-        ),
-    }
-    if mode == "python":
-        executables["python"] = (
-            f'#!/bin/sh\nif [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit 0; fi\n'
-            f"printf 'python:%s\\n' \"$*\" >> \"{log}\"\nprintf '0.1.0a1\\n'\n"
-        )
-    environment = isolated_path(tmp_path, executables)
-    cwd = tmp_path
-    if mode == "untrusted":
-        cwd = tmp_path / "untrusted"
-        (cwd / "src/ethos").mkdir(parents=True)
-        (cwd / "pyproject.toml").write_text("[project]\nname='fake'\n", encoding="utf-8")
-        (cwd / "src/ethos/__init__.py").write_text("", encoding="utf-8")
-
-    result = run_command(
-        cwd, (node, str(_launcher(tmp_path)), "--version"), env=environment, timeout=30
-    )
-
-    if mode == "untrusted":
-        assert result.returncode == 127
-        assert not uv_marker.exists()
-    else:
-        assert result.returncode == 0
-        assert result.stdout.strip() == "0.1.0a1"
-        assert log.read_text(encoding="utf-8").splitlines() == (
-            ["-P -X utf8 -m ethos.cli --version"]
-            if mode == "python3"
-            else ["python:-P -X utf8 -m ethos.cli --version"]
-        )
-
-
-def test_npm_launcher_reaches_the_source_command_plane(tmp_path: Path) -> None:
-    if not shutil.which("node") or not shutil.which("uv"):
-        pytest.skip("node or uv is unavailable")
-    adopter = tmp_path / "adopter"
-    adopter.mkdir()
-    for command in (
-        ("git", "init", "-q", "-b", "main"),
-        ("git", "config", "user.name", "Test User"),
-        ("git", "config", "user.email", "test@example.invalid"),
-    ):
-        run_command(adopter, command, check=True, timeout=30)
-    (adopter / "README.md").write_text("fixture\n", encoding="utf-8")
-    run_command(adopter, ("git", "add", "README.md"), check=True, timeout=30)
-    run_command(adopter, ("git", "commit", "-qm", "initial"), check=True, timeout=30)
-
-    result = run_command(
-        adopter,
-        ("node", str(ROOT / "distributions/npm/bin/ethos.mjs"), "adopt", "--json"),
-        timeout=60,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)["data"]["root"] == str(adopter)
 
 
 @pytest.mark.parametrize(

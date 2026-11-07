@@ -52,7 +52,7 @@ def test_node_package_supply_uses_only_the_exact_prepared_coordinate(
             (supply / ".package-lock.json", "alpha.4"),
         ):
             _write_lock(
-                path, {"": {}, "distributions/npm": {"version": version, "link": True}, **packages}
+                path, {"": {}, "packages/fixture": {"version": version, "link": True}, **packages}
             )
     elif condition == "missing":
         monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY")

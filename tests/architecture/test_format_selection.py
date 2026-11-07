@@ -103,7 +103,7 @@ def test_native_carriers_separate_canonicalization_from_validation(
         "src/ethos/cli.py": ("ruff", "ruff"),
         "pyproject.toml": ("taplo", "taplo"),
         ".github/workflows/ci.yml": ("cue", "cue"),
-        "distributions/npm/bin/ethos.mjs": ("prettier", "prettier"),
+        "src/ethos/adapters/openspec/batch.mjs": ("prettier", "prettier"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
@@ -161,7 +161,7 @@ def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
         path for path in selected if path.startswith(("openspec/specs/", "openspec/changes/"))
     }
     assert "openspec/config.yaml" not in selected
-    assert "distributions/npm/bin/ethos.mjs" in selected
+    assert "src/ethos/adapters/openspec/batch.mjs" in selected
 
 
 def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path) -> None:
@@ -194,7 +194,7 @@ def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path
 
 @pytest.mark.parametrize(
     ("home", "allowed"),
-    [("src/ethos/adapters/", True), ("distributions/npm/", True), ("src/ethos/domain/", False)],
+    [("src/ethos/adapters/", True), ("src/ethos/domain/", False)],
 )
 def test_native_javascript_transport_uses_its_semantic_adapter_home(
     tmp_path, monkeypatch, capsys, home, allowed

@@ -36,13 +36,12 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
     (tmp_path / "README.md").write_bytes(b"\xff")
     _write(tmp_path / "package.json", "[]")
     _write(tmp_path / "pyproject.toml", "project = []\n")
-    _write(tmp_path / "distributions/npm/package.json", "[]")
 
     report = product_boundary_report(tmp_path)
 
     assert report["verdict"] == "pass"
     assert report["findings"] == []
-    assert report["summary"]["scanned_file_count"] == 4
+    assert report["summary"]["scanned_file_count"] == 3
 
 
 # ETHOS's own surfaces keep refusing loopback and link-local literals in every form; joined here.

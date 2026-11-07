@@ -153,8 +153,6 @@ jobs:
       - name: Declare the components of the kept runtime archive
         if: ${{ contains(fromJSON('["ubuntu-latest 3.14","ubuntu-24.04-arm 3.14","macos-latest 3.14","windows-latest 3.14","windows-11-arm cpython-3.14-windows-x86_64-none"]'), format('{0} {1}', matrix.os, matrix.python)) }}
         run: uv run --frozen python -m nox -s supply_chain
-      - name: Execute npm launcher
-        run: uv run --frozen python -B -m tools.ci.toolchain.npm run ethos -- --version
       - name: Execute native npm package tests
         run: uv run --frozen python -m nox -s javascript_tests
       - name: Upload host conformance receipt

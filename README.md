@@ -109,19 +109,12 @@ in the Product Design Contract rather than this projection.
 ## Product Shape
 
 ```text
-src/ethos/          one cohesive Python product package
-distributions/npm/  thin npm launcher adapter
+src/ethos/  one cohesive Python product package
 ```
 
 The package contains the semantic kernel, contracts, command plane, repository
 orchestration, adapters, and projections. Internal module boundaries protect
 meaning; a second distribution package is not needed to express them.
-
-The npm package is a thin launcher over the Python command plane:
-
-```bash
-npm run ethos -- --version
-```
 
 ## Command Plane
 

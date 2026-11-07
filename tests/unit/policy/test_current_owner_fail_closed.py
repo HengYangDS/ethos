@@ -40,21 +40,6 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
         ),
     )
     _write(
-        tmp_path / "distributions/npm/package.json",
-        json.dumps(
-            {
-                "files": [
-                    "bin/ethos.mjs",
-                    "./bin/ethos.mjs",
-                    "../private",
-                    "tests/",
-                    "private.txt",
-                ],
-                "bin": {},
-            }
-        ),
-    )
-    _write(
         tmp_path / "pyproject.toml",
         '[project]\nname = "fixture"\nauthors = [{name = "Person"}]\n'
         'maintainers = [{name = "Maintainer"}]\n',
@@ -70,15 +55,8 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
         "single_author_metadata",
         "person_attribution_metadata",
         "root_workspace_package_publishable",
-        "distribution_bin_missing",
-        "distribution_file_scope_leak",
         "archival_local_workstation_path",
     } <= kinds
-    assert {
-        finding["detail"]
-        for finding in findings
-        if finding["kind"] == "distribution_file_scope_leak"
-    } == {"../private", "tests/", "private.txt"}
 
 
 @pytest.mark.parametrize(("package", "project"), [("{", "[project"), ("[]", "project = []")])
@@ -86,8 +64,7 @@ def test_unreadable_metadata_does_not_invent_semantic_leak_findings(
     tmp_path: Path, package: str, project: str
 ) -> None:
     """Native syntax validation owns malformed carriers, not invented leak findings."""
-    for relative in ("package.json", "distributions/npm/package.json"):
-        _write(tmp_path / relative, package)
+    _write(tmp_path / "package.json", package)
     _write(tmp_path / "pyproject.toml", project)
     report = product_boundary_report(tmp_path)
     assert report["findings"] == []

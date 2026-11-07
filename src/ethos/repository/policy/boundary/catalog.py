@@ -144,25 +144,9 @@ SESSION_SURFACE_PATTERNS = (
 )
 PACKAGE_METADATA_FILES = (
     "package.json",
-    "distributions/npm/package.json",
     "pyproject.toml",
 )
 DISTRIBUTION_MANIFEST_FILES = (
     "package.json",
-    "distributions/npm/package.json",
     "pyproject.toml",
-)
-DISTRIBUTION_ALLOWED_FILE_ENTRIES = {
-    "README.md",
-    "LICENSE",
-    "package.json",
-}
-DISTRIBUTION_ALLOWED_FILE_PREFIXES = ("bin/",)
-DISTRIBUTION_FORBIDDEN_FILE_PREFIXES = (
-    ".ethos/",
-    ".git",
-    "build/",
-    "docs/history/",
-    "openspec/changes/archive/",
-    "tests/",
 )

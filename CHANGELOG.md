@@ -34,6 +34,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   with `quality_behavior_coverage_below_floor` instead of `quality_behavior_tests_failed`, and its
   coverage evidence names the floor.
 
+### Removed
+
+- **Breaking for `npm run ethos`:** the npm launcher under `distributions/npm`, its test and the
+  root `ethos` and `test:npm` scripts. Run the installed `ethos`, or `uv run ethos` from a checkout.
+  `VERSION` is now the release version's only carrier.
+
 ## [0.2.0-beta.6] - 2026-11-07
 
 ### Changed

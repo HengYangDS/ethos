@@ -36,7 +36,6 @@ path_globs = [
   "CONTRIBUTING.md",
   "README.md",
   ".ethos/**",
-  "distributions/**",
   "docs/governance/product-design-contract.md",
   "src/ethos/repository/audit*.py",
   "rules/**",

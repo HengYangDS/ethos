@@ -13,8 +13,8 @@ from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.release.identity import node_manifests_without_version
 from ethos.repository.release.identity import product_version
-from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import publication_transport_tags
 
@@ -143,14 +143,9 @@ def version_manifest(root: Path) -> dict[str, Any]:
             version = product_version(root)
         except ValueError as error:
             gaps.append(str(error))
-        launcher_paths = (
-            root / "distributions/npm/package.json",
-            root / "package-lock.json",
-            root / "package.json",
-        )
-        if any(path.exists() for path in launcher_paths):
+        if any(path.exists() for path in (root / "package-lock.json", root / "package.json")):
             try:
-                projected_package_versions(root)
+                node_manifests_without_version(root)
             except ValueError as error:
                 gaps.append(str(error))
     packages = {name: version} if name and version else {}

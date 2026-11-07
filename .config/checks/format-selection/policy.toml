@@ -357,13 +357,11 @@ yaml_allowed_roots = [
 ".json" = { roots = [
   "system/schemas/",
   "tests/fixtures/",
-  "distributions/npm/",
 ], files = [
   "package.json",
   "package-lock.json",
 ] }
 ".mjs" = { roots = [
-  "distributions/npm/",
   "src/ethos/adapters/",
   "tests/architecture/",
 ] }

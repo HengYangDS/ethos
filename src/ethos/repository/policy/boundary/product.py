@@ -6,7 +6,6 @@ import json
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Any
 
 if TYPE_CHECKING:
     import re
@@ -15,9 +14,6 @@ if TYPE_CHECKING:
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.boundary.catalog import ADOPTER_LITERAL_PATTERNS
-from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_ENTRIES
-from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_PREFIXES
-from ethos.repository.policy.boundary.catalog import DISTRIBUTION_FORBIDDEN_FILE_PREFIXES
 from ethos.repository.policy.boundary.catalog import DISTRIBUTION_MANIFEST_FILES
 from ethos.repository.policy.boundary.catalog import FIXED_KEY_PATTERNS
 from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
@@ -142,12 +138,6 @@ def _toml_package_metadata_findings(path: Path, rel: str) -> list[Finding]:
     return findings
 
 
-def _normalized_distribution_file_entries(raw: Any) -> list[str]:
-    if not isinstance(raw, list):
-        return []
-    return [str(entry).removeprefix("./") for entry in raw if isinstance(entry, str)]
-
-
 def _npm_distribution_manifest_findings(path: Path, rel: str) -> list[Finding]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -155,35 +145,9 @@ def _npm_distribution_manifest_findings(path: Path, rel: str) -> list[Finding]:
         return []
     if not isinstance(payload, dict):
         return []
-
-    findings: list[Finding] = []
     if rel == "package.json" and payload.get("workspaces") and payload.get("private") is not True:
-        findings.append(
-            Finding(rel, 1, "root_workspace_package_publishable", "private must be true")
-        )
-
-    if rel != "distributions/npm/package.json":
-        return findings
-
-    files = _normalized_distribution_file_entries(payload.get("files"))
-    if not files:
-        findings.append(
-            Finding(rel, 1, "distribution_files_allowlist_missing", "files must be explicit")
-        )
-        return findings
-
-    bin_payload = payload.get("bin")
-    if not isinstance(bin_payload, dict) or not bin_payload.get("ethos"):
-        findings.append(Finding(rel, 1, "distribution_bin_missing", "bin.ethos"))
-
-    for entry in files:
-        allowed = entry in DISTRIBUTION_ALLOWED_FILE_ENTRIES or entry.startswith(
-            DISTRIBUTION_ALLOWED_FILE_PREFIXES
-        )
-        forbidden = entry.startswith(DISTRIBUTION_FORBIDDEN_FILE_PREFIXES)
-        if forbidden or not allowed:
-            findings.append(Finding(rel, 1, "distribution_file_scope_leak", entry))
-    return findings
+        return [Finding(rel, 1, "root_workspace_package_publishable", "private must be true")]
+    return []
 
 
 def _distribution_manifest_findings(root: Path) -> list[Finding]:

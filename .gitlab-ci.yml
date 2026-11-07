@@ -186,5 +186,4 @@ ethos:npm:
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   script:
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm run ethos -- --version
     - uv run --frozen --offline --no-sync python -m nox -s javascript_tests

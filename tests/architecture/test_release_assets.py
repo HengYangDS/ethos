@@ -170,4 +170,4 @@ def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
     assert environment["PATH"].split(os.pathsep)[0] == str(runtime.executable.parent)
     assert environment["npm_config_offline"] == "true"
     assert not Path(environment["npm_config_cache"]).exists()
-    assert "the launcher package exposes only its declared transport" in result.stdout
+    assert "analysis lints exact sources with the recommended rules" in result.stdout

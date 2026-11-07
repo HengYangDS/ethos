@@ -62,8 +62,3 @@ carrier = "src/ethos"
 name = "skills"
 purpose = "Agent workflow packages generated from repository truth."
 carrier = ".agents/skills"
-
-[[surface]]
-name = "distributions"
-purpose = "Thin launchers and runner packages."
-carrier = "distributions/"

@@ -255,38 +255,48 @@ def prove_retained_authoring(
         message = "package_retained_topic_state_changed"
         raise RuntimeError(message)
     change = _prove_retained_change(lane, prefix, environment=env)
-    repair = _repair_retired_publication(lane, prefix, environment=env)
+    repaired = _repair_retired_publication(lane, prefix, environment=env)
     return {
         **change,
         "source_topic": source,
         "target_topic": target,
         "lease_generation": rows[0].generation,
         "topic_migration": "migrated" if source != target else "not_required",
-        "publication_repair": repair,
+        "publication_repair": "repaired",
+        "publication_repaired_gaps": list(repaired),
     }
 
 
-# The only gaps the successor's repair may change in the predecessor's retained adopter.
-_RETIRED_PUBLICATION_GAPS = tuple(
+# The successor's repair must remove the predecessor's retired publication fields. The only other
+# repair it may make in the retained legacy adopter normalizes its default-valued branch roles.
+_RETIRED_PUBLICATION_GAPS = frozenset(
     f"repository_paradigm_publication_declaration:{binding_path('release')}:publication.{field}"
     for field in ("local_verification_command", "local_installation_command")
 )
+_ADMITTED_REPAIR = "repository_paradigm_branch_roles:"
 
 
 def _repair_retired_publication(
     lane: Path, prefix: tuple[str, ...], *, environment: Mapping[str, str]
-) -> str:
+) -> tuple[str, ...]:
     """Remove the predecessor's retired publication fields with the successor's pure repair."""
     repair = (*prefix, "lane", "repair-paradigm", "--root", str(lane))
     env = {**environment, "ETHOS_CHANGE": "smoke-change"}
+    repaired: tuple[str, ...] = ()
     for options, state in (((), "planned"), (("--apply",), "repaired")):
         code, report, detail = invoke(lane, (*repair, *options, "--json"), environment=env)
         data = report.get("data")
         repaired = tuple(data.get("repaired_gaps") or ()) if isinstance(data, dict) else ()
-        if code or report.get("state") != state or repaired != _RETIRED_PUBLICATION_GAPS:
+        foreign = set(repaired) - _RETIRED_PUBLICATION_GAPS
+        if (
+            code
+            or report.get("state") != state
+            or not _RETIRED_PUBLICATION_GAPS.issubset(repaired)
+            or any(not gap.startswith(_ADMITTED_REPAIR) for gap in foreign)
+        ):
             message = f"package_retained_publication_repair_failed:{detail}"
             raise RuntimeError(message)
-    return "repaired"
+    return repaired
 
 
 def _prove_retained_change(

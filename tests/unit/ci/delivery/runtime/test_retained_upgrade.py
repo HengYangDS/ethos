@@ -15,6 +15,7 @@ import pytest
 
 import tools.ci.delivery.acceptance.adopter as adopter_fixture
 import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
+import tools.ci.delivery.acceptance.invocation as invocation
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
@@ -26,6 +27,7 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LaneLease
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance.brownfield import prove_retained_authoring
@@ -66,8 +68,8 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Outer source intent cannot leak through native Git into an independent fixture."""
-    configuration = tmp_path / "config.yaml"
-    configuration.write_bytes(b"schema: spec-driven\n")
+    # The journey's own OpenSpec configuration, so the real repair sees what the journey sees.
+    configuration = REPOSITORY_ROOT / "openspec/config.yaml"
     repository = tmp_path / "retained"
 
     def run(*command, cwd=tmp_path, env=None):
@@ -105,12 +107,20 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
         f"repository_paradigm_publication_declaration:.ethos/release.toml:publication.{field}"
         for field in ("local_verification_command", "local_installation_command")
     ]
+    native = invocation.invoke
+    host = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
+    previews = []
 
     def prewrite(root, command, *, environment):
         if "repair-paradigm" in command:
             assert environment["ETHOS_CHANGE"] == "smoke-change"
-            state = "repaired" if "--apply" in command else "planned"
-            return 0, {"state": state, "data": {"repaired_gaps": retired}}, ""
+            if "--apply" not in command:
+                # The real preview on the real retained fixture names what the repair changes.
+                previews.append(native(root, command, environment=host | environment))
+                return previews[-1]
+            # Only an installed runtime may apply in the fixture, so the apply reports the preview.
+            code, report, detail = previews[-1]
+            return code, {**report, "state": "repaired"}, detail
         target = root / "openspec/changes/smoke-change/proposal.md"
         collision = target.is_file() and target.read_bytes() == b"Existing independent intent\n"
         return int(collision), {"verdict": "block" if collision else "pass"}, ""
@@ -126,6 +136,11 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
     assert report["unrelated_index_preserved"] is True
     assert report["renewed_authoring"] == "admitted_write_and_restore"
     assert report["publication_repair"] == "repaired"
+    repaired = report["publication_repaired_gaps"]
+    assert set(retired) <= set(repaired)
+    extra = set(repaired) - set(retired)
+    assert extra
+    assert all(gap.startswith("repository_paradigm_branch_roles:") for gap in extra)
     run_git(repository, "verify-commit", "HEAD")
 
 

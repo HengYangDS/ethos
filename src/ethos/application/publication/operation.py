@@ -15,27 +15,27 @@ from ethos.adapters.mutation.publication.request import observe_publication_requ
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.mutation.publication.request import persist_remote_publication_request
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_followup
+from ethos.application.publication.inspection import blocked_publication_action
+from ethos.application.publication.inspection import observe_publication
+from ethos.application.publication.inspection import publication_readiness_result
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.publication.inspection import blocked_publication_action
-from ethos.domain.publication.inspection import observe_publication
-from ethos.domain.publication.inspection import publication_readiness_result
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.publication import select_publication_peers
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
+    from ethos.application.publication.inspection import PublicationContext
     from ethos.contracts.plan import TransitionPlan
-    from ethos.domain.publication.inspection import PublicationContext
-from ethos.domain.execution import application_result
-from ethos.domain.execution import profile_failure_result
-from ethos.domain.publication.request_gaps import publication_admission_gaps
-from ethos.domain.publication.request_gaps import publication_request_gaps
+from ethos.application.invocation import application_result
+from ethos.application.invocation import profile_failure_result
+from ethos.application.publication.request_gaps import publication_admission_gaps
+from ethos.application.publication.request_gaps import publication_request_gaps
 from ethos.repository.profile import load_repository_profile
 
 

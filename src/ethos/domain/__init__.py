@@ -1,1 +1,1 @@
-"""Pure product-domain reducers (status/plan/prove/land/publish)."""
+"""Decisions beneath the application operations: proof checks, status audit, quality, budget."""

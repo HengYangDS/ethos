@@ -7,5 +7,120 @@ root_packages = ["ethos"]
 id = "ethos-internal-layers"
 name = "ETHOS dependency layers"
 type = "layers"
-layers = ["surface", "domain", "adapters", "repository"]
+layers = ["surface", "application", "domain", "adapters", "repository"]
 containers = ["ethos"]
+
+# The transports reach operations through `ethos.application`. The listed direct imports are what
+# remains; an unmatched entry fails the contract, so the list only shrinks.
+[[tool.importlinter.contracts]]
+id = "ethos-surfaces-reach-the-application"
+name = "Surfaces import no layer beneath the application"
+type = "forbidden"
+source_modules = ["ethos.surface", "ethos.cli"]
+forbidden_modules = [
+  "ethos.domain",
+  "ethos.adapters",
+  "ethos.repository",
+  "ethos.normalization",
+  "ethos.assistants",
+]
+allow_indirect_imports = true
+ignore_imports = [
+  "ethos.cli -> ethos.adapters.process",
+  "ethos.cli -> ethos.adapters.repo.git",
+  "ethos.cli -> ethos.adapters.repo.invocation_facts",
+  "ethos.cli -> ethos.adapters.repo.runtime.interpreter",
+  "ethos.cli -> ethos.adapters.repo.runtime.selection",
+  "ethos.cli -> ethos.adapters.store.state.schema",
+  "ethos.cli -> ethos.repository.profile",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.git_admission",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.paths",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.publication",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.ref_move_policy",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.transitions",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.process",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.commit.integration",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.hook.activation",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.hook.rollback",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.host_store",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.materialization.host_retention",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.retirement",
+  "ethos.surface.cli.hook.commands -> ethos.adapters.store.state.schema",
+  "ethos.surface.cli.hook.commands -> ethos.normalization.coercion",
+  "ethos.surface.cli.lane.commit_signer -> ethos.adapters.mutation.accepted.signature",
+  "ethos.surface.cli.lane.commit_signer -> ethos.adapters.repo.trust_anchor.authorization",
+  "ethos.surface.cli.lane.formatting -> ethos.adapters.mutation.source_format",
+  "ethos.surface.cli.lane.handoff -> ethos.adapters.mutation.lane_lifecycle.handoff.transfer",
+  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.acquisition",
+  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.operation",
+  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.takeover",
+  "ethos.surface.cli.lane.lease -> ethos.adapters.repo.git",
+  "ethos.surface.cli.lane.lease -> ethos.adapters.repo.status.bindings",
+  "ethos.surface.cli.lane.lease -> ethos.normalization.coercion",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.admission.paths",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.admission.prewrite",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.archive.command",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.candidate.materialization",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.candidate_projection",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.merge",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.start",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.lane_lifecycle.work_lane_refresh",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.mutation.worktree.detached_cleanup",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.openspec.selection",
+  "ethos.surface.cli.lane.lifecycle -> ethos.adapters.repo.status.workspace",
+  "ethos.surface.cli.lane.lifecycle -> ethos.domain.prove",
+  "ethos.surface.cli.lane.lifecycle -> ethos.normalization.coercion",
+  "ethos.surface.cli.lane.paradigm_repair -> ethos.adapters.mutation.paradigm_repair",
+  "ethos.surface.cli.lane.projections -> ethos.adapters.mutation.projection",
+  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.abandonment",
+  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.absorbed",
+  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.linked",
+  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.operation",
+  "ethos.surface.cli.lane.retirement -> ethos.normalization.coercion",
+  "ethos.surface.cli.output -> ethos.adapters.process",
+  "ethos.surface.cli.output -> ethos.adapters.repo.git",
+  "ethos.surface.cli.root.attestation -> ethos.adapters.actor",
+  "ethos.surface.cli.root.attestation -> ethos.adapters.repo.attestation_set",
+  "ethos.surface.cli.root.attestation -> ethos.adapters.store.custody",
+  "ethos.surface.cli.root.host -> ethos.adapters.gates.host_admission",
+  "ethos.surface.cli.root.host -> ethos.repository.paradigm.parameters",
+  "ethos.surface.cli.root.reference -> ethos.adapters.repo.content.observation",
+  "ethos.surface.cli.root.reference -> ethos.adapters.repo.git",
+  "ethos.surface.cli.root.reference -> ethos.repository.registry.docs.health",
+  "ethos.surface.cli.root_binding -> ethos.adapters.repo.git",
+  "ethos.surface.cli.version -> ethos.adapters.openspec.cli",
+  "ethos.surface.cli.version -> ethos.adapters.repo.runtime.authority",
+  "ethos.surface.cli.version -> ethos.adapters.repo.runtime.selection",
+  "ethos.surface.mcp.server -> ethos.adapters.actor",
+  "ethos.surface.mcp.server -> ethos.repository.paradigm.parameters",
+  "ethos.surface.runtime_identity -> ethos.adapters.process",
+  "ethos.surface.runtime_identity -> ethos.adapters.repo.runtime.authority",
+]
+
+[[tool.importlinter.contracts]]
+id = "ethos-kernel-stays-below"
+name = "The kernel contracts and the result import nothing above them"
+type = "forbidden"
+source_modules = ["ethos.contracts", "ethos.result"]
+forbidden_modules = ["ethos.application", "ethos.domain", "ethos.adapters", "ethos.surface"]
+allow_indirect_imports = true
+
+# Pure decisions read typed facts; the listed direct imports of adapters are what remains.
+[[tool.importlinter.contracts]]
+id = "ethos-domain-imports-no-adapters"
+name = "Domain decisions import no adapters"
+type = "forbidden"
+source_modules = ["ethos.domain"]
+forbidden_modules = ["ethos.adapters"]
+allow_indirect_imports = true
+ignore_imports = [
+  "ethos.domain.source_budget.measurement -> ethos.adapters.repo.git",
+  "ethos.domain.status -> ethos.adapters.gates.native.inputs",
+  "ethos.domain.status -> ethos.adapters.openspec.commitment",
+  "ethos.domain.status -> ethos.adapters.openspec.governance",
+  "ethos.domain.status -> ethos.adapters.openspec.observation",
+  "ethos.domain.status -> ethos.adapters.repo.commit.admission",
+  "ethos.domain.status -> ethos.adapters.repo.content.observation",
+  "ethos.domain.status -> ethos.adapters.repo.git",
+  "ethos.domain.status -> ethos.adapters.repo.git_attributes",
+]

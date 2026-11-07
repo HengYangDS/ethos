@@ -11,9 +11,9 @@ import ethos.surface.cli.application as application
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.application.invocation import process_failure_result
 from ethos.cli import main
 from ethos.contracts.outcome import refusal
-from ethos.domain.execution import process_failure_result
 
 
 def test_process_failures_keep_every_carried_gap_and_the_declared_class(tmp_path) -> None:

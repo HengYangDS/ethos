@@ -9,8 +9,8 @@ from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
+from ethos.application.invocation import application_result
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.execution import application_result
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult

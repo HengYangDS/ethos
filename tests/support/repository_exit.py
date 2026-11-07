@@ -12,7 +12,7 @@ from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.exit_plan import exit_preview
 from ethos.adapters.repo.hook.preimage import ACTIVATION_KEYS
-from ethos.domain.adoption import adopt_repository
+from ethos.application.adoption import adopt_repository
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialized_activation_case
 

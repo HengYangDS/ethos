@@ -12,8 +12,8 @@ import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 import ethos.surface.cli.lane.commit_signer as commit_signer
 import ethos.surface.cli.lane.lifecycle as lifecycle
-from ethos.domain.land.closeout import closeout_continuation
-from ethos.domain.land.closeout import land_next_action
+from ethos.application.land.closeout import closeout_continuation
+from ethos.application.land.closeout import land_next_action
 
 ARCHIVE_BRANCH = "work/feature"
 ARCHIVE_HEAD = "old-head"

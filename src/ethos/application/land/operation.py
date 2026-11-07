@@ -22,6 +22,12 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.application.invocation import application_result
+from ethos.application.invocation import profile_failure_result
+from ethos.application.land.closeout import closeout_audit_root
+from ethos.application.land.closeout import closeout_result
+from ethos.application.land.closeout import land_next_action
+from ethos.application.land.closeout import repository_audit_after_admission
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.proof.plan import AcceptancePurpose
@@ -30,12 +36,6 @@ from ethos.contracts.semantic import Attestation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.execution import application_result
-from ethos.domain.execution import profile_failure_result
-from ethos.domain.land.closeout import closeout_audit_root
-from ethos.domain.land.closeout import closeout_result
-from ethos.domain.land.closeout import land_next_action
-from ethos.domain.land.closeout import repository_audit_after_admission
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context

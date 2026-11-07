@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 import ethos.adapters.gates.runner as gate_execution
-import ethos.surface.cli.root.proof as proof_cli
+import ethos.application.proof.operation as proof_operation
 import ethos.surface.cli.root.reference as reference
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -193,7 +193,7 @@ def test_an_executing_full_host_proof_exits_one_unless_it_passes(
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     observed = EthosResult(command="prove", verdict=verdict, state="observed", required_gaps=("x",))
-    monkeypatch.setattr(proof_cli, "host_gate_observation", lambda **_kwargs: observed)
+    monkeypatch.setattr(proof_operation, "host_gate_observation", lambda **_kwargs: observed)
 
     completed = _host(repo, head, "--full")
 

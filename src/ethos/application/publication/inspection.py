@@ -17,6 +17,8 @@ from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
 from ethos.adapters.repo.commit.integration import peer_publication_baseline
 from ethos.adapters.repo.release_publication import release_publication_selection
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.application.land.closeout import repository_audit_after_admission
+from ethos.application.publication.fallback import fallback_projection
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -24,8 +26,6 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.land.closeout import repository_audit_after_admission
-from ethos.domain.publication.fallback import fallback_projection
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config

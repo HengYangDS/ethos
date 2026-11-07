@@ -1,6 +1,6 @@
 """Render the shared repository observation through Cyclopts."""
 
-from ethos.domain.inspection import inspect_repository
+from ethos.application.inspection import inspect_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit

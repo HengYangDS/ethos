@@ -1,6 +1,6 @@
 """Render the shared planning operation through Cyclopts."""
 
-from ethos.domain.plan import plan_repository
+from ethos.application.plan import plan_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit

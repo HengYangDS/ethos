@@ -6,7 +6,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.domain.publication.operation import publish_repository
+from ethos.application.publication.operation import publish_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit

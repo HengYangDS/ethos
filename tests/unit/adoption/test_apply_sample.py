@@ -16,7 +16,7 @@ from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.domain.adoption import adopt_repository
+from ethos.application.adoption import adopt_repository
 from ethos.repository.profile import load_repository_profile
 from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git

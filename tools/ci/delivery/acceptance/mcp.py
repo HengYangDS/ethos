@@ -18,11 +18,11 @@ from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
-from ethos.domain.adoption import adopt_repository
-from ethos.domain.inspection import inspect_repository
-from ethos.domain.land.operation import land_repository
-from ethos.domain.plan import plan_repository
-from ethos.domain.publication.operation import publish_repository
+from ethos.application.adoption import adopt_repository
+from ethos.application.inspection import inspect_repository
+from ethos.application.land.operation import land_repository
+from ethos.application.plan import plan_repository
+from ethos.application.publication.operation import publish_repository
 from ethos.result import expand_result
 from ethos.surface.runtime_identity import with_runtime
 

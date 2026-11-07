@@ -12,12 +12,12 @@ from pydantic import ValidationError
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.application.plan import matching_rule_gates
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
-from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.policy.schema import validate_schema_instance

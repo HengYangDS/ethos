@@ -16,7 +16,7 @@ import ethos.adapters.mutation.lane_lifecycle.candidate_projection as projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import git_environment
 from ethos.adapters.repo.worktree_effects import hold_worktree_refs
-from ethos.domain.inspection import inspect_repository
+from ethos.application.inspection import inspect_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit

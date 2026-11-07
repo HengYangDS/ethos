@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.application.inspection import lease_summary
+from ethos.application.inspection import renewal_action
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.domain.inspection import lease_summary
-from ethos.domain.inspection import renewal_action
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 

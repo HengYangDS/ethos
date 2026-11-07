@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import ethos.surface.cli.proof.host as host
+import ethos.application.proof.host as host
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import readiness_tier
 from ethos.adapters.repo.gate_policy import resolve_gate_policy

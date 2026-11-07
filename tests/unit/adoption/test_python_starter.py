@@ -16,7 +16,7 @@ import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_
 import ethos.adapters.repo.starter.formation as formation_effect
 import ethos.adapters.repo.starter.generation as generator_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.domain.adoption import adopt_repository
+from ethos.application.adoption import adopt_repository
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime

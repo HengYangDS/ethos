@@ -9,8 +9,8 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.repo.starter.formation as formation_effect
-from ethos.domain.adoption import adopt_repository
-from ethos.domain.inspection import inspect_repository
+from ethos.application.adoption import adopt_repository
+from ethos.application.inspection import inspect_repository
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime

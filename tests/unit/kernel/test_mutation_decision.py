@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.domain.land.closeout as closeout
+import ethos.application.land.closeout as closeout
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject

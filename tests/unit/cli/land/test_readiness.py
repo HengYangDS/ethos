@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import tomli_w
 
-import ethos.domain.publication.inspection as publication_domain
+import ethos.application.publication.inspection as publication_domain
+from ethos.application.publication.fallback import fallback_projection
+from ethos.application.publication.inspection import publication_readiness
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.fallback import fallback_projection
-from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit

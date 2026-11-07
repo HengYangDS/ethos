@@ -13,14 +13,14 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.application.invocation import application_result
+from ethos.application.land.closeout import closeout_command_from_status
 from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.skill.activation import compile_skill_activation
-from ethos.domain.execution import application_result
-from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence

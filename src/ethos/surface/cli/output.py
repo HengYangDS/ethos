@@ -12,8 +12,8 @@ from cyclopts import Parameter
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
-from ethos.domain.execution import process_failure_result
-from ethos.domain.execution import profile_failure_result
+from ethos.application.invocation import process_failure_result
+from ethos.application.invocation import profile_failure_result
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from ethos.surface.cli.root_binding import resolved_root

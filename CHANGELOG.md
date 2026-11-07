@@ -19,6 +19,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks
   and other child processes it starts, and ends with it.
 
+### Changed
+
+- The shared operations moved from `ethos.domain` to `ethos.application`: `inspect_repository`,
+  `plan_repository`, `adopt_repository`, `land_repository` and `publish_repository` are now in
+  `ethos.application.inspection`, `ethos.application.plan`, `ethos.application.adoption`,
+  `ethos.application.land.operation` and `ethos.application.publication.operation`. Proof joins
+  them as `prove_repository` in `ethos.application.proof.operation`. The SDK is not qualified for
+  0.2.0; callers of the old paths update their imports.
+
 ## [0.2.0-beta.6] - 2026-11-07
 
 ### Changed

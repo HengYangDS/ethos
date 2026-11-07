@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from filelock import Timeout
 
 import ethos.adapters.gates.runner as runner
-import ethos.domain.inspection as inspection
+import ethos.application.inspection as inspection
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import failure_report

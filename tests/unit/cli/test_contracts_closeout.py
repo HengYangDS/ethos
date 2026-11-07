@@ -10,8 +10,8 @@ import tomli_w
 
 import ethos.adapters.admission.evidence.external as evidence
 import ethos.adapters.repo.status.workspace as workspace
-import ethos.domain.land.closeout as closeout
-import ethos.domain.land.operation as land_commands
+import ethos.application.land.closeout as closeout
+import ethos.application.land.operation as land_commands
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.remediation.guidance import closeout_apply_command

@@ -30,10 +30,10 @@ from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_wor
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.application.land.closeout import closeout_command_from_status
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.normalization.coercion import integer
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence

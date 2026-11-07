@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.runner as gate_runner
-import ethos.surface.cli.root.proof as proof_cli
+import ethos.application.proof.operation as proof_operation
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
@@ -92,15 +92,15 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     monkeypatch.setattr(
-        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
+        proof_operation, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
     )
-    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
+    monkeypatch.setattr(proof_operation, "LocalGateRunner", Runner)
 
     if mode == "interrupted":
         with pytest.raises(TimeoutError, match="late gate"):
-            proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
+            proof_operation.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     else:
-        checks, passed = proof_cli.run_plan_checks(
+        checks, passed = proof_operation.run_plan_checks(
             repo=repo, plan=plan, execute=mode != "dry-run", capacity=2
         )
         assert passed is True
@@ -232,9 +232,9 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
                 1 if node.id == readiness_gate else 0,
             )
 
-    monkeypatch.setattr(proof_cli, "resolve_gate_policy", lambda *_a, **_k: policy)
-    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
-    checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
+    monkeypatch.setattr(proof_operation, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(proof_operation, "LocalGateRunner", Runner)
+    checks, passed = proof_operation.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     assert passed is False
     assert readiness_gate in executed
     assert not {"unit-architecture", "build", "local-install-smoke"}.intersection(executed)
@@ -305,10 +305,10 @@ def test_full_proof_waits_for_admission_only_after_readiness(
         yield
 
     monkeypatch.setattr(
-        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
+        proof_operation, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
     )
-    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
-    checks, passed = proof_cli.run_plan_checks(
+    monkeypatch.setattr(proof_operation, "LocalGateRunner", Runner)
+    checks, passed = proof_operation.run_plan_checks(
         repo=repo, plan=plan, execute=True, capacity=2, admission=admission
     )
 

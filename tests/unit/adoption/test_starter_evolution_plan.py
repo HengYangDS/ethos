@@ -13,8 +13,8 @@ import ethos.adapters.repo.starter.evolution as evolution
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
+from ethos.application.adoption import adopt_repository
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.adoption import adopt_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.fixture_signer import fixture_signer_inputs

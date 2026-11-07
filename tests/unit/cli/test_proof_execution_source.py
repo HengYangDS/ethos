@@ -13,7 +13,7 @@ import pytest
 import tomli_w
 
 import ethos.adapters.repo.worktree_postimage as source_owner
-import ethos.surface.cli.root.proof as proof_cli
+import ethos.application.proof.operation as proof_operation
 import tests
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
@@ -248,7 +248,7 @@ def test_public_proof_preserves_source_drift_between_issuance_and_selection(
     root = proof_repository
     head = git(root, "rev-parse", "HEAD")
     before = read_attestation_set(root)
-    original = proof_cli.persist_proof_attestation
+    original = proof_operation.persist_proof_attestation
     attempts = []
 
     def drift(directory, proof):
@@ -256,7 +256,7 @@ def test_public_proof_preserves_source_drift_between_issuance_and_selection(
         (root / "README.md").write_text("# changed at selection\n")
         return original(directory, proof)
 
-    monkeypatch.setattr(proof_cli, "persist_proof_attestation", drift)
+    monkeypatch.setattr(proof_operation, "persist_proof_attestation", drift)
     completed = _execute(root, head)
     payload = json.loads(completed.stdout)
     assert payload["verdict"] == "block"

@@ -13,7 +13,7 @@ from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.exit_plan import exit_preview
 from ethos.adapters.repo.hook.preimage import ethos_owns_hooks_path
 from ethos.adapters.repo.hook.preimage import read_hooks_preimage
-from ethos.domain.adoption import adopt_repository
+from ethos.application.adoption import adopt_repository
 from tests.support.repository_exit import adopted_with_own_hooks
 from tests.support.repository_exit import apply_exit
 from tests.support.repository_exit import observe_no_foreign_processes

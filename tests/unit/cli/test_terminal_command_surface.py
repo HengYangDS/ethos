@@ -15,7 +15,7 @@ import pytest
 
 import tests.support.ethos_cli_runner as cli_runner
 from ethos.adapters.repo.attestation_set import record_attestations
-from ethos.domain.inspection import inspect_repository
+from ethos.application.inspection import inspect_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.lane.lease import TakeoverOptions

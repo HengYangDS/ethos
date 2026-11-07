@@ -151,7 +151,7 @@ docstring (`D101` to `D103` and `D105` to `D107` stay ignored).
 ### Import discipline
 
 - Import concrete submodules, never through package-root facades:
-  `from ethos.domain.plan import matching_rule_gates`, not a re-export shell.
+  `from ethos.application.plan import matching_rule_gates`, not a re-export shell.
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
   (`from x import y as main`). Compatibility residue is a cost center.
@@ -177,11 +177,14 @@ These are the enumerated, enforced import rules. A dependency edge is a claim ab
 architecture; these rules make the claim honest and checkable.
 
 1. **Dependency direction:** the declared import-linter contract enforces
-   surface → domain → adapters → repository. The pure contract kernel must not
-   depend on application orchestration. Current layer enforcement does not yet
-   cover every package or prove the absence of all dependency cycles; the
-   terminal plan retains that global closure obligation. Do not invent retired
-   package names or describe an unchecked layer as already enforced.
+   surface → application → domain → adapters → repository, and forbidden
+   contracts list the remaining direct imports that the surfaces make of the
+   lower layers and that `domain` makes of `adapters`; those lists only shrink.
+   The pure contract kernel must not depend on application orchestration.
+   Current layer enforcement does not yet cover every package or prove the
+   absence of all dependency cycles; the terminal plan retains that global
+   closure obligation. Do not invent retired package names or describe an
+   unchecked layer as already enforced.
 2. **Absolute only (ruff TID):** no relative imports (`from .x import y`). Every
    import names its full package path, so grep and move are reliable.
 3. **One symbol per line (ruff isort force-single-line):** `from m import a` then

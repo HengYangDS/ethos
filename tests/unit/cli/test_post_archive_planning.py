@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.admission.current.resolution as resolution_adapter
-import ethos.domain.plan as planning_domain
+import ethos.application.plan as planning_domain
 import ethos.surface.cli.root.planning as planning_cli
 from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution

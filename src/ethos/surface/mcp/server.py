@@ -19,11 +19,11 @@ from mcp.types import CallToolRequestParams
 from mcp.types import ToolAnnotations
 
 from ethos.adapters.actor import process_actor
-from ethos.domain.adoption import adopt_repository
-from ethos.domain.inspection import inspect_repository
-from ethos.domain.land.operation import land_repository
-from ethos.domain.plan import plan_repository
-from ethos.domain.publication.operation import publish_repository
+from ethos.application.adoption import adopt_repository
+from ethos.application.inspection import inspect_repository
+from ethos.application.land.operation import land_repository
+from ethos.application.plan import plan_repository
+from ethos.application.publication.operation import publish_repository
 from ethos.repository.paradigm.parameters import seconds
 from ethos.result import EthosResult
 from ethos.surface.runtime_identity import with_runtime

@@ -19,9 +19,9 @@ import ethos.adapters.mutation.publication.observation as publication_observatio
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.application.publication.operation import publish_repository
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import mutable_json
-from ethos.domain.publication.operation import publish_repository
 from ethos.surface.mcp.server import create_server
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.starter.formation as formation_effect
+from ethos.application.adoption import adopt_repository
 from ethos.contracts.outcome import refusal
-from ethos.domain.adoption import adopt_repository
 from tests.support.fixture_signer import fixture_signer_inputs
 
 

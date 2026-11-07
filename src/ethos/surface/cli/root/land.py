@@ -7,8 +7,8 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.application.land.operation import land_repository
 from ethos.contracts.proof.plan import AcceptancePurpose
-from ethos.domain.land.operation import land_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit

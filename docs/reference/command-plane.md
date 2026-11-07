@@ -99,16 +99,17 @@ acquisition/checksums, cold payload, peer-outage and hosted qualification retain
 
 ## Shared SDK Operations
 
-`inspect_repository`, `plan_repository`, `adopt_repository`, `land_repository` and
-`publish_repository` in `ethos.domain.inspection`, `ethos.domain.plan`, `ethos.domain.adoption`,
-`ethos.domain.land.operation` and `ethos.domain.publication.operation`
-return typed `EthosResult` values without CLI rendering or changing the caller's
-working directory. Pass an explicit repository path:
+`inspect_repository`, `plan_repository`, `adopt_repository`, `prove_repository`, `land_repository`
+and `publish_repository` in `ethos.application.inspection`, `ethos.application.plan`,
+`ethos.application.adoption`, `ethos.application.proof.operation`,
+`ethos.application.land.operation` and `ethos.application.publication.operation` return typed
+`EthosResult` values without CLI rendering or changing the caller's working directory. Pass an
+explicit repository path:
 
 ```python
 from pathlib import Path
 
-from ethos.domain.plan import plan_repository
+from ethos.application.plan import plan_repository
 
 result = plan_repository(Path("/path/to/repository"), changed=True)
 print(result.to_json())
@@ -120,7 +121,9 @@ structured results across transports. Operation-specific refusals remain distinc
 an invalid profile blocks observation, while adoption preserves conflicting
 authored content rather than overwriting it. Integration keeps candidate, accepted
 and release transitions distinct, including preview, exact coordinates and fresh
-effect admission. Publication shares one operation across CLI, SDK and MCP; proof is CLI-only.
+effect admission. Publication shares one operation across CLI, SDK and MCP. Proof is an application
+operation that the CLI and the SDK reach; MCP gains it only once proof gates run in an allow-listed
+environment.
 
 ## Retained Candidate Materialization
 

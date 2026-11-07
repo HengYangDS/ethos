@@ -17,7 +17,7 @@ import ethos.cli as cli
 import ethos.surface.cli.application as application
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_scope
-from ethos.domain.execution import application_result
+from ethos.application.invocation import application_result
 from ethos.result import EthosResult
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git

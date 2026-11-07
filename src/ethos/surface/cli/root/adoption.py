@@ -4,7 +4,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.domain.adoption import adopt_repository
+from ethos.application.adoption import adopt_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit

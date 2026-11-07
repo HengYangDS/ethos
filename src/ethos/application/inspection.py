@@ -16,13 +16,13 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.application.invocation import application_result
+from ethos.application.land.closeout import closeout_command_from_status
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.verdict import report_verdict
-from ethos.domain.execution import application_result
-from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.normalization.coercion import string_sequence

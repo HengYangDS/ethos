@@ -11,6 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.application.proof.operation as proof_operation
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
@@ -129,13 +130,15 @@ def _arrange(
         verdict="pass", authority=None, commitment=commitment, scope=CurrentScope(("changed.py",))
     )
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
-    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_operation, "_proof_preflight", lambda **_kwargs: None)
     monkeypatch.setattr(
-        proof_cli, "_proof_context", lambda *_args, **_kwargs: ("a" * 40, audit, binding, lifecycle)
+        proof_operation,
+        "_proof_context",
+        lambda *_args, **_kwargs: ("a" * 40, audit, binding, lifecycle),
     )
-    monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: selected_plan)
+    monkeypatch.setattr(proof_operation, "proof_plan", lambda *_args, **_kwargs: selected_plan)
     monkeypatch.setattr(
-        proof_cli, "run_plan_checks", lambda **_kwargs: (list(checks or (_check(),)), runs_ok)
+        proof_operation, "run_plan_checks", lambda **_kwargs: (list(checks or (_check(),)), runs_ok)
     )
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
     return repo, emitted
@@ -156,7 +159,7 @@ def test_invalid_common_audit_stops_before_check_execution(
     def unexpected(**_kwargs):
         pytest.fail("checks must not execute after failed common admission")
 
-    monkeypatch.setattr(proof_cli, "run_plan_checks", unexpected)
+    monkeypatch.setattr(proof_operation, "run_plan_checks", unexpected)
     proof_cli.prove(_options(execute=True), root=repo, json_output=True)
     assert emitted[-1].verdict == verdict
     assert emitted[-1].required_gaps == ("protected_branches_policy_missing",)
@@ -178,7 +181,7 @@ def test_prove_fail_closed_before_result_compilation(
     _repo, emitted = _arrange(monkeypatch, tmp_path, plan=plan)
     if case != "plan-blocked":
         target = "proof_plan" if case == "plan-error" else "run_plan_checks"
-        monkeypatch.setattr(proof_cli, target, Mock(side_effect=ValueError(expected_gap)))
+        monkeypatch.setattr(proof_operation, target, Mock(side_effect=ValueError(expected_gap)))
 
     proof_cli.prove(root=tmp_path, json_output=True)
 
@@ -227,7 +230,7 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
         user_decision_required=True,
     )
     monkeypatch.setattr(
-        proof_cli,
+        proof_operation,
         "_proof_context",
         lambda *_args, **_kwargs: (
             "a" * 40,
@@ -237,7 +240,7 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
         ),
     )
     monkeypatch.setattr(
-        proof_cli,
+        proof_operation,
         "proof_plan",
         Mock(
             side_effect=AssertionError(
@@ -259,19 +262,21 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_operation, "_proof_preflight", lambda **_kwargs: None)
     monkeypatch.setattr(
-        proof_cli.status_domain,
+        proof_operation.status_domain,
         "audit_for_root",
         lambda *_args, **_kwargs: {"verdict": "pass", "required_gaps": []},
     )
     monkeypatch.setattr(
-        proof_cli,
+        proof_operation,
         "workspace_status_observation",
         lambda *_args, **_kwargs: ({"head": "a" * 40, "branch": "dev", "role": "accepted"}, None),
     )
     monkeypatch.setattr(
-        proof_cli, "resolve_current_resolution", Mock(side_effect=ValueError("resolution_failed"))
+        proof_operation,
+        "resolve_current_resolution",
+        Mock(side_effect=ValueError("resolution_failed")),
     )
 
     with pytest.raises(ValueError, match=r"^resolution_failed$"):
@@ -299,7 +304,7 @@ def test_prove_result_matrix(monkeypatch, tmp_path, case, options, check, expect
     """Each native outcome determines one state and one actionable continuation."""
     _repo, emitted = _arrange(monkeypatch, tmp_path, checks=(check,))
     monkeypatch.setattr(
-        proof_cli,
+        proof_operation,
         "issue_proof_attestation",
         lambda _repo, payload: _attestation(str(payload["verdict"])),
     )
@@ -317,7 +322,9 @@ def test_prove_emits_the_carried_verdict_cause_and_remedy(monkeypatch, tmp_path)
     """An issuance refusal reaches the result with its own verdict class, causes and remedy."""
     _repo, emitted = _arrange(monkeypatch, tmp_path, checks=(_check(verdict="unknown"),))
     timed = Outcome.part("unknown", "gate_unknown:gate", ("gate_timeout:gate",), subject="gate")
-    monkeypatch.setattr(proof_cli, "issue_proof_attestation", Mock(side_effect=OutcomeError(timed)))
+    monkeypatch.setattr(
+        proof_operation, "issue_proof_attestation", Mock(side_effect=OutcomeError(timed))
+    )
     proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
     result = emitted[-1]
     assert (result.verdict, result.state, result.required_gaps) == ("unknown", "gapped", timed.gaps)
@@ -332,10 +339,12 @@ def test_prove_persists_pass_and_routes_the_next_public_command(
     _repo, emitted = _arrange(monkeypatch, tmp_path)
     persisted = []
     monkeypatch.setattr(
-        proof_cli, "issue_proof_attestation", lambda *_args, **_kwargs: _attestation()
+        proof_operation, "issue_proof_attestation", lambda *_args, **_kwargs: _attestation()
     )
     monkeypatch.setattr(
-        proof_cli, "persist_proof_attestation", lambda *args, **_kwargs: persisted.append(args)
+        proof_operation,
+        "persist_proof_attestation",
+        lambda *args, **_kwargs: persisted.append(args),
     )
     options = _options(execute=True, gate=("gate",) if focused else ())
 
@@ -358,7 +367,7 @@ def test_prove_reports_failed_evidence_boundary_once(monkeypatch, tmp_path, boun
         issued.append(payload)
         return _attestation(str(payload["verdict"]))
 
-    monkeypatch.setattr(proof_cli, "issue_proof_attestation", issue)
+    monkeypatch.setattr(proof_operation, "issue_proof_attestation", issue)
     target, error, expected = (
         ("issue_proof_attestation", "proof_binding_invalid", "proof_binding_invalid")
         if boundary == "issuance"
@@ -368,7 +377,7 @@ def test_prove_reports_failed_evidence_boundary_once(monkeypatch, tmp_path, boun
             "proof_attestation_persistence_failed:collision",
         )
     )
-    monkeypatch.setattr(proof_cli, target, Mock(side_effect=ValueError(error)))
+    monkeypatch.setattr(proof_operation, target, Mock(side_effect=ValueError(error)))
     proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
     assert len(emitted) == 1
     assert emitted[0].state == "gapped"
@@ -433,7 +442,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     status = {"head": "a" * 40, "branch": "dev", "role": "accepted"}
     authority = object()
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_operation, "_proof_preflight", lambda **_kwargs: None)
 
     def audit_once(_root, **kwargs):
         assert kwargs["openspec"] == (
@@ -443,9 +452,11 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         )
         return audit
 
-    monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", audit_once)
+    monkeypatch.setattr(proof_operation.status_domain, "audit_for_root", audit_once)
     monkeypatch.setattr(
-        proof_cli, "workspace_status_observation", lambda *_args, **_kwargs: (status, authority)
+        proof_operation,
+        "workspace_status_observation",
+        lambda *_args, **_kwargs: (status, authority),
     )
 
     def resolve(*_args, **kwargs):
@@ -455,14 +466,14 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
         assert kwargs["changed"] is True
         return binding
 
-    monkeypatch.setattr(proof_cli, "resolve_current_resolution", resolve)
+    monkeypatch.setattr(proof_operation, "resolve_current_resolution", resolve)
 
     def compile_plan(*_args, **kwargs):
         assert kwargs["resolution"] is binding
         return _plan()
 
-    monkeypatch.setattr(proof_cli, "proof_plan", compile_plan)
-    monkeypatch.setattr(proof_cli, "run_plan_checks", lambda **_kwargs: ([_check()], True))
+    monkeypatch.setattr(proof_operation, "proof_plan", compile_plan)
+    monkeypatch.setattr(proof_operation, "run_plan_checks", lambda **_kwargs: ([_check()], True))
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 
     proof_cli.prove(_options(full=True), root=tmp_path, json_output=True)
@@ -490,10 +501,12 @@ def test_a_full_proof_admits_its_tests_only_after_readiness(monkeypatch, tmp_pat
             order.append("gates")
         return [_check()], True
 
-    monkeypatch.setattr(proof_cli, "admitted_full_proof", admitted)
-    monkeypatch.setattr(proof_cli, "run_plan_checks", gates)
-    monkeypatch.setattr(proof_cli, "issue_proof_attestation", lambda *_a, **_k: _attestation())
-    monkeypatch.setattr(proof_cli, "persist_proof_attestation", lambda *_a, **_k: None)
+    monkeypatch.setattr(proof_operation, "admitted_full_proof", admitted)
+    monkeypatch.setattr(proof_operation, "run_plan_checks", gates)
+    monkeypatch.setattr(
+        proof_operation, "issue_proof_attestation", lambda *_a, **_k: _attestation()
+    )
+    monkeypatch.setattr(proof_operation, "persist_proof_attestation", lambda *_a, **_k: None)
 
     binding = tmp_path / "binding"
     (binding / ".ethos").mkdir(parents=True)
@@ -541,9 +554,9 @@ def test_ended_admission_runs_no_test_gate_and_records_nothing(
         return [_check()], True
 
     issued = Mock()
-    monkeypatch.setattr(proof_cli, "admitted_full_proof", ended)
-    monkeypatch.setattr(proof_cli, "run_plan_checks", gates)
-    monkeypatch.setattr(proof_cli, "issue_proof_attestation", issued)
+    monkeypatch.setattr(proof_operation, "admitted_full_proof", ended)
+    monkeypatch.setattr(proof_operation, "run_plan_checks", gates)
+    monkeypatch.setattr(proof_operation, "issue_proof_attestation", issued)
 
     proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 

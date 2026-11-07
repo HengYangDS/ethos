@@ -289,6 +289,13 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
         (0, '{"value": 1}', "pass", ""),
         (0, "not-json", "pass", ""),
         (0, '{"command":"status","verdict":"unknown","state":"unknown"}', "unknown", ""),
+        # A bound whose detail cannot be read never passes for the full result.
+        (
+            0,
+            '{"command":"prove","verdict":"block","bound":{"detail":{}}}',
+            "unknown",
+            "result_detail_mismatch",
+        ),
         (
             0,
             '{"command":"prove","verdict":[]}',

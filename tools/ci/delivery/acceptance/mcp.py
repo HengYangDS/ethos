@@ -24,6 +24,7 @@ from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
 from ethos.surface.runtime_identity import with_runtime
+from tools.ci.delivery.acceptance.invocation import invoke
 
 
 def _run(
@@ -131,10 +132,12 @@ async def _call(
             options.append("--" + key.replace("_", "-"))
             if value is not True:
                 options.append(str(value))
-    completed = _run((*command, name, "--root", str(root), "--json", *options), root.parent, env)
-    assert completed.returncode in {0, 1}, completed.stderr
-    assert not completed.stderr, completed.stderr
-    return json.loads(completed.stdout)
+    # One reader path for every acceptance surface: it reads a bounded result in full.
+    argv = (*command, name, "--root", str(root), "--json", *options)
+    returncode, payload, diagnostic = invoke(root.parent, argv, environment=env)
+    assert returncode in {0, 1}, diagnostic
+    assert "\nstderr:" not in diagnostic, diagnostic
+    return payload
 
 
 async def _adoption(

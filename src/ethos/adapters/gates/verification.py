@@ -29,6 +29,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.quality.sources import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.quality.sources import provider_module_sources
+from ethos.result import expand_result
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.javascript.execution import NodeAttempt
@@ -69,6 +70,18 @@ class NativeExecution:
     evidence: NativeEvidence | None = None
 
 
+def _ethos_result(stdout: str) -> dict[str, Any] | None:
+    """Return the full ETHOS result that a command printed, or None for any other output."""
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or "command" not in payload:
+        return None
+    # A bounded result keeps only some of its gaps; its digest-bound detail holds them all.
+    return expand_result(payload)
+
+
 def classify_action_result(
     *,
     exit_code: int | None,
@@ -85,10 +98,11 @@ def classify_action_result(
         )
         return verdict, diagnostics
     try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError:
-        return "pass", ()
-    if not isinstance(payload, dict) or "command" not in payload:
+        payload = _ethos_result(stdout)
+    except ValueError as error:
+        unread = {"kind": "ethos_result", "verdict": "unknown", "state": ""}
+        return "unknown", (unread | {"required_gaps": [str(error)]},)
+    if payload is None:
         return "pass", ()
     raw_verdict = payload.get("verdict")
     if not isinstance(raw_verdict, str) or raw_verdict not in {"pass", "block", "unknown"}:

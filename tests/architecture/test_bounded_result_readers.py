@@ -28,6 +28,18 @@ def test_readers_of_ethos_results_expand_them() -> None:
     assert [found for tree in ("src", "tools") for found in _unexpanded(ROOT, ROOT / tree)] == []
 
 
+def test_the_installed_mcp_acceptance_needs_no_repository_tools() -> None:
+    """The installed-package smoke runs this script under `python -I`, where `tools` is absent."""
+    script = ast.parse((ROOT / "tools/ci/delivery/acceptance/mcp.py").read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(script):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+    assert sorted(name for name in imported if name.split(".")[0] == "tools") == []
+
+
 @pytest.mark.parametrize(
     ("source", "found"),
     [

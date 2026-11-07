@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+import time
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -73,7 +75,11 @@ def test_generic_provider_uses_real_locked_python_evidence(
     monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", str(repo / ".venv"))
     with patch.object(python_quality, "run_command", wraps=python_quality.run_command) as run:
         report = native_quality.behavior_report(repo)
-        assert run.call_count == 1
+        # The environment is synced first, so the test run itself never syncs.
+        assert [call.args[1][1:3] for call in run.call_args_list] == [
+            ("sync", "--locked"),
+            ("run", "--no-sync"),
+        ]
     assert report["verdict"] == ("pass" if outcome == "pass" else "block"), report
     retained = report["native"][0]
     assert native_layout != "uv" or retained["native"]["command"][0] == find_uv_bin()
@@ -286,6 +292,7 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
         (1, (), "test_command_failed"),
         (0, ("--junitxml=",), "test_event_report_missing"),
         (1, ("--junitxml=",), "test_command_failed"),
+        (1, ("sync",), "test_environment_sync_failed"),
     ],
 )
 def test_python_behavior_distinguishes_command_failure_from_missing_report(
@@ -298,6 +305,11 @@ def test_python_behavior_distinguishes_command_failure_from_missing_report(
     """A failed locked tool must not masquerade as a filesystem-only failure."""
 
     def run_command(_root: Path, command: tuple[str, ...], **_kwargs: object) -> SimpleNamespace:
+        if command[1] == "sync":
+            code = exit_code if "sync" in written else 0
+            return SimpleNamespace(
+                returncode=code, stdout="native result\n", stderr="native diagnostic\n"
+            )
         for argument in command:
             if argument.startswith(written):
                 Path(argument.partition("=")[2]).write_text("<testsuites/>", encoding="utf-8")
@@ -434,3 +446,20 @@ def test_python_static_retains_deleted_committed_subjects(tmp_path: Path, *, sta
     report = python_quality.static_report(repo)
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["quality_static_code_source_unavailable"]
+
+
+def test_the_access_time_renewal_keeps_mtimes_and_stays_inside_the_scratch(tmp_path: Path) -> None:
+    """A cleaner that removes files by access age spares the attempt; a link never leads out."""
+    venv, outside = tmp_path / "venv", tmp_path / "outside"
+    (venv / "lib").mkdir(parents=True)
+    outside.mkdir()
+    old = 1_700_000_000_000_000_000
+    for path in (venv / "lib/version.py", outside / "kept.py"):
+        path.write_text("x\n", encoding="utf-8")
+        os.utime(path, ns=(old, old))
+    (venv / "lib/outside").symlink_to(outside, target_is_directory=True)
+    start = time.time_ns()
+    python_quality.refresh_access_times(venv)
+    renewed, kept = (venv / "lib/version.py").stat(), (outside / "kept.py").stat()
+    assert (renewed.st_mtime_ns, kept.st_atime_ns, kept.st_mtime_ns) == (old, old, old)
+    assert renewed.st_atime_ns >= start

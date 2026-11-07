@@ -6,10 +6,14 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
+import time
 import tomllib
 from contextlib import ExitStack
+from contextlib import suppress
+from functools import partial
 from pathlib import Path
 from tempfile import mkdtemp
 from typing import TYPE_CHECKING
@@ -215,6 +219,35 @@ def _native_configuration(root: Path) -> tuple[str, ...]:
     )
 
 
+def refresh_access_times(environment: Path) -> None:
+    """Give every file and directory of an attempt's environment an access time from now.
+
+    A host cleaner may remove temporary files not accessed for days, and an installed file keeps
+    its package cache's old times, which later reads do not renew. Modification times stay as they
+    are, and symlinks are never followed, so nothing outside the scratch changes.
+    """
+    now = time.time_ns()
+    for directory, _subdirectories, files in os.walk(environment, followlinks=False):
+        for path in (Path(directory), *(Path(directory, name) for name in files)):
+            with suppress(OSError):
+                status = path.lstat()
+                if not stat.S_ISLNK(status.st_mode):
+                    os.utime(path, ns=(now, status.st_mtime_ns))
+
+
+def _locked_uv(
+    root: Path, mise_files: dict[str, str] | None, scope: ExitStack, environment: dict[str, str]
+) -> tuple[dict[str, str], str, tuple[str, ...]]:
+    """Select uv and its interpreter pin, entering mise's locked environment if one is declared."""
+    if mise_files is None:
+        return environment, find_uv_bin(), _interpreter_pin(root)
+    # Tests reach the native tools ETHOS prepared outside mise, never the caller's PATH.
+    prepared = prepared_tool_directories(root)
+    locked = scope.enter_context(locked_environment(root, mise_files, prepared=prepared))
+    pin = ("--python", str(locked_tool(root, "python", files=mise_files)))
+    return {**locked, **environment}, str(locked_tool(root, "uv", files=mise_files)), pin
+
+
 def _behavior_evidence(
     root: Path,
     output: Path,
@@ -240,25 +273,15 @@ def _behavior_evidence(
             "PYTHONPYCACHEPREFIX": str(output / "pycache"),
             "HYPOTHESIS_STORAGE_DIRECTORY": str(output / "hypothesis"),
         }
-        if mise_files is not None:
-            # Tests reach the native tools ETHOS prepared outside mise, never the caller's PATH.
-            prepared = prepared_tool_directories(root)
-            environment = {
-                **scope.enter_context(locked_environment(root, mise_files, prepared=prepared)),
-                **environment,
-            }
-            prefix = (
-                str(locked_tool(root, "uv", files=mise_files)),
-                "run",
-                "--locked",
-                "--offline",
-                "--python",
-                str(locked_tool(root, "python", files=mise_files)),
-            )
-        else:
-            prefix = (find_uv_bin(), "run", "--locked", "--offline", *_interpreter_pin(root))
+        environment, uv, pin = _locked_uv(root, mise_files, scope, environment)
+        # The environment is synced first, so its files can carry this attempt's access times.
+        sync = (uv, "sync", "--locked", "--offline", *pin)
         command = (
-            *prefix,
+            uv,
+            "run",
+            "--no-sync",
+            "--offline",
+            *pin,
             "python",
             "-m",
             "pytest",
@@ -282,14 +305,25 @@ def _behavior_evidence(
             "PYTEST_ADDOPTS",
             "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
         )
-        result = run_command(
+        native = partial(
+            run_command,
             root,
-            command,
             timeout=seconds("gate", timeout_seconds),
             env=environment,
             remove_env=removed,
             remove_env_prefixes=("MISE_",),
         )
+        synced = native(sync)
+        if synced.returncode:
+            execution = NativeExecution(
+                sync, sync, root, synced.returncode, synced.stdout, synced.stderr, executable=uv
+            )
+            return {
+                "native": _native_fields(execution),
+                **unproven("behavior", "test_environment_sync_failed"),
+            }
+        refresh_access_times(output / "venv")
+        result = native(command)
         evidence: dict[str, object] = {
             "native": _native_fields(
                 NativeExecution(

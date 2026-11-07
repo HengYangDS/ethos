@@ -126,7 +126,7 @@ def create_fixture_python(
     source_python = Path(sys.executable).absolute()
     fixture_python = scripts / ("python.exe" if os.name == "nt" else "python")
     if shared_executable is None:
-        shutil.copy2(source_python, fixture_python)
+        shutil.copy(source_python, fixture_python)
         fixture_python.chmod(0o755)
     else:
         if shared_executable.stat().st_mode & 0o222:
@@ -135,7 +135,7 @@ def create_fixture_python(
         os.link(shared_executable, fixture_python)
     for name, source in (native_executables or {}).items():
         executable = runtime_executable(target, name)
-        shutil.copy2(source, executable)
+        shutil.copy(source, executable)
         executable.chmod(0o555)
     home = Path(sys.base_prefix) if os.name == "nt" else source_python.resolve().parent
     target.joinpath("pyvenv.cfg").write_text(
@@ -163,7 +163,7 @@ def create_fixture_python(
     if declaration.is_file():
         destination = site_packages / "ethos/adapters/repo/hook/binding.toml"
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(declaration, destination)
+        shutil.copy(declaration, destination)
 
 
 def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.CompletedProcess[str]:

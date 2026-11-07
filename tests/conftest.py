@@ -104,7 +104,7 @@ def _governance_executable_supply(tmp_path_factory: pytest.TempPathFactory):
         yield
         return
     executable = tmp_path_factory.mktemp("governance-python") / "python"
-    shutil.copy2(sys.executable, executable)
+    shutil.copy(sys.executable, executable)
     executable.chmod(0o555)
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(runtime_scenarios, "_GOVERNANCE_PYTHON", executable)

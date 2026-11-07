@@ -298,7 +298,8 @@ def _mirror_tracked(target: Path) -> None:
         if source.is_symlink():
             destination.symlink_to(source.readlink())
         elif source.is_file():
-            shutil.copy2(source, destination)
+            # A fresh copy: a cleaner of old temporary files cannot empty the scan.
+            shutil.copy(source, destination)
 
 
 def shell_lint(session) -> None:

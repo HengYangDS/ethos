@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 import sqlite3
 import subprocess
@@ -12,6 +11,7 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
@@ -139,7 +139,7 @@ def reacquire_lease(
     try:
         holder = HolderRef.parse(holder_ref)
         _require_reacquire(
-            condition=os.environ.get("ETHOS_ACTOR", "").strip() == holder.serialize(),
+            condition=process_actor() == holder.serialize(),
             gap="lease_reacquire_actor_mismatch",
         )
         coordinates = _reacquire_coordinates(root, path)
@@ -164,7 +164,7 @@ def reacquire_lease(
         def recheck() -> None:
             _require_reacquire(
                 condition=coordinates == _reacquire_coordinates(root, path)
-                and os.environ.get("ETHOS_ACTOR", "").strip() == holder.serialize(),
+                and process_actor() == holder.serialize(),
                 gap="lease_reacquire_snapshot_drift",
             )
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 import subprocess
 from collections.abc import Mapping
@@ -14,6 +13,7 @@ from typing import cast
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
@@ -191,7 +191,7 @@ def repair_signature(
 ) -> dict[str, object]:
     """Observe, execute or recover one authorized accepted-tip signature repair."""
     root = root.resolve()
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    actor = process_actor()
     action = (
         f"ethos lane repair-signature --root {shlex.quote(str(root))} "
         f"--expect-head {expect_head} --apply --authorize --json"

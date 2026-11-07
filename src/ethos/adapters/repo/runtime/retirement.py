@@ -31,6 +31,7 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.admission import accepted_release_identities
 
@@ -69,7 +70,7 @@ def _generations(common: Path) -> tuple[Path, ...]:
 
 
 def _digest(value: str) -> bool:
-    return len(value) == 64 and not set(value) - set("0123456789abcdef")
+    return is_sha256_hex(value)
 
 
 def process_commands(

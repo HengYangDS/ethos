@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_effect_outcome
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import work_lane_transition_gaps
@@ -52,7 +52,7 @@ def compensate_archive(
         head=archived,
         expect_head=expect_head,
         lease=lease,
-        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        actor=process_actor(),
         role_gap="archive_requires_work_lane",
         require_clean=not resumed,
     )

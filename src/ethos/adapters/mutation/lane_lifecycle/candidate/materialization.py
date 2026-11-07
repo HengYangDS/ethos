@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
@@ -47,7 +47,7 @@ def _materialization_facts(
         "preserved_preimage": preserved_preimage,
         "retention_ref": retention_ref,
         "reason": reason.strip(),
-        "actor": os.environ.get("ETHOS_ACTOR", "").strip(),
+        "actor": process_actor(),
     }
     gaps = [
         gap

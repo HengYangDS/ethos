@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import repository_root
@@ -180,7 +180,7 @@ def bootstrap_candidate(
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status, head = _candidate_facts(repo, observed_status, apply=apply)
-    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    issuer = process_issuer()
     requested = (path or default_worktree_path(repo, policy.candidate_branch)).absolute()
     target, path_gap, path_action = _candidate_target(requested)
     status_action = f"ethos status --root {shlex.quote(repo.as_posix())} --json"
@@ -308,7 +308,7 @@ def refresh_candidate_from_accepted(
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     head = _accepted_head(repo)
-    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    issuer = process_issuer()
     candidate = cast("dict[str, object]", status["candidate"])
     previous = str(candidate.get("head") or "")
     path = Path(str(candidate.get("worktree_path") or ""))

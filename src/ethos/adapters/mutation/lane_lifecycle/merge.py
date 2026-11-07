@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +11,7 @@ from typing import NoReturn
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
@@ -54,7 +54,7 @@ def _authority(root: Path, observed: MergeObservation) -> tuple[dict[str, object
     if policy.role_for_branch(observed.branch) != ROLE_WORK_LANE:
         _fail("protected_root_mutation")
     authority = observe_current_authority(
-        root=root, branch=observed.branch, actor=os.environ.get("ETHOS_ACTOR", ""), required=True
+        root=root, branch=observed.branch, actor=process_actor(), required=True
     )
     if authority.verdict != "pass":
         _fail(authority.reason)
@@ -421,7 +421,7 @@ def _execute(
             incoming=context.incoming,
             candidate_ref=context.candidate_ref,
             source_head=context.source_head,
-            actor=os.environ.get("ETHOS_ACTOR", ""),
+            actor=process_actor(),
             lease=context.lease,
             message=message,
             recheck=context.recheck,

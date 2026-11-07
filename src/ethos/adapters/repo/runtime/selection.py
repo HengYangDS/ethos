@@ -23,6 +23,8 @@ from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.contracts.digest import is_object_id
+from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import release_identity_admission_gaps
@@ -442,8 +444,8 @@ def _require_runtime_location(runtime: Path) -> None:
 
 
 def _valid_digest(value: str) -> bool:
-    return len(value) == 64 and not set(value) - set("0123456789abcdef")
+    return is_sha256_hex(value)
 
 
 def _valid_source_identity(value: str) -> bool:
-    return len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
+    return is_object_id(value)

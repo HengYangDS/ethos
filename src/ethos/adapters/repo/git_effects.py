@@ -11,6 +11,7 @@ from typing import Literal
 from typing import cast
 
 import ethos.adapters.repo.git_effect_attestation
+from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
@@ -459,7 +460,7 @@ def _effect_environment(
 ) -> dict[str, str] | None:
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     if operation.startswith("lane.start"):
-        return {"ETHOS_ACTOR": str(plan.policy.get("holder_ref") or "")}
+        return {ACTOR_VARIABLE: str(plan.policy.get("holder_ref") or "")}
     if operation != "candidate.accept":
         return None
     values = plan.facts.get("values")

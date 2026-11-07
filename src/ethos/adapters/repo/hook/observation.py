@@ -31,6 +31,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.profile import load_repository_profile
@@ -514,7 +515,7 @@ def _expected_source(repo: Path, selected: BuildIdentity | None) -> tuple[str, s
 
 
 def _valid_digest(value: str) -> bool:
-    return len(value) == 64 and not set(value) - set("0123456789abcdef")
+    return is_sha256_hex(value)
 
 
 def _configured_hooks_path(root: Path) -> Path | None:

@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.contracts.digest import is_sha256_hex
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -166,7 +167,7 @@ def _prune(directory: Path) -> None:
 
 
 def _valid_digest(value: object) -> bool:
-    return isinstance(value, str) and len(value) == 64 and not set(value) - _HEX
+    return is_sha256_hex(value)
 
 
 def _valid_name(value: str) -> bool:

@@ -26,6 +26,7 @@ from ethos.adapters.store.custody import release_custody
 from ethos.adapters.store.custody import require_custody
 from ethos.adapters.store.custody import store_custody
 from ethos.adapters.store.custody import stored_custody
+from ethos.contracts.digest import is_object_id
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
@@ -79,7 +80,7 @@ def _selected_root(repo: Path) -> str:
         if symbolic:
             message = "attestation_set_ref_symbolic"
             raise ValueError(message)
-        if len(identity) not in {40, 64} or set(identity) - set("0123456789abcdef"):
+        if not is_object_id(identity):
             raise ValueError(message)
         return identity
     if selected:

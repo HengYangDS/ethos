@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.role_rename import legacy_role_ref_protected
 from ethos.adapters.mutation.proof_admission import proof_attestation
@@ -77,7 +77,7 @@ def _signature_repair_evidence_gaps(
         message = "signature_repair_effect_evidence_missing"
         raise ValueError(message)
     result = selected[0]
-    plan = validate_signature_result(root, result, os.environ.get("ETHOS_ACTOR", "").strip())
+    plan = validate_signature_result(root, result, process_actor())
     update = git_effect_from_plan(plan).updates.get(ref_name)
     if update is None or (old, new) not in {
         (update.expected, update.desired),

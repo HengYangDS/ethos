@@ -16,12 +16,12 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from pathlib import Path
 
+from ethos.contracts.digest import is_object_id
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
 from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
 from ethos.repository.release.resources import packaged_resource
 
-_HEX = frozenset("0123456789abcdef")
 _BUILD_SOURCE_INVALID = "build_source_identity_invalid"
 _PACKAGE_BUILD_INVALID = "package_build_identity_invalid"
 _PACKAGE_BUILD_MISSING = "package_build_identity_missing"
@@ -199,4 +199,4 @@ def _canonical(value: object) -> bytes:
 
 
 def _valid_git_identity(value: str) -> bool:
-    return len(value) in {40, 64} and not set(value) - _HEX
+    return is_object_id(value)

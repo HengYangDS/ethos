@@ -8,6 +8,7 @@ from typing import NamedTuple
 
 from packaging.version import Version
 
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.semantic import Attestation
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -16,7 +17,6 @@ from ethos.repository.release.identity import build_identity_from_projection
 if TYPE_CHECKING:
     from datetime import datetime
 
-_HEX = frozenset("0123456789abcdef")
 _RELEASE = "release:accepted-identity"
 _RELEASE_BUILD_INVALID = "accepted_release_build_identity_invalid"
 _RELEASE_PROJECTION_INVALID = "accepted_release_identity_projection_invalid"
@@ -42,7 +42,7 @@ def accepted_release_identity(
 ) -> AcceptedReleaseIdentity:
     if Version(build.distribution_version).dev is not None:
         raise ValueError(_RELEASE_BUILD_INVALID)
-    if len(wheel_sha256) != 64 or set(wheel_sha256) - _HEX:
+    if not is_sha256_hex(wheel_sha256):
         raise ValueError(_RELEASE_WHEEL_INVALID)
     return AcceptedReleaseIdentity(build, wheel_sha256)
 

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.git import current_head
@@ -66,7 +66,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         "generation": request.generation,
         "expires_at": request.expires_at,
         "target_holder_ref": request.target_holder_ref,
-        "actor_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+        "actor_ref": process_actor(),
         "lease_state": str(observed.get("lease_state") or "missing"),
         "head": current_head(repo),
         "tree": current_tree(repo),
@@ -136,7 +136,7 @@ def _lease_operation_gaps(
     )
     if lease_state not in {"missing", "unknown"} and expected != actual:
         gaps.append(f"lease_generation_stale:{request.branch}")
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    actor = process_actor()
     if request.apply and actor != request.holder_ref:
         gaps.append("lease_actor_mismatch")
     if request.operation == "transfer" and not request.target_holder_ref:

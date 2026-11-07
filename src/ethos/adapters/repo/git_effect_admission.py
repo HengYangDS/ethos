@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.repo.git import current_tracked_head
@@ -220,7 +220,7 @@ def _require_lease_actor(
     if state == "expired":
         effect = git_effect_from_plan(plan)
         update = effect.updates.get(f"refs/heads/{generation.get('lane_ref')}")
-        actor = os.environ.get("ETHOS_ACTOR", "").strip()
+        actor = process_actor()
         if not (
             operation == "lane.retire"
             and plan.policy.get("retirement_kind") == "linked-lane"
@@ -244,7 +244,7 @@ def _require_lease_actor(
         actor = (
             str(plan.policy.get("holder_ref") or "")
             if operation.startswith("lane.start")
-            else os.environ.get("ETHOS_ACTOR", "").strip()
+            else process_actor()
         )
         if actor != str(generation.get("holder_ref") or ""):
             message = "lease_actor_mismatch"

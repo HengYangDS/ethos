@@ -8,6 +8,7 @@ from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
@@ -222,7 +223,7 @@ def _continuation(
     holder = effects.holder_ref(authority)
     if "foreign_work_lane_retire_authority_required" in gaps and holder:
         return {
-            "next_action": f"export ETHOS_ACTOR={shlex.quote(holder)}",
+            "next_action": f"export {ACTOR_VARIABLE}={shlex.quote(holder)}",
             "user_decision_required": True,
         }
     if "lane_retirement_receipt_required" in gaps:

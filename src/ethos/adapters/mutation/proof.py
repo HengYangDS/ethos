@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.proof_admission
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
@@ -186,7 +186,7 @@ def _assert_proof_issuance_currentness(root: Path, plan: TransitionPlan) -> str:
         root=root,
         branch=branch,
         lease=lease,
-        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        actor=process_actor(),
         current_head=head,
     )
     if authority.verdict != "pass":

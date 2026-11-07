@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.repo.coordination import ForeignLaneContext
@@ -131,7 +131,7 @@ def workspace_status_observation(
         root=repo,
         branch=branch,
         lease=leases.get(branch, {}),
-        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        actor=process_actor(),
         current_head=head or "",
         required=role == ROLE_WORK_LANE,
     )

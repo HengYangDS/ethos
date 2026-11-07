@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
 from ethos.adapters.mutation.decision import admission_decision
@@ -249,7 +249,7 @@ def retire_absorbed_ref(
         attestation = execute_git_effect(
             repo,
             plan,
-            issuer=os.environ.get("ETHOS_ACTOR", "").strip(),
+            issuer=process_actor(),
         )
     except (OSError, ValueError) as error:
         return block_transition(admitted_report, [str(error)], error=error)
@@ -277,7 +277,7 @@ def _admitted_retirement_plan(
         "branch": branch,
         "accepted_branch": accepted_branch,
         "accepted_head": accepted_head,
-        "holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+        "holder_ref": process_actor(),
         "repository_prestate": "absent",
     }
     values = {

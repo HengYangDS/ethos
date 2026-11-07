@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shlex
 import shutil
 import subprocess
@@ -15,6 +14,8 @@ from typing import TYPE_CHECKING
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.actor import process_actor
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.creation import create_signed_tag
@@ -165,7 +166,7 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
         lease = leases_by_branch(root).get(current_branch(root), {})
         require_release(lease.get("lease_state") == "valid", "release_live_lease_required")
         require_release(
-            lease.get("holder_ref") == os.environ.get("ETHOS_ACTOR", "").strip(),
+            lease.get("holder_ref") == process_actor(),
             "lease_actor_mismatch",
         )
     gaps = (
@@ -219,8 +220,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
     """Re-derive complete permitted refs; a stored plan never grants broader effects."""
     effect = git_effect_from_plan(plan)
     require_release(
-        plan.authority.get("actor")
-        == (os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"),
+        plan.authority.get("actor") == (process_issuer()),
         "release_request_actor_mismatch",
     )
     policy = release_branch_policy(selection.root)
@@ -278,7 +278,7 @@ def _compile_plan(
         policy={
             "operation": "release.promote",
             "release_branch": selection.branch,
-            "actor": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+            "actor": process_issuer(),
         },
         prior_attestations={
             "proof": proof.model_dump(mode="json"),
@@ -335,7 +335,7 @@ def _execute(
     attestation = execute_git_effect(
         selection.root,
         plan,
-        issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+        issuer=process_issuer(),
     )
     sync = (
         {"worktree_sync": "not_required"}

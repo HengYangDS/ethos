@@ -8,12 +8,12 @@ binding step did not finish binds those worktrees before it does anything else.
 
 from __future__ import annotations
 
-import os
 import shlex
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.role_rename import RENAMED_ROLES
 from ethos.adapters.admission.role_rename import ROLE_RENAME_OPERATION
 from ethos.adapters.admission.role_rename import legacy_role_renames
@@ -298,7 +298,7 @@ def rename_legacy_roles(
     attestation = execute_git_effect(
         root,
         plan,
-        issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+        issuer=process_issuer(),
     )
     bind_renamed_worktrees(root, targets)
     return {

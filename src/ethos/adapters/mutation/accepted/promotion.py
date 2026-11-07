@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.ref_intent import sweep_stale_ref_intents
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
@@ -286,7 +286,7 @@ def _candidate_promotion(
         attestation = execute_git_effect(
             root,
             plan,
-            issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+            issuer=process_issuer(),
         )
     except ValueError as error:
         report = _accepted_block(

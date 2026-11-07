@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -12,6 +11,7 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
@@ -74,7 +74,7 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
             "lease_generation_stale",
         ),
         (
-            os.environ.get("ETHOS_ACTOR", "").strip() == request.holder_ref,
+            process_actor() == request.holder_ref,
             "lease_actor_mismatch",
         ),
         (not dirty_paths, "handoff_export_requires_clean_lane"),
@@ -140,7 +140,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         normalized_target = request.target_holder_ref
     if manifest and normalized_target != str(manifest.get("target_holder_ref") or ""):
         gaps.append("handoff_target_holder_mismatch")
-    if os.environ.get("ETHOS_ACTOR", "").strip() != normalized_target:
+    if process_actor() != normalized_target:
         gaps.append("handoff_target_actor_mismatch")
     branch = str(manifest.get("source_lane_ref") or "")
     checks = (
@@ -235,7 +235,7 @@ def revoke_cross_host_source(
             str(binding.get("expires_at") or ""),
             "handoff_source_lease_mismatch",
         ),
-        (os.environ.get("ETHOS_ACTOR", "").strip(), request.holder_ref, "lease_actor_mismatch"),
+        (process_actor(), request.holder_ref, "lease_actor_mismatch"),
     )
     static_checks = (
         (

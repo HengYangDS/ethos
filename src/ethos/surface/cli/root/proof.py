@@ -19,6 +19,7 @@ from cyclopts import Parameter
 
 import ethos.adapters.mutation.remediation.guidance as remediation
 import ethos.domain.status as status_domain
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.proof_slot import STALE
@@ -467,7 +468,7 @@ def prove(
         "plan": plan,
         "checks": tuple(checks),
         "verdict": verdict,
-        "issuer": os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
+        "issuer": process_issuer(),
         "scope": str(scope_binding["scope"]),
         "boundary": boundary,
         "objective": options.objective,

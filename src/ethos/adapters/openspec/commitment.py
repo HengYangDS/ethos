@@ -14,6 +14,7 @@ from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import Commitment
 from ethos.repository.openspec.identifiers import active_change_root
@@ -114,10 +115,7 @@ def _spec_free_acceptance(
         or states.get("design") != "done"
         or states.get("tasks") != "done"
         or set(digests) != set(names)
-        or any(
-            len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest)
-            for digest in digests.values()
-        )
+        or any(not is_sha256_hex(digest) for digest in digests.values())
     ):
         return ()
     return (

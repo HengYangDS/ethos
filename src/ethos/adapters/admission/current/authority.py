@@ -6,6 +6,7 @@ import shlex
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -52,9 +53,9 @@ class CurrentAuthority:
                 )
             ), True
         if self.reason.startswith("invocation_actor_missing:") and holder:
-            return f"export ETHOS_ACTOR={holder}", False
+            return f"export {ACTOR_VARIABLE}={holder}", False
         if self.reason.startswith("lease_holder_mismatch:") and holder:
-            return f"export ETHOS_ACTOR={holder}", True
+            return f"export {ACTOR_VARIABLE}={holder}", True
         return f"ethos lane status --root {root.resolve().as_posix()} --json", False
 
     def projection(self) -> dict[str, object]:

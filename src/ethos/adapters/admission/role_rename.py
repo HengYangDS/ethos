@@ -7,10 +7,10 @@ role declarations, current refs and, for a topic, fresh linked-worktree coordina
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import plan_ref_intents
 from ethos.adapters.repo.git import committed_file_text
@@ -108,7 +108,7 @@ def require_owned_topic(
     if lease.state != "valid" or lease.row is None:
         msg = f"retained_topic_lease_{lease.state}:{source}"
         raise ValueError(msg)
-    if lease.row.holder_ref != os.environ.get("ETHOS_ACTOR", "").strip():
+    if lease.row.holder_ref != process_actor():
         msg = "lease_actor_mismatch"
         raise ValueError(msg)
     if observe_lease(db, target).state != "missing":

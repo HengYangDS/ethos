@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.digest import is_object_id
 from ethos.contracts.plan import GitRefUpdate
 
 if TYPE_CHECKING:
@@ -85,7 +86,7 @@ def _prepared_work_lane_ref_transition_report(
             {},
             [f"lane_ref_observation_stale:{expected_ref}!={observed_ref}"],
         )
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    actor = process_actor()
     gaps = _work_lane_ref_transition_gaps(
         branch,
         lease,
@@ -218,7 +219,7 @@ def _is_zero_oid(value: str) -> bool:
 
 
 def _is_oid(value: str) -> bool:
-    return len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
+    return is_object_id(value)
 
 
 def _admit(

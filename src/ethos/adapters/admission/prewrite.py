@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.admission.patch_admission import patch_admission
@@ -90,7 +90,7 @@ def prewrite_guard(
     current_authority = observe_current_authority(
         root=root,
         branch=effective["branch"],
-        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        actor=process_actor(),
         required=effective["role"] == ROLE_WORK_LANE and tracked,
         head_source="rebase_branch_ref"
         if effective["source"] == "git_rebase_head_name"

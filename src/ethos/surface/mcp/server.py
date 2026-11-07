@@ -1,7 +1,6 @@
 """Project native application operations through a root-bound MCP transport."""
 
 import math
-import os
 from collections.abc import Callable
 from functools import partial
 from functools import wraps
@@ -19,6 +18,7 @@ from fastmcp.tools import ToolResult
 from mcp.types import CallToolRequestParams
 from mcp.types import ToolAnnotations
 
+from ethos.adapters.actor import process_actor
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
@@ -36,7 +36,7 @@ class _BoundCalls(Middleware):
         self, timeout_seconds: float, *, target_binding: tuple[Path, Path] | None = None
     ) -> None:
         self.timeout_seconds = timeout_seconds
-        self.actor = os.environ.get("ETHOS_ACTOR", "")
+        self.actor = process_actor()
         self.target_binding = target_binding
         self.lock = anyio.Lock()
 
@@ -48,7 +48,7 @@ class _BoundCalls(Middleware):
         try:
             with anyio.fail_after(self.timeout_seconds):
                 async with self.lock:
-                    if os.environ.get("ETHOS_ACTOR", "") != self.actor:
+                    if process_actor() != self.actor:
                         message = "MCP process identity changed; restart with the intended actor."
                         raise ToolError(message)
                     if self.target_binding is not None:

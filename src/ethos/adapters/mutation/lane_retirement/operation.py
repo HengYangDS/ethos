@@ -15,6 +15,7 @@ from typing import cast
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_content
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
@@ -37,6 +38,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease_from_conne
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.plan import TransitionPlan
@@ -107,8 +109,7 @@ def _load_bytes(store: Path, path: str, sha256: str) -> bytes:
     candidate = Path(path).expanduser().resolve()
     digest = sha256.removeprefix("sha256:")
     if (
-        len(digest) != 64
-        or set(digest) - set("0123456789abcdef")
+        not is_sha256_hex(digest)
         or candidate.parent != store.resolve()
         or candidate.name != f"{digest}.json"
     ):
@@ -302,9 +303,7 @@ def observe_operation(root: Path, request: RetirementOperation) -> RetirementObs
 
 def _current_actor(request: RetirementOperation) -> bool:
     authority = cast("Mapping[str, object]", request.authority)
-    return bool(authority.get("actor")) and os.environ.get("ETHOS_ACTOR", "").strip() == str(
-        authority.get("actor")
-    )
+    return bool(authority.get("actor")) and process_actor() == str(authority.get("actor"))
 
 
 def _git_plan(request: RetirementOperation) -> TransitionPlan:

@@ -8,6 +8,7 @@ from time import monotonic
 
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import run_git
+from ethos.contracts.digest import is_object_id
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
@@ -17,7 +18,6 @@ from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
 from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 
 _SOURCE_BUILD_IDENTITY = SDIST_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE
-_HEX = frozenset("0123456789abcdef")
 
 
 def source_build_identity(root: Path, *, include_overlay: bool = True) -> BuildIdentity:
@@ -122,4 +122,4 @@ def _git(root: Path, *args: str, deadline: float, env: dict[str, str] | None = N
 
 
 def _valid_git_identity(value: str) -> bool:
-    return len(value) in {40, 64} and not set(value) - _HEX
+    return is_object_id(value)

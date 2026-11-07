@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
@@ -33,6 +33,8 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
+    import os
+
     from ethos.contracts.plan import GitEffect
     from ethos.contracts.plan import GitRefUpdate
     from ethos.contracts.plan import TransitionPlan
@@ -192,7 +194,7 @@ def compile_observed_git_effect(
         extra["lease_generation"] = coordination
         effect_policy.update(
             repository_identity_transitions=relations,
-            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+            actor=process_actor(),
             execution_branch=current_branch(root),
         )
     # A closeout acts from the accepted pre-state it advances; only produced revisions are strict.
@@ -238,7 +240,7 @@ def _observe_identity_transition(
     generation = string_mapping(
         string_mapping(proof_plan.facts.get("values")).get("lease_generation")
     )
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    actor = process_actor()
     owned = {
         branch: lease
         for branch, lease in leases_by_branch(root).items()

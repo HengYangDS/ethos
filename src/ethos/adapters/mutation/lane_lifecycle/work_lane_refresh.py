@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.merge import merge_work_lane
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import PendingRefresh
@@ -479,7 +479,7 @@ def _restore_interrupted_refresh(
 
 
 def _actor() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    return process_issuer()
 
 
 def _refresh_transition_plan(

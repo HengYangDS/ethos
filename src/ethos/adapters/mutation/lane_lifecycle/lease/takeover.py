@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
@@ -146,7 +146,7 @@ def _takeover_authorization_gaps(
     now = datetime.now(UTC)
     checks = (
         (
-            os.environ.get("ETHOS_ACTOR", "").strip() == request.target_holder_ref,
+            process_actor() == request.target_holder_ref,
             "lease_takeover_actor_mismatch",
         ),
         (accepted == authorization, "lease_takeover_authorization_unaccepted"),

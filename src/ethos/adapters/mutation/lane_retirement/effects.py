@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -272,4 +272,4 @@ def reobservation_gaps(
 
 
 def actor_ref() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip()
+    return process_actor()

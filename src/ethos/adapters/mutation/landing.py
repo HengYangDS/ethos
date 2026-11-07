@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.mutation.remediation.guidance as remediation
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.mutation.proof_admission import proof_attestation
@@ -355,7 +355,7 @@ def _candidate_materialization_plan(
 ) -> tuple[TransitionPlan, Attestation]:
     """Consume exact original effect evidence and re-admit its current materialization."""
     digest = decision.subject.expected_state.get("candidate_recovery_plan") if decision else None
-    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    issuer = process_issuer()
     original = validated_plan_attestation(root, str(digest), issuer=issuer) if digest else None
     if original is None:
         message = "candidate_recovery_plan_unproven"
@@ -384,7 +384,7 @@ def _candidate_cas(
     plan: TransitionPlan,
     candidate_head: str,
 ) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
-    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    issuer = process_issuer()
     try:
         return execute_git_effect(root, plan, issuer=issuer), None, "", 1
     except ProcessExecutionError:

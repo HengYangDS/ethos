@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 from typing import Annotated
 from typing import cast
@@ -12,6 +11,7 @@ from typing import cast
 from cyclopts import App
 from cyclopts import Parameter
 
+from ethos.adapters.actor import process_actor
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -221,7 +221,7 @@ def release(
         result = release_attestation(
             repo,
             identity,
-            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+            actor=process_actor(),
             review=reason if review_content else "",
             apply=apply,
         )

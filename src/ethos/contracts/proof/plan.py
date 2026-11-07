@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
 
@@ -65,10 +66,7 @@ def archive_authority_valid(value: object) -> bool:
         value.get("predicate") == "effect:git-ref-update"
         and value.get("source") == "archive_commit"
         and value.get("claim", {}).get("operation") == "openspec.archive"
-        and all(
-            isinstance(digest, str) and len(digest) == 64 and set(digest) <= set("0123456789abcdef")
-            for digest in digests
-        )
+        and all(is_sha256_hex(digest) for digest in digests)
         and isinstance(authorized, tuple | list)
         and bool(authorized)
         and all(isinstance(path, str) and path for path in authorized)

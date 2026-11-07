@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shlex
 import shutil
 from datetime import UTC
@@ -16,6 +15,7 @@ from typing import TypedDict
 
 from filelock import FileLock
 
+from ethos.adapters.actor import process_issuer
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.creation import create_signed_tag
@@ -99,17 +99,6 @@ def mapped_retag(
             shutil.rmtree(requests / tag, ignore_errors=True)
             item["receipt"] = receipt.id
         return _report(root, [], planned, {}, digest, applied=True)
-
-
-def mapped_retag_receipt(root: Path, tag_oid: str) -> Attestation | None:
-    """Return the one receipt that re-created this exact tag object, if any."""
-    _selected, members = read_attestation_set(root)
-    found = [
-        item
-        for item in members
-        if item.predicate == RETAG_PREDICATE and item.subject == f"git:annotated-tag:{tag_oid}"
-    ]
-    return found[0] if len(found) == 1 else None
 
 
 def mapped_retag_move(root: Path, *, ref: str, old: str, new: str) -> bool:
@@ -259,7 +248,7 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str]) -> Attestation:
         updates={ref: GitRefUpdate(expected=item["expected"], desired=item["recreated"])},
         assertions={},
     )
-    actor = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    actor = process_issuer()
     plan = compile_observed_git_effect(
         root,
         None,

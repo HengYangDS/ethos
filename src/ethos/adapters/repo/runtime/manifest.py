@@ -16,6 +16,7 @@ from typing import NoReturn
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 from ethos.adapters.repo.runtime.inventory_memo import open_inventory_memo
+from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.release.identity import build_identity_from_projection
 
 if TYPE_CHECKING:
@@ -24,7 +25,6 @@ if TYPE_CHECKING:
 
 _SCHEMA_VERSION = 7
 _LEGACY_SCHEMA_VERSION = 6
-_HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
 _PAYLOAD_MISMATCH = "hook_runtime_payload_mismatch"
@@ -282,7 +282,7 @@ def _canonical(payload: object) -> bytes:
 
 
 def _valid_digest(value: str) -> bool:
-    return len(value) == 64 and not set(value) - _HEX
+    return is_sha256_hex(value)
 
 
 def canonical_architecture(value: str) -> str:

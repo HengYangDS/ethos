@@ -27,6 +27,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `ethos.application.land.operation` and `ethos.application.publication.operation`. Proof joins
   them as `prove_repository` in `ethos.application.proof.operation`. The SDK is not qualified for
   0.2.0; callers of the old paths update their imports.
+- The packaged `ethos-repository-work` Skill and the quickstart tell agents to act on the typed
+  `next` step: run `next.argv` only for a `command`, take a `decision` to the person, and read
+  `next_action` as its rendering for people. The package acceptance readers follow `next` too.
 
 ## [0.2.0-beta.6] - 2026-11-07
 

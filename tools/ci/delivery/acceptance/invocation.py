@@ -187,3 +187,14 @@ def invoke(
     if stderr := completed.stderr.strip():
         diagnostic = f"{diagnostic}\nstderr:{stderr}"
     return completed.returncode, payload, diagnostic
+
+
+def continuation(result: Mapping[str, object], *, kind: str = "command") -> tuple[str, ...]:
+    """Return the argv of the result's typed next step of `kind`, or nothing; text is never parsed.
+
+    `invoke` returns the reader's own derivation of `next`, which `EthosResult.from_payload`
+    recomputes from `next_action`, so a carried step is never trusted.
+    """
+    step = result.get("next")
+    argv = step.get("argv") if isinstance(step, dict) and step.get("kind") == kind else ()
+    return tuple(argv) if isinstance(argv, list) and all(isinstance(a, str) for a in argv) else ()

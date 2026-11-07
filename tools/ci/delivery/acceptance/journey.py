@@ -16,7 +16,6 @@ import hashlib
 import json
 import platform
 import re
-import shlex
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
@@ -35,6 +34,7 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import acceptance_observation
 from tools.ci.delivery.acceptance.invocation import command_label
+from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.distribution import install_archive
@@ -252,12 +252,12 @@ def prove_full(
         raise RuntimeError(message)
     reading = (*prefix, "status", "--root", str(repo), "--json")
     _code, guidance, detail = invoke(repo, reading, environment=environment)
-    following = shlex.split(str(guidance.get("next_action") or ""))
-    if guidance.get("required_gaps") != ["candidate_branch_missing"] or following[:3] != [
+    following = continuation(guidance)
+    if guidance.get("required_gaps") != ["candidate_branch_missing"] or following[:3] != (
         "ethos",
         "lane",
         "candidate",
-    ]:
+    ):
         message = f"release_journey_candidate_guidance_invalid:{detail}"
         raise RuntimeError(message)
     code, candidate, detail = invoke(

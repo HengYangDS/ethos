@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
+from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -113,7 +114,7 @@ def prove_native_merge(
         return result
 
     def apply(root: Path, preview: dict[str, object]) -> dict[str, object]:
-        return command(root, *shlex.split(str(preview["next_action"]))[1:])
+        return command(root, *continuation(preview)[1:])
 
     target, work, ours, theirs = _prepare_fixture(repo, env)
     installed = command(target, "hook", "install", "--root", str(target), "--json")

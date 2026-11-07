@@ -14,6 +14,7 @@ from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.merge import prove_native_merge
 
@@ -93,7 +94,7 @@ def prove_lifecycle(
     if prewrite_gaps != ["openspec_change_metadata_prewrite_required:bootstrap-change"]:
         message = "package_lane_bootstrap_prewrite_invalid"
         raise RuntimeError(message)
-    next_action = tuple(shlex.split(str(prewrite_result.get("next_action") or "")))
+    next_action = continuation(prewrite_result)
     if next_action[3:5] != ("--paths", f"{change_root}/.openspec.yaml"):
         message = "package_lane_bootstrap_continuation_invalid"
         raise RuntimeError(message)
@@ -276,7 +277,7 @@ def prove_signature_repair(
     ):
         message = "package_signature_payload_or_trust_invalid"
         raise RuntimeError(message)
-    next_action = shlex.split(str(applied.get("next_action", "")))
+    next_action = list(continuation(applied))
     if next_action != [
         "ethos",
         "prove",

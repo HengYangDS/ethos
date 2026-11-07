@@ -24,13 +24,15 @@ From the repository checkout, begin with the bounded reader:
 uv run ethos status --json
 ```
 
-Read `required_gaps`, singular `next_action`, derived `continuation`,
+Read `required_gaps`, the typed `next` step, derived `continuation`,
 `missing_facts_or_evidence`, and `user_decision_required` before changing
-tracked files. The schema-version-`3` result preserves `state` and
-`required_gaps`. A readiness result is not executed proof, landing,
-publication, or remote push. Follow only the selected boundary, not a fixed
-status/plan/prove pipeline. When `continuation=done`, the requested observation
-is complete; do not repeat it or create work merely to obtain another action.
+tracked files. Run `next.argv` only when `next.kind` is `command`; a `decision`
+waits for a person, and `next_action` renders the step for people. The
+schema-version-`3` result preserves `state` and `required_gaps`. A readiness
+result is not executed proof, landing, publication, or remote push. Follow only
+the selected boundary, not a fixed status/plan/prove pipeline. When
+`continuation=done`, the requested observation is complete; do not repeat it or
+create work merely to obtain another action.
 
 ## New Repository
 

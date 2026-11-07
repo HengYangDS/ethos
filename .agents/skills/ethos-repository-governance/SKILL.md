@@ -13,9 +13,11 @@ Work Lanes, OpenSpec consumption, adoption profiles, or feedback-driven improvem
 ## Workflow
 
 1. Read `AGENTS.md`, then run `ethos status --json` in the target worktree.
-2. Read the result's `verdict`, `required_gaps`, singular `next_action`,
+2. Read the result's `verdict`, `required_gaps`, typed `next`,
    `continuation`, and `user_decision_required`; follow that result rather than
-   a remembered sequence. A passing `done` result ends that observation; do not
+   a remembered sequence. Run `next.argv` only when `next.kind` is `command`,
+   and take a `decision` to the person; `next_action` is its rendering for
+   people. A passing `done` result ends that observation; do not
    rerun its reader or invent a task. It does not claim unrelated work complete.
 3. Load the selected official sources, not only their summaries. Before claiming
    intent alignment, account for each relevant source constraint as retained,

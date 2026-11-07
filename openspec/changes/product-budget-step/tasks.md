@@ -21,6 +21,6 @@
 
 - [x] 2.1 Record the necessity review in DR-0020, index it, and set the product ceiling to 80,000 in
       `.config/checks/format-selection/policy.toml`. Done when the lane's source-budget gate passes
-      and reports the product line-equivalents after the removal. At 19:2x the lane source budget
+      and reports the product line-equivalents after the removal. At 20:04:27 the lane source budget
       passed with no gap: product 73,121 of 80,000 line-equivalents (517,273 code tokens), down from
       73,163 (517,571) before the removal. DR-0020 is indexed.

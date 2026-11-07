@@ -189,12 +189,15 @@ def invoke(
     return completed.returncode, payload, diagnostic
 
 
-def continuation(result: Mapping[str, object], *, kind: str = "command") -> tuple[str, ...]:
-    """Return the argv of the result's typed next step of `kind`, or nothing; text is never parsed.
+def continuation(result: Mapping[str, object]) -> tuple[str, ...]:
+    """Return the argv of the result's typed next step, or nothing; text is never parsed.
 
-    `invoke` returns the reader's own derivation of `next`, which `EthosResult.from_payload`
-    recomputes from `next_action`, so a carried step is never trusted.
+    A `command` and a `decision` carry an argv; these acceptance flows act as the person who
+    approves a decision. `invoke` returns the reader's own derivation of `next`, which
+    `EthosResult.from_payload` recomputes from `next_action`, so a carried step is never trusted.
     """
     step = result.get("next")
-    argv = step.get("argv") if isinstance(step, dict) and step.get("kind") == kind else ()
+    kind = step.get("kind") if isinstance(step, dict) else None
+    argv = step.get("argv") if isinstance(step, dict) and kind in {"command", "decision"} else ()
+    return tuple(argv) if isinstance(argv, list) and all(isinstance(a, str) for a in argv) else ()
     return tuple(argv) if isinstance(argv, list) and all(isinstance(a, str) for a in argv) else ()

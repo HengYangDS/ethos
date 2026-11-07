@@ -15,13 +15,12 @@ def _result(next_action: str, *, decision: bool = False) -> dict[str, object]:
     ).to_dict()
 
 
-def test_a_reader_follows_only_the_typed_step_of_its_kind() -> None:
-    """The argv comes from `next`; prose, another kind or a missing step yields nothing."""
-    command = _result("ethos lane candidate --apply --json")
-    decision = _result("ethos lane candidate --apply --json", decision=True)
+def test_a_reader_follows_only_a_typed_step_with_an_argv() -> None:
+    """The argv comes from `next`; prose, a template or a missing step yields nothing."""
+    argv = ("ethos", "lane", "candidate", "--apply", "--json")
 
-    assert continuation(command) == ("ethos", "lane", "candidate", "--apply", "--json")
-    assert continuation(decision) == ()
-    assert continuation(decision, kind="decision") == continuation(command)
+    assert continuation(_result(" ".join(argv))) == argv
+    assert continuation(_result(" ".join(argv), decision=True)) == argv
     assert continuation(_result("repair the reported gap and rerun the command")) == ()
+    assert continuation(_result("ethos lane candidate --root <repository> --json")) == ()
     assert continuation({"next_action": "ethos status --json"}) == ()

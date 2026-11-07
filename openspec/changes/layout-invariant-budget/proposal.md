@@ -43,8 +43,8 @@ None.
 
 ### Modified Capabilities
 
-- `quality`: the Direct Source Budget requirement names the layout-invariant measure and the
-  line-equivalent ceilings.
+- `quality`: adds the requirement `Python budget coordinates are layout-invariant` beside the
+  unchanged `Direct Source Budget`.
 
 ## Impact
 

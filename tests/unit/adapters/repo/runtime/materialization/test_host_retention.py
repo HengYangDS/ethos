@@ -11,6 +11,7 @@ from filelock import Timeout
 
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -78,8 +79,8 @@ def test_a_rollback_supply_keeps_its_installation(tmp_path: Path) -> None:
     assert report["retired"] == []
 
 
-def test_a_record_whose_repository_is_gone_is_dropped(tmp_path: Path) -> None:
-    """A removed repository no longer holds anything, so its record and installation go."""
+def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(tmp_path: Path) -> None:
+    """A moved repository or an unmounted volume looks like a removed one, so nothing goes."""
     store = _store(tmp_path)
     runtime = _installation(store, "d" * 64)
     repository = _consumer(tmp_path / "repository", current=runtime)
@@ -88,7 +89,9 @@ def test_a_record_whose_repository_is_gone_is_dropped(tmp_path: Path) -> None:
 
     report = retire_unused_installations(store, in_use=_nothing_in_use)
 
-    assert report["retired"] == [runtime.parents[1].as_posix()]
+    assert runtime.exists()
+    assert (report["retired"], report["absent"]) == ([], [repository.as_posix()])
+    assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 
 def test_unrecorded_installations_are_never_retired(tmp_path: Path) -> None:

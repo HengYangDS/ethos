@@ -1,12 +1,14 @@
 """Retire host-store installations that no recorded consumer still needs.
 
 A repository records itself in each installation it selects or holds as rollback supply. An
-installation is retired only when every recorded consumer is gone or names it in neither its
-selector (`CURRENT`) nor its rollback selector (`ROLLBACK`), and no running process or binding
-refers into it. An installation pinned before consumers were recorded has unknown users, so it
-stays; so does one whose consumer record or selector cannot be read, and one whose consumer holds
-its selection lock, because a selection holds it from the pin that records the consumer until its
-selectors name what it pinned. Retention creates nothing in a consumer without ETHOS state.
+installation is retired only when every recorded consumer names it in neither its selector
+(`CURRENT`) nor its rollback selector (`ROLLBACK`), and no running process or binding refers into
+it. An installation pinned before consumers were recorded has unknown users, so it stays; so does
+one whose consumer record or selector cannot be read, one whose consumer holds its selection lock,
+because a selection holds it from the pin that records the consumer until its selectors name what
+it pinned, and one whose consumer path is gone, because a moved repository or an unmounted volume
+looks the same as a removed one. The report names those absent consumers. Retention creates
+nothing in a consumer without ETHOS state.
 """
 
 from __future__ import annotations
@@ -42,10 +44,11 @@ def retire_unused_installations(
     """Retire each recorded installation that no consumer, process or binding still needs."""
     retired: list[str] = []
     retained: list[str] = []
+    absent: set[str] = set()
     unrecorded = 0
     references: frozenset[Path] | None = None
     if not store.is_dir() or store.is_symlink():
-        return {"retired": retired, "retained": retained, "unrecorded": unrecorded}
+        return {"retired": retired, "retained": retained, "unrecorded": unrecorded, "absent": []}
     with FileLock(
         store / "install.lock",
         timeout=seconds("lock"),
@@ -61,9 +64,12 @@ def retire_unused_installations(
                 continue
             needed = False
             for record, consumer in consumers.items():
-                if _consumer_state(consumer, installation) == "released":
+                state = _consumer_state(consumer, installation)
+                if state == "released":
                     record.unlink(missing_ok=True)
                 else:
+                    if state == "absent" and consumer is not None:
+                        absent.add(consumer.as_posix())
                     needed = True
             if not needed:
                 references = in_use() if references is None else references
@@ -73,16 +79,22 @@ def retire_unused_installations(
                 continue
             remove_generated_tree(installation)
             retired.append(installation.as_posix())
-    return {"retired": retired, "retained": retained, "unrecorded": unrecorded}
+    return {
+        "retired": retired,
+        "retained": retained,
+        "unrecorded": unrecorded,
+        "absent": sorted(absent),
+    }
 
 
 def _consumer_state(
     consumer: Path | None, installation: Path
-) -> Literal["needs", "released", "unknown"]:
+) -> Literal["needs", "released", "unknown", "absent"]:
+    """Say whether a consumer needs the installation; a missing path is never released."""
     if consumer is None:
         return "unknown"
     if not consumer.exists() and not consumer.is_symlink():
-        return "released"
+        return "absent"
     try:
         # A held selection lock is a selection in progress, which may be about to name this
         # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.

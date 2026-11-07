@@ -50,6 +50,8 @@ class PytestReport:
     outcomes: tuple[tuple[str, str, str], ...]
     warnings: tuple[PytestEvent, ...]
     failed: bool
+    # A case failed, errored or warned, or none passed; `failed` adds the session exit status.
+    tests_failed: bool
 
 
 @dataclass(slots=True)
@@ -208,6 +210,13 @@ def pytest_report(text: str) -> PytestReport:
             else 1
         )
     )
+    tests_failed = bool(
+        failures
+        or errors
+        or warnings
+        or collection_failed
+        or all(report.outcome != "passed" for report in reports)
+    )
     return PytestReport(
         total=len(reports) - correction,
         failures=failures,
@@ -220,12 +229,6 @@ def pytest_report(text: str) -> PytestReport:
             if (tag := _junit_outcome(report)) is not None
         ),
         warnings=tuple(warnings),
-        failed=bool(
-            events[-1].exitstatus
-            or failures
-            or errors
-            or warnings
-            or collection_failed
-            or all(report.outcome != "passed" for report in reports)
-        ),
+        failed=bool(events[-1].exitstatus or tests_failed),
+        tests_failed=tests_failed,
     )

@@ -12,6 +12,7 @@ import pytest
 
 from ethos.adapters.process import run_command
 from ethos.repository.policy.quality.pytest import pytest_report
+from ethos.repository.policy.quality_reports import coverage_below_floor
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
@@ -455,3 +456,21 @@ def test_native_report_streams_refuse_unbound_identities(
     }
     with pytest.raises(ValueError, match=f"^{code}$"):
         actions[case]()
+
+
+@pytest.mark.parametrize(
+    ("percent", "fail_under", "precision", "below"),
+    [
+        (94.99, 95.0, 2, True),
+        (94.996, 95.0, 2, False),
+        (94.6, 95.0, 0, False),
+        (94.4, 95.0, 0, True),
+        (99.999, 100.0, 2, True),
+        (100.0, 100.0, 0, False),
+    ],
+)
+def test_a_floor_is_decided_as_coverage_decides_it(
+    *, percent: float, fail_under: float, precision: int, below: bool
+) -> None:
+    """Rounding follows the declared precision, and a floor of 100 needs an exact 100."""
+    assert coverage_below_floor(percent, fail_under, precision) is below

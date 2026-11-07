@@ -36,7 +36,9 @@ from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.paradigm.parameters import seconds
+from ethos.repository.policy.quality.pytest import pytest_report
 from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
+from ethos.repository.policy.quality_reports import coverage_below_floor
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 from ethos.repository.policy.quality_reports import unproven
@@ -219,6 +221,43 @@ def _native_configuration(root: Path) -> tuple[str, ...]:
     )
 
 
+def _behavior_gap(
+    root: Path,
+    measured: dict[str, object],
+    observed: dict[str, object],
+    *,
+    source: tuple[str, ...],
+    event_text: str,
+    failed: bool,
+) -> str:
+    """Name what a measured run fails, or nothing; a run short of the floor names the floor."""
+    files = cast("dict[str, dict[str, int]]", measured["files"])
+    if any(name not in files for name in source):
+        return "coverage_scope_incomplete"
+    if any(files[name]["lines"] > 0 and files[name]["hit_lines"] == 0 for name in source):
+        return "source_unexercised"
+    if measured["covered"] == 0 or pytest_report(event_text).tests_failed:
+        return "tests_failed"
+    if not failed:
+        return ""
+    floor = _coverage_floor(root)
+    if floor is None:
+        return "tests_failed"
+    observed["floor"] = {"fail_under": floor[0], "precision": floor[1]}
+    below = coverage_below_floor(cast("float", measured["combined_percent"]), *floor)
+    return "coverage_below_floor" if below else "tests_failed"
+
+
+def _coverage_floor(root: Path) -> tuple[float, int] | None:
+    """Return the floor and precision that the repository's coverage carrier declares."""
+    carrier = root / NATIVE_TOOL_LOCATIONS["coverage"]
+    try:
+        report = tomllib.loads(carrier.read_text(encoding="utf-8"))["tool"]["coverage"]["report"]
+        return float(report["fail_under"]), int(report.get("precision", 0))
+    except (OSError, KeyError, TypeError, ValueError, tomllib.TOMLDecodeError):
+        return None
+
+
 def refresh_access_times(environment: Path) -> None:
     """Give every file and directory of an attempt's environment an access time from now.
 
@@ -351,9 +390,9 @@ def _behavior_evidence(
             if missing:
                 reason = "test_command_failed" if result.returncode else f"{missing}_missing"
                 return {**evidence, **unproven("behavior", reason)}
+            event_text = events.read_text(encoding="utf-8")
             counts, failed = junit_stream_report(
-                junit.read_text(encoding="utf-8"),
-                pytest_events=events.read_text(encoding="utf-8"),
+                junit.read_text(encoding="utf-8"), pytest_events=event_text
             )
             evidence["tests"] = counts
             if not coverage.is_file():
@@ -365,16 +404,16 @@ def _behavior_evidence(
                 repository_root=root.resolve(),
                 source_paths=bindable,
             )
-            evidence["coverage"] = {key: value for key, value in measured.items() if key != "files"}
-            files = cast("dict[str, dict[str, int]]", measured["files"])
-            if any(name not in files for name in source):
-                reason = "coverage_scope_incomplete"
-            elif any(files[name]["lines"] > 0 and files[name]["hit_lines"] == 0 for name in source):
-                reason = "source_unexercised"
-            elif result.returncode or failed or measured["covered"] == 0:
-                reason = "tests_failed"
-            else:
-                reason = ""
+            observed = {key: value for key, value in measured.items() if key != "files"}
+            evidence["coverage"] = observed
+            reason = _behavior_gap(
+                root,
+                measured,
+                observed,
+                source=source,
+                event_text=event_text,
+                failed=failed or bool(result.returncode),
+            )
             if reason:
                 return {**evidence, **unproven("behavior", reason)}
         except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:

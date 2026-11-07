@@ -30,6 +30,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The packaged `ethos-repository-work` Skill and the quickstart tell agents to act on the typed
   `next` step: run `next.argv` only for a `command`, take a `decision` to the person, and read
   `next_action` as its rendering for people. The package acceptance readers follow `next` too.
+- A Python test run whose tests all pass but whose coverage is below the declared floor now blocks
+  with `quality_behavior_coverage_below_floor` instead of `quality_behavior_tests_failed`, and its
+  coverage evidence names the floor.
 
 ## [0.2.0-beta.6] - 2026-11-07
 

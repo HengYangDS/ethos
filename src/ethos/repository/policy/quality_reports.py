@@ -211,6 +211,11 @@ def coverage_report(
     )
 
 
+def coverage_below_floor(percent: float, fail_under: float, precision: int) -> bool:
+    """Decide a floor as coverage.py does: rounded to its precision, and 100 only when exact."""
+    return percent != 100 if fail_under == 100 else round(percent, precision) < fail_under
+
+
 def coverage_stream_report(
     payload: bytes,
     *,

@@ -69,8 +69,9 @@ def test_probe_measures_with_the_repository_coverage_carrier(tmp_path: Path) -> 
 
     report = python_quality.behavior_report(repo)
 
-    assert report["required_gaps"] == ["quality_behavior_tests_failed"], report
+    assert report["required_gaps"] == ["quality_behavior_coverage_below_floor"], report
     assert report["tests"] == {"total": 1, "failures": 0, "errors": 0, "skipped": 0}
+    assert report["coverage"]["floor"] == {"fail_under": 100.0, "precision": 0}
     assert "fail-under=100" in report["native"]["stdout"]
 
 

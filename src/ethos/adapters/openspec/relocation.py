@@ -492,7 +492,9 @@ def active_change_relocation_scope(
         "authorized_paths": relocation["authorized_paths"] if matched else [],
         "changes": [{"name": target}],
         "required_gaps": gaps,
-        "next_action": "" if matched else "unset ETHOS_CHANGE",
+        "next_action": ""
+        if matched
+        else "select the relocated Change, or omit --change and unset ETHOS_CHANGE",
         "evidence_boundary": "exact_source_identity_repair_only",
         "openspec": {"verdict": "unknown", "state": "identity_repair_only", "required_gaps": []},
     }

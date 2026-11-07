@@ -9,7 +9,14 @@ from ethos.surface.cli.root_binding import resolve_root
 
 
 @app.command
-def status(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
+def status(
+    *, change: str | None = None, root: RootOption | None = None, json_output: JsonFlag = False
+) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     repo = resolve_root(root)
-    emit(inspect_repository(repo), json_output=json_output, enforce=False, artifact_root=repo)
+    emit(
+        inspect_repository(repo, change=change),
+        json_output=json_output,
+        enforce=False,
+        artifact_root=repo,
+    )

@@ -464,8 +464,11 @@ openspec validate --all --strict --json
 ethos lane archive-change --change <id> --expect-head <source-head> --json
 ```
 
-When several Changes are active, select one per invocation:
-`ETHOS_CHANGE=<id> ethos lane prewrite <path> --json`. The variable selects intent, never
+When several Changes are active, select one per invocation with `--change <id>` on `status`,
+`plan`, `prove`, `land` and `lane prewrite`, or with `change` on the MCP `status`, `plan` and `land`
+tools: `ethos lane prewrite <path> --change <id> --json`. The option takes precedence over an
+inherited `ETHOS_CHANGE` for the whole invocation, including the hooks and other child processes it
+starts, and ends with it; the variable remains the fallback. Either input selects intent, never
 permission; an empty or unknown value fails closed, and no selector is stored.
 
 ## Exact Ref Observation For CI

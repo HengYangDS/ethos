@@ -18,6 +18,7 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.openspec.profile import active_change_progress_report
+from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
@@ -380,101 +381,105 @@ def land_repository(
     expect_plan_digest: str = "",
     independent_verification_receipt: Path | None = None,
     acceptance_purpose: AcceptancePurpose = "repository",
+    change: str | None = None,
 ) -> EthosResult:
     """Preview or apply exact candidate, accepted or release integration under current policy."""
-    repo = root.resolve()
-    acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
-    if acceptance_purpose == "local-source" and (closeout or release):
-        return EthosResult(
-            command="land",
-            verdict="block",
-            state="blocked",
-            required_gaps=("local_source_acceptance_effect_forbidden",),
-            next_action="produce strict repository proof before accepted or release integration",
-        )
-    if profile_blocks_operation(repo, closeout=closeout):
-        return profile_failure_result("land", repo)
-    if retag:
-        return _retag_result(
-            repo,
-            tags=retag,
-            original_tag=original_tag,
-            apply=apply,
-            authorize=authorize,
-            expect_plan_digest=expect_plan_digest,
-            conflict=bool(release or closeout or candidate_head),
-        )
-    if release:
-        report = (
-            {
-                "verdict": "block",
-                "state": "blocked",
-                "required_gaps": ["release_options_conflict"],
-                "next_action": "",
-                "data": {},
-            }
-            if closeout or candidate_head
-            else promote_release(
-                repo,
-                head=expect_head or "",
-                previous=release_head,
-                base=release_base,
-                tag=tag,
-                apply=apply,
-                authorized=authorize,
-                identity_transition=identity_transition,
-            )
-        )
-        return EthosResult(
-            command="land",
-            verdict=cast("Verdict", report["verdict"]),
-            state=str(report["state"]),
-            required_gaps=tuple(string_sequence(report["required_gaps"])),
-            next_action=str(report["next_action"]),
-            data=cast("dict[str, object]", report["data"]),
-        )
-    if closeout:
-        resume_renamed_bindings(repo)
-        renamed = rename_legacy_roles(
-            repo,
-            current_head=git.current_head(repo),
-            apply=apply,
-            authorized=authorize,
-            expect_head=expect_head,
-        )
-        if renamed is not None:
+    with selected_change(change):
+        repo = root.resolve()
+        acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
+        if acceptance_purpose == "local-source" and (closeout or release):
             return EthosResult(
                 command="land",
-                verdict=cast("Verdict", renamed["verdict"]),
-                state=str(renamed["state"]),
-                required_gaps=tuple(string_sequence(renamed["required_gaps"])),
-                next_action=str(renamed["next_action"]),
-                data={"branch_role_rename": renamed},
+                verdict="block",
+                state="blocked",
+                required_gaps=("local_source_acceptance_effect_forbidden",),
+                next_action=(
+                    "produce strict repository proof before accepted or release integration"
+                ),
             )
-    current_head = git.current_head(repo)
-    command = "closeout" if closeout else "land"
-    return (
-        _closeout_land_result(
-            repo=repo,
-            command=command,
-            apply=apply,
-            authorize=authorize,
-            expect_head=expect_head,
-            candidate_head=candidate_head,
-            current_head=current_head,
-            independent_verification_receipt=independent_verification_receipt,
-            identity_transition=identity_transition,
+        if profile_blocks_operation(repo, closeout=closeout):
+            return profile_failure_result("land", repo)
+        if retag:
+            return _retag_result(
+                repo,
+                tags=retag,
+                original_tag=original_tag,
+                apply=apply,
+                authorize=authorize,
+                expect_plan_digest=expect_plan_digest,
+                conflict=bool(release or closeout or candidate_head),
+            )
+        if release:
+            report = (
+                {
+                    "verdict": "block",
+                    "state": "blocked",
+                    "required_gaps": ["release_options_conflict"],
+                    "next_action": "",
+                    "data": {},
+                }
+                if closeout or candidate_head
+                else promote_release(
+                    repo,
+                    head=expect_head or "",
+                    previous=release_head,
+                    base=release_base,
+                    tag=tag,
+                    apply=apply,
+                    authorized=authorize,
+                    identity_transition=identity_transition,
+                )
+            )
+            return EthosResult(
+                command="land",
+                verdict=cast("Verdict", report["verdict"]),
+                state=str(report["state"]),
+                required_gaps=tuple(string_sequence(report["required_gaps"])),
+                next_action=str(report["next_action"]),
+                data=cast("dict[str, object]", report["data"]),
+            )
+        if closeout:
+            resume_renamed_bindings(repo)
+            renamed = rename_legacy_roles(
+                repo,
+                current_head=git.current_head(repo),
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+            )
+            if renamed is not None:
+                return EthosResult(
+                    command="land",
+                    verdict=cast("Verdict", renamed["verdict"]),
+                    state=str(renamed["state"]),
+                    required_gaps=tuple(string_sequence(renamed["required_gaps"])),
+                    next_action=str(renamed["next_action"]),
+                    data={"branch_role_rename": renamed},
+                )
+        current_head = git.current_head(repo)
+        command = "closeout" if closeout else "land"
+        return (
+            _closeout_land_result(
+                repo=repo,
+                command=command,
+                apply=apply,
+                authorize=authorize,
+                expect_head=expect_head,
+                candidate_head=candidate_head,
+                current_head=current_head,
+                independent_verification_receipt=independent_verification_receipt,
+                identity_transition=identity_transition,
+            )
+            if closeout
+            else _candidate_land_result(
+                repo=repo,
+                command=command,
+                apply=apply,
+                authorize=authorize,
+                expect_head=expect_head,
+                current_head=current_head,
+                identity_transition=identity_transition,
+                candidate_head=candidate_head,
+                acceptance_purpose=acceptance_purpose,
+            )
         )
-        if closeout
-        else _candidate_land_result(
-            repo=repo,
-            command=command,
-            apply=apply,
-            authorize=authorize,
-            expect_head=expect_head,
-            current_head=current_head,
-            identity_transition=identity_transition,
-            candidate_head=candidate_head,
-            acceptance_purpose=acceptance_purpose,
-        )
-    )

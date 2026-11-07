@@ -28,6 +28,7 @@ from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.start import start_work_lane
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_work_lane_base
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
+from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -278,6 +279,7 @@ def prewrite(
     editor_root: Annotated[str | None, Parameter(name="--editor-root")] = None,
     require_editor_root: Annotated[bool, Parameter(name="--require-editor-root")] = False,
     patch_path: Annotated[str | None, Parameter(name="--patch")] = None,
+    change: str | None = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -288,19 +290,20 @@ def prewrite(
         path if path.is_absolute() or has_invalid_path_character(path.as_posix()) else repo / path
         for path in typed_paths
     ]
-    report = prewrite_guard(
-        root=repo,
-        paths=resolved_paths,
-        editor_root=Path(editor_root) if editor_root is not None else None,
-        require_editor_root=require_editor_root,
-        patch=(
-            sys.stdin.read()
-            if patch_path == "-"
-            else Path(patch_path).read_text(encoding="utf-8")
-            if patch_path is not None
-            else ""
-        ),
-    )
+    with selected_change(change):
+        report = prewrite_guard(
+            root=repo,
+            paths=resolved_paths,
+            editor_root=Path(editor_root) if editor_root is not None else None,
+            require_editor_root=require_editor_root,
+            patch=(
+                sys.stdin.read()
+                if patch_path == "-"
+                else Path(patch_path).read_text(encoding="utf-8")
+                if patch_path is not None
+                else ""
+            ),
+        )
     report = {
         **report,
         "path_count": len(resolved_paths),

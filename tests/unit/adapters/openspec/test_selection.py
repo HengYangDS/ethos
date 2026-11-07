@@ -1,5 +1,6 @@
 """Incoming Change admission preserves the other parent's exact unchanged intent."""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,10 @@ import pytest
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.openspec.selection import incoming_change_gaps
 from ethos.adapters.openspec.selection import preserved_incoming_change_paths
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import resolve_change_selection
+from ethos.adapters.openspec.selection import selected_change
+from ethos.adapters.process import run_command
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -18,6 +22,29 @@ from tests.support.runtime_scenarios import git_process
 ACTIVE = [{"name": "active", "status": "in-progress"}]
 UNRESOLVED = (None, "openspec_change_provenance_unresolved")
 UNAVAILABLE = ["openspec_incoming_change_observation_unavailable"]
+
+
+@pytest.mark.parametrize("inherited", ["outer", None])
+def test_an_explicit_change_binds_one_invocation_and_its_children(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, inherited: str | None
+) -> None:
+    """An explicit Change wins over the inherited input and reaches children until it ends."""
+    if inherited is not None:
+        monkeypatch.setenv("ETHOS_CHANGE", inherited)
+    probe = (sys.executable, "-c", "import os; print(os.environ['ETHOS_CHANGE'])")
+    seen: list[str | None] = []
+
+    def failed_invocation() -> None:
+        with selected_change("inner"):
+            seen.extend((requested_change(), run_command(tmp_path, probe, check=True).stdout))
+            raise LookupError
+
+    with pytest.raises(LookupError):
+        failed_invocation()
+    with selected_change(None):
+        seen.append(requested_change())
+    assert seen == ["inner", "inner\n", inherited]
+    assert requested_change() == inherited
 
 
 @pytest.fixture

@@ -39,6 +39,7 @@ class _LandOptions:
     acceptance_purpose: Annotated[AcceptancePurpose, Parameter(name="--acceptance-purpose")] = (
         "repository"
     )
+    change: str | None = None
 
 
 _DEFAULT_LAND_OPTIONS = _LandOptions()

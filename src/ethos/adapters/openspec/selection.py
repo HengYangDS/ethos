@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
@@ -13,12 +14,32 @@ from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
+
+_SELECTION = "ETHOS_CHANGE"
 
 
 def requested_change(explicit: str | None = None) -> str | None:
     """Read one invocation-local intent choice without persisting permission."""
-    return explicit if explicit is not None else os.environ.get("ETHOS_CHANGE")
+    return explicit if explicit is not None else os.environ.get(_SELECTION)
+
+
+@contextmanager
+def selected_change(change: str | None) -> Generator[None]:
+    """Let an explicit Change win for one invocation and its children, then restore the input."""
+    if change is None:
+        yield
+        return
+    inherited = os.environ.get(_SELECTION)
+    os.environ[_SELECTION] = change
+    try:
+        yield
+    finally:
+        if inherited is None:
+            os.environ.pop(_SELECTION, None)
+        else:
+            os.environ[_SELECTION] = inherited
 
 
 def artifact_path_change(root: Path, paths: tuple[str, ...]) -> str | None:

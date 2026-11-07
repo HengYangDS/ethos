@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- `ethos status`, `ethos land` and `ethos lane prewrite` accept `--change <id>`, and the MCP
+  `status` and `land` tools accept `change`, as `plan` and `prove` already did. An explicit Change
+  takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks
+  and other child processes it starts, and ends with it.
+
 ## [0.2.0-beta.6] - 2026-11-07
 
 ### Changed

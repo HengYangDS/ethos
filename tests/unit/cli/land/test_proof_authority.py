@@ -113,3 +113,18 @@ def test_an_encoding_not_admissible_at_the_head_is_refused(
 
     assert refused["required_gaps"] == ["proof_attestation_authority_binding_mismatch"]
     assert git(fixture.candidate, "rev-parse", "HEAD") == before
+
+
+def test_an_explicit_change_selects_the_landed_intent_over_the_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The option overrides an inherited selection that names the unproved Change."""
+    fixture, head = first_change_proved_after_two_archives(tmp_path, monkeypatch)
+    monkeypatch.setenv("ETHOS_CHANGE", "second-change")
+    preview = ("land", "--expect-head", head, "--json")
+
+    inherited = run_ethos(*preview, cwd=fixture.worktree)
+    assert inherited["required_gaps"] == ["proof_not_proven"]
+    selected = run_ethos(*preview, "--change", "fixture-change", cwd=fixture.worktree)
+
+    assert (selected["verdict"], selected["required_gaps"]) == ("pass", [])

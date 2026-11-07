@@ -1,6 +1,7 @@
 """Check native MCP binding, validation and synchronous effect drainage."""
 
 import asyncio
+import os
 import threading
 from contextlib import suppress
 
@@ -13,6 +14,7 @@ from ethos.surface.mcp.server import create_server
 from ethos.surface.runtime_identity import with_runtime
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
@@ -73,6 +75,29 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
                 assert not (root / ".ethos").exists()
 
     asyncio.run(exercise())
+
+
+def test_selection_tools_bind_an_explicit_change_for_one_call(tmp_path, monkeypatch):
+    """MCP status, plan and land accept `change`, and no selection outlives its call."""
+    work = prepared_work_lane(tmp_path).worktree
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    server = create_server(work)
+
+    async def exercise():
+        async with Client(server) as client:
+            tools = {
+                tool.name: tool.input_schema["properties"] for tool in await client.list_tools()
+            }
+            assert all("change" in tools[name] for name in ("status", "plan", "land"))
+            selected = await client.call_tool("status", {"change": "missing"})
+            assert "ETHOS_CHANGE" not in os.environ
+            return selected.structured_content, (
+                await client.call_tool("status")
+            ).structured_content
+
+    selected, inferred = asyncio.run(exercise())
+    assert "openspec_requested_change_missing:missing" in selected["required_gaps"]
+    assert not any(gap.endswith(":missing") for gap in inferred["required_gaps"])
 
 
 def test_absent_target_mcp_stays_bound_through_formation(tmp_path, monkeypatch):

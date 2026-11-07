@@ -34,6 +34,7 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_validation import assess_proof_execution
 from ethos.adapters.mutation.proof_validation import expected_head_gaps
+from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.outcome import outcome_of
@@ -358,190 +359,199 @@ def prove(
     json_output: JsonFlag = False,
 ) -> None:
     """Produce proof readiness or one executed generic proof Attestation."""
-    repo = resolve_root(root)
-    if _emit_proof_preflight(repo=repo, options=options, json_output=json_output):
-        return
-    current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
-    audit_verdict = report_verdict(audit)
-    head_gaps = (
-        expected_head_gaps(options.expect_head, current_head)
-        if options.execute and resolution.verdict == "pass" and audit_verdict == "pass"
-        else ()
-    )
-    if resolution.verdict != "pass" or audit_verdict != "pass" or head_gaps:
-        unresolved = resolution.verdict != "pass"
-        audit_failed = audit_verdict != "pass"
-        audit_gaps = tuple(string_sequence(audit.get("required_gaps"))) or (
-            "repository_audit_not_passed",
+    with selected_change(options.change):
+        repo = resolve_root(root)
+        if _emit_proof_preflight(repo=repo, options=options, json_output=json_output):
+            return
+        current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
+        audit_verdict = report_verdict(audit)
+        head_gaps = (
+            expected_head_gaps(options.expect_head, current_head)
+            if options.execute and resolution.verdict == "pass" and audit_verdict == "pass"
+            else ()
         )
-        emit(
-            EthosResult(
-                command="prove",
-                verdict=(
-                    resolution.verdict if unresolved else audit_verdict if audit_failed else "block"
-                ),
-                state="gapped",
-                required_gaps=(
-                    resolution.required_gaps
+        if resolution.verdict != "pass" or audit_verdict != "pass" or head_gaps:
+            unresolved = resolution.verdict != "pass"
+            audit_failed = audit_verdict != "pass"
+            audit_gaps = tuple(string_sequence(audit.get("required_gaps"))) or (
+                "repository_audit_not_passed",
+            )
+            emit(
+                EthosResult(
+                    command="prove",
+                    verdict=(
+                        resolution.verdict
+                        if unresolved
+                        else audit_verdict
+                        if audit_failed
+                        else "block"
+                    ),
+                    state="gapped",
+                    required_gaps=(
+                        resolution.required_gaps
+                        if unresolved
+                        else audit_gaps
+                        if audit_failed
+                        else head_gaps
+                    ),
+                    next_action=(
+                        resolution.next_action
+                        if unresolved
+                        else str(
+                            audit.get("next_action") or "repair the reported repository policy"
+                        )
+                        if audit_failed
+                        else "ethos plan --changed --json"
+                    ),
+                    user_decision_required=resolution.user_decision_required
                     if unresolved
-                    else audit_gaps
-                    if audit_failed
-                    else head_gaps
+                    else False,
                 ),
-                next_action=(
-                    resolution.next_action
-                    if unresolved
-                    else str(audit.get("next_action") or "repair the reported repository policy")
-                    if audit_failed
-                    else "ethos plan --changed --json"
+                json_output=json_output,
+            )
+            return
+        changed_paths = resolution.scope.paths
+        try:
+            plan = proof_plan(
+                repo,
+                resolution=resolution,
+                gate_ids=options.gate,
+                full=options.full,
+                acceptance_purpose=getattr(options, "acceptance_purpose", "repository"),
+            )
+        except ValueError as exc:
+            _emit_proof_gap(exc, json_output=json_output)
+            return
+        plan_gaps = plan.required_gaps
+        if plan.verdict != "pass":
+            emit(
+                EthosResult(
+                    command="prove",
+                    verdict=plan.verdict,
+                    state="gapped",
+                    required_gaps=plan_gaps or ("plan_not_admitted",),
+                    next_action=_plan_next_action(options.gate, plan_gaps),
                 ),
-                user_decision_required=resolution.user_decision_required if unresolved else False,
-            ),
-            json_output=json_output,
-        )
-        return
-    changed_paths = resolution.scope.paths
-    try:
-        plan = proof_plan(
-            repo,
-            resolution=resolution,
-            gate_ids=options.gate,
-            full=options.full,
-            acceptance_purpose=getattr(options, "acceptance_purpose", "repository"),
-        )
-    except ValueError as exc:
-        _emit_proof_gap(exc, json_output=json_output)
-        return
-    plan_gaps = plan.required_gaps
-    if plan.verdict != "pass":
-        emit(
-            EthosResult(
-                command="prove",
-                verdict=plan.verdict,
-                state="gapped",
-                required_gaps=plan_gaps or ("plan_not_admitted",),
-                next_action=_plan_next_action(options.gate, plan_gaps),
-            ),
-            json_output=json_output,
-        )
-        return
-    # A full proof runs its readiness gates first, then waits for its repository's slot and host
-    # capacity before its test and package gates.
-    granted: list[SlotAdmission] = []
+                json_output=json_output,
+            )
+            return
+        # A full proof runs its readiness gates first, then waits for its repository's slot and host
+        # capacity before its test and package gates.
+        granted: list[SlotAdmission] = []
 
-    @contextmanager
-    def admission() -> Generator[None]:
-        with admitted_full_proof(repo, head=current_head) as slot:
-            granted.append(slot)
-            yield
+        @contextmanager
+        def admission() -> Generator[None]:
+            with admitted_full_proof(repo, head=current_head) as slot:
+                granted.append(slot)
+                yield
 
-    try:
-        checks, runs_ok = run_plan_checks(
-            repo=repo,
+        try:
+            checks, runs_ok = run_plan_checks(
+                repo=repo,
+                plan=plan,
+                execute=options.execute,
+                admission=admission if options.execute and options.full else None,
+            )
+        except ValueError as exc:
+            _emit_proof_gap(exc, json_output=json_output, head=current_head)
+            return
+        scope_binding, host_probe = (
+            proof_scope_binding(options.scope),
+            host_probe_boundary(host=options.host, probe=options.probe),
+        )
+        focused = bool(options.gate) or scope_binding["scope"] != "repository"
+        assessed = assess_proof_execution(
+            audit=audit,
+            lifecycle=openspec_lifecycle,
             plan=plan,
+            checks=checks,
+            runs_ok=runs_ok,
             execute=options.execute,
-            admission=admission if options.execute and options.full else None,
+            full=options.full,
+            expected_head=options.expect_head,
+            current_head=current_head,
+            scope_gaps=tuple(cast("list[str]", scope_binding["required_gaps"])),
         )
-    except ValueError as exc:
-        _emit_proof_gap(exc, json_output=json_output, head=current_head)
-        return
-    scope_binding, host_probe = (
-        proof_scope_binding(options.scope),
-        host_probe_boundary(host=options.host, probe=options.probe),
-    )
-    focused = bool(options.gate) or scope_binding["scope"] != "repository"
-    assessed = assess_proof_execution(
-        audit=audit,
-        lifecycle=openspec_lifecycle,
-        plan=plan,
-        checks=checks,
-        runs_ok=runs_ok,
-        execute=options.execute,
-        full=options.full,
-        expected_head=options.expect_head,
-        current_head=current_head,
-        scope_gaps=tuple(cast("list[str]", scope_binding["required_gaps"])),
-    )
-    verdict, required_gaps = assessed.verdict, assessed.gaps
-    boundary = "focused" if focused else "repository"
-    payload = {
-        "plan": plan,
-        "checks": tuple(checks),
-        "verdict": verdict,
-        "issuer": process_issuer(),
-        "scope": str(scope_binding["scope"]),
-        "boundary": boundary,
-        "objective": options.objective,
-        "required_gaps": required_gaps,
-    }
-    attestation, verdict, required_gaps = _apply_proof_effect(
-        repo,
-        payload,
-        execute=options.execute,
-        verdict=verdict,
-        required_gaps=required_gaps,
-        json_output=json_output,
-    )
-    if options.execute and attestation is None:
-        return
-    result_state = (
-        "proven"
-        if verdict == "pass" and options.execute
-        else "ready"
-        if verdict == "pass"
-        else "gapped"
-    )
-    detailed = options.execute or bool(options.gate) or options.full
-    check_summaries = summarize_checks(checks)
-    artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
-    data = {
-        "executed": options.execute,
-        "boundary": boundary,
-        "scope": scope_binding["scope"],
-        "scope_binding": scope_binding,
-        "host_probe": host_probe,
-        "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
-        "artifact_reference": dict(artifact) if isinstance(artifact, Mapping) else {},
-        "checks": check_summaries,
-        "parameter_deviations": list(active_resolution().deviations),
-        "expected_head": {
-            "expected": options.expect_head or "",
-            "current": current_head,
-            "matches": options.expect_head is None or options.expect_head == current_head,
-        },
-    }
-    if granted:
-        data["admission"] = asdict(granted[0])
-    if detailed:
-        data.update(
-            governance_context=audit["governance_context"],
-            repository_audit=audit,
-            openspec_lifecycle=openspec_lifecycle,
-            changed_paths=list(changed_paths),
-            transition_plan=plan.model_dump(mode="json"),
-        )
-    else:
-        data.update(
-            gate_ids=[check["action_id"] for check in checks],
-            changed_path_count=len(changed_paths),
-            **compact_proof_context(audit, openspec_lifecycle),
-        )
-    result = EthosResult(
-        command="prove",
-        verdict=verdict,
-        state=result_state,
-        summary={
-            "objective": options.objective,
+        verdict, required_gaps = assessed.verdict, assessed.gaps
+        boundary = "focused" if focused else "repository"
+        payload = {
+            "plan": plan,
+            "checks": tuple(checks),
+            "verdict": verdict,
+            "issuer": process_issuer(),
+            "scope": str(scope_binding["scope"]),
             "boundary": boundary,
-            "attestation_id": attestation.id if attestation is not None else "",
-            "gate_count": len(checks),
-        },
-        required_gaps=required_gaps,
-        diagnostics=assessed.causes,
-        next_action=_proof_next_action(
-            options=options, result_state=result_state, gaps=required_gaps
-        ),
-        governance_context=cast("dict[str, object]", audit["governance_context"]),
-        data=data,
-    )
-    emit(result, json_output=json_output)
+            "objective": options.objective,
+            "required_gaps": required_gaps,
+        }
+        attestation, verdict, required_gaps = _apply_proof_effect(
+            repo,
+            payload,
+            execute=options.execute,
+            verdict=verdict,
+            required_gaps=required_gaps,
+            json_output=json_output,
+        )
+        if options.execute and attestation is None:
+            return
+        result_state = (
+            "proven"
+            if verdict == "pass" and options.execute
+            else "ready"
+            if verdict == "pass"
+            else "gapped"
+        )
+        detailed = options.execute or bool(options.gate) or options.full
+        check_summaries = summarize_checks(checks)
+        artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
+        data = {
+            "executed": options.execute,
+            "boundary": boundary,
+            "scope": scope_binding["scope"],
+            "scope_binding": scope_binding,
+            "host_probe": host_probe,
+            "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
+            "artifact_reference": dict(artifact) if isinstance(artifact, Mapping) else {},
+            "checks": check_summaries,
+            "parameter_deviations": list(active_resolution().deviations),
+            "expected_head": {
+                "expected": options.expect_head or "",
+                "current": current_head,
+                "matches": options.expect_head is None or options.expect_head == current_head,
+            },
+        }
+        if granted:
+            data["admission"] = asdict(granted[0])
+        if detailed:
+            data.update(
+                governance_context=audit["governance_context"],
+                repository_audit=audit,
+                openspec_lifecycle=openspec_lifecycle,
+                changed_paths=list(changed_paths),
+                transition_plan=plan.model_dump(mode="json"),
+            )
+        else:
+            data.update(
+                gate_ids=[check["action_id"] for check in checks],
+                changed_path_count=len(changed_paths),
+                **compact_proof_context(audit, openspec_lifecycle),
+            )
+        result = EthosResult(
+            command="prove",
+            verdict=verdict,
+            state=result_state,
+            summary={
+                "objective": options.objective,
+                "boundary": boundary,
+                "attestation_id": attestation.id if attestation is not None else "",
+                "gate_count": len(checks),
+            },
+            required_gaps=required_gaps,
+            diagnostics=assessed.causes,
+            next_action=_proof_next_action(
+                options=options, result_state=result_state, gaps=required_gaps
+            ),
+            governance_context=cast("dict[str, object]", audit["governance_context"]),
+            data=data,
+        )
+        emit(result, json_output=json_output)

@@ -87,7 +87,9 @@ def prospective_change_scope_report(
     if not gaps:
         return {}
     report = _scope_report(paths, (), paths, state="unattributed", gaps=gaps)
-    report["next_action"] = "unset ETHOS_CHANGE"
+    report["next_action"] = (
+        "select the Change that owns these paths, or omit --change and unset ETHOS_CHANGE"
+    )
     return report
 
 

@@ -27,10 +27,14 @@
       all four contracts with 69 and 9 listed edges; on a copy of `src/`, an added
       `ethos.surface.cli.version -> ethos.adapters.actor` broke the surface contract, and an added
       unmatched entry failed with "No matches for ignored import".
-- [ ] 2.2 Update `docs/reference/command-plane.md`, `rules/module-layout.md` and `CHANGELOG.md`.
-      Done when the docs gates pass.
+- [x] 2.2 Update `docs/reference/command-plane.md`, `rules/module-layout.md` and `CHANGELOG.md`.
+      Done when the docs gates pass. At 00:15:47 the readiness tier passed its 28 gates at
+      `cb1dd0203`, among them `docs-registry`, `markdown-lint`, `markdown-links`, `prose` and
+      `source-format`, over the command reference, the module-layout rule and the changelog.
 
 ## 3. Acceptance
 
-- [ ] 3.1 Pass lint, the full test suite and readiness at the lane head. Done when each passes on
-      the committed head.
+- [x] 3.1 Pass lint, the full test suite and readiness at the lane head. Done when each passes on
+      the committed head. At 00:08:14 the full suite passed, 8,289 tests with 4 skipped; at 00:15:47
+      readiness passed its 28 gates at `cb1dd0203`; at 00:34:05 ruff, the format check and ty passed
+      at `01d364620`.

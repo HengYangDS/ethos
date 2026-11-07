@@ -1893,6 +1893,15 @@ SHALL remain UNKNOWN rather than authorize deletion.
 - **THEN** growth, orphan age, high-water usage, cleanup latency and indexing cost remain within declared limits
 - **AND** a short green test or one manual sweep does not satisfy this observation
 
+#### Scenario: A host cleaner that removes files by access age spares a running attempt
+
+- **WHEN** the host removes temporary files that were not accessed for days, and the behavior
+  probe's environment was installed from a cache with old times
+- **THEN** before its tests run, every file and directory of that environment carries an access
+  time from the attempt and its own modification time
+- **AND** the renewal never follows a symlink out of the scratch
+- **AND** a scan mirror or fixture copy carries fresh times, never its source's
+
 ### Requirement: Test failure bounds pending verification work
 
 Parallel verification SHALL bound per-worker queued work independently of suite

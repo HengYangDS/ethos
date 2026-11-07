@@ -51,6 +51,52 @@ This entry owns dependency order. Progress belongs to active OpenSpec Changes.
 on 2026-10-24, and each task they withdrew returns through a new Change that
 cites it. Completed incidents remain regression boundaries, not a queue to replay.
 
+### 0.2.0 Release Candidate Order
+
+The 2026-11-07 expert committee set the gate for the first 0.2.0 release candidate, and the owner
+accepted it that day. The families below are its dependency order: a Change waits only for the
+Changes it names, and Changes that touch disjoint owners may proceed in parallel lanes. The design
+of the archived OpenSpec Change `rc-plan` lists each family's Changes with their sizes and
+prerequisites, condenses the converged designs they implement, and maps every row of the retired
+defect register to its owner; each implementing Change cites that design and owns the decisions it
+implements.
+
+1. **Measure, plan and scope.** The source budget counts layout-invariant code tokens, this order
+   and its designs live in their owners, and `--change` selects one Change per invocation. Decision
+   records hold the 11-05 channels decision for 0.3.0 and the 0.2.0 scope as a DR-0015 successor:
+   Windows x64 is not declared, Homebrew is declared only if its delegating leg passes, and the
+   GitLab CI component is not qualified. The product budget steps once, after proved duplication
+   retires.
+2. **Application package and catalog.** One application package owns every public operation and a
+   transport-neutral catalog. `prove` leaves the CLI first; root and group operations, gap codes and
+   gate providers then resolve through catalog entries, the actor and the Git configuration overlay
+   become declared inputs, and Skills, the quickstart and the journey read `next`.
+3. **Retention.** An absent consumer keeps its installations until an explicit, previewed release.
+   Store records retire through one previewed verb under byte budgets observed for 48 hours, lanes
+   record natively checked residue as rows, and proofs write evidence and artifacts outside lanes.
+4. **Proof environment, throughput and host.** Guest CPUs fit the declared reservation, scratch
+   carries an owner mark, and proof gates run in an allow-listed environment. The reference
+   workstation is declared by hardware class, proofs report time per gate, readiness gains a fast
+   tier and gates are reused only on byte-identical inputs; the 900-second requirement is then met
+   or amended with the measurements, and the release candidate's test-quality items close.
+5. **Lane operations and authorization.** Work runs from lane start to retirement through bound
+   continuations, detached proofs run under handles, hosted results gate the release ref, and
+   remote-write, release and destructive effects need a scoped delegation or a person. Skills
+   install from the pinned runtime, and MCP projects the same catalog with effect annotations and
+   server-initiated confirmation.
+6. **Supply security and fleet hygiene.** Releases dispatch on the tag ref, the secret scan resolves
+   through locked supply, the npm launcher retires, evidence refs stay out of history-wide scans,
+   and ETHOS records a disposition for private-class addresses in its published history after one
+   full-history scan.
+7. **Release path.** Releases install through one attested Mise `github:` pin, runtime selection
+   follows the accepted pin forward, and each release is rehearsed on hosted runners before its tag,
+   upgrading from every predecessor that adopters select. Stable releases get a rehearsed path, each
+   host has one install line, and every adopter pins the release it runs.
+8. **Golden path, soak and promotion.** The deterministic golden-path journeys pass and the operator
+   kit retires. One frozen beta soaks for 72 hours from the last landed adopter bump while only
+   D19-exception fixes land until 0.2.0; the release candidate claims only qualified forms and
+   channels, and stable follows 7 days later.
+
 ### Immediate Dependencies
 
 1. **Unify quality meaning before extending policy.** Compose versioned

@@ -17,5 +17,7 @@
 
 ## 3. Acceptance
 
-- [ ] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
+- [x] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. The precheck passed at 04:24 with no findings after moving the Darwin refusal tests out
+      of a file it found at 508 effective lines, and readiness passed its 28 gates at `9cc734516` at
+      04:27:38.

@@ -132,7 +132,7 @@ def selected_runtime_path(common: Path) -> Path:
     if len(parts) not in {1, 2} or raw != ("\n".join(parts) + "\n").encode("utf-8"):
         raise ValueError(_CURRENT_INVALID)
     digest = parts[0]
-    if not _valid_digest(digest):
+    if not is_sha256_hex(digest):
         raise ValueError(_CURRENT_INVALID)
     if len(parts) == 2:
         candidate = Path(parts[1])
@@ -161,7 +161,7 @@ def named_runtime(common: Path, name: str) -> Path | None:
 def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
     """Encode one exact local or externally installed runtime without granting authority."""
     _require_runtime_location(runtime)
-    if not _valid_digest(runtime.name):
+    if not is_sha256_hex(runtime.name):
         raise ValueError(_CURRENT_TARGET_INVALID)
     location = (
         "" if runtime.parent == common.resolve() / "ethos/runtime" else f"{runtime.as_posix()}\n"
@@ -287,7 +287,7 @@ def legacy_runtime_migration_source(common: Path) -> tuple[str, str] | None:
             name: hashlib.sha256((runtime / name).read_bytes()).hexdigest() for name in names
         }
         source = (str(payload["source_commit"]), str(payload["source_tree"]))
-        valid_source = all(_valid_source_identity(value) for value in source)
+        valid_source = all(is_object_id(value) for value in source)
     except (KeyError, OSError, TypeError, UnicodeError, ValueError):
         return None
     return source if observed == files and valid_source else None
@@ -409,7 +409,7 @@ def _require_release_runtime_closure_unique(
     with suppress(ValueError):
         paths.add(selected_runtime_path(common))
     for path in sorted(paths):
-        if path.name in {_SELECTOR, candidate.digest} or not _valid_digest(path.name):
+        if path.name in {_SELECTOR, candidate.digest} or not is_sha256_hex(path.name):
             continue
         try:
             existing = require_selected_runtime(path)
@@ -441,11 +441,3 @@ def _require_runtime_location(runtime: Path) -> None:
         or any(character in runtime.as_posix() for character in ("\r", "\n", "\0"))
     ):
         raise ValueError(_CURRENT_TARGET_INVALID)
-
-
-def _valid_digest(value: str) -> bool:
-    return is_sha256_hex(value)
-
-
-def _valid_source_identity(value: str) -> bool:
-    return is_object_id(value)

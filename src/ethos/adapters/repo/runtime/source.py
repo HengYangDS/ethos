@@ -80,7 +80,7 @@ def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[st
                 _git(root, "read-tree", commit, env=environment, deadline=deadline)
                 _git(root, "add", "-A", env=environment, deadline=deadline)
                 tree = _git(root, "write-tree", env=environment, deadline=deadline)
-    if not _valid_git_identity(commit) or not _valid_git_identity(tree):
+    if not is_object_id(commit) or not is_object_id(tree):
         message = "build_source_identity_invalid"
         raise ValueError(message)
     observed, observed_tree = _source_coordinates(root, commit, deadline=deadline)
@@ -107,7 +107,7 @@ def _source_coordinates(root: Path, revision: str, *, deadline: float) -> tuple[
     """Read HEAD and one tree relationship together through fresh native Git."""
     coordinates = _git(root, "rev-parse", "HEAD", f"{revision}^{{tree}}", deadline=deadline)
     values = coordinates.splitlines()
-    if len(values) != 2 or not all(_valid_git_identity(value) for value in values):
+    if len(values) != 2 or not all(is_object_id(value) for value in values):
         message = "build_source_identity_invalid"
         raise ValueError(message)
     return values[0], values[1]
@@ -119,7 +119,3 @@ def _git(root: Path, *args: str, deadline: float, env: dict[str, str] | None = N
         message = "build_source_identity_unavailable"
         raise ValueError(message)
     return completed.stdout.strip()
-
-
-def _valid_git_identity(value: str) -> bool:
-    return is_object_id(value)

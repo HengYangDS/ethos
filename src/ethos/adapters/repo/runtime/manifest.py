@@ -88,7 +88,7 @@ def runtime_environment(
         platform_name or platform.system().lower(),
         canonical_architecture(architecture_name or process_machine()),
     )
-    if not all(environment) or not _valid_digest(environment.dependency_lock_sha256):
+    if not all(environment) or not is_sha256_hex(environment.dependency_lock_sha256):
         raise ValueError(_ENVIRONMENT_INVALID)
     return environment
 
@@ -258,10 +258,10 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
 
 def _validate(manifest: RuntimeManifest) -> None:
     if (
-        not all(map(_valid_digest, (manifest.digest, manifest.wheel_sha256)))
+        not all(map(is_sha256_hex, (manifest.digest, manifest.wheel_sha256)))
         or not manifest.runtime_files
         or any(
-            not _valid_inventory_path(path) or not _valid_digest(digest)
+            not _valid_inventory_path(path) or not is_sha256_hex(digest)
             for path, digest in manifest.runtime_files.items()
         )
         or type(manifest.repository_private) is not bool
@@ -279,10 +279,6 @@ def _validate(manifest: RuntimeManifest) -> None:
 
 def _canonical(payload: object) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-
-
-def _valid_digest(value: str) -> bool:
-    return is_sha256_hex(value)
 
 
 def canonical_architecture(value: str) -> str:

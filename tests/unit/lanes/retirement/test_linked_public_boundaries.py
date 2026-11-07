@@ -62,7 +62,7 @@ def _stub_retirement(
     monkeypatch.setattr(linked, "leases_by_branch", lambda _repo: {})
     monkeypatch.setattr(linked_admission, "unreviewed_content", content_observer)
     monkeypatch.setattr(effects, "control_root", lambda *_args: None)
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:holder")
     if stub_holder_gaps:
         monkeypatch.setattr(effects, "holder_gaps", lambda _lane: [])
     monkeypatch.setattr(effects, "archived_carrier_absorption", lambda *_args, **_kwargs: None)
@@ -161,7 +161,7 @@ def test_landed_public_actor_and_lease_state_matrix(
     _stub_retirement(
         monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane}, stub_holder_gaps=False
     )
-    monkeypatch.setattr(effects, "actor_ref", lambda: actor)
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
 
     report = retire_linked_work_lane(
         root=tmp_path,

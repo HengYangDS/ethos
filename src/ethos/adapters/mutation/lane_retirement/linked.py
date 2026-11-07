@@ -9,6 +9,7 @@ from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.actor import ACTOR_VARIABLE
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
@@ -125,7 +126,7 @@ def retire_linked_work_lane(
             "ref": f"refs/heads/{branch}" if branch else "",
             "head": (request.expect_head or "").strip(),
             "path": (request.path or "").strip(),
-            "invocation_holder_ref": effects.actor_ref(),
+            "invocation_holder_ref": process_actor(),
             "required_holder_ref": required_holder,
             "authority_branch": authority.get("branch", ""),
             "authority_head": authority.get("head", ""),
@@ -198,7 +199,7 @@ def retire_linked_work_lane(
         authority=authority,
         accepted_head=accepted_head,
         reason=reason,
-        actor=effects.actor_ref(),
+        actor=process_actor(),
     )
     receipt = persist_operation(cast("Path", control_root), operation)
     effect = apply_operation(

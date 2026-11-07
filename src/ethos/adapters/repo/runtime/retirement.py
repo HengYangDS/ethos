@@ -65,12 +65,8 @@ def _generations(common: Path) -> tuple[Path, ...]:
         if not root.exists() and not root.is_symlink():
             continue
         _directory_identity(root)
-        candidates.extend(path for path in root.iterdir() if _digest(path.name))
+        candidates.extend(path for path in root.iterdir() if is_sha256_hex(path.name))
     return tuple(sorted(candidates))
-
-
-def _digest(value: str) -> bool:
-    return is_sha256_hex(value)
 
 
 def process_commands(
@@ -183,7 +179,7 @@ def retirement_plan(root: Path, *, references: frozenset[Path]) -> dict[str, lis
         keep.extend(
             {"path": str(path), "reason": "package"}
             for path in sorted(store.iterdir())
-            if _digest(path.name)
+            if is_sha256_hex(path.name)
         )
     return {"remove": remove, "keep": keep}
 
@@ -304,7 +300,7 @@ def _retire_packages(
     if not store.exists() and not store.is_symlink():
         return
     _directory_identity(store)
-    candidates = tuple(sorted(path for path in store.iterdir() if _digest(path.name)))
+    candidates = tuple(sorted(path for path in store.iterdir() if is_sha256_hex(path.name)))
     checked.extend(candidates)
     identities = {path: _directory_identity(path) for path in candidates}
     wheels = _generation_wheels(common, retained)

@@ -258,7 +258,7 @@ def test_effect_gaps_recheck_successor_checkout_and_archive_mapping(monkeypatch,
     lane = {**_lane(), "archive_absorption": {"change": "x"}}
     authority = _lane(branch="work/authority", path="/authority", head="c" * 40)
     monkeypatch.setattr(Path, "resolve", lambda self: self)
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:holder")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:holder")
     monkeypatch.setattr(
         effects,
         "output",

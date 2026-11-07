@@ -23,7 +23,7 @@ def work_lane_ref_transition_report(
     *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
 ) -> dict[str, object]:
     """Check a prepared Work Lane ref move; terminal phases only observe."""
-    if not (_is_oid(old_value) and _is_oid(new_value)):
+    if not (is_object_id(old_value) and is_object_id(new_value)):
         return _report(
             phase,
             ref_name,
@@ -216,10 +216,6 @@ def _missing_lease_report(
 
 def _is_zero_oid(value: str) -> bool:
     return len(value) in {40, 64} and not value.strip("0")
-
-
-def _is_oid(value: str) -> bool:
-    return is_object_id(value)
 
 
 def _admit(

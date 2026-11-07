@@ -21,7 +21,7 @@ from ethos.contracts.digest import is_sha256_hex
     ],
 )
 def test_hex_identities_accept_only_lowercase_digits_of_their_lengths(
-    value: object, sha256: bool, object_id: bool
+    value: object, *, sha256: bool, object_id: bool
 ) -> None:
     """A SHA-256 digest has 64 digits; a Git object ID has 40 or 64."""
     assert (is_sha256_hex(value), is_object_id(value)) == (sha256, object_id)

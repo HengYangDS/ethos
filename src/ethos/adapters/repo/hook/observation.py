@@ -126,7 +126,7 @@ def hook_runtime_binding(
         and not generations.parent.is_symlink()
         and not generations.is_symlink()
         and not configured.is_symlink()
-        and _valid_digest(configured.name)
+        and is_sha256_hex(configured.name)
     )
     expected, expected_build_gap = _expected_build(repo, expected_build)
     expected_build_identity = expected.identity if expected is not None else None
@@ -512,10 +512,6 @@ def _expected_source(repo: Path, selected: BuildIdentity | None) -> tuple[str, s
         raise
     except (OSError, RuntimeError, ValueError):
         return None
-
-
-def _valid_digest(value: str) -> bool:
-    return is_sha256_hex(value)
 
 
 def _configured_hooks_path(root: Path) -> Path | None:

@@ -69,7 +69,7 @@ def build_identity(
     release: bool = False,
 ) -> BuildIdentity:
     """Compile exact source into a development or explicit release identity."""
-    if not _valid_git_identity(source_commit) or not _valid_git_identity(source_tree):
+    if not is_object_id(source_commit) or not is_object_id(source_tree):
         raise ValueError(_BUILD_SOURCE_INVALID)
     if not isinstance(release, bool):
         _fail("release_build_flag_invalid")
@@ -196,7 +196,3 @@ def _json_object(path: Path, label: str) -> dict[str, object]:
 
 def _canonical(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
-
-
-def _valid_git_identity(value: str) -> bool:
-    return is_object_id(value)

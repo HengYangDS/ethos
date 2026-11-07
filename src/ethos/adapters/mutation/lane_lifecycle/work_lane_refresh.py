@@ -313,7 +313,7 @@ def _complete_refresh(
         ref_attestation = execute_git_effect(
             root,
             plan,
-            issuer=_actor(),
+            issuer=process_issuer(),
             detached_branch=branch,
         )
     except (OSError, ValueError) as error:
@@ -434,7 +434,7 @@ def _recover_work_lane(
     execute_git_effect(
         root,
         plan,
-        issuer=_actor(),
+        issuer=process_issuer(),
         detached_branch=branch,
     )
     _attach_work_lane(root, branch, head)
@@ -476,10 +476,6 @@ def _restore_interrupted_refresh(
         previous_head=head,
         next_action=exact_refresh_command(root, pending.previous_head),
     )
-
-
-def _actor() -> str:
-    return process_issuer()
 
 
 def _refresh_transition_plan(

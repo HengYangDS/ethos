@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
@@ -136,7 +137,7 @@ def derive_lane_abandonment(
             accepted_head=accepted_head,
             reason_code=reason_code,
             reason=reason,
-            actor=effects.actor_ref(),
+            actor=process_actor(),
             review_content=review_content,
         )
         receipt = persist_operation(Path(request.control_root), request)

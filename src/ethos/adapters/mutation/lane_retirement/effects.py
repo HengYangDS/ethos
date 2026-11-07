@@ -170,7 +170,7 @@ def holder_gaps(lane: dict[str, object]) -> list[str]:
     branch = str(lane.get("branch") or "")
     if lane.get("lease_state") == "unknown":
         return [f"work_lane_lease_unknown:{branch}"]
-    actor = actor_ref()
+    actor = process_actor()
     if not actor:
         return [f"invocation_actor_missing:{branch}"]
     if lane.get("lease_state") in {"expired", "missing"}:
@@ -221,7 +221,7 @@ def effect_gaps(
                 accepted=(policy.accepted_branch, accepted_head),
                 authority=authority_lane,
                 mode=mode,
-                actor=actor_ref(),
+                actor=process_actor(),
                 worktree_clean=True,
             )
             admit_git_effect(transaction_root, plan)
@@ -269,7 +269,3 @@ def reobservation_gaps(
         elif gap == "retirement_worktree_status" and value:
             gaps.append("work_lane_dirty")
     return sorted(set(gaps))
-
-
-def actor_ref() -> str:
-    return process_actor()

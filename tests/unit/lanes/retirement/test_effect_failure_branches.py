@@ -132,7 +132,7 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
         ),
     )
     monkeypatch.setattr(effects, "reobservation_gaps", lambda *_args: [])
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:case:holder")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:holder")
     monkeypatch.setattr(effects, "archive_absorption_gaps", lambda *_args: [])
     monkeypatch.setattr(
         effects, "linked_retirement_plan", lambda *_args, **_kwargs: (tmp_path, object())
@@ -266,7 +266,7 @@ def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(
         "reobservation_gaps",
         lambda *_a: ["retirement_ref_stale"] if boundary == "source" else [],
     )
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:other")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:other")
     assert effects.effect_gaps(
         tmp_path / "successor",
         tmp_path,

@@ -63,7 +63,7 @@ class InventoryMemo:
             state.st_ctime_ns,
         ]
         recorded = self._recorded.get(relative)
-        if isinstance(recorded, list) and recorded[:-1] == key and _valid_digest(recorded[-1]):
+        if isinstance(recorded, list) and recorded[:-1] == key and is_sha256_hex(recorded[-1]):
             self._current[relative] = recorded
             return recorded[-1]
         value = compute()
@@ -164,10 +164,6 @@ def _prune(directory: Path) -> None:
     memos.sort(key=lambda path: path.stat().st_mtime_ns, reverse=True)
     for stale in memos[_RETAINED:]:
         stale.unlink(missing_ok=True)
-
-
-def _valid_digest(value: object) -> bool:
-    return is_sha256_hex(value)
 
 
 def _valid_name(value: str) -> bool:

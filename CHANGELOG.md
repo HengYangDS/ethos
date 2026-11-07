@@ -18,6 +18,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `status` and `land` tools accept `change`, as `plan` and `prove` already did. An explicit Change
   takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks
   and other child processes it starts, and ends with it.
+- `pre-commit` admits the paradigm's per-file code ceiling on each staged regular file of a
+  registered language. It measures the index blob with the paradigm report's measure and resolved
+  ceiling, and refuses with `pre_commit_code_size_exceeded:<path>:<lines>><ceiling>`, so an
+  oversized module fails at its commit instead of at readiness or the proof.
 
 ### Changed
 

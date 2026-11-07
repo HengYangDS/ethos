@@ -105,6 +105,9 @@ def _pre_commit(
     with _native_hook_configuration(root, index_env=index_env) as configuration:
         _scan_staged_secrets(root, configuration=configuration, index_env=index_env)
         _check_staged_python_format(root, staged, configuration=configuration, index_env=index_env)
+    import_module("ethos.adapters.repo.hook.staged_size").check_staged_sizes(
+        root, index_env=index_env
+    )
     prewrite = import_module("ethos.adapters.admission.prewrite")
     paths = tuple(
         (root / path).as_posix()

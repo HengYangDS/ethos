@@ -94,10 +94,7 @@ def test_docs_registry_binds_normative_routes_to_selected_source(tmp_path: Path,
     assert report["readme_disposition"] == [f"docs_normative_source_unreachable:{docs}/contract.md"]
     registry = report["registry"]
     assert isinstance(registry, list)
-    assert {entry["path"] for entry in registry} == {
-        f"{docs}/README.md",
-        f"{docs}/note.md",
-    }
+    assert {entry["path"] for entry in registry} == {f"{docs}/README.md", f"{docs}/note.md"}
     assert build_docs_registry(tmp_path, selected_documents=()) == []
     assert docs_health_report(tmp_path, tracked_documents=())["document_count"] == 0
     assert (

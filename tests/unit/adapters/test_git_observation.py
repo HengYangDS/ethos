@@ -271,10 +271,7 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
     assert tuple(
         (environment[f"GIT_CONFIG_KEY_{index}"], environment[f"GIT_CONFIG_VALUE_{index}"])
         for index in range(1 + len(expected_tail))
-    ) == (
-        ("safe.directory", repo.as_posix()),
-        *expected_tail,
-    )
+    ) == (("safe.directory", repo.as_posix()), *expected_tail)
     if "GIT_INDEX_FILE" in explicit:
         assert environment["GIT_INDEX_FILE"] == "/tmp/index"
 
@@ -290,11 +287,7 @@ def test_run_git_preserves_one_complete_inherited_indexed_config_overlay(
             "GIT_CONFIG_KEY_0": "credential.helper",
             "GIT_CONFIG_VALUE_0": "",
         },
-        {
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "safe.directory",
-            "GIT_CONFIG_VALUE_0": "*",
-        },
+        {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": "*"},
         {
             "GIT_CONFIG_COUNT": "0",
             "GIT_CONFIG_KEY_0": "safe.directory",

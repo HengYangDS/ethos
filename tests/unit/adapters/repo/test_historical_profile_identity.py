@@ -226,13 +226,7 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
     )
     git(case.repo, "reset", "--hard", case.old)
     replacement = git(
-        case.repo,
-        "commit-tree",
-        f"{case.old}^{{tree}}",
-        "-p",
-        former,
-        "-m",
-        "current profile",
+        case.repo, "commit-tree", f"{case.old}^{{tree}}", "-p", former, "-m", "current profile"
     )
     value = effect(former, replacement)
     before: dict[str, object] = {"head": former}
@@ -286,12 +280,7 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
 
     def replay() -> None:
         attest.validate_git_effect_attestation(
-            case.repo,
-            value,
-            record,
-            issuer=ISSUER,
-            plan=carried,
-            current_postconditions=False,
+            case.repo, value, record, issuer=ISSUER, plan=carried, current_postconditions=False
         )
 
     if former_id == "repo":
@@ -306,10 +295,5 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
         _reject("git_effect_repository_identity_mismatch", replay)
     _reject(
         "git_effect_historical_identity_plan_required",
-        lambda: resolve_git_effect_repository(
-            case.repo,
-            value,
-            before,
-            historical_identity=True,
-        ),
+        lambda: resolve_git_effect_repository(case.repo, value, before, historical_identity=True),
     )

@@ -31,10 +31,7 @@ def _audit(observer: CommitPolicyObserver) -> dict[str, object]:
     )
 
 
-def _passing_commit_observation(
-    _root: Path,
-    _policy: CommitPolicy,
-) -> dict[str, object]:
+def _passing_commit_observation(_root: Path, _policy: CommitPolicy) -> dict[str, object]:
     return {
         "verdict": "pass",
         "state": "current",
@@ -112,9 +109,7 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
     assert observed is False
 
 
-def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(
-    monkeypatch,
-) -> None:
+def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(monkeypatch) -> None:
     """All legacy component passes cannot conceal an unproved closure."""
     monkeypatch.setattr(
         repository_audit_module,

@@ -76,10 +76,7 @@ def _closeout_repo(
 
 
 def _closeout(
-    repo: Path,
-    *args: str,
-    expect_head: str | None = None,
-    blocked: bool = False,
+    repo: Path, *args: str, expect_head: str | None = None, blocked: bool = False
 ) -> dict[str, Any]:
     command = ["land", "--closeout", *args]
     if expect_head is not None:
@@ -138,13 +135,7 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     assert (fixture.worktree / tasks).read_text() == pending
 
     run_ethos(
-        "land",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=fixture.worktree,
+        "land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=fixture.worktree
     )
     result = _closeout(fixture.repository, "--apply", "--authorize", expect_head=accepted)
     assert result["verdict"] == "pass"
@@ -232,10 +223,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     )
     effect = push["accepted_closeout_effect"]
     assert isinstance(effect, dict)
-    assert (push["verdict"], effect["attestation_id"]) == (
-        "pass",
-        attestation["id"],
-    )
+    assert (push["verdict"], effect["attestation_id"]) == ("pass", attestation["id"])
     record_attestations(
         repo,
         (
@@ -263,11 +251,7 @@ def test_closeout_selects_archived_candidate_proof_not_worktree_projection(
     assert gaps == []
     assert proof is not None
     projection = sync_worktree(
-        repo,
-        candidate,
-        branch="candidate/dev",
-        previous=candidate_head,
-        head=candidate_head,
+        repo, candidate, branch="candidate/dev", previous=candidate_head, head=candidate_head
     )
     assert projection.predicate == "effect:git-worktree-index"
     assert projection.commitment_digest is None
@@ -376,11 +360,7 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
         cwd=repo,
     )
     control = payload["data"]["control_replacement"]
-    assert (control["required"], control["verdict"], payload["state"]) == (
-        True,
-        "block",
-        "blocked",
-    )
+    assert (control["required"], control["verdict"], payload["state"]) == (True, "block", "blocked")
     bootstrap = payload["data"]["closeout_bootstrap"]
     verification = bootstrap["independent_verification"]
     assert tuple(
@@ -426,10 +406,7 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
 @pytest.mark.parametrize("mirror", ["independent", "accepted_ff"])
 @pytest.mark.parametrize("proven", [False, True])
 def test_current_closeout_preserves_proven_or_unattested_state(
-    tmp_path: Path,
-    mirror: str,
-    *,
-    proven: bool,
+    tmp_path: Path, mirror: str, *, proven: bool
 ) -> None:
     """Fresh preview and apply observe the original effect, not a new no-op transaction."""
     repo, candidate, accepted, head = _closeout_repo(tmp_path, changed=proven, mirror=mirror)

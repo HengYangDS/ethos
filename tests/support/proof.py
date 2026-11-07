@@ -68,36 +68,19 @@ def issue_conformant_proof(
 
 
 def current_proof_plan(
-    repo: Path,
-    *,
-    expected_head: str,
-    gate_ids: tuple[str, ...] = (),
-    full: bool = False,
+    repo: Path, *, expected_head: str, gate_ids: tuple[str, ...] = (), full: bool = False
 ):
     """Compile proof from the production resolution of one exact current HEAD."""
     observed_head = git(repo, "rev-parse", "HEAD")
     if observed_head != expected_head:
         msg = f"fixture_proof_head_not_current:{expected_head}:{observed_head}"
         raise AssertionError(msg)
-    status, authority = workspace_status_observation(
-        repo,
-        include_foreign_path_scope=False,
-    )
-    resolution = resolve_current_resolution(
-        repo,
-        status=status,
-        authority=authority,
-        changed=True,
-    )
+    status, authority = workspace_status_observation(repo, include_foreign_path_scope=False)
+    resolution = resolve_current_resolution(repo, status=status, authority=authority, changed=True)
     if resolution.verdict != "pass":
         msg = "fixture_current_resolution_not_passed:" + ",".join(resolution.required_gaps)
         raise AssertionError(msg)
-    return proof_plan(
-        repo,
-        resolution=resolution,
-        gate_ids=gate_ids,
-        full=full,
-    )
+    return proof_plan(repo, resolution=resolution, gate_ids=gate_ids, full=full)
 
 
 def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
@@ -109,13 +92,7 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
         os.environ["ETHOS_ACTOR"] = holder
     try:
         persist_proof_attestation(
-            repo,
-            issue_conformant_proof(
-                repo,
-                head,
-                full=full,
-                issued_at=datetime.now(UTC),
-            ),
+            repo, issue_conformant_proof(repo, head, full=full, issued_at=datetime.now(UTC))
         )
     finally:
         if original is None:

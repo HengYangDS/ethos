@@ -34,9 +34,7 @@ def test_proof_floor_has_no_workspace_history_precondition() -> None:
         "schemas",
     ],
 )
-def test_declarative_offline_provider_executes_through_the_shared_runner(
-    gate_id: str,
-) -> None:
+def test_declarative_offline_provider_executes_through_the_shared_runner(gate_id: str) -> None:
     gate = proof_registry()[gate_id]
     assert gate.providers
     assert gate.network_policy == "offline"

@@ -251,9 +251,7 @@ def test_attestation_query_returns_exact_unknown_values_without_authority_claim(
     assert result["data"]["attestations"] == [first.model_dump(mode="json")]
 
 
-def test_attestation_commands_fail_closed_for_invalid_roots_and_selectors(
-    tmp_path: Path,
-) -> None:
+def test_attestation_commands_fail_closed_for_invalid_roots_and_selectors(tmp_path: Path) -> None:
     input_path = tmp_path / "attestation.json"
     _input(input_path, 4, carried_id=True)
     for arguments in ((), ("--apply",)):

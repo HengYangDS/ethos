@@ -55,9 +55,7 @@ def _closeout(head: str, *extra: str) -> list[str]:
     return ["land", "--closeout", *extra, "--expect-head", head, "--json"]
 
 
-def test_closeout_renames_legacy_role_refs_without_moving_content(
-    tmp_path: Path,
-) -> None:
+def test_closeout_renames_legacy_role_refs_without_moving_content(tmp_path: Path) -> None:
     repo, candidate, head = _legacy_repository(tmp_path)
 
     preview = run_ethos(*_closeout(head, "--authorize"), cwd=repo)
@@ -75,9 +73,7 @@ def test_closeout_renames_legacy_role_refs_without_moving_content(
     assert rerun["required_gaps"] == _LEGACY_DECLARATIONS
 
 
-def test_closeout_renames_a_legacy_release_ref_with_its_worktree(
-    tmp_path: Path,
-) -> None:
+def test_closeout_renames_a_legacy_release_ref_with_its_worktree(tmp_path: Path) -> None:
     """A declared legacy release name renames to the fixed name, and its worktree follows."""
     repo, _candidate, head = _legacy_repository(tmp_path, release="master")
     release = tmp_path / "repo-master"
@@ -113,9 +109,7 @@ def test_closeout_renames_a_lone_legacy_release_ref_from_the_standard_accepted_r
     assert git(repo, "branch", "--show-current") == "dev"
 
 
-def test_closeout_refuses_a_legacy_release_rename_onto_an_existing_name(
-    tmp_path: Path,
-) -> None:
+def test_closeout_refuses_a_legacy_release_rename_onto_an_existing_name(tmp_path: Path) -> None:
     """The release rename never overwrites a live ref that already holds the fixed name."""
     repo, _candidate, head = _legacy_repository(tmp_path, release="master")
     git(repo, "branch", "master", head)
@@ -170,9 +164,7 @@ def test_closeout_refuses_a_rename_it_cannot_complete_exactly(
     assert git(repo, "rev-parse", "accepted/train") == head
 
 
-def test_git_admission_protects_legacy_role_refs_until_their_rename(
-    tmp_path: Path,
-) -> None:
+def test_git_admission_protects_legacy_role_refs_until_their_rename(tmp_path: Path) -> None:
     repo, _candidate, head = _legacy_repository(tmp_path)
     zero = "0" * len(head)
 
@@ -203,9 +195,7 @@ def _commit_unreadable_table(repo: Path) -> str:
     return git(repo, "rev-parse", "HEAD")
 
 
-def test_an_unreadable_committed_table_renames_and_protects_nothing(
-    tmp_path: Path,
-) -> None:
+def test_an_unreadable_committed_table_renames_and_protects_nothing(tmp_path: Path) -> None:
     """An unreadable table names no legacy role, so it neither renames nor protects a ref."""
     repo, _candidate = start_adopted_candidate(tmp_path)
     head = _commit_unreadable_table(repo)
@@ -263,8 +253,7 @@ def _retained_topic(tmp_path: Path) -> tuple[Path, Path, str]:
 
 
 def test_native_paradigm_repair_migrates_only_the_owned_retained_topic(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, lane, head = _retained_topic(tmp_path)
     index = Path(git(lane, "rev-parse", "--path-format=absolute", "--git-path", "index"))

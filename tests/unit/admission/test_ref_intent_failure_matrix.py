@@ -262,10 +262,7 @@ def test_sweep_removes_malformed_and_expired_issued_but_preserves_prepared(tmp_p
     malformed = intent.ref_intent_dir(tmp_path) / f"{'e' * 64}.json"
     malformed.write_text("{", encoding="utf-8")
 
-    swept = intent.sweep_stale_ref_intents(
-        tmp_path,
-        now=datetime.now(UTC) + timedelta(minutes=2),
-    )
+    swept = intent.sweep_stale_ref_intents(tmp_path, now=datetime.now(UTC) + timedelta(minutes=2))
 
     assert set(swept) == {malformed.stem, str(expired["nonce"])}
     assert {path.name for path in intent.ref_intent_dir(tmp_path).iterdir()} == {

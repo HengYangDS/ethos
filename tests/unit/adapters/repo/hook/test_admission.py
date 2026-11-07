@@ -137,10 +137,7 @@ def test_pre_commit_does_not_format_a_staged_deletion(
 
 @pytest.mark.parametrize("outcome", ["clean", "finding", "head-moved"])
 def test_pre_commit_scans_the_staged_secret_policy_closure(
-    repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    outcome: str,
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], outcome: str
 ) -> None:
     """Gitleaks reads the staged policy closure and ignore file, never working-tree policy."""
     (repo / ".config/checks/gitleaks").mkdir(parents=True, exist_ok=True)

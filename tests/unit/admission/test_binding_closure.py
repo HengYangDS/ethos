@@ -105,9 +105,7 @@ jobs:
     assert "ethos lane start" in observed["command"]
 
 
-def test_patch_binding_scan_uses_the_same_normalized_reference_extractor(
-    tmp_path: Path,
-) -> None:
+def test_patch_binding_scan_uses_the_same_normalized_reference_extractor(tmp_path: Path) -> None:
     _write_files(
         tmp_path,
         {
@@ -116,7 +114,7 @@ from cyclopts import App
 app = App(name="ethos")
 lane_app = App(name="lane")
 app.command(lane_app)
-""",
+"""
         },
     )
     context = observe_repository_references(tmp_path).files
@@ -158,9 +156,7 @@ def test_native_owner_closure_rejects_an_unowned_reference(tmp_path: Path) -> No
     ]
 
 
-def test_native_command_owner_closes_cross_module_cyclopts_registration(
-    tmp_path: Path,
-) -> None:
+def test_native_command_owner_closes_cross_module_cyclopts_registration(tmp_path: Path) -> None:
     _write_files(
         tmp_path,
         {
@@ -244,7 +240,7 @@ def test_gate_interpreter_binding_preserves_declared_module_ownership() -> None:
                     ),
                 ),
             ).model_dump(mode="json", exclude_defaults=True)
-        ),
+        )
     }
     owned = native_owned_references_from_files(files)
     assert owned["executable"] == {"python"}

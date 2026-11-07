@@ -131,11 +131,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
                 {"state": "passed", "native_git_loss": "not_qualified"},
             ),
         ),
-        (
-            effect,
-            "observe_independent_command_plane",
-            {"external_governance_available": False},
-        ),
+        (effect, "observe_independent_command_plane", {"external_governance_available": False}),
         (
             effect.brownfield_acceptance,
             "prove_brownfield",
@@ -195,10 +191,7 @@ def test_console_uses_image_source_without_changing_locked_dependency_owner(
     "selection", ["default", "explicit", "changed", "changed-after", "changed-head"]
 )
 def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
-    monkeypatch,
-    tmp_path,
-    acceptance_case,
-    selection,
+    monkeypatch, tmp_path, acceptance_case, selection
 ) -> None:
     monkeypatch.setenv("UV_PYTHON_INSTALL_DIR", str(tmp_path / "python-images"))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "ambient-data"))

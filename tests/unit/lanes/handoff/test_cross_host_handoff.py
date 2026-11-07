@@ -96,10 +96,7 @@ def _revoke_request(
 
 
 def _import_with_fault(
-    request: _ImportFaultRequest,
-    *,
-    preserved_objects: list[str],
-    monkeypatch: pytest.MonkeyPatch,
+    request: _ImportFaultRequest, *, preserved_objects: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> dict[str, object]:
     destination = Path(request.destination)
     package = Path(request.package)
@@ -134,10 +131,7 @@ def _import_with_fault(
             real_run_git = destination_import.run_git
 
             def fail_git(
-                root: Path,
-                *args: str,
-                failed_stage: str = request.stage,
-                **kwargs: Any,
+                root: Path, *args: str, failed_stage: str = request.stage, **kwargs: Any
             ) -> subprocess.CompletedProcess[Any]:
                 nonlocal failed, expected_inventory
                 targeted = (
@@ -157,8 +151,7 @@ def _import_with_fault(
                     failed = True
                     preserved_objects.append(
                         _write_object(
-                            destination,
-                            f"concurrent destination object during {failed_stage}\n",
+                            destination, f"concurrent destination object during {failed_stage}\n"
                         )
                     )
                     expected_inventory = _object_inventory(destination)
@@ -181,9 +174,7 @@ def _import_with_fault(
 
 
 def _import_with_uncertain_effect(
-    request: _ImportFaultRequest,
-    *,
-    monkeypatch: pytest.MonkeyPatch,
+    request: _ImportFaultRequest, *, monkeypatch: pytest.MonkeyPatch
 ) -> dict[str, object]:
     destination = Path(request.destination)
     package = Path(request.package)
@@ -297,8 +288,7 @@ def _assert_source_revoked(
     expired_at = datetime.now(UTC) - timedelta(seconds=1)
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute(
-            "update leases set expires_at = ? where lane_ref = ?",
-            (expired_at.isoformat(), branch),
+            "update leases set expires_at = ? where lane_ref = ?", (expired_at.isoformat(), branch)
         )
     resumed_import = import_cross_host_handoff(request)
     assert resumed_import["verdict"] == "pass"
@@ -336,11 +326,7 @@ def test_handoff_source_revoke_rejects_live_generation_drift(
 ) -> None:
     source_holder = "agent:test:case:source"
     source, destination, package, _head, lease = export_handoff_fixture(
-        tmp_path,
-        monkeypatch,
-        source_holder,
-        "agent:test:case:target",
-        "work/handoff",
+        tmp_path, monkeypatch, source_holder, "agent:test:case:target", "work/handoff"
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:target")
     imported = import_cross_host_handoff(
@@ -353,8 +339,7 @@ def test_handoff_source_revoke_rejects_live_generation_drift(
     database = state_database(source.worktree)
     with closing(sqlite3.connect(database)) as connection, connection:
         connection.execute(
-            "update leases set generation = generation + 1 where lane_ref = ?",
-            ("work/handoff",),
+            "update leases set generation = generation + 1 where lane_ref = ?", ("work/handoff",)
         )
     monkeypatch.setenv("ETHOS_ACTOR", source_holder)
     report = revoke_cross_host_source(
@@ -527,10 +512,4 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             stage=stage,
         )
 
-    _assert_source_revoked(
-        monkeypatch,
-        source,
-        package,
-        lease,
-        destination,
-    )
+    _assert_source_revoked(monkeypatch, source, package, lease, destination)

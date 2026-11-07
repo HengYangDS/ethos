@@ -111,11 +111,7 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
 
     adopter = tmp_path / "adopter"
-    fixture.materialize_adopter(
-        adopter,
-        openspec_config=ROOT / "openspec/config.yaml",
-        run=_run,
-    )
+    fixture.materialize_adopter(adopter, openspec_config=ROOT / "openspec/config.yaml", run=_run)
     assert fixture.line_ending_conformance(adopter, run=_run) == ["lf", "crlf"]
 
     readme = adopter / "README.md"
@@ -131,11 +127,7 @@ def test_adopter_fixture_writes_its_committed_bytes_on_every_host(monkeypatch, t
     """Windows text mode cannot leave fixture files that differ from their LF commits."""
     translate_like_windows(monkeypatch)
     adopter = tmp_path / "adopter"
-    fixture.materialize_adopter(
-        adopter,
-        openspec_config=ROOT / "openspec/config.yaml",
-        run=_run,
-    )
+    fixture.materialize_adopter(adopter, openspec_config=ROOT / "openspec/config.yaml", run=_run)
     fixture.prepare_acceptance_topology(adopter, run=_run)
     for relative in filter(None, _run("git", "ls-files", "-z", cwd=adopter).split("\0")):
         committed = run_command(adopter, ("git", "show", f":{relative}"), text=False, check=True)
@@ -146,11 +138,7 @@ def test_adopter_fixture_writes_its_committed_bytes_on_every_host(monkeypatch, t
 def test_signature_acceptance_binds_source_supply_across_isolated_commands(tmp_path, historical):
     """Source-bound CLI tests pass only the validated native supply to child commands."""
     adopter = tmp_path / "adopter"
-    fixture.materialize_adopter(
-        adopter,
-        openspec_config=ROOT / "openspec/config.yaml",
-        run=_run,
-    )
+    fixture.materialize_adopter(adopter, openspec_config=ROOT / "openspec/config.yaml", run=_run)
     fixture.prepare_acceptance_topology(adopter, run=_run)
     supply = resolve_node_package_supply(ROOT)
     observed = lane.prove_signature_repair(
@@ -182,8 +170,7 @@ def _blocked_command(command, gap, next_action):
 
 
 def test_lane_lifecycle_failure_preserves_the_command_result(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     result = _blocked_command(
         "lane start", "candidate_worktree_missing", "ethos lane repair --root /repo --json"
@@ -237,8 +224,7 @@ def test_package_cli_invocation_preserves_result_and_isolates_environment(
 
 
 def test_installed_observation_runs_shared_isolated_conformance(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
@@ -427,8 +413,7 @@ def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: 
 
 
 def test_independent_cli_checks_do_not_replace_a_blocked_request(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     commands: list[tuple[str, ...]] = []
     head = "a" * 40

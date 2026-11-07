@@ -127,9 +127,7 @@ def test_common_native_vocabulary_preserves_tool_names_and_rejects_misspellings(
     )
 
 
-def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
-    tmp_path: Path,
-) -> None:
+def test_common_vale_policy_separates_machine_front_matter_from_human_prose(tmp_path: Path) -> None:
     """Machine identifiers are inert while human fields retain native diagnostics."""
     config = canonical_resource(".config/checks/vale/vale.ini")
     executable = resolve_native_tool("vale")

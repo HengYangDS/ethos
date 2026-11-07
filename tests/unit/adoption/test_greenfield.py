@@ -44,10 +44,7 @@ def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> Non
         return json.loads(completed.stdout)
 
     preview = invoke("adopt", "--root", str(root), "--json")
-    assert preview["data"]["planned_files"] == [
-        ".ethos/profile.toml",
-        "openspec/config.yaml",
-    ]
+    assert preview["data"]["planned_files"] == [".ethos/profile.toml", "openspec/config.yaml"]
     assert not (root / ".ethos/profile.toml").exists()
     applied = invoke(
         "adopt",
@@ -211,9 +208,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     """The actual file and ref effects use one approved candidate and real Git identity."""
     target = tmp_path / "new-project"
     monkeypatch.setattr(
-        candidate_projection,
-        "install_hook_launchers",
-        install_fixture_hook_runtime,
+        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
     request = _request()
     preview = adopt_repository(target, **request)

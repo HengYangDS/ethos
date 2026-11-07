@@ -192,24 +192,15 @@ def test_archive_collision_observes_exact_git_and_preserves_existing_bytes(
 def test_archive_public_preflight_preserves_all_current_resolution_gaps(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    stub_archive_public(
-        monkeypatch,
-        tmp_path,
-        remaining=1,
-        resolution_gaps=("native_warning",),
-    )
+    stub_archive_public(monkeypatch, tmp_path, remaining=1, resolution_gaps=("native_warning",))
 
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
 
-    assert report["required_gaps"] == [
-        "native_warning",
-        f"openspec_change_incomplete:{CHANGE}",
-    ]
+    assert report["required_gaps"] == ["native_warning", f"openspec_change_incomplete:{CHANGE}"]
 
 
 @pytest.mark.parametrize(
-    "boundary",
-    ["recovery", "role", "head", "commitment", "lifecycle", "postimage", "exception"],
+    "boundary", ["recovery", "role", "head", "commitment", "lifecycle", "postimage", "exception"]
 )
 def test_archive_public_rejects_invalid_coordinates_before_any_effect(
     monkeypatch, tmp_path, boundary

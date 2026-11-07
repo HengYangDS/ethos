@@ -29,8 +29,7 @@ def _wheel(tmp_path: Path, *, tree: str = "b" * 40) -> PackageArtifact:
     build = build_identity(product="0.2.0-alpha.5", source_commit="a" * 40, source_tree=tree)
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr(
-            (WHEEL_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE).as_posix(),
-            build_identity_bytes(build),
+            (WHEEL_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE).as_posix(), build_identity_bytes(build)
         )
     return PackageArtifact(wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), build)
 

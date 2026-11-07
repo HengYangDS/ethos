@@ -52,18 +52,14 @@ def test_authored_format_is_not_generation_evidence(tmp_path: Path, suffix: str)
     assert observed["origin"] == "unclassified"
     assert observed["existence"] == "present"
     report = generated_artifact_topology_report(
-        fixture.worktree,
-        ignored_local_paths=frozenset(),
-        tracked_untracked_paths=(),
+        fixture.worktree, ignored_local_paths=frozenset(), tracked_untracked_paths=()
     )
     assert relative not in report["denied_paths"]
 
 
 @pytest.mark.parametrize("update_consumer", [False, True])
 def test_authored_deletion_checks_surviving_native_input(
-    tmp_path: Path,
-    *,
-    update_consumer: bool,
+    tmp_path: Path, *, update_consumer: bool
 ) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
@@ -183,11 +179,7 @@ def test_public_projection_admission_reads_committed_native_owner(
     ],
 )
 def test_projection_effect_uses_producer_before_and_after(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    effect: str,
-    verdict: str,
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, effect: str, verdict: str, gap: str
 ) -> None:
 
     root = init_git_repo(tmp_path / "repo")
@@ -261,15 +253,11 @@ def test_projection_effect_uses_producer_before_and_after(
     ],
 )
 def test_deleted_input_observation_distinguishes_effects(
-    command: str,
-    *,
-    dangling: bool,
-    unknown: bool,
+    command: str, *, dangling: bool, unknown: bool
 ) -> None:
 
     gaps, unavailable = deleted_input_gaps(
-        {"package.json": json.dumps({"scripts": {"format": command}})},
-        frozenset({"config.json"}),
+        {"package.json": json.dumps({"scripts": {"format": command}})}, frozenset({"config.json"})
     )
     assert bool(gaps) is dangling, (gaps, unavailable)
     assert bool(unavailable) is unknown, (gaps, unavailable)
@@ -295,7 +283,7 @@ def test_repeated_native_ignore_inputs_are_not_last_value_only() -> None:
                     "scripts": {
                         "format": (
                             "prettier --ignore-path config.json --ignore-path retained README.md"
-                        ),
+                        )
                     }
                 }
             )
@@ -374,10 +362,7 @@ def test_deleted_input_dynamic_path_is_public_unknown(tmp_path: Path) -> None:
 @pytest.mark.parametrize("work_copy", ["different", "outside-symlink"])
 @pytest.mark.parametrize("staged_valid", [True, False])
 def test_precommit_validates_index_projection_not_working_copy(
-    tmp_path: Path,
-    work_copy: str,
-    *,
-    staged_valid: bool,
+    tmp_path: Path, work_copy: str, *, staged_valid: bool
 ) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
@@ -432,9 +417,7 @@ def test_staged_retirement_preserves_exact_output_existence(tmp_path: Path, effe
 
 @pytest.mark.parametrize("changed_coordinate", ["head", "index"])
 def test_index_admission_rejects_coordinate_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    changed_coordinate: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed_coordinate: str
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     (root / "input.json").write_text("{}\n")
@@ -507,12 +490,7 @@ def test_cue_index_admission_uses_exact_transitive_inputs(tmp_path, selected):
     result = staged_artifact_admission(root, baseline)
     assert (
         result["verdict"]
-        == {
-            "valid": "pass",
-            "drift": "block",
-            "missing": "block",
-            "malformed": "unknown",
-        }[selected]
+        == {"valid": "pass", "drift": "block", "missing": "block", "malformed": "unknown"}[selected]
     ), result
     assert git(root, "write-tree") == index
     assert git(root, "rev-parse", "HEAD") == baseline

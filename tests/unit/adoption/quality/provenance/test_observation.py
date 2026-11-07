@@ -60,10 +60,7 @@ def test_artifact_partition_cannot_replace_integrity_evidence() -> None:
     check = {
         "action_id": "static",
         "stdout": json.dumps(
-            {
-                "gate": "static",
-                "providers": [{"provider": provider, "report": report}],
-            }
+            {"gate": "static", "providers": [{"provider": provider, "report": report}]}
         ),
     }
     assert quality_obligation_gaps(policy, [check], source_tree=tree) == (

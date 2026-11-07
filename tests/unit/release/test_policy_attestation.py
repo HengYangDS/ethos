@@ -35,7 +35,7 @@ _PUBLICATION = {
             "capabilities": ["repository", "ci_cd", "publication"],
             "ci_surface": ".github/workflows/verify.yml",
         },
-    ],
+    ]
 }
 _REQUIRED_FILES = ("AGENTS.md", "CONTRIBUTING.md", "README.md", "LICENSE", "CHANGELOG.md")
 _RUNTIME = '[tool.sample]\ndistribution = "runtime-files"\nversion-source = "VERSION"\n'
@@ -203,9 +203,7 @@ def test_release_policy_ignores_malformed_publication_gap_collection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        release_core,
-        "publication_topology",
-        lambda _root, _config: {"required_gaps": "malformed"},
+        release_core, "publication_topology", lambda _root, _config: {"required_gaps": "malformed"}
     )
     _fields(release_policy_report(Path.cwd()), verdict="pass", required_gaps=[])
 
@@ -251,13 +249,7 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
     [
         ("refs/heads/dev", "branch", "accepted_root", "repository_transition", "eligible"),
         ("refs/heads/main", "branch", "release_root", "repository_transition", "eligible"),
-        (
-            "refs/heads/proposal/topic",
-            "branch",
-            "proposal_ref",
-            "review_object",
-            "eligible",
-        ),
+        ("refs/heads/proposal/topic", "branch", "proposal_ref", "review_object", "eligible"),
         ("refs/tags/v1.2.3", "tag", "release_publication", "repository_transition", "eligible"),
         ("refs/heads/candidate/dev", "branch", "candidate", "current_commitment", "unavailable"),
         ("refs/heads/work/topic", "branch", "work_lane", "current_commitment", "unavailable"),
@@ -265,16 +257,10 @@ def test_release_topology_enforces_invalid_declaration_without_bypass() -> None:
     ],
 )
 def test_release_topology_admits_only_positive_full_ref_roles(
-    tmp_path: Path,
-    target_ref: str,
-    ref_kind: str,
-    role: str,
-    proof_selection: str,
-    state: str,
+    tmp_path: Path, target_ref: str, ref_kind: str, role: str, proof_selection: str, state: str
 ) -> None:
     topology = publication_topology(
-        tmp_path,
-        _declared_publication(_peer("gitlab", "gitlab", "origin")),
+        tmp_path, _declared_publication(_peer("gitlab", "gitlab", "origin"))
     )
 
     admission = publication_ref_admission(
@@ -319,10 +305,7 @@ def test_release_topology_uses_declared_ci_surfaces(tmp_path: Path) -> None:
         ((_peer("gitlab", "gitlab", "gitlab"),), {"gitlab": "gitlab"}),
         ((_peer("github", "github", "github"),), {"github": "github"}),
         (
-            (
-                _peer("gitlab", "gitlab", "gitlab"),
-                _peer("github", "github", "github"),
-            ),
+            (_peer("gitlab", "gitlab", "gitlab"), _peer("github", "github", "github")),
             {"gitlab": "gitlab", "github": "github"},
         ),
         ((_peer("backup", "gitlab", "mirror"),), {"backup": "mirror"}),
@@ -343,10 +326,7 @@ def test_release_topology_uses_declared_ci_surfaces(tmp_path: Path) -> None:
             {"gitlab_a": "gitlab_a", "gitlab_b": "gitlab_b", "github": "github"},
         ),
         (
-            (
-                _peer("internal", "gitlab", "github"),
-                _peer("public", "github", "gitlab"),
-            ),
+            (_peer("internal", "gitlab", "github"), _peer("public", "github", "gitlab")),
             {"internal": "github", "public": "gitlab"},
         ),
     ],
@@ -366,9 +346,7 @@ def test_release_topology_uses_declared_ci_surfaces(tmp_path: Path) -> None:
     ),
 )
 def test_release_topology_supports_every_declared_peer_cardinality(
-    tmp_path: Path,
-    peers: tuple[dict[str, object], ...],
-    expected: dict[str, str],
+    tmp_path: Path, peers: tuple[dict[str, object], ...], expected: dict[str, str]
 ) -> None:
     topology = publication_topology(tmp_path, _declared_publication(*peers))
 
@@ -394,16 +372,12 @@ def test_release_topology_allows_multiple_peers_from_one_provider(tmp_path: Path
     topology = publication_topology(
         tmp_path,
         _declared_publication(
-            _peer("gitlab-internal", "gitlab", "origin"),
-            _peer("gitlab-public", "gitlab", "public"),
+            _peer("gitlab-internal", "gitlab", "origin"), _peer("gitlab-public", "gitlab", "public")
         ),
     )
 
     _fields(topology, state="ready", required_gaps=[])
-    assert topology_remotes(topology) == {
-        "gitlab-internal": "origin",
-        "gitlab-public": "public",
-    }
+    assert topology_remotes(topology) == {"gitlab-internal": "origin", "gitlab-public": "public"}
 
 
 def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Path) -> None:
@@ -417,18 +391,12 @@ def test_release_topology_rejects_legacy_scalar_with_declared_peers(tmp_path: Pa
 
 def test_release_topology_requires_ci_surface_only_for_ci_capability(tmp_path: Path) -> None:
     repository_only = publication_topology(
-        tmp_path,
-        _declared_publication(_peer("gitlab", "gitlab", "origin")),
+        tmp_path, _declared_publication(_peer("gitlab", "gitlab", "origin"))
     )
     ci_peer = publication_topology(
         tmp_path,
         _declared_publication(
-            _peer(
-                "gitlab",
-                "gitlab",
-                "origin",
-                capabilities=("repository", "ci_cd", "publication"),
-            )
+            _peer("gitlab", "gitlab", "origin", capabilities=("repository", "ci_cd", "publication"))
         ),
     )
 

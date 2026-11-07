@@ -152,9 +152,7 @@ def test_dynamic_compatibility_audit_exposes_lazy_module_exports(
 
 def test_ordinary_module_audits_skip_package_initializers(tmp_path: Path) -> None:
     carrier = _write(
-        tmp_path,
-        "src/ethos/sample/__init__.py",
-        "def __getattr__(name):\n    return name\n",
+        tmp_path, "src/ethos/sample/__init__.py", "def __getattr__(name):\n    return name\n"
     )
     policy = {"semantic_paths": ["src"]}
 

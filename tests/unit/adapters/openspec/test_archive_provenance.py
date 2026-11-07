@@ -39,9 +39,7 @@ def test_archive_candidates_verify_repair_once_per_fresh_observation(
     old_first = commit(base, f"chain first\n\n{TRAILER}")
     old_last = commit(old_first, "chain last")
     prepared = prepare_history_repair(
-        root,
-        old_last,
-        corrections={old_first: {"remove_attribution_trailers": [TRAILER]}},
+        root, old_last, corrections={old_first: {"remove_attribution_trailers": [TRAILER]}}
     )
     new_first, new_last = prepared["mapping"][old_first], prepared["replacement"]
     records = tuple(
@@ -95,10 +93,7 @@ def test_archive_candidates_verify_repair_once_per_fresh_observation(
         assert attestations is selected
         verified.append(new)
         return (
-            {
-                "mapping": {old_first: new_first, old_last: new_last},
-                "attestation_id": "repair",
-            }
+            {"mapping": {old_first: new_first, old_last: new_last}, "attestation_id": "repair"}
             if valid
             else None
         )
@@ -155,10 +150,7 @@ def test_unaffected_archive_ancestor_does_not_demand_history_verification(tmp_pa
         predicate=provenance.RESULT,
         payload=SimpleNamespace(
             body={
-                "coordinates": {
-                    "old": old,
-                    "history": {"corrections": {old: {"resign": True}}},
-                },
+                "coordinates": {"old": old, "history": {"corrections": {old: {"resign": True}}}},
                 "replacement": replacement,
             }
         ),

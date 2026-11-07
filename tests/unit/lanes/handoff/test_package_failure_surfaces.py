@@ -19,22 +19,16 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    ("content", "gap"),
-    [("{", "handoff_manifest_invalid_json"), ("[]", "handoff_manifest_invalid")],
+    ("content", "gap"), [("{", "handoff_manifest_invalid_json"), ("[]", "handoff_manifest_invalid")]
 )
 def test_manifest_rejects_invalid_json_shapes(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    content: str,
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: str, gap: str
 ) -> None:
     package = tmp_path / "handoff:invalid"
     package.mkdir()
     (package / "manifest.json").write_text(content, encoding="utf-8")
     monkeypatch.setattr(
-        handoff_package,
-        "validate_schema_instance",
-        lambda *_args, **_kwargs: {"required_gaps": []},
+        handoff_package, "validate_schema_instance", lambda *_args, **_kwargs: {"required_gaps": []}
     )
 
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=tmp_path)
@@ -45,9 +39,7 @@ def test_manifest_rejects_invalid_json_shapes(
 
 @pytest.mark.parametrize("failure", ["missing", "digest"])
 def test_manifest_rejects_missing_or_tampered_artifacts(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     package = tmp_path / "handoff:package"
     package.mkdir()
@@ -69,9 +61,7 @@ def test_manifest_rejects_missing_or_tampered_artifacts(
     }
     (package / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     monkeypatch.setattr(
-        handoff_package,
-        "validate_schema_instance",
-        lambda *_args, **_kwargs: {"required_gaps": []},
+        handoff_package, "validate_schema_instance", lambda *_args, **_kwargs: {"required_gaps": []}
     )
     monkeypatch.setattr(handoff_package, "_content_id", lambda *_args, **_kwargs: package.name)
 
@@ -120,10 +110,7 @@ def test_export_snapshot_collapses_lease_cas_failure(
 
     with pytest.raises(ValueError, match=r"^handoff_export_lease_drift$"):
         handoff_package.write_handoff_package(
-            repo=tmp_path,
-            handoff=handoff,
-            context="context",
-            output_root=tmp_path / "packages",
+            repo=tmp_path, handoff=handoff, context="context", output_root=tmp_path / "packages"
         )
 
 
@@ -142,9 +129,7 @@ def test_package_snapshot_rejects_non_regular_artifact(
     with (
         pytest.raises(ValueError, match=r"^handoff_artifact_unsafe:artifact$"),
         handoff_package.verified_package_snapshot(
-            package=package,
-            manifest={"package_id": package.name},
-            root=tmp_path,
+            package=package, manifest={"package_id": package.name}, root=tmp_path
         ),
     ):
         pass

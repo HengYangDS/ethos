@@ -230,10 +230,7 @@ def test_environment_cannot_promote_a_source_build_to_release(
 
 def test_release_identity_uses_exact_product_projection_only_when_explicit() -> None:
     identity = build_identity(
-        product="0.2.0-alpha.2",
-        source_commit="a" * 40,
-        source_tree="b" * 40,
-        release=True,
+        product="0.2.0-alpha.2", source_commit="a" * 40, source_tree="b" * 40, release=True
     )
 
     assert identity == BuildIdentity(
@@ -247,14 +244,10 @@ def test_release_identity_uses_exact_product_projection_only_when_explicit() -> 
 def test_development_distribution_identity_uses_the_complete_source_coordinates() -> None:
     common = "a" * 12
     first = build_identity(
-        product="0.2.0-alpha.2",
-        source_commit=common + "1" * 28,
-        source_tree=common + "2" * 28,
+        product="0.2.0-alpha.2", source_commit=common + "1" * 28, source_tree=common + "2" * 28
     )
     second = build_identity(
-        product="0.2.0-alpha.2",
-        source_commit=common + "3" * 28,
-        source_tree=common + "4" * 28,
+        product="0.2.0-alpha.2", source_commit=common + "3" * 28, source_tree=common + "4" * 28
     )
 
     assert first.distribution_version != second.distribution_version
@@ -301,11 +294,7 @@ def test_projected_package_versions_refuse_parallel_owners(
 
 
 def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
-    identity = build_identity(
-        product="0.2.0-alpha.2",
-        source_commit="a" * 40,
-        source_tree="b" * 40,
-    )
+    identity = build_identity(product="0.2.0-alpha.2", source_commit="a" * 40, source_tree="b" * 40)
     payload = identity.projection()
     payload["distribution_version"] = "0.2.0a2.dev0+wrong"
     with pytest.raises(ValueError, match="package_build_identity_invalid"):

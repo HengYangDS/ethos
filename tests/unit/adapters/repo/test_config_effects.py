@@ -59,10 +59,7 @@ def test_a_write_refuses_a_value_that_changed_since_its_plan(tmp_path: Path) -> 
 
     with pytest.raises(ValueError, match=r"git_config_effect_stale:core\.hooksPath"):
         config_effects.replace_config_values(
-            repo,
-            {"core.hooksPath": ()},
-            scope="local",
-            expected={"core.hooksPath": ("/planned",)},
+            repo, {"core.hooksPath": ()}, scope="local", expected={"core.hooksPath": ("/planned",)}
         )
 
     observed = config_effects.config_values(repo, ("core.hooksPath",), scope="local")

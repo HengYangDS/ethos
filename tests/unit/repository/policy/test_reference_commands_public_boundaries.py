@@ -97,9 +97,7 @@ scanner \\
         "scanner",
     }
     assert shell_commands(
-        "uv run --python 3.14 pytest -q\n",
-        {"pytest", "pytest -q"},
-        require_declared=True,
+        "uv run --python 3.14 pytest -q\n", {"pytest", "pytest -q"}, require_declared=True
     ) == {"pytest -q"}
     assert command_identity(("uv", "run", "pytest", "-q"), {"pytest"}) == "pytest"
 

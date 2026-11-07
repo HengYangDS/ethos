@@ -144,10 +144,7 @@ def test_unknown_starter_never_invokes_generator(
     monkeypatch.setattr(generator_effect, "run_command", reject_execution, raising=False)
     target = tmp_path / "new-project"
     result = adopt_repository(
-        target,
-        create=True,
-        purpose="Verifiable changes.",
-        starter="python-library --run unsafe",
+        target, create=True, purpose="Verifiable changes.", starter="python-library --run unsafe"
     )
 
     assert result.required_gaps == ("formation_starter_unavailable",)

@@ -79,10 +79,7 @@ def test_admission_models_reject_pass_with_required_gaps() -> None:
 
     with pytest.raises(ValidationError, match="pass_with_required_gaps"):
         AdmissionDecision(
-            verdict="pass",
-            subject=subject,
-            basis=basis,
-            required_gaps=("unknown_required_fact",),
+            verdict="pass", subject=subject, basis=basis, required_gaps=("unknown_required_fact",)
         )
 
 
@@ -132,15 +129,11 @@ def test_admission_boundary_rejects_type_coercion_and_nested_mutation() -> None:
         HookAdmissionRequest(root="/repo", layer=1)
     with pytest.raises((TypeError, ValidationError)):
         MutationSubject(
-            action="lane.prewrite",
-            resource="work/example",
-            expected_state={"epoch": object()},
+            action="lane.prewrite", resource="work/example", expected_state={"epoch": object()}
         )
 
     subject = MutationSubject(
-        action="lane.prewrite",
-        resource="work/example",
-        expected_state={"nested": {"epoch": 1}},
+        action="lane.prewrite", resource="work/example", expected_state={"nested": {"epoch": 1}}
     )
     with pytest.raises(TypeError):
         subject.expected_state["new"] = True

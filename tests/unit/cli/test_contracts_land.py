@@ -246,9 +246,7 @@ def test_work_lane_proof_is_invalid_after_same_head_lease_transfer(
 
 @pytest.mark.parametrize("lease_state", ["expired", "unknown"])
 def test_work_lane_proof_requires_a_live_lease(
-    lease_state: str,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    lease_state: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fixture, head = _proved_lane(tmp_path, monkeypatch)
     branch = git(fixture.worktree, "branch", "--show-current")
@@ -370,10 +368,7 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
         gaps = payload["required_gaps"]
         mutation = payload["data"]["mutation"]
         assert (payload["verdict"], payload["state"]) == ("block", "blocked")
-        assert {
-            "authorization_required",
-            "expect_head_required",
-        } <= set(gaps)
+        assert {"authorization_required", "expect_head_required"} <= set(gaps)
         assert mutation["request"]["confirmation_present"] is False
         assert mutation["decision"]["verdict"] == "block"
         assert mutation["decision"]["required_gaps"] == gaps
@@ -386,10 +381,7 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
     payload = run_ethos_blocked(
         command, "--apply", "--authorize", "--expect-head", head, "--json", cwd=repo
     )
-    assert (payload["verdict"], payload["state"]) == (
-        "block",
-        "blocked",
-    )
+    assert (payload["verdict"], payload["state"]) == ("block", "blocked")
     assert "protected_root_mutation" in payload["required_gaps"]
 
 
@@ -420,10 +412,7 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
 
 
 def _assert_declared_closeout_policy(
-    claim: str,
-    repo: Path,
-    candidate: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    claim: str, repo: Path, candidate: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     release = repo / ".ethos/release.toml"
     if claim == CLOSEOUT_CASES[1]:

@@ -41,11 +41,7 @@ def _record(predicate: str, body: dict[str, Any], *, hour: int) -> Attestation:
 
 def _update(transition: str, lane: str, old: str, new: str, *, hour: int) -> Attestation:
     field = "subject" if transition.startswith("lane.start") or transition == "lane.retire" else ""
-    policy = {
-        "transition": transition,
-        field or "execution_branch": lane,
-        "branch": lane,
-    }
+    policy = {"transition": transition, field or "execution_branch": lane, "branch": lane}
     effect = {"updates": {f"refs/heads/{lane}": {"expected": old, "desired": new}}}
     body = {"plan": {"policy": policy, "effect": effect}}
     return _record("effect:git-ref-update", body, hour=hour)
@@ -121,9 +117,7 @@ def _removed_by_next_update(repo: Path, members: tuple[Attestation, ...]) -> dic
     return attestation_set.record_attestations(repo, (occurrence_attestation(6_301),))
 
 
-def test_an_update_ends_only_the_lane_no_selected_commit_reaches(
-    tmp_path: Path,
-) -> None:
+def test_an_update_ends_only_the_lane_no_selected_commit_reaches(tmp_path: Path) -> None:
     """A worktree HEAD that contains one lane's archive keeps it; a dropped lane ends."""
     repo = init_git_repo(tmp_path / "repo")
     base = git(repo, "rev-parse", "HEAD")
@@ -143,9 +137,7 @@ def test_an_update_ends_only_the_lane_no_selected_commit_reaches(
     assert "lifetime_gap" not in result
 
 
-def test_a_present_pre_repair_object_keeps_the_lane_it_descends_from(
-    tmp_path: Path,
-) -> None:
+def test_a_present_pre_repair_object_keeps_the_lane_it_descends_from(tmp_path: Path) -> None:
     """A signature repair can still map the lane's commit into selected history."""
     repo = init_git_repo(tmp_path / "repo")
     base = git(repo, "rev-parse", "HEAD")

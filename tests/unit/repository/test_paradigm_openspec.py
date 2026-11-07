@@ -51,9 +51,7 @@ def test_packaged_common_rules_cover_every_spec_driven_artifact() -> None:
     assert all(rules and all(rules) for rules in COMMON.values())
 
 
-def test_a_repository_without_openspec_artifacts_has_no_openspec_obligation(
-    tmp_path: Path,
-) -> None:
+def test_a_repository_without_openspec_artifacts_has_no_openspec_obligation(tmp_path: Path) -> None:
     """The obligation applies where OpenSpec is tracked; it never creates empty structure."""
     assert list(openspec_gaps(PARADIGM, tmp_path, frozenset({"README.md"}))) == []
 

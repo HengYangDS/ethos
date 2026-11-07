@@ -46,7 +46,7 @@ def test_application_variables_declare_no_command() -> None:
             "def run_command(): pass\n"
             "@app.command\n"
             "def check(): pass\n"
-        ),
+        )
     }
     document = {"docs/guides/runbook.md": "| Account | `app` |\n|---|---|\n"}
 

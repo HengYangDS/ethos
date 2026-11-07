@@ -17,11 +17,7 @@ if TYPE_CHECKING:
 def test_remote_publication_consumes_selected_proof_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    authority = Commitment(
-        schema_version=3,
-        id="change:fixture",
-        acceptance=("accepted",),
-    )
+    authority = Commitment(schema_version=3, id="change:fixture", acceptance=("accepted",))
     captured: dict[str, object] = {}
     source = SimpleNamespace(
         peeled_commit="a" * 40,
@@ -30,9 +26,7 @@ def test_remote_publication_consumes_selected_proof_acceptance(
     )
     update = SimpleNamespace(target_ref="refs/heads/dev")
     target = SimpleNamespace(
-        remote="origin",
-        updates=(update,),
-        model_dump=lambda **_kwargs: {"remote": "origin"},
+        remote="origin", updates=(update,), model_dump=lambda **_kwargs: {"remote": "origin"}
     )
     effect = SimpleNamespace(source=source, targets=(target,))
     monkeypatch.setattr(

@@ -197,11 +197,7 @@ def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
     def check(name: str, path: str) -> dict[str, object]:
         report = {
             "verdict": "pass",
-            "quality_evidence": {
-                "axis": "behavior",
-                "source_tree": tree,
-                "selected_paths": [path],
-            },
+            "quality_evidence": {"axis": "behavior", "source_tree": tree, "selected_paths": [path]},
         }
         return {
             "action_id": name,
@@ -347,8 +343,7 @@ def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) 
     registry = repo / "system/gates.toml"
     registry.write_text(
         registry.read_text().replace(
-            '["tools/check.sh"]',
-            '["{python}", "-m", "nox", "-s", "check"]',
+            '["tools/check.sh"]', '["{python}", "-m", "nox", "-s", "check"]'
         )
     )
     for relative, text in (
@@ -385,9 +380,7 @@ def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) 
     ],
 )
 def test_python_module_policy_binds_committed_entry_and_parent_packages(
-    tmp_path: Path,
-    entry: str,
-    package_source: str,
+    tmp_path: Path, entry: str, package_source: str
 ) -> None:
     """Module resolution consumes observed Git paths, never imports mutable candidate code."""
     repo = init_git_repo(tmp_path / "repo")
@@ -395,8 +388,7 @@ def test_python_module_policy_binds_committed_entry_and_parent_packages(
     registry = repo / "system/gates.toml"
     registry.write_text(
         registry.read_text().replace(
-            '["tools/check.sh"]',
-            '["{python}", "-B", "-m", "tools.check"]',
+            '["tools/check.sh"]', '["{python}", "-B", "-m", "tools.check"]'
         )
     )
     source = repo / entry
@@ -441,8 +433,7 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
 
     profile.write_text(
         profile.read_text().replace(
-            'dimensions = ["test", "coverage"]',
-            'dimensions = ["test", "coverage", "property"]',
+            'dimensions = ["test", "coverage"]', 'dimensions = ["test", "coverage", "property"]'
         )
     )
     changed = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "change dimensions"))
@@ -450,8 +441,7 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
 
     profile.write_text(
         profile.read_text().replace(
-            'static-analysis = "sample-static"',
-            'static-analysis = "sample-tests"',
+            'static-analysis = "sample-static"', 'static-analysis = "sample-tests"'
         )
     )
     shared_gate = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "share gate"))
@@ -463,11 +453,7 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
         "static-analysis": "sample-tests",
     }
 
-    assert canonical_gate_command(("/one/bin/python3.14", "-m", "tool")) == (
-        "python",
-        "-m",
-        "tool",
-    )
+    assert canonical_gate_command(("/one/bin/python3.14", "-m", "tool")) == ("python", "-m", "tool")
     assert canonical_gate_command(("python3.12", "-m", "tool")) != canonical_gate_command(
         ("python3.13", "-m", "tool")
     )

@@ -84,10 +84,7 @@ raise SystemExit(
         encoding="utf-8",
     )
     hook = hooks / "reference-transaction"
-    hook.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
-        encoding="utf-8",
-    )
+    hook.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n', encoding="utf-8")
     hook.chmod(0o755)
 
 
@@ -238,9 +235,7 @@ def test_refused_direct_commit_keeps_its_staged_change_and_names_it(tmp_path: Pa
     assert g("rev-parse", f"{target}^{{tree}}").stdout.strip() == staged
 
 
-def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
-    tmp_path: Path,
-) -> None:
+def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(tmp_path: Path) -> None:
     """Ordinary commits never use an unabortable hook to rewrite Lease authority."""
     repo = init_git_repo(tmp_path / "repo")
     commit_active_change(repo)
@@ -249,13 +244,7 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
     holder = "agent:test:case:fresh-lane-head"
     git(repo, "worktree", "add", "-b", branch, lane.as_posix(), "dev")
     start = git(lane, "rev-parse", "HEAD")
-    acquire_lease(
-        state_database(repo),
-        lease=exact_lease(
-            branch=branch,
-            holder_ref=holder,
-        ),
-    )
+    acquire_lease(state_database(repo), lease=exact_lease(branch=branch, holder_ref=holder))
     hooks = repo / ".git/test-hooks"
     hooks.mkdir(exist_ok=True)
     _install_policy_only_hook(hooks)
@@ -279,20 +268,14 @@ def test_owned_lane_commit_keeps_lease_generation_and_reads_fresh_head(
     after = leases_by_branch(lane)[branch]
     assert after == before
     authority = resolve_current_authority(
-        root=lane,
-        branch=branch,
-        lease=after,
-        actor=holder,
-        current_head=head,
+        root=lane, branch=branch, lease=after, actor=holder, current_head=head
     )
     assert authority.verdict == "pass"
     assert authority.current_head == head
 
 
 def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     release = repo / ".ethos/release.toml"
@@ -308,8 +291,7 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     git(candidate, "commit", "-m", "candidate")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     monkeypatch.setattr(
-        "ethos.adapters.repo.hook.admission.current_runtime",
-        lambda _common: object(),
+        "ethos.adapters.repo.hook.admission.current_runtime", lambda _common: object()
     )
     python = tmp_path / "python"
     python.write_bytes(b"")
@@ -333,9 +315,7 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
 
 
 def test_reference_transaction_reads_only_git_common_lease_state(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A prepared ref decision reads Lease state without walking runtime generations."""
     repo = init_git_repo(tmp_path / "repo")
@@ -351,10 +331,7 @@ def test_reference_transaction_reads_only_git_common_lease_state(
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         connection.commit()
-    monkeypatch.setattr(
-        "ethos.adapters.repo.hook.admission.current_runtime",
-        lambda _common: None,
-    )
+    monkeypatch.setattr("ethos.adapters.repo.hook.admission.current_runtime", lambda _common: None)
     old = git(repo, "rev-parse", "work/x")
     new = git(repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"), "-p", old, "-m", "next")
     status = execute_hook(

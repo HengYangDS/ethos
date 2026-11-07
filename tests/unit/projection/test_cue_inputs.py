@@ -255,7 +255,7 @@ def test_source_integrity_observes_every_typed_generated_member(tmp_path):
                     },
                     "integrity_gate": "integrity",
                 }
-            ],
+            ]
         },
     }
     outputs = {".github/workflows/ci.yml": rendered["github"], ".gitlab-ci.yml": rendered["gitlab"]}
@@ -329,11 +329,7 @@ def test_product_common_binding_cannot_be_replaced_by_repository_output(tmp_path
     assert yaml.safe_load(rendered["github"])["name"] == "Documentation verification"
     duplicate = tomllib.loads(files[DECLARATION])
     duplicate["projection"].append(
-        {
-            "kind": "cue",
-            "provider": "github",
-            "projection": ".github/workflows/duplicate.yml",
-        }
+        {"kind": "cue", "provider": "github", "projection": ".github/workflows/duplicate.yml"}
     )
     with pytest.raises(ValueError, match="projection_provider_conflict"):
         projection_relations({**files, DECLARATION: tomli_w.dumps(duplicate)})

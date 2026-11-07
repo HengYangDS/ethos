@@ -23,8 +23,7 @@ def _completed(code: int, stdout: str = "", stderr: str = ""):
 
 
 @pytest.mark.parametrize(
-    ("platform_name", "node_relative"),
-    [("posix", Path("bin/node")), ("nt", Path("node.exe"))],
+    ("platform_name", "node_relative"), [("posix", Path("bin/node")), ("nt", Path("node.exe"))]
 )
 def test_node_runtime_resolves_the_installed_platform_layout(
     tmp_path: Path, platform_name: str, node_relative: Path
@@ -40,10 +39,7 @@ def test_node_runtime_resolves_the_installed_platform_layout(
     npm.parent.mkdir(parents=True)
     npm.write_text("// Native npm entrypoint.\n")
 
-    node = resolve_node_runtime(
-        package_root=tmp_path,
-        platform_name=platform_name,
-    )
+    node = resolve_node_runtime(package_root=tmp_path, platform_name=platform_name)
 
     assert node.executable == tmp_path / node_relative
     assert node.npm == npm
@@ -345,11 +341,7 @@ def test_runtime_project_selects_complete_source_or_complete_packaged_resources(
     packaged.mkdir(parents=True)
     for name in ("pyproject.toml", "uv.lock", "VERSION"):
         (packaged / name).write_text("x\n", encoding="utf-8")
-    monkeypatch.setattr(
-        runtime_inputs,
-        "packaged_resource",
-        lambda: packaged,
-    )
+    monkeypatch.setattr(runtime_inputs, "packaged_resource", lambda: packaged)
     incomplete = tmp_path / "incomplete"
     incomplete.mkdir()
     assert runtime_inputs.resolve_runtime_project(incomplete) == packaged
@@ -374,10 +366,7 @@ def test_locked_environment_python_requires_the_project_venv_prefix(
     monkeypatch.setattr(
         runtime_inputs,
         "observe_python_facts",
-        lambda _python: {
-            "executable": python.as_posix(),
-            "prefix": prefix.as_posix(),
-        },
+        lambda _python: {"executable": python.as_posix(), "prefix": prefix.as_posix()},
     )
 
     if prefix_owner == "foreign":

@@ -164,13 +164,7 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
         name="retired-inbox-state",
         holder_ref="agent:test:case:owner",
     )
-    arguments = (
-        "lane",
-        "status",
-        "--root",
-        fixture.repository.as_posix(),
-        "--json",
-    )
+    arguments = ("lane", "status", "--root", fixture.repository.as_posix(), "--json")
     before = run_ethos(*arguments, cwd=fixture.repository)
     retired = tuple(
         attestation_fixture(
@@ -188,17 +182,9 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
 
     after = run_ethos(*arguments, cwd=fixture.repository)
 
-    for key in (
-        "verdict",
-        "required_gaps",
-        "next_action",
-    ):
+    for key in ("verdict", "required_gaps", "next_action"):
         assert after[key] == before[key]
-    for key in (
-        "foreign_work_lanes",
-        "unbound_work_lane_refs",
-        "coordination_gaps",
-    ):
+    for key in ("foreign_work_lanes", "unbound_work_lane_refs", "coordination_gaps"):
         assert after["data"][key] == before["data"][key]
 
 
@@ -253,10 +239,7 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
         "ethos lane refresh-base --apply --authorize "
         f"--expect-head {payload['data']['head']} --json"
     )
-    expected = [
-        "ethos lane prewrite <path>",
-        refresh_base,
-    ]
+    expected = ["ethos lane prewrite <path>", refresh_base]
     assert payload["verdict"] == "block"
     assert "ok" not in payload
     assert "ok" not in payload["data"]
@@ -267,17 +250,10 @@ def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) 
     assert "git status --short" not in payload["next_action"]
 
 
-def test_lane_status_exposes_observations_without_closeout_residue_plane(
-    tmp_path,
-) -> None:
+def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_path) -> None:
     fixture = prepared_work_lane(tmp_path)
     payload = run_ethos(
-        "lane",
-        "status",
-        "--root",
-        fixture.worktree.as_posix(),
-        "--json",
-        cwd=fixture.worktree,
+        "lane", "status", "--root", fixture.worktree.as_posix(), "--json", cwd=fixture.worktree
     )
 
     serialized = json.dumps(payload)

@@ -123,13 +123,7 @@ def test_archive_plan_uses_the_resolved_commitment_without_reloading_intent(
     )
 
     selected = archive_effect.compile_archive_plan(
-        tmp_path,
-        "work/change",
-        "change",
-        "a" * 40,
-        "b" * 40,
-        {},
-        commitment=commitment,
+        tmp_path, "work/change", "change", "a" * 40, "b" * 40, {}, commitment=commitment
     )
 
     assert selected is commitment
@@ -188,11 +182,7 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
         "work/change",
         "change",
         "a" * 40,
-        {
-            "archive_path": archive_path,
-            "changed_paths": (changed_path,),
-            "tree": "archive-tree",
-        },
+        {"archive_path": archive_path, "changed_paths": (changed_path,), "tree": "archive-tree"},
         commitment=commitment,
         lease={"holder_ref": "agent:test"},
         owned_mutation=True,
@@ -263,11 +253,7 @@ def test_unrepairable_native_postimage_compensates_without_inventing_repair(
     monkeypatch.setattr(
         archive_effect,
         "openspec_validation_report",
-        lambda _root: {
-            "verdict": "block",
-            "required_gaps": [gap],
-            "validation": {"json": native},
-        },
+        lambda _root: {"verdict": "block", "required_gaps": [gap], "validation": {"json": native}},
     )
 
     result = archive.archive_change(
@@ -300,9 +286,7 @@ def test_archive_projection_completion_rejects_drift_and_preserves_caller_bytes(
     )
     monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
-        archive_effect,
-        "restore_git_index",
-        lambda _root, *, tree: observed.append(tree),
+        archive_effect, "restore_git_index", lambda _root, *, tree: observed.append(tree)
     )
     monkeypatch.setattr(
         archive_effect,
@@ -378,11 +362,7 @@ def test_archive_effect_owns_durable_recovery_selection(
     )
 
     report = archive_effect.recover_archive_effect(
-        tmp_path,
-        branch="work/change",
-        head="b" * 40,
-        change="change",
-        apply=True,
+        tmp_path, branch="work/change", head="b" * 40, change="change", apply=True
     )
 
     assert report == {"state": "recognized"}

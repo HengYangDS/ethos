@@ -59,12 +59,7 @@ def repo(tmp_path: Path) -> Path:
                 ("prepared", "refs/ethos/attestations-set", ""),
             )
         ],
-        (
-            "reference-transaction",
-            ("prepared",),
-            f"{'a' * 40} {'a' * 40} refs/heads/dev\n",
-            "",
-        ),
+        ("reference-transaction", ("prepared",), f"{'a' * 40} {'a' * 40} refs/heads/dev\n", ""),
     ],
 )
 def test_hook_runtime_public_input_matrix(
@@ -91,8 +86,7 @@ def test_hook_runtime_public_input_matrix(
 
 
 def test_hook_execution_observes_the_full_runtime_once(
-    repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     selected_runtime = object()
     observe_runtime = Mock(return_value=selected_runtime)
@@ -205,10 +199,7 @@ def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> 
         assert git_process(repo, *arguments).returncode == 0
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
-    policy.write_text(
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n',
-        encoding="utf-8",
-    )
+    policy.write_text('[commit_policy]\nsubject_pattern = "^fix: .+"\n', encoding="utf-8")
     (repo / "README.md").write_text("base\n", encoding="utf-8")
     assert git_process(repo, "add", ".ethos/workspace.toml", "README.md").returncode == 0
     assert git_process(repo, "commit", "-m", "fix: initialize fixture").returncode == 0
@@ -252,11 +243,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     policy = BranchRolePolicy()
     observe_policy = Mock(return_value=policy)
     selected_runtime = object()
-    monkeypatch.setattr(
-        hook_runtime,
-        "current_runtime",
-        lambda _common: selected_runtime,
-    )
+    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: selected_runtime)
     monkeypatch.setattr(
         "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy", observe_policy
     )
@@ -284,12 +271,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
     monkeypatch.setattr(hook_runtime, "run_command", execute)
     update = f"{'a' * 40} {'b' * 40} refs/heads/dev\n"
 
-    result = execute_hook(
-        tmp_path,
-        "reference-transaction",
-        ("prepared",),
-        stdin=StringIO(update),
-    )
+    result = execute_hook(tmp_path, "reference-transaction", ("prepared",), stdin=StringIO(update))
 
     assert result == (1 if gap else 0)
     observe_policy.assert_called_once_with(tmp_path, "refs/heads/dev", "a" * 40, "b" * 40)
@@ -312,8 +294,7 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
 
 
 def test_hook_execution_rejects_a_noncanonical_current_selector(
-    repo: Path,
-    capsys: pytest.CaptureFixture[str],
+    repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     selector = Path(git_common_dir(repo)) / "ethos" / "runtime" / "CURRENT"
     selector.parent.mkdir(parents=True)
@@ -424,12 +405,7 @@ def test_reference_transaction_dispatch_preserves_role_and_phase_semantics(
     )
     update = f"{'a' * 40} {'b' * 40} refs/heads/{branch}\n"
 
-    result = execute_hook(
-        tmp_path,
-        "reference-transaction",
-        (phase,),
-        stdin=StringIO(update),
-    )
+    result = execute_hook(tmp_path, "reference-transaction", (phase,), stdin=StringIO(update))
 
     assert result == expected
     error = capsys.readouterr().err
@@ -450,9 +426,7 @@ def test_execute_hook_converts_runtime_exception_to_json_gap(
 
 
 def test_candidate_report_rejects_dirty_or_unbound_candidate(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     candidate_runtime(monkeypatch, tmp_path, status="dirty\n")

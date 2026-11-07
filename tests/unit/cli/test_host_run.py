@@ -22,9 +22,7 @@ sys.exit(7)
 """
 
 
-def test_an_admitted_command_keeps_its_exit_status_and_records_no_arguments(
-    tmp_path: Path,
-) -> None:
+def test_an_admitted_command_keeps_its_exit_status_and_records_no_arguments(tmp_path: Path) -> None:
     """The child runs with the worker cap; its ticket names the executable, never its arguments."""
     completed = run_ethos_raw(
         "host", "run", "--", sys.executable, "-c", _CHILD, "secret-argument", cwd=tmp_path

@@ -138,9 +138,7 @@ def test_public_proof_artifact_binding_fails_closed(
     assert read_attestation_set(candidate) == before
 
 
-def test_poisoned_local_attestation_copy_cannot_block_selected_set(
-    tmp_path: Path,
-) -> None:
+def test_poisoned_local_attestation_copy_cannot_block_selected_set(tmp_path: Path) -> None:
     _repo, candidate = start_adopted_candidate(tmp_path)
     head = git(candidate, "rev-parse", "HEAD")
     record = issue_conformant_proof(candidate, head)

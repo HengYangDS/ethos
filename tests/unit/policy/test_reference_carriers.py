@@ -26,11 +26,7 @@ def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: 
 
 
 @pytest.mark.parametrize(
-    "declaration",
-    [
-        ".config/checks/lychee/policy.toml",
-        ".config/release/release-sbom/policy.toml",
-    ],
+    "declaration", [".config/checks/lychee/policy.toml", ".config/release/release-sbom/policy.toml"]
 )
 def test_native_supply_owns_its_executable_without_an_installer(
     tmp_path: Path, declaration: str
@@ -70,12 +66,10 @@ subprocess.run(["wcp", "inspect"], check=True)
     )
     (tmp_path / "system").mkdir()
     (tmp_path / "system/surfaces.toml").write_text(
-        '[[surface]]\nname = "runtime"\ncarrier = "src/example"\n',
-        encoding="utf-8",
+        '[[surface]]\nname = "runtime"\ncarrier = "src/example"\n', encoding="utf-8"
     )
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "example"\nversion = "1"\n',
-        encoding="utf-8",
+        '[project]\nname = "example"\nversion = "1"\n', encoding="utf-8"
     )
 
     assert repository_semantic_closure(tmp_path)["required_gaps"] == [
@@ -91,12 +85,10 @@ def test_reference_closure_is_green_without_wcp_or_workstation(tmp_path: Path) -
     source.write_text("def inspect() -> None:\n    pass\n", encoding="utf-8")
     (tmp_path / "system").mkdir()
     (tmp_path / "system/surfaces.toml").write_text(
-        '[[surface]]\nname = "runtime"\ncarrier = "src/example"\n',
-        encoding="utf-8",
+        '[[surface]]\nname = "runtime"\ncarrier = "src/example"\n', encoding="utf-8"
     )
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "example"\nversion = "1"\n',
-        encoding="utf-8",
+        '[project]\nname = "example"\nversion = "1"\n', encoding="utf-8"
     )
 
     assert repository_semantic_closure(tmp_path)["required_gaps"] == []

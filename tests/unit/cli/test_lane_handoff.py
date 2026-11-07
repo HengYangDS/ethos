@@ -13,9 +13,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_transfer_delegates_to_declared_lease_operation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_transfer_delegates_to_declared_lease_operation(monkeypatch: pytest.MonkeyPatch) -> None:
     observed: list[object] = []
     monkeypatch.setattr(handoff_cli, "execute_declared_lease_operation", observed.append)
     transfer = SimpleNamespace(command="lane handoff transfer")
@@ -27,9 +25,7 @@ def test_transfer_delegates_to_declared_lease_operation(
 
 @pytest.mark.parametrize("operation", ["export", "import", "revoke"])
 def test_handoff_cli_projects_blocked_adapter_report(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    operation: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str
 ) -> None:
     report = {
         "verdict": "block",
@@ -47,11 +43,7 @@ def test_handoff_cli_projects_blocked_adapter_report(
             command=command, result=result, json_output=json_output
         ),
     )
-    common = {
-        "root": tmp_path,
-        "apply": True,
-        "json_output": True,
-    }
+    common = {"root": tmp_path, "apply": True, "json_output": True}
     if operation == "export":
         received: list[object] = []
         monkeypatch.setattr(
@@ -113,8 +105,4 @@ def test_handoff_cli_projects_blocked_adapter_report(
         request = received[0]
         assert request.acknowledgement == (tmp_path / "ack.json").as_posix()
 
-    assert captured == {
-        "command": options.command,
-        "result": report,
-        "json_output": True,
-    }
+    assert captured == {"command": options.command, "result": report, "json_output": True}

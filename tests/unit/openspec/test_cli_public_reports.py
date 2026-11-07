@@ -18,9 +18,7 @@ from tests.support.subprocesses import completed
 
 @pytest.mark.parametrize("reported", [cli.OFFICIAL_VERSION, "unexpected"])
 def test_source_cli_consumes_the_single_resolved_node_package_supply(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
-    reported,
+    monkeypatch: pytest.MonkeyPatch, tmp_path, reported
 ) -> None:
     source = tmp_path
     supply = tmp_path / "prepared/node_modules"
@@ -52,9 +50,7 @@ def test_source_cli_consumes_the_single_resolved_node_package_supply(
     monkeypatch.setattr(cli, "resolve_node_package_supply", resolve, raising=False)
     monkeypatch.setattr(cli, "_SOURCE_NODE", "/node")
     monkeypatch.setattr(
-        cli,
-        "run_command",
-        lambda *_args, **_kwargs: completed(stdout=f"{reported}\n"),
+        cli, "run_command", lambda *_args, **_kwargs: completed(stdout=f"{reported}\n")
     )
     command = ("/node", entry.as_posix())
     report = cli.verify_official_cli(command)
@@ -164,10 +160,7 @@ def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_
         cli.run_json_batch(tmp_path, None, (("list", "--json"),))
 
     report = cli.verify_official_cli(("node", "untrusted-entry.js"))
-    assert (report["verdict"], report["required_gaps"]) == (
-        "block",
-        ["openspec_entry_mismatch"],
-    )
+    assert (report["verdict"], report["required_gaps"]) == ("block", ["openspec_entry_mismatch"])
 
 
 @pytest.mark.parametrize(
@@ -176,10 +169,7 @@ def test_official_cli_public_resolution_and_report_fail_closed(monkeypatch, tmp_
         ({}, ["openspec_status_artifact_graph_missing"]),
         ({"artifacts": []}, ["openspec_status_artifact_graph_missing"]),
         ({"artifacts": [{"id": "proposal"}]}, ["openspec_status_artifact_graph_invalid"]),
-        (
-            {"artifacts": [{"id": "proposal", "status": "done", "requires": []}]},
-            [],
-        ),
+        ({"artifacts": [{"id": "proposal", "status": "done", "requires": []}]}, []),
     ],
 )
 def test_status_contract_requires_the_official_artifact_graph(payload, expected):

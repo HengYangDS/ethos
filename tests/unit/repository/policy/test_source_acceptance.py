@@ -131,9 +131,7 @@ def test_release_acceptance_requires_each_selected_audit_attempt(tmp_path: Path,
     ) == ["proof_dependency_acceptance_audit_missing"]
 
 
-def test_native_audit_honors_source_purpose_without_changing_target_floor(
-    tmp_path: Path,
-) -> None:
+def test_native_audit_honors_source_purpose_without_changing_target_floor(tmp_path: Path) -> None:
     """Purpose interpretation follows the selected closure, including a native audit command."""
     native = Gate(id="native", kind="check", command=("target-check",))
     audit = Gate(

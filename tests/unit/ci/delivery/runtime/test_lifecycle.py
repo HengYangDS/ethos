@@ -51,9 +51,7 @@ if TYPE_CHECKING:
     ],
 )
 def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    failure_stage: str | None,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure_stage: str | None
 ) -> None:
     bootstrap_environment, bootstrap_repository, repository = (
         tmp_path / name for name in ("bootstrap-environment", "bootstrap-repository", "adopter")
@@ -87,21 +85,13 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
     monkeypatch.setattr(runtime_acceptance, "require_manifest", require_manifest)
     declarations = (
         (runtime_acceptance.adopter_fixture, "materialize_bootstrap_repository", None),
-        (
-            runtime_acceptance.adopter_fixture,
-            "prepare_acceptance_topology",
-            tmp_path / "candidate",
-        ),
+        (runtime_acceptance.adopter_fixture, "prepare_acceptance_topology", tmp_path / "candidate"),
         (runtime_acceptance, "activate_from_entrypoint", bootstrap_report),
         (runtime_acceptance, "activate_from_runtime", successor_report),
         (runtime_acceptance, "require_production_dependencies", {"state": "passed"}),
         (runtime_acceptance, "require_version_identity", {"state": "passed"}),
         (runtime_acceptance, "prove_repair", {"state": "passed"}),
-        (
-            runtime_acceptance.lane_acceptance,
-            "prove_signature_repair",
-            {"state": "passed"},
-        ),
+        (runtime_acceptance.lane_acceptance, "prove_signature_repair", {"state": "passed"}),
         (
             runtime_acceptance.lane_acceptance,
             "prove_lifecycle",
@@ -169,9 +159,7 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX owned-group cancellation")
-def test_outer_cancellation_preserves_failure_before_slow_cleanup(
-    tmp_path: Path,
-) -> None:
+def test_outer_cancellation_preserves_failure_before_slow_cleanup(tmp_path: Path) -> None:
     """The child retains failure before the native parent closes its cleanup window."""
     root = tmp_path / "attempt"
     ready = root / "work" / "ready"
@@ -196,10 +184,7 @@ def cleanup(path):
 effect.observe_package, effect.remove_generated_tree = observe, cleanup
 effect.run(SimpleNamespace(log=lambda _: None))
 """
-    with (
-        ThreadPoolExecutor(max_workers=1) as pool,
-        command_scope(timeout_seconds=20) as scope,
-    ):
+    with ThreadPoolExecutor(max_workers=1) as pool, command_scope(timeout_seconds=20) as scope:
         child = cast(
             "Future[subprocess.CompletedProcess[str]]",
             pool.submit(
@@ -227,11 +212,7 @@ effect.run(SimpleNamespace(log=lambda _: None))
 def test_terminal_refresh_preserves_complete_failure(monkeypatch, tmp_path, failed_write):
     work, output = tmp_path / "work", tmp_path / "smoke.json"
     terminal, events, writes = output.with_suffix(".terminal.json"), [], []
-    write, cleanup, cancel = (
-        Path.write_text,
-        effect.remove_generated_tree,
-        CommandScope.cancel,
-    )
+    write, cleanup, cancel = (Path.write_text, effect.remove_generated_tree, CommandScope.cancel)
     for name, value in {
         "ROOT": tmp_path,
         "WORK": work,
@@ -303,12 +284,7 @@ def test_acceptance_observation_retains_incomplete_nested_stage(tmp_path: Path) 
     records = [json.loads(line) for line in events.read_text().splitlines()]
     assert records[0]["head"] == "a" * 40
     assert records[0]["wheel_sha256"] == "b" * 64
-    assert [record["state"] for record in records[1:]] == [
-        "running",
-        "running",
-        "failed",
-        "failed",
-    ]
+    assert [record["state"] for record in records[1:]] == ["running", "running", "failed", "failed"]
     assert all(record["duration_seconds"] >= 0 for record in records[-2:])
     assert all(record["error_type"] == "KeyboardInterrupt" for record in records[-2:])
     original = events.read_bytes()

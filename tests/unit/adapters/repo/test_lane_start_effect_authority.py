@@ -46,8 +46,7 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
     effect = GitEffect(
         updates={
             update_ref: GitRefUpdate(
-                expected=base if flaw == "expected" else ZERO_OID,
-                desired=desired,
+                expected=base if flaw == "expected" else ZERO_OID, desired=desired
             )
         },
         assertions=assertions,
@@ -79,13 +78,7 @@ def _plan(tmp_path: Path, flaw: str = "", *, source: bool = False):
             "lease_generation": generation,
         },
     )
-    return compile_git_effect_plan(
-        None,
-        facts,
-        prior_attestations={},
-        policy=policy,
-        effect=effect,
-    )
+    return compile_git_effect_plan(None, facts, prior_attestations={}, policy=policy, effect=effect)
 
 
 @pytest.mark.parametrize("mode", ["fresh", "source"])

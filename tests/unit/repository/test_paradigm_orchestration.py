@@ -81,11 +81,7 @@ def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
         "      - run: mise run check\n      - name: Fix\n        run: mise run fix\n"
     )
     assert ci_steps("github", ".github/workflows/ci.yml", github) == [
-        CiStep(
-            ".github/workflows/ci.yml:jobs.quality.steps[1]",
-            "quality",
-            "mise run check",
-        ),
+        CiStep(".github/workflows/ci.yml:jobs.quality.steps[1]", "quality", "mise run check"),
         CiStep(".github/workflows/ci.yml:jobs.quality.steps[2]", "quality", "mise run fix"),
     ]
     assert ci_steps("gitlab", ".gitlab-ci.yml", "verify: [\n") == []
@@ -106,9 +102,7 @@ _REGISTRY = (
 )
 
 
-def test_a_gate_or_step_running_a_repository_script_is_shell_orchestration(
-    tmp_path: Path,
-) -> None:
+def test_a_gate_or_step_running_a_repository_script_is_shell_orchestration(tmp_path: Path) -> None:
     """The scenario's gate and CI step both name the script and their native repair."""
     script = "tools/ci/run-secrets-scan.sh"
     files = {
@@ -119,14 +113,8 @@ def test_a_gate_or_step_running_a_repository_script_is_shell_orchestration(
     }
     repair = f"replace {script} with a native command or toolchain-owner task"
     assert _gaps(tmp_path, files) == [
-        (
-            "repository_paradigm_shell_orchestration:.gitlab-ci.yml:secrets.script[0]",
-            repair,
-        ),
-        (
-            "repository_paradigm_shell_orchestration:system/gates.toml:gates.secrets",
-            repair,
-        ),
+        ("repository_paradigm_shell_orchestration:.gitlab-ci.yml:secrets.script[0]", repair),
+        ("repository_paradigm_shell_orchestration:system/gates.toml:gates.secrets", repair),
     ]
 
 
@@ -161,9 +149,7 @@ def test_a_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> Non
     assert gap == "repository_paradigm_inline_shell:system/gates.toml:gates.secrets"
 
 
-def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(
-    tmp_path: Path,
-) -> None:
+def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> None:
     """Gates declared in the profile itself are judged like registry gates."""
     gates = "".join(
         f'[[proof.gates]]\nid = "{name}"\nkind = "{kind}"\ncommand = {command}\n'
@@ -177,13 +163,7 @@ def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(
                 '["test"]',
                 "proof",
             ),
-            (
-                "sample-static",
-                "typing",
-                '["ty", "check"]',
-                '["static-analysis"]',
-                "contract",
-            ),
+            ("sample-static", "typing", '["ty", "check"]', '["static-analysis"]', "contract"),
         )
     )
     profile = (

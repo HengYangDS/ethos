@@ -59,10 +59,7 @@ def test_ref_move_policy_failure_and_noop_are_structured(
         lambda *_args: (_ for _ in ()).throw(ValueError("unreadable")),
     )
     blocked = admission.ref_move_admission_report(
-        root=tmp_path,
-        ref_name="refs/heads/work/example",
-        old_value="a" * 40,
-        new_value="b" * 40,
+        root=tmp_path, ref_name="refs/heads/work/example", old_value="a" * 40, new_value="b" * 40
     )
     policy = BranchRolePolicy(
         release_branch="release",
@@ -73,10 +70,7 @@ def test_ref_move_policy_failure_and_noop_are_structured(
     )
     monkeypatch.setattr(admission, "resolve_ref_move_policy", lambda *_args: policy)
     noop = admission.ref_move_admission_report(
-        root=tmp_path,
-        ref_name="refs/heads/work/example",
-        old_value="a" * 40,
-        new_value="a" * 40,
+        root=tmp_path, ref_name="refs/heads/work/example", old_value="a" * 40, new_value="a" * 40
     )
 
     assert blocked["required_gaps"] == ["ref_move_policy_unavailable"]
@@ -96,9 +90,7 @@ def test_committed_intent_gap_is_repair_required(
     )
     monkeypatch.setattr(admission, "resolve_ref_move_policy", lambda *_args: policy)
     monkeypatch.setattr(
-        admission,
-        "claim_ref_intent",
-        lambda **_kwargs: {"gap": "ref_intent_digest_mismatch"},
+        admission, "claim_ref_intent", lambda **_kwargs: {"gap": "ref_intent_digest_mismatch"}
     )
 
     report = admission.ref_move_admission_report(
@@ -129,16 +121,11 @@ def test_postwrite_reports_unexpected_and_outside_paths(
 
     report = admission.hook_admission_report(
         HookAdmissionRequest(
-            root=tmp_path,
-            layer="post-write",
-            paths=(tmp_path / "expected.txt", outside),
+            root=tmp_path, layer="post-write", paths=(tmp_path / "expected.txt", outside)
         )
     )
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["post_write_unexpected_path"]
-    assert report["target_paths"] == [
-        (tmp_path / "expected.txt").as_posix(),
-        outside.as_posix(),
-    ]
+    assert report["target_paths"] == [(tmp_path / "expected.txt").as_posix(), outside.as_posix()]
     assert report["unexpected_paths"] == ["outside.txt"]

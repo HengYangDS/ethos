@@ -101,10 +101,7 @@ def prepared_work_lane(
 
 
 def lane_start_arguments(
-    repository: Path,
-    *,
-    name: str = "feature",
-    holder_ref: str = "agent:test:case:agent-test",
+    repository: Path, *, name: str = "feature", holder_ref: str = "agent:test:case:agent-test"
 ) -> tuple[str, ...]:
     """Build CLI arguments for an applied test Work Lane start at its dated sibling path."""
     commit_openspec_baseline(repository)
@@ -162,13 +159,7 @@ def git(root: Path, *args: str) -> str:
     command = ["git", *args]
     if args[:1] != ("config",):
         command[1:1] = ["-c", "core.hooksPath=.git/test-hooks"]
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    completed = subprocess.run(command, cwd=root, check=True, text=True, capture_output=True)
     return completed.stdout.strip()
 
 
@@ -232,20 +223,14 @@ def create_change_source_lane(
     acquire_lease(
         state_database(repo),
         lease=LaneLease(
-            lane_ref=branch,
-            holder_ref=holder_ref,
-            generation=1,
-            expires_at=now + timedelta(days=1),
+            lane_ref=branch, holder_ref=holder_ref, generation=1, expires_at=now + timedelta(days=1)
         ),
     )
     return path
 
 
 def write_active_commitment(
-    repo: Path,
-    *,
-    change_id: str = "fixture-change",
-    scope: tuple[str, ...] = ("**",),
+    repo: Path, *, change_id: str = "fixture-change", scope: tuple[str, ...] = ("**",)
 ) -> None:
     """Write one complete official OpenSpec Change for lifecycle fixtures."""
     del scope
@@ -285,11 +270,7 @@ def commit_openspec_baseline(repo: Path) -> None:
         _commit_fixture(repo, "docs(openspec): seed the baseline")
 
 
-def _write_active_change_carrier(
-    repo: Path,
-    *,
-    change_id: str,
-) -> None:
+def _write_active_change_carrier(repo: Path, *, change_id: str) -> None:
     """Write one official OpenSpec Change without a parallel intent carrier."""
     openspec = repo / "openspec"
     carrier = openspec / "changes" / change_id
@@ -324,16 +305,11 @@ def _write_active_change_carrier(
         encoding="utf-8",
     )
     (carrier / "tasks.md").write_text(
-        "## 1. Fixture\n\n- [ ] 1.1 Exercise fixture lifecycle\n",
-        encoding="utf-8",
+        "## 1. Fixture\n\n- [ ] 1.1 Exercise fixture lifecycle\n", encoding="utf-8"
     )
 
 
-def commit_active_change(
-    repo: Path,
-    *,
-    change_id: str = "fixture-change",
-) -> str:
+def commit_active_change(repo: Path, *, change_id: str = "fixture-change") -> str:
     """Commit one official active OpenSpec Change and return its exact HEAD."""
     write_active_commitment(repo, change_id=change_id)
     if git(repo, "status", "--short"):
@@ -349,8 +325,7 @@ def _enable_openspec_profile(repo: Path) -> None:
     text = profile.read_text(encoding="utf-8")
     if "[openspec]" not in text:
         profile.write_text(
-            text.rstrip() + '\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
-            encoding="utf-8",
+            text.rstrip() + '\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n', encoding="utf-8"
         )
 
 
@@ -577,12 +552,7 @@ def declare_fixture_documentation_proof(repo: Path, *, profile_id: str | None = 
     write_test_profile(repo, **updates)
 
 
-def exact_lease(
-    *,
-    branch: str,
-    holder_ref: str,
-    ttl_seconds: int = 86_400,
-) -> LaneLease:
+def exact_lease(*, branch: str, holder_ref: str, ttl_seconds: int = 86_400) -> LaneLease:
     """Create one minimal exact Lease fixture."""
     now = datetime.now(UTC)
     return LaneLease(

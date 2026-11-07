@@ -470,10 +470,9 @@ def test_authored_selection_does_not_exempt_metadata_state(tmp_path):
     git(root, "add", ".")
     selected = quality_tools.prose_report(root)["native"][0]["command"]
     assert {"docs/closed.md", "openspec/changes/README.md"} <= set(selected)
-    assert not {
-        "docs/observation.md",
-        "openspec/changes/archive/2026-10-14-old/design.md",
-    } & set(selected)
+    assert not {"docs/observation.md", "openspec/changes/archive/2026-10-14-old/design.md"} & set(
+        selected
+    )
     assert {"openspec/changes/current/tasks.md", "openspec/specs/quality/spec.md"} <= set(selected)
 
 

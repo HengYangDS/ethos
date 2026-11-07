@@ -52,10 +52,7 @@ def test_product_policy_counts_markdown_in_global_budget() -> None:
 @pytest.mark.parametrize("category", ["python_product", "python_tests"])
 @pytest.mark.parametrize("lines", [2, 3])
 def test_only_declared_limits_block_at_exact_boundary(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    category: str,
-    lines: int,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, category: str, lines: int
 ) -> None:
     selection, source = budget_repository(tmp_path)
     selection.write_text(
@@ -63,7 +60,7 @@ def test_only_declared_limits_block_at_exact_boundary(
             "python_product = 1000, python_tests = 1000, python_tools = 1000, "
             "python_other = 1000, global_total = 2000",
             "python_product = 2, python_tests = 2",
-        ),
+        )
     )
     target = source if category == "python_product" else tmp_path / "tests/test_demo.py"
     target.parent.mkdir(exist_ok=True)
@@ -81,8 +78,7 @@ def test_only_declared_limits_block_at_exact_boundary(
 
 
 def test_product_generated_projection_is_not_maintained_source(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     selection, _ = budget_repository(tmp_path)
     root = Path(__file__).resolve().parents[4]
@@ -105,19 +101,14 @@ def test_product_generated_projection_is_not_maintained_source(
 
 
 def test_direct_measurement_is_clean_when_bounded_counters_agree(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path)
     deleted = tracked_budget_file(tmp_path, "deleted.py", "VALUE = 1\n")
     deleted.unlink()
     report = measure_budget(monkeypatch, tmp_path)
 
-    assert (report["verdict"], report["state"], report["required_gaps"]) == (
-        "pass",
-        "clean",
-        [],
-    )
+    assert (report["verdict"], report["state"], report["required_gaps"]) == ("pass", "clean", [])
     assert "ok" not in report
     assert report["metrics"]["python_total"] == 2
     assert report["inventory"]["file_count"] == 3
@@ -164,9 +155,7 @@ def test_record_measurement_preserves_totals_and_tracks_growth(tmp_path, monkeyp
     ),
 )
 def test_ecosystem_lockfile_patterns_share_one_evidence_class(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    relative: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str
 ) -> None:
     budget_repository(tmp_path)
     before = measure_budget(monkeypatch, tmp_path)
@@ -181,8 +170,7 @@ def test_ecosystem_lockfile_patterns_share_one_evidence_class(
 
 
 def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path)
     tracked_budget_file(tmp_path, "system/clock.json", '{"source": true}\n')
@@ -193,8 +181,7 @@ def test_ordinary_structured_files_cannot_impersonate_lockfile_evidence(
 
 
 def test_terminal_verdict_uses_canonical_effective_lines_not_physical_cross_check(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path, terminal=(2, 1_000, 1_000, 1_000, 2_000))
     report = measure_budget(monkeypatch, tmp_path, {"src/ethos/demo.py": 3})
@@ -233,9 +220,7 @@ def test_python_carrier_roles_cannot_compensate_for_one_another(
 
 @pytest.mark.parametrize("other", ["demo.py", "evidence/decision.py"])
 def test_python_role_partition_is_complete_and_non_overlapping(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    other: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, other: str
 ) -> None:
     budget_repository(tmp_path)
     for relative in ("tests/test_demo.py", "tools/demo.py", other):
@@ -253,8 +238,7 @@ def test_python_role_partition_is_complete_and_non_overlapping(
 
 
 def test_overlapping_python_role_patterns_fail_closed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     selection, _ = budget_repository(tmp_path)
     selection.write_text(
@@ -275,8 +259,7 @@ def test_overlapping_python_role_patterns_fail_closed(
 
 
 def test_global_total_blocks_without_any_python_role_exceeding(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path, terminal=(1_000, 1_000, 1_000, 1_000, 1))
     report = measure_budget(monkeypatch, tmp_path)
@@ -291,9 +274,7 @@ def test_global_total_blocks_without_any_python_role_exceeding(
 
 @pytest.mark.parametrize("unknown", ["bin/tool", "openspec/changes/archive/closed/opaque"])
 def test_extensionless_hook_is_counted_and_unknown_executable_blocks(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    unknown: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unknown: str
 ) -> None:
     budget_repository(tmp_path)
     tracked_budget_file(tmp_path, ".githooks/pre-push", "#!/bin/sh\necho ready\n", executable=True)
@@ -329,8 +310,7 @@ def test_native_counter_preserves_file_coverage_and_comparison_direction(
 
 
 def test_structured_measurement_cannot_be_reduced_by_minifying_json(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path)
     value = {"items": [{"name": f"item-{index}", "enabled": True} for index in range(20)]}
@@ -371,8 +351,7 @@ def test_structured_measurement_is_formatting_and_order_invariant(
 
 
 def test_yaml_measurement_accepts_native_mixed_scalar_keys(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     budget_repository(tmp_path)
     tracked_budget_file(tmp_path, "system/data.yaml", "on: enabled\ntrue: boolean-key\n")

@@ -89,10 +89,7 @@ def _attestation(
 
 
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
-    commitment = commitment_fixture(
-        id="change:terminal-kernel",
-        acceptance=("acceptance:base",),
-    )
+    commitment = commitment_fixture(id="change:terminal-kernel", acceptance=("acceptance:base",))
 
     assert commitment.identity_projection() == {
         "schema_version": 3,
@@ -102,8 +99,7 @@ def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -
     assert (
         commitment.digest()
         != commitment_fixture(
-            id="change:terminal-kernel",
-            acceptance=("acceptance:replacement",),
+            id="change:terminal-kernel", acceptance=("acceptance:replacement",)
         ).digest()
     )
 
@@ -183,11 +179,9 @@ carrier = "second"
             "kind": "surface",
             "identity": "cli",
             "sources": ["system/surfaces.toml"],
-        },
+        }
     ]
-    assert report["required_gaps"] == [
-        "semantic_owner_conflict:surface:cli:system/surfaces.toml",
-    ]
+    assert report["required_gaps"] == ["semantic_owner_conflict:surface:cli:system/surfaces.toml"]
 
 
 def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path: Path) -> None:
@@ -310,10 +304,7 @@ def test_semantic_values_are_immutable_and_digest_bound() -> None:
         values={"nested": {"values": ["one", {"two": True}]}},
     )
     assert isinstance(attestation.payload.body, MappingProxyType)
-    assert attestation.payload.body["nested"]["values"] == (
-        "one",
-        MappingProxyType({"two": True}),
-    )
+    assert attestation.payload.body["nested"]["values"] == ("one", MappingProxyType({"two": True}))
     assert isinstance(facts.values, MappingProxyType)
     with pytest.raises(TypeError):
         operator.setitem(attestation.payload.body, "new", "forbidden")
@@ -336,8 +327,7 @@ def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: obj
 
 
 @pytest.mark.parametrize(
-    "invalid",
-    ["scalar", ("array",), {1: "non-string-key"}, {"nested": {1: "non-string-key"}}],
+    "invalid", ["scalar", ("array",), {1: "non-string-key"}, {"nested": {1: "non-string-key"}}]
 )
 def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
     with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
@@ -349,8 +339,7 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
     [
         pytest.param(
             lambda value: commitment_fixture(
-                id="change:digest-matrix",
-                acceptance=(f"acceptance:{value}",),
+                id="change:digest-matrix", acceptance=(f"acceptance:{value}",)
             ),
             lambda model: hashlib.sha256(
                 b"ethos.commitment.v3\0" + model.canonical_json().encode()
@@ -437,36 +426,22 @@ def test_canonical_value_algebra_is_provider_neutral_and_recursive() -> None:
         }
     )
 
-    assert mutable_json(value) == {
-        "z": [{"nested": True}],
-        "a": {"items": ["one", 2, None]},
-    }
+    assert mutable_json(value) == {"z": [{"nested": True}], "a": {"items": ["one", 2, None]}}
     assert json.loads(json.dumps(mutable_json(value))) == mutable_json(value)
 
 
 def test_canonical_json_bytes_use_utf16_key_order_and_utf8_strings() -> None:
     canonical_json_bytes = getattr(semantic, "canonical_json_bytes", None)
     assert callable(canonical_json_bytes)
-    value = MappingProxyType(
-        {
-            "\ue000": "bmp",
-            "\U00010000": "astral",
-            "label": "café",
-        }
-    )
+    value = MappingProxyType({"\ue000": "bmp", "\U00010000": "astral", "label": "café"})
     expected = b'{"label":"caf\xc3\xa9","\xf0\x90\x80\x80":"astral","\xee\x80\x80":"bmp"}'
 
     assert canonical_json_bytes(value) == expected
     assert canonical_json_digest(value) == hashlib.sha256(expected).hexdigest()
 
 
-@pytest.mark.parametrize(
-    "case",
-    ["float", "surrogate", "integer"],
-)
-def test_canonical_json_digest_rejects_values_outside_closed_grammar(
-    case: str,
-) -> None:
+@pytest.mark.parametrize("case", ["float", "surrogate", "integer"])
+def test_canonical_json_digest_rejects_values_outside_closed_grammar(case: str) -> None:
     # Keep malformed values out of pytest's serialized case metadata.
     invalid, error = {
         "float": (1.5, "semantic_json_value_invalid"),
@@ -504,8 +479,7 @@ def test_schema_surfaces_are_generated_declared_and_valid() -> None:
         commitment["properties"]
     )
     structurally_valid = commitment_fixture(
-        id="change:schema-projection",
-        acceptance=("acceptance:fixture",),
+        id="change:schema-projection", acceptance=("acceptance:fixture",)
     ).model_dump(mode="json")
     assert list(jsonschema.Draft202012Validator(commitment).iter_errors(structurally_valid)) == []
     attestation = generated["attestation.schema.json"]

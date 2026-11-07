@@ -18,8 +18,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 
 def _write_lock[T](path: Path, packages: dict[str, T]) -> None:
     path.write_text(
-        json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n",
-        encoding="utf-8",
+        json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n", encoding="utf-8"
     )
 
 
@@ -139,15 +138,11 @@ def test_node_package_projection_accepts_a_source_local_production_closure(
         "node_modules/dev-only": {"version": "1.0.0", "dev": True},
     }
     _write_lock(source / "package-lock.json", packages)
-    for relative, version in (
-        ("direct", "1.0.0"),
-        ("direct/node_modules/nested", "2.0.0"),
-    ):
+    for relative, version in (("direct", "1.0.0"), ("direct/node_modules/nested", "2.0.0")):
         package = supply / relative / "package.json"
         package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text(
-            json.dumps({"name": relative, "version": version}) + "\n",
-            encoding="utf-8",
+            json.dumps({"name": relative, "version": version}) + "\n", encoding="utf-8"
         )
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
 

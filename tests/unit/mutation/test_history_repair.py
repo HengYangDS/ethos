@@ -227,9 +227,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
         cwd=repo,
     )
     repaired_head = repair_fixture_history(
-        repo,
-        tmp_path / "original.bundle",
-        corrections={head: {"resign": True}},
+        repo, tmp_path / "original.bundle", corrections={head: {"resign": True}}
     )
     if continuation == "repeated":
         repaired_head = repair_fixture_history(
@@ -252,9 +250,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
         git(repo, "update-ref", "refs/heads/dev", descendant, repaired_head)
         repaired_head = descendant
     restored = load_openspec_commitment(
-        repo,
-        tree_ref=repaired_head,
-        expected_digest=expected.digest(),
+        repo, tree_ref=repaired_head, expected_digest=expected.digest()
     )
     assert restored == expected
     resolved = archive.attested_archive_transition(repo, head=repaired_head)
@@ -285,11 +281,7 @@ def test_history_repair_ref_observation_uses_exact_completed_effect(tmp_path):
         repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
     observed = ref_update_admission_report(
-        repo,
-        target_ref="refs/heads/dev",
-        proposed_head=new,
-        remote_head=old,
-        remote_name="origin",
+        repo, target_ref="refs/heads/dev", proposed_head=new, remote_head=old, remote_name="origin"
     )
     assert observed["verdict"] == "pass", observed
     admission = observed["commit_policy_admission"]

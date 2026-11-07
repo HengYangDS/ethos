@@ -118,10 +118,7 @@ def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
         ("key_id", "provider:wrong"),
     ):
         report = control_report(
-            candidate,
-            accepted,
-            head,
-            trusted_receipt(request, **{field: wrong}),
+            candidate, accepted, head, trusted_receipt(request, **{field: wrong})
         )
         assert report["required_gaps"] == ["independent_verification_receipt_binding_mismatch"], (
             field

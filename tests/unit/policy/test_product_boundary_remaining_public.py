@@ -21,9 +21,7 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def test_release_history_public_inventory_skips_dependency_directories(
-    tmp_path: Path,
-) -> None:
+def test_release_history_public_inventory_skips_dependency_directories(tmp_path: Path) -> None:
     visible = tmp_path / "docs/history/record.md"
     skipped = tmp_path / "docs/history/node_modules/record.md"
     for path in (visible, skipped):

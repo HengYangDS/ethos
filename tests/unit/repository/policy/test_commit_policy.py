@@ -94,12 +94,7 @@ def test_commit_policy_compiles_from_one_already_observed_snapshot() -> None:
         ('subject_pattern = "^fix: .+"', "scopes = [{}]", "commit_policy_invalid:scopes"),
     ],
 )
-def test_present_commit_policy_fails_closed(
-    tmp_path: Path,
-    old: str,
-    new: str,
-    error: str,
-) -> None:
+def test_present_commit_policy_fails_closed(tmp_path: Path, old: str, new: str, error: str) -> None:
     valid = '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
     text = new if old == "all" else valid.replace(old, new, 1) if old else valid + new
     assert text != valid

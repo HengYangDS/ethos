@@ -46,8 +46,7 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
         "proof_attestation",
         lambda *_args, **_kwargs: (
             SimpleNamespace(
-                commitment_digest="digest",
-                model_dump=lambda **_kwargs: {"id": "proof"},
+                commitment_digest="digest", model_dump=lambda **_kwargs: {"id": "proof"}
             ),
             [],
         ),
@@ -57,11 +56,7 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     monkeypatch.setattr(
         landing, "plan_from_statement", lambda _proof: SimpleNamespace(commitment=None)
     )
-    monkeypatch.setattr(
-        landing,
-        "current_branch",
-        lambda *_args: "work/example",
-    )
+    monkeypatch.setattr(landing, "current_branch", lambda *_args: "work/example")
     monkeypatch.setattr(landing, "leases_by_branch", lambda _root: {"work/example": {}})
     monkeypatch.setattr(
         landing,
@@ -180,26 +175,16 @@ def test_candidate_to_accepted_stops_at_decision_and_reobservation_drift(
     assert report["required_gaps"] == ["candidate_head_changed_after_control_replacement_check"]
 
 
-@pytest.mark.parametrize(
-    ("returncode", "stdout"),
-    [(1, ""), (0, ".ethos/workspace.toml\n")],
-)
+@pytest.mark.parametrize(("returncode", "stdout"), [(1, ""), (0, ".ethos/workspace.toml\n")])
 def test_default_accepted_policy_rejects_unreadable_or_changed_carrier(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    returncode: int,
-    stdout: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, returncode: int, stdout: str
 ) -> None:
     monkeypatch.setattr(
-        accepted_admission,
-        "run_git",
-        lambda *_args, **_kwargs: _git(stdout, returncode),
+        accepted_admission, "run_git", lambda *_args, **_kwargs: _git(stdout, returncode)
     )
 
     report = accepted_admission.candidate_to_accepted(
-        root=tmp_path,
-        authorized=True,
-        expect_head="head",
+        root=tmp_path, authorized=True, expect_head="head"
     )
 
     assert report["required_gaps"] == ["accepted_policy_unavailable"]

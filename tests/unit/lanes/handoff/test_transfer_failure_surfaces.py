@@ -23,21 +23,14 @@ if TYPE_CHECKING:
     ],
 )
 def test_handoff_context_fails_closed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    text: str,
-    file_content: str | None,
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str, file_content: str | None, gap: str
 ) -> None:
     context_file = tmp_path / "context.md"
     if file_content is not None:
         context_file.write_text(file_content, encoding="utf-8")
 
     request = _export_request(
-        tmp_path,
-        root=tmp_path.as_posix(),
-        context_text=text,
-        context_file=context_file.as_posix(),
+        tmp_path, root=tmp_path.as_posix(), context_text=text, context_file=context_file.as_posix()
     )
     _mock_export_observations(monkeypatch, tmp_path)
 
@@ -55,10 +48,7 @@ def test_handoff_context_fails_closed(
     ],
 )
 def test_lease_state_gap_is_actionable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    lease: dict[str, object],
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lease: dict[str, object], gap: str
 ) -> None:
     _mock_export_observations(monkeypatch, tmp_path, lease=lease)
 
@@ -74,9 +64,7 @@ def test_import_reports_invalid_holder_before_effects(
     package.mkdir()
     monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
     monkeypatch.setattr(
-        transfer,
-        "workspace_status",
-        lambda _root: {"role": "accepted_root", "dirty": False},
+        transfer, "workspace_status", lambda _root: {"role": "accepted_root", "dirty": False}
     )
     monkeypatch.setattr(
         transfer.handoff_package,
@@ -93,9 +81,7 @@ def test_import_reports_invalid_holder_before_effects(
         ),
     )
     monkeypatch.setattr(
-        transfer,
-        "apply_handoff_import",
-        lambda **_kwargs: pytest.fail("effect must not run"),
+        transfer, "apply_handoff_import", lambda **_kwargs: pytest.fail("effect must not run")
     )
 
     report = transfer.import_cross_host_handoff(
@@ -124,9 +110,7 @@ def test_import_wraps_effect_failure_in_public_gap(
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
     monkeypatch.setattr(
-        transfer,
-        "workspace_status",
-        lambda _root: {"role": "accepted_root", "dirty": False},
+        transfer, "workspace_status", lambda _root: {"role": "accepted_root", "dirty": False}
     )
     monkeypatch.setattr(
         transfer.handoff_package,
@@ -194,10 +178,7 @@ def _export_request(tmp_path: Path, **overrides: object) -> CrossHostHandoffExpo
 
 
 def _mock_export_observations(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    *,
-    lease: dict[str, object] | None = None,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, lease: dict[str, object] | None = None
 ) -> None:
     observed_lease = {
         "lease_state": "valid",
@@ -210,17 +191,13 @@ def _mock_export_observations(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:source")
     monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
     monkeypatch.setattr(
-        transfer,
-        "workspace_status",
-        lambda _root: {"role": "work_lane", "branch": "work/example"},
+        transfer, "workspace_status", lambda _root: {"role": "work_lane", "branch": "work/example"}
     )
     monkeypatch.setattr(
         transfer,
         "run_git",
         lambda _root, *args: type(
-            "Result",
-            (),
-            {"stdout": "b" * 40 if args[-1] == "HEAD" else "c" * 40},
+            "Result", (), {"stdout": "b" * 40 if args[-1] == "HEAD" else "c" * 40}
         )(),
     )
     monkeypatch.setattr(

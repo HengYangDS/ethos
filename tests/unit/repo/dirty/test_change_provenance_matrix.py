@@ -12,10 +12,7 @@ import ethos.adapters.repo.dirty.change_provenance as provenance
 
 @pytest.mark.parametrize(
     ("returncode", "stdout", "expected"),
-    [
-        (0, "src/a.py\ntests/test_a.py\n", ("src/a.py", "tests/test_a.py")),
-        (1, "ignored\n", ()),
-    ],
+    [(0, "src/a.py\ntests/test_a.py\n", ("src/a.py", "tests/test_a.py")), (1, "ignored\n", ())],
 )
 def test_committed_change_paths_fail_closed_on_git_result(
     tmp_path,
@@ -51,12 +48,10 @@ def test_change_scope_deduplicates_committed_and_dirty_paths(
         "dirty",
     )
     assert provenance.change_scope_paths_from_status(
-        tmp_path,
-        {"role": "work_lane", "role_policy": {"candidate_branch": "candidate/dev"}},
+        tmp_path, {"role": "work_lane", "role_policy": {"candidate_branch": "candidate/dev"}}
     ) == ("shared", "committed", "dirty")
     assert provenance.change_scope_paths_from_status(
-        tmp_path,
-        {"role": "accepted_root", "role_policy": {"candidate_branch": "candidate/dev"}},
+        tmp_path, {"role": "accepted_root", "role_policy": {"candidate_branch": "candidate/dev"}}
     ) == ("shared", "dirty")
 
 

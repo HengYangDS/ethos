@@ -76,10 +76,7 @@ def test_clean_source_identity_avoids_materializing_an_overlay(
         return observed_git(root, *args, **kwargs)
 
     monkeypatch.setattr(source, "run_git", observe)
-    expected = (
-        git(repository, "rev-parse", "HEAD"),
-        git(repository, "rev-parse", "HEAD^{tree}"),
-    )
+    expected = (git(repository, "rev-parse", "HEAD"), git(repository, "rev-parse", "HEAD^{tree}"))
     assert source.source_git_identity(repository, include_overlay=include_overlay) == expected
     assert len(commands) == (6 if include_overlay else 2)
     assert commands[0] == ("rev-parse", "HEAD", "HEAD^{tree}")

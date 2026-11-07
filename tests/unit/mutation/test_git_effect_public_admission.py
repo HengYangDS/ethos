@@ -30,8 +30,7 @@ ACTOR = "agent:test:case:owner"
 
 @pytest.mark.parametrize("purpose", ["repository", "local-source"])
 def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authority(
-    tmp_path: Path,
-    purpose: AcceptancePurpose,
+    tmp_path: Path, purpose: AcceptancePurpose
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     write_test_profile(root)
@@ -46,13 +45,7 @@ def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authorit
         **({"acceptance_purpose": purpose} if purpose == "local-source" else {}),
     }
 
-    carried = compile_observed_git_effect(
-        root,
-        authority,
-        effect,
-        head=head,
-        policy=policy,
-    )
+    carried = compile_observed_git_effect(root, authority, effect, head=head, policy=policy)
 
     assert carried.policy == {
         "operation": "git.ref.compare-and-swap",
@@ -99,17 +92,13 @@ def test_raw_semantic_operation_never_authorizes_an_effect(tmp_path: Path) -> No
 
 
 def test_recovery_accepts_the_same_minimal_lease_generation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     old = git(root, "rev-parse", "HEAD")
     new = git(root, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "target")
     branch = "work/example"
-    current = _generation(branch) | {
-        "lane_ref": branch,
-        "lease_state": "valid",
-    }
+    current = _generation(branch) | {"lane_ref": branch, "lease_state": "valid"}
     generation = admission.lease_generation(current)
     effect = GitEffect(updates={f"refs/heads/{branch}": GitRefUpdate(expected=old, desired=new)})
     carried = plan(
@@ -213,10 +202,7 @@ def test_lease_generation_binds_actor_branch_and_detached_execution(
     head = git(root, "rev-parse", "HEAD")
     branch = "work/example"
     generation = _generation(branch)
-    observed = generation | {
-        "lane_ref": branch,
-        "lease_state": "valid",
-    }
+    observed = generation | {"lane_ref": branch, "lease_state": "valid"}
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
     carried = plan(
         root,
@@ -258,9 +244,7 @@ def test_lease_generation_binds_actor_branch_and_detached_execution(
     ],
 )
 def test_expired_lease_generation_rejects_operations_without_retirement_evidence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    policy: dict[str, object],
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, policy: dict[str, object]
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     head = git(root, "rev-parse", "HEAD")
@@ -271,10 +255,7 @@ def test_expired_lease_generation_rejects_operations_without_retirement_evidence
     carried = plan(
         root,
         effect,
-        values={
-            "lease_generation": generation,
-            "lease_generation_state": "expired",
-        },
+        values={"lease_generation": generation, "lease_generation_state": "expired"},
         policy={**policy, "actor": ACTOR},
     )
     monkeypatch.setattr(admission, "leases_by_branch", lambda *_args, **_kwargs: {branch: observed})

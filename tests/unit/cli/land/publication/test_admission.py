@@ -312,9 +312,7 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
             publication_request.load_remote_publication_request(repo, str(path), digest)
 
 
-def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
-    tmp_path: Path,
-) -> None:
+def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(tmp_path: Path) -> None:
     repo, _remotes, head = branch_publication_fixture(tmp_path)
     payload = branch_publication(repo, head, blocked=True, target_ref="refs/heads/proposal/topic~1")
     assert payload["required_gaps"] == [

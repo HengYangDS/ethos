@@ -135,9 +135,7 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
     monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:case:holder")
     monkeypatch.setattr(effects, "archive_absorption_gaps", lambda *_args: [])
     monkeypatch.setattr(
-        effects,
-        "linked_retirement_plan",
-        lambda *_args, **_kwargs: (tmp_path, object()),
+        effects, "linked_retirement_plan", lambda *_args, **_kwargs: (tmp_path, object())
     )
     monkeypatch.setattr(
         effects,
@@ -169,10 +167,7 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
             True,
             False,
             "expired",
-            {
-                "work_lane_already_merged_use_retire_landed",
-                "work_lane_lease_expired:work/source",
-            },
+            {"work_lane_already_merged_use_retire_landed", "work_lane_lease_expired:work/source"},
         ),
     ],
 )
@@ -217,14 +212,7 @@ def test_lane_projection_reports_native_retirement_readiness(
 
 @pytest.mark.parametrize(
     ("returncode", "stdout", "expected"),
-    [
-        (1, "", ()),
-        (
-            0,
-            _ARCHIVE_LISTING,
-            ("openspec/changes/archive/2026-08-29-change",),
-        ),
-    ],
+    [(1, "", ()), (0, _ARCHIVE_LISTING, ("openspec/changes/archive/2026-08-29-change",))],
 )
 def test_archive_absorption_uses_only_the_exact_archived_change(
     tmp_path: Path,
@@ -305,9 +293,7 @@ def test_missing_retirement_path_and_carrier_delta_are_explicit(
     )
     monkeypatch.setattr(effects, "is_ancestor", lambda *_args: True)
     monkeypatch.setattr(
-        effects,
-        "_archive_roots",
-        lambda *_args: ("openspec/changes/archive/2026-08-29-change",),
+        effects, "_archive_roots", lambda *_args: ("openspec/changes/archive/2026-08-29-change",)
     )
     assert (
         effects.archived_carrier_absorption(tmp_path, head="a" * 40, accepted_head="b" * 40) == {}

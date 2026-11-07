@@ -298,9 +298,7 @@ def test_hook_runtime_manifest_rejects_every_binding_drift(
 
     with pytest.raises(ValueError, match=reason):
         runtime_materialization.materialize_runtime(
-            repo,
-            Path(sys.executable),
-            expected_build=expected_runtime_build(repo).identity,
+            repo, Path(sys.executable), expected_build=expected_runtime_build(repo).identity
         )
 
 
@@ -344,9 +342,7 @@ def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_conten
 
     with monkeypatch.context() as patch:
         patch.setattr(
-            runtime_filesystem,
-            "is_junction",
-            lambda path: kind == "junction" and path == subtree,
+            runtime_filesystem, "is_junction", lambda path: kind == "junction" and path == subtree
         )
         patch.setattr(os, "scandir", readable)
         with pytest.raises(ValueError, match="hook_runtime_payload_mismatch"):

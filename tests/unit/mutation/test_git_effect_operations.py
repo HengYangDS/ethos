@@ -35,17 +35,13 @@ def test_stage_effects_reject_stale_heads_and_git_failures(
         git_effects.stage_git_worktree(repo, previous=head)
     monkeypatch.setattr(git_effects, "current_tracked_head", lambda _root: "observed")
     monkeypatch.setattr(
-        git_effects,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess((), 1, "", ""),
+        git_effects, "run_git", lambda *_args, **_kwargs: subprocess.CompletedProcess((), 1, "", "")
     )
     with pytest.raises(ValueError, match="git_effect_stage_failed"):
         git_effects.stage_git_worktree(repo, previous="observed")
 
 
-def test_worktree_postimage_is_exact_and_does_not_mutate_the_real_index(
-    tmp_path: Path,
-) -> None:
+def test_worktree_postimage_is_exact_and_does_not_mutate_the_real_index(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     index_tree = git(repo, "write-tree")
@@ -170,9 +166,7 @@ def test_execution_source_failure_preserves_index_and_releases_owned_scratch(
     assert index.read_bytes() == original
 
 
-def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(
-    tmp_path: Path,
-) -> None:
+def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     source = repo / "source"
@@ -279,9 +273,7 @@ def test_index_restore_preserves_working_bytes_and_rejects_an_unreadable_tree(
     assert readme.read_text() == "unstaged content survives index recovery\n"
 
 
-def test_compensation_refuses_deletion_when_native_index_observation_fails(
-    tmp_path: Path,
-) -> None:
+def test_compensation_refuses_deletion_when_native_index_observation_fails(tmp_path: Path) -> None:
     """An unreadable index is unknown ownership, not proof that content is untracked."""
     repo = init_git_repo(tmp_path / "repo")
     owned = repo / "owned/keep.txt"

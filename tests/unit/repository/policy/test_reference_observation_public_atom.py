@@ -53,9 +53,7 @@ def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_p
     assert observed.coverage == "evaluated"
 
 
-def test_repository_public_observation_skips_unreadable_python(
-    tmp_path: Path,
-) -> None:
+def test_repository_public_observation_skips_unreadable_python(tmp_path: Path) -> None:
     source = tmp_path / "src/ethos"
     source.mkdir(parents=True)
     (source / "app.py").write_text("App()\n", encoding="utf-8")
@@ -124,8 +122,7 @@ def test_yaml_public_observation_normalizes_action_references(
 
 def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
     observed = product_references_from_files(
-        {"docs/reference/example.md": "`'unterminated`\n"},
-        declared_commands=("ethos status",),
+        {"docs/reference/example.md": "`'unterminated`\n"}, declared_commands=("ethos status",)
     )
     assert observed.references == _observed()
     assert observed.unknown_paths == ()
@@ -143,8 +140,7 @@ def test_consumer_observation_does_not_recompute_command_declarations(
         return {}
 
     monkeypatch.setattr(
-        "ethos.repository.policy.references.python_syntax.cyclopts_prefixes",
-        record_prefix_scan,
+        "ethos.repository.policy.references.python_syntax.cyclopts_prefixes", record_prefix_scan
     )
 
     result = reference_consumer_sources_from_files(
@@ -189,11 +185,7 @@ def test_cyclopts_observation_drops_cycles_and_keeps_explicit_names() -> None:
     ],
 )
 def test_repository_reference_closure_reports_unparseable_carrier_as_unknown(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    relative: str,
-    content: str,
-    carrier: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str, content: str, carrier: str
 ) -> None:
     """A selected carrier parser failure cannot disappear as an empty observation."""
     declare_reference_surface(tmp_path, "docs", carrier)
@@ -206,18 +198,12 @@ def test_repository_reference_closure_reports_unparseable_carrier_as_unknown(
 
     assert report["verdict"] == "unknown"
     assert report["unknown"] == [
-        {
-            "relation": "carrier",
-            "kind": "reference",
-            "identity": relative,
-            "sources": [relative],
-        }
+        {"relation": "carrier", "kind": "reference", "identity": relative, "sources": [relative]}
     ]
 
 
 def test_repository_semantic_closure_parses_each_complete_python_carrier_once(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One closure invocation shares each complete Python syntax tree."""
     declare_reference_surface(tmp_path, "cli")
@@ -244,11 +230,7 @@ def status() -> None:
         calls.append(source)
         return original(source)
 
-    monkeypatch.setattr(
-        reference_declarations.python_references.ast,
-        "parse",
-        record_parse,
-    )
+    monkeypatch.setattr(reference_declarations.python_references.ast, "parse", record_parse)
     repository_semantic_closure(tmp_path)
 
     assert calls.count(command_text) == 1

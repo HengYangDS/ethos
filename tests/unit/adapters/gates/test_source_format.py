@@ -154,7 +154,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(
                     members={"docs/generated.md": (producer, "docs/generated.md")},
                     integrity_gate="generated-integrity",
                 ),
-            ),
+            )
         ),
     )
     expected = {*ROOT_DOCUMENTS, "docs/current.md"}
@@ -326,12 +326,7 @@ def test_native_parse_refusal_preserves_every_selected_file(lane: Path) -> None:
     sources = {"src/product.py": "value=1\n", "source.json": "{ broken }\n"}
     write_tree(lane, sources)
     code, result = _command(
-        lane,
-        *sources,
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        git(lane, "rev-parse", "HEAD"),
+        lane, *sources, "--apply", "--authorize", "--expect-head", git(lane, "rev-parse", "HEAD")
     )
     assert (code, result["verdict"]) == (1, "block"), result
     assert all((lane / path).read_text() == content for path, content in sources.items())
@@ -343,12 +338,7 @@ def test_native_policy_warning_refuses_postimages_and_preserves_original_diagnos
     sources = {"src/product.py": "value=1\n", "source.json": '{"value":true}\n'}
     write_tree(lane, {**sources, ".config/checks/prettier/prettier.toml": "unknownFormat = true\n"})
     code, result = _command(
-        lane,
-        *sources,
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        git(lane, "rev-parse", "HEAD"),
+        lane, *sources, "--apply", "--authorize", "--expect-head", git(lane, "rev-parse", "HEAD")
     )
     assert (code, result["verdict"]) == (1, "block"), result
     assert all((lane / path).read_text() == content for path, content in sources.items())

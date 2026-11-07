@@ -47,11 +47,7 @@ if TYPE_CHECKING:
         ('comment_prefixes = ["#"]', 'comment_wrappers = [["/*", "*/", "extra"]]'),
     ],
 )
-def test_malformed_or_incomplete_policy_fails_closed(
-    tmp_path: Path,
-    before,
-    after,
-) -> None:
+def test_malformed_or_incomplete_policy_fails_closed(tmp_path: Path, before, after) -> None:
     selection, _ = budget_repository(tmp_path)
     source = selection.read_text()
     assert before in source
@@ -73,9 +69,7 @@ def test_malformed_or_incomplete_policy_fails_closed(
     ],
 )
 def test_missing_or_malformed_policy_is_a_closed_report(
-    tmp_path: Path,
-    content: str,
-    expected: str,
+    tmp_path: Path, content: str, expected: str
 ) -> None:
     path = tmp_path / ".config/checks/format-selection/policy.toml"
     if content:

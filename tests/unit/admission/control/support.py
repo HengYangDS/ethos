@@ -28,8 +28,7 @@ def control_change(
     profile = repo / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text().replace(
-            'gate_registry = "system/gates.toml"',
-            'gate_registry = ".ethos/fixture-proof.toml"',
+            'gate_registry = "system/gates.toml"', 'gate_registry = ".ethos/fixture-proof.toml"'
         )
         + f'\n[independent_verification]\nmode = "{mode}"\n',
         encoding="utf-8",

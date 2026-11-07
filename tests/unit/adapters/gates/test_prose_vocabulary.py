@@ -98,10 +98,7 @@ def test_native_software_vocabulary_accepts_canonical_usage(tmp_path: Path, pros
     ],
 )
 def test_native_software_vocabulary_keeps_adverse_findings(
-    tmp_path: Path,
-    prose: str,
-    check: str,
-    match: str,
+    tmp_path: Path, prose: str, check: str, match: str
 ) -> None:
     """A glossary cannot grant typos or weak prose a passing native result."""
     source = tmp_path / "defect.md"
@@ -153,8 +150,7 @@ def test_native_software_vocabulary_separates_prose_and_literal_code(tmp_path: P
     assert source.read_bytes() == original
 
     source.write_text(
-        contents.replace("The report is ready.", "The Github report is ready."),
-        encoding="utf-8",
+        contents.replace("The report is ready.", "The Github report is ready."), encoding="utf-8"
     )
     original = source.read_bytes()
     result = run_command(tmp_path, command, timeout=20)

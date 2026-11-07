@@ -116,9 +116,7 @@ def test_a_legacy_ref_that_duplicates_its_successor_is_retired(tmp_path: Path) -
     assert {name: git(repo, "rev-parse", name) for name in kept} == kept
 
 
-def test_a_legacy_ref_at_another_commit_than_its_successor_stays_protected(
-    tmp_path: Path,
-) -> None:
+def test_a_legacy_ref_at_another_commit_than_its_successor_stays_protected(tmp_path: Path) -> None:
     """A successor at a different commit leaves the legacy ref's content unique, so it stays."""
     repo, head = _legacy_repository(tmp_path)
     git(repo, "branch", "candidate/dev", "HEAD~1")

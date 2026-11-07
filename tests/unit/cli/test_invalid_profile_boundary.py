@@ -144,7 +144,7 @@ def test_invalid_profile_workflowcommand_names_emit_structured_result_before_adm
     profile.parent.mkdir(exist_ok=True)
     profile.write_text(
         'schema_version = 1\nprofile_id = "invalid"\n[openspec]\nmaterial_paths = ["openspec/**"]\n'
-        '[roots]\nrules = "."\n',
+        '[roots]\nrules = "."\n'
     )
     payload = _invoke(
         monkeypatch,
@@ -202,11 +202,7 @@ def test_native_execution_failures_preserve_evidence_and_transport(
 
     def fail(_root: Path | None) -> Path:
         raise error_type(
-            code,
-            reason=reason,
-            command=executed,
-            cwd=tmp_path.resolve().as_posix(),
-            cause=cause,
+            code, reason=reason, command=executed, cwd=tmp_path.resolve().as_posix(), cause=cause
         )
 
     if entrypoint is console_main:

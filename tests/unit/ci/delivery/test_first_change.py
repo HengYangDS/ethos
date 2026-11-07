@@ -204,11 +204,7 @@ def test_first_change_uses_native_packaged_resource_ownership(
     if projection == "resources":
         assert first_change.prove_first_change(
             executable, tmp_path, environment={"PATH": ""}, origin=str(package / "__init__.py")
-        ) == {
-            "first_change": "lane_admitted",
-            "agent_handoff": "passed",
-            "formatting": "passed",
-        }
+        ) == {"first_change": "lane_admitted", "agent_handoff": "passed", "formatting": "passed"}
         assert [request[2] for request in effects] == ["new", "validate"]
         assert sum(request[1:3] == ("lane", "prewrite") for request in calls) == 4
         formats = [request for request in calls if request[1:3] == ("lane", "format")]

@@ -191,9 +191,7 @@ def test_locked_tool_requires_an_installed_absolute_executable(
         mise.locked_tool(tmp_path, "node", files=files)
 
 
-def test_mise_executable_does_not_invent_a_host_fallback(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_mise_executable_does_not_invent_a_host_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unavailable native Mise is an explicit supply gap."""
     monkeypatch.setattr(mise.shutil, "which", lambda _name: None)
 
@@ -264,7 +262,7 @@ def test_native_idiomatic_declaration_survives_locked_input_isolation(
                 "runtime": {"name": "node", "version": node["specifiers"][0]},
                 "packageManager": {"name": "npm", "version": npm},
             }
-        },
+        }
     )
     (repo / "package.json").write_text(declaration, encoding="utf-8")
     materials = mise.repository_mise_files(repo)

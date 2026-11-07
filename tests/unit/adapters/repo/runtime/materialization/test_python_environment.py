@@ -63,9 +63,7 @@ def _facts(
 
 
 def _observed_pair(
-    tmp_path: Path,
-    *,
-    framework: str = "",
+    tmp_path: Path, *, framework: str = ""
 ) -> tuple[Path, Path, Path, dict[Path, dict[str, str]]]:
     """Create one invocation-to-image relation and its observed facts."""
     invoked = _python(tmp_path / "venv/bin/python")
@@ -84,22 +82,15 @@ def _observed_pair(
     return invoked, source, source_root, observations
 
 
-def _observe(
-    monkeypatch: pytest.MonkeyPatch,
-    observations: dict[Path, dict[str, str]],
-) -> None:
+def _observe(monkeypatch: pytest.MonkeyPatch, observations: dict[Path, dict[str, str]]) -> None:
     """Project one deterministic observation map into the adapter."""
     monkeypatch.setattr(
-        python_environment,
-        "observe_python_facts",
-        lambda path: observations[path.resolve()],
+        python_environment, "observe_python_facts", lambda path: observations[path.resolve()]
     )
 
 
 def _reject_without_candidates(
-    invoked: Path,
-    observations: dict[Path, dict[str, str]],
-    monkeypatch: pytest.MonkeyPatch,
+    invoked: Path, observations: dict[Path, dict[str, str]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Assert fail-closed admission after the supplied observations."""
     _observe(monkeypatch, observations)

@@ -59,10 +59,7 @@ def _active_change_validation_report(
             output.write_text("official artifact\n", encoding="utf-8")
     return official_report(
         change=change,
-        gaps=(
-            f"openspec_validation_failed:change:{change}",
-            f"commitment_invalid:{change}",
-        ),
+        gaps=(f"openspec_validation_failed:change:{change}", f"commitment_invalid:{change}"),
         artifacts=tuple(
             official_artifact(identifier, paths[0]) for identifier, paths in outputs.items()
         ),
@@ -220,10 +217,7 @@ def test_current_resolution_rejects_unbound_combined_repairs(
     ],
 )
 def test_current_resolution_admits_only_validator_named_canonical_spec_repairs(
-    monkeypatch,
-    paths: tuple[str, ...],
-    verdict: str,
-    uncovered: list[str],
+    monkeypatch, paths: tuple[str, ...], verdict: str, uncovered: list[str]
 ) -> None:
     resolution = resolve_report(monkeypatch, _canonical_repair_report(), paths=paths)
     assert resolution.verdict == verdict
@@ -242,11 +236,7 @@ def test_current_resolution_admits_only_validator_named_canonical_spec_repairs(
     ],
 )
 def test_current_resolution_admits_selected_change_strict_validation_repair_without_commitment(
-    tmp_path: Path,
-    monkeypatch,
-    issue_level: str,
-    issue_path: str,
-    requested_path: str,
+    tmp_path: Path, monkeypatch, issue_level: str, issue_path: str, requested_path: str
 ) -> None:
     report = _active_change_validation_report(
         tmp_path, issue_level=issue_level, issue_path=issue_path
@@ -300,8 +290,7 @@ def test_current_resolution_rejects_untrusted_active_change_validation_items(
 
 
 def test_current_resolution_ignores_info_beside_strict_blocking_change_issue(
-    tmp_path: Path,
-    monkeypatch,
+    tmp_path: Path, monkeypatch
 ) -> None:
     report = _active_change_validation_report(
         tmp_path,
@@ -317,9 +306,7 @@ def test_current_resolution_ignores_info_beside_strict_blocking_change_issue(
     ["", "/absolute/spec.md", "../tasks.md", "specs/../tasks.md", "missing/spec.md", None],
 )
 def test_current_resolution_rejects_invalid_active_change_validation_issue_paths(
-    tmp_path: Path,
-    monkeypatch,
-    issue_path: object,
+    tmp_path: Path, monkeypatch, issue_path: object
 ) -> None:
     report = _active_change_validation_report(tmp_path, issue_path=issue_path)
     resolution = resolve_report(monkeypatch, report, root=tmp_path, paths=(ACTIVE_SPEC,))
@@ -372,9 +359,7 @@ def test_current_resolution_requires_unique_existing_unlinked_official_repair(
     ],
 )
 def test_current_resolution_blocks_unrelated_or_mixed_validation_repair_paths(
-    tmp_path: Path,
-    monkeypatch,
-    requested_paths: tuple[str, ...],
+    tmp_path: Path, monkeypatch, requested_paths: tuple[str, ...]
 ) -> None:
     report = _active_change_validation_report(tmp_path)
     resolution = resolve_report(monkeypatch, report, root=tmp_path, paths=requested_paths)
@@ -393,8 +378,7 @@ def test_current_resolution_blocks_unrelated_or_mixed_validation_repair_paths(
     ],
 )
 def test_current_resolution_does_not_derive_canonical_repair_from_invalid_gap(
-    monkeypatch,
-    gap: str,
+    monkeypatch, gap: str
 ) -> None:
     resolution = resolve_report(
         monkeypatch,

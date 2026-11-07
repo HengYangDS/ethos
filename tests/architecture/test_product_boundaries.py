@@ -56,8 +56,7 @@ def _launcher(tmp_path: Path) -> Path:
     target = tmp_path / "package/bin/ethos.mjs"
     target.parent.mkdir(parents=True)
     target.write_text(
-        (ROOT / "distributions/npm/bin/ethos.mjs").read_text(encoding="utf-8"),
-        encoding="utf-8",
+        (ROOT / "distributions/npm/bin/ethos.mjs").read_text(encoding="utf-8"), encoding="utf-8"
     )
     return target
 
@@ -92,8 +91,7 @@ def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:
     (checkout / "src/ethos/cli.py").write_text("", encoding="utf-8")
     (checkout / "distributions/npm/bin/ethos.mjs").write_text("", encoding="utf-8")
     environment = isolated_path(
-        tmp_path,
-        {"uv": f'#!/bin/sh\nprintf \'%s\\n\' "$*" > "{uv_log}"\n'},
+        tmp_path, {"uv": f'#!/bin/sh\nprintf \'%s\\n\' "$*" > "{uv_log}"\n'}
     )
 
     result = run_command(
@@ -108,8 +106,7 @@ def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("mode", ["python3", "python", "untrusted"])
 def test_npm_launcher_fallback_is_interpreter_selective_and_trust_bound(
-    tmp_path: Path,
-    mode: str,
+    tmp_path: Path, mode: str
 ) -> None:
     if not (node := shutil.which("node")):
         pytest.skip("node is unavailable")
@@ -192,7 +189,6 @@ def test_npm_launcher_reaches_the_source_command_plane(tmp_path: Path) -> None:
     ],
 )
 def test_command_readonly_classification_is_public_and_fail_closed(
-    command: tuple[str, ...],
-    verdict: object,
+    command: tuple[str, ...], verdict: object
 ) -> None:
     assert ethos_command_is_readonly(command) is verdict

@@ -146,11 +146,7 @@ def test_runtime_selection_compensation_is_exact_cas(tmp_path, obstruction):
 @pytest.mark.parametrize("prior_selection", [False, True])
 @pytest.mark.parametrize("failure", ["postread", "replace"])
 def test_activation_failure_after_selector_effect_restores_exact_prestate(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: str,
-    *,
-    prior_selection: bool,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str, *, prior_selection: bool
 ) -> None:
     """Post-replacement failure cannot strand a selector whose caller saw no success."""
     repo, python = materialize_runtime_case(tmp_path, monkeypatch)
@@ -271,11 +267,7 @@ def test_current_runtime_rejects_missing_or_noncanonical_selection(tmp_path, raw
 @pytest.mark.parametrize("changed_source", ["closure", "source", "wheel", "target", "rollback"])
 @pytest.mark.parametrize("external", [False, True])
 def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    changed_source: str,
-    external: bool,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, changed_source: str, external: bool
 ) -> None:
     identity = runtime_build("a" * 40, "b" * 40, release=True)
     repo, venv = materialize_runtime_case(tmp_path, monkeypatch, package_identity=identity)

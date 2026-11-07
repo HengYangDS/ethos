@@ -164,8 +164,7 @@ def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Pa
     docs = tmp_path / "docs" / "reference"
     docs.mkdir(parents=True)
     (docs / "first.md").write_text(
-        documentation_fixture("ethos:duplicate", "unknown", "unexpected", "First"),
-        encoding="utf-8",
+        documentation_fixture("ethos:duplicate", "unknown", "unexpected", "First"), encoding="utf-8"
     )
     (docs / "second.md").write_text(
         documentation_fixture("ethos:duplicate", "reference", "canonical", "Second"),
@@ -208,9 +207,7 @@ def test_docs_health_rejects_missing_document_after_registry_observation(
     assert docs_registry_report(tmp_path)["required_gaps"] == report["required_gaps"]
 
 
-def test_shell_command_reports_native_invocation_forms_and_malformed_quotes(
-    tmp_path: Path,
-) -> None:
+def test_shell_command_reports_native_invocation_forms_and_malformed_quotes(tmp_path: Path) -> None:
     path = tmp_path / "commands.md"
     path.write_text(
         """```bash

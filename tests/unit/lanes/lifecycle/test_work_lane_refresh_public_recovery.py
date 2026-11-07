@@ -80,9 +80,7 @@ def _common(
 
 
 def _recovery_plan(
-    *,
-    updates: dict[str, GitRefUpdate] | None = None,
-    execution_branch: str = BRANCH,
+    *, updates: dict[str, GitRefUpdate] | None = None, execution_branch: str = BRANCH
 ):
     effect = GitEffect(
         updates=updates or {f"refs/heads/{BRANCH}": GitRefUpdate(expected=HEAD, desired=REBASED)},
@@ -108,11 +106,7 @@ def _recovery_plan(
 
 def _stub_refresh_effect(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     captured: dict[str, object] = {}
-    monkeypatch.setattr(
-        refresh,
-        "repository_identity",
-        lambda *_args, **_kwargs: "repository:self",
-    )
+    monkeypatch.setattr(refresh, "repository_identity", lambda *_args, **_kwargs: "repository:self")
     monkeypatch.setattr(refresh, "lease_generation", lambda _lease: {})
     monkeypatch.setattr(refresh, "leases_by_branch", lambda _root: {BRANCH: {}})
     monkeypatch.setattr(
@@ -171,10 +165,7 @@ def test_refresh_public_reader_distinguishes_current_and_ready(
     ],
 )
 def test_refresh_public_reader_reports_candidate_failures(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    candidate: dict[str, object],
-    gap: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, candidate: dict[str, object], gap: str
 ) -> None:
     _common(monkeypatch)
     monkeypatch.setattr(
@@ -438,9 +429,7 @@ def test_refresh_admission_failure_restores_before_repository_effects(
 
 @pytest.mark.parametrize("case", ["ambiguous", "multiple", "wrong-branch", "recovered"])
 def test_detached_public_recovery_accepts_only_exact_persisted_effect(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    case: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, case: str
 ) -> None:
     _common(monkeypatch, branch="detached")
     plan = {
@@ -500,9 +489,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
         observation={"stderr": "reference-transaction hook refused"},
     )
     monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(refused),
+        refresh, "execute_git_effect", lambda *_args, **_kwargs: (_ for _ in ()).throw(refused)
     )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(

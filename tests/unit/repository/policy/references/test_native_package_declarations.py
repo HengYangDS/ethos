@@ -29,8 +29,7 @@ INSTALLED = {"pyyaml": ("_yaml", "yaml"), "requests": ("requests",)}
 
 
 @pytest.mark.parametrize(
-    "manager",
-    [NPM_ENGINE, [NPM_ENGINE], {"name": "npm"}, {**NPM_ENGINE, "onFail": "warn"}],
+    "manager", [NPM_ENGINE, [NPM_ENGINE], {"name": "npm"}, {**NPM_ENGINE, "onFail": "warn"}]
 )
 def test_native_package_manager_declares_npm_without_duplicate(manager: object) -> None:
     text = json.dumps({"devEngines": {"packageManager": manager}})
@@ -42,8 +41,7 @@ def test_native_package_manager_declares_npm_without_duplicate(manager: object) 
 
 
 @pytest.mark.parametrize(
-    "payload",
-    [{}, {"devEngines": {}}, {"devEngines": {"packageManager": []}}],
+    "payload", [{}, {"devEngines": {}}, {"devEngines": {"packageManager": []}}]
 )
 def test_absent_native_package_manager_remains_undeclared(payload: dict[str, object]) -> None:
     text = json.dumps(payload)

@@ -125,8 +125,7 @@ def test_git_effect_rejects_invalid_refs_and_assertions(
 ) -> None:
     with pytest.raises(ValidationError, match="git_effect_permissions_invalid"):
         GitEffect(
-            updates={ref: GitRefUpdate(expected="0" * 40, desired="1" * 40)},
-            assertions=assertions,
+            updates={ref: GitRefUpdate(expected="0" * 40, desired="1" * 40)}, assertions=assertions
         )
 
 
@@ -243,9 +242,7 @@ def test_transition_plan_is_the_operation_bound_receipt() -> None:
         "effect_digest": effect.digest(),
     }
     compensation = PlanNode(
-        id="restore-dev",
-        kind="effect",
-        command=("git", "update-ref", "--stdin", "-z"),
+        id="restore-dev", kind="effect", command=("git", "update-ref", "--stdin", "-z")
     )
     postcondition = PlanNode(id="observe-dev", kind="check", command=("git", "rev-parse"))
     plan = TransitionPlan.compile(
@@ -396,10 +393,7 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
     rehydrated = TransitionPlan.model_validate(ready.model_dump(mode="json"))
     assert (
         _compile(
-            commitment=commitment,
-            facts=facts,
-            policy={},
-            prior=dict(rehydrated.prior_attestations),
+            commitment=commitment, facts=facts, policy={}, prior=dict(rehydrated.prior_attestations)
         )
         == rehydrated
     )
@@ -410,26 +404,13 @@ def test_compile_plan_preserves_rehydrated_archive_effect_authority() -> None:
         prior=dict(rehydrated.prior_attestations),
     )
     assert tampered.required_gaps == ("proof_archive_scope_stale",)
-    weak = {
-        "openspec_archive": {
-            "authorized_paths": [archive_path, spec_path],
-        }
-    }
-    uncovered = _compile(
-        archive_path,
-        spec_path,
-        "outside.py",
-        commitment=commitment,
-        prior=weak,
-    )
+    weak = {"openspec_archive": {"authorized_paths": [archive_path, spec_path]}}
+    uncovered = _compile(archive_path, spec_path, "outside.py", commitment=commitment, prior=weak)
     assert uncovered.required_gaps == ("proof_archive_scope_stale",)
 
 
 def test_compile_plan_identity_binds_commitment_facts_and_policy() -> None:
-    commitment = commitment_fixture(
-        id="change:test",
-        acceptance=("behavior_preserved",),
-    )
+    commitment = commitment_fixture(id="change:test", acceptance=("behavior_preserved",))
     facts = _facts("src/ethos/result.py")
     node = PlanNode(id="status", kind="check")
     base = _compile(commitment=commitment, facts=facts, nodes=(node,))
@@ -475,13 +456,7 @@ def test_proof_plan_rejects_policy_node_projection_divergence(
     )
     node = PlanNode(id="check", kind="check", command=("check",))
     policy = {
-        "gates": [
-            {
-                "id": "check",
-                "execution_identity": ["check"],
-                "depends_on": [],
-            }
-        ],
+        "gates": [{"id": "check", "execution_identity": ["check"], "depends_on": []}],
         "gaps": [],
     }
     plan = compile_plan(commitment, facts, (node,), policy=policy)

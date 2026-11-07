@@ -94,11 +94,7 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     [
         (
             "lane status",
-            {
-                "verdict": "pass",
-                "role": "work_lane",
-                "next_action": "ethos lane prewrite <path>",
-            },
+            {"verdict": "pass", "role": "work_lane", "next_action": "ethos lane prewrite <path>"},
             "ready",
             "ethos lane prewrite <path>",
         ),
@@ -134,11 +130,7 @@ def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         ),
         (
             "lane refresh-base",
-            {
-                "verdict": "pass",
-                "state": "refreshed",
-                "next_action": "ethos land --json",
-            },
+            {"verdict": "pass", "state": "refreshed", "next_action": "ethos land --json"},
             "refreshed",
             "ethos land --json",
         ),

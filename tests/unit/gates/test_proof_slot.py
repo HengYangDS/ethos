@@ -134,9 +134,7 @@ def test_a_second_full_proof_waits_for_the_running_one(
     assert host.waits()[0]["holder"] == named
 
 
-def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(
-    tmp_path: Path,
-) -> None:
+def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(tmp_path: Path) -> None:
     """Admission gives up at its bound with a gap and frees the slot for the next proof."""
     repo = init_git_repo(tmp_path / "repo")
     host = _Host([30.0])

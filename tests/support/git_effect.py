@@ -86,12 +86,7 @@ def proof_plan(case: Any, value: GitEffect | None = None) -> TransitionPlan:
         payload_kind="proof:execution",
         payload_body={"head": desired},
     )
-    return plan(
-        case.repo,
-        value,
-        policy=policy,
-        prior={"proof": proof.model_dump(mode="json")},
-    )
+    return plan(case.repo, value, policy=policy, prior={"proof": proof.model_dump(mode="json")})
 
 
 def generation(branch: str) -> dict[str, object]:

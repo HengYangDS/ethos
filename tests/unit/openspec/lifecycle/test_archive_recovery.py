@@ -113,16 +113,7 @@ def archive_graph(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize(
     "mode",
-    [
-        "direct",
-        "refresh",
-        "chain",
-        "changed_tree",
-        "fork",
-        "cycle",
-        "missing_tree",
-        "malformed",
-    ],
+    ["direct", "refresh", "chain", "changed_tree", "fork", "cycle", "missing_tree", "malformed"],
 )
 def test_archive_graph_selects_only_unambiguous_current_evidence(archive_graph, mode):
     graph = archive_graph

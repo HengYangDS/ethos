@@ -33,10 +33,7 @@ def test_housekeeping_preserves_protected_detached_worktrees(tmp_path: Path, rea
         shutil.rmtree(protected)
 
     report = detached_cleanup.housekeeping_worktrees(
-        root=repo,
-        temporary_roots=(tmp_path,),
-        authorized=True,
-        apply=True,
+        root=repo, temporary_roots=(tmp_path,), authorized=True, apply=True
     )
 
     entry = next(item for item in report["entries"] if item["path"] == protected.as_posix())
@@ -52,15 +49,10 @@ def test_housekeeping_requires_authorization_then_removes_rechecked_candidate(
     _detached(repo, clean)
 
     blocked = detached_cleanup.housekeeping_worktrees(
-        root=repo,
-        temporary_roots=(tmp_path,),
-        apply=True,
+        root=repo, temporary_roots=(tmp_path,), apply=True
     )
     applied = detached_cleanup.housekeeping_worktrees(
-        root=repo,
-        temporary_roots=(tmp_path,),
-        authorized=True,
-        apply=True,
+        root=repo, temporary_roots=(tmp_path,), authorized=True, apply=True
     )
 
     assert blocked["required_gaps"] == ["authorization_required"]
@@ -70,8 +62,7 @@ def test_housekeeping_requires_authorization_then_removes_rechecked_candidate(
 
 
 def test_housekeeping_fails_closed_on_inventory_and_recheck_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     detached = tmp_path / "changing-detached"
@@ -89,10 +80,7 @@ def test_housekeeping_fails_closed_on_inventory_and_recheck_drift(
 
     monkeypatch.setattr(detached_cleanup, "run_git", fail_second_inventory)
     stale = detached_cleanup.housekeeping_worktrees(
-        root=repo,
-        temporary_roots=(tmp_path,),
-        authorized=True,
-        apply=True,
+        root=repo, temporary_roots=(tmp_path,), authorized=True, apply=True
     )
     monkeypatch.setattr(
         detached_cleanup,

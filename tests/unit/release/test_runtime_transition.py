@@ -43,19 +43,10 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     (source / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
     calls: list[tuple[str, tuple[str, ...], Path]] = []
 
-    def record_runtime_tool(
-        _source: Path,
-        operation: str,
-        *args: str,
-        python: Path,
-    ) -> None:
+    def record_runtime_tool(_source: Path, operation: str, *args: str, python: Path) -> None:
         calls.append((operation, args, python))
 
-    monkeypatch.setattr(
-        dependency_supply,
-        "run_runtime_tool",
-        record_runtime_tool,
-    )
+    monkeypatch.setattr(dependency_supply, "run_runtime_tool", record_runtime_tool)
     monkeypatch.setattr(dependency_supply, "project_dependency_supply", lambda *_args: None)
     materialize = partial(
         identity_transition.materialize_package_wheel,
@@ -70,11 +61,7 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     requirements.parent.mkdir()
     requirements.write_text("locked\n", encoding="utf-8")
     dependency_supply.install_locked_runtime(
-        source,
-        tmp_path / "source-python",
-        tmp_path / "python",
-        artifact.path,
-        requirements,
+        source, tmp_path / "source-python", tmp_path / "python", artifact.path, requirements
     )
     durable = common / "ethos/packages" / wheel_sha256 / volatile_wheel.name
     assert calls[0][0] == "pip"
@@ -108,9 +95,7 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
 
 @pytest.mark.parametrize("observation", ["match", "mismatch", "attestation", "admission"])
 def test_release_transition_attests_only_after_matching_post_observation(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    observation: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, observation: str
 ) -> None:
     build = _BUILD_IDENTITY._replace(distribution_version="0.2.0a2")
     release = accepted_release_identity(build, wheel_sha256=hashlib.sha256(b"wheel").hexdigest())
@@ -150,10 +135,7 @@ def test_release_transition_attests_only_after_matching_post_observation(
         return path
 
     monkeypatch.setattr(identity_transition, "write_content_addressed", write)
-    attestation = accepted_release_attestation(
-        release,
-        issued_at=datetime(2026, 8, 25, tzinfo=UTC),
-    )
+    attestation = accepted_release_attestation(release, issued_at=datetime(2026, 8, 25, tzinfo=UTC))
     monkeypatch.setattr(
         identity_transition,
         "record_attestation_once",

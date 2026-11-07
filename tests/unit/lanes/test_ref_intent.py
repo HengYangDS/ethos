@@ -42,11 +42,7 @@ def _update(*, old: str = "old", new: str = "new") -> GitRefUpdate:
 
 
 def _write(
-    root: Path,
-    *,
-    old: str = "old",
-    new: str = "new",
-    plan_digest: str | None = None,
+    root: Path, *, old: str = "old", new: str = "new", plan_digest: str | None = None
 ) -> dict[str, object]:
     return write_ref_intent(
         root=root,
@@ -155,10 +151,7 @@ def test_committed_intent_carries_the_exact_plan_digest(tmp_path: Path) -> None:
     assert _claim(tmp_path, "committed", plan_digest=plan_digest)["gap"] == ""
 
     recovered = committed_ref_intent(
-        root=tmp_path,
-        ref_name="refs/heads/dev",
-        operation="candidate.accept",
-        desired=_oid("new"),
+        root=tmp_path, ref_name="refs/heads/dev", operation="candidate.accept", desired=_oid("new")
     )
 
     assert recovered["gap"] == ""
@@ -166,24 +159,17 @@ def test_committed_intent_carries_the_exact_plan_digest(tmp_path: Path) -> None:
     assert recovered["old_value"] == _oid("old")
 
 
-def test_expired_prepared_intent_recovers_after_observed_git_cas(
-    tmp_path: Path,
-) -> None:
+def test_expired_prepared_intent_recovers_after_observed_git_cas(tmp_path: Path) -> None:
     intent = _write(tmp_path)
     assert _claim(tmp_path, "prepared")["gap"] == ""
-    _expire(
-        tmp_path,
-        intent["nonce"],
-        (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
-    )
+    _expire(tmp_path, intent["nonce"], (datetime.now(UTC) - timedelta(minutes=1)).isoformat())
 
     assert _claim(tmp_path, "recover")["gap"] == ""
     assert json.loads(_path(tmp_path, intent["nonce"]).read_text())["phase"] == "committed"
 
 
 def test_concurrent_committed_and_aborted_callbacks_preserve_committed_recovery(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     intent = _write(tmp_path)
     assert _claim(tmp_path, "prepared")["gap"] == ""
@@ -257,11 +243,7 @@ def test_invalid_expiry_is_stale_and_removed(tmp_path: Path, expires_at: str | N
 def test_sweep_removes_expired_and_malformed_but_keeps_live(tmp_path: Path) -> None:
     live = _write(tmp_path, old="live-old", new="live-new")
     expired = _write(tmp_path, old="dead-old", new="dead-new")
-    _expire(
-        tmp_path,
-        expired["nonce"],
-        (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
-    )
+    _expire(tmp_path, expired["nonce"], (datetime.now(UTC) - timedelta(minutes=5)).isoformat())
     (ref_intent_dir(tmp_path) / "malformed.json").write_text("nope", encoding="utf-8")
 
     swept = sweep_stale_ref_intents(tmp_path)
@@ -287,11 +269,7 @@ def test_git_effect_does_not_reread_proof_store_before_intent_or_cas(
     git(case.repo, "checkout", "--detach", case.new)
     refs = git(case.repo, "for-each-ref")
     records = Mock(wraps=ethos.adapters.repo.git_effect_attestation.records)
-    monkeypatch.setattr(
-        ethos.adapters.repo.git_effect_attestation,
-        "records",
-        records,
-    )
+    monkeypatch.setattr(ethos.adapters.repo.git_effect_attestation, "records", records)
 
     with pytest.raises(ValueError, match="git_effect_plan_prestate_stale"):
         execute_git_effect(case.repo, plan, issuer=ISSUER)

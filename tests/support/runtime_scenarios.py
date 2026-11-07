@@ -188,19 +188,12 @@ def runtime_executable(runtime: Path, name: str) -> Path:
 def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIdentity:
     """Construct one exact test build identity."""
     return build_identity(
-        product="0.2.0-alpha.2",
-        source_commit=commit,
-        source_tree=tree,
-        release=release,
+        product="0.2.0-alpha.2", source_commit=commit, source_tree=tree, release=release
     )
 
 
 def fixture_runtime_generation(
-    runtime: Path,
-    name: str,
-    *,
-    repository_private: bool = True,
-    build: BuildIdentity | None = None,
+    runtime: Path, name: str, *, repository_private: bool = True, build: BuildIdentity | None = None
 ) -> Path:
     """Create a manifest-bound private generation for retirement scenarios."""
     staging = runtime.parent / f".{name}"
@@ -319,10 +312,7 @@ def materialize_runtime_case(
     }.items():
         monkeypatch.setattr(runtime_materialization, name, implementation)
     return repo, runtime_materialization.materialize_runtime(
-        repo,
-        source_python,
-        expected_build=identity,
-        build_source=REPOSITORY_ROOT,
+        repo, source_python, expected_build=identity, build_source=REPOSITORY_ROOT
     )
 
 
@@ -336,15 +326,12 @@ def materialized_activation_case(
 
 
 def linked_runtime_case(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path, Path, Path]:
     """Construct two linked worktrees sharing one materialized runtime."""
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
     monkeypatch.setattr(
-        runtime_materialization,
-        "materialize_runtime",
-        lambda *_args, **_kwargs: runtime,
+        runtime_materialization, "materialize_runtime", lambda *_args, **_kwargs: runtime
     )
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
     assert git_process(repo, "add", "tracked.txt").returncode == 0
@@ -357,12 +344,7 @@ def linked_runtime_case(
     return repo, linked, runtime, common / "ethos" / "hooks"
 
 
-def candidate_runtime(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    *,
-    status: str,
-) -> Path:
+def candidate_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, status: str) -> Path:
     """Bind one candidate-worktree observation for reference-transition scenarios."""
     candidate = tmp_path / "candidate"
     candidate.mkdir()
@@ -394,11 +376,9 @@ def empty_node_package_supply(root: Path) -> Path:
     supply = root / "node_modules"
     supply.mkdir(parents=True)
     (root / "package-lock.json").write_text(
-        '{"lockfileVersion":3,"packages":{"":{}}}\n',
-        encoding="utf-8",
+        '{"lockfileVersion":3,"packages":{"":{}}}\n', encoding="utf-8"
     )
     (supply / ".package-lock.json").write_text(
-        '{"lockfileVersion":3,"packages":{}}\n',
-        encoding="utf-8",
+        '{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8"
     )
     return supply

@@ -198,14 +198,7 @@ def test_state_transition_projects_the_exact_previous_lease_relation(tmp_path: P
         }
         assert connection.execute(
             "select lane_ref, holder_ref, generation, expires_at from leases"
-        ).fetchall() == [
-            (
-                "work/example",
-                "agent:test:case:owner",
-                7,
-                "2026-08-31T00:00:00+00:00",
-            )
-        ]
+        ).fetchall() == [("work/example", "agent:test:case:owner", 7, "2026-08-31T00:00:00+00:00")]
         assert schema.validate_current_lease_schema(connection) is True
 
 

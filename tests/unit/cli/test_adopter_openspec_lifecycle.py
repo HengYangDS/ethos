@@ -97,10 +97,7 @@ def test_package_runner_claim_matrix(monkeypatch, tmp_path, entry_alias):
     assert (
         cli.OFFICIAL_PACKAGE,
         json.loads((ROOT / "package.json").read_text())["dependencies"][cli.OFFICIAL_PACKAGE],
-    ) == (
-        "@fission-ai/openspec",
-        cli.OFFICIAL_VERSION,
-    )
+    ) == ("@fission-ai/openspec", cli.OFFICIAL_VERSION)
     assert cli.verify_official_cli(command)["verdict"] == "pass"
     assert all(token not in command for token in ("npx", "openspec", env["ETHOS_OPENSPEC_BIN"]))
     assert os.environ["PATH"] == env["PATH"]
@@ -265,10 +262,7 @@ def test_adopter_completed_scope_claim_matrix(tmp_path):
     ]
     binding = reports[0]["scope_binding"]
     assert [item["name"] for item in reports[0]["changes"]] == ["completed-change"]
-    assert [item["scope_binding"]["state"] for item in reports] == [
-        "attributed",
-        "attributed",
-    ]
+    assert [item["scope_binding"]["state"] for item in reports] == ["attributed", "attributed"]
     assert (binding["covered_paths"], binding["required_gaps"]) == (
         [{"path": "docs/governance/new-policy.md", "changes": ["completed-change"]}],
         [],

@@ -53,10 +53,7 @@ def test_patch_admission_rejects_absolute_and_escaping_preimages(tmp_path: Path,
     repo, head = _repository(tmp_path)
 
     report = patch_admission(
-        root=repo,
-        requested_paths=("safe.txt",),
-        baseline_head=head,
-        patch=_patch(old, "safe.txt"),
+        root=repo, requested_paths=("safe.txt",), baseline_head=head, patch=_patch(old, "safe.txt")
     )
 
     assert report["verdict"] == "block"
@@ -142,10 +139,7 @@ def test_patch_admission_reports_failed_postimage_apply(
     monkeypatch.setattr(admission, "run_git", fail_second_apply)
 
     report = patch_admission(
-        root=repo,
-        requested_paths=("safe.txt",),
-        baseline_head=head,
-        patch=_change_patch(),
+        root=repo, requested_paths=("safe.txt",), baseline_head=head, patch=_change_patch()
     )
 
     assert report["verdict"] == "block"

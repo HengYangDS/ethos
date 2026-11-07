@@ -91,11 +91,7 @@ def _execute(root: Path, head: str, *, host: bool = False):
 @pytest.mark.parametrize("host", [False, True])
 @pytest.mark.parametrize("mode", ["tracked", "deleted", "index", "policy", "untracked"])
 def test_public_proof_rejects_source_changes_during_successful_gates(
-    proof_repository: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    mode: str,
-    *,
-    host: bool,
+    proof_repository: Path, monkeypatch: pytest.MonkeyPatch, mode: str, *, host: bool
 ) -> None:
     """A zero-exit gate cannot authorize another source or silently undo drift."""
     root = proof_repository
@@ -128,10 +124,7 @@ def test_public_proof_rejects_source_changes_during_successful_gates(
 @pytest.mark.parametrize("host", [False, True])
 @pytest.mark.parametrize("kind", ["tracked", "index", "untracked"])
 def test_dirty_source_is_refused_before_exact_commit_execution(
-    proof_repository: Path,
-    kind: str,
-    *,
-    host: bool,
+    proof_repository: Path, kind: str, *, host: bool
 ) -> None:
     """Exploratory content does not get silently attributed to the committed HEAD."""
     root = proof_repository
@@ -230,8 +223,7 @@ def test_historical_proof_without_source_binding_is_not_new_proof(proof_reposito
 
 
 def test_unavailable_native_source_observation_cannot_issue_proof(
-    proof_repository: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    proof_repository: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Transport failure remains a precise source observation gap, not a traceback."""
     root = proof_repository
@@ -250,8 +242,7 @@ def test_unavailable_native_source_observation_cannot_issue_proof(
 
 
 def test_public_proof_preserves_source_drift_between_issuance_and_selection(
-    proof_repository: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    proof_repository: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Late source drift emits one failed result, without selecting or retrying proof."""
     root = proof_repository

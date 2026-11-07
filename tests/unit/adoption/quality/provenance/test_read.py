@@ -115,10 +115,7 @@ def test_source_tree_has_one_aggregate_input_budget(
         assert report["verdict"] == "pass", report
         integrity = report["source_integrity"]
         assert isinstance(integrity, dict)
-        assert set(integrity["members"]) == {
-            "outputs/first.py",
-            "outputs/repeated.py",
-        }
+        assert set(integrity["members"]) == {"outputs/first.py", "outputs/repeated.py"}
     else:
         assert report["verdict"] == "unknown", report
         assert report["diagnostics"] == [{"reason": "source_observation_size_exceeded"}]

@@ -300,10 +300,7 @@ def test_prose_refuses_configuration_codespell_would_not_read(
     assert report["verdict"] == "block", report
     assert report["required_gaps"] == [f"codespell_configuration_table_missing:{config}"]
     execution.assert_not_called()
-    assert (sample.read_text(), config.read_text()) == (
-        "# Valid native prose\n",
-        configuration,
-    )
+    assert (sample.read_text(), config.read_text()) == ("# Valid native prose\n", configuration)
 
 
 def test_codespell_reads_its_declared_configuration(tmp_path: Path) -> None:

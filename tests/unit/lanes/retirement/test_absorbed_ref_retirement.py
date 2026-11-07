@@ -38,12 +38,7 @@ def _absorbed_ref(tmp_path: Path) -> tuple[Path, str, str]:
     marker = repo / "accepted.txt"
     marker.write_text("accepted\n", encoding="utf-8")
     git(repo, "add", marker.name)
-    git(
-        repo,
-        "commit",
-        "-m",
-        "advance accepted truth",
-    )
+    git(repo, "commit", "-m", "advance accepted truth")
     return repo, source, git(repo, "rev-parse", "HEAD")
 
 
@@ -114,7 +109,7 @@ def test_absorbed_ref_retires_exact_unbound_unleased_ancestor(
     transition = planned["data"]["transition"]
     assert transition["state"] == "git_effect_admitted"
     assert transition["effect"]["updates"] == {
-        "refs/heads/work/absorbed": {"expected": source, "desired": "0" * len(source)},
+        "refs/heads/work/absorbed": {"expected": source, "desired": "0" * len(source)}
     }
     assert transition["plan_digest"]
     applied = _retire(repo, branch="work/absorbed", source=source, accepted=accepted)
@@ -204,9 +199,7 @@ def test_absorbed_ref_recovery_requires_exact_committed_plan(
     assert git(repo, "branch", "--list", branch) == ""
 
 
-def test_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(
-    tmp_path: Path,
-) -> None:
+def test_absorbed_ref_deletion_without_exact_retirement_intent_is_blocked(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     source = git(repo, "rev-parse", "HEAD")
     adopt_and_commit(repo)
@@ -239,8 +232,7 @@ def test_accepted_branch_deletion_without_old_value_keeps_its_rules(tmp_path: Pa
 
 @pytest.mark.parametrize("prefix", ["work", "codex", "topic", "proposal"])
 def test_installed_hook_retires_two_refs_under_exact_accepted_policy(
-    tmp_path: Path,
-    prefix: str,
+    tmp_path: Path, prefix: str
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     source = git(repo, "rev-parse", "HEAD")
@@ -263,10 +255,7 @@ release_mirror = "accepted_ff"
 
     for branch in branches:
         applied = _retire(repo, branch=branch, source=source, accepted=accepted)
-        assert (applied["verdict"], applied["state"]) == (
-            "pass",
-            "retired_absorbed_ref",
-        )
+        assert (applied["verdict"], applied["state"]) == ("pass", "retired_absorbed_ref")
 
     assert git(repo, "branch", "--list", f"{prefix}/*") == ""
 
@@ -372,13 +361,7 @@ def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path
     git(repo, "branch", "-f", "work/absorbed", accepted)
     changed = git(repo, "rev-parse", "work/absorbed")
 
-    payload = _retire(
-        repo,
-        branch="work/absorbed",
-        source=changed,
-        accepted=source,
-        blocked=True,
-    )
+    payload = _retire(repo, branch="work/absorbed", source=changed, accepted=source, blocked=True)
 
     assert "accepted_head_mismatch" in payload["required_gaps"]
     assert git(repo, "rev-parse", "work/absorbed") == changed
@@ -401,10 +384,7 @@ def test_absorbed_ref_reobserves_before_delete(
                 status["role"] = "work_lane"
             else:
                 worktrees = cast("list[dict[str, object]]", status["worktrees"])
-                status["worktrees"] = [
-                    *worktrees,
-                    {"branch": "work/absorbed", "path": "/appeared"},
-                ]
+                status["worktrees"] = [*worktrees, {"branch": "work/absorbed", "path": "/appeared"}]
         return status
 
     if boundary in {"worktree", "root"}:
@@ -418,13 +398,7 @@ def test_absorbed_ref_reobserves_before_delete(
             return contribution(root, old, new) if calls == 1 else {"verdict": "unknown"}
 
         monkeypatch.setattr(absorbed_retirement, "accepted_contribution", conservation_unknown)
-    payload = _retire(
-        repo,
-        branch="work/absorbed",
-        source=source,
-        accepted=accepted,
-        blocked=True,
-    )
+    payload = _retire(repo, branch="work/absorbed", source=source, accepted=accepted, blocked=True)
 
     expected_verdict = "unknown" if boundary == "conservation" else "block"
     gap = {

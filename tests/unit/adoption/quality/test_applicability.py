@@ -54,11 +54,7 @@ def document_repository(tmp_path: Path) -> Path:
         "---\n\n# Handoff\n\n## Evidence\n\nCheck the current source before delivery.\n"
     )
     (repo / "README.md").write_text("# Documents\n\n[Handoff](docs/handoff.md#evidence).\n")
-    commit_fixture(
-        repo,
-        "declare native document proof",
-        format_paths=(".ethos/profile.toml",),
-    )
+    commit_fixture(repo, "declare native document proof", format_paths=(".ethos/profile.toml",))
     return repo
 
 

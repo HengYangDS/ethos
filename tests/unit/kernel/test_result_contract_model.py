@@ -67,10 +67,7 @@ def test_ethos_result_exposes_only_the_authoritative_verdict() -> None:
     ),
 )
 def test_ethos_result_derives_one_non_persistent_continuation(
-    verdict: str,
-    required_gaps: tuple[str, ...],
-    next_action: str,
-    expected: str,
+    verdict: str, required_gaps: tuple[str, ...], next_action: str, expected: str
 ) -> None:
     result = _result(
         verdict=verdict,
@@ -257,10 +254,7 @@ def test_ethos_result_payload_is_deeply_immutable() -> None:
 
 
 def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
-    bounded = apply_payload_budget(
-        _result(data={"large": "x" * 20_000}),
-        root=tmp_path,
-    )
+    bounded = apply_payload_budget(_result(data={"large": "x" * 20_000}), root=tmp_path)
 
     with pytest.raises(TypeError):
         bounded.bound["detail"]["path"] = "changed"

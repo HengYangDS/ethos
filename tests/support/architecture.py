@@ -58,13 +58,13 @@ def architecture_projection_fixture(root: Path, title: str = "Example") -> tuple
     declaration.write_text(
         'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
         'id = "view"\nsource = "docs/model.c4"\noutput = "docs/diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
+        'kind = "likec4-to-mermaid"\n'
     )
     model, output = root / "docs/model.c4", root / "docs/diagram.mmd"
     model.parent.mkdir(exist_ok=True)
     model.write_text(f'system Example "{title}"\n')
     output.write_text(
         "%% Generated from docs/model.c4. Do not edit by hand.\n"
-        f'flowchart LR\n  Example["{title}"]\n',
+        f'flowchart LR\n  Example["{title}"]\n'
     )
     return declaration, model, output

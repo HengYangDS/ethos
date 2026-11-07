@@ -58,9 +58,7 @@ def test_archive_public_exception_compensates_only_before_ref_advancement(
     )
     compensated: list[dict[str, object]] = []
     monkeypatch.setattr(
-        archive,
-        "compensate_git_worktree",
-        lambda _root, **kwargs: compensated.append(kwargs),
+        archive, "compensate_git_worktree", lambda _root, **kwargs: compensated.append(kwargs)
     )
     if committed:
         monkeypatch.setattr(archive, "current_tracked_head", lambda _root: NEW_HEAD)
@@ -244,17 +242,10 @@ def test_archive_zero_effect_preflight_has_no_compensation_gap(
     )
     compensated: list[object] = []
     monkeypatch.setattr(
-        archive,
-        "compensate_git_worktree",
-        lambda *_args, **kwargs: compensated.append(kwargs),
+        archive, "compensate_git_worktree", lambda *_args, **kwargs: compensated.append(kwargs)
     )
 
-    report = archive.archive_change(
-        root=tmp_path,
-        change=CHANGE,
-        expect_head=HEAD,
-        apply=True,
-    )
+    report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD, apply=True)
 
     assert report["state"] == "lease_missing"
     assert report["required_gaps"] == [f"work_lane_missing_lease:{BRANCH}"]

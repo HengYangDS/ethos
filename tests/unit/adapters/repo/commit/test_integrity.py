@@ -395,10 +395,7 @@ def test_replayed_commits_cannot_waive_trusted_baseline_signatures(tmp_path):
     repo, baseline, tree = _repository(tmp_path)
     revision = git(repo, "commit-tree", tree, "-p", baseline, "-m", "fix: unsigned replay")
     assert validate_replayed_commits(
-        repo,
-        baseline_commit=baseline,
-        proposed_commit=revision,
-        policy=commit_policy_from_text(""),
+        repo, baseline_commit=baseline, proposed_commit=revision, policy=commit_policy_from_text("")
     ) == [f"commit_signature_missing:{revision}"]
 
 

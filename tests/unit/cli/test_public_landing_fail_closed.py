@@ -125,18 +125,11 @@ def test_candidate_preview_checks_selected_runtime_policy_before_cas(
     ],
 )
 def test_candidate_readiness_preserves_known_admission_gaps(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    error: str,
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: str, gap: str
 ) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     head = git(repo, "rev-parse", "HEAD")
-    monkeypatch.setattr(
-        landing,
-        "_candidate_plan",
-        Mock(side_effect=ValueError(error)),
-    )
+    monkeypatch.setattr(landing, "_candidate_plan", Mock(side_effect=ValueError(error)))
 
     report = landing.candidate_transition_readiness(root=repo)
 
@@ -159,11 +152,7 @@ def test_candidate_readiness_preserves_known_admission_gaps(
     ],
 )
 def test_candidate_apply_never_overwrites_observed_ref_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    observed: str,
-    gap: str,
-    attempts: int,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, observed: str, gap: str, attempts: int
 ) -> None:
     native_failure = ProcessExecutionError(
         "git_effect_cas_rejected",
@@ -215,22 +204,11 @@ def test_apply_land_reports_worktree_compensation_failure_without_hiding_effect(
     candidate_head = git(candidate, "rev-parse", "HEAD")
     attestation = Mock()
     _candidate_plan(monkeypatch, candidate, current, candidate_head)
-    monkeypatch.setattr(
-        landing,
-        "_candidate_cas",
-        Mock(return_value=(attestation, None, "", 1)),
-    )
-    monkeypatch.setattr(
-        landing,
-        "sync_worktree",
-        Mock(side_effect=ValueError("projection failed")),
-    )
+    monkeypatch.setattr(landing, "_candidate_cas", Mock(return_value=(attestation, None, "", 1)))
+    monkeypatch.setattr(landing, "sync_worktree", Mock(side_effect=ValueError("projection failed")))
 
     report = landing.apply_land_to_candidate(
-        root=repo,
-        authorized=True,
-        expect_head=current,
-        admitted_decision=_pass_decision(),
+        root=repo, authorized=True, expect_head=current, admitted_decision=_pass_decision()
     )
 
     assert report["required_gaps"] == ["candidate_worktree_sync_failed"]

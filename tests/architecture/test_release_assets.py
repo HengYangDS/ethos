@@ -150,8 +150,7 @@ def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
 ) -> None:
     """Real package tests run under c8 on the supplied Node and remove their owned npm cache."""
     shadow = isolated_path(
-        tmp_path,
-        {"node": "#!/bin/sh\nexit 83\n", "npm": "#!/bin/sh\nexit 84\n"},
+        tmp_path, {"node": "#!/bin/sh\nexit 83\n", "npm": "#!/bin/sh\nexit 84\n"}
     )
     monkeypatch.setenv("PATH", shadow["PATH"] + os.pathsep + os.environ["PATH"])
     runtime = resolve_node_runtime()

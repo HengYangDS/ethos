@@ -232,10 +232,7 @@ def test_package_retained_upgrade_keeps_independent_repository_selection(monkeyp
         (
             effect.brownfield_acceptance,
             "prove_brownfield",
-            {
-                "state": "passed",
-                "authored_content_preserved": True,
-            },
+            {"state": "passed", "authored_content_preserved": True},
         ),
         (runtime_acceptance, "observe_lifecycle", prepare_lifecycle),
         (effect, "prove_shared_supply", {"state": "passed"}),

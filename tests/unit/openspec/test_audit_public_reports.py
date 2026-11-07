@@ -130,10 +130,7 @@ def test_active_change_reports_ignore_archives_and_reject_invalid_identifiers(tm
     for name in ("valid-change", "20260810-invalid", "archive"):
         (tmp_path / "openspec/changes" / name).mkdir(parents=True)
 
-    assert audit.active_change_names(tmp_path / "openspec") == [
-        "20260810-invalid",
-        "valid-change",
-    ]
+    assert audit.active_change_names(tmp_path / "openspec") == ["20260810-invalid", "valid-change"]
     assert audit.active_change_identifier_violations(tmp_path / "openspec") == [
         "openspec_active_change_identifier_invalid:20260810-invalid"
     ]
@@ -243,11 +240,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         "load_branch_role_policy",
         lambda _root: type("Policy", (), {"role_for_branch": lambda *_args: "work_lane"})(),
     )
-    residue: dict[str, object] = {
-        "verdict": "pass",
-        "advisory_gaps": [],
-        "required_gaps": [],
-    }
+    residue: dict[str, object] = {"verdict": "pass", "advisory_gaps": [], "required_gaps": []}
     gaps = cast(
         "list[str]",
         audit.compile_openspec_shape_report(

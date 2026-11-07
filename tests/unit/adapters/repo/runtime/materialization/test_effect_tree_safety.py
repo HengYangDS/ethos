@@ -18,8 +18,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize("operation", ["seal", "remove"])
 def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
-    tmp_path: Path,
-    operation: str,
+    tmp_path: Path, operation: str
 ) -> None:
     external = tmp_path / "external"
     external.write_text("shared bytes\n", encoding="utf-8")
@@ -44,8 +43,7 @@ def test_runtime_mutation_rejects_hardlinks_without_changing_the_external_inode(
 
 
 def test_generated_tree_cleanup_rejects_a_junction_without_touching_its_target(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     generated = tmp_path / "generated"
     junction = generated / "junction"

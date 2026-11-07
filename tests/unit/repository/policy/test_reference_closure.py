@@ -31,13 +31,7 @@ def test_current_dev_dependency_owns_its_import_module() -> None:
 
 
 def _git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    completed = subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)
     return completed.stdout.strip()
 
 
@@ -56,9 +50,7 @@ def _commit_current_tree(root: Path) -> None:
     _git(root, "commit", "-m", "test: retire reference owner")
 
 
-def test_repository_reference_closure_preserves_duplicate_command_owners(
-    tmp_path: Path,
-) -> None:
+def test_repository_reference_closure_preserves_duplicate_command_owners(tmp_path: Path) -> None:
     """Set reduction must not hide two current owners of one command identity."""
     declare_reference_surface(tmp_path, "cli", "src/example")
     declare_reference_package(tmp_path, entry_point="example.primary")
@@ -165,9 +157,7 @@ def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: P
     ]
 
 
-def test_repository_reference_closure_keeps_consumers_of_a_removed_binding(
-    tmp_path: Path,
-) -> None:
+def test_repository_reference_closure_keeps_consumers_of_a_removed_binding(tmp_path: Path) -> None:
     """A repository may remove its own optional ETHOS binding; the binding contract stays."""
     declare_reference_surface(tmp_path)
     write_reference_source(tmp_path, ".ethos/workspace.toml", '[commit_policy]\nscopes = ["cli"]\n')
@@ -183,9 +173,7 @@ def test_repository_reference_closure_keeps_consumers_of_a_removed_binding(
 
 @pytest.mark.parametrize("retired_count", [0, 1, 4])
 def test_retired_reference_audit_parses_each_carrier_once(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    retired_count: int,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, retired_count: int
 ) -> None:
     """Retirement volume cannot multiply parsing or lose exact consumers."""
     declare_reference_surface(tmp_path)
@@ -306,8 +294,7 @@ The retired `{path}` path SHALL be absent.
     ids=["active-removed", "canonical-absence"],
 )
 def test_repository_reference_closure_applies_active_removed_requirement(
-    tmp_path: Path,
-    specification: str,
+    tmp_path: Path, specification: str
 ) -> None:
     """An official REMOVED delta defines the current effective specification."""
     retired_path = ".ethos" + "/commitment.toml"
@@ -424,9 +411,7 @@ def test_repository_reference_closure_resolves_replaced_module_identity(
     )
 
 
-def test_repository_reference_closure_ignores_prohibited_command_examples(
-    tmp_path: Path,
-) -> None:
+def test_repository_reference_closure_ignores_prohibited_command_examples(tmp_path: Path) -> None:
     """A negative requirement names a forbidden command without consuming it."""
     declare_reference_surface(tmp_path, "specs", "openspec/specs")
     write_reference_source(
@@ -506,9 +491,7 @@ def test_repository_reference_closure_owns_recorded_glue(tmp_path: Path, *, reco
     assert (orphan in report["required_gaps"]) is not recorded, report["required_gaps"]
 
 
-def test_a_declared_path_that_names_no_tracked_content_is_a_dead_carrier(
-    tmp_path: Path,
-) -> None:
+def test_a_declared_path_that_names_no_tracked_content_is_a_dead_carrier(tmp_path: Path) -> None:
     """A declaration may name only a path that holds tracked content other than a README."""
     declare_reference_surface(tmp_path)
     write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 1")

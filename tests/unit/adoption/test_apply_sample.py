@@ -247,10 +247,7 @@ def test_adoption_preserves_existing_authored_surfaces(
     """Preserve authored bytes without mistaking rejected config for valid adoption."""
     repo = init_git_repo(tmp_path / "repo")
     if "intent-to-proof" in content:
-        shutil.copytree(
-            _official_spec_driven_schema(),
-            repo / "openspec/schemas/intent-to-proof",
-        )
+        shutil.copytree(_official_spec_driven_schema(), repo / "openspec/schemas/intent-to-proof")
     target = repo / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     content = content.replace("\n", newline).encode()

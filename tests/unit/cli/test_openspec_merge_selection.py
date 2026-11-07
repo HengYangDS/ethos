@@ -423,11 +423,7 @@ def test_process_intent_carries_product_work_through_native_integration(
     assert observed is not None
     assert (observed.id, gaps) == (other_id, [])
     assert query_proof(
-        work,
-        head,
-        store=local_state_root(work),
-        attestation_id=other_id,
-        change_id="second-local",
+        work, head, store=local_state_root(work), attestation_id=other_id, change_id="second-local"
     ) == (None, ["proof_attestation_intent_mismatch"])
     assert proof_gaps(work, head) == []
     assert proof_attestation(work, head) == selected

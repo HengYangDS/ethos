@@ -93,11 +93,7 @@ def branch_publication_fixture(
 
 
 def branch_publication(
-    repo: Path,
-    head: str | None,
-    *args: str,
-    blocked: bool = False,
-    target_ref: str = PROPOSAL_REF,
+    repo: Path, head: str | None, *args: str, blocked: bool = False, target_ref: str = PROPOSAL_REF
 ):
     command = ["publish", "--ref", target_ref, "--probe-remote", *args]
     if head is not None:
@@ -136,12 +132,7 @@ def proposal_ref(remote: Path) -> str:
 
 
 def release_cli(
-    repo: Path,
-    head: str,
-    old: str,
-    *args: str,
-    tag: str = "v1.2.3",
-    blocked: bool = False,
+    repo: Path, head: str, old: str, *args: str, tag: str = "v1.2.3", blocked: bool = False
 ):
     """Invoke the public release surface with exact fixture coordinates."""
     runner = run_ethos_blocked if blocked else run_ethos
@@ -274,10 +265,7 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
     )
     git(lane, "add", "CHANGELOG.md")
     head = commit_fixture_file(
-        lane,
-        "VERSION",
-        "1.2.4\n",
-        "fix: maintain historical accepted release",
+        lane, "VERSION", "1.2.4\n", "fix: maintain historical accepted release"
     )
     seed_executed_proof(lane, head)
     return lane, main, base, head

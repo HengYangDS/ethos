@@ -320,11 +320,7 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
     assert audit["verdict"] == "pass"
     assert raw["checks"][1]["exit_code"] == 1
     selected, gaps = proof_attestation(
-        work,
-        head,
-        store=store,
-        attestation_id=proof.id,
-        acceptance_purpose="local-source",
+        work, head, store=store, attestation_id=proof.id, acceptance_purpose="local-source"
     )
     assert not gaps
     assert selected is not None

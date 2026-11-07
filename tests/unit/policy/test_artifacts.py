@@ -106,14 +106,11 @@ def test_topology_report_merges_entrypoint_blockers(tmp_path: Path) -> None:
     path = tmp_path / "tools/ci/scripts/example.sh"
     path.parent.mkdir(parents=True)
     path.write_text(
-        "tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir ./dist/\n",
-        encoding="utf-8",
+        "tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir ./dist/\n", encoding="utf-8"
     )
 
     report = generated_artifact_topology_report(
-        tmp_path,
-        ignored_local_paths=frozenset(),
-        tracked_untracked_paths=(),
+        tmp_path, ignored_local_paths=frozenset(), tracked_untracked_paths=()
     )
 
     assert report["verdict"] == "block"
@@ -182,9 +179,7 @@ def test_topology_report_classifies_every_generated_home_and_prunes_runtime_tree
     pruned.write_text("{}\n", encoding="utf-8")
 
     report = generated_artifact_topology_report(
-        tmp_path,
-        ignored_local_paths=frozenset({"ignored.json"}),
-        tracked_untracked_paths=(),
+        tmp_path, ignored_local_paths=frozenset({"ignored.json"}), tracked_untracked_paths=()
     )
 
     assert "tools/ci/scripts/review.json" in report["review_paths"]

@@ -117,12 +117,7 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
     ],
 )
 def test_registry_cannot_omit_common_code_obligations(
-    tmp_path: Path,
-    source_path: str,
-    source_text: str,
-    asset_class: str,
-    mode: int,
-    role_attr: str,
+    tmp_path: Path, source_path: str, source_text: str, asset_class: str, mode: int, role_attr: str
 ) -> None:
     """A registry label cannot remove observed code quality obligations."""
     repo = init_git_repo(tmp_path / "adopter")
@@ -177,10 +172,7 @@ def test_registry_cannot_omit_common_code_obligations(
 def test_historical_policy_without_the_new_floor_keeps_its_recorded_meaning() -> None:
     """A successor floor cannot retroactively rewrite an old proof statement."""
     policy = {
-        "owner": {
-            "kind": "profile",
-            "code_correctness_map": {"behavior": "tests"},
-        },
+        "owner": {"kind": "profile", "code_correctness_map": {"behavior": "tests"}},
         "gates": [{"id": "tests", "command": ["check"]}],
     }
 
@@ -206,18 +198,11 @@ def test_unknown_quality_floor_version_cannot_remove_obligations() -> None:
 def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:
     """Validate declared report shape and scope, not provenance of a caller-supplied check."""
     reference = "ethos.adapters.gates.python_quality:behavior_report"
-    evidence = {
-        "axis": "behavior",
-        "source_tree": "a" * 40,
-        "selected_paths": ["src/app.py"],
-    }
+    evidence = {"axis": "behavior", "source_tree": "a" * 40, "selected_paths": ["src/app.py"]}
     payload = {
         "gate": "behavior",
         "providers": [
-            {
-                "provider": reference,
-                "report": {"verdict": "pass", "quality_evidence": evidence},
-            }
+            {"provider": reference, "report": {"verdict": "pass", "quality_evidence": evidence}}
         ],
     }
     check = {"action_id": "behavior", "stdout": json.dumps(payload)}
@@ -300,24 +285,14 @@ def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None
         (PlanNode(id="behavior", kind="check", command=("node", "check")),),
         policy=policy,
     )
-    evidence = {
-        "axis": "behavior",
-        "source_tree": tree,
-        "selected_paths": ["src/app.mjs"],
-    }
+    evidence = {"axis": "behavior", "source_tree": tree, "selected_paths": ["src/app.mjs"]}
     check = {
         "action_id": "behavior",
         "command": ["node", "check"],
         "verification": {
             "gate": "behavior",
             "providers": [
-                {
-                    "provider": reference,
-                    "report": {
-                        "verdict": "pass",
-                        "quality_evidence": evidence,
-                    },
-                }
+                {"provider": reference, "report": {"verdict": "pass", "quality_evidence": evidence}}
             ],
         },
     }

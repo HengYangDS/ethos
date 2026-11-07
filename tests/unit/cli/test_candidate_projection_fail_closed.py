@@ -177,22 +177,14 @@ def test_candidate_materialization_recognizes_lost_ack_without_repeating_write(
     with monkeypatch.context() as patch:
         patch.setattr(materialization, "sync_worktree", lose_response)
         interrupted = materialization.materialize_candidate(
-            **kwargs,
-            apply=True,
-            authorized=True,
-            expect_head=head,
-            expect_state=token,
+            **kwargs, apply=True, authorized=True, expect_head=head, expect_state=token
         )
     assert interrupted["verdict"] == "block"
     assert (candidate / "payload.md").read_text() == "Current input\n"
     index = candidate / git(candidate, "rev-parse", "--git-path", "index")
     before = index.read_bytes()
     recognized = materialization.materialize_candidate(
-        **kwargs,
-        apply=True,
-        authorized=True,
-        expect_head=head,
-        expect_state=token,
+        **kwargs, apply=True, authorized=True, expect_head=head, expect_state=token
     )
     assert recognized["effect_state"] == "recognized"
     assert index.read_bytes() == before
@@ -245,10 +237,7 @@ def test_candidate_bootstrap_rejects_path_collision_before_effect(
     target.mkdir()
 
     report = projection.bootstrap_candidate(
-        root=repo,
-        path=target,
-        expect_head=head,
-        apply=should_apply,
+        root=repo, path=target, expect_head=head, apply=should_apply
     )
 
     assert report["state"] == "blocked"
@@ -383,12 +372,7 @@ def test_candidate_bootstrap_reports_unproven_recovery_before_any_ref_effect(
     candidate = tmp_path / "candidate"
     git(repo, "branch", "candidate/dev", head)
 
-    report = projection.bootstrap_candidate(
-        root=repo,
-        path=candidate,
-        expect_head=head,
-        apply=True,
-    )
+    report = projection.bootstrap_candidate(root=repo, path=candidate, expect_head=head, apply=True)
 
     assert report["required_gaps"] == ["git_effect_recovery_unproven"]
     assert not candidate.exists()

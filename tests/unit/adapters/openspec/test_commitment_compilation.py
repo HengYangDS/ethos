@@ -278,18 +278,9 @@ def test_official_spec_free_projection_compiles_minimal_commitment(*, complete, 
         ({"id": "other", "deltas": []}, "openspec_show_invalid:minimal-authority"),
         ({"id": "minimal-authority", "deltas": []}, "openspec_acceptance_missing"),
         ({"id": "minimal-authority", "deltas": [None]}, "openspec_show_invalid"),
-        (
-            _requirement_projection(spec=""),
-            "openspec_show_invalid",
-        ),
-        (
-            _requirement_projection(None),
-            "openspec_show_invalid",
-        ),
-        (
-            _requirement_projection({"text": "", "scenarios": []}),
-            "openspec_acceptance_missing",
-        ),
+        (_requirement_projection(spec=""), "openspec_show_invalid"),
+        (_requirement_projection(None), "openspec_show_invalid"),
+        (_requirement_projection({"text": "", "scenarios": []}), "openspec_acceptance_missing"),
         (
             _requirement_projection({"text": "required", "scenarios": [{}]}),
             "openspec_acceptance_missing",
@@ -297,8 +288,7 @@ def test_official_spec_free_projection_compiles_minimal_commitment(*, complete, 
     ],
 )
 def test_commitment_compilation_fails_closed_on_incomplete_official_projection(
-    projection: object,
-    error: str,
+    projection: object, error: str
 ) -> None:
     with pytest.raises((TypeError, ValueError), match=error):
         commitment_from_projection("minimal-authority", projection)
@@ -324,8 +314,7 @@ def test_load_commitment_selects_one_active_change_and_checks_digest(
     monkeypatch.setattr(compilation.openspec_cli, "run_json", run_json)
 
     loaded = compilation.load_openspec_commitment(
-        compilation_root,
-        expected_digest=expected.digest(),
+        compilation_root, expected_digest=expected.digest()
     )
 
     assert loaded == expected
@@ -338,8 +327,7 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
 ) -> None:
     tmp_path = init_git_repo(tmp_path / "repo")
     change_root = _materialize_spec_free_change(
-        tmp_path,
-        tasks="- [ ] Refresh and prove the package.\n",
+        tmp_path, tasks="- [ ] Refresh and prove the package.\n"
     )
 
     monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
@@ -369,8 +357,7 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
         "openspec:specs:skipped",
     )
     (change_root / "tasks.md").write_text(
-        "- [x] Refresh and prove the package.\n",
-        encoding="utf-8",
+        "- [x] Refresh and prove the package.\n", encoding="utf-8"
     )
     progressed = compilation.load_openspec_commitment(tmp_path)
 
@@ -394,12 +381,7 @@ def test_load_commitment_compiles_planned_spec_free_projection_before_tasks_comp
     [
         ("disabled", (), None, "openspec_profile_not_enabled"),
         ("enabled", (), None, "openspec_active_change_missing"),
-        (
-            "enabled",
-            ("one", "two"),
-            None,
-            "openspec_active_change_ambiguous:one,two",
-        ),
+        ("enabled", ("one", "two"), None, "openspec_active_change_ambiguous:one,two"),
         ("enabled", (), "archive/bad", "openspec_change_required"),
     ],
 )
@@ -413,9 +395,7 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
 ) -> None:
 
     monkeypatch.setattr(
-        compilation,
-        "openspec_profile_enabled",
-        lambda *_a, **_k: profile_state == "enabled",
+        compilation, "openspec_profile_enabled", lambda *_a, **_k: profile_state == "enabled"
     )
     monkeypatch.setattr(
         compilation.openspec_cli,
@@ -432,8 +412,7 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
 
 
 @pytest.mark.parametrize(
-    ("command", "tree_ref"),
-    [(("openspec",), "a" * 40), (("openspec",), "HEAD"), (None, "HEAD")],
+    ("command", "tree_ref"), [(("openspec",), "a" * 40), (("openspec",), "HEAD"), (None, "HEAD")]
 )
 def test_attested_archive_reuses_accepted_intent_without_current_cli_probe(
     compilation_root: Path, monkeypatch: pytest.MonkeyPatch, command, tree_ref
@@ -450,9 +429,7 @@ def test_attested_archive_reuses_accepted_intent_without_current_cli_probe(
     )
 
     loaded = compilation.load_openspec_commitment(
-        compilation_root,
-        change_id="archived",
-        tree_ref=tree_ref,
+        compilation_root, change_id="archived", tree_ref=tree_ref
     )
     assert loaded == archived
     assert show.call_count == (tree_ref != "HEAD")

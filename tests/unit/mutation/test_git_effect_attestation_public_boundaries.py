@@ -77,10 +77,7 @@ def _record(
     effect: GitEffect, plan: TransitionPlan, before: dict[str, object], after: dict[str, object]
 ):
     return attest.issue(
-        effect,
-        plan=plan,
-        issuer=ISSUER,
-        evidence=("repository:repo", "applied", before, after),
+        effect, plan=plan, issuer=ISSUER, evidence=("repository:repo", "applied", before, after)
     )
 
 
@@ -131,15 +128,7 @@ def test_git_effect_attestation_binds_exact_plan_effect_and_observations(
 
 
 @pytest.mark.parametrize(
-    "mode",
-    [
-        "issue_time",
-        "effect",
-        "missing_time",
-        "invalid_time",
-        "chronology",
-        "postobserve",
-    ],
+    "mode", ["issue_time", "effect", "missing_time", "invalid_time", "chronology", "postobserve"]
 )
 def test_git_effect_attestation_rejects_invalid_observation(tmp_path, monkeypatch, mode):
     repo, effect, plan, before, after = _case(tmp_path)
@@ -437,8 +426,7 @@ def test_only_an_attested_reversal_reopens_identical_plan(
         if compensation == "reasserted":
             git(case.repo, "update-ref", "refs/heads/accepted", case.new)
             reversal = GitEffect(
-                updates=case.effect.inverse().updates,
-                assertions={"refs/heads/accepted": case.new},
+                updates=case.effect.inverse().updates, assertions={"refs/heads/accepted": case.new}
             )
             inverse = plan(case.repo, reversal)
         execute_git_effect(case.repo, inverse, issuer=EFFECT_ISSUER)

@@ -34,11 +34,7 @@ def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:cas
     git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
     git(path, "rev-parse", "HEAD")
     acquire_lease(
-        state_database(repo),
-        lease=exact_lease(
-            branch="work/feature",
-            holder_ref=holder_ref,
-        ),
+        state_database(repo), lease=exact_lease(branch="work/feature", holder_ref=holder_ref)
     )
     return path
 
@@ -47,20 +43,12 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
     """Commit a fixture change directly on the accepted branch."""
     (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
     git(repo, "add", "obsolete.txt")
-    git(
-        repo,
-        "commit",
-        "-m",
-        "absorb obsolete lane delta",
-    )
+    git(repo, "commit", "-m", "absorb obsolete lane delta")
     return git(repo, "rev-parse", "dev")
 
 
 def superseded_work_lane(
-    tmp_path: Path,
-    *,
-    absorbed: bool = True,
-    holder_ref: str = "agent:test:case:agent-a",
+    tmp_path: Path, *, absorbed: bool = True, holder_ref: str = "agent:test:case:agent-a"
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
     repo = init_git_repo(tmp_path / "repo")
@@ -71,12 +59,7 @@ def superseded_work_lane(
     git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
     (lane / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
     git(lane, "add", "obsolete.txt")
-    git(
-        lane,
-        "commit",
-        "-m",
-        "obsolete lane delta",
-    )
+    git(lane, "commit", "-m", "obsolete lane delta")
     head = git(lane, "rev-parse", "HEAD")
     accepted = (
         absorb_obsolete_delta_in_accepted(repo) if absorbed else git(repo, "rev-parse", "dev")
@@ -84,11 +67,7 @@ def superseded_work_lane(
     database = state_database(repo)
     acquire_lease(
         database,
-        lease=exact_lease(
-            branch="work/superseded",
-            holder_ref=holder_ref,
-            ttl_seconds=3600,
-        ),
+        lease=exact_lease(branch="work/superseded", holder_ref=holder_ref, ttl_seconds=3600),
     )
     seed_executed_proof(repo, accepted)
     return repo, lane, head, accepted, database

@@ -86,15 +86,11 @@ def test_scope_projection_retains_resolution_failure_and_recovery() -> None:
 
 def test_current_resolution_owns_acceptance_and_fresh_paths(monkeypatch) -> None:
     commitment = Commitment(
-        schema_version=3,
-        id="change:example",
-        acceptance=("result projection is consistent",),
+        schema_version=3, id="change:example", acceptance=("result projection is consistent",)
     )
     monkeypatch.setattr(resolution_adapter, "load_profile_commitment", lambda *_a, **_k: commitment)
     monkeypatch.setattr(
-        resolution_adapter,
-        "change_scope_paths_from_status",
-        lambda *_a, **_k: ("src/example.py",),
+        resolution_adapter, "change_scope_paths_from_status", lambda *_a, **_k: ("src/example.py",)
     )
     resolution = resolve_current_resolution(
         ROOT, status={"role": "work_lane", "head": HEAD}, authority=authority()
@@ -172,16 +168,10 @@ def test_current_resolution_preserves_unknown_official_intent_without_reinterpre
 @pytest.mark.parametrize("role", [ROLE_CANDIDATE, ROLE_ACCEPTED_ROOT])
 @pytest.mark.parametrize(
     ("official_verdict", "official_gaps"),
-    [
-        ("pass", []),
-        ("block", ["openspec_active_change_missing"]),
-    ],
+    [("pass", []), ("block", ["openspec_active_change_missing"])],
 )
 def test_current_resolution_admits_entity_free_repository_proof(
-    monkeypatch: pytest.MonkeyPatch,
-    role: str,
-    official_verdict: str,
-    official_gaps: list[str],
+    monkeypatch: pytest.MonkeyPatch, role: str, official_verdict: str, official_gaps: list[str]
 ) -> None:
     current = replace(
         authority(),
@@ -237,9 +227,7 @@ def test_current_resolution_admits_entity_free_repository_proof(
     ],
 )
 def test_current_resolution_projects_only_incomplete_official_change_artifacts_for_prewrite(
-    monkeypatch,
-    path: str,
-    verdict: str,
+    monkeypatch, path: str, verdict: str
 ) -> None:
     change = "example"
     artifacts = (
@@ -341,10 +329,7 @@ def test_new_change_bootstrap_does_not_override_an_explicit_other_change(
     report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
 
     resolution = resolve_report(
-        monkeypatch,
-        report,
-        root=tmp_path,
-        paths=("openspec/changes/fresh/.openspec.yaml",),
+        monkeypatch, report, root=tmp_path, paths=("openspec/changes/fresh/.openspec.yaml",)
     )
 
     assert resolution.verdict == "block"
@@ -369,12 +354,7 @@ def test_exact_new_metadata_precedes_unfinished_other_change(monkeypatch, tmp_pa
 
 @pytest.mark.parametrize(
     "rows",
-    [
-        [{"name": "fresh"}],
-        [{"name": "first"}, {"name": "first"}],
-        [{"name": "Invalid"}],
-        [{}],
-    ],
+    [[{"name": "fresh"}], [{"name": "first"}, {"name": "first"}], [{"name": "Invalid"}], [{}]],
 )
 def test_new_change_bootstrap_rejects_existing_or_invalid_official_rows(
     monkeypatch, tmp_path, rows
@@ -384,10 +364,7 @@ def test_new_change_bootstrap_rejects_existing_or_invalid_official_rows(
     report["commands"]["list"]["json"] = {"changes": rows}
 
     resolution = resolve_report(
-        monkeypatch,
-        report,
-        root=tmp_path,
-        paths=("openspec/changes/fresh/.openspec.yaml",),
+        monkeypatch, report, root=tmp_path, paths=("openspec/changes/fresh/.openspec.yaml",)
     )
 
     assert resolution.verdict == "block"
@@ -427,13 +404,10 @@ def test_current_resolution_admits_remaining_official_artifact_after_partial_com
     ],
 )
 def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
-    monkeypatch,
-    paths: tuple[str, ...],
+    monkeypatch, paths: tuple[str, ...]
 ) -> None:
     resolution = resolve_report(
-        monkeypatch,
-        official_report(gaps=("openspec_active_change_missing",)),
-        paths=paths,
+        monkeypatch, official_report(gaps=("openspec_active_change_missing",)), paths=paths
     )
     assert resolution.verdict == "block"
     assert resolution.required_gaps == ("openspec_active_change_missing",)

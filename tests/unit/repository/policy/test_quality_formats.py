@@ -123,9 +123,7 @@ def test_sarif_without_artifacts_has_unknown_scope(tmp_path: Path) -> None:
     """A clean file leaves no result, so results never establish what was read."""
     root = tmp_path.resolve()
     report = sarif_report(
-        _sarif(results=[_result(root, level="note")]),
-        repository_root=root,
-        tracked_paths=_TRACKED,
+        _sarif(results=[_result(root, level="note")]), repository_root=root, tracked_paths=_TRACKED
     )
     assert report.inventory is None
     assert report.findings == ()
@@ -176,9 +174,7 @@ def test_sarif_failed_runs_and_adverse_notifications_block(
     """A tool that failed or warned about its own run cannot report a clean scan."""
     root = tmp_path.resolve()
     report = sarif_report(
-        _sarif(results=[], invocations=[invocation]),
-        repository_root=root,
-        tracked_paths=_TRACKED,
+        _sarif(results=[], invocations=[invocation]), repository_root=root, tracked_paths=_TRACKED
     )
     assert report.failures
 

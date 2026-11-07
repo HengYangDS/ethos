@@ -210,13 +210,7 @@ def assert_lifecycle_outcome(
 ) -> None:
     """Assert one complete lifecycle outcome value."""
     actual = tuple(report[field] for field in OUTCOME_FIELDS)
-    expected = (
-        effect,
-        compensation,
-        residue,
-        next_action,
-        user_decision_required,
-    )
+    expected = (effect, compensation, residue, next_action, user_decision_required)
     assert actual == expected, (actual, expected)
 
 
@@ -247,10 +241,7 @@ class OpenSpecLifecycle:
 
     def apply_archive(self) -> dict[str, object]:
         return archive_change(
-            root=self.worktree,
-            change="fixture-change",
-            expect_head=self.head,
-            apply=True,
+            root=self.worktree, change="fixture-change", expect_head=self.head, apply=True
         )
 
     def stage_official_archive(self, change: str = "fixture-change") -> str:
@@ -258,9 +249,7 @@ class OpenSpecLifecycle:
         command = openspec_cli.openspec_base_command()
         assert command is not None
         result = openspec_cli.run_json(
-            self.worktree,
-            command,
-            openspec_cli.archive_command(self.worktree, change)[1:],
+            self.worktree, command, openspec_cli.archive_command(self.worktree, change)[1:]
         )
         gaps, archive_path = openspec_cli.archive_result(self.worktree, change, result)
         assert gaps == []
@@ -274,10 +263,7 @@ class OpenSpecLifecycle:
 
 
 def completed_lifecycle(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    holder: str = HOLDER,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, holder: str = HOLDER
 ) -> OpenSpecLifecycle:
     """Complete one Change; isolate postimage quality in lifecycle-only tests."""
     fixture = prepared_work_lane(tmp_path, holder_ref=holder, docs_only=True)
@@ -373,8 +359,7 @@ def stub_archive_public(
             ),
             scope=CurrentScope(()),
             openspec=completed_archive_governance(
-                remaining=remaining,
-                required_gaps=resolution_gaps,
+                remaining=remaining, required_gaps=resolution_gaps
             ),
             required_gaps=resolution_gaps,
         )
@@ -412,12 +397,7 @@ def stub_archive_public(
     monkeypatch.setattr(archive, "archive_collision", collision_report)
     postimages = iter(
         (
-            ArchivePostimage(
-                change=STUB_CHANGE,
-                head=STUB_HEAD,
-                scope=None,
-                active_present=True,
-            ),
+            ArchivePostimage(change=STUB_CHANGE, head=STUB_HEAD, scope=None, active_present=True),
             ArchivePostimage(
                 change=STUB_CHANGE,
                 head=STUB_HEAD,
@@ -438,9 +418,7 @@ def stub_archive_public(
     monkeypatch.setattr(archive, "archive_postimage", observe_archive_postimage)
     monkeypatch.setattr(archive.openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
-        archive.openspec_cli,
-        "run_json",
-        lambda *_args: result or official_archive_result(root),
+        archive.openspec_cli, "run_json", lambda *_args: result or official_archive_result(root)
     )
     monkeypatch.setattr(archive, "changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)

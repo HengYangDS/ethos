@@ -220,8 +220,5 @@ def test_ref_admission_does_not_duplicate_openspec_content_policy(
     report = _report(lane, "prepared", head, target, "work/current")
     stored = leases_by_branch(lane)["work/current"]
     _expect(report, "pass")
-    assert report["decision"] == {
-        "action": "allow",
-        "reason": "work_lane_ref_transition_admitted",
-    }
+    assert report["decision"] == {"action": "allow", "reason": "work_lane_ref_transition_admitted"}
     _assert_lease_unchanged(stored, initial)

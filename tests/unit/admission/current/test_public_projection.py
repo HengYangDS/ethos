@@ -37,14 +37,10 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
     *,
     policy_declared: bool,
 ) -> None:
-    lane = leased_worktree(
-        init_git_repo(tmp_path / "repo"),
-        tmp_path / "repo-work-feature",
-    )
+    lane = leased_worktree(init_git_repo(tmp_path / "repo"), tmp_path / "repo-work-feature")
     if policy_declared:
         (lane / ".ethos/workspace.toml").write_text(
-            '[commit_policy]\nsubject_pattern = "fix: .+"\n',
-            encoding="utf-8",
+            '[commit_policy]\nsubject_pattern = "fix: .+"\n', encoding="utf-8"
         )
     if actor is None:
         monkeypatch.delenv("ETHOS_ACTOR", raising=False)

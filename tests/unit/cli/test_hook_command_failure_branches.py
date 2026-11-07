@@ -96,20 +96,14 @@ def test_hook_install_failure_is_public_block(
 
 @pytest.mark.parametrize("decision", [None, "allow"])
 def test_ref_transaction_summary_omits_non_mapping_decision(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    decision: object,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, decision: object
 ) -> None:
     results = _capture(monkeypatch)
     monkeypatch.setattr(commands, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(
         commands,
         "resolve_ref_move_policy",
-        lambda *_args: type(
-            "Policy",
-            (),
-            {"role_for_branch": lambda _self, _branch: "topic"},
-        )(),
+        lambda *_args: type("Policy", (), {"role_for_branch": lambda _self, _branch: "topic"})(),
     )
     monkeypatch.setattr(
         commands,
@@ -124,11 +118,7 @@ def test_ref_transaction_summary_omits_non_mapping_decision(
     )
 
     commands.ref_transaction(
-        "refs/heads/topic/example",
-        "a" * 40,
-        "b" * 40,
-        root=tmp_path,
-        json_output=True,
+        "refs/heads/topic/example", "a" * 40, "b" * 40, root=tmp_path, json_output=True
     )
 
     assert results.pop().summary["decision"] == ""

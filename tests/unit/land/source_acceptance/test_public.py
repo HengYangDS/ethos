@@ -161,9 +161,7 @@ def test_public_source_acceptance(
     proof = prove_source(work, head, stdout_attempts)
     roles = load_branch_role_policy(work)
     effect = roles.candidate_effect(
-        branch=roles.work_branch("source"),
-        current_head=head,
-        candidate_head=before,
+        branch=roles.work_branch("source"), current_head=head, candidate_head=before
     )
     transactions = []
     original_git = git_effects.run_git

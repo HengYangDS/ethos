@@ -38,8 +38,7 @@ if TYPE_CHECKING:
 def _avoid_unrelated_runtime_materialization(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep archive tests on lifecycle semantics, not self-host runtime setup."""
     monkeypatch.setattr(
-        "ethos.adapters.mutation.lane_lifecycle.start.install_hook_launchers",
-        lambda _root: {},
+        "ethos.adapters.mutation.lane_lifecycle.start.install_hook_launchers", lambda _root: {}
     )
 
 
@@ -116,11 +115,7 @@ def test_public_archive_rejects_modified_canonical_warnings_before_git_cas(
     archived = lifecycle.apply_archive()
     assert archived["state"] == "blocked"
     outcome = (archived["effect_state"], archived["compensation_state"], archived["residue_state"])
-    assert outcome == (
-        "mutated",
-        "completed",
-        "absent",
-    )
+    assert outcome == ("mutated", "completed", "absent")
     assert lifecycle.head == before
     assert lifecycle.active.is_dir()
     assert not git(root, "status", "--short")
@@ -266,9 +261,7 @@ def test_archive_executor_replay_recognizes_the_durable_effect_without_reexecuti
 ) -> None:
     lifecycle, plan, target, archive_path = _compiled_archive_plan(tmp_path, monkeypatch)
     issued = archive_effect.execute_git_effect(
-        lifecycle.worktree,
-        plan,
-        issuer=str(lifecycle.lease["holder_ref"]),
+        lifecycle.worktree, plan, issuer=str(lifecycle.lease["holder_ref"])
     )
     assert issued.predicate == "effect:git-ref-update"
     assert git(lifecycle.worktree, "rev-parse", "HEAD") == target
@@ -315,9 +308,7 @@ def test_archive_common_effect_rejects_cas_drift_before_mutation(
 
     with pytest.raises(ValueError, match=r"git_effect_(plan_prestate_stale|cas_mismatch)"):
         archive_effect.execute_git_effect(
-            lifecycle.worktree,
-            plan,
-            issuer=str(lifecycle.lease["holder_ref"]),
+            lifecycle.worktree, plan, issuer=str(lifecycle.lease["holder_ref"])
         )
 
     assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) == drift
@@ -502,9 +493,7 @@ def test_staged_archive_recovery_resolves_intent_from_the_exact_source_head(
     monkeypatch.setattr(archive, "resolve_current_resolution", resolve)
 
     report = archive.archive_change(
-        root=lifecycle.worktree,
-        change="fixture-change",
-        expect_head=lifecycle.completed_head,
+        root=lifecycle.worktree, change="fixture-change", expect_head=lifecycle.completed_head
     )
 
     assert report["state"] == "ready_to_finalize_archive"

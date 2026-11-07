@@ -27,14 +27,7 @@ from tests.support.governed_repository import write_script_gate_policy
 def _host(root: Path, head: str, *selection: str):
     """Exercise the public host protocol with one exact source identity."""
     return run_ethos_raw(
-        "prove",
-        "--host",
-        "--execute",
-        *selection,
-        "--expect-head",
-        head,
-        "--json",
-        cwd=root,
+        "prove", "--host", "--execute", *selection, "--expect-head", head, "--json", cwd=root
     )
 
 
@@ -64,11 +57,7 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     assert payload["state"] == ("observed" if verdict == "pass" else "gapped")
     summary = dict(payload["summary"])
     assert summary.pop("runtime")["source_commit"]
-    assert summary == {
-        "boundary": "host",
-        "gate_count": 1,
-        "proof_attestation_issued": False,
-    }
+    assert summary == {"boundary": "host", "gate_count": 1, "proof_attestation_issued": False}
     assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
     assert payload["data"]["checks"][0]["action_id"] == "docs-registry"
     assert payload["data"]["checks"][0]["duration_seconds"] >= 0

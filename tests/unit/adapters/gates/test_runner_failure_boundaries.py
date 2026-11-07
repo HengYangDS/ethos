@@ -199,7 +199,7 @@ def test_quality_tool_complete_streams_survive_native_proof_custody(
         "verification": {
             "gate": "quality",
             "providers": [
-                {"provider": "ethos.adapters.gates.tool:quality_tool_report", "report": report},
+                {"provider": "ethos.adapters.gates.tool:quality_tool_report", "report": report}
             ],
         },
     }
@@ -253,10 +253,9 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
             "import sys; print('output'); print('failure',file=sys.stderr); sys.exit(7)"
         ),
     )
-    command = {
-        "missing": (str(tmp_path / "missing-tool"),),
-        "denied": (str(tmp_path),),
-    }.get(boundary, native)
+    command = {"missing": (str(tmp_path / "missing-tool"),), "denied": (str(tmp_path),)}.get(
+        boundary, native
+    )
     gate = Gate(id="gate", kind="test", command=command)
     identity = (
         ("old-check",) if boundary == "identity" else gate_runner.gate_execution_identity(gate)

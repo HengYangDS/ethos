@@ -20,9 +20,7 @@ from tests.support.lane_scenarios import derive_abandonment
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
-def test_reviewed_abandonment_projects_bounded_summary_without_dropping_manifest(
-    divergent_lane,
-):
+def test_reviewed_abandonment_projects_bounded_summary_without_dropping_manifest(divergent_lane):
     repo, lane = divergent_lane
     generated = lane / "build" / "runtime" / "tool-cache" / "probe"
     generated.mkdir(parents=True)

@@ -349,10 +349,7 @@ def test_governance_observes_archive_effect_separately_from_generation_scope(mon
     monkeypatch.setattr(governance, "lease_bound_archive_scope_report", observe_archive)
 
     report = governance.openspec_governance_report(
-        root,
-        change="archived",
-        lifecycle=True,
-        changed_paths=("src/current-generation.py",),
+        root, change="archived", lifecycle=True, changed_paths=("src/current-generation.py",)
     )
 
     assert report["verdict"] == "pass"

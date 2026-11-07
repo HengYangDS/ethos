@@ -205,11 +205,7 @@ def test_repaired_history_descendants_keep_forward_commit_admission(tmp_path, ca
     )
     refs = git(repo, "show-ref")
     observed = ref_update_admission_report(
-        repo,
-        target_ref="refs/heads/dev",
-        proposed_head=new,
-        remote_head=old,
-        remote_name="origin",
+        repo, target_ref="refs/heads/dev", proposed_head=new, remote_head=old, remote_name="origin"
     )
     admission = observed["commit_policy_admission"]
     assert isinstance(admission, dict)

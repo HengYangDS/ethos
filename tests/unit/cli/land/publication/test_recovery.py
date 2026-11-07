@@ -30,9 +30,7 @@ from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
 
 
-def test_selected_peer_can_publish_when_other_declared_peer_is_unavailable(
-    tmp_path: Path,
-) -> None:
+def test_selected_peer_can_publish_when_other_declared_peer_is_unavailable(tmp_path: Path) -> None:
     repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
     git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
@@ -65,14 +63,10 @@ def test_selected_peer_receipt_cannot_relabel_the_declared_remote(tmp_path: Path
     original = TransitionPlan.model_validate(preview["data"]["transition_plan"])
     effect = publication_effect_from_plan(original)
     relabeled = effect.model_copy(
-        update={
-            "targets": (effect.targets[0].model_copy(update={"id": "gitlab"}),),
-        }
+        update={"targets": (effect.targets[0].model_copy(update={"id": "gitlab"}),)}
     )
     forged = publication_request.compile_remote_publication_request(
-        root=repo,
-        effect=relabeled,
-        proof=mutable_json(original.prior_attestations["proof"]),
+        root=repo, effect=relabeled, proof=mutable_json(original.prior_attestations["proof"])
     )
     receipt = publication_request.persist_remote_publication_request(repo, forged)
 

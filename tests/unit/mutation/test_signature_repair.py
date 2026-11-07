@@ -126,11 +126,7 @@ def test_repair_rejects_unsolicited_replacement_before_any_attempt(tmp_path):
     before = git(repo, "show-ref")
     ready = repair.repair_signature(root=repo, expect_head=old, replacement=new)
     applied = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        replacement=new,
-        apply=True,
-        authorized=True,
+        root=repo, expect_head=old, replacement=new, apply=True, authorized=True
     )
     for observed in (ready, applied):
         assert observed["verdict"] == "block", observed
@@ -510,11 +506,7 @@ repair.repair_signature(
         assert git(repo, "rev-parse", "dev") != old
     monkeypatch.setattr(repair, "create_signed_replacement", lambda *_a: pytest.fail("resigned"))
     result = repair.repair_signature(
-        root=repo,
-        expect_head=old,
-        replacement=replacement,
-        apply=True,
-        authorized=True,
+        root=repo, expect_head=old, replacement=replacement, apply=True, authorized=True
     )
     assert result["state"] == "signature_repaired", result
     assert commit_payload(repo, old) == commit_payload(repo, str(result["head"]))

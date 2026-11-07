@@ -40,9 +40,7 @@ class ImplicitApplyCheckoutError(AssertionError):
         )
 
 
-def _test_git_config_overlay_items(
-    env: MutableMapping[str, str],
-) -> tuple[tuple[str, str], ...]:
+def _test_git_config_overlay_items(env: MutableMapping[str, str]) -> tuple[tuple[str, str], ...]:
     """Return complete indexed Git configuration overlay entries from ``env``."""
     raw_count = env.get("GIT_CONFIG_COUNT", "0")
     try:
@@ -162,10 +160,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
             stderr.write(f"{type(exc).__name__}: {exc}")
     _require_live_next(stdout.getvalue())
     return subprocess.CompletedProcess(
-        [sys.executable, "-m", "ethos.cli", *args],
-        returncode,
-        stdout.getvalue(),
-        stderr.getvalue(),
+        [sys.executable, "-m", "ethos.cli", *args], returncode, stdout.getvalue(), stderr.getvalue()
     )
 
 

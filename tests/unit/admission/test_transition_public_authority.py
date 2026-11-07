@@ -32,13 +32,7 @@ def _lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, 
     lane = tmp_path / "lane"
     git(repo, "worktree", "add", "-b", _BRANCH, lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
-    acquire_lease(
-        state_database(repo),
-        lease=exact_lease(
-            branch=_BRANCH,
-            holder_ref=_HOLDER,
-        ),
-    )
+    acquire_lease(state_database(repo), lease=exact_lease(branch=_BRANCH, holder_ref=_HOLDER))
     monkeypatch.setenv("ETHOS_ACTOR", _HOLDER)
     return repo, lane, head
 
@@ -75,26 +69,15 @@ def _intent(lane: Path, old: str, new: str) -> None:
 
 def _report(lane: Path, phase: str, old: str, new: str) -> dict[str, object]:
     return transitions.work_lane_ref_transition_report(
-        root=lane,
-        phase=phase,
-        ref_name=f"refs/heads/{_BRANCH}",
-        old_value=old,
-        new_value=new,
+        root=lane, phase=phase, ref_name=f"refs/heads/{_BRANCH}", old_value=old, new_value=new
     )
 
 
 @pytest.mark.parametrize(
-    ("phase", "reason", "state"),
-    [
-        ("prepared", "executor_ref_intent_admitted", "admitted"),
-    ],
+    ("phase", "reason", "state"), [("prepared", "executor_ref_intent_admitted", "admitted")]
 )
 def test_executor_ref_transition_requires_exact_intent_and_cas_coordinates(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    phase: str,
-    reason: str,
-    state: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str, reason: str, state: str
 ) -> None:
     _repo, lane, head = _lane(tmp_path, monkeypatch)
     target = _target_commit(lane, head)
@@ -116,17 +99,12 @@ def test_owned_ref_change_without_executor_intent_uses_general_admission(
 
     assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
-    assert report["decision"] == {
-        "action": "allow",
-        "reason": "work_lane_ref_transition_admitted",
-    }
+    assert report["decision"] == {"action": "allow", "reason": "work_lane_ref_transition_admitted"}
 
 
 @pytest.mark.parametrize("case", ["parent", "index"])
 def test_executor_intent_owns_target_coordinates_without_lease_payload_duplication(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    case: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
 ) -> None:
     _repo, lane, head = _lane(tmp_path, monkeypatch)
     parent = git(lane, "rev-parse", f"{head}^") if case == "parent" else head
@@ -140,10 +118,7 @@ def test_executor_intent_owns_target_coordinates_without_lease_payload_duplicati
 
     assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
-    assert report["decision"] == {
-        "action": "allow",
-        "reason": "executor_ref_intent_admitted",
-    }
+    assert report["decision"] == {"action": "allow", "reason": "executor_ref_intent_admitted"}
 
 
 @pytest.mark.parametrize("phase", ["committed", "aborted"])

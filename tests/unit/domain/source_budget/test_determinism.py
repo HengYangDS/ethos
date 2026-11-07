@@ -18,9 +18,7 @@ ROOT = Path(__file__).resolve().parents[4]
 
 def _repository(tmp_path: Path) -> Path:
     selection = write_budget_selection(
-        tmp_path,
-        terminal=(100, 100, 100, 100, 200),
-        tolerance=(100, 100),
+        tmp_path, terminal=(100, 100, 100, 100, 200), tolerance=(100, 100)
     )
     policy = tomllib.loads(selection.read_text())
     python = next(item for item in policy["format"] if item["extensions"] == [".py"])
@@ -102,12 +100,7 @@ def test_source_budget_public_report_rejects_unsupported_structured_suffix(
     ],
 )
 def test_cross_check_rejects_invalid_locations_and_source_or_immutable_counts(
-    tmp_path,
-    monkeypatch,
-    location,
-    code,
-    immutable,
-    gap,
+    tmp_path, monkeypatch, location, code, immutable, gap
 ):
     """Location and count failures remain distinct in source and archive planes."""
     root = _repository(tmp_path)

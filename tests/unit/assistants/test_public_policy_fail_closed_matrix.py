@@ -94,10 +94,7 @@ def test_capability_policy_rejects_mutation_untrusted_scripts_and_fake_proof(
         {"id": "proof-fake", "kind": "command_proof", "command": ["ethos", "status"]},
     ]
     gaps, records = capability_records(
-        "sample",
-        capabilities,
-        package_dir=package_dir,
-        included_files=frozenset(),
+        "sample", capabilities, package_dir=package_dir, included_files=frozenset()
     )
     assert gaps == [
         "skill_package_capability_readonly_mutating:sample:readonly-mutation",
@@ -202,10 +199,7 @@ def _record(skill_id: str, **updates: object) -> dict[str, object]:
 
 def test_portfolio_reports_duplicate_overloaded_and_unowned_routes(tmp_path: Path) -> None:
     coverage = portfolio_coverage(
-        {
-            "required_primary_subjects": ["subject", "missing"],
-            "single_owner_subjects": ["subject"],
-        },
+        {"required_primary_subjects": ["subject", "missing"], "single_owner_subjects": ["subject"]},
         [
             _record("first"),
             _record("second"),
@@ -262,9 +256,7 @@ def test_portfolio_reports_duplicate_overloaded_and_unowned_routes(tmp_path: Pat
     ]
 
 
-def test_skills_public_report_rejects_malformed_activation(
-    tmp_path: Path,
-) -> None:
+def test_skills_public_report_rejects_malformed_activation(tmp_path: Path) -> None:
     activation = tmp_path / ".agents/skills/activation.toml"
     _write(activation, "[meta\n")
     report = skill_portfolio_report(tmp_path)

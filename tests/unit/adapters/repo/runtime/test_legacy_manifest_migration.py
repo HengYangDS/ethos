@@ -17,17 +17,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _legacy_manifest(
-    common: Path,
-    *,
-    source: tuple[str, str] = ("a" * 40, "b" * 40),
-) -> Path:
+def _legacy_manifest(common: Path, *, source: tuple[str, str] = ("a" * 40, "b" * 40)) -> Path:
     digest = "a" * 64
     runtime = common / "ethos/runtime" / digest
-    contents = {
-        "venv/bin/python": b"incumbent-python",
-        "venv/bin/ethos": b"incumbent-entrypoint",
-    }
+    contents = {"venv/bin/python": b"incumbent-python", "venv/bin/ethos": b"incumbent-entrypoint"}
     for relative, content in contents.items():
         target = runtime / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -46,8 +39,7 @@ def _legacy_manifest(
     }
     manifest = runtime / "manifest.json"
     manifest.write_text(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
-        encoding="utf-8",
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
     )
     (runtime.parent / "CURRENT").write_text(f"{digest}\n", encoding="ascii")
     return manifest

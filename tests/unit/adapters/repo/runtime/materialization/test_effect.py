@@ -283,8 +283,7 @@ def test_materialization_binds_package_dependency_and_image_sources(
 
 
 def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     args, observed, commands = _generation_case(tmp_path, monkeypatch)
     runtime_root, environment = args[0], args[4]
@@ -367,17 +366,14 @@ def test_failed_runtime_verification_removes_only_its_new_generation(
 
 
 def test_runtime_generation_compares_windows_prefixes_as_paths(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     args, _observed, _commands = _generation_case(tmp_path, monkeypatch)
     target = materialization.materialize_runtime_generation(*args, locked_requirements=None)
     prefix = (target / "python").resolve().as_posix()
     windows_spelling = prefix.replace("/", "\\").upper()
     monkeypatch.setattr(
-        runtime_python_environment,
-        "os",
-        SimpleNamespace(name="nt", fspath=os.fspath),
+        runtime_python_environment, "os", SimpleNamespace(name="nt", fspath=os.fspath)
     )
     for spelling in (windows_spelling, r"D:\external"):
         monkeypatch.setattr(

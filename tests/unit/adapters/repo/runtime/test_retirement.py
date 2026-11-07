@@ -410,9 +410,7 @@ def test_live_native_process_keeps_generation_until_exit(
     assert released["removed"] == [needed.as_posix()]
 
 
-def test_unowned_digest_directory_survives_unrelated_historical_carriers(
-    tmp_path: Path,
-) -> None:
+def test_unowned_digest_directory_survives_unrelated_historical_carriers(tmp_path: Path) -> None:
     """Digest spelling grants no deletion ownership over a user's directory."""
     repo, hooks, runtime = generation_tree(tmp_path)
     unowned = runtime.parent / ("b" * 64)

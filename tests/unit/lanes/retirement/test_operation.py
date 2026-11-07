@@ -181,9 +181,7 @@ def test_unbound_request_detects_branch_rebound_at_another_path(
     )
     monkeypatch.setattr(operation, "state_database", lambda _root: tmp_path / "state.sqlite")
     monkeypatch.setattr(
-        operation,
-        "observe_lease",
-        lambda *_args: type("Lease", (), {"state": "missing"})(),
+        operation, "observe_lease", lambda *_args: type("Lease", (), {"state": "missing"})()
     )
 
     def observe_git(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -206,11 +204,7 @@ def test_unbound_request_detects_branch_rebound_at_another_path(
         )
         return subprocess.CompletedProcess([], 0, expected, "")
 
-    monkeypatch.setattr(
-        operation,
-        "run_git",
-        observe_git,
-    )
+    monkeypatch.setattr(operation, "run_git", observe_git)
 
     assert operation.observe_operation(tmp_path, request).worktree_state == "moved"
 
@@ -390,9 +384,7 @@ def test_unobservable_failure_does_not_invent_progress(
         else OSError("observation failed")
     )
     monkeypatch.setattr(
-        operation,
-        "observe_operation",
-        lambda *_args: (_ for _ in ()).throw(failure),
+        operation, "observe_operation", lambda *_args: (_ for _ in ()).throw(failure)
     )
 
     report = operation.apply_operation(request, request_receipt={"path": "/receipt"})

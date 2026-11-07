@@ -66,9 +66,7 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
             ("offline-missing-node", ("which", "node")),
         }
         return Mock(
-            returncode=1 if missing else 0,
-            stdout=output,
-            stderr="missing" if missing else "",
+            returncode=1 if missing else 0, stdout=output, stderr="missing" if missing else ""
         )
 
     node = tmp_path / "node-supply/bin"

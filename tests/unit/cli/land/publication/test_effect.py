@@ -38,8 +38,7 @@ from tests.unit.cli.land.publication.support import proposal_ref
 
 @pytest.mark.parametrize("selected_peer", ["", "gitlab", "github"])
 def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_proof(
-    tmp_path: Path,
-    selected_peer: str,
+    tmp_path: Path, selected_peer: str
 ) -> None:
     """Official unfinished intent can enter review without closing accepted truth."""
     repo, remotes, accepted = branch_publication_fixture(

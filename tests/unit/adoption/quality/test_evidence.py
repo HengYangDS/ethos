@@ -490,8 +490,7 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     ["", "process.emitWarning('reported warning');", "console.warn('reported warning');"],
 )
 def test_native_node_behavior_retains_same_attempt_diagnostics(
-    tmp_path: Path,
-    diagnostic: str,
+    tmp_path: Path, diagnostic: str
 ) -> None:
     """Native reports must retain diagnostics without replaying executed tests."""
     repo = init_git_repo(tmp_path / "adopter")

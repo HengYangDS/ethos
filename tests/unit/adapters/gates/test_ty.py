@@ -83,12 +83,7 @@ def test_ty_gate_requires_native_config(tmp_path: Path) -> None:
     ],
 )
 def test_ty_gate_classifies_tool_and_diagnostic_outcomes(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    exit_code,
-    output,
-    gap,
-    count,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exit_code, output, gap, count
 ) -> None:
     """Native payload, process status and failure stage have independent expectations."""
     config = tmp_path / ".config/checks/ty/ty.toml"

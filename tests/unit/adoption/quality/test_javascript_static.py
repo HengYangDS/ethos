@@ -31,10 +31,7 @@ if TYPE_CHECKING:
 )
 @pytest.mark.parametrize("role", ["code", "snapshot"])
 def test_javascript_static_quality_preserves_lexical_bindings(
-    tmp_path: Path,
-    source: str,
-    verdict: str,
-    role: str,
+    tmp_path: Path, source: str, verdict: str, role: str
 ) -> None:
     """Syntax success cannot certify declared lexical correctness or suppress its diagnostics."""
     repo = init_git_repo(tmp_path / "adopter")
@@ -69,10 +66,7 @@ _BROWSER_CALLBACK = (
             ),
             "pass",
         ),
-        (
-            '[[environment]]\npaths = ["render.mjs"]\nglobals = ["node"]\nreason = "x"\n',
-            "block",
-        ),
+        ('[[environment]]\npaths = ["render.mjs"]\nglobals = ["node"]\nreason = "x"\n', "block"),
         ('[[environment]]\npaths = ["render.mjs"]\nglobals = ["browser"]\n', "block"),
         (
             '[[environment]]\npaths = ["missing.mjs"]\nglobals = ["browser"]\nreason = "x"\n',

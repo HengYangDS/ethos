@@ -208,13 +208,7 @@ def test_invalid_transport_declaration_is_not_treated_as_absent(
 ) -> None:
     """Explicit malformed transport ranges are rejected by the sole native owner."""
     topology = release_publication.publication_topology(
-        tmp_path,
-        {
-            "publication": {
-                "transport_tags": tags,
-                "peers": [],
-            }
-        },
+        tmp_path, {"publication": {"transport_tags": tags, "peers": []}}
     )
     assert "publication_transport_tags_invalid" in string_sequence(topology["required_gaps"])
 

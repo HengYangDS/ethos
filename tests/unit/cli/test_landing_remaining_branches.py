@@ -39,9 +39,7 @@ def test_land_apply_normalizes_unexpected_candidate_plan_failure(
 ) -> None:
     monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git())
     monkeypatch.setattr(
-        landing,
-        "evaluate_mutation",
-        lambda **_k: SimpleNamespace(verdict="pass", required_gaps=()),
+        landing, "evaluate_mutation", lambda **_k: SimpleNamespace(verdict="pass", required_gaps=())
     )
     monkeypatch.setattr(landing, "load_branch_role_policy", lambda _root: BranchRolePolicy())
     monkeypatch.setattr(
@@ -80,10 +78,7 @@ def test_candidate_readiness_reports_exact_equal_transition(
     ],
 )
 def test_candidate_base_report_exposes_missing_projection_coordinates(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    candidate: dict[str, object],
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, candidate: dict[str, object], gap: str
 ) -> None:
     monkeypatch.setattr(landing, "load_branch_role_policy", lambda _root: BranchRolePolicy())
     monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git())

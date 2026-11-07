@@ -58,11 +58,7 @@ def test_generic_release_role_membership(
 
 @pytest.mark.parametrize(
     "source",
-    [
-        None,
-        "[protected_refs]\ntags = []\n",
-        '[protected_refs]\nbranches = ["dev", "main"]\n',
-    ],
+    [None, "[protected_refs]\ntags = []\n", '[protected_refs]\nbranches = ["dev", "main"]\n'],
 )
 def test_generic_roles_follow_the_paradigm_names(tmp_path: Path, source: str | None) -> None:
     """Absent or redundant release carriers and legacy role names never move protection."""

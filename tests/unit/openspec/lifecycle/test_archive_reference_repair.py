@@ -32,8 +32,7 @@ def test_archived_change_admits_only_stale_markdown_link_consumers(tmp_path, mon
     )
     missing = root / "docs/missing.md"
     missing.write_text(
-        "# Missing\n\n[absent](../openspec/changes/fixture-change/absent.md)\n",
-        encoding="utf-8",
+        "# Missing\n\n[absent](../openspec/changes/fixture-change/absent.md)\n", encoding="utf-8"
     )
     commit_fixture(root, "link active Change from authored docs")
     archived = lifecycle.archive()

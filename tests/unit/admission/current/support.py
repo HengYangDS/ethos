@@ -41,18 +41,9 @@ def receipt(payload: object, *, exit_code: int = 0) -> dict[str, object]:
 
 
 def official_artifact(
-    identifier: str,
-    output: str,
-    *,
-    status: str = "done",
-    requires: tuple[str, ...] = (),
+    identifier: str, output: str, *, status: str = "done", requires: tuple[str, ...] = ()
 ) -> dict[str, object]:
-    return {
-        "id": identifier,
-        "outputPath": output,
-        "status": status,
-        "requires": list(requires),
-    }
+    return {"id": identifier, "outputPath": output, "status": status, "requires": list(requires)}
 
 
 def official_report(
@@ -68,11 +59,7 @@ def official_report(
 ) -> dict[str, object]:
     selected = []
     if change is not None:
-        row: dict[str, object] = {
-            "name": change,
-            "artifacts": list(artifacts),
-            "required_gaps": [],
-        }
+        row: dict[str, object] = {"name": change, "artifacts": list(artifacts), "required_gaps": []}
         if change_path is not None:
             row["path"] = change_path
         selected.append(row)

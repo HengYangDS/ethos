@@ -126,28 +126,16 @@ def _arrange(
     }
     commitment = commitment_fixture(id="change:proof-command", acceptance=("acceptance:fixture",))
     binding = CurrentResolution(
-        verdict="pass",
-        authority=None,
-        commitment=commitment,
-        scope=CurrentScope(("changed.py",)),
+        verdict="pass", authority=None, commitment=commitment, scope=CurrentScope(("changed.py",))
     )
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
     monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
     monkeypatch.setattr(
-        proof_cli,
-        "_proof_context",
-        lambda *_args, **_kwargs: (
-            "a" * 40,
-            audit,
-            binding,
-            lifecycle,
-        ),
+        proof_cli, "_proof_context", lambda *_args, **_kwargs: ("a" * 40, audit, binding, lifecycle)
     )
     monkeypatch.setattr(proof_cli, "proof_plan", lambda *_args, **_kwargs: selected_plan)
     monkeypatch.setattr(
-        proof_cli,
-        "run_plan_checks",
-        lambda **_kwargs: (list(checks or (_check(),)), runs_ok),
+        proof_cli, "run_plan_checks", lambda **_kwargs: (list(checks or (_check(),)), runs_ok)
     )
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
     return repo, emitted
@@ -184,11 +172,7 @@ def test_invalid_common_audit_stops_before_check_execution(
     ],
 )
 def test_prove_fail_closed_before_result_compilation(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    case: str,
-    expected_gap: str,
-    next_action: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, case: str, expected_gap: str, next_action: str
 ) -> None:
     plan = _plan(gap="plan_gap") if case == "plan-blocked" else _plan()
     _repo, emitted = _arrange(monkeypatch, tmp_path, plan=plan)
@@ -230,8 +214,7 @@ def test_a_focused_plan_refused_for_unselected_axes_names_the_full_proof(
 
 
 def test_prove_preserves_nonpassing_current_resolution_without_planning(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _repo, emitted = _arrange(monkeypatch, tmp_path)
     resolution = CurrentResolution(
@@ -273,8 +256,7 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
 
 
 def test_prove_does_not_replace_unexpected_resolution_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
@@ -286,15 +268,10 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
     monkeypatch.setattr(
         proof_cli,
         "workspace_status_observation",
-        lambda *_args, **_kwargs: (
-            {"head": "a" * 40, "branch": "dev", "role": "accepted"},
-            None,
-        ),
+        lambda *_args, **_kwargs: ({"head": "a" * 40, "branch": "dev", "role": "accepted"}, None),
     )
     monkeypatch.setattr(
-        proof_cli,
-        "resolve_current_resolution",
-        Mock(side_effect=ValueError("resolution_failed")),
+        proof_cli, "resolve_current_resolution", Mock(side_effect=ValueError("resolution_failed"))
     )
 
     with pytest.raises(ValueError, match=r"^resolution_failed$"):
@@ -468,9 +445,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
 
     monkeypatch.setattr(proof_cli.status_domain, "audit_for_root", audit_once)
     monkeypatch.setattr(
-        proof_cli,
-        "workspace_status_observation",
-        lambda *_args, **_kwargs: (status, authority),
+        proof_cli, "workspace_status_observation", lambda *_args, **_kwargs: (status, authority)
     )
 
     def resolve(*_args, **kwargs):

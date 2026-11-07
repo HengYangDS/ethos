@@ -99,8 +99,7 @@ def test_post_archive_planning_uses_fresh_git_paths_not_an_archived_carrier() ->
         "openspec/specs/contracts/spec.md",
     )
     scope = current_scope(
-        commitment=commitment_fixture(id="change:fixture-change"),
-        fallback_paths=paths,
+        commitment=commitment_fixture(id="change:fixture-change"), fallback_paths=paths
     )
 
     assert scope.paths == paths
@@ -151,15 +150,9 @@ def test_current_resolution_recovers_exact_archive_effect(
 
     monkeypatch.setattr(resolution_adapter, "load_profile_commitment", load)
     monkeypatch.setattr(
-        resolution_adapter,
-        "change_scope_paths_from_status",
-        lambda *_args: observed_paths,
+        resolution_adapter, "change_scope_paths_from_status", lambda *_args: observed_paths
     )
-    monkeypatch.setattr(
-        resolution_adapter,
-        "attested_archive_transition",
-        archived,
-    )
+    monkeypatch.setattr(resolution_adapter, "attested_archive_transition", archived)
     monkeypatch.setattr(
         resolution_adapter,
         "openspec_governance_report",

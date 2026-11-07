@@ -72,11 +72,7 @@ placeholder_allowed = false
 
 
 def _record(
-    skill_id: str,
-    *,
-    path: str = "",
-    package_manifest: str = "",
-    complete: bool = True,
+    skill_id: str, *, path: str = "", package_manifest: str = "", complete: bool = True
 ) -> str:
     fields = (
         'subject = "governance"\noperation = "govern"\nauthority = "primary"\n'
@@ -100,13 +96,7 @@ def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps
 ) -> None:
     skills = tmp_path / ".agents/skills"
     _write(skills / "README.md", "# Skills\n")
-    for skill_id in (
-        "escaped",
-        "absolute",
-        "absent",
-        "quality",
-        "mismatch",
-    ):
+    for skill_id in ("escaped", "absolute", "absent", "quality", "mismatch"):
         _package(tmp_path, skill_id)
     _write(skills / "mismatch/OTHER.md", "alternate entrypoint\n")
     _write(skills / "quality/SKILL.md", "# malformed\n")
@@ -152,13 +142,7 @@ def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps
         "skill_missing_commands:quality",
         "skill_package_entrypoint_mismatch:mismatch",
     } <= gaps
-    assert report["skills"] == [
-        "escaped",
-        "absolute",
-        "absent",
-        "quality",
-        "mismatch",
-    ]
+    assert report["skills"] == ["escaped", "absolute", "absent", "quality", "mismatch"]
     records = {record["id"]: record for record in report["records"]}
     assert records["mismatch"]["commands"] == []
 

@@ -435,9 +435,7 @@ def test_generated_common_policy_binds_product_compiler_and_native_supply_inputs
     assert not gaps
     for path in required:
         updated, gaps = bind_gate_source_digests(
-            (gate,),
-            {**materials, path: b"changed product input"},
-            source_contracts=(contract,),
+            (gate,), {**materials, path: b"changed product input"}, source_contracts=(contract,)
         )
         assert not gaps
         assert updated != original

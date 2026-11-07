@@ -134,11 +134,7 @@ def test_candidate_promotion_reports_transition_and_git_effect_failures(
     ],
 )
 def test_candidate_promotion_reports_post_effect_worktree_compensation_state(
-    tmp_path,
-    monkeypatch: pytest.MonkeyPatch,
-    owner: str,
-    state: str,
-    expected: str,
+    tmp_path, monkeypatch: pytest.MonkeyPatch, owner: str, state: str, expected: str
 ) -> None:
     boundaries = _prime(monkeypatch)
     name = "sync_linked_ref_worktree" if owner == "release" else "sync_ref_worktrees"

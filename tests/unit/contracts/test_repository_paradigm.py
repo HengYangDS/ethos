@@ -106,11 +106,7 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         modules[0] = {**modules[0], "lock_scope": "optional"}
     elif mutation == "duplicate-table":
         tools.append(
-            {
-                "id": "copy",
-                "carrier": ".config/checks/copy/copy.toml",
-                "manifest_tables": ["ruff"],
-            }
+            {"id": "copy", "carrier": ".config/checks/copy/copy.toml", "manifest_tables": ["ruff"]}
         )
     elif mutation in {"size-not-positive", "bound-not-above-default", "duplicate-parameter"}:
         rows = payload["parameter"]
@@ -136,10 +132,7 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
                 "rules": {**openspec["rules"], "review": ["Review it."]},
             },
             "openspec-other-schema": {**openspec, "artifact_schema": "custom"},
-            "openspec-empty-rules": {
-                **openspec,
-                "rules": {**openspec["rules"], "tasks": []},
-            },
+            "openspec-empty-rules": {**openspec, "rules": {**openspec["rules"], "tasks": []}},
         }[mutation]
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
@@ -163,12 +156,7 @@ def test_language_registry_fails_closed(mutation: str) -> None:
 
 @pytest.mark.parametrize(
     "commit",
-    [
-        {"types": ["fix", "fix"]},
-        {"types": []},
-        {"scope": "[a-z"},
-        {"breaking_marker": "!!"},
-    ],
+    [{"types": ["fix", "fix"]}, {"types": []}, {"scope": "[a-z"}, {"breaking_marker": "!!"}],
     ids=["duplicate-type", "no-types", "uncompilable-scope", "marker-length"],
 )
 def test_commit_grammar_fails_closed(commit: dict[str, object]) -> None:

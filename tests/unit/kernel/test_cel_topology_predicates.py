@@ -127,8 +127,7 @@ def test_topology_format_does_not_supply_origin() -> None:
 
 def test_external_method_pack_shadow_authority_is_denied() -> None:
     policy = path_policy_from_declaration(
-        ".superpowers/sdd/tasks/progress.md",
-        load_generated_artifact_topology_declaration(),
+        ".superpowers/sdd/tasks/progress.md", load_generated_artifact_topology_declaration()
     )
 
     assert policy["decision"] == "deny"

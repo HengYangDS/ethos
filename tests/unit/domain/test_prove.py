@@ -7,10 +7,7 @@ import ethos.domain.prove as prove
 
 def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path):
     def fake_validate(schema_name, _payload, **_kwargs):
-        return {
-            "verdict": "block",
-            "required_gaps": [f"{schema_name}:missing:branch"],
-        }
+        return {"verdict": "block", "required_gaps": [f"{schema_name}:missing:branch"]}
 
     monkeypatch.setattr(prove, "validate_schema_instance", fake_validate)
 

@@ -95,8 +95,7 @@ def test_public_docs_gate_blocks_invalid_decision_record(
     source = _document("sample:decision:choice", "decision", "Choice")
     if valid_identity:
         source = source.replace(
-            "## Alternatives Rejected\n\nAn execution log cannot explain the trade-off.\n\n",
-            "",
+            "## Alternatives Rejected\n\nAn execution log cannot explain the trade-off.\n\n", ""
         )
     decision.write_text(source)
     commit_fixture(root, "invalid decision")
@@ -115,9 +114,7 @@ def test_public_docs_gate_blocks_invalid_decision_record(
     assert decision.read_text() == source
 
 
-def test_shared_decision_contract_preserves_metadata_and_readable_rationale(
-    tmp_path: Path,
-) -> None:
+def test_shared_decision_contract_preserves_metadata_and_readable_rationale(tmp_path: Path) -> None:
     """A native root keeps the same decision contract and ordinary evidence prose."""
     profile = tmp_path / ".ethos/profile.toml"
     profile.parent.mkdir()

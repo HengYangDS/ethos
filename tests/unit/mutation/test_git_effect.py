@@ -161,9 +161,7 @@ def test_repository_worktree_identity_matrix(tmp_path: Path, kind: str) -> None:
         )
 
 
-def test_git_effect_repository_resolution_rejects_invalid_profile_schema(
-    tmp_path: Path,
-) -> None:
+def test_git_effect_repository_resolution_rejects_invalid_profile_schema(tmp_path: Path) -> None:
     case = fixture(tmp_path)
     carrier = case.repo / ".ethos/profile.toml"
     carrier.write_text('profile_id = ""\n', encoding="utf-8")
@@ -180,15 +178,8 @@ def test_git_effect_repository_resolution_rejects_invalid_profile_schema(
     git(case.repo, "reset", "--hard", case.old)
     changed = effect(case.old, unsupported)
 
-    with pytest.raises(
-        ValueError,
-        match=r"repository_profile_invalid:\.ethos/profile\.toml",
-    ):
-        resolve_git_effect_repository(
-            case.repo,
-            changed,
-            {"head": case.old},
-        )
+    with pytest.raises(ValueError, match=r"repository_profile_invalid:\.ethos/profile\.toml"):
+        resolve_git_effect_repository(case.repo, changed, {"head": case.old})
 
 
 @pytest.mark.parametrize("kind", ["zero", "owned", "unowned", "stale", "assertion"])
@@ -197,10 +188,7 @@ def test_ref_recovery_and_cas_failure_matrix(tmp_path: Path, kind: str) -> None:
     if kind == "zero":
         value = effect(ZERO_OID, case.old, "refs/heads/work/new")
         record = execute_git_effect(case.repo, plan(case.repo, value), issuer=ISSUER)
-        assert (
-            git(case.repo, "rev-parse", "work/new"),
-            record.payload.body["input"]["refs"],
-        ) == (
+        assert (git(case.repo, "rev-parse", "work/new"), record.payload.body["input"]["refs"]) == (
             case.old,
             {"refs/heads/work/new": ZERO_OID},
         )
@@ -360,9 +348,7 @@ def _effect_failure_runner(
         return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
     if failure == "persistence":
         monkeypatch.setattr(
-            attest,
-            "records",
-            lambda _root, _plan, record=None, **_kwargs: fail(record),
+            attest, "records", lambda _root, _plan, record=None, **_kwargs: fail(record)
         )
         return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
     return lambda: execute_git_effect(case.repo, carried, issuer=ISSUER)
@@ -416,8 +402,7 @@ def test_atomic_compensation_and_retry_matrix(
 
 
 def test_execute_ignores_legacy_plan_receipt_when_attestation_set_is_empty(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = fixture(tmp_path)
     carried = proof_plan(case)

@@ -194,8 +194,7 @@ def test_native_session_cannot_borrow_another_runtime_qualification(tmp_path: Pa
     )
     reports.append((outputs[-1], runtime_content))
     retained = replace(
-        retained,
-        evidence=replace(retained.evidence, outputs=tuple(reports), gaps=()),
+        retained, evidence=replace(retained.evidence, outputs=tuple(reports), gaps=())
     )
     for report in (behavior_report, static_report):
         verdict = report(root, execution=retained)

@@ -137,10 +137,7 @@ def test_guard_records_crossings_and_keeps_outcomes(tmp_path: Path) -> None:
         "test_prepares_a_file": ({"ethos.crossed": "open", **exceeds}, False),
         "test_cleans_up_a_file": ({"ethos.crossed": "open", **exceeds}, False),
         "test_shares_a_session_fixture": ({}, False),
-        "test_moves_and_removes": (
-            {"ethos.crossed": "open,os.remove,os.rename", **exceeds},
-            False,
-        ),
+        "test_moves_and_removes": ({"ethos.crossed": "open,os.remove,os.rename", **exceeds}, False),
         "test_runs_a_shell": ({"ethos.crossed": "os.system", **exceeds}, False),
         "test_generates_values": ({}, False),
         "test_reads_a_file": ({"ethos.crossed": "open", "ethos.exceeds": "true"}, False),

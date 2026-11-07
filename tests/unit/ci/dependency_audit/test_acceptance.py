@@ -125,9 +125,7 @@ def test_product_policy_accepts_only_its_exact_portable_artifact(repository, mon
     assert invoke_audit(repository)["decision"]["verdict"] == "block"
 
 
-def test_product_policy_composition_preserves_exact_records_and_subject_execution(
-    repository,
-):
+def test_product_policy_composition_preserves_exact_records_and_subject_execution(repository):
     """Composition deduplicates identities, not distinct authorization constraints."""
     npm_advisories(repository)
     authorize_fixture(repository)

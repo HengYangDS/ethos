@@ -95,10 +95,7 @@ def test_lifetime_classifies_product_members() -> None:
             _ref_update("commit.identity-replace", {"refs/heads/dev": (_C0, _C1)}),
             ("lineage", f"repair:{_C0}"),
         ),
-        (
-            _member("effect:native", body={"branch": "work/a"}),
-            ("operation", "work/a"),
-        ),
+        (_member("effect:native", body={"branch": "work/a"}), ("operation", "work/a")),
         (
             _ref_update("candidate.accept", {"refs/heads/dev": (_C0, _C1)}, accepted_branch="dev"),
             ("lineage", f"accepted:{_C1}"),

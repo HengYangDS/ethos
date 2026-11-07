@@ -31,10 +31,7 @@ def assert_public_decision(
 
 
 def strict_lease(
-    *,
-    branch: str = "work/example",
-    holder: str = "agent:test:case:holder",
-    **updates: object,
+    *, branch: str = "work/example", holder: str = "agent:test:case:holder", **updates: object
 ) -> LaneLease:
     now = datetime.now(UTC)
     values: dict[str, object] = {

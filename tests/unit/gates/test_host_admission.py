@@ -170,9 +170,7 @@ def test_admitted_work_carries_one_token_and_worker_cap(host_root: Path, tmp_pat
     with host_admission.admitted_host_work(tmp_path, "outer", seconds=0) as outer:
         cap = str(max(1, (os.cpu_count() or 1) - 1))
         assert outer[host_admission.CPU_CAP] == outer[host_admission.XDIST_WORKERS] == cap
-        with (
-            pytest.MonkeyPatch.context() as patch,
-        ):
+        with pytest.MonkeyPatch.context() as patch:
             patch.setenv(host_admission.TOKEN, outer[host_admission.TOKEN])
             with host_admission.admitted_host_work(tmp_path, "inner", seconds=0) as inner:
                 assert inner[host_admission.TOKEN] == outer[host_admission.TOKEN]

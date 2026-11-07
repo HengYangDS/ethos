@@ -33,16 +33,7 @@ def _canonical_root(repo: Path, tree: str) -> str:
         "ETHOS Attestation Set\n"
     ).encode()
     return (
-        run_git(
-            repo,
-            "hash-object",
-            "-t",
-            "commit",
-            "-w",
-            "--stdin",
-            stdin=payload,
-            text=False,
-        )
+        run_git(repo, "hash-object", "-t", "commit", "-w", "--stdin", stdin=payload, text=False)
         .stdout.decode()
         .strip()
     )
@@ -156,11 +147,7 @@ def test_attestation_set_rejects_malformed_carriers_and_honors_object_format(
     malformed = init_git_repo(tmp_path / "malformed")
     record = occurrence_attestation(8)
     blob = run_git(
-        malformed,
-        "hash-object",
-        "-w",
-        "--stdin",
-        stdin=record.canonical_json(),
+        malformed, "hash-object", "-w", "--stdin", stdin=record.canonical_json()
     ).stdout.strip()
     index = tmp_path / "malformed.index"
     environment = {"GIT_INDEX_FILE": index.as_posix()}
@@ -293,9 +280,7 @@ def test_attestation_set_rejects_failed_or_corrupt_current_reads(
         attestation_set.read_attestation_set(repo)
 
 
-def test_attestation_set_rejects_noncanonical_root_and_invalid_member(
-    tmp_path: Path,
-) -> None:
+def test_attestation_set_rejects_noncanonical_root_and_invalid_member(tmp_path: Path) -> None:
     record = occurrence_attestation(11)
     noncanonical = init_git_repo(tmp_path / "noncanonical")
     tree = git(noncanonical, "rev-parse", "HEAD^{tree}")
@@ -494,9 +479,7 @@ def test_attestation_set_failed_batch_preserves_ref_index_and_cleans_staging(
     assert not tuple((repo / ".git").glob("attestation-set-*"))
 
 
-def test_attestation_set_new_bytes_cannot_inherit_a_cached_member_identity(
-    tmp_path: Path,
-) -> None:
+def test_attestation_set_new_bytes_cannot_inherit_a_cached_member_identity(tmp_path: Path) -> None:
     """A selected blob with changed bytes is validated even under the old member path."""
     repo = init_git_repo(tmp_path / "repo")
     record = occurrence_attestation(3_009)

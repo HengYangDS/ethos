@@ -70,10 +70,7 @@ def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path)
 
     assert observed["hooks_path"] == generation.as_posix()
     assert projected["data"]["hook_runtime"] == observed
-    assert (stale["expected_source_commit"], stale["expected_source_tree"]) == (
-        "c" * 40,
-        "d" * 40,
-    )
+    assert (stale["expected_source_commit"], stale["expected_source_tree"]) == ("c" * 40, "d" * 40)
     assert stale["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
     assert stale["next_action"].endswith(f"hook install --root {repo} --json")
     assert Path(shlex.split(stale["next_action"])[0]).resolve() == Path(sys.executable).resolve()
@@ -119,11 +116,7 @@ def test_declared_policy_unarms_transports_when_runtime_is_not_current(
     ids=["declared", "paradigm", "invalid"],
 )
 def test_commit_policy_capability_state_matrix(
-    tmp_path: Path,
-    policy: str | None,
-    state: str,
-    pattern: str | None,
-    transport: str,
+    tmp_path: Path, policy: str | None, state: str, pattern: str | None, transport: str
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=policy)
 
@@ -182,11 +175,7 @@ def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     "condition", ["current", "stale", "missing-launcher", "damaged-selector", "unknown"]
 )
 def test_status_preserves_runtime_readiness_with_the_paradigm_policy(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    adopted: bool,
-    condition: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, adopted: bool, condition: str
 ) -> None:
     """The paradigm policy cannot hide the installed runtime's independent gaps."""
     repo, generation = _fixture(tmp_path)
@@ -395,8 +384,7 @@ def test_generation_root_and_external_path_are_rejected(tmp_path: Path) -> None:
 
 
 def test_binding_primitives_and_unavailable_source_fail_closed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with pytest.raises(ValueError, match="hook_name_invalid"):
         hook_contract.hook_launcher("post")

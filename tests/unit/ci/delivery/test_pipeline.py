@@ -54,8 +54,7 @@ def test_install_smoke_invokes_one_acceptance_transaction(
 
 
 def test_wheel_build_reuses_the_locked_project_environment(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     session = Mock()
 
@@ -63,10 +62,9 @@ def test_wheel_build_reuses_the_locked_project_environment(
     runtime = ProjectRuntime(tmp_path, Path("/locked/bin/python"), Path("/locked/bin"))
     monkeypatch.setattr(ProjectRuntime, "script", lambda _self, name: f"/locked/bin/{name}")
 
-    pipeline.DeliveryPipeline(
-        runtime=runtime,
-        node_package_supply=tmp_path / "node_modules",
-    ).build(session)
+    pipeline.DeliveryPipeline(runtime=runtime, node_package_supply=tmp_path / "node_modules").build(
+        session
+    )
 
     session.run.assert_called_once()
     command = session.run.call_args.args
@@ -92,8 +90,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         monkeypatch.setattr(pipeline.DeliveryPipeline, name, getattr(calls, name))
     calls.attach_mock(session.run, "run")
     delivery = pipeline.DeliveryPipeline(
-        ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")),
-        ROOT / "node_modules",
+        ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")), ROOT / "node_modules"
     )
     preflight = call.run(
         "/locked/python",
@@ -108,11 +105,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         *pipeline.HOST_CASES,
     )
     delivery.prove_host(session)
-    assert calls.mock_calls == [
-        preflight,
-        call.build(session),
-        call.prove_install(session),
-    ]
+    assert calls.mock_calls == [preflight, call.build(session), call.prove_install(session)]
     calls.reset_mock()
     session.run.side_effect = RuntimeError("native preflight failed")
     with pytest.raises(RuntimeError, match="native preflight failed"):

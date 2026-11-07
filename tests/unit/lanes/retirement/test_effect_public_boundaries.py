@@ -68,11 +68,7 @@ def _lane(
         "path": path,
         "head": head,
         "lease_state": "valid",
-        "lease": {
-            "generation": 1,
-            "holder_ref": holder,
-            "expires_at": "2026-08-11T00:00:00+00:00",
-        },
+        "lease": {"generation": 1, "holder_ref": holder, "expires_at": "2026-08-11T00:00:00+00:00"},
     }
 
 
@@ -81,12 +77,7 @@ def test_superseded_plan_preserves_proof_commitment_and_mode(
 ) -> None:
     captured: dict[str, object] = {}
     lane = _lane()
-    authority = {
-        **_lane(),
-        "branch": "work/successor",
-        "head": "c" * 40,
-        "path": "/successor",
-    }
+    authority = {**_lane(), "branch": "work/successor", "head": "c" * 40, "path": "/successor"}
     commitment = commitment_fixture(id="change:successor")
 
     monkeypatch.setattr(Path, "is_dir", lambda path: path == Path("/successor"))
@@ -98,10 +89,7 @@ def test_superseded_plan_preserves_proof_commitment_and_mode(
     )
 
     def compile_plan(
-        _root: Path,
-        selected_commitment: object,
-        _effect: object,
-        **kwargs: object,
+        _root: Path, selected_commitment: object, _effect: object, **kwargs: object
     ) -> object:
         captured["commitment"] = selected_commitment
         captured.update(kwargs)
@@ -232,13 +220,7 @@ def test_absorbed_handles_unavailable_and_semantic_delta_results(
         (True, (), (), {}, {}),
         (False, (), (), {}, {}),
         (True, ("src/x.py",), ("archive/x",), {}, {}),
-        (
-            True,
-            ("openspec/changes/x/proposal.md",),
-            (),
-            {},
-            {},
-        ),
+        (True, ("openspec/changes/x/proposal.md",), (), {}, {}),
         (
             True,
             ("openspec/changes/x/proposal.md",),
@@ -334,9 +316,7 @@ def test_superseded_retirement_recovers_observed_effects_without_replay(
     if failure != "none":
         monkeypatch.setattr(operation, "delete_operation_ref", fail_delete)
     report = retire_linked_work_lane(
-        root=repo,
-        mode="superseded",
-        request=request.model_copy(update={"apply": True}),
+        root=repo, mode="superseded", request=request.model_copy(update={"apply": True})
     )
     if failure == "none":
         assert_public_decision(report, verdict="pass", state="retired", gaps=[])
@@ -394,10 +374,7 @@ def test_superseded_retirement_recovers_observed_effects_without_replay(
     ],
 )
 def test_superseded_retirement_partial_recovery_rejects_stale_exact_bindings(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    scenario: str,
-    gap: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str, gap: str
 ) -> None:
     holder = "agent:test:case:partial-recovery"
     repo, lane, head, accepted, database = superseded_work_lane(
@@ -405,8 +382,7 @@ def test_superseded_retirement_partial_recovery_rejects_stale_exact_bindings(
     )
     git(repo, "worktree", "remove", lane.as_posix())
     monkeypatch.setenv(
-        "ETHOS_ACTOR",
-        "agent:test:case:foreign" if scenario == "foreign-holder" else holder,
+        "ETHOS_ACTOR", "agent:test:case:foreign" if scenario == "foreign-holder" else holder
     )
     if scenario == "path-collision":
         lane.mkdir()

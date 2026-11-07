@@ -35,10 +35,7 @@ if TYPE_CHECKING:
             '<testsuites tests="2"><testsuite tests="1"><testcase/></testsuite></testsuites>',
             "junit_suite_count_mismatch",
         ),
-        (
-            '<testsuite skipped="1"><testcase/></testsuite>',
-            "junit_suite_count_mismatch",
-        ),
+        ('<testsuite skipped="1"><testcase/></testsuite>', "junit_suite_count_mismatch"),
     ],
 )
 def test_junit_rejects_invalid_or_false_success(xml: str, gap: str) -> None:
@@ -141,8 +138,7 @@ def test_native_pytest_subtest_reports_preserve_parent_and_event_counts(
             other.append(marker)
         with pytest.raises(ValueError, match=r"^pytest_junit_outcome_mismatch$"):
             junit_stream_report(
-                ElementTree.tostring(root, encoding="unicode"),
-                pytest_events=original[1].decode(),
+                ElementTree.tostring(root, encoding="unicode"), pytest_events=original[1].decode()
             )
     records = [json.loads(line) for line in original[1].decode().splitlines()]
     without_terminal = "\n".join(json.dumps(record) for record in records[:-1])
@@ -156,10 +152,7 @@ def test_native_pytest_subtest_reports_preserve_parent_and_event_counts(
         ("<coverage", "coverage_invalid"),
         ("<other/>", "coverage_root_invalid"),
         ("<coverage/>", "coverage_count_invalid"),
-        (
-            '<coverage lines-covered="no" lines-valid="1"/>',
-            "coverage_count_invalid",
-        ),
+        ('<coverage lines-covered="no" lines-valid="1"/>', "coverage_count_invalid"),
         (
             '<coverage lines-covered="2" lines-valid="1" branches-covered="0" branches-valid="0"/>',
             "coverage_count_invalid",

@@ -36,9 +36,7 @@ def _upgrade_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     repo, previous_python = materialize_runtime_case(original, monkeypatch)
     activation.install_hook_launchers(repo)
     successor_repo, successor_python = materialize_runtime_case(
-        successor,
-        monkeypatch,
-        package_identity=runtime_build("c" * 40, "d" * 40),
+        successor, monkeypatch, package_identity=runtime_build("c" * 40, "d" * 40)
     )
     package = tmp_path / "package"
     shutil.copytree(Path(git_common_dir(successor_repo)) / "ethos", package / "ethos")

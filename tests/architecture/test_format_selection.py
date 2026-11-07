@@ -41,9 +41,7 @@ def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
 def carrier_report():
     return json.loads(
         subprocess.check_output(
-            (sys.executable, "tools/ci/format_selection.py"),
-            cwd=ROOT,
-            text=True,
+            (sys.executable, "tools/ci/format_selection.py"), cwd=ROOT, text=True
         )
     )
 
@@ -144,10 +142,7 @@ def test_native_carriers_separate_canonicalization_from_validation(
     assert (
         owners[".gitlab-ci.yml"]["format_owner"],
         owners[".gitlab-ci.yml"]["mutation_policy"],
-    ) == (
-        "cue",
-        "generator-only",
-    )
+    ) == ("cue", "generator-only")
     assert owners[".github/workflows/ci.yml"]["mutation_policy"] == "native-formatter"
     declaration.write_text("not = [valid\n")
     with pytest.raises(ValueError, match="projection_declaration_invalid"):
@@ -179,10 +174,7 @@ def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path
     assert not ignored
     page.write_bytes(formatted)
     assert "then an _emphasised_ word" in page.read_text(encoding="utf-8")
-    assert render_source_content(root, "docs/page.md", "prettier", formatted) == (
-        formatted,
-        False,
-    )
+    assert render_source_content(root, "docs/page.md", "prettier", formatted) == (formatted, False)
 
     lint = run_command(
         root,

@@ -77,8 +77,7 @@ def _attestation_payload() -> dict[str, Any]:
 
 def _commitment_payload() -> dict[str, Any]:
     return commitment_fixture(
-        id="change:model-promotion-successor",
-        acceptance=("selected_input_is_bound",),
+        id="change:model-promotion-successor", acceptance=("selected_input_is_bound",)
     ).model_dump(mode="python")
 
 

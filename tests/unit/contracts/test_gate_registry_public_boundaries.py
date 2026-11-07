@@ -33,9 +33,7 @@ def _gate(gate_id: str, **attributes: object) -> Gate:
 
 
 def _declaration(
-    *gates: Gate,
-    default: tuple[str, ...] = ("first",),
-    full: tuple[str, ...] = ("first",),
+    *gates: Gate, default: tuple[str, ...] = ("first",), full: tuple[str, ...] = ("first",)
 ) -> GateRegistryDeclaration:
     proof_sets = GateProofSets(default=default, full=full)
     return GateRegistryDeclaration(id="test-registry", proof_sets=proof_sets, gates=gates)
@@ -252,9 +250,7 @@ def test_python_module_binding_is_portable(interpreter: str) -> None:
 
 
 @pytest.mark.parametrize("options", [("-m", "nox"), ("-B", "-I", "-mnox")])
-def test_python_module_options_preserve_native_nox_source_binding(
-    options: tuple[str, ...],
-) -> None:
+def test_python_module_options_preserve_native_nox_source_binding(options: tuple[str, ...]) -> None:
     """Interpreter flags do not change the source owner of a native Nox session."""
     gate = Gate(id="nox-check", kind="test", command=(sys.executable, *options, "-s", "lint"))
     assert source_paths_for_gate(gate) == ("noxfile.py", "pyproject.toml", "uv.lock")

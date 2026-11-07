@@ -90,9 +90,7 @@ def test_refused_refresh_returns_the_lane_attached_to_its_original_head(
         observation={"stderr": "reference-transaction hook refused"},
     )
     monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(refused),
+        refresh, "execute_git_effect", lambda *_args, **_kwargs: (_ for _ in ()).throw(refused)
     )
 
     report = refresh.refresh_work_lane_base(

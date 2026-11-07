@@ -52,8 +52,7 @@ def _prepared_supply(root: Path) -> Path:
     }
     (root / "package.json").write_text('{"dependencies":{"direct":"1.0.0"}}\n')
     (root / "package-lock.json").write_text(
-        json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n",
-        encoding="utf-8",
+        json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n", encoding="utf-8"
     )
     supply = root / "prepared/node_modules"
     for relative, version in (
@@ -91,8 +90,7 @@ def prepared_native_policy_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 
 @pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     supply = tmp_path / "prepared/node_modules"
     supply.mkdir(parents=True)
@@ -163,8 +161,7 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
 
 @pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     supply = _prepared_supply(tmp_path)
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
@@ -287,10 +284,7 @@ def test_build_policy_projection_retains_release_authority_and_cleans_rejection(
     ],
 )
 def test_build_hook_rejects_absent_or_drifted_prepared_supply(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    mutation: str,
-    expected: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str, expected: str
 ) -> None:
     supply = _prepared_supply(tmp_path)
     direct = supply / "direct"
@@ -300,8 +294,7 @@ def test_build_hook_rejects_absent_or_drifted_prepared_supply(
         direct.rmdir()
     elif mutation == "version":
         (direct / "package.json").write_text(
-            json.dumps({"name": "direct", "version": "9.9.9"}) + "\n",
-            encoding="utf-8",
+            json.dumps({"name": "direct", "version": "9.9.9"}) + "\n", encoding="utf-8"
         )
     else:
         if mutation == "symlink":
@@ -325,8 +318,7 @@ def test_build_hook_rejects_absent_or_drifted_prepared_supply(
 
 
 def test_sdist_carries_the_same_prepared_production_supply(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     supply = _prepared_supply(tmp_path)
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))

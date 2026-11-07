@@ -138,8 +138,7 @@ def static(session):
     if outcome == "toolchain":
         locked = next(item for item in tomllib.loads(lock)["package"] if item["name"] == "ruff")
         lock = lock.replace(
-            f'name = "ruff"\nversion = "{locked["version"]}"',
-            'name = "ruff"\nversion = "0.0.1"',
+            f'name = "ruff"\nversion = "{locked["version"]}"', 'name = "ruff"\nversion = "0.0.1"'
         )
         assert 'name = "ruff"\nversion = "0.0.1"' in lock
     repo = committed_source_repo(

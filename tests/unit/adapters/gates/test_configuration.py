@@ -69,9 +69,7 @@ def test_native_format_refusal_is_not_a_write(tmp_path: Path, relative: str) -> 
     [("value: 1\nvalue: 2\n", "key-duplicates"), ("value: *missing\n", "undeclared alias")],
 )
 def test_native_semantic_yaml_rejects_invalid_relations_without_layout_policy(
-    tmp_path: Path,
-    content: str,
-    diagnostic: str,
+    tmp_path: Path, content: str, diagnostic: str
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     (root / "source.yaml").write_text(content)

@@ -141,8 +141,7 @@ def test_prewrite_admits_a_new_received_name() -> None:
 def test_a_name_another_obligation_owns_is_reported_once(tmp_path: Path) -> None:
     """Root, binding and configuration names keep their own obligation's single gap."""
     report = paradigm_report(
-        tmp_path,
-        {**CONFORMING, "CLAUDE.md": "", ".config/checks/Spelling_Rules/policy.toml": ""},
+        tmp_path, {**CONFORMING, "CLAUDE.md": "", ".config/checks/Spelling_Rules/policy.toml": ""}
     )
     assert report["required_gaps"] == [
         "repository_paradigm_root_catalog:CLAUDE.md",

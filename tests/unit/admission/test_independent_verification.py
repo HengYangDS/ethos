@@ -116,11 +116,7 @@ def test_policy_modes_preserve_local_first_fail_closed_semantics(
         receipt_path=path,
         signature_verifier=lambda receipt: receipt.issuer == "provider:example",
     )
-    assert (report["verdict"], report["state"], report["required_gaps"]) == (
-        verdict,
-        state,
-        gaps,
-    )
+    assert (report["verdict"], report["state"], report["required_gaps"]) == (verdict, state, gaps)
     assert report["evidence_class"] == (
         "independently_reexecuted" if receipt == "valid" else "local_readiness"
     )
@@ -377,10 +373,7 @@ def test_missing_provider_config_fails_closed(
     monkeypatch.setenv(
         "ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt.as_posix() if supplied else ""
     )
-    write_test_profile(
-        tmp_path,
-        independent_verification={"actions": {"publish": {"mode": mode}}},
-    )
+    write_test_profile(tmp_path, independent_verification={"actions": {"publish": {"mode": mode}}})
     report = independent_verification_admission_report(
         root=tmp_path,
         action="publish",

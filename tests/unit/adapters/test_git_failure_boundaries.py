@@ -31,9 +31,7 @@ def test_git_execution_rejects_observation_overrides_and_spawn_failures(
         "resolved_executable_invalid",
     )
     monkeypatch.setattr(
-        git_adapter.shutil,
-        "which",
-        lambda *_args, **_kwargs: executable.as_posix(),
+        git_adapter.shutil, "which", lambda *_args, **_kwargs: executable.as_posix()
     )
 
     def reject_process(
@@ -79,15 +77,9 @@ def test_git_command_and_remote_failures_preserve_stable_surfaces(
     assert (timed_out["state"], timed_out["reason"]) == ("unavailable", "timeout")
 
 
-@pytest.mark.parametrize(
-    ("returncode", "state"),
-    [(0, "available"), (23, "unavailable")],
-)
+@pytest.mark.parametrize(("returncode", "state"), [(0, "available"), (23, "unavailable")])
 def test_remote_availability_classifies_git_exit_status(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    returncode: int,
-    state: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, returncode: int, state: str
 ) -> None:
     repo = init_git_repo(tmp_path / str(returncode))
     git(repo, "remote", "add", "origin", "ssh://example.invalid/repo.git")

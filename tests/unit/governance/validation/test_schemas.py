@@ -267,9 +267,7 @@ def test_validate_schema_instance_reports_all_native_instance_gaps() -> None:
     assert len(validation["required_gaps"]) > 1
 
 
-def test_validate_schema_instance_rejects_adopter_schema_shadowing(
-    tmp_path,
-) -> None:
+def test_validate_schema_instance_rejects_adopter_schema_shadowing(tmp_path) -> None:
     schema_dir = tmp_path / "system" / "schemas" / "kernel"
     shutil.copytree(ROOT / "system" / "schemas" / "kernel", schema_dir)
     (schema_dir / "cycle.schema.json").write_text(

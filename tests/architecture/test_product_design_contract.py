@@ -126,9 +126,7 @@ def test_design_integrity_admits_agent_host_state_but_not_a_second_entry_point(
 def test_repository_ignores_agent_host_state() -> None:
     """The admitted host-local directory cannot become tracked content by accident."""
     ignored = subprocess.run(
-        ["git", "check-ignore", "--quiet", ".claude/settings.local.json"],
-        cwd=ROOT,
-        check=False,
+        ["git", "check-ignore", "--quiet", ".claude/settings.local.json"], cwd=ROOT, check=False
     )
     assert ignored.returncode == 0
 
@@ -233,9 +231,7 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
         assert "`Commitment` is transient" in (ROOT / relative).read_text(encoding="utf-8")
 
     tracked = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
-        cwd=ROOT,
-        text=True,
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, text=True
     ).splitlines()
     assert not any(
         path.startswith("src/ethos/adapters/openspec/change_lineage/") for path in tracked

@@ -78,10 +78,9 @@ def test_worktree_effect_surfaces_git_failure_without_terminal_claim(
         git(repo, "worktree", "add", "--detach", target.as_posix(), head)
 
     def runner(root, *arguments, **kwargs):
-        mutating = arguments[:2] in {
-            ("worktree", "add"),
-            ("worktree", "remove"),
-        } or arguments[:1] in {("read-tree",), ("switch",)}
+        mutating = arguments[:2] in {("worktree", "add"), ("worktree", "remove")} or arguments[
+            :1
+        ] in {("read-tree",), ("switch",)}
         if mutating:
             return SimpleNamespace(returncode=1, stdout="", stderr=stderr)
         return run_git(root, *arguments, **kwargs)

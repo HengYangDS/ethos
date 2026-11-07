@@ -62,8 +62,7 @@ def _locked_gitleaks(root: Path, package: Path) -> None:
 
 @pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
 @pytest.mark.parametrize(
-    "cache_selector",
-    [None, "ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"],
+    "cache_selector", [None, "ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"]
 )
 def test_linked_worktrees_reuse_one_locked_native_download(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cache_selector: str | None

@@ -66,9 +66,7 @@ def test_predecessor_policy_probe_preserves_failure_identity(
     report: dict[str, object] = {
         "command": "prove",
         "required_gaps": ["full_proof_requires_execute"],
-        "data": {
-            "expected_head": {"expected": head, "current": head, "matches": True},
-        },
+        "data": {"expected_head": {"expected": head, "current": head, "matches": True}},
     }
     if case == "wrong_head":
         report["data"] = {"expected_head": {"expected": head, "current": "b" * 40, "matches": True}}

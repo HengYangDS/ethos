@@ -126,11 +126,7 @@ def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, paylo
 
 @pytest.mark.parametrize(
     ("command_exit", "provider_verdict", "expected_verdict", "expected_calls"),
-    [
-        (0, "pass", "pass", 1),
-        (0, "block", "block", 1),
-        (4, "pass", "block", 0),
-    ],
+    [(0, "pass", "pass", 1), (0, "block", "block", 1), (4, "pass", "block", 0)],
 )
 def test_verified_command_conjoins_native_and_product_results(
     tmp_path: Path,
@@ -360,17 +356,10 @@ def test_command_gate_executes_declared_python_not_ambient_canonical_identity(
 ) -> None:
     marker = tmp_path / "hijacked"
     fake_python = tmp_path / "python"
-    fake_python.write_text(
-        f"#!/bin/sh\nprintf hijacked > {marker}\nexit 91\n",
-        encoding="utf-8",
-    )
+    fake_python.write_text(f"#!/bin/sh\nprintf hijacked > {marker}\nexit 91\n", encoding="utf-8")
     fake_python.chmod(0o755)
     monkeypatch.setenv("PATH", tmp_path.as_posix())
-    gate = Gate(
-        id="gate",
-        kind="test",
-        command=(sys.executable, "-c", "print('trusted')"),
-    )
+    gate = Gate(id="gate", kind="test", command=(sys.executable, "-c", "print('trusted')"))
     node = _node(gate)
 
     result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
@@ -403,9 +392,7 @@ def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path, n
 
 @pytest.mark.parametrize("selection", ["absolute", "relative", "path", "dot-relative"])
 def test_runner_preserves_python_virtual_environment_invocation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    selection: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: str
 ) -> None:
     """Following the executable symlink must not change the selected Python prefix."""
     environment = tmp_path / "selected-environment"

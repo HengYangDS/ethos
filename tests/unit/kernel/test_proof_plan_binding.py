@@ -234,8 +234,7 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     assert f"proof_gate_not_policy_conformant:{plan.nodes[0].id}" in gate_gaps
 
     assert "trust_bearing_proof_missing" in proof_statement_gaps(
-        valid,
-        tuple(check | {"trust_bearing": False} for check in checks),
+        valid, tuple(check | {"trust_bearing": False} for check in checks)
     )
 
 

@@ -117,12 +117,7 @@ def budget_repository(
     )
     git(root, "init", "-q", "-b", "dev")
     git(root, "add", ".")
-    git(
-        root,
-        "commit",
-        "-qm",
-        "baseline",
-    )
+    git(root, "commit", "-qm", "baseline")
     return selection, source
 
 
@@ -194,11 +189,7 @@ def measure_budget(
 
 
 def tracked_budget_file(
-    root: Path,
-    relative: str,
-    content: str,
-    *,
-    executable: bool = False,
+    root: Path, relative: str, content: str, *, executable: bool = False
 ) -> Path:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)

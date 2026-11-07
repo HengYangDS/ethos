@@ -56,12 +56,7 @@ def _git_snapshot(root: Path) -> tuple[bytes, bytes, bytes]:
 
 def _guard(calls: list[dict[str, object]]) -> object:
     def admit(
-        *,
-        root: Path,
-        paths: list[Path],
-        patch: str,
-        editor_root: Path,
-        require_editor_root: bool,
+        *, root: Path, paths: list[Path], patch: str, editor_root: Path, require_editor_root: bool
     ) -> dict[str, object]:
         assert editor_root == root
         assert require_editor_root
@@ -85,8 +80,7 @@ def _guard(calls: list[dict[str, object]]) -> object:
 
 
 def test_preview_apply_and_repeat_use_dirty_bytes_and_native_patch(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Native patch admission consumes live CRLF bytes, not committed or staged text."""
     root = _repository(tmp_path)
@@ -116,10 +110,7 @@ def test_preview_apply_and_repeat_use_dirty_bytes_and_native_patch(
     assert isinstance(patch, str)
     assert patch.startswith("diff --git ")
     result = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=edits,
-        apply=True,
-        preview_patch=patch,
+        root=root, edits=edits, apply=True, preview_patch=patch
     )
 
     assert result["verdict"] == "pass", result
@@ -138,9 +129,7 @@ def test_preview_apply_and_repeat_use_dirty_bytes_and_native_patch(
     assert calls[0]["paths"] == tuple(sorted(edit.path for edit in edits))
     assert all(result["preservation"].values())
     repeated = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=(CarrierEdit("docs/guide.md", after.decode(), after.decode()),),
-        apply=True,
+        root=root, edits=(CarrierEdit("docs/guide.md", after.decode(), after.decode()),), apply=True
     )
     assert repeated["state"] == "conforming"
     assert repeated["applied"] is False
@@ -192,8 +181,7 @@ def test_duplicate_paths_and_unresolvable_head_block_before_admission(tmp_path: 
 
 
 def test_missing_native_authority_refuses_without_effect(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A passing label without the guard's authority cannot authorize an effect."""
     root = _repository(tmp_path)
@@ -207,9 +195,7 @@ def test_missing_native_authority_refuses_without_effect(
     monkeypatch.setattr(carrier_edit, "prewrite_guard", incomplete)
     snapshot = _git_snapshot(root)
     result = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
-        apply=True,
+        root=root, edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),), apply=True
     )
 
     assert result["verdict"] == "block", result
@@ -221,9 +207,7 @@ def test_missing_native_authority_refuses_without_effect(
 
 @pytest.mark.parametrize("coordinate", ["raw_index", "refs", "head"])
 def test_git_drift_during_admission_is_preserved_without_carrier_effect(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    coordinate: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, coordinate: str
 ) -> None:
     """A concurrent index or ref effect blocks application without being undone."""
     root = _repository(tmp_path)
@@ -255,9 +239,7 @@ def test_git_drift_during_admission_is_preserved_without_carrier_effect(
 
     monkeypatch.setattr(carrier_edit, "prewrite_guard", admit)
     result = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
-        apply=True,
+        root=root, edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),), apply=True
     )
     assert result["verdict"] == "block", result
     assert result["preservation"][coordinate] is False
@@ -265,8 +247,7 @@ def test_git_drift_during_admission_is_preserved_without_carrier_effect(
 
 
 def test_changed_lease_generation_blocks_before_native_apply(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reobserve the original authority rather than reuse a once-passing generation."""
     root = _repository(tmp_path)
@@ -279,9 +260,7 @@ def test_changed_lease_generation_blocks_before_native_apply(
 
     monkeypatch.setattr(carrier_edit, "observe_current_authority", changed_authority)
     result = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
-        apply=True,
+        root=root, edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),), apply=True
     )
     assert result["verdict"] == "block", result
     assert "carrier_edit_authority_changed:generation" in result["required_gaps"]
@@ -290,9 +269,7 @@ def test_changed_lease_generation_blocks_before_native_apply(
 
 @pytest.mark.parametrize("failure", [OSError("injected I/O failure"), KeyboardInterrupt()])
 def test_partial_native_effect_is_reobserved_without_compensation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: BaseException,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: BaseException
 ) -> None:
     """An interruption after one actual Git write reports retained, partial effects."""
     root = _repository(tmp_path)
@@ -349,9 +326,7 @@ def test_postimage_contestation_is_not_overwritten(
 
     monkeypatch.setattr(carrier_edit, "run_git", contested)
     result = carrier_edit.apply_carrier_edits(
-        root=root,
-        edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
-        apply=True,
+        root=root, edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),), apply=True
     )
     assert result["verdict"] == verdict
     assert result["partial_transition"] is True
@@ -362,8 +337,7 @@ def test_postimage_contestation_is_not_overwritten(
 
 
 def test_native_work_lane_admits_the_same_dirty_document_patch(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The real Work Lane guard consumes the producer patch under its current lease."""
     fixture = prepared_work_lane(tmp_path, name="carrier-edit", docs_only=True)

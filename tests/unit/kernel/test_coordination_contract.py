@@ -28,8 +28,7 @@ def test_holder_ref_is_provider_neutral_and_carries_no_privilege() -> None:
 
 
 @pytest.mark.parametrize(
-    "value",
-    ["codex", "agent:codex", "agent:codex:thread", "agent::thread:id", " agent:x:y:z"],
+    "value", ["codex", "agent:codex", "agent:codex:thread", "agent::thread:id", " agent:x:y:z"]
 )
 def test_holder_ref_rejects_provider_only_or_ambiguous_values(value: str) -> None:
     with pytest.raises((ValueError, ValidationError)):
@@ -49,8 +48,7 @@ def test_repository_relative_path_accepts_canonical_posix_values(value: str) -> 
 
 
 @pytest.mark.parametrize(
-    "value",
-    ["", "/absolute", "1:a", "a//b", "a/./b", "a/../b", r"a\b", "a/", ".", ".."],
+    "value", ["", "/absolute", "1:a", "a//b", "a/./b", "a/../b", r"a\b", "a/", ".", ".."]
 )
 def test_repository_relative_path_rejects_noncanonical_values(value: str) -> None:
     with pytest.raises(ValidationError):
@@ -93,8 +91,7 @@ def _lease_payload(**updates: object) -> dict[str, object]:
         pytest.param({}, id="missing-fields"),
         pytest.param({"generation": 0}, id="bad-generation"),
         pytest.param(
-            {"generation": 1, "parallel_authority": "forbidden"},
-            id="extra-authority-field",
+            {"generation": 1, "parallel_authority": "forbidden"}, id="extra-authority-field"
         ),
     ],
 )

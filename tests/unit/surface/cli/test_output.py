@@ -129,11 +129,7 @@ def test_human_output_keeps_distinct_messages_for_one_reason_code(capsys) -> Non
 def test_output_pipe_failure_cannot_erase_a_blocked_verdict(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: OSError
 ) -> None:
-    monkeypatch.setattr(
-        sys.stdout,
-        "write",
-        lambda _text: (_ for _ in ()).throw(error),
-    )
+    monkeypatch.setattr(sys.stdout, "write", lambda _text: (_ for _ in ()).throw(error))
 
     with pytest.raises(SystemExit) as exit_info:
         output.emit(
@@ -201,9 +197,7 @@ def test_real_full_nonblocking_pipe_preserves_one_failed_exit() -> None:
             "json_output=True)"
         )
         process = subprocess.Popen(
-            [sys.executable, "-B", "-c", script],
-            stdout=write_fd,
-            stderr=subprocess.PIPE,
+            [sys.executable, "-B", "-c", script], stdout=write_fd, stderr=subprocess.PIPE
         )
         os.close(write_fd)
         write_fd = -1

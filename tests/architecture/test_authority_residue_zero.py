@@ -7,8 +7,7 @@ import subprocess
 from pathlib import Path
 
 AUTHORITY_PREDECESSOR_RESIDUE_RE = re.compile(
-    rb"judg(?:e)?ment(?:[\s._/-]+)?sources?",
-    re.IGNORECASE,
+    rb"judg(?:e)?ment(?:[\s._/-]+)?sources?", re.IGNORECASE
 )
 
 
@@ -16,15 +15,7 @@ def _git_admissible_paths() -> list[bytes]:
     return [
         raw_path
         for raw_path in subprocess.check_output(
-            [
-                "git",
-                "ls-files",
-                "-z",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-            ],
-            text=False,
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], text=False
         ).split(b"\0")
         if raw_path
     ]
@@ -63,9 +54,4 @@ def test_no_authority_predecessor_residue_in_git_admissible_repository() -> None
 
 
 def _deleted_paths() -> set[str]:
-    return set(
-        subprocess.check_output(
-            ["git", "ls-files", "--deleted"],
-            text=True,
-        ).splitlines()
-    )
+    return set(subprocess.check_output(["git", "ls-files", "--deleted"], text=True).splitlines())

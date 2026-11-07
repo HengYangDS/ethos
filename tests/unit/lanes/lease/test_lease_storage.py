@@ -76,11 +76,7 @@ def _takeover(
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [
-        ("holder_ref", TARGET),
-        ("generation", 2),
-        ("expires_at", "2026-08-29T00:00:00+00:00"),
-    ],
+    [("holder_ref", TARGET), ("generation", 2), ("expires_at", "2026-08-29T00:00:00+00:00")],
 )
 @pytest.mark.parametrize("effect", [lease_storage.apply_lease_operation, revoke_lease])
 def test_stale_coordinate_rejects_without_mutation(
@@ -90,10 +86,7 @@ def test_stale_coordinate_rejects_without_mutation(
     acquired = lease_storage.acquire_lease(database, lease=strict_lease(holder=SOURCE))
 
     with pytest.raises(ValueError, match="lease_generation_stale:work/example"):
-        effect(
-            database,
-            request=_operation(acquired).model_copy(update={field: value}),
-        )
+        effect(database, request=_operation(acquired).model_copy(update={field: value}))
 
     assert lease_projection.observe_lease(database, "work/example").record() == acquired
 
@@ -147,8 +140,7 @@ def test_storage_observation_and_exact_cas_fail_closed(tmp_path) -> None:
         lease_projection.lease_record(("work/example", SOURCE, 1, "not-a-time"))
     with pytest.raises(ValueError, match="lease_unknown:work/example"):
         lease_storage.apply_lease_operation(
-            unknown,
-            request=request.model_copy(update={"expires_at": "not-a-time"}),
+            unknown, request=request.model_copy(update={"expires_at": "not-a-time"})
         )
 
     expired = tmp_path / "expired.sqlite"
@@ -189,9 +181,7 @@ def test_storage_observation_and_exact_cas_fail_closed(tmp_path) -> None:
         connection.execute("delete from leases where lane_ref = ?", ("work/example",))
         with pytest.raises(ValueError, match="lease_generation_stale:work/example"):
             lease_storage.replace_exact_lease_from_connection(
-                connection,
-                current=current,
-                replacement=strict_lease(holder=SOURCE, generation=2),
+                connection, current=current, replacement=strict_lease(holder=SOURCE, generation=2)
             )
 
 
@@ -254,8 +244,7 @@ def test_public_lease_operation_projects_and_applies_exact_four_coordinate_cas(
         acquired, operation, target_holder_ref=TARGET if operation == "transfer" else ""
     )
     planned = lease_operation.execute_lease_operation(
-        root=root,
-        request=request.model_copy(update={"apply": False}),
+        root=root, request=request.model_copy(update={"apply": False})
     )
     applied = lease_operation.execute_lease_operation(root=root, request=request)
     lease, mutation = applied["lease"], applied["mutation"]
@@ -297,30 +286,20 @@ def test_public_lease_operation_projects_and_applies_exact_four_coordinate_cas(
     ],
 )
 def test_public_lease_operation_fails_closed_with_one_precise_reason(
-    lease_context,
-    monkeypatch,
-    operation,
-    changes,
-    gap,
+    lease_context, monkeypatch, operation, changes, gap
 ):
     root, _database, acquired = lease_context
     if status := changes.get("status"):
         monkeypatch.setattr(
             lease_operation,
             "workspace_status",
-            lambda _root: {
-                "role": "work_lane",
-                "branch": "work/example",
-                **status,
-            },
+            lambda _root: {"role": "work_lane", "branch": "work/example", **status},
         )
     if lease := changes.get("lease"):
         monkeypatch.setattr(
             lease_operation,
             "leases_by_branch",
-            lambda _root: {
-                "work/example": {**acquired, "lease_state": lease},
-            },
+            lambda _root: {"work/example": {**acquired, "lease_state": lease}},
         )
     monkeypatch.setenv("ETHOS_ACTOR", changes.get("actor", SOURCE))
     request = _operation(acquired, operation).model_copy(update=changes.get("request", {}))
@@ -383,12 +362,7 @@ def test_public_lease_takeover_requires_accepted_authorization_and_is_idempotent
     ],
 )
 def test_public_lease_takeover_rejects_unaccepted_or_drifted_coordinates(
-    lease_context,
-    monkeypatch,
-    accepted_count,
-    actor,
-    request_updates,
-    gap,
+    lease_context, monkeypatch, accepted_count, actor, request_updates, gap
 ) -> None:
     root, database, acquired = lease_context
     request = _takeover(acquired).model_copy(update=request_updates)

@@ -100,16 +100,12 @@ def test_skill_registry_schema_rejects_an_unowned_digest_projection() -> None:
 @pytest.mark.parametrize("retired_key", ["name", "may_coactivate", "unexpected"])
 def test_skill_activation_schema_rejects_retired_or_unknown_fields(retired_key: str) -> None:
     skill = _skill("sample") | {
-        retired_key: ["sample"] if retired_key == "may_coactivate" else "sample",
+        retired_key: ["sample"] if retired_key == "may_coactivate" else "sample"
     }
     registry = _registry()
     result = validate_schema_instance(
         "skill-activation.schema.json",
-        {
-            "meta": registry["meta"],
-            "coverage": registry["coverage"],
-            "skill": [skill],
-        },
+        {"meta": registry["meta"], "coverage": registry["coverage"], "skill": [skill]},
     )
 
     assert result["verdict"] == "block"
@@ -137,10 +133,7 @@ def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
     )
 
     assert result.verdict == "pass"
-    assert [skill.id for skill in result.skills] == [
-        "repository-governance",
-        "python-quality",
-    ]
+    assert [skill.id for skill in result.skills] == ["repository-governance", "python-quality"]
     assert result.context.model_dump(mode="json") == {
         "pre_reads": ["AGENTS.md", ".config/checks/ruff/ruff.toml"],
         "during_rules": [],
@@ -395,12 +388,7 @@ def test_retired_skill_requires_complete_disposition_and_absent_carrier(tmp_path
     path = tmp_path / ".agents/skills/retired-skill"
     path.mkdir(parents=True)
     registry: dict[str, object] = {
-        "retired": {
-            "retired-skill": {
-                "reason": "replaced",
-                "path": ".agents/skills/retired-skill",
-            }
-        }
+        "retired": {"retired-skill": {"reason": "replaced", "path": ".agents/skills/retired-skill"}}
     }
 
     result = portfolio_retirement(registry, [], tmp_path)

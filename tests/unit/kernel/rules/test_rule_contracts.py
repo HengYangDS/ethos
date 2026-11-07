@@ -352,11 +352,7 @@ def _composed_document_repository(tmp_path: Path, *, mixed_code: bool) -> Path:
         registry.write_text(tomli_w.dumps(mixed.model_dump(mode="json", exclude_none=True)))
     _write_rules(
         root,
-        _rule(
-            id="custom.native",
-            path_globs=["openspec/**"],
-            required_gates=["openspec-baseline"],
-        ),
+        _rule(id="custom.native", path_globs=["openspec/**"], required_gates=["openspec-baseline"]),
     )
     commit_fixture(root, "declare composed rule demand")
     tasks = root / "openspec/changes/gate-composition/tasks.md"
@@ -387,10 +383,7 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     assert "code_correctness_map" not in planned_policy["owner"]
     head = commit_fixture(root, "bind composed rule demand")
     policy = resolve_gate_policy(
-        root,
-        tree_ref=head,
-        gate_ids=("openspec-baseline", "schemas"),
-        selected_obligations=True,
+        root, tree_ref=head, gate_ids=("openspec-baseline", "schemas"), selected_obligations=True
     )
     assert policy.gaps == ()
     assert policy.projection["obligation_scope"] == "selected"

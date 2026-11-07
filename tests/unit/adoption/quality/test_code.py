@@ -180,12 +180,7 @@ def test_declared_mise_supply_precedes_ambient_path(
     """A repository's locked tool selection, not host PATH, owns native checks."""
     config = f"[tools]\n{tool_line}\n"
     repo = committed_source_repo(
-        tmp_path,
-        {
-            **sources,
-            "mise.toml": config,
-            "mise.lock": "lockfile_version = 2\n",
-        },
+        tmp_path, {**sources, "mise.toml": config, "mise.lock": "lockfile_version = 2\n"}
     )
     binary = tmp_path / "locked-bin"
     binary.mkdir()

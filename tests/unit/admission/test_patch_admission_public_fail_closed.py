@@ -70,10 +70,7 @@ def test_patch_admission_rejects_unverifiable_patch_state(
         patch = "not a unified patch\n"
 
     report = admission.patch_admission(
-        root=repo,
-        requested_paths=requested,
-        baseline_head=head,
-        patch=patch,
+        root=repo, requested_paths=requested, baseline_head=head, patch=patch
     )
 
     assert report["verdict"] == "block"
@@ -92,10 +89,7 @@ def test_patch_admission_blocks_when_postimage_reference_observation_fails(
 
     monkeypatch.setattr(admission, "product_references_from_files", unavailable)
     report = admission.patch_admission(
-        root=repo,
-        requested_paths=("module.py",),
-        baseline_head=head,
-        patch=_patch(repo),
+        root=repo, requested_paths=("module.py",), baseline_head=head, patch=_patch(repo)
     )
 
     assert report["verdict"] == "block"
@@ -130,10 +124,7 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
     )
 
     report = admission.patch_admission(
-        root=repo,
-        requested_paths=(path,),
-        baseline_head=head,
-        patch=patch,
+        root=repo, requested_paths=(path,), baseline_head=head, patch=patch
     )
 
     assert report["verdict"] == "pass"

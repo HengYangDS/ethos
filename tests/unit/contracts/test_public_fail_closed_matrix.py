@@ -24,10 +24,7 @@ from tests.support.semantic import commitment_fixture
 
 
 def _commitment(*, acceptance: tuple[str, ...] = ("acceptance:fixture",)) -> Commitment:
-    return commitment_fixture(
-        id="change:contract-matrix",
-        acceptance=acceptance,
-    )
+    return commitment_fixture(id="change:contract-matrix", acceptance=acceptance)
 
 
 def _facts(**values: object) -> Facts:
@@ -48,11 +45,7 @@ def _proof_plan(
     node = PlanNode(id="check", kind="check", command=("python", "-m", "check"))
     policy = {
         "gates": [
-            {
-                "id": "check",
-                "execution_identity": ["python", "-m", "check"],
-                "depends_on": [],
-            }
+            {"id": "check", "execution_identity": ["python", "-m", "check"], "depends_on": []}
         ],
         "gaps": [],
     }
@@ -83,12 +76,7 @@ def test_transition_plan_public_projection_rejects_noncanonical_state() -> None:
 
     plan, _, _ = _proof_plan()
     second = PlanNode(id="finish", kind="effect", depends_on=("check",))
-    ordered = compile_plan(
-        _commitment(),
-        _facts(),
-        (plan.nodes[0], second),
-        policy={},
-    )
+    ordered = compile_plan(_commitment(), _facts(), (plan.nodes[0], second), policy={})
     reversed_nodes = [node.model_dump(mode="json") for node in reversed(ordered.nodes)]
     with pytest.raises(ValidationError, match="transition_plan_graph_invalid"):
         TransitionPlan.model_validate(_canonical_payload(ordered, nodes=reversed_nodes))
@@ -130,11 +118,7 @@ def test_git_effect_public_reader_rejects_wrong_or_blocked_plan() -> None:
         git_effect_from_plan(wrong_kind)
 
     admitted = compile_git_effect_plan(
-        commitment,
-        facts,
-        prior_attestations={},
-        policy={},
-        effect=effect,
+        commitment, facts, prior_attestations={}, policy={}, effect=effect
     )
     blocked = TransitionPlan.model_validate(
         _canonical_payload(admitted, verdict="block", required_gaps=["authority_denied"])

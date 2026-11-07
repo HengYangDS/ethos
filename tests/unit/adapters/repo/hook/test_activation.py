@@ -97,14 +97,7 @@ def test_hook_install_migrates_state_before_returning_current_runtime(
     with closing(sqlite3.connect(database)) as connection:
         assert connection.execute(
             "select lane_ref, holder_ref, generation, expires_at from leases"
-        ).fetchall() == [
-            (
-                "work/example",
-                "agent:test:case:owner",
-                3,
-                "2026-08-31T00:00:00+00:00",
-            )
-        ]
+        ).fetchall() == [("work/example", "agent:test:case:owner", 3, "2026-08-31T00:00:00+00:00")]
 
 
 @pytest.mark.parametrize("before_state", ["legacy", "absent"])
@@ -212,10 +205,7 @@ def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
 
 @pytest.mark.parametrize("external", [False, True])
 def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    external: bool,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, external: bool
 ) -> None:
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
     common = Path(git_common_dir(repo))
@@ -246,8 +236,7 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
 
 
 def test_hook_install_uses_one_source_identity_for_historical_linked_worktrees(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, linked, venv, _generations = linked_runtime_case(tmp_path, monkeypatch)
     accepted_identity = runtime_build_identity(REPOSITORY_ROOT)
@@ -316,16 +305,12 @@ def test_hook_activation_rejects_a_non_current_post_observation(
 
 
 def test_hook_activation_compensates_when_expected_build_drifts_during_effect(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
     selected = runtime_selection.require_selected_runtime(runtime.parent)
     drifted = BuildIdentity(
-        selected.build.product_version,
-        selected.build.distribution_version,
-        "d" * 40,
-        "e" * 40,
+        selected.build.product_version, selected.build.distribution_version, "d" * 40, "e" * 40
     )
     observations = iter((selected.build, drifted))
     monkeypatch.setattr(
@@ -352,9 +337,7 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
 
     with pytest.raises(ValueError, match="hook_runtime_root_invalid"):
         runtime_materialization.materialize_runtime(
-            repo,
-            Path(sys.executable),
-            expected_build=expected_runtime_build(repo).identity,
+            repo, Path(sys.executable), expected_build=expected_runtime_build(repo).identity
         )
 
     assert not tuple(external.iterdir())
@@ -362,9 +345,7 @@ def test_hook_runtime_rejects_a_symlinked_ethos_root_before_writing(tmp_path: Pa
 
 @pytest.mark.parametrize("kind", ["file", "symlink", "directory"])
 def test_hook_install_retires_the_legacy_runtime_python_locator(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    kind: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
 ) -> None:
     repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
     legacy = common / "ethos-runtime-python"

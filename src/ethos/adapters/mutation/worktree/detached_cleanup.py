@@ -5,11 +5,17 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.contracts.verdict import close_verdict
+
+# Refs that keep their commits by contract; a stash or a foreign tool's ref vouches for nothing.
+_RETAINING_REFS = ("refs/heads", "refs/tags", "refs/remotes", "refs/keep")
+# Ignored roots that their native tool rebuilds; any other ignored file may be unique.
+_REGENERABLE_ROOTS = frozenset({".venv", "node_modules"})
 
 
 def housekeeping_worktrees(
@@ -150,7 +156,55 @@ def _protection_reasons(
         ),
     )
     reason = next((code for blocked, code in dynamic if blocked), "")
-    return [reason] if reason else []
+    return [reason] if reason else _unique_content(repo, path, record.get("HEAD", ""))
+
+
+def _unique_content(repo: Path, path: Path, head: str) -> list[str]:
+    """Protect a HEAD that no retaining ref reaches, or ignored files nothing rebuilds."""
+    if not head:
+        return ["worktree_reachability_unavailable"]
+    reached = run_git(
+        repo,
+        "for-each-ref",
+        "--count=1",
+        "--format=%(refname)",
+        f"--contains={head}",
+        *_RETAINING_REFS,
+        check=False,
+    )
+    if reached.returncode:
+        return ["worktree_reachability_unavailable"]
+    if not reached.stdout.strip():
+        return ["worktree_head_unreachable"]
+    ignored = run_git(
+        path,
+        "ls-files",
+        "--others",
+        "--ignored",
+        "--exclude-standard",
+        "--directory",
+        "-z",
+        check=False,
+    )
+    entries = [entry for entry in ignored.stdout.split("\0") if entry]
+    unique = ignored.returncode or not all(_regenerable(path, entry) for entry in entries)
+    return ["worktree_ignored_content"] if unique else []
+
+
+def _regenerable(worktree: Path, entry: str) -> bool:
+    """A root `.venv` or `node_modules`, or a `__pycache__` holding bytecode beside its sources."""
+    relative = PurePosixPath(entry.rstrip("/"))
+    if len(relative.parts) == 1 and relative.name in _REGENERABLE_ROOTS:
+        return True
+    cache = worktree / relative
+    return (
+        relative.name == "__pycache__"
+        and cache.is_dir()
+        and all(
+            item.suffix == ".pyc" and (cache.parent / f"{item.name.split('.')[0]}.py").is_file()
+            for item in cache.iterdir()
+        )
+    )
 
 
 def _temporary_roots(explicit: tuple[Path, ...] | None) -> tuple[Path, ...]:

@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.6] - 2026-11-07
+
 ### Changed
 
 - **Breaking for agent kits: result schema 3.** A schema-2 payload is refused, and no schema-2
@@ -41,6 +43,61 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - **Breaking:** `ethos lane candidate --refresh-from-accepted --apply` refuses with
   `candidate_refresh_unaccepted_commits` when the candidate holds commits that accepted does not
   contain, unless `--confirm-irreversible` is given.
+- **Breaking: the publication declaration carries no peer coordinate and no unexecuted command.**
+  `.ethos/release.toml` no longer takes `forge_repository` in a peer, nor
+  `local_verification_command` and `local_installation_command` in `[publication]`. The loader
+  refuses each with `publication_declaration_field_retired:<field>`, the paradigm reports it, and
+  `ethos lane repair-paradigm --apply` removes it without echoing its value. A declaration without a
+  `[publication]` table declares no peers.
+- Review observation resolves a peer's web repository from the local
+  `remote.<name>.forgeRepository`, else from an `http` or `https` remote without userinfo. An
+  SSH-only peer stays unknown with `forge_repository_unresolved:<name>`, and its next action is the
+  `git config --local` command that records the web repository.
+- The local CI fallback is publish's own admission of the proof Attestation for its head. The
+  `local_ci` session and its evidence reader are gone.
+- **Breaking for rollbacks:** `ethos hook install --runtime <older>` refuses with
+  `runtime_rollback_declaration_repaired`, before it pins or selects anything, when the older
+  runtime refuses the root's repaired declaration. First restore the predecessor's declaration in a
+  lane whose HEAD contains the accepted tip. `status` names the supported rollback command whenever
+  a ROLLBACK runtime is held.
+- An invalid profile's result names each problem in `data.profile_problems` by its kind and key
+  path, at most 20, with their count, and never by its value.
+- 0.2.0-beta.6 upgrades directly from 0.2.0-beta.5, 0.2.0-beta.4, 0.2.0-beta.2 and 0.2.0-alpha.29,
+  the releases that governed adopters select. Its hosted journey upgrades from each of them on macOS
+  and Linux and repairs the declaration on the way.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as `not_qualified`;
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+  - On macOS, a full proof that runs over 03:35 local time can lose sources from its temporary
+    environment and fail with an import error. At that time macOS removes per-user temporary files
+    that were not accessed for three days, and files that uv installs keep its cache's old access
+    times. A rerun passes.
+  - `ethos lane housekeeping --apply --authorize` removes clean detached worktrees below temporary
+    roots without checking that another ref still reaches their `HEAD`.
+  - `hook install`'s shared-store cleanup treats a consumer path that no longer exists as released,
+    so a moved or unmounted repository can lose its pinned runtime until it runs `hook install`
+    again.
+
+### Fixed
+
+- A gate provider whose report returns after its deadline keeps that report. The gate stays unknown
+  with `gate_timeout:<gate>`, and the diagnostic names the provider, its bound and its elapsed
+  seconds.
+- ETHOS reads another ETHOS process's bounded result in full before it reads a moved or shortened
+  field. This covers landing's predecessor policy probe, which had blocked every self-hosted
+  landing, the candidate reference-transaction reader, the hosted verification receipt and the
+  rollback preflight. `ethos.result.expand_result` returns the result as its producer wrote it.
+- Archive resolution stops at the commit that current history holds, so a fast-forward lane refresh
+  no longer makes the roots at its new head refuse with `openspec_archive_attestation_ambiguous`.
 
 ## [0.2.0-beta.5] - 2026-11-07
 

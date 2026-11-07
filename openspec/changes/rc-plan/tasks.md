@@ -16,6 +16,7 @@
       design Appendix H. Done when each of its 30 rows and each item deferred under rows 21 to 24
       has exactly one disposition there: an owner Change of Decision 2, a 0.3.0 or host owner, a
       closing commit that is an ancestor of `dev`, or a withdrawal. Appendix H gives each of the 30
-      rows a disposition, checked at 20:3x against the register headings: closing commits on dev,
+      rows a disposition, checked against the
+      register headings before this commit: closing commits on dev,
       owner Changes of Decision 2, 0.3.0 or host owners, and row 10 withdrawn by the owner on 11-05;
       the deferred items under rows 21 to 24 are mapped with their rows.

@@ -4,7 +4,9 @@ runner = "uv run --frozen --offline python -m nox -s format_selection"
 
 [source_budget]
 cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--exclude-file=__never__", "--count-as", "c4:md,mmd:md,cue:go", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
-terminal = { python_product = 75000, python_tests = 95000 }
+terminal = { python_product = 75000, python_tests = 100000, python_tools = 10000 }
+# Python ceilings are line-equivalents of layout-invariant code tokens (DR-0019).
+tokens_per_line = { python_product = 7.0743, python_tests = 7.2941, python_tools = 7.1347 }
 aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram", "cue"] }
 immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100

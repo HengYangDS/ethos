@@ -19,6 +19,7 @@ import yaml
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.measure import effective_code_lines_for_source
+from ethos.measure import layout_invariant_code_tokens
 from ethos.repository.policy.quality.source_budget import PYTHON_CATEGORIES
 from ethos.repository.policy.quality.source_budget import Carrier
 from ethos.repository.policy.quality.source_budget import Policy
@@ -50,6 +51,7 @@ class SourceBudgetReport(TypedDict):
     state: str
     terminal: dict[str, int]
     metrics: dict[str, int]
+    code_tokens: dict[str, int]
     enforced_metrics: dict[str, int]
     inventory: Inventory
     cross_check: CrossCheck
@@ -75,6 +77,7 @@ def _blocked(*gaps: str) -> SourceBudgetReport:
         "state": "blocked",
         "terminal": {},
         "metrics": {},
+        "code_tokens": {},
         "enforced_metrics": {},
         "inventory": {"file_count": 0},
         "cross_check": {},
@@ -149,18 +152,6 @@ def _interpreter_source(source: str) -> str:
     if parts and Path(parts[0]).name == "env":
         parts = parts[2:] if len(parts) > 1 and parts[1] == "-S" else parts[1:]
     return Path(parts[0]).name if parts else ""
-
-
-def _effective(path: Path, carrier: Carrier, line_width: int) -> int:
-    return _effective_source(
-        path.read_text(
-            encoding="utf-8",
-            errors="strict" if carrier.measure == "python_ast" else "replace",
-        ),
-        path.suffix.lower(),
-        carrier,
-        line_width,
-    )
 
 
 def _effective_source(source: str, suffix: str, carrier: Carrier, line_width: int) -> int:
@@ -246,7 +237,10 @@ def _measure(
     *,
     contents: dict[str, bytes] | None = None,
     classify_executables: bool = True,
-) -> tuple[dict[str, int], Inventory, dict[str, dict[str, object]], tuple[str, ...]]:
+) -> tuple[
+    dict[str, int], dict[str, int], Inventory, dict[str, dict[str, object]], tuple[str, ...]
+]:
+    tokens: Counter[str] = Counter()
     metrics: Counter[str] = Counter(
         {
             **{
@@ -277,18 +271,20 @@ def _measure(
             if executable and classify_executables:
                 gaps.append(f"source_budget_executable_unclassified:{relative}")
             continue
+        errors = "strict" if carrier.measure == "python_ast" else "replace"
         try:
-            count = (
-                _effective_source(
-                    source.decode(
-                        "utf-8", errors="strict" if carrier.measure == "python_ast" else "replace"
-                    ),
-                    Path(relative).suffix.lower(),
-                    carrier,
-                    policy.line_width,
-                )
+            text = (
+                source.decode("utf-8", errors=errors)
                 if source is not None
-                else _effective(root / relative, carrier, policy.line_width)
+                else (root / relative).read_text(encoding="utf-8", errors=errors)
+            )
+            count = _effective_source(
+                text, Path(relative).suffix.lower(), carrier, policy.line_width
+            )
+            code_tokens = (
+                layout_invariant_code_tokens(text)
+                if carrier.measure == "python_ast" and carrier.category in policy.tokens_per_line
+                else None
             )
         except (
             OSError,
@@ -317,6 +313,9 @@ def _measure(
             "record": record,
             "accounting": accounting,
         }
+        if code_tokens is not None and metric == carrier.category:
+            tokens[metric] += code_tokens
+            records[relative]["code_tokens"] = code_tokens
     for name, members in policy.aggregates.items():
         metrics[name] = sum(metrics[member] for member in members)
     inventory: Inventory = {
@@ -325,7 +324,7 @@ def _measure(
             sorted(Counter(str(item["category"]) for item in records.values()).items())
         ),
     }
-    return dict(metrics), inventory, records, tuple(gaps)
+    return dict(metrics), dict(tokens), inventory, records, tuple(gaps)
 
 
 def _relative(root: Path, location: object) -> str | None:
@@ -453,6 +452,12 @@ def _cross_check(
     return observed, tuple(gaps)
 
 
+def _enforced(name: str, metrics: dict[str, int], tokens: dict[str, int], policy: Policy) -> int:
+    """A category with a ratio is enforced in line-equivalents of its layout-invariant tokens."""
+    ratio = policy.tokens_per_line.get(name)
+    return metrics[name] if ratio is None else math.ceil(tokens.get(name, 0) / ratio)
+
+
 def source_budget_report(root: Path) -> SourceBudgetReport:
     """Measure implementation and immutable records, then enforce implementation limits."""
     policy, gaps = policy_for_root(root)
@@ -461,10 +466,10 @@ def source_budget_report(root: Path) -> SourceBudgetReport:
     paths, gaps = _paths(root)
     if paths is None:
         return _blocked(*gaps)
-    metrics, inventory, records, measure_gaps = _measure(root, paths, policy)
+    metrics, tokens, inventory, records, measure_gaps = _measure(root, paths, policy)
     cross_check, cross_gaps = _cross_check(root, policy, records, metrics)
     terminal = policy.terminal.model_dump(exclude_none=True)
-    enforced = {name: metrics[name] for name in terminal}
+    enforced = {name: _enforced(name, metrics, tokens, policy) for name in terminal}
     terminal_gaps = tuple(
         f"source_budget_terminal_exceeded:{name}:{enforced[name]}>{terminal[name]}"
         for name in terminal
@@ -476,6 +481,7 @@ def source_budget_report(root: Path) -> SourceBudgetReport:
         "state": "clean" if not required else "blocked",
         "terminal": terminal,
         "metrics": metrics,
+        "code_tokens": tokens,
         "enforced_metrics": enforced,
         "inventory": inventory,
         "cross_check": cross_check,

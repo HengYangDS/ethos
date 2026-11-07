@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import tomllib
 from pathlib import Path
 from typing import Annotated
@@ -82,6 +83,8 @@ class Policy(_Contract):
     immutable_record_roots: tuple[str, ...] = ()
     line_width: Annotated[int, Field(gt=0, le=200)]
     carriers: tuple[Carrier, ...]
+    # A Python category with a ratio is enforced in line-equivalents of its layout-invariant tokens.
+    tokens_per_line: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_ownership(self) -> Policy:
@@ -104,6 +107,11 @@ class Policy(_Contract):
             raise ValueError(msg)
         if set(PYTHON_CATEGORIES) != python_categories:
             msg = "source-budget must declare every Python carrier role exactly once"
+            raise ValueError(msg)
+        if set(self.tokens_per_line) - set(PYTHON_CATEGORIES) or any(
+            not math.isfinite(ratio) or ratio <= 0 for ratio in self.tokens_per_line.values()
+        ):
+            msg = "tokens_per_line must give Python categories positive finite ratios"
             raise ValueError(msg)
         if any(
             not values or len(values) != len(set(values)) for values in self.aggregates.values()
@@ -156,6 +164,15 @@ def _integer(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise TypeError
     return value
+
+
+def _ratios(value: object) -> dict[str, float]:
+    ratios: dict[str, float] = {}
+    for name, ratio in _table(value).items():
+        if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
+            raise TypeError
+        ratios[name] = float(ratio)
+    return ratios
 
 
 def _pairs(value: object) -> tuple[tuple[str, str], ...]:
@@ -226,6 +243,7 @@ def _policy_contract(payload: dict[str, object]) -> Policy | None:
             immutable_record_roots=_strings(source.get("immutable_record_roots", []), empty=True),
             line_width=_integer(source.get("line_width")),
             carriers=_raw_carriers(payload),
+            tokens_per_line=_ratios(source.get("tokens_per_line", {})),
         )
     except (TypeError, ValidationError, ValueError):
         return None

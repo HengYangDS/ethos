@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from ethos.measure import effective_code_lines_for_source
+from ethos.measure import layout_invariant_code_tokens
 from ethos.measure import lexed_effective_lines
 
 
@@ -62,3 +63,38 @@ def test_invalid_python_is_not_a_valid_size_measurement() -> None:
 def test_lexed_effective_lines_keep_one_definition(lexer: str, source: str, expected: int) -> None:
     """Comments and documentation never count; attributes, shebangs and lexer errors do."""
     assert lexed_effective_lines(source, lexer) == expected
+
+
+@pytest.mark.parametrize(
+    ("wrapped", "joined"),
+    [
+        ("value = call(\n    first,\n    second,\n)\n", "value = call(first, second)\n"),
+        ("items = [\n    1,\n    2,\n]\n", "items = [1, 2]\n"),
+        ("def f(\n    a,\n    b,\n):\n    return a\n", "def f(a, b):\n    return a\n"),
+    ],
+)
+def test_layout_invariant_tokens_ignore_wrapping_and_trailing_commas(
+    wrapped: str, joined: str
+) -> None:
+    """A formatter collapse keeps the count that the Python source budget enforces (DR-0019)."""
+    assert effective_code_lines_for_source(wrapped) > effective_code_lines_for_source(joined)
+    assert layout_invariant_code_tokens(wrapped) == layout_invariant_code_tokens(joined)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ('"""documentation"""\n# comment\n', 0),
+        ("value = 1;\n", 3),
+        ('def f():\n    "doc"\n    return (1,)\n', 9),
+    ],
+)
+def test_layout_invariant_tokens_count_code_only(source: str, expected: int) -> None:
+    """Comments, docstrings, statement semicolons and a comma before a closer count nothing."""
+    assert layout_invariant_code_tokens(source) == expected
+
+
+def test_invalid_python_has_no_token_count() -> None:
+    """The token count fails like the line count rather than measure broken source."""
+    with pytest.raises(SyntaxError):
+        layout_invariant_code_tokens("def invalid(\n")

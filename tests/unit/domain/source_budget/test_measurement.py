@@ -41,6 +41,42 @@ def test_aggregate_python_budget_rejects_invalid_syntax(
     assert "source_budget_carrier_unreadable:src/ethos/demo.py" in report["required_gaps"]
 
 
+def _with_ratio(selection: Path, ratios: str) -> None:
+    text = selection.read_text(encoding="utf-8")
+    line = f"line_width = 100\ntokens_per_line = {ratios}\n"
+    selection.write_text(text.replace("line_width = 100\n", line), encoding="utf-8")
+
+
+def test_a_reformat_leaves_the_enforced_python_coordinate_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ratio enforces line-equivalents of layout-invariant tokens, so layout cannot move it."""
+    selection, source = budget_repository(tmp_path)
+    _with_ratio(selection, "{ python_product = 2.0 }")
+    reports = []
+    for text in ("VALUE = call(\n    first,\n    second,\n)\n", "VALUE = call(first, second)\n"):
+        source.write_text(text, encoding="utf-8")
+        reports.append(measure_budget(monkeypatch, tmp_path))
+    wrapped, joined = reports
+    assert (wrapped["metrics"]["python_product"], joined["metrics"]["python_product"]) == (4, 1)
+    assert wrapped["code_tokens"] == joined["code_tokens"] == {"python_product": 8}
+    assert wrapped["enforced_metrics"]["python_product"] == 4
+    assert joined["enforced_metrics"]["python_product"] == 4
+
+
+@pytest.mark.parametrize(
+    "ratios", ["{ python_product = 0 }", "{ python_product = true }", "{ markdown = 1.0 }"]
+)
+def test_a_malformed_tokens_per_line_ratio_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ratios: str
+) -> None:
+    """A zero, boolean or non-Python ratio invalidates the policy instead of enforcing nothing."""
+    selection, _ = budget_repository(tmp_path)
+    _with_ratio(selection, ratios)
+    report = measure_budget(monkeypatch, tmp_path)
+    assert report["required_gaps"] == ["source_budget_policy_invalid:shape"]
+
+
 def test_product_policy_counts_markdown_in_global_budget() -> None:
     root = Path(__file__).resolve().parents[4]
     report = source_budget.source_budget_report(root)

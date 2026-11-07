@@ -166,6 +166,7 @@ def test_source_budget_public_report_preserves_measure_and_cross_check_gaps(
         "_measure",
         lambda *_a, **_k: (
             metrics,
+            {},
             {"file_count": 1},
             {},
             ("source_budget_carrier_unreadable:src/demo.py",),

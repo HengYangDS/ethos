@@ -42,7 +42,6 @@ STARTER_RULES: tuple[Rule, ...] = (
             "README.md",
             "CONTRIBUTING.md",
             load_repository_paradigm().release.changelog,
-            "distributions/**/README.md",
         ),
         severity="advisory",
         required_gates=("docs-registry",),

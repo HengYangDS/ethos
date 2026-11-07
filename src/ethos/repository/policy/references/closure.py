@@ -47,7 +47,7 @@ SemanticCategory = Literal[
 _CATEGORIES: tuple[SemanticCategory, ...] = get_args(SemanticCategory)
 
 _PATH_REFERENCE = re.compile(
-    r"(?<![A-Za-z0-9_.@+-])(?:\.\.?/)*[A-Za-z0-9_.@+-]+(?:/[A-Za-z0-9_.@+-]+)*"
+    r"(?<![A-Za-z0-9_.@+-])(?:\.\.?/)*[A-Za-z0-9_.@+-]+(?:/[A-Za-z0-9_.@+-]+)*/?"
 )
 _CHANGE_SPEC = re.compile(r"^openspec/changes/[^/]+/specs/(.+)/spec\.md$")
 _REQUIREMENT = re.compile(r"^### Requirement: (.+)$", re.MULTILINE)
@@ -472,7 +472,9 @@ def _retired_path_sources(
                 if value.startswith(("./", "../"))
                 else posixpath.normpath(value)
             )
-            for retired in under.get(observed, [observed] if observed in consumers else []):
+            # A bare word names a directory only in a Markdown link; elsewhere it is prose.
+            directory = under.get(observed) if "/" in value or source.endswith(".md") else None
+            for retired in directory or ([observed] if observed in consumers else []):
                 consumers[retired].add(source)
     return {path: tuple(sorted(sources)) for path, sources in consumers.items()}
 

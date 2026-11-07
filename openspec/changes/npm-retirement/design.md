@@ -45,6 +45,13 @@ Non-Goals:
    reason, and the Node runtime requirement names the JavaScript tools and drops
    `npm run ethos` and `npm run test:npm`.
 
+5. **A bare word does not consume a retired directory.** Removing `distributions/` left the
+   directory empty, and the semantic closure's path scanner read every bare `distributions` in prose
+   or a Python name, such as `importlib.metadata.distributions`, as a reference to the retired
+   files. A bare word now names a directory only in a Markdown link; a literal such as `legacy/`
+   still does, so the scanner keeps a trailing slash. The two stale ETHOS lists that named the
+   directory, the product surfaces and the docs rule's globs, drop it.
+
 ## Risks / Trade-offs
 
 - Someone running `npm run ethos` from a checkout loses that entry; `uv run ethos` and the installed

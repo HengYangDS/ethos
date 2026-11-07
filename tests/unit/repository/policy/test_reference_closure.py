@@ -553,3 +553,28 @@ def test_a_retired_directory_is_matched_by_its_prefix(tmp_path: Path) -> None:
             "sources": ["src/example/runtime.py"],
         }
     ]
+
+
+def test_a_bare_word_does_not_consume_a_retired_directory(tmp_path: Path) -> None:
+    """Prose or a Python name that matches an emptied top-level directory is not a reference."""
+    declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, "legacy/model.json", "{}")
+    write_reference_source(tmp_path, "src/example/runtime.py", "VALUE = 1")
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / "legacy/model.json").unlink()
+    write_reference_source(
+        tmp_path, "src/example/runtime.py", '"""Keep legacy names out of the model."""\nVALUE = 1'
+    )
+    write_reference_source(tmp_path, "src/example/paths.py", 'ROOT = "legacy/"\n')
+    _commit_current_tree(tmp_path)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert report["superseded"] == [
+        {
+            "relation": "consumer",
+            "kind": "path",
+            "identity": "legacy/model.json",
+            "sources": ["src/example/paths.py"],
+        }
+    ]

@@ -27,7 +27,6 @@ PRODUCT_SURFACES = (
     ".gitlab-ci.yml",
     "assets",
     "packages",
-    "distributions",
     ".ethos",
     ".agents/skills",
     "docs/README.md",

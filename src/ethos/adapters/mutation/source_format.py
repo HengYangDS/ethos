@@ -2,46 +2,19 @@
 
 from __future__ import annotations
 
-import difflib
-import json
 import stat
 import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.gates.formatting import FormattedFile
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.gates.formatting import source_format_failure
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_patch import unified_patch
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _patch(prepared: tuple[FormattedFile, ...]) -> str:
-    parts = []
-    for item in prepared:
-        if item.before == item.after:
-            continue
-        left, right = "a/" + item.path, "b/" + item.path
-        before = item.before.decode("utf-8").splitlines(keepends=True)
-        after = item.after.decode("utf-8").splitlines(keepends=True)
-        patch = list(difflib.unified_diff(before, after, fromfile=left, tofile=right))
-        patch[:2] = [
-            f"--- {json.dumps(left, ensure_ascii=False)}\n",
-            f"+++ {json.dumps(right, ensure_ascii=False)}\n",
-        ]
-        material = [
-            line if line.endswith("\n") else line + "\n\\ No newline at end of file\n"
-            for line in patch
-        ]
-        parts.append(
-            "diff --git "
-            f"{json.dumps(left, ensure_ascii=False)} {json.dumps(right, ensure_ascii=False)}\n"
-            + "".join(material)
-        )
-    return "".join(parts)
 
 
 def format_source(
@@ -105,7 +78,7 @@ def _format_source(
     if not authorize or expect_head != head:
         message = "authorization_required" if not authorize else "expect_head_mismatch"
         raise ValueError(message)
-    patch = _patch(changed)
+    patch = unified_patch((item.path, item.before, item.after) for item in changed)
     admission = prewrite_guard(
         root=root,
         paths=[root / item.path for item in changed],

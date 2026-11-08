@@ -1,14 +1,47 @@
-"""Observe native Git patch identities without applying source effects."""
+"""Build and observe native Git patch identities without applying source effects."""
 
 from __future__ import annotations
 
 import ast
+import difflib
+import json
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from pathlib import Path
+
+
+def unified_patch(changes: Iterable[tuple[str, bytes, bytes]]) -> str:
+    """Return one `git apply` patch that turns each path's UTF-8 preimage into its postimage."""
+    parts = []
+    for path, before, after in changes:
+        if before == after:
+            continue
+        left, right = "a/" + path, "b/" + path
+        lines = difflib.unified_diff(
+            before.decode("utf-8").splitlines(keepends=True),
+            after.decode("utf-8").splitlines(keepends=True),
+            fromfile=left,
+            tofile=right,
+        )
+        patch = list(lines)
+        patch[:2] = [
+            f"--- {json.dumps(left, ensure_ascii=False)}\n",
+            f"+++ {json.dumps(right, ensure_ascii=False)}\n",
+        ]
+        material = [
+            line if line.endswith("\n") else line + "\n\\ No newline at end of file\n"
+            for line in patch
+        ]
+        parts.append(
+            "diff --git "
+            f"{json.dumps(left, ensure_ascii=False)} {json.dumps(right, ensure_ascii=False)}\n"
+            + "".join(material)
+        )
+    return "".join(parts)
 
 
 def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object]], str]:

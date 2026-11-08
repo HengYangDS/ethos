@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import Any
+from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.operation as operation
+from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.retirement import RetirementOperation
@@ -16,9 +19,6 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
@@ -113,6 +113,12 @@ def apply_retirement_receipt(repo, receipt):
         apply=True,
         authorized=True,
     )
+
+
+def reviewed_entries(request: RetirementOperation) -> dict[str, Any]:
+    """Return the reviewed nodes that a request binds through its content-addressed manifest."""
+    expanded = expanded_content(Path(request.control_root), request.reviewed_content)
+    return cast("dict[str, Any]", expanded["entries"])
 
 
 def retirement_request(tmp_path: Path) -> RetirementOperation:

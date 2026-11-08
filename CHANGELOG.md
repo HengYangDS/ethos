@@ -25,6 +25,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- A reviewed lane abandonment keeps its reviewed nodes in one content-addressed manifest under the
+  store's `requests/lane-retirement-manifest/`, which its request and terminal receipt bind by
+  digest, size and per-root totals, instead of carrying every node inline in both. A terminal
+  retirement deletes its manifest unless another request without a terminal receipt binds it. A
+  missing or altered manifest refuses removal and selects a fresh content review, and a request
+  written before this change no longer applies: its recovery names a fresh content review of the
+  same target.
 - The shared operations moved from `ethos.domain` to `ethos.application`: `inspect_repository`,
   `plan_repository`, `adopt_repository`, `land_repository` and `publish_repository` are now in
   `ethos.application.inspection`, `ethos.application.plan`, `ethos.application.adoption`,

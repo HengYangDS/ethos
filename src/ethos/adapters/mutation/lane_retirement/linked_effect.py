@@ -8,6 +8,7 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.mutation.lane_retirement.content import reviewed_content
+from ethos.adapters.mutation.lane_retirement.manifest import compacted_content
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.git import current_tree
@@ -188,5 +189,9 @@ def compile_retirement_operation(
             "summary": reason or f"{mode} Work Lane retirement",
         },
         git_plan=plan.model_dump(mode="json") if plan is not None else {},
-        reviewed_content=reviewed_content(Path(str(lane["path"]))) if review_content else {},
+        reviewed_content=(
+            compacted_content(control_root, reviewed_content(Path(str(lane["path"]))))
+            if review_content
+            else {}
+        ),
     )

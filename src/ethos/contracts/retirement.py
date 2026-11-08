@@ -51,26 +51,19 @@ class _ContentNode(BaseModel):
         return self
 
 
-class _ReviewedContent(BaseModel):
-    """A complete literal tree and native index selected for destructive review."""
+class ReviewedManifest(BaseModel):
+    """Every literal node of one reviewed worktree, kept apart from its request by digest."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
-    root: _ContentNode
-    index_path: str
-    index: _ContentNode
+    schema_version: Literal[1] = 1
+    kind: Literal["lane-retirement-manifest"] = "lane-retirement-manifest"
     entries: dict[str, _ContentNode] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_tree(self) -> Self:
         marker = self.entries.get(".git")
-        if (
-            self.root.kind != "directory"
-            or self.index.kind != "file"
-            or not Path(self.index_path).is_absolute()
-            or marker is None
-            or marker.kind != "file"
-        ):
+        if marker is None or marker.kind != "file":
             _fail("retirement_content_tree_invalid")
         for name in self.entries:
             path = PurePosixPath(name)
@@ -88,6 +81,62 @@ class _ReviewedContent(BaseModel):
                 )
             ):
                 _fail("retirement_content_tree_invalid")
+        return self
+
+    def totals(self) -> dict[str, dict[str, int]]:
+        """Count each top-level name's directories, files and symlinks and sum its file sizes."""
+        totals: dict[str, dict[str, int]] = {}
+        for name, node in self.entries.items():
+            counts = totals.setdefault(
+                PurePosixPath(name).parts[0],
+                {"directories": 0, "files": 0, "symlinks": 0, "file_bytes": 0},
+            )
+            counts[{"directory": "directories", "file": "files"}.get(node.kind, "symlinks")] += 1
+            if node.kind == "file":
+                counts["file_bytes"] += int(node.identity[4])
+        return totals
+
+
+class _ManifestTotals(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    directories: int = Field(ge=0)
+    files: int = Field(ge=0)
+    symlinks: int = Field(ge=0)
+    file_bytes: int = Field(ge=0)
+
+
+class _ManifestReference(BaseModel):
+    """The digest, size and per-root totals by which a request binds its reviewed manifest."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    size_bytes: int = Field(ge=1)
+    totals: dict[str, _ManifestTotals] = Field(min_length=1)
+
+
+class _ReviewedContent(BaseModel):
+    """A literal tree's root, native index and manifest reference, selected for disposal review."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    root: _ContentNode
+    index_path: str
+    index: _ContentNode
+    manifest: _ManifestReference
+
+    @model_validator(mode="after")
+    def validate_tree(self) -> Self:
+        marker = self.manifest.totals.get(".git")
+        if (
+            self.root.kind != "directory"
+            or self.index.kind != "file"
+            or not Path(self.index_path).is_absolute()
+            or marker is None
+            or (marker.directories, marker.files, marker.symlinks) != (0, 1, 0)
+        ):
+            _fail("retirement_content_tree_invalid")
         return self
 
 

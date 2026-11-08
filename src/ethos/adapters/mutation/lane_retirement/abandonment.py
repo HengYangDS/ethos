@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
@@ -11,6 +13,7 @@ from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
+from ethos.adapters.mutation.lane_retirement.manifest import manifest_store
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.mutation.lane_retirement.operation import retirement_failure
 from ethos.adapters.repo.git import current_tree
@@ -24,6 +27,10 @@ from ethos.adapters.repo.worktree_effects import worktree_record
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import refusal
+from ethos.contracts.value import mutable_json
+
+if TYPE_CHECKING:
+    from ethos.contracts.retirement import RetirementOperation
 
 _REASON_CODE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -70,6 +77,20 @@ def _selected_worktree(
             _fail("retirement_target_not_detached")
         return selected, record.get("HEAD", "")
     return selected, ref_head(root, branch)
+
+
+def _review_summary(request: RetirementOperation) -> dict[str, object]:
+    """Count the reviewed nodes from the manifest totals and name the manifest that holds them."""
+    if not request.reviewed_content:
+        return {}
+    reference = cast("dict[str, Any]", mutable_json(request.reviewed_content["manifest"]))
+    counts = ("directories", "files", "symlinks")
+    return {
+        "entry_count": sum(root[key] for root in reference["totals"].values() for key in counts),
+        "full_manifest": (
+            manifest_store(Path(request.control_root)) / f"{reference['sha256']}.json"
+        ).as_posix(),
+    }
 
 
 def derive_lane_abandonment(
@@ -148,12 +169,7 @@ def derive_lane_abandonment(
         "state": "derived",
         "branch": request.branch,
         "head": request.head,
-        "review_summary": {
-            "entry_count": len(request.reviewed_content["entries"]),
-            "full_manifest": receipt["path"],
-        }
-        if request.reviewed_content
-        else {},
+        "review_summary": _review_summary(request),
         "receipt": receipt,
         "required_gaps": [],
         "next_action": (

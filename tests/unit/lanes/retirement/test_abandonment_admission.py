@@ -9,6 +9,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.operation as operation
+from ethos.adapters.mutation.lane_retirement.manifest import manifest_store
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -17,6 +18,7 @@ from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
+from tests.support.lane_scenarios import reviewed_entries
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
@@ -32,12 +34,13 @@ def test_reviewed_abandonment_projects_bounded_summary_without_dropping_manifest
     assert report["verdict"] == "pass"
     assert "request" not in report
     assert report["review_summary"]["entry_count"] >= 120
-    assert report["review_summary"]["full_manifest"] == report["receipt"]["path"]
+    manifest = Path(report["review_summary"]["full_manifest"])
+    assert manifest.parent.resolve() == manifest_store(repo).resolve()
     assert len(json.dumps(report)) < 8_192
     receipt = report["receipt"]
     request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
     assert all(
-        f"build/runtime/tool-cache/probe/item-{number:03d}" in request.reviewed_content["entries"]
+        f"build/runtime/tool-cache/probe/item-{number:03d}" in reviewed_entries(request)
         for number in range(120)
     )
 
@@ -101,7 +104,8 @@ def test_reviewed_retirement_uses_current_coordination_not_historical_ownership(
         assert "request" not in report["data"]
         assert report["data"]["review_summary"]["entry_count"] > 0
         receipt = report["data"]["receipt"]
-        assert report["data"]["review_summary"]["full_manifest"] == receipt["path"]
+        manifest = Path(report["data"]["review_summary"]["full_manifest"])
+        assert manifest.parent.resolve() == manifest_store(repo).resolve()
         request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
         assert request.lease_state == lease_state
         if reacquired:

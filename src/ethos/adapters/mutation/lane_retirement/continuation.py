@@ -18,12 +18,22 @@ if TYPE_CHECKING:
     from ethos.contracts.retirement import RetirementProgress
 
 RECEIPT_INVALIDATING_GAPS = frozenset(
-    {"retirement_accepted_coordinate_drift", "retirement_content_drift"}
+    {
+        "lane_retirement_manifest_missing",
+        "lane_retirement_manifest_mismatch",
+        "retirement_accepted_coordinate_drift",
+        "retirement_content_drift",
+    }
 )
 
 
 def _lane(root: Path, *words: str) -> str:
     return shlex.join(["ethos", "lane", *words, "--root", root.as_posix(), "--json"])
+
+
+def lane_status_command(root: Path) -> str:
+    """Return the lane status read that names the next step once carriers drifted."""
+    return _lane(root, "status")
 
 
 def content_review_command(root: Path, branch: str, *, path: str = "") -> str:
@@ -129,9 +139,9 @@ def retirement_continuation(
         try:
             return fresh_retirement_command(root, request, progress)
         except (GitExecutionError, OSError, RuntimeError, ValueError):
-            return _lane(root, "status")
+            return lane_status_command(root)
     if "retirement_operation_state_drift" in gaps:
-        return _lane(root, "status")
+        return lane_status_command(root)
     if progress is None or progress.remaining_effects:
         return recovery_command(root, receipt)
     return shlex.join(["ethos", "status", "--root", root.as_posix(), "--json"])

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.operation as operation
+from ethos.adapters.mutation.lane_retirement.manifest import manifest_reference
 from ethos.contracts.retirement import RetirementOperation
 from tests.support.lane_scenarios import retirement_request
 
@@ -40,9 +41,9 @@ def test_reviewed_receipt_uses_the_same_identity_as_its_request(tmp_path, monkey
     payload = _reviewed_request(tmp_path)
     content = payload["reviewed_content"]
     assert isinstance(content, dict)
-    entries = content["entries"]
-    entries["\ue000"] = entries["src/module.py"]
-    entries["\U00010000"] = entries["src/module.py"]
+    totals = content["manifest"]["totals"]
+    totals["\ue000"] = totals["src"]
+    totals["\U00010000"] = totals["src"]
     request = RetirementOperation.model_validate(payload)
 
     receipt = operation.persist_operation(tmp_path, request)
@@ -61,11 +62,12 @@ def _reviewed_request(tmp_path: Path) -> dict[str, object]:
     payload = retirement_request(tmp_path).model_dump(mode="json")
     file = {"kind": "file", "identity": ["1"] * 8, "sha256": "a" * 64}
     directory = {"kind": "directory", "identity": ["2"] * 8}
+    reference, _ = manifest_reference({".git": file, "src": directory, "src/module.py": file})
     payload["reviewed_content"] = {
         "root": directory,
         "index_path": str(tmp_path / ".git/worktrees/lane/index"),
         "index": file,
-        "entries": {".git": file, "src": directory, "src/module.py": file},
+        "manifest": reference,
     }
     return json.loads(json.dumps(payload))
 
@@ -102,13 +104,13 @@ def test_detached_receipt_rejects_invented_resources(tmp_path, updates):
         (("root", "kind"), "file"),
         (("index", "kind"), "symlink"),
         (("index_path",), "relative/index"),
-        (("entries",), {}),
-        (("entries", "src"), {"kind": "socket", "identity": ["1"] * 8}),
-        (("entries", "src/module.py", "sha256"), "invalid"),
-        (("entries", "src/module.py", "identity"), [1] * 8),
-        (("entries", "src/module.py", "identity"), ["1"] * 7),
-        (("entries", "src/module.py", "identity"), ["01"] * 8),
-        (("entries", "src/module.py", "target"), "unexpected"),
+        (("manifest",), {}),
+        (("manifest", "sha256"), "invalid"),
+        (("manifest", "size_bytes"), 0),
+        (("manifest", "totals"), {}),
+        (("manifest", "totals", ".git", "files"), 2),
+        (("manifest", "totals", "src", "file_bytes"), -1),
+        (("entries",), {".git": {"kind": "file", "identity": ["1"] * 8, "sha256": "a" * 64}}),
     ],
 )
 def test_receipt_reader_rejects_malformed_reviewed_inventory(
@@ -130,30 +132,6 @@ def test_receipt_reader_rejects_malformed_reviewed_inventory(
     with pytest.raises(ValueError, match="lane_retirement_receipt_invalid"):
         operation.load_operation(tmp_path, str(path), digest)
     assert path.read_bytes() == raw
-
-
-@pytest.mark.parametrize(
-    "path",
-    ["../escape.py", "/absolute.py", "./alias.py", "src//alias.py", "missing/file.py", "src/.git"],
-)
-def test_reviewed_inventory_requires_exact_relative_tree(tmp_path, path):
-    payload = _reviewed_request(tmp_path)
-    content = payload["reviewed_content"]
-    assert isinstance(content, dict)
-    content["entries"][path] = content["entries"].pop("src/module.py")
-
-    with pytest.raises(ValueError, match="retirement_content_tree_invalid"):
-        RetirementOperation.model_validate(payload)
-
-
-def test_reviewed_inventory_cannot_traverse_a_link(tmp_path):
-    payload = _reviewed_request(tmp_path)
-    content = payload["reviewed_content"]
-    assert isinstance(content, dict)
-    content["entries"]["src"] = {"kind": "symlink", "identity": ["3"] * 8, "target": "../external"}
-
-    with pytest.raises(ValueError, match="retirement_content_tree_invalid"):
-        RetirementOperation.model_validate(payload)
 
 
 @pytest.mark.parametrize(

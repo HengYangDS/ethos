@@ -25,6 +25,7 @@ from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
+from tests.support.lane_scenarios import reviewed_entries
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
@@ -104,7 +105,7 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         receipt = reviewed["data"]["receipt"]
         assert reviewed["data"]["review_summary"]["entry_count"] > 0
         request = load_operation(repo, receipt["path"], receipt["sha256"])
-        assert request.reviewed_content["entries"]["unique.txt"]
+        assert reviewed_entries(request)["unique.txt"]
     assert worktree.is_dir()
     assert git(repo, "rev-parse", branch) == source
     if boundary in {"dirty", "ignored"}:

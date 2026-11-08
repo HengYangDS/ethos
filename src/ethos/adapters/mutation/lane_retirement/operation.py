@@ -7,6 +7,7 @@ import os
 import sqlite3
 from contextlib import closing
 from functools import partial
+from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -20,6 +21,8 @@ from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_cont
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import retirement_continuation
+from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
+from ethos.adapters.mutation.lane_retirement.manifest import release_manifest
 from ethos.adapters.open_files import observe_open_files
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
@@ -105,7 +108,8 @@ def persist_operation(root: Path, request: RetirementOperation) -> dict[str, obj
     )
 
 
-def _load_bytes(store: Path, path: str, sha256: str) -> bytes:
+def verified_bytes(store: Path, path: str, sha256: str) -> bytes:
+    """Return one content-addressed record's bytes from exactly this store, or refuse."""
     candidate = Path(path).expanduser().resolve()
     digest = sha256.removeprefix("sha256:")
     if (
@@ -128,7 +132,7 @@ def load_operation(root: Path, path: str, sha256: str) -> RetirementOperation:
     """Load one current receipt only from this repository's operation store."""
     try:
         return RetirementOperation.model_validate_json(
-            _load_bytes(operation_store(root), path, sha256)
+            verified_bytes(operation_store(root), path, sha256)
         )
     except ValueError as error:
         if str(error).startswith("lane_retirement_receipt_"):
@@ -156,7 +160,7 @@ def _removal_observation(root: Path, request: RetirementOperation) -> OpenFileBo
     for path in store.glob("*.json"):
         try:
             snapshot = RetirementProgress.model_validate_json(
-                _load_bytes(store, str(path), path.stem)
+                verified_bytes(store, str(path), path.stem)
             )
         except ValueError:
             # Recovery acts on current facts; an unverifiable snapshot only reports nothing.
@@ -324,7 +328,7 @@ def _admit_content(root: Path, request: RetirementOperation) -> OpenFileBoundary
     )
     verify_reviewed_content(
         Path(request.worktree_path),
-        cast("dict[str, object]", mutable_json(expected)),
+        expanded_content(root, expected),
         open_identities=observation.identities,
     )
     return observation.boundary
@@ -386,7 +390,7 @@ def remove_operation_worktree(root: Path, request: RetirementOperation) -> OpenF
             partial(
                 remove_reviewed_content,
                 Path(request.worktree_path),
-                cast("dict[str, object]", mutable_json(request.reviewed_content)),
+                expanded_content(Path(request.control_root), request.reviewed_content),
             )
             if request.reviewed_content
             else None
@@ -437,6 +441,7 @@ def _report(
     failure: Mapping[str, object] | None = None,
     progress_receipt: Mapping[str, object] | None = None,
     terminal_receipt: Mapping[str, object] | None = None,
+    released: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     partial = progress is not None and progress.state == "partial_transition"
     state = progress.state if progress is not None else "ready"
@@ -464,6 +469,7 @@ def _report(
         result.update(
             progress_receipt=dict(progress_receipt or {}),
             terminal_receipt=dict(terminal_receipt or {}),
+            **({"manifest_release": dict(released)} if released else {}),
             observed=progress.observation.model_dump(mode="json"),
             open_file_observation=(
                 progress.open_file_observation.model_dump(mode="json")
@@ -494,6 +500,7 @@ def apply_operation(
     with acquired:
         failure: dict[str, object] = {}
         terminal_receipt: dict[str, object] = {}
+        released: dict[str, object] = {}
         observation: OpenFileBoundary | None = None
         try:
             progress = preflight_operation(control_root, request)
@@ -520,11 +527,9 @@ def apply_operation(
                 ).model_copy(update={"open_file_observation": observation})
                 progress_receipt = persist_progress(control_root, request, progress)
                 _require_accepted_coordinate(progress)
-            terminal_receipt = (
-                persist_terminal_receipt(control_root, request, progress)
-                if progress.state == "terminal"
-                else {}
-            )
+            if progress.state == "terminal":
+                terminal_receipt = persist_terminal_receipt(control_root, request, progress)
+                released = release_manifest(control_root, request)
         except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
             failure = retirement_failure(error)
             try:
@@ -541,6 +546,7 @@ def apply_operation(
             failure=failure,
             progress_receipt=progress_receipt,
             terminal_receipt=terminal_receipt,
+            released=released,
         )
 
 
@@ -571,6 +577,8 @@ def execute_retirement_operation(
             "state": "blocked",
             **retirement_failure(error),
             "receipt": receipt,
-            "next_action": "",
+            "next_action": import_module(
+                "ethos.adapters.mutation.lane_retirement.inline"
+            ).inline_continuation(repo, receipt_path, receipt_sha256),
             "user_decision_required": False,
         }

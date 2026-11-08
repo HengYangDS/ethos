@@ -26,6 +26,7 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
+from tests.support.lane_scenarios import reviewed_entries
 
 
 @pytest.mark.parametrize("boundary", ["root", "parent"])
@@ -144,7 +145,7 @@ def test_reviewed_inventory_preserves_literal_link_without_opening_target(diverg
     receipt = result["receipt"]
     assert isinstance(receipt, dict)
     request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
-    observed = request.reviewed_content["entries"]["external-link"]
+    observed = reviewed_entries(request)["external-link"]
     assert observed["kind"] == "symlink"
     assert observed["target"] == literal
     assert "sha256" not in observed
@@ -344,7 +345,7 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(
     data = result["data"]
     receipt = data["receipt"]
     request = operation.load_operation(repo, receipt["path"], receipt["sha256"])
-    assert request.reviewed_content["entries"][target.name]
+    assert reviewed_entries(request)[target.name]
     assert request.reviewed_content["index"]
     assert request.reviewed_content["root"]
     if detached:

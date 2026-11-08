@@ -58,7 +58,7 @@ def _closeout(head: str, *extra: str) -> list[str]:
 def test_closeout_renames_legacy_role_refs_without_moving_content(tmp_path: Path) -> None:
     repo, candidate, head = _legacy_repository(tmp_path)
 
-    preview = run_ethos(*_closeout(head, "--authorize"), cwd=repo)
+    preview = run_ethos(*_closeout(head), cwd=repo)
     assert preview["state"] == "ready_to_rename", preview
     assert git(repo, "branch", "--show-current") == "accepted/train"
 
@@ -121,21 +121,98 @@ def test_closeout_refuses_a_legacy_release_rename_onto_an_existing_name(tmp_path
     assert git(repo, "rev-parse", "master") == head
 
 
-def test_closeout_finishes_an_interrupted_worktree_binding(
+def _interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, str]:
+    """Rename the legacy refs but stop before any worktree is bound to its new name."""
+    repo, candidate, head = _legacy_repository(tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(branch_roles, "bind_renamed_worktrees", lambda *_args: None)
+        run_ethos(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+    assert git(repo, "symbolic-ref", "HEAD") == "refs/heads/accepted/train"
+    return repo, candidate, head
+
+
+def _rebind_command(repo: Path, head: str) -> str:
+    return (
+        f"ethos land --closeout --apply --authorize --expect-head {head} "
+        f"--root {repo.resolve().as_posix()} --json"
+    )
+
+
+def test_an_interrupted_binding_is_previewed_and_bound_only_by_its_apply(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, candidate, head = _legacy_repository(tmp_path)
-    bind = branch_roles.bind_renamed_worktrees
-    monkeypatch.setattr(branch_roles, "bind_renamed_worktrees", lambda *_args: None)
-    run_ethos(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+    """The preview reads and names each binding; only the authorized, bound apply writes."""
+    repo, candidate, head = _interrupted(tmp_path, monkeypatch)
+
+    preview = run_ethos("land", "--closeout", "--json", cwd=repo)
+    refused = run_ethos_blocked(
+        "land", "--closeout", "--apply", "--expect-head", head, "--json", cwd=repo
+    )
+
+    assert preview["state"] == "rebinding_pending", preview
+    assert sorted(preview["required_gaps"]) == [
+        "branch_role_rebinding_pending:accepted/train",
+        "branch_role_rebinding_pending:candidate/train",
+    ]
+    assert preview["next_action"] == _rebind_command(repo, head)
+    assert refused["required_gaps"] == ["authorization_required"], refused
     assert git(repo, "symbolic-ref", "HEAD") == "refs/heads/accepted/train"
+    assert git(candidate, "symbolic-ref", "HEAD") == "refs/heads/candidate/train"
 
-    monkeypatch.setattr(branch_roles, "bind_renamed_worktrees", bind)
-    resumed = run_ethos_blocked(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+    rebound = run_ethos(*_closeout(head, "--apply", "--authorize"), cwd=repo)
 
-    assert resumed["required_gaps"] == _LEGACY_DECLARATIONS
+    assert rebound["state"] == "branch_role_worktrees_rebound", rebound
+    assert rebound["next_action"] == f"ethos status --root {repo.resolve().as_posix()} --json"
     assert git(repo, "branch", "--show-current") == "dev"
     assert git(candidate, "branch", "--show-current") == "candidate/dev"
+    rerun = run_ethos_blocked(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+    assert rerun["required_gaps"] == _LEGACY_DECLARATIONS
+
+
+def test_a_partial_binding_is_finished_from_the_accepted_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the accepted root already bound, only the candidate worktree is named and bound."""
+    repo, candidate, head = _interrupted(tmp_path, monkeypatch)
+    git(repo, "symbolic-ref", "HEAD", "refs/heads/dev")
+
+    preview = run_ethos("land", "--closeout", "--json", cwd=repo)
+    status = run_ethos("status", "--json", cwd=repo)
+    rebound = run_ethos(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+
+    assert preview["required_gaps"] == ["branch_role_rebinding_pending:candidate/train"]
+    assert status["next_action"] == preview["next_action"] == _rebind_command(repo, head)
+    assert rebound["state"] == "branch_role_worktrees_rebound", rebound
+    assert git(candidate, "branch", "--show-current") == "candidate/dev"
+
+
+def test_a_worktree_switched_after_detection_keeps_its_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The binder writes only while HEAD still names the legacy ref it detected."""
+    repo, candidate, head = _interrupted(tmp_path, monkeypatch)
+    pending = branch_roles.pending_role_rebindings(repo)
+    git(candidate, "branch", "feature", head)
+    git(candidate, "symbolic-ref", "HEAD", "refs/heads/feature")
+
+    with pytest.raises(ValueError, match="branch_role_worktree_binding_stale:"):
+        branch_roles.bind_worktrees(pending)
+
+    assert git(candidate, "symbolic-ref", "HEAD") == "refs/heads/feature"
+
+
+def test_a_git_without_symbolic_ref_transactions_refuses_the_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Below Git 2.46 the rename refuses before any ref moves, never half-finishing."""
+    repo, candidate, head = _legacy_repository(tmp_path)
+    monkeypatch.setattr(branch_roles, "symref_transactions_supported", lambda _root: False)
+
+    blocked = run_ethos_blocked(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+
+    assert "branch_role_rename_git_unsupported" in blocked["required_gaps"], blocked
+    assert git(repo, "rev-parse", "accepted/train") == head
+    assert git(candidate, "symbolic-ref", "HEAD") == "refs/heads/candidate/train"
 
 
 @pytest.mark.parametrize(
@@ -219,14 +296,13 @@ def test_an_unreadable_committed_table_renames_and_protects_nothing(tmp_path: Pa
     assert unreadable["required_gaps"] == ["legacy_role_rename_policy_unavailable"]
 
 
-def test_resume_keeps_a_binding_whose_own_table_is_unreadable(tmp_path: Path) -> None:
-    """A worktree left on a missing ref keeps that binding when its own table is unreadable."""
+def test_detection_over_an_unreadable_table_finds_nothing(tmp_path: Path) -> None:
+    """A worktree left on a missing ref is no pending binding when its table is unreadable."""
     repo, _candidate = start_adopted_candidate(tmp_path)
     _commit_unreadable_table(repo)
     git(repo, "symbolic-ref", "HEAD", "refs/heads/accepted/missing")
 
-    branch_roles.resume_renamed_bindings(repo)
-
+    assert branch_roles.pending_role_rebindings(repo) == ()
     assert git(repo, "symbolic-ref", "HEAD") == "refs/heads/accepted/missing"
 
 
@@ -272,7 +348,7 @@ def test_native_paradigm_repair_migrates_only_the_owned_retained_topic(
     native = branch_roles.run_git
 
     def observed(path, *arguments, **kwargs):
-        if arguments[:2] == ("symbolic-ref", "--quiet"):
+        if "symref-update" in str(kwargs.get("stdin") or ""):
             binding_reads.append(path)
         return native(path, *arguments, **kwargs)
 

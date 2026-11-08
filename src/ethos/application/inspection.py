@@ -8,6 +8,9 @@ from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.mutation.branch_roles import pending_role_rebindings
+from ethos.adapters.mutation.branch_roles import rebinding_command
+from ethos.adapters.mutation.branch_roles import rebinding_gaps
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.openspec.cli import OFFICIAL_PACKAGE_SPEC
 from ethos.adapters.openspec.cli import openspec_base_command
@@ -116,7 +119,14 @@ def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
         )
         runtime_gaps = string_sequence(runtime["required_gaps"]) if runtime["required"] else ()
         commit_policy_gaps = string_sequence(commit_policy.get("required_gaps"))
-        gaps = tuple(dict.fromkeys((*gaps, *runtime_gaps, *commit_policy_gaps)))
+        # Worktrees left on renamed legacy role refs come first: every other route reads them.
+        rebinding = pending_role_rebindings(repo)
+        rebinding_action = (
+            rebinding_command(repo, rebinding, str(observed.get("head") or "")) if rebinding else ""
+        )
+        gaps = tuple(
+            dict.fromkeys((*gaps, *rebinding_gaps(rebinding), *runtime_gaps, *commit_policy_gaps))
+        )
         data = {
             "root": observed.get("root", ""),
             "branch": observed.get("branch", ""),
@@ -173,7 +183,7 @@ def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
             )
             candidate_action = str(candidate_report.get("next_action") or "")
             candidate_decision = bool(candidate_report.get("user_decision_required"))
-        next_action = (
+        next_action = rebinding_action or (
             resolution.next_action
             if resolution is not None
             and (resolution.authority is None or resolution.authority.verdict != "pass")

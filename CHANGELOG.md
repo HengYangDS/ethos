@@ -33,6 +33,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- `ethos land --closeout` without `--apply` no longer rebinds worktrees left on renamed legacy role
+  refs. It reports `branch_role_rebinding_pending:<ref>`, and `ethos status` names the same, with
+  `ethos land --closeout --apply --authorize --expect-head <head>` as the next step, which binds
+  each worktree by compare-and-swap of its `HEAD` and binds nothing when refused. A legacy role
+  rename needs Git 2.46 or later and otherwise refuses with `branch_role_rename_git_unsupported`
+  before moving any ref. The rename preview no longer needs `--authorize`, and `next` for
+  `ethos land --closeout --json` no longer reports a local write.
 - A reviewed lane abandonment keeps its reviewed nodes in one content-addressed manifest under the
   store's `requests/lane-retirement-manifest/`, which its request and terminal receipt bind by
   digest, size and per-root totals, instead of carrying every node inline in both. A terminal

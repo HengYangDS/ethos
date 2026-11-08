@@ -17,6 +17,8 @@ from pydantic import ConfigDict
 import ethos
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
+from ethos.adapters.mutation.branch_roles import pending_role_rebindings
+from ethos.adapters.mutation.branch_roles import rebinding_command
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof import proof_admission_report
@@ -92,7 +94,9 @@ class CloseoutResolution(BaseModel):
 
 
 def closeout_command_from_status(root: Path, status: dict[str, object]) -> str:
-    """Return the exact closeout command when an accepted candidate is pending."""
+    """Return the exact closeout command when an accepted candidate or a binding is pending."""
+    if pending := pending_role_rebindings(root):
+        return rebinding_command(root, pending, git_adapter.current_head(root))
     policy = load_branch_role_policy(root)
     if status.get("role") != policy.role_for_branch(policy.accepted_branch):
         return ""

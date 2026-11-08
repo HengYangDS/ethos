@@ -9,8 +9,9 @@ from ethos.adapters.mutation.accepted.admission import candidate_to_accepted
 from ethos.adapters.mutation.accepted.promotion import current_acceptance
 from ethos.adapters.mutation.accepted.release import promote_release
 from ethos.adapters.mutation.accepted.retag import mapped_retag
+from ethos.adapters.mutation.branch_roles import pending_role_rebindings
+from ethos.adapters.mutation.branch_roles import rebinding_report
 from ethos.adapters.mutation.branch_roles import rename_legacy_roles
-from ethos.adapters.mutation.branch_roles import resume_renamed_bindings
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
@@ -65,6 +66,46 @@ def _stable_control_replacement(
         independent_verification_receipt=independent_verification_receipt,
     )
     return report, tuple(string_sequence(report.get("required_gaps")))
+
+
+def _legacy_role_result(
+    repo: Path, *, apply: bool, authorize: bool, expect_head: str | None
+) -> EthosResult | None:
+    """Report or finish a legacy role migration before any closeout reads the role refs.
+
+    A worktree left on a renamed ref is bound first, and only by an authorized apply; otherwise
+    the rename itself runs, or None when no legacy role ref remains.
+    """
+    current_head = git.current_head(repo)
+    pending = pending_role_rebindings(repo)
+    report = (
+        rebinding_report(
+            repo,
+            pending,
+            current_head=current_head,
+            apply=apply,
+            authorized=authorize,
+            expect_head=expect_head,
+        )
+        if pending
+        else rename_legacy_roles(
+            repo,
+            current_head=current_head,
+            apply=apply,
+            authorized=authorize,
+            expect_head=expect_head,
+        )
+    )
+    if report is None:
+        return None
+    return EthosResult(
+        command="land",
+        verdict=cast("Verdict", report["verdict"]),
+        state=str(report["state"]),
+        required_gaps=tuple(string_sequence(report["required_gaps"])),
+        next_action=str(report["next_action"]),
+        data={"branch_role_rebinding" if pending else "branch_role_rename": report},
+    )
 
 
 def _closeout_land_result(
@@ -439,23 +480,11 @@ def land_repository(
                 data=cast("dict[str, object]", report["data"]),
             )
         if closeout:
-            resume_renamed_bindings(repo)
-            renamed = rename_legacy_roles(
-                repo,
-                current_head=git.current_head(repo),
-                apply=apply,
-                authorized=authorize,
-                expect_head=expect_head,
+            legacy = _legacy_role_result(
+                repo, apply=apply, authorize=authorize, expect_head=expect_head
             )
-            if renamed is not None:
-                return EthosResult(
-                    command="land",
-                    verdict=cast("Verdict", renamed["verdict"]),
-                    state=str(renamed["state"]),
-                    required_gaps=tuple(string_sequence(renamed["required_gaps"])),
-                    next_action=str(renamed["next_action"]),
-                    data={"branch_role_rename": renamed},
-                )
+            if legacy is not None:
+                return legacy
         current_head = git.current_head(repo)
         command = "closeout" if closeout else "land"
         return (

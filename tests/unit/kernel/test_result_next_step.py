@@ -144,7 +144,8 @@ _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm
         (_REFRESH, _HOST, "confirm-irreversible", True),
         ("lane candidate --refresh-from-accepted --apply --authorize", _HOST, "authorize", False),
         ("land --retag v1 --apply --authorize", _EVIDENCE_WRITE, "authorize", True),
-        ("land --closeout --json", _EVIDENCE_WRITE, "none", False),
+        # The closeout preview only reads the refs and worktrees it reports.
+        ("land --closeout --json", ["local-evidence-write"], "none", False),
         ("lane start --apply", _HOST, "apply", False),
         ("attestation release --apply", _EVIDENCE_WRITE, "apply", True),
     ],

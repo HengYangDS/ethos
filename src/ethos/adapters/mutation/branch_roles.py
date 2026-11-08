@@ -2,14 +2,18 @@
 
 The rename changes no content: one ref transaction creates each standard role ref at
 the head of the legacy ref it replaces and deletes that legacy ref, and every
-worktree bound to a renamed ref is then bound to its new name. A closeout that the
-binding step did not finish binds those worktrees before it does anything else.
+worktree bound to a renamed ref is then bound to its new name, each by one
+compare-and-swap of its `HEAD`. When the binding step did not finish, the closeout
+preview only reports the pending bindings, and only its authorized apply binds them.
+The binder needs Git's symbolic-ref transactions (Git 2.46), which every rename
+checks before it moves a ref.
 """
 
 from __future__ import annotations
 
 import shlex
 from dataclasses import asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -49,6 +53,111 @@ if TYPE_CHECKING:
     from ethos.contracts.plan import TransitionPlan
 
 
+_GIT_FLOOR = "branch_role_rename_git_unsupported"
+
+
+@dataclass(frozen=True)
+class PendingRebinding:
+    """One worktree whose legacy role ref is gone while its standard successor exists."""
+
+    path: Path
+    legacy: str
+    successor: str
+    oid: str
+
+
+def symref_transactions_supported(root: Path) -> bool:
+    """Return whether Git applies symbolic-ref transactions, which the binder needs (Git 2.46+)."""
+    probe = "start\nsymref-verify refs/ethos/symref-probe\nabort\n"
+    completed = run_git(root, "update-ref", "--no-deref", "--stdin", stdin=probe, check=False)
+    return completed.returncode == 0
+
+
+def _require_symref_transactions(root: Path) -> None:
+    if not symref_transactions_supported(root):
+        raise ValueError(_GIT_FLOOR)
+
+
+def pending_role_rebindings(root: Path) -> tuple[PendingRebinding, ...]:
+    """List each worktree left on a renamed legacy role ref; detection reads and writes nothing."""
+    renames = _declared_renames(root)
+    pending: list[PendingRebinding] = []
+    for fields in _worktrees(root):
+        legacy = fields.get("branch", "")
+        successor = renames.get(legacy, "")
+        oid = ref_head(root, successor) if successor else ""
+        if oid and not ref_head(root, legacy):
+            pending.append(
+                PendingRebinding(Path(fields.get("worktree", "")), legacy, successor, oid)
+            )
+    return tuple(pending)
+
+
+def rebinding_gaps(pending: tuple[PendingRebinding, ...]) -> tuple[str, ...]:
+    """Name each pending binding by its legacy role branch."""
+    return tuple(
+        f"branch_role_rebinding_pending:{item.legacy.removeprefix('refs/heads/')}"
+        for item in pending
+    )
+
+
+def rebinding_command(root: Path, pending: tuple[PendingRebinding, ...], current_head: str) -> str:
+    """Return the closeout apply bound to the head that the root has once every binding is made."""
+    head = next(
+        (item.oid for item in pending if item.path.resolve() == root.resolve()), current_head
+    )
+    return (
+        f"ethos land --closeout --apply --authorize --expect-head {head} "
+        f"--root {shlex.quote(root.resolve().as_posix())} --json"
+    )
+
+
+def rebinding_report(
+    root: Path,
+    pending: tuple[PendingRebinding, ...],
+    *,
+    current_head: str,
+    apply: bool,
+    authorized: bool,
+    expect_head: str | None,
+) -> dict[str, object]:
+    """Name the pending bindings, or make them in an authorized apply bound to the expected head."""
+    head = next(
+        (item.oid for item in pending if item.path.resolve() == root.resolve()), current_head
+    )
+    report: dict[str, object] = {
+        "verdict": "block",
+        "state": "rebinding_pending",
+        "head": head,
+        "rebindings": [
+            {"path": item.path.as_posix(), "legacy": item.legacy, "successor": item.successor}
+            for item in pending
+        ],
+        "required_gaps": list(rebinding_gaps(pending)),
+        "next_action": rebinding_command(root, pending, current_head),
+    }
+    if not apply:
+        return report
+    refusals = [
+        *(["authorization_required"] if not authorized else []),
+        *(["expected_head_mismatch"] if expect_head != head else []),
+        *([_GIT_FLOOR] if not symref_transactions_supported(root) else []),
+    ]
+    if refusals:
+        return {**report, "state": "blocked", "required_gaps": refusals}
+    try:
+        bind_worktrees(pending)
+    except ValueError as error:
+        return {**report, "state": "blocked", "required_gaps": [str(error)]}
+    return {
+        **report,
+        "verdict": "pass",
+        "state": "branch_role_worktrees_rebound",
+        "required_gaps": [],
+        "next_action": f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json",
+    }
+
+
 def rename_retained_topic(root: Path, *, apply: bool) -> dict[str, object] | None:
     """Migrate only the caller's retained topic, recovering projections from its attested CAS."""
     if (root / ".git").resolve() == Path(git_common_dir(root)).resolve():
@@ -71,6 +180,7 @@ def rename_retained_topic(root: Path, *, apply: bool) -> dict[str, object] | Non
         plan = _topic_plan(root, source, target, head, row, plan)
         if not apply:
             return {**report, "verdict": "pass", "state": "ready_to_rename"}
+        _require_symref_transactions(root)
         if ref_head(root, source):
             execute_git_effect(root, plan, issuer=row.holder_ref)
         report.update(state="partial_transition", applied=True)
@@ -250,8 +360,9 @@ def rename_legacy_roles(
         for field in ("work_branch_prefix", "proposal_branch_prefix")
     } - {standard.work_branch_prefix, standard.proposal_branch_prefix}
     gaps = [
-        *(["authorization_required"] if not authorized else []),
+        *(["authorization_required"] if apply and not authorized else []),
         *(["expected_head_mismatch"] if expect_head != current_head else []),
+        *([_GIT_FLOOR] if not symref_transactions_supported(root) else []),
         *(
             f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
             for target, _head in renames.values()
@@ -311,37 +422,62 @@ def rename_legacy_roles(
 
 
 def bind_renamed_worktrees(root: Path, renames: Mapping[str, str]) -> None:
-    """Select renamed worktrees once, then freshly recheck only each affected binding."""
-    for block in git_stdout(root, "worktree", "list", "--porcelain").split("\n\n"):
-        fields = dict(line.partition(" ")[::2] for line in block.splitlines())
-        selected = fields.get("branch", "")
-        if selected not in renames:
-            continue
-        path = Path(fields.get("worktree", ""))
-        bound = run_git(path, "symbolic-ref", "--quiet", "HEAD", check=False).stdout.strip()
-        if bound != selected or not ref_head(root, renames[selected]):
-            message = "branch_role_worktree_binding_stale"
-            raise ValueError(message)
-        if not ref_head(root, bound):
-            run_git(path, "symbolic-ref", "HEAD", renames[bound])
-
-
-def resume_renamed_bindings(root: Path) -> None:
-    """Bind a worktree left on a renamed legacy role ref, using its own declared names."""
-    bound = run_git(root, "symbolic-ref", "--quiet", "HEAD", check=False).stdout.strip()
-    workspace = root / binding_path("workspace")
-    if not bound or ref_head(root, bound) or not workspace.is_file():
-        return
-    try:
-        declared = declared_role_names(workspace.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError):
-        return
-    standard = BranchRolePolicy()
-    bind_renamed_worktrees(
-        root,
-        {
-            f"refs/heads/{declared[role]}": f"refs/heads/{getattr(standard, role)}"
-            for role in RENAMED_ROLES
-            if role in declared and ref_head(root, f"refs/heads/{getattr(standard, role)}")
-        },
+    """Bind each worktree left on a renamed ref to its successor, by compare-and-swap."""
+    bind_worktrees(
+        tuple(
+            PendingRebinding(Path(fields.get("worktree", "")), legacy, renames[legacy], oid)
+            for fields in _worktrees(root)
+            if (legacy := fields.get("branch", "")) in renames
+            and not ref_head(root, legacy)
+            and (oid := ref_head(root, renames[legacy]))
+        )
     )
+
+
+def bind_worktrees(pending: tuple[PendingRebinding, ...]) -> None:
+    """Move each worktree's `HEAD` to its successor only while it still names the legacy ref.
+
+    One transaction per worktree holds the successor at its detected head and swaps `HEAD`; a
+    worktree that moved since detection keeps its `HEAD` and refuses the binding as stale.
+    """
+    for item in pending:
+        program = (
+            f"start\nupdate {item.successor} {item.oid} {item.oid}\n"
+            f"symref-update HEAD {item.successor} ref {item.legacy}\nprepare\ncommit\n"
+        )
+        swapped = run_git(
+            item.path, "update-ref", "--no-deref", "--stdin", stdin=program, check=False
+        )
+        if swapped.returncode:
+            bound = run_git(item.path, "symbolic-ref", "--quiet", "HEAD", check=False).stdout
+            gap = "refused" if bound.strip() == item.legacy else "stale"
+            message = f"branch_role_worktree_binding_{gap}:{item.path.as_posix()}"
+            raise ValueError(message)
+
+
+def _worktrees(root: Path) -> list[dict[str, str]]:
+    return [
+        dict(line.partition(" ")[::2] for line in block.splitlines())
+        for block in git_stdout(root, "worktree", "list", "--porcelain").split("\n\n")
+    ]
+
+
+def _declared_renames(root: Path) -> dict[str, str]:
+    """Map each declared legacy role ref to its successor, from the table at `HEAD` or on disk."""
+    workspace = binding_path("workspace")
+    text = committed_file_text(root, "HEAD", workspace)
+    if not text:
+        try:
+            text = (root / workspace).read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            return {}
+    try:
+        declared = declared_role_names(text)
+    except (TypeError, ValueError):
+        return {}
+    standard = BranchRolePolicy()
+    return {
+        f"refs/heads/{declared[role]}": f"refs/heads/{getattr(standard, role)}"
+        for role in RENAMED_ROLES
+        if role in declared and declared[role] != getattr(standard, role)
+    }

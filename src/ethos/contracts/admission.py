@@ -117,7 +117,7 @@ def _rows(*shapes: str) -> tuple[_Row, ...]:
 
 # A command that runs a caller's command cannot see that command's effects.
 _OPAQUE = _rows("host run", "mcp")
-_TOKENLESS_WRITES = _rows("hook install", "land: --closeout")
+_TOKENLESS_WRITES = _rows("hook install")
 _HOST_WRITES = _rows(
     "hook install",
     "hook retire-supply: --apply",

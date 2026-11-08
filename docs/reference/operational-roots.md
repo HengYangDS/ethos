@@ -59,6 +59,14 @@ numbers in those roots only, after exact-path prewrite admission, and refuses an
 occurrence it cannot classify. Verify re-derives the head from its base and
 records the Attestation `redaction:private-peer`.
 
+Once no fed literal lies outside its record roots, a repository turns the push
+check on with `[peer_identity] mode = "required"` in its profile. Push admission
+then refuses a protected peer's identity that a push adds beyond the tips the
+peer advertises, by form and position and never with the value, and the GitLab
+job's `ethos hook commit-range --check peer-identity` checks raw pushes the same
+way. Under the default `disabled`, `ethos status` names a protected peer in
+`summary.peer_identity_advisories`.
+
 Authoring permission and resource retirement are distinct. An explicitly named
 local topic ref may retire after exact accepted absorption even if its name is
 not `work/*`. Use `ethos lane retire absorbed-ref --branch <branch> --expect-head

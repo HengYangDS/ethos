@@ -55,8 +55,8 @@ None.
   `src/ethos/adapters/repo/commit/integration.py`, `src/ethos/adapters/repo/invocation_facts.py`,
   `src/ethos/surface/cli/hook/commands.py`, `src/ethos/application/inspection.py`,
   `src/ethos/repository/paradigm/report.py` and `src/ethos/repository/paradigm/repair.py` (the
-  record binding), `.config/ci/pipeline.cue` and the `.gitlab-ci.yml` it generates, and the
-  projection tests.
+  record binding), `.config/ci/pipeline.cue` and the `.gitlab-ci.yml` it generates, the
+  projection tests, and `docs/reference/operational-roots.md` (turning the check on).
 - Tests: the push check, the backstop and the status advisories; the keyless verifier and the marker
   alignment; the record binding's two repairs and its refusals.
 - Each adopter's job goes through its own CI declaration owner in its activation lane.

@@ -519,17 +519,14 @@ ethos land --json
 
 ### Exact Index Prewrite
 
-`ethos lane prewrite <paths> --target index --patch <file>` evaluates exact native patch paths
-against a disposable index; bind `--editor-root <worktree> --require-editor-root` as usual.
-It preserves unrelated staging, working files, shared objects, refs and Lease, and binds the patch,
-expected real index tree and preimage digest, HEAD, Lease and prospective tree separately.
-Candidate objects use the shared store only
-as a read-only alternate and are removed with the index before return. The tree names content, not
-a retained artifact. In-preview drift fails closed; a split index or present index lock returns
-unknown. Sparse indexes pass through native cached patch checking on the disposable copy.
-Prewrite exposes expected state but does not enforce a CAS at the caller's later native staging
-effect; the existing commit staged admission re-admits actual staged content. The default target
-remains `worktree`.
+`ethos lane prewrite <paths> --target index --patch <file>` checks exact patch paths on a disposable
+index with native cached apply; bind `--editor-root <worktree> --require-editor-root`.
+It preserves real staging, working files, shared objects, refs and Lease. Expected index tree/digest,
+HEAD, Lease and patch bind the prestate separately from the prospective tree. Candidate objects use
+the shared store as a read-only alternate and disappear before return; the tree is not retained.
+In-preview drift fails closed; split or locked indexes are unknown. Sparse indexes use native cached
+checking. The decision exposes expected state but cannot enforce CAS at later native staging;
+the existing commit staged admission re-admits actual staged content. Worktree stays the default.
 
 ### Routine Scoped Execution
 

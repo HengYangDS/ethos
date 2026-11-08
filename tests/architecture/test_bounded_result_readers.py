@@ -49,6 +49,7 @@ def test_the_installed_mcp_acceptance_needs_no_repository_tools() -> None:
         (_ARGV + _HELPER + "def f(stdout):\n    return full(json.loads(stdout))", 0),
         (_ARGV + "def f(run):\n    return Model.model_validate_json(run.stdout)", 1),
         (_ARGV + "def f(path):\n    return json.loads(path.read_text())", 0),
+        (_ARGV + "def f(run):\n    return tomllib.loads(run.stdout)", 0),
         ('argv = ("gh", "--root", "--json")\ndef f(run):\n    return json.loads(run.stdout)', 1),
         ("def f(run):\n    return json.loads(run.stdout)['rows']", 0),
         ("def f(raw):\n    return json.loads(raw)['required_gaps']", 1),
@@ -140,6 +141,7 @@ def _readers(
         for parse in nodes
         if isinstance(parse, ast.Call)
         and _name(parse) in _PARSES
+        and not _toml(parse)
         and (
             (argv and _of_stdout(parse))
             or (fields and assigned.get(id(parse)) in shaped)
@@ -148,6 +150,16 @@ def _readers(
         and not any(parse is arg for arg in expanded)
         and assigned.get(id(parse)) not in expanded_names
     ]
+
+
+def _toml(parse: ast.Call) -> bool:
+    """A `tomllib.loads` call parses TOML, which no ETHOS result is."""
+    func = parse.func
+    return (
+        isinstance(func, ast.Attribute)
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "tomllib"
+    )
 
 
 def _of_stdout(parse: ast.Call) -> bool:

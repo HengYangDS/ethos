@@ -50,8 +50,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `starter_evolution_request_invalid`, `formation_expect_head_not_applicable`, and
   `local_source_acceptance_effect_forbidden` and `local_source_proof_requires_full_repository` where
   `--acceptance-purpose` is refused. Drop the flag, or choose an operation from
-  `ethos <command> --help`. `ProofRequest` is now a frozen Pydantic model in
-  `ethos.contracts.operations.prove`, still importable from `ethos.application.proof.operation`.
+  `ethos <command> --help`. `ProofRequest` is now a frozen Pydantic model; import it from
+  `ethos.contracts.operations.prove`.
 - **Breaking (exit status):** a usage error exits 2 with a `usage_refused` result for every command,
   as JSON on stdout under `--json` and with the parser's message on stderr, and the root commands no
   longer parse negated flags such as `--no-apply`; a result that cannot be delivered exits 3 (was

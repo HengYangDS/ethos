@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.application.proof.operation import ProofRequest
 from ethos.application.proof.operation import prove_repository
+from ethos.contracts.operations.prove import ProofRequest
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import init_git_repo
 

@@ -8,12 +8,12 @@ from contextlib import nullcontext
 import pytest
 from fastmcp import Client
 
-from ethos import cli
+import ethos.cli as cli
 from ethos.application.catalog import Refused
 from ethos.application.catalog import select_operation
-from ethos.application.proof.operation import ProofRequest
 from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
+from ethos.contracts.operations.prove import ProofRequest
 from ethos.result import PAYLOAD_BUDGETS
 from ethos.surface.mcp.server import create_server
 from tests.support.ethos_cli_runner import run_ethos_process

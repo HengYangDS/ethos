@@ -36,7 +36,7 @@ def record_marker_gaps(root: Path, revisions: tuple[str, ...]) -> list[str]:
         return ["record_roots_unread"]
     gaps: dict[str, None] = {}
     for revision in revisions:
-        for path, removed, added in _hunks(root, revision):
+        for path, removed, added in _hunks(root, revision, roots):
             if path.startswith(roots):
                 for gap in _hunk_gaps(removed, added):
                     gaps.setdefault(f"{gap}:{revision}:{path}")
@@ -79,10 +79,25 @@ def _roots(root: Path, revisions: tuple[str, ...]) -> tuple[str, ...] | None:
     return tuple(found) if read else None
 
 
-def _hunks(root: Path, revision: str) -> Iterator[tuple[str, list[str], list[str]]]:
-    """Yield each hunk of a revision's first-parent diff, or its combined diff for a merge."""
+def _hunks(
+    root: Path, revision: str, roots: tuple[str, ...]
+) -> Iterator[tuple[str, list[str], list[str]]]:
+    """Yield each hunk under the roots of a revision's diff, combined for a merge.
+
+    The roots are pathspecs, so Git diffs nothing outside them: the verifier runs on every
+    integration, and a lockfile or vendored tree would otherwise be diffed for nothing.
+    """
     shown = run_git(
-        root, "show", "--format=", "--unified=0", "--no-color", "--no-ext-diff", "--cc", revision
+        root,
+        "show",
+        "--format=",
+        "--unified=0",
+        "--no-color",
+        "--no-ext-diff",
+        "--cc",
+        revision,
+        "--",
+        *roots,
     )
     path, removed, added = "", [], []
     for row in shown.stdout.splitlines():

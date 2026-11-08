@@ -62,3 +62,18 @@ def test_a_marker_without_a_key_is_unkeyed_and_a_broken_one_is_malformed() -> No
     assert not unkeyed(marker(KEY, "host", H1), H1)
     assert malformed_markers(f"x {digest[:31]}.{digest[32:]}.private-peer.invalid y") == 1
     assert malformed_markers(f"x {plain} y") == 0
+
+
+@pytest.mark.parametrize(
+    ("line", "count"),
+    [
+        ("the marker `<hex32>.<hex32>.private-peer.invalid` names its form", 0),
+        ("`<32 lowercase hex>.<32 lowercase hex>.private-peer.invalid`", 0),
+        ("every marker ends in .private-peer.invalid, a reserved name", 0),
+        (marker(KEY, "host", H1)[:65].upper() + ".private-peer.invalid", 1),
+        ("0" + marker(KEY, "host", H1), 1),
+    ],
+)
+def test_only_a_run_of_hexadecimal_labels_can_be_a_malformed_marker(line: str, count: int) -> None:
+    """A placeholder or a bare suffix describes a marker; an uppercase or long label breaks one."""
+    assert malformed_markers(line) == count

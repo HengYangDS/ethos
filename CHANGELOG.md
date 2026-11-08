@@ -38,8 +38,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   an unreadable advertisement refuses as `peer_identity_range_unknown:<remote>`.
   `ethos hook commit-range --check peer-identity` checks raw pushes in the GitLab job with the job's
   own identity variables and is inert without them. Commit validation verifies without a key that a
-  marker edit under a record root reproduces what it replaces. `status` lists a protected peer under
-  `disabled` and an unread mode in `summary.peer_identity_advisories`, and
+  marker edit under a record root reproduces what it replaces, and admits a record that describes
+  the marker's form by placeholder labels. `status` lists a protected peer under `disabled` and an
+  unread mode in `summary.peer_identity_advisories`, and
   `ethos lane repair-paradigm` moves a `rules.toml` `[artifacts]` table's roots into the profile's
   `record_roots`, then retires the table.
 - `ethos status`, `ethos land` and `ethos lane prewrite` accept `--change <id>`, and the MCP

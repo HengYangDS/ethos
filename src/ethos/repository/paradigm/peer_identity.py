@@ -306,17 +306,18 @@ def _numbers(line: str, counts: Callable[[str, int], bool]) -> list[Span]:
     return found
 
 
-# Keyless verification: the shapes a marker may replace, and the tokens that look like markers.
+# Keyless verification: the shapes a marker may replace, and the hexadecimal runs that try to be
+# markers; a placeholder or the bare suffix only describes one.
 _SPAN = re.compile(
     r"(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|\[[0-9A-Fa-f:]+\]|[A-Za-z0-9-]+(?=:\d))(?::\d+)?"
     r"(?:/[A-Za-z0-9._~%-]+)*|[A-Za-z0-9._~%-]+(?:/[A-Za-z0-9._~%-]+)+"
 )
-_MARKER_LIKE = re.compile(r"[0-9A-Za-z.]*\.private-peer\.invalid")
+_MARKER_LIKE = re.compile(r"[0-9A-Fa-f.]+\.private-peer\.invalid")
 _SPAN_PARTS = re.compile(r"(\[[^\]]+\]|[^:/]+)(?::(\d+))?(/.*)?")
 
 
 def malformed_markers(line: str) -> int:
-    """Count the tokens that end like a marker but are not one."""
+    """Count the runs of hexadecimal labels that end like a marker but are not one."""
     return sum(1 for match in _MARKER_LIKE.finditer(line) if not MARKER.fullmatch(match.group()))
 
 

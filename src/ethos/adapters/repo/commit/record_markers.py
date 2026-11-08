@@ -3,8 +3,9 @@
 A redaction replaces a protected peer's identity with keyed markers and numbers. Without the key, a
 reader can still check the edit's shape: each line that introduces a marker pairs, one to one, with
 a removed line of the same hunk whose literal pieces it keeps in order. A marker line with nothing
-to pair, a token that ends like a marker but is none, and a marker that is the plain or empty-key
-digest of what it replaced all refuse. Gaps name the revision and path, never a value.
+to pair, a run of hexadecimal labels that ends like a marker but is none, and a marker that is the
+plain or empty-key digest of what it replaced all refuse. Gaps name the revision and path, never a
+value.
 """
 
 from __future__ import annotations

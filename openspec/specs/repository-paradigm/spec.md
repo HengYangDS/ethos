@@ -833,11 +833,12 @@ and `CHANGELOG.md`. A repository that tags no release MAY omit it.
 
 ### Requirement: Tunable values are declared parameters
 
-Every value that ETHOS applies and a governed repository may need to change SHALL be declared once
-in the paradigm with its default, unit and bound. A binding MAY declare its own value in
-`rules.toml` `[paradigm.<group>]`: a lower value applies, and a higher one applies within the bound
-with a reason in `[paradigm.<group>.reasons]`. Any other declaration SHALL be a gap that leaves the
-default in force. Product code SHALL read each value through the declaration, never as a literal.
+Every value ETHOS applies that a repository may change SHALL be declared once in the paradigm with
+its default, unit and bound. A binding MAY declare its own value in `rules.toml`
+`[paradigm.<group>]`: a lower value applies, and a higher one within the bound with a reason in
+`[paradigm.<group>.reasons]`; a floor row applies only higher values, without a reason. Any other
+declaration SHALL be a gap that leaves the default in force. Product code SHALL read each value
+through the declaration.
 
 #### Scenario: A repository needs a longer gate budget
 
@@ -860,6 +861,11 @@ default in force. Product code SHALL read each value through the declaration, ne
 - **WHEN** product code binds a numeric literal to a wait, as a timeout argument or a duration
   constant
 - **THEN** ETHOS's architecture check reports the file and line.
+
+#### Scenario: A retention floor
+
+- **WHEN** a binding declares a higher `retention.record_seconds` without a reason, or a lower one
+- **THEN** the higher value applies, and the lower one is a gap that leaves the default in force
 
 ### Requirement: Declared names and carrier paths have one source
 

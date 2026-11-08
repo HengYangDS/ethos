@@ -8,6 +8,7 @@ from contextlib import nullcontext
 import pytest
 from fastmcp import Client
 
+import ethos.application.console as console_module
 import ethos.cli as cli
 from ethos.application.catalog import Refused
 from ethos.application.catalog import select_operation
@@ -65,7 +66,7 @@ def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
     usage = run_ethos_process("land", "--bogus", "--json")
     assert (usage.returncode, json.loads(usage.stdout)["state"]) == (2, "usage_refused")
     assert "Unknown option: --bogus." in usage.stderr
-    monkeypatch.setattr(cli, "command_scope", lambda **_: nullcontext())
+    monkeypatch.setattr(console_module, "command_scope", lambda **_: nullcontext())
     monkeypatch.setattr(sys, "argv", ["ethos", "land", "--help", "--json", "--root", "/absent"])
     cli.console_main()
     console = json.loads(capsys.readouterr().out)

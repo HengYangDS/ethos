@@ -10,6 +10,7 @@ from cyclopts import Parameter
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import revoke_cross_host_source
+from ethos.application.console import resolve_root
 from ethos.contracts.coordination import CrossHostHandoffExportRequest
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
@@ -19,7 +20,6 @@ from ethos.surface.cli.lane.lease import LeaseProofOptions
 from ethos.surface.cli.lane.lease import emit_lease_result
 from ethos.surface.cli.lane.lease import execute_declared_lease_operation
 from ethos.surface.cli.lane.lifecycle import lane_app
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
 lane_app.command(_app)

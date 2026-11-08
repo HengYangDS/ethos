@@ -1,52 +1,27 @@
-"""Public human and machine projections of the invoking build identity."""
+"""Public human and machine renderings of the invoking build identity."""
 
 from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
-from ethos.adapters.openspec.cli import OFFICIAL_VERSION
-from ethos.adapters.repo.runtime.authority import invoking_build_identity
-from ethos.adapters.repo.runtime.selection import require_selected_runtime
-from ethos.result import EthosResult
-from ethos.surface.runtime_identity import with_runtime
+from ethos.application.result_projection import version_result
+from ethos.application.result_projection import with_runtime
 
 
 def version_text() -> str:
-    """Render one identity result for Cyclopts' built-in version surface."""
-    identity = invoking_build_identity()
-    runtime_digest, wheel_sha256 = _runtime_artifacts()
-    projection = identity.projection() | {
-        "wheel_sha256": wheel_sha256,
-        "runtime_digest": runtime_digest,
-    }
+    """Render one identity result for Cyclopts' built-in version surface.
+
+    The human line reads only the identity result, so it never reads the committed build.
+    """
+    result = version_result()
     if "--json" in sys.argv[1:]:
-        result = EthosResult(
-            command="version",
-            verdict="pass",
-            state="identified",
-            summary={
-                "product_version": identity.product_version,
-                "distribution_version": identity.distribution_version,
-            },
-            data={"identity": projection, "openspec_version": OFFICIAL_VERSION},
-        )
         payload = with_runtime(result).to_dict()
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    identity = result.data["identity"]
+    source_commit = str(identity["source_commit"]) if isinstance(identity, dict) else ""
     return (
-        f"ethos {identity.product_version} "
-        f"({identity.distribution_version}; {identity.source_commit[:12]}; "
-        f"OpenSpec {OFFICIAL_VERSION})"
+        f"ethos {result.summary['product_version']} "
+        f"({result.summary['distribution_version']}; {source_commit[:12]}; "
+        f"OpenSpec {result.data['openspec_version']})"
     )
-
-
-def _runtime_artifacts() -> tuple[str, str]:
-    runtime = Path(sys.prefix).resolve().parent
-    if Path(sys.prefix).name != "python" or runtime.parent.name != "runtime":
-        return "", ""
-    try:
-        selected = require_selected_runtime(runtime, carrier=True)
-    except (OSError, ValueError):
-        return "", ""
-    return selected.digest, selected.wheel_sha256

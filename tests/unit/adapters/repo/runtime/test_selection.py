@@ -15,6 +15,7 @@ import pytest
 
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.selection as runtime_selection
+import ethos.application.console as console
 import ethos.cli as cli
 import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -386,10 +387,12 @@ def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypat
     monkeypatch.setattr(cli.sys, "argv", ["ethos", *args])
     monkeypatch.setattr(cli.sys, "executable", str(tmp_path / "host python.exe"))
     monkeypatch.setattr(cli.sys, "platform", "win32")
-    monkeypatch.setattr(cli, "git_common_dir", lambda _root: str(common))
-    monkeypatch.setattr(cli, "current_runtime", lambda _common: SimpleNamespace(python=selected))
-    monkeypatch.setattr(cli, "subprocess", SimpleNamespace(run=relay), raising=False)
-    monkeypatch.setattr(cli.os, "execv", lambda *_args: pytest.fail("Windows used execv"))
+    monkeypatch.setattr(console, "git_common_dir", lambda _root: str(common))
+    monkeypatch.setattr(
+        console, "current_runtime", lambda _common: SimpleNamespace(python=selected)
+    )
+    monkeypatch.setattr(console, "subprocess", SimpleNamespace(run=relay), raising=False)
+    monkeypatch.setattr(console.os, "execv", lambda *_args: pytest.fail("Windows used execv"))
 
     with pytest.raises(SystemExit) as exited:
         cli.console_main()

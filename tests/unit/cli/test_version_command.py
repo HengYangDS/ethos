@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 from packaging.version import Version
 
+import ethos.application.result_projection as result_projection
 import ethos.surface.cli.version as version_module
 from ethos.repository.release.identity import product_version
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -30,7 +31,7 @@ def test_version_json_is_one_utf8_result_not_double_encoded() -> None:
     identity = payload["data"]["identity"]
     assert identity["product_version"] == _PRODUCT
     assert identity["distribution_version"].startswith(_DEVELOPMENT)
-    assert payload["data"]["openspec_version"] == version_module.OFFICIAL_VERSION
+    assert payload["data"]["openspec_version"] == result_projection.OFFICIAL_VERSION
     assert len(identity["source_commit"]) == 40
     assert len(identity["source_tree"]) == 40
     assert "channel" not in identity
@@ -44,10 +45,10 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.startswith(f"ethos {_PRODUCT} ")
     assert _DEVELOPMENT in completed.stdout
-    assert f"OpenSpec {version_module.OFFICIAL_VERSION}" in completed.stdout
+    assert f"OpenSpec {result_projection.OFFICIAL_VERSION}" in completed.stdout
     assert "{" not in completed.stdout
     monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
-    monkeypatch.setattr(version_module, "require_selected_runtime", Mock(side_effect=ValueError))
+    monkeypatch.setattr(result_projection, "require_selected_runtime", Mock(side_effect=ValueError))
     assert version_module.version_text().startswith(f"ethos {_PRODUCT} ")
 
 

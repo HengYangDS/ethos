@@ -19,8 +19,8 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.worktree_effects import sync_worktree
+from ethos.application.result_projection import with_runtime
 from ethos.contracts.semantic import Attestation
-from ethos.surface.runtime_identity import with_runtime
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit

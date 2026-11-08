@@ -30,6 +30,7 @@ from ethos.adapters.repo.runtime.materialization.host_retention import legacy_su
 from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.store.state.schema import state_schema_report
+from ethos.application.console import resolve_root
 from ethos.application.peer_identity import peer_identity_backstop
 from ethos.application.retention import apply_record_retirement
 from ethos.application.retention import preview_record_retirement
@@ -42,7 +43,6 @@ from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="hook", help="Hook admission and guard reports.", show=False)
 app.command(_app)

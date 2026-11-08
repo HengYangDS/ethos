@@ -23,8 +23,8 @@ from ethos.application.inspection import inspect_repository
 from ethos.application.land.operation import land_repository
 from ethos.application.plan import plan_repository
 from ethos.application.publication.operation import publish_repository
+from ethos.application.result_projection import with_runtime
 from ethos.result import expand_result
-from ethos.surface.runtime_identity import with_runtime
 
 
 def _run(

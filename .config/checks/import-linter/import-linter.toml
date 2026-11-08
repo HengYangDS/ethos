@@ -26,13 +26,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "ethos.cli -> ethos.adapters.process",
-  "ethos.cli -> ethos.adapters.repo.git",
-  "ethos.cli -> ethos.adapters.repo.invocation_facts",
-  "ethos.cli -> ethos.adapters.repo.runtime.interpreter",
-  "ethos.cli -> ethos.adapters.repo.runtime.selection",
-  "ethos.cli -> ethos.adapters.store.state.schema",
-  "ethos.cli -> ethos.repository.profile",
   "ethos.surface.cli.hook.commands -> ethos.adapters.admission.git_admission",
   "ethos.surface.cli.hook.commands -> ethos.adapters.admission.paths",
   "ethos.surface.cli.hook.commands -> ethos.adapters.admission.publication",
@@ -77,8 +70,6 @@ ignore_imports = [
   "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.linked",
   "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.operation",
   "ethos.surface.cli.lane.retirement -> ethos.normalization.coercion",
-  "ethos.surface.cli.output -> ethos.adapters.process",
-  "ethos.surface.cli.output -> ethos.adapters.repo.git",
   "ethos.surface.cli.root.attestation -> ethos.adapters.actor",
   "ethos.surface.cli.root.attestation -> ethos.adapters.repo.attestation_set",
   "ethos.surface.cli.root.attestation -> ethos.adapters.store.custody",
@@ -87,14 +78,8 @@ ignore_imports = [
   "ethos.surface.cli.root.reference -> ethos.adapters.repo.content.observation",
   "ethos.surface.cli.root.reference -> ethos.adapters.repo.git",
   "ethos.surface.cli.root.reference -> ethos.repository.registry.docs.health",
-  "ethos.surface.cli.root_binding -> ethos.adapters.repo.git",
-  "ethos.surface.cli.version -> ethos.adapters.openspec.cli",
-  "ethos.surface.cli.version -> ethos.adapters.repo.runtime.authority",
-  "ethos.surface.cli.version -> ethos.adapters.repo.runtime.selection",
   "ethos.surface.mcp.server -> ethos.adapters.actor",
   "ethos.surface.mcp.server -> ethos.repository.paradigm.parameters",
-  "ethos.surface.runtime_identity -> ethos.adapters.process",
-  "ethos.surface.runtime_identity -> ethos.adapters.repo.runtime.authority",
 ]
 
 [[tool.importlinter.contracts]]

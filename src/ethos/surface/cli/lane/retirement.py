@@ -13,13 +13,13 @@ from ethos.adapters.mutation.lane_retirement.abandonment import derive_lane_aban
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.lane_retirement.linked import retire_linked_work_lane
 from ethos.adapters.mutation.lane_retirement.operation import execute_retirement_operation
+from ethos.application.console import resolve_root
 from ethos.contracts.retirement import LinkedRetirementRequest
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="retire", help="Bounded Work Lane retirement lifecycle.")
 lane_app.command(_app)

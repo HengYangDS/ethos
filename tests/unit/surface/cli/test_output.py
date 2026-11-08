@@ -9,6 +9,7 @@ import sys
 
 import pytest
 
+import ethos.application.result_projection as result_projection
 import ethos.surface.cli.output as output
 from ethos.adapters.process import ProcessExecutionError
 from ethos.result import EthosResult
@@ -222,7 +223,7 @@ def test_an_unresolvable_store_leaves_the_result_inline(
     def unavailable(_anchor):
         raise failure
 
-    monkeypatch.setattr(output, "git_common_dir", unavailable)
+    monkeypatch.setattr(result_projection, "git_common_dir", unavailable)
     result = EthosResult(command="status", verdict="pass", state="ready", data={"x": "y" * 40_000})
     output.emit(result, json_output=True, artifact_root=tmp_path)
     bound = json.loads(capsys.readouterr().out)["bound"]

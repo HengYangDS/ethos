@@ -11,11 +11,11 @@ from cyclopts import Parameter
 
 from ethos.adapters.mutation.accepted.signature import repair_signature
 from ethos.adapters.repo.trust_anchor.authorization import authorize_configured_commit_signer
+from ethos.application.console import resolve_root
 from ethos.contracts.semantic import parse_semantic_json
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
-from ethos.surface.cli.root_binding import resolve_root
 
 
 class CommitSignerTrustOptions(AppliedLaneCommandOptions):

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.application.console as console
 import ethos.cli as product_cli
 from ethos.application.adoption import adopt_repository
 from tests.support.fixture_signer import fixture_signer_inputs
@@ -191,7 +192,7 @@ def test_mcp_creation_does_not_select_an_existing_target_runtime(
     entered: list[bool] = []
     monkeypatch.setattr(sys, "argv", ["ethos", "mcp", "--create-target", "--root", str(target)])
     monkeypatch.setattr(
-        product_cli,
+        console,
         "git_common_dir",
         lambda _root: pytest.fail("creation selected the target's runtime"),
     )

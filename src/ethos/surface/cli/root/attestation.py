@@ -1,7 +1,5 @@
 """Public record and query projections over the sole Attestation set."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +16,7 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.attestation_set import release_attestation
 from ethos.adapters.store.custody import custody_digests
 from ethos.adapters.store.custody import require_custody
+from ethos.application.console import resolve_root
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import validate_attestation_selector
 from ethos.result import EthosResult
@@ -25,7 +24,6 @@ from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(
     name="attestation",

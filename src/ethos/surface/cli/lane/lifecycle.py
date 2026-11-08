@@ -30,6 +30,7 @@ from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh import refresh_wor
 from ethos.adapters.mutation.worktree.detached_cleanup import housekeeping_worktrees
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.application.console import resolve_root
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -42,7 +43,6 @@ from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
 app.command(lane_app)

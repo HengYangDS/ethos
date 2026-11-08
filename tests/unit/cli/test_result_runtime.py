@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-import ethos.surface.runtime_identity as runtime_identity
+import ethos.application.result_projection as result_projection
 from ethos.adapters.repo.runtime.authority import committed_build_identity
 from ethos.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -37,9 +37,9 @@ def test_a_result_renders_when_its_runtime_cannot_be_read(monkeypatch: pytest.Mo
     def unreadable() -> None:
         raise OSError
 
-    monkeypatch.setattr(runtime_identity, "committed_build_identity", unreadable)
+    monkeypatch.setattr(result_projection, "committed_build_identity", unreadable)
 
-    result = runtime_identity.with_runtime(
+    result = result_projection.with_runtime(
         EthosResult(command="status", verdict="pass", state="ready")
     )
 

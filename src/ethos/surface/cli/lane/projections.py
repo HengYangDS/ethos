@@ -6,11 +6,11 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.projection import project_repository
+from ethos.application.console import resolve_root
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 
 @lane_app.command(name="project")

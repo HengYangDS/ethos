@@ -2,31 +2,19 @@
 
 from __future__ import annotations
 
-import os
-import shlex
-import subprocess
 import sys
-from contextlib import nullcontext
 from importlib import import_module
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.process import command_scope
-from ethos.adapters.repo.git import GitExecutionError
-from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import repository_root
-from ethos.adapters.repo.invocation_facts import invocation_scope
-from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
-from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
-from ethos.adapters.store.state.schema import state_schema_report
+from ethos.application.console import command_boundary
+from ethos.application.console import invocation_parameters
+from ethos.application.console import run_console
 from ethos.contracts.admission import root_command
 from ethos.contracts.operations.catalog import COMMANDS
-from ethos.contracts.operations.catalog import select_argv
-from ethos.contracts.outcome import outcome_of
-from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.result import EthosResult
 from ethos.surface.cli.version import version_text
+
+if TYPE_CHECKING:
+    from ethos.result import EthosResult
 
 # `ethos --help --json` prints every root command's catalog, `ethos <command> --help --json` one.
 _ROOT_HELP = frozenset({"ethos", *COMMANDS})
@@ -35,150 +23,32 @@ _ROOT_HELP = frozenset({"ethos", *COMMANDS})
 def console_main() -> None:
     """Dispatch the installed command through the target repository's exact selection."""
     argv = sys.argv[1:]
-    command = "version" if "--version" in argv else root_command(argv) or "ethos"
-    try:
-        target = _argument_root(argv)
-        if (
-            _creates_root(argv)
-            or (command == "mcp" and "--create-target" in argv)
-            or not target.exists()
-        ):
-            main()
-            return
-        common = git_common_dir(target)
-        selector = Path(common) / "ethos/runtime/CURRENT"
-        if (
-            common
-            and argv[:2] != ["hook", "install"]
-            and (selector.exists() or selector.is_symlink())
-        ):
-            selected = current_runtime(Path(common))
-            if Path(sys.executable).absolute() != selected.python.absolute():
-                executable = str(selected.python)
-                commandline = [executable, *PYTHON_FLAGS, "-m", "ethos.cli", *argv]
-                if sys.platform == "win32":
-                    raise SystemExit(subprocess.run(commandline, check=False).returncode)
-                os.execv(executable, commandline)
-                return
-            if command == "status":
-                with runtime_inspection_scope(Path(common), selected):
-                    main()
-                return
-    except ProcessExecutionError as exc:
-        import_module("ethos.surface.cli.output").emit_process_execution_failure(
-            command=command, error=exc, json_output="--json" in argv, root=_argument_root(argv)
-        )
-        return
-    except (OSError, ValueError) as exc:
-        _emit_contract_failure(command, argv, exc)
-        return
-    main()
+    failure = run_console(argv, main)
+    if failure is not None:
+        _emit(failure, json_output="--json" in argv, enforce=True)
 
 
 def main() -> None:
     """Run the ETHOS CLI."""
     argv = sys.argv[1:]
     command = "version" if "--version" in argv else root_command(argv) or "ethos"
-    with command_scope(handle_termination=True):
-        try:
-            if "--version" in argv:
-                sys.stdout.write(f"{version_text()}\n")
-                return
-            commands = import_module("ethos.surface.cli.application")
-            commands.load_command_groups(argv)
-            if "--json" in argv and {"--help", "-h"} & set(argv) and command in _ROOT_HELP:
-                catalog = import_module("ethos.surface.cli.root.catalog")
-                output = import_module("ethos.surface.cli.output")
-                output.emit(catalog.help_result(command), json_output=True, enforce=False)
-                return
-            parameters = import_module("ethos.repository.paradigm.parameters")
-            # Every command observes an immutable fact once; the MCP server serves many requests.
-            invocation = nullcontext() if command == "mcp" else invocation_scope()
-            with parameters.repository_parameters(_argument_root(argv)), invocation:
-                commands.run_application(argv)
-        except ProcessExecutionError as exc:
-            import_module("ethos.surface.cli.output").emit_process_execution_failure(
-                command=command,
-                error=exc,
-                json_output="--json" in argv,
-                root=_argument_root(argv),
-            )
-        except ValueError as exc:
-            if str(exc) == INVALID_PROFILE_ERROR:
-                _emit_invalid_profile(command, argv)
-            else:
-                _emit_contract_failure(command, argv, exc)
-        except RuntimeError as exc:
-            _emit_contract_failure(command, argv, exc)
+    with command_boundary(command, argv, _emit):
+        if "--version" in argv:
+            sys.stdout.write(f"{version_text()}\n")
+            return
+        commands = import_module("ethos.surface.cli.application")
+        commands.load_command_groups(argv)
+        if "--json" in argv and {"--help", "-h"} & set(argv) and command in _ROOT_HELP:
+            catalog = import_module("ethos.surface.cli.root.catalog")
+            _emit(catalog.help_result(command), json_output=True, enforce=False)
+            return
+        with invocation_parameters(command, argv):
+            commands.run_application(argv)
 
 
-def _creates_root(argv: list[str]) -> bool:
-    """Return whether the argv selects an operation that forms its root instead of binding one."""
-    selected = select_argv(["ethos", *argv])
-    return selected is not None and selected[1] is not None and selected[1].creates_root
-
-
-def _emit_invalid_profile(command: str, argv: list[str]) -> None:
-    """Emit the stable structured invalid-profile result, exiting as the selected operation does.
-
-    An unselected root argv exits as a refusal would, and a group command keeps exit 0.
-    """
-    selected = select_argv(["ethos", *argv])
-    import_module("ethos.surface.cli.output").emit_invalid_repository_profile(
-        command=command,
-        json_output="--json" in argv,
-        enforce=selected is not None and (selected[1] is None or selected[1].exit == "verdict"),
-        root=_argument_root(argv),
-    )
-
-
-def _emit_contract_failure(command: str, argv: list[str], error: Exception) -> None:
-    """Close one public contract failure with every gap it carries, without a traceback."""
-    outcome = outcome_of(error, fallback="public_command_contract_failure")
-    gap = outcome.gaps[0]
-    root = _argument_root(argv)
-    data: dict[str, object] = {"error_boundary": "public_command_contract"}
-    schema: dict[str, object] | None = None
-    if gap.startswith("state_schema_"):
-        try:
-            schema = state_schema_report(repository_root(root))
-        except (GitExecutionError, OSError, ValueError):
-            schema = {
-                "expected_state": "current",
-                "observed_state": "unavailable",
-            }
-        data["state_schema"] = schema
-    import_module("ethos.surface.cli.output").emit(
-        EthosResult.from_outcome(
-            command, outcome, next_action=_contract_failure_action(gap, root, schema), data=data
-        ),
-        json_output="--json" in argv,
-        enforce=True,
-    )
-
-
-def _argument_root(argv: list[str]) -> Path:
-    if "--root" in argv:
-        index = argv.index("--root")
-        if index + 1 < len(argv):
-            return Path(argv[index + 1]).resolve()
-    value = next((item.partition("=")[2] for item in argv if item.startswith("--root=")), "")
-    return Path(value).resolve() if value else Path.cwd().resolve()
-
-
-def _contract_failure_action(
-    gap: str,
-    root: Path,
-    schema: dict[str, object] | None,
-) -> str:
-    if not gap.startswith("state_schema_"):
-        return "repair the reported gap and rerun the command"
-    command = ["ethos", "hook", "install", "--root", root.as_posix()]
-    observed = str((schema or {}).get("observed_state") or "")
-    if observed not in {"absent", "current", "legacy"} and gap != "state_schema_migration_required":
-        command.extend(("--reset-state", "--authorize"))
-    command.append("--json")
-    return shlex.join(command)
+def _emit(result: EthosResult, *, json_output: bool, enforce: bool) -> None:
+    """Render through the output surface, imported only when a result is emitted."""
+    import_module("ethos.surface.cli.output").emit(result, json_output=json_output, enforce=enforce)
 
 
 if __name__ == "__main__":

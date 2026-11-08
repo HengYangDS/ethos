@@ -14,6 +14,7 @@ from ethos.application.catalog import Refused
 from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.application.catalog import usage_refusal
+from ethos.application.console import resolve_root
 from ethos.contracts.operations.adopt import AdoptRequest
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.declaration import CommandRequest
@@ -27,7 +28,6 @@ from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 _STATUS, _PLAN, _PROVE = StatusRequest(), PlanRequest(), ProofRequest()
 _LAND, _PUBLISH, _ADOPT = LandRequest(), PublishRequest(), AdoptRequest()

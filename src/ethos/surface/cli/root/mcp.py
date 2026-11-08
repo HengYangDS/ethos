@@ -2,9 +2,9 @@
 
 from importlib import import_module
 
+from ethos.application.console import resolve_root
 from ethos.surface.cli.application import app
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 
 @app.command

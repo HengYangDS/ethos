@@ -6,12 +6,12 @@ from typing import Annotated
 from cyclopts import App
 from cyclopts import Parameter
 
+from ethos.application.console import resolve_root
 from ethos.application.redaction import redact_private_addresses
 from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.lane.lifecycle import project_lane_result
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="redact", help="Redact protected peer identity in a lane's records.")
 lane_app.command(_app)

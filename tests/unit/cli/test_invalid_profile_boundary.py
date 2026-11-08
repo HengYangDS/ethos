@@ -12,8 +12,8 @@ from typing import cast
 import pytest
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
+import ethos.application.result_projection as result_projection
 import ethos.surface.cli.application as application
-import ethos.surface.cli.version as version_module
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
@@ -22,12 +22,12 @@ from ethos.application.inspection import inspect_repository
 from ethos.application.land.operation import land_repository
 from ethos.application.plan import plan_repository
 from ethos.application.publication.operation import publish_repository
+from ethos.application.result_projection import with_runtime
 from ethos.cli import console_main
 from ethos.cli import main
 from ethos.contracts.admission import root_command
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
-from ethos.surface.runtime_identity import with_runtime
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
@@ -206,7 +206,7 @@ def test_native_execution_failures_preserve_evidence_and_transport(
         )
 
     if entrypoint is console_main:
-        monkeypatch.setattr("ethos.cli.git_common_dir", fail)
+        monkeypatch.setattr("ethos.application.console.git_common_dir", fail)
     else:
         monkeypatch.setattr(application, "load_command_groups", fail)
     payload = _invoke(
@@ -245,7 +245,7 @@ def test_source_timeout_reaches_public_failure_without_reinstall_or_traceback(
         )
 
     monkeypatch.setattr(runtime_authority, "expected_runtime_build", expire)
-    monkeypatch.setattr(version_module, "invoking_build_identity", expire)
+    monkeypatch.setattr(result_projection, "invoking_build_identity", expire)
     payload = _invoke(monkeypatch, capsys, command, "--root", str(repo), "--json")
     assert payload["required_gaps"] == ["git_process_timed_out"]
     assert payload["data"]["observation"]["stderr"] == "waiting"
@@ -267,7 +267,7 @@ def test_version_source_movement_is_reported_with_its_actual_root(
             observation={"expected_head": "a" * 40, "observed_head": "b" * 40},
         )
 
-    monkeypatch.setattr(version_module, "invoking_build_identity", moved)
+    monkeypatch.setattr(result_projection, "invoking_build_identity", moved)
     payload = _invoke(monkeypatch, capsys, "--version", "--json")
     assert payload["command"] == "version"
     assert payload["data"]["observation"]["observed_head"] == "b" * 40

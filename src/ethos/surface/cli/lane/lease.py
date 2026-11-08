@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.application.console import resolve_root
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.coordination import LeaseTakeoverRequest
 from ethos.contracts.semantic import Attestation
@@ -31,7 +32,6 @@ from ethos.surface.cli.lane.lifecycle import lane_app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
 lane_app.command(_app)

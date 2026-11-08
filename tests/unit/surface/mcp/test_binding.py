@@ -10,8 +10,8 @@ from fastmcp import Client
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 from ethos.application.adoption import adopt_repository
+from ethos.application.result_projection import with_runtime
 from ethos.surface.mcp.server import create_server
-from ethos.surface.runtime_identity import with_runtime
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane

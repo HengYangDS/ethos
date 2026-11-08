@@ -13,6 +13,7 @@ import pytest
 import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.invocation_facts as invocation_facts
 import ethos.adapters.repo.runtime.authority as authority
+import ethos.application.console as console
 import ethos.cli as cli
 import ethos.surface.cli.application as application
 from ethos.adapters.repo.git import run_git
@@ -237,7 +238,7 @@ def test_each_command_but_the_mcp_server_is_one_invocation(
         for _ in range(2):
             invocation_facts.invocation_fact(("cli-entry",), lambda: observed.append(1))
 
-    monkeypatch.setattr(cli, "command_scope", lambda **_: nullcontext())
+    monkeypatch.setattr(console, "command_scope", lambda **_: nullcontext())
     monkeypatch.setattr(application, "load_command_groups", lambda _argv: None)
     monkeypatch.setattr(application, "run_application", dispatch)
     monkeypatch.setattr(sys, "argv", ["ethos", *command, "--root", str(tmp_path)])

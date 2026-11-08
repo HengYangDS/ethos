@@ -9,11 +9,11 @@ from cyclopts import Parameter
 
 import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.gates.host_admission import run_admitted
+from ethos.application.console import resolve_root
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
-from ethos.surface.cli.root_binding import resolve_root
 
 _app = App(name="host", help="Admit heavy local work through the host's one queue.")
 app.command(_app)

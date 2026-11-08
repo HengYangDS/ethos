@@ -24,9 +24,9 @@ from ethos.application.inspection import inspect_repository
 from ethos.application.land.operation import land_repository
 from ethos.application.plan import plan_repository
 from ethos.application.publication.operation import publish_repository
+from ethos.application.result_projection import with_runtime
 from ethos.repository.paradigm.parameters import seconds
 from ethos.result import EthosResult
-from ethos.surface.runtime_identity import with_runtime
 
 
 class _BoundCalls(Middleware):

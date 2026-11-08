@@ -6,9 +6,6 @@ private ones are neutral examples of their class, never a real peer's address.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-
 
 def _ipv4(*octets: int) -> str:
     """Join octets when used, so tracked text names no literal of a private class."""
@@ -20,11 +17,8 @@ INTERNAL_FORGE = "forge." + "internal:8080"
 DOCUMENTATION_FORGE = "192.0.2.1:8080"
 
 
-def redaction_marker(literal: str, key: bytes) -> str:
-    """Return the redaction marker that an immutable record carries in place of a literal."""
-    digest = hmac.new(key, literal.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"[redacted:private-network-address:hmac-sha256:{digest}]"
-
+# A record's peer marker, in the form `ethos lane redact private-addresses` writes.
+PEER_MARKER = f"{'ab' * 16}.{'cd' * 16}.private-peer.invalid"
 
 # One line each, so a native scan's line numbers identify the case.
 PRIVATE_TEXTS = {
@@ -59,5 +53,5 @@ DOCUMENTATION_TEXTS = {
     "link-local": "addr=" + _ipv4(169, 254, 1, 1),
     "link-local-v6": "fe" + "80::1%en0",
     "loopback-v6": "http://[" + ":" + ":1]:9/",
-    "redaction": redaction_marker(PRIVATE_FORGE, b"record owner key"),
+    "redaction": f"remote https://user@{PEER_MARKER}/x and git@{PEER_MARKER}:{PEER_MARKER}",
 }

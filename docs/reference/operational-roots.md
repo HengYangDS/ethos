@@ -43,6 +43,22 @@ peer remote rename, and every gap that needs judgment with its canonical repair.
 Apply writes only after exact-path prewrite admission and plans nothing on a
 repaired tree. It neither runs the follow-up commands nor commits.
 
+To keep a protected peer's identity out of tracked records, preview it and then
+redact it with the owner's key, read from standard input:
+
+```bash
+ethos lane redact private-addresses --json
+ethos lane redact private-addresses --apply --key-stdin --authorize --expect-head <head> --json
+ethos lane redact private-addresses --verify --key-stdin --base <rev> --head <rev> --json
+```
+
+The preview needs no key and prints no value: it lists each occurrence's file,
+line and form, and whether it lies in the effective record roots, the paradigm's
+immutable roots plus the profile's `record_roots`. Apply writes keyed markers and
+numbers in those roots only, after exact-path prewrite admission, and refuses an
+occurrence it cannot classify. Verify re-derives the head from its base and
+records the Attestation `redaction:private-peer`.
+
 Authoring permission and resource retirement are distinct. An explicitly named
 local topic ref may retire after exact accepted absorption even if its name is
 not `work/*`. Use `ethos lane retire absorbed-ref --branch <branch> --expect-head

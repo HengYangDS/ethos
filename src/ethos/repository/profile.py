@@ -26,6 +26,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.paradigm.declaration import binding_path
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 DEFAULT_ROOTS = {
     "rules": "rules",
@@ -54,6 +55,19 @@ NonEmptyTuple = Annotated[
 ]
 RepositoryPathTuple = Annotated[
     tuple[RepositoryPath, ...],
+    BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
+]
+
+
+def _directory(value: str) -> str:
+    if not value.endswith("/"):
+        raise ValueError(PATH_VALUE_ERROR)
+    return value
+
+
+# A record root ends with `/`, as the paradigm's immutable roots do, so it holds whole segments.
+RecordRoots = Annotated[
+    tuple[Annotated[RepositoryPath, AfterValidator(_directory)], ...],
     BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
 ]
 CodeCorrectnessMap = Annotated[
@@ -229,6 +243,7 @@ class RepositoryProfileDeclaration(_ProfileModel):
     profile_id: NonEmpty
     openspec: OpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
+    record_roots: RecordRoots = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     proof: ProofPolicy = Field(default_factory=ProofPolicy)
     independent_verification: IndependentVerificationPolicy = Field(
@@ -295,6 +310,19 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
     except (OSError, RuntimeError, UnicodeDecodeError, ValueError):
         exists, text = path.exists() or path.is_symlink(), ""
     return repository_profile_from_text(repo, exists=exists, text=text)
+
+
+def effective_record_roots(profile: RepositoryProfile) -> tuple[str, ...]:
+    """Return the paradigm's immutable roots and one profile's record roots; none is immutable.
+
+    The profile may be the working tree's or one read at a commit, so a verifier of a range reads
+    the roots that each revision declares.
+    """
+    if profile.state == "invalid":
+        message = "repository_profile_invalid"
+        raise ValueError(message)
+    declared = profile.declaration.record_roots if profile.declaration is not None else ()
+    return tuple(dict.fromkeys((*load_repository_paradigm().immutable_roots, *declared)))
 
 
 def profile_root(root: Path, key: str) -> Path:

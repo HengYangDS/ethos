@@ -14,6 +14,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Added
 
+- `ethos lane redact private-addresses` removes a protected forge's identity from a repository's
+  records. A peer is protected when its host is private-class or `remote.<name>.forgePrivate` is
+  true; its feed is read from local Git state and never printed. The keyless preview lists each
+  occurrence's file, line and form and whether it lies in the effective record roots, the
+  paradigm's immutable roots plus the profile's new `record_roots`;
+  `--apply --key-stdin --authorize --expect-head <oid>` writes keyed
+  `<hex32>.<hex32>.private-peer.invalid` markers and replacement numbers in those roots under
+  prewrite, and a record holding a redacted file's SHA-256 follows it;
+  `--verify --key-stdin --base <rev> --head <rev>` re-derives them from the base and records the
+  Attestation `redaction:private-peer`, refusing a key of another generation without `--rotate`.
 - `ethos status`, `ethos land` and `ethos lane prewrite` accept `--change <id>`, and the MCP
   `status` and `land` tools accept `change`, as `plan` and `prove` already did. An explicit Change
   takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks

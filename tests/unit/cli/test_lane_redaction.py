@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
+import ethos.application.redaction as redaction
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.application import redaction
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git

@@ -87,3 +87,32 @@ def test_a_record_retired_during_a_write_is_linked_again(
     assert content_addressed.write_content_addressed(target, b"{}", collision="collision") == target
     assert removed == [target]
     assert target.read_bytes() == b"{}"
+
+
+@pytest.mark.parametrize("holder", ["directory", "unreadable", "vanishing"])
+def test_a_name_that_cannot_be_adopted_is_a_collision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, holder: str
+) -> None:
+    """A non-file, an unreadable file or a name that keeps vanishing raises the collision."""
+    target = tmp_path / "records" / "digest.json"
+    target.parent.mkdir()
+    if holder == "directory":
+        target.mkdir()
+    else:
+        target.write_bytes(b"record")
+    if holder == "unreadable":
+        target.chmod(0)
+    elif holder == "vanishing":
+
+        def vanish(*_args: object) -> None:
+            raise FileNotFoundError(target)
+
+        monkeypatch.setattr(content_addressed, "_adopt", vanish)
+    try:
+        with pytest.raises(ValueError, match="record_collision"):
+            content_addressed.write_content_addressed(
+                target, b"record", collision="record_collision"
+            )
+    finally:
+        if target.is_file():
+            target.chmod(0o600)

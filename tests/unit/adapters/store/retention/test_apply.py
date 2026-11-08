@@ -247,3 +247,79 @@ def test_an_apply_refuses_and_deletes_nothing(
     assert (result.verdict, result.required_gaps) == ("block", (gap,)), result
     assert check.exists()
     assert not (store / "receipts/record-retirement").exists()
+
+
+class _Stuck(type(Path())):
+    """A tombstone whose unlink another process holds open."""
+
+    def unlink(self, *_args: object, **_kwargs: object) -> None:
+        raise PermissionError(self)
+
+
+@pytest.mark.parametrize(
+    "event",
+    ["slot", "lane-lock", "in_use", "vanished", "altered", "adopted", "unlink", "runtime", "holds"],
+)
+def test_a_batch_keeps_or_defers_what_it_cannot_delete_cleanly(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, event: str
+) -> None:
+    """A held lock, a record in use, gone, changed or adopted, a stuck unlink or another runtime."""
+    store = local_state_root(repo)
+    check = put(store, "artifacts", proof_check(), ".json", age_days=30)
+    second = put(store, "artifacts", proof_check("b" * 40), ".json", age_days=30)
+    unit, _digest = lane_unit(store, "work/old", age_days=30)
+    plan = _planned(repo)
+    real_retire, real_lock = apply.retire, apply.custody_lock
+    (store / "operations").mkdir(exist_ok=True)
+    locks = {"slot": "proof-slot.lock", "lane-lock": "operations/lane-retirement.lock"}
+    held = FileLock(str(store / locks[event])) if event in locks else nullcontext()
+
+    def retire(path: Path) -> Path | None:
+        if event == "vanished":
+            raise FileNotFoundError(path)
+        stone = real_retire(path)
+        if event == "altered" and stone is not None:
+            os.utime(stone, ns=(1, 1))
+        return _Stuck(stone) if event == "unlink" and path == check and stone else stone
+
+    def adopting(root: Path) -> FileLock:
+        check.write_bytes(proof_check())
+        return real_lock(root)
+
+    answers = iter([True])
+    patches = {
+        "vanished": (apply, "retire", retire),
+        "altered": (apply, "retire", retire),
+        "unlink": (apply, "retire", retire),
+        "in_use": (apply, "retire", lambda _path: None),
+        "adopted": (apply, "custody_lock", adopting),
+        "runtime": (retention, "runtime_selected", lambda _root: next(answers, False)),
+        "holds": (apply, "_PER_HOLD", 1),
+    }
+    if event in patches:
+        monkeypatch.setattr(*patches[event])
+    with held:
+        result = _apply(repo, plan)
+
+    kept = {path for path in (check, second, *unit.values()) if path.exists()}
+    expected = {
+        "slot": ({check, second}, ("record_retirement_batch_deferred:proof-check:slot",)),
+        "lane-lock": (
+            set(unit.values()),
+            ("record_retirement_batch_deferred:lane-retirement:lane-lock",),
+        ),
+        "in_use": ({check, second, *unit.values()}, ()),
+        "vanished": ({check, second, *unit.values()}, ()),
+        "altered": ({check, second, *unit.values()}, ()),
+        "adopted": ({check}, ()),
+        "unlink": (set(), ("record_retirement_batch_deferred:proof-check:unlink",)),
+        "runtime": ({check, second, *unit.values()}, ("record_retirement_runtime_unselected",)),
+        "holds": (set(), ()),
+    }[event]
+    assert (kept, result.required_gaps) == expected, result
+    if event == "unlink":
+        assert tombstone_of(check).exists()
+        monkeypatch.setattr(apply, "retire", real_retire)
+        assert _apply(repo, plan).verdict == "pass"
+        assert not tombstone_of(check).exists()
+        assert not check.exists()

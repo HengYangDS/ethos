@@ -49,10 +49,11 @@ def _commit(repo: Path, files: dict[str, str]) -> str:
         ("unkeyed", "record_marker_unkeyed"),
         ("malformed", "record_marker_malformed"),
         ("outside", ""),
+        ("unread", "record_roots_unread"),
     ],
 )
 def test_a_marker_edit_pairs_with_what_it_replaced(tmp_path: Path, edit: str, gap: str) -> None:
-    """A redaction pairs; a new marker file, changed words, an unkeyed or broken marker refuse."""
+    """A redaction pairs; a new marker file, changed words, a bad marker or no roots refuse."""
     repo = init_git_repo(tmp_path / "repo")
     _commit(repo, {RECORD: TEXT, "docs/notes.md": f"see {H1}\n"})
     redacted = redact_text(TEXT, FEED, KEY, numbering(KEY, FEED, TEXT))
@@ -66,7 +67,11 @@ def test_a_marker_edit_pairs_with_what_it_replaced(tmp_path: Path, edit: str, ga
         },
         "malformed": {RECORD: TEXT + f"see x{PLAIN[2:]}0\n"},
         "outside": {"docs/notes.md": f"see {PLAIN} here\n"},
+        "unread": {RECORD: redacted},
     }[edit]
+    if edit == "unread":
+        # Neither the incumbent profile nor the edited one reads, so no root can be trusted.
+        _commit(repo, {".ethos/profile.toml": "profile_id = 1\n"})
     revision = _commit(repo, files)
 
     gaps = record_marker_gaps(repo, (revision,))

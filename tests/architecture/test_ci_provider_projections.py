@@ -324,6 +324,10 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
         "${ETHOS_COMMIT_REMOTE_HEAD}",
         "origin",
     )
+    # The GitLab job alone carries the peer identity backstop, right after the policy step.
+    policy, backstop = gitlab_job["script"]
+    assert backstop == policy.replace(" commit-range ", " commit-range --check peer-identity ", 1)
+    assert "peer-identity" not in yaml.safe_dump(github)
     provider_text = yaml.safe_dump({"github": github, "gitlab": gitlab})
     assert all(token not in provider_text for token in ("rev-list", "subject_pattern"))
 

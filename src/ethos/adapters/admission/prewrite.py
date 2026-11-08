@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 
 from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import observe_current_authority
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.admission.index_prewrite import index_patch_prewrite
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.admission.patch_admission import patch_repair_action
 from ethos.adapters.admission.patch_admission import profile_repair_scope
@@ -58,6 +61,48 @@ def non_openspec_prewrite_scope(requested: tuple[str, ...]) -> JsonObject:
 
 
 def prewrite_guard(
+    *,
+    root: Path,
+    paths: list[Path],
+    editor_root: Path | None = None,
+    require_editor_root: bool = False,
+    patch: str = "",
+    staged: bool = False,
+    target: Literal["worktree", "index"] = "worktree",
+    index_env: Mapping[str, str] | None = None,
+    selected_runtime: SelectedRuntime | None = None,
+    require_workspace: bool = False,
+) -> dict[str, object]:
+    if target == "index":
+        return index_patch_prewrite(
+            root,
+            paths,
+            patch,
+            lambda environment: prewrite_guard(
+                root=root,
+                paths=paths,
+                editor_root=editor_root,
+                require_editor_root=require_editor_root,
+                staged=True,
+                index_env=environment,
+                selected_runtime=selected_runtime,
+                require_workspace=require_workspace,
+            ),
+        )
+    return _prewrite_guard(
+        root=root,
+        paths=paths,
+        editor_root=editor_root,
+        require_editor_root=require_editor_root,
+        patch=patch,
+        staged=staged,
+        index_env=index_env,
+        selected_runtime=selected_runtime,
+        require_workspace=require_workspace,
+    )
+
+
+def _prewrite_guard(
     *,
     root: Path,
     paths: list[Path],
@@ -128,8 +173,13 @@ def prewrite_guard(
         requested=requested,
         current_authority=current_authority,
         patch_report=patch_report,
+        index_env=index_env,
         require_workspace=require_workspace,
     )
+    current_authority = (
+        _revalidate_staged_authority(root, current_authority) if staged else current_authority
+    )
+    authority = current_authority.projection()
     patch_report = revalidate_staged_admission(root, patch_report, index_env=index_env)
     _apply_path_effects(checked, patch_report, patch_supplied=bool(patch) or staged)
     blocked = [path for path in checked if path["allowed"] is False]
@@ -196,6 +246,31 @@ def prewrite_guard(
     }
 
 
+def _revalidate_staged_authority(root: Path, earlier: CurrentAuthority) -> CurrentAuthority:
+    branch = current_branch(root)
+    context = _effective_write_context(
+        root=root,
+        role=load_branch_role_policy(root).role_for_branch(branch) if branch else ROLE_DETACHED,
+        branch=branch,
+    )
+    current = observe_current_authority(
+        root=root,
+        branch=context["branch"],
+        actor=process_actor(),
+        required=earlier.required,
+        head_source="rebase_branch_ref" if context["source"] == "git_rebase_head_name" else "head",
+    )
+    keys = ("branch", "holder_ref", "generation", "expires_at", "invocation_holder_ref")
+    before, after = earlier.projection(), current.projection()
+    if current.verdict == "pass" and any(before[key] != after[key] for key in keys):
+        return dataclasses.replace(
+            current,
+            verdict="block",
+            reason="staged_authority_changed_during_admission",
+        )
+    return current
+
+
 def _prewrite_material_scope(
     root: Path,
     *,
@@ -203,6 +278,7 @@ def _prewrite_material_scope(
     requested: tuple[str, ...],
     current_authority: CurrentAuthority,
     patch_report: dict[str, object],
+    index_env: Mapping[str, str] | None = None,
     require_workspace: bool,
 ) -> tuple[dict[str, object], dict[str, object], bool]:
     """Resolve current intent or an exact native carrier recovery."""
@@ -236,6 +312,7 @@ def _prewrite_material_scope(
         changed=False,
         prewrite_paths=requested,
         staged_tree_ref=str(patch_report["index_tree"]) if patch_report.get("index_tree") else None,
+        staged_environment=index_env,
         require_workspace=require_workspace,
     )
     scope = resolution.scope_report(requested)

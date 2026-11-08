@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
@@ -10,7 +9,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
-from ethos.adapters.openspec.lifecycle.scope import canonical_repair_paths
+from ethos.adapters.openspec.lifecycle.scope import canonical_repair_action
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.lifecycle.scope import prospective_change_scope_report
@@ -28,6 +27,7 @@ from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.adapters.admission.current.authority import CurrentAuthority
@@ -156,24 +156,6 @@ def _intent_action(root: Path, gap: str, change: str | None) -> str:
     if change:
         return f"openspec status --change {change} --json"
     return f"ethos status --root {root.resolve().as_posix()} --json"
-
-
-def _canonical_repair_action(
-    root: Path,
-    official: dict[str, object],
-    *,
-    change: str,
-    archived: tuple[Commitment, dict[str, object]] | None,
-) -> str:
-    """Render the first exact corrective prewrite selected by scope admission."""
-    paths = canonical_repair_paths(root, official, change=change, archived=archived)
-    if not paths:
-        return ""
-    resolved = shlex.quote(root.resolve().as_posix())
-    return (
-        f"ethos lane prewrite --paths {shlex.quote(paths[0])} "
-        f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
-    )
 
 
 def _resolve_without_workspace_intent(
@@ -312,6 +294,7 @@ def resolve_current_resolution(
     prewrite_paths: tuple[str, ...] = (),
     intent_tree_ref: str | None = None,
     staged_tree_ref: str | None = None,
+    staged_environment: Mapping[str, str] | None = None,
     require_workspace: bool = False,
 ) -> CurrentResolution:
     """Resolve current authority, official intent, paths, gap, and action once."""
@@ -331,7 +314,11 @@ def resolve_current_resolution(
     change = change if change is not None else artifact_path_change(root, prewrite_paths)
     prospective_scope = (
         prospective_change_scope_report(
-            prewrite_paths, change, root=root, staged_tree_ref=staged_tree_ref
+            prewrite_paths,
+            change,
+            root=root,
+            staged_tree_ref=staged_tree_ref,
+            staged_environment=staged_environment,
         )
         if change
         else {}
@@ -448,7 +435,7 @@ def resolve_current_resolution(
         ambiguous = next(
             (g for g in official_gaps if g.startswith("openspec_active_change_ambiguous:")), ""
         )
-        repair_action = _canonical_repair_action(
+        repair_action = canonical_repair_action(
             root,
             official,
             change=change or str(official.get("change") or ""),

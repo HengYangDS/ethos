@@ -522,10 +522,11 @@ ethos prove --full --execute --change <change-id> --expect-head <head> --json
 ethos land --json
 ```
 
-`<head>` is the frozen commit, not a branch name. Inspect terminal results and
-follow current continuations; proof grants no landing, installation or publication.
-Preserve failed reports and repair the smallest failing owner before full retry.
-Changed source bytes, including docs or task progress, require a new binding.
+### Exact Index Prewrite
+
+`ethos lane prewrite <paths> --target index --patch <file>` previews disposable native cached checking; bind `--editor-root <worktree> --require-editor-root`. Worktree remains the default. Real Git, worktree and Lease stay unchanged; the expected index tree/digest, HEAD, Lease and patch bind prestate, not the prospective tree.
+
+Scratch objects use the shared store as a read-only alternate and disappear before return. Drift fails closed; split/locked indexes are unknown, and sparse indexes use native cached apply. Preview cannot enforce CAS at later staging; commit admission re-admits actual staged content.
 
 ### Routine Scoped Execution
 

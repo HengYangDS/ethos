@@ -279,11 +279,12 @@ def prewrite(
     editor_root: Annotated[str | None, Parameter(name="--editor-root")] = None,
     require_editor_root: Annotated[bool, Parameter(name="--require-editor-root")] = False,
     patch_path: Annotated[str | None, Parameter(name="--patch")] = None,
+    target: Literal["worktree", "index"] = "worktree",
     change: str | None = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Check tracked write admission before editing files."""
+    """Check exact worktree or index write admission without applying it."""
     repo = resolve_root(root)
     typed_paths = tuple(Path(path) for path in paths)
     resolved_paths = [
@@ -293,6 +294,7 @@ def prewrite(
     with selected_change(change):
         report = prewrite_guard(
             root=repo,
+            target=target,
             paths=resolved_paths,
             editor_root=Path(editor_root) if editor_root is not None else None,
             require_editor_root=require_editor_root,

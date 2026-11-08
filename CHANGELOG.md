@@ -14,6 +14,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Added
 
+- `ethos lane prewrite --target index --patch <file>` checks an exact selective
+  staging patch without substituting unrelated working content. It reuses staged
+  admission, binds the real index prestate and fences concurrent changes to HEAD,
+  index and lane authority. Candidate indexes and objects are removed before
+  return; the normal Git effect still needs fresh admission and hooks. The
+  default target remains `worktree`.
 - `ethos lane redact private-addresses` removes a protected forge's identity from a repository's
   records. A peer is protected when its host is private-class or `remote.<name>.forgePrivate` is
   true; its feed is read from local Git state and never printed. The keyless preview lists each

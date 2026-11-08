@@ -288,7 +288,12 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 
 ### Requirement: Accepted closeout renames legacy role refs
 
-When the accepted root is bound to a ref that its committed table declares as a legacy accepted name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of the legacy ref it replaces and delete that legacy ref, and SHALL bind every worktree on a renamed ref to its new name. Git admission SHALL refuse any other move of a legacy role ref, except deleting one whose standard successor already holds its commit.
+When the accepted root is bound to a ref that its committed table declares as a legacy accepted
+name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of
+the legacy ref it replaces and delete that legacy ref, and SHALL bind each worktree on a renamed ref
+to its new name by compare-and-swap in an authorized apply, on Git 2.46 or later. Git admission
+SHALL refuse any other move of a legacy role ref, except deleting one whose successor holds its
+commit.
 
 #### Scenario: A repository adopted under legacy names
 
@@ -306,6 +311,31 @@ When the accepted root is bound to a ref that its committed table declares as a 
 - **WHEN** the committed table names `integration/dev` as the legacy candidate name, and `candidate/dev` holds the same commit as `integration/dev`
 - **THEN** the absorbed-ref retirement deletes `integration/dev`, and Git admission admits that deletion
 - **AND** no other legacy role ref is renamed or moved.
+
+#### Scenario: An interrupted binding is previewed
+
+- **WHEN** the refs are renamed but the accepted and candidate worktrees still name `accepted/train`
+  and `candidate/train`
+- **THEN** `ethos land --closeout --json` reports `branch_role_rebinding_pending` for both and
+  changes no `HEAD`
+- **AND** its next action is the closeout apply with `--expect-head` set to the head of `dev`
+
+#### Scenario: A refused apply binds nothing
+
+- **WHEN** that apply lacks `--authorize` or names another head
+- **THEN** it blocks and every `HEAD` still names its legacy ref
+
+#### Scenario: A worktree moves after detection
+
+- **WHEN** a worktree's `HEAD` no longer names its legacy ref when the binder writes
+- **THEN** that worktree keeps its `HEAD` and the apply blocks with
+  `branch_role_worktree_binding_stale`
+
+#### Scenario: Git lacks symbolic-ref transactions
+
+- **WHEN** Git refuses the `symref-verify` probe of `git update-ref --stdin`
+- **THEN** the rename, retained-topic and rebinding applies refuse with
+  `branch_role_rename_git_unsupported` and no ref or `HEAD` moves
 
 ### Requirement: Publication retires published legacy role refs
 

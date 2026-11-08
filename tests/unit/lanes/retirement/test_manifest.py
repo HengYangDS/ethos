@@ -9,11 +9,14 @@ from typing import Any
 
 import pytest
 
+import ethos.adapters.mutation.lane_retirement.manifest as manifest_module
 import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
+from ethos.adapters.mutation.lane_retirement.continuation import lane_status_command
 from ethos.adapters.mutation.lane_retirement.manifest import manifest_store
 from ethos.contracts.retirement import ReviewedManifest
 from ethos.contracts.semantic import canonical_json_bytes
+from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
 
@@ -108,10 +111,10 @@ def test_a_lost_manifest_refuses_removal_and_selects_a_fresh_review(divergent_la
     )
 
 
-def test_an_inline_request_continues_through_a_fresh_review(divergent_lane):
-    """A request written before compaction no longer applies, and recovery names a new review."""
-    repo, lane = divergent_lane
-    derived, reference, manifest = _reviewed(repo, lane)
+def _inline(
+    repo: Path, derived: dict[str, Any], manifest: Path
+) -> tuple[dict[str, Any], Path, str]:
+    """Write the request as one written before compaction, with its nodes inline."""
     request: dict[str, Any] = _request(derived["receipt"])
     request["reviewed_content"].pop("manifest")
     request["reviewed_content"]["entries"] = json.loads(manifest.read_bytes())["entries"]
@@ -119,14 +122,26 @@ def test_an_inline_request_continues_through_a_fresh_review(divergent_lane):
     digest = hashlib.sha256(payload).hexdigest()
     path = operation.operation_store(repo) / f"{digest}.json"
     path.write_bytes(payload)
+    return request, path, digest
 
-    recovered = operation.execute_retirement_operation(
+
+def _recover(repo: Path, path: Path, digest: str, *, authorized: bool = True) -> dict[str, Any]:
+    return operation.execute_retirement_operation(
         root=repo,
         receipt_path=path.as_posix(),
         receipt_sha256=f"sha256:{digest}",
         apply=True,
-        authorized=True,
+        authorized=authorized,
     )
+
+
+def test_an_inline_request_continues_through_a_fresh_review(divergent_lane):
+    """A request written before compaction no longer applies, and recovery names a new review."""
+    repo, lane = divergent_lane
+    derived, reference, manifest = _reviewed(repo, lane)
+    request, path, digest = _inline(repo, derived, manifest)
+
+    recovered = _recover(repo, path, digest)
 
     assert recovered["required_gaps"] == ["lane_retirement_receipt_invalid"], recovered
     assert recovered["next_action"] == content_review_command(
@@ -171,3 +186,56 @@ def test_manifest_totals_count_each_top_level_name():
         ".git": {"directories": 0, "files": 1, "symlinks": 0, "file_bytes": 11},
         "src": {"directories": 1, "files": 1, "symlinks": 1, "file_bytes": 11},
     }
+
+
+def test_an_inline_request_on_a_moved_branch_continues_through_status(divergent_lane):
+    """When the request's carriers drifted, the continuation is the lane status read."""
+    repo, lane = divergent_lane
+    derived, _reference, manifest = _reviewed(repo, lane)
+    request, path, digest = _inline(repo, derived, manifest)
+    git(lane, "commit", "--allow-empty", "-m", "move the lane after its review")
+
+    recovered = _recover(repo, path, digest)
+
+    assert recovered["next_action"] == lane_status_command(Path(request["control_root"]))
+
+
+def test_a_request_that_is_not_inline_has_no_inline_continuation(divergent_lane, tmp_path):
+    """An unreadable receipt, or a current request refused for its authority, names nothing."""
+    repo, lane = divergent_lane
+    derived, _reference, _manifest = _reviewed(repo, lane)
+    receipt = derived["receipt"]
+    current = operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        apply=True,
+        authorized=False,
+    )
+    missing = _recover(repo, tmp_path / f"{'e' * 64}.json", "e" * 64)
+
+    assert current["required_gaps"] == ["authorization_required"], current
+    assert current["next_action"] == ""
+    assert missing["next_action"] == ""
+    assert (lane / "scratch.txt").exists()
+
+
+def test_a_failed_manifest_release_is_reported_not_raised(divergent_lane, monkeypatch):
+    """The retirement is already terminal, so a release failure reports and keeps the result."""
+    repo, lane = divergent_lane
+    derived, _reference, manifest = _reviewed(repo, lane)
+
+    def refuse(*_args: object) -> bool:
+        message = "release scan refused"
+        raise OSError(message)
+
+    monkeypatch.setattr(manifest_module, "_bound_elsewhere", refuse)
+    applied: dict[str, Any] = apply_retirement_receipt(repo, derived["receipt"])
+
+    assert applied["state"] == "retired", applied
+    assert applied["manifest_release"] == {
+        "path": manifest.as_posix(),
+        "state": "failed",
+        "reason": "release scan refused",
+    }
+    assert manifest.exists()

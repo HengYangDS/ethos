@@ -7,6 +7,7 @@ or whose form matches no writer is another producer's and stays.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 from dataclasses import dataclass
@@ -39,7 +40,8 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
     items: list[StoreItem] = []
     unowned: list[Path] = []
     for path in _files(store / "artifacts"):
-        kind = _artifact_kind(path) if _named_by_digest(path) else None
+        data = path.read_bytes()
+        kind = _artifact_kind(path, data) if _digest(data) == path.stem else None
         if kind is None:
             unowned.append(path)
         else:
@@ -48,17 +50,17 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
     return (*items, *units), tuple(sorted((*unowned, *foreign)))
 
 
-def _artifact_kind(path: Path) -> str | None:
+def _artifact_kind(path: Path, data: bytes) -> str | None:
     if path.suffix == ".zip":
         try:
-            with ZipFile(path) as archive:
+            with ZipFile(io.BytesIO(data)) as archive:
                 names = set(archive.namelist())
-        except (BadZipFile, OSError):
+        except BadZipFile:
             return None
         if names >= _NATIVE_MEMBERS:
             return "native-attempt"
         return "javascript-attempt" if "observation.json" in names else None
-    document = _json(path) if path.suffix == ".json" else None
+    document = _decoded(data) if path.suffix == ".json" else None
     if not isinstance(document, dict):
         return None
     if document.get("schema_version") == 1 and {"head", "checks"} <= set(document):
@@ -77,7 +79,7 @@ def _lane_units(store: Path) -> tuple[list[StoreItem], list[Path]]:
     bound: set[str] = set()
     for path in _files(store / "requests" / "lane-retirement"):
         data = path.read_bytes()
-        if hashlib.sha256(data).hexdigest() != path.stem:
+        if _digest(data) != path.stem:
             foreign.append(path)
             continue
         requests[path.stem] = path
@@ -85,7 +87,7 @@ def _lane_units(store: Path) -> tuple[list[StoreItem], list[Path]]:
     receipts: dict[str, tuple[Path, set[str]]] = {}
     for path in _files(store / "receipts" / "lane-retirement"):
         data = path.read_bytes()
-        document = _decoded(data) if hashlib.sha256(data).hexdigest() == path.stem else None
+        document = _decoded(data) if _digest(data) == path.stem else None
         if not isinstance(document, dict) or document.get("kind") != "lane-retirement-receipt":
             foreign.append(path)
             continue
@@ -133,16 +135,8 @@ def _files(directory: Path) -> tuple[Path, ...]:
     )
 
 
-def _named_by_digest(path: Path) -> bool:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest() == path.stem
-
-
-def _json(path: Path) -> object:
-    try:
-        return _decoded(path.read_bytes())
-    except OSError:
-        return None
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def _decoded(data: bytes) -> object:

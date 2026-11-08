@@ -54,3 +54,26 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
     assert terminal_digest in named["terminal"]
     assert orphan_digest in named["receipt-only"]
     assert pending["request"] not in {path for item in items for path in item.paths}
+
+
+def test_records_another_producer_wrote_are_kept_as_unowned(tmp_path: Path) -> None:
+    """A misnamed request, a malformed receipt or a damaged archive is no writer's record."""
+    store = tmp_path / "store"
+    misnamed = store / "requests/lane-retirement" / f"{'d' * 64}.json"
+    misnamed.parent.mkdir(parents=True)
+    misnamed.write_bytes(b"{}")
+    not_json = put(store, "receipts/lane-retirement", b"not json", ".json", age_days=30)
+    listed = put(
+        store,
+        "receipts/lane-retirement",
+        b'{"kind": "lane-retirement-receipt", "request": []}',
+        ".json",
+        age_days=30,
+    )
+    damaged = put(store, "artifacts", b"PK\x03\x04 broken", ".zip", age_days=30)
+    a_list = put(store, "artifacts", b"[]", ".json", age_days=30)
+
+    items, unowned = classify_store(store)
+
+    assert items == ()
+    assert unowned == tuple(sorted((misnamed, not_json, listed, damaged, a_list)))

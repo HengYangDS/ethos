@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from filelock import FileLock
 
 import ethos.application.retention as retention
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
@@ -22,6 +25,13 @@ from tests.support.retention_store import merge_preimage
 from tests.support.retention_store import native_attempt
 from tests.support.retention_store import proof_check
 from tests.support.retention_store import put
+
+_REAL_RUNTIME_SELECTED = retention.runtime_selected
+
+
+def _damaged_set(_root: Path) -> tuple[str, tuple[object, ...]]:
+    message = "attestation_set_ref_invalid"
+    raise ValueError(message)
 
 
 @pytest.fixture
@@ -90,15 +100,21 @@ def test_a_live_member_keeps_the_record_it_names(
     assert plan["items"] == []
 
 
-@pytest.mark.parametrize("refusal", ["runtime", "floor", "slot", "carrier"])
+@pytest.mark.parametrize("refusal", ["runtime", "floor", "slot", "carrier", "members", "branch"])
 def test_the_preview_refuses_and_writes_nothing(
     repo: Path, monkeypatch: pytest.MonkeyPatch, refusal: str
 ) -> None:
-    """Another runtime, an unreadable floor, a held proof slot or an unreadable carrier refuse."""
+    """Another runtime, an unreadable floor or set, a held slot or an unreadable carrier refuse."""
     store = local_state_root(repo)
     put(store, "artifacts", proof_check(), ".json", age_days=30)
     if refusal == "runtime":
-        monkeypatch.setattr(retention, "runtime_selected", lambda _root: False)
+        # The fixture repository selects no runtime, so the real check refuses.
+        monkeypatch.setattr(retention, "runtime_selected", _REAL_RUNTIME_SELECTED)
+    elif refusal == "members":
+        monkeypatch.setattr(retention, "read_attestation_set", _damaged_set)
+    elif refusal == "branch":
+        absent = SimpleNamespace(accepted_branch="absent")
+        monkeypatch.setattr(retention, "load_branch_role_policy", lambda _root: absent)
     elif refusal == "floor":
         (repo / ".ethos/rules.toml").write_text("[paradigm.retention\n", encoding="utf-8")
         commit_fixture(repo, "damage the accepted binding")
@@ -118,7 +134,48 @@ def test_the_preview_refuses_and_writes_nothing(
         "floor": "record_retirement_floor_unreadable",
         "slot": "record_retirement_proof_slot_held",
         "carrier": "record_retirement_carrier_undecodable",
+        "members": "record_retirement_roots_unavailable:attestation_set_ref_invalid",
+        "branch": "record_retirement_floor_unreadable",
     }[refusal]
     assert result.verdict == "block", result
     assert any(code.startswith(gap) for code in result.required_gaps), result.required_gaps
     assert not (store / "requests/record-retirement").exists()
+
+
+@pytest.mark.parametrize("binding", ["raised-floor", "lowered-bound"])
+def test_the_accepted_binding_sets_the_floors_and_bounds(repo: Path, binding: str) -> None:
+    """A raised record floor keeps a month-old unit; a lowered byte bound refuses a carrier."""
+    store = local_state_root(repo)
+    lane_unit(store, "work/old", age_days=30)
+    kept = put(store, "custody", b"x" * 100, ".bin", age_days=30)
+    rules = {
+        "raised-floor": "[paradigm.retention]\nrecord_seconds = 3456000\n",
+        "lowered-bound": "[paradigm.retention]\ndecode_bytes = 16\n",
+    }[binding]
+    (repo / ".ethos/rules.toml").write_text(rules, encoding="utf-8")
+    commit_fixture(repo, "declare the retention binding")
+
+    result = retention.preview_record_retirement(repo)
+
+    if binding == "raised-floor":
+        assert result.verdict == "pass", result
+        assert _plan(result)["items"] == []
+    else:
+        assert result.verdict == "block", result
+        relative = kept.relative_to(store).as_posix()
+        assert result.required_gaps == (f"record_retirement_carrier_undecodable:{relative}",)
+
+
+def test_runtime_selection_compares_interpreter_and_build(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only the selected runtime's interpreter and build pass; others or no repository fail."""
+    check = _REAL_RUNTIME_SELECTED
+    assert check(tmp_path / "absent") is False
+    assert check(repo) is False
+    build = invoking_build_identity()
+    selected = SimpleNamespace(python=Path(sys.executable), build=build)
+    monkeypatch.setattr(retention, "current_runtime", lambda _common: selected)
+    assert check(repo) is True
+    selected.python = tmp_path / "other-python"
+    assert check(repo) is False

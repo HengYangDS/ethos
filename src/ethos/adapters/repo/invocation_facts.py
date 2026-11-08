@@ -3,7 +3,9 @@
 An object named by its full object ID never changes, so within one invocation a repeated read
 returns the first successful result instead of starting Git again. Refs, abbreviated names, the
 index, the worktree and configuration-dependent output stay fresh observations. Failures are
-never reused, because an object that is missing now may arrive later in the same invocation.
+never reused, because an object that is missing now may arrive later in the same invocation,
+except a peer's advertisement, read once per process even when it cannot be read, so one
+push of many refs never waits on an unreachable peer more than once.
 The build of the running product is likewise fixed once its code is executing.
 """
 

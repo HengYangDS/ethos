@@ -231,6 +231,12 @@ class IndependentVerificationPolicy(_ProfileModel):
     actions: VerificationActions = Field(default_factory=VerificationActions)
 
 
+class PeerIdentityPolicy(_ProfileModel):
+    """Whether pushes refuse a protected peer's identity; adopters turn it on once clean."""
+
+    mode: Literal["disabled", "required"] = "disabled"
+
+
 class AdoptionBoundaryPolicy(_ProfileModel):
     binding_manifest: RepositoryPath = binding_path("profile")
     execution_config_root: RepositoryPath = ".config"
@@ -250,6 +256,7 @@ class RepositoryProfileDeclaration(_ProfileModel):
         default_factory=IndependentVerificationPolicy
     )
     adoption_boundary: AdoptionBoundaryPolicy = Field(default_factory=AdoptionBoundaryPolicy)
+    peer_identity: PeerIdentityPolicy = Field(default_factory=PeerIdentityPolicy)
 
 
 class RepositoryProfile(_ProfileModel):

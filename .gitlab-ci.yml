@@ -70,6 +70,7 @@ ethos:commit-policy:
     - when: never
   script:
     - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --check peer-identity --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:601521e6ada731af199639d4d251fd9ca2b8ce85a8b0c6c073f009660cde0104
   before_script:

@@ -45,17 +45,18 @@ None.
 
 ## Impact
 
-- New `src/ethos/adapters/admission/peer_identity_push.py`,
+- New `src/ethos/adapters/admission/peer_identity_push.py` (the push check and its readers),
+  `src/ethos/application/peer_identity.py` (the backstop and the `status` advisories),
   `src/ethos/adapters/repo/commit/record_markers.py` and `src/ethos/repository/paradigm/records.py`;
   `peer_identity.py` gains the keyless alignment, `peer_feed.py` the CI feed and `profile.py` the
   mode.
 - `src/ethos/adapters/admission/publication.py`,
   `src/ethos/application/publication/request_gaps.py`,
   `src/ethos/adapters/repo/commit/integration.py`, `src/ethos/adapters/repo/invocation_facts.py`,
-  `src/ethos/surface/cli/hook/commands.py`, `src/ethos/application/inspection.py` (the `status`
-  advisories), `src/ethos/repository/paradigm/report.py` and
-  `src/ethos/repository/paradigm/repair.py` (the record binding), `.config/ci/pipeline.cue` and the
-  `.gitlab-ci.yml` it generates, and the projection tests.
+  `src/ethos/surface/cli/hook/commands.py`, `src/ethos/application/inspection.py`,
+  `src/ethos/repository/paradigm/report.py` and `src/ethos/repository/paradigm/repair.py` (the
+  record binding), `.config/ci/pipeline.cue` and the `.gitlab-ci.yml` it generates, and the
+  projection tests.
 - Tests: the push check, the backstop and the status advisories; the keyless verifier and the marker
   alignment; the record binding's two repairs and its refusals.
 - Each adopter's job goes through its own CI declaration owner in its activation lane.

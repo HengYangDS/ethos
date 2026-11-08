@@ -8,6 +8,7 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.peer_identity_push import peer_identity_push_gaps
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
@@ -466,21 +467,23 @@ def push_admission_report(
         if role == "accepted_root" and commits.get("state") != "repaired_history"
         else []
     )
-    ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))
-    gaps = list(
-        dict.fromkeys(
-            (
-                *ref_gaps,
-                *string_sequence(observed.get("required_gaps")),
-                *proof_gaps,
-                *topology_gaps,
-                *closeout_gaps,
-            )
-        )
+    identity_gaps, identity_advisories = peer_identity_push_gaps(
+        repo,
+        remote=remote_name,
+        pushed=pushed_head,
+        trusted=str(baseline or remote_head or ""),
+        advertisement="tracking" if options.get("advertisement") == "tracking" else "network",
     )
+    ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))
+    # Each of these blocks the push by itself; the observed intent's own gaps reduce the verdict.
+    blocking = (*ref_gaps, *proof_gaps, *topology_gaps, *closeout_gaps, *identity_gaps)
+    observed_gaps = string_sequence(observed.get("required_gaps"))
+    gaps = list(dict.fromkeys((*ref_gaps, *observed_gaps, *blocking)))
     reason = (
         "publication_ref_unavailable"
         if ref_gaps
+        else "peer_identity_literal_refused"
+        if identity_gaps
         else "push_to_protected_role_not_proven"
         if proof_gaps or topology_gaps or closeout_gaps
         else "pushed_commit_policy_not_allowed"
@@ -490,9 +493,7 @@ def push_admission_report(
         else "push_admitted"
     )
     verdict = reduce_verdicts(
-        report_verdict(observed),
-        "block" if ref_gaps or proof_gaps or topology_gaps or closeout_gaps else "pass",
-        required_gaps=tuple(gaps),
+        report_verdict(observed), "block" if blocking else "pass", required_gaps=tuple(gaps)
     )
     return {
         **observed,
@@ -508,6 +509,7 @@ def push_admission_report(
         "publication_ref_admission": ref_admission,
         "proof_admission": proof,
         "accepted_closeout_effect": closeout,
+        "peer_identity_advisories": identity_advisories,
         "decision": {"action": "allow" if verdict == "pass" else "block", "reason": reason},
         "required_gaps": gaps,
         "next_action": closeout_apply_command(

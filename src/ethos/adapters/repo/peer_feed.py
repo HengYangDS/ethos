@@ -109,3 +109,16 @@ def _forge_keys(root: Path) -> dict[str, dict[str, list[str]]]:
         if match:
             keys.setdefault(match.group(1), {}).setdefault(match.group(2), []).append(value)
     return keys
+
+
+def ci_feed(environ: Mapping[str, str]) -> Feed:
+    """Build the feed a GitLab job exposes about its own project; empty outside such a job."""
+    host = environ.get("CI_SERVER_HOST", "")
+    port = environ.get("CI_SERVER_PORT", "")
+    project = environ.get("CI_PROJECT_ID", "")
+    return Feed.of(
+        hosts=(host,) if host else (),
+        ports=(int(port),) if port.isdigit() else (),
+        paths=(environ["CI_PROJECT_PATH"],) if environ.get("CI_PROJECT_PATH") else (),
+        ids=(int(project),) if project.isdigit() else (),
+    )

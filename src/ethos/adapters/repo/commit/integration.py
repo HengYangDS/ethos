@@ -11,6 +11,7 @@ from ethos.adapters.repo.commit.admission import evaluate_commit_policy
 from ethos.adapters.repo.commit.admission import peel_commit
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
+from ethos.adapters.repo.commit.record_markers import record_marker_gaps
 from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
@@ -247,6 +248,8 @@ def _validate_commit_revisions(
             if violation not in violations:
                 violations.append(violation)
             gaps.extend(gap for gap in commit_gaps if gap not in gaps)
+    # A marker edit under a record root must reproduce what it replaced, under every mode.
+    gaps.extend(gap for gap in record_marker_gaps(root, revisions) if gap not in gaps)
     return violations, gaps
 
 

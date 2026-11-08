@@ -21,6 +21,7 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.application.catalog import catalog_operation
 from ethos.application.land.closeout import closeout_command_from_status
+from ethos.application.peer_identity import peer_identity_status
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -235,7 +236,8 @@ def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
                 "coordination_advisory_count": compact_coordination["advisory_count"],
                 "coordination_blocking": compact_coordination["blocking"],
             }
-            | lease,
+            | lease
+            | {"peer_identity_advisories": peer_identity_status(repo)},
             diagnostics=(validation,),
             required_gaps=gaps,
             next_action=next_action,

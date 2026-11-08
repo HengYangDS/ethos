@@ -304,3 +304,80 @@ def _numbers(line: str, counts: Callable[[str, int], bool]) -> list[Span]:
                 if counts(role, int(digits)) and not line[end : end + 1].isdigit():
                     found.append(Span(match.start(1), end, role, role, port=digits))
     return found
+
+
+# Keyless verification: the shapes a marker may replace, and the tokens that look like markers.
+_SPAN = re.compile(
+    r"(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|\[[0-9A-Fa-f:]+\]|[A-Za-z0-9-]+(?=:\d))(?::\d+)?"
+    r"(?:/[A-Za-z0-9._~%-]+)*|[A-Za-z0-9._~%-]+(?:/[A-Za-z0-9._~%-]+)+"
+)
+_MARKER_LIKE = re.compile(r"[0-9A-Za-z.]*\.private-peer\.invalid")
+_SPAN_PARTS = re.compile(r"(\[[^\]]+\]|[^:/]+)(?::(\d+))?(/.*)?")
+
+
+def malformed_markers(line: str) -> int:
+    """Count the tokens that end like a marker but are not one."""
+    return sum(1 for match in _MARKER_LIKE.finditer(line) if not MARKER.fullmatch(match.group()))
+
+
+def alignment(removed: str, added: str) -> tuple[str, ...] | None:
+    """Return the runs of a removed line that an added line's markers replace, or None.
+
+    The added line's literal pieces must appear in order in the removed line; each marker stands
+    over one run of an admitted span shape, and each closed-context digit run over a digit run,
+    which may differ only by a number in its range. No key and no identity is needed.
+    """
+    gaps = sorted(
+        [(match.start(), match.end(), "marker") for match in MARKER.finditer(added)]
+        + [(span.start, span.end, span.kind) for span in _numbers(added, _keyless_number)]
+    )
+    if not any(kind == "marker" for _start, _end, kind in gaps):
+        return None
+    pattern, cursor = ["^"], 0
+    for start, end, kind in gaps:
+        if start < cursor:
+            return None
+        pattern += [re.escape(added[cursor:start]), r"(\S+?)" if kind == "marker" else r"(\d+)"]
+        cursor = end
+    match = re.match("".join([*pattern, re.escape(added[cursor:]), "$"]), removed)
+    if match is None:
+        return None
+    spans: list[str] = []
+    for (start, end, kind), original in zip(gaps, match.groups(), strict=True):
+        if kind == "marker":
+            if not _SPAN.fullmatch(original):
+                return None
+            spans.append(original)
+        elif original != added[start:end] and not _in_range(kind, int(added[start:end])):
+            return None
+    return tuple(spans)
+
+
+def unkeyed(token: str, span: str) -> bool:
+    """Return whether a marker is the plain or empty-key digest of the span it replaced."""
+    parts = _SPAN_PARTS.fullmatch(span)
+    host, port, path = (
+        (parts.group(1), parts.group(2) or "", parts.group(3) or "") if parts else ("", "", "")
+    )
+    images = [("prefix", host, port, path), ("host", host, port, ""), ("path", "", "", span)]
+    for kind, *fields in images:
+        image = "\0".join(
+            (VERSION, kind, fields[0].lower().strip("[]"), fields[1], normalized_path(fields[2]))
+        )
+        for digest in (
+            hashlib.sha256(image.encode()).hexdigest(),
+            hmac.new(b"", image.encode(), hashlib.sha256).hexdigest(),
+        ):
+            if token == f"{digest[:32]}.{digest[32:]}.private-peer.invalid":
+                return True
+    return False
+
+
+def _in_range(role: str, value: int) -> bool:
+    low, high = _RANGES[role]
+    return low <= value <= high
+
+
+def _keyless_number(role: str, value: int) -> bool:
+    """Whether a keyless reader counts a number; redaction keeps the ports 22, 80 and 443."""
+    return role == "id" or value not in _WELL_KNOWN_PORTS

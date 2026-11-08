@@ -24,6 +24,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
   prewrite, and a record holding a redacted file's SHA-256 follows it;
   `--verify --key-stdin --base <rev> --head <rev>` re-derives them from the base and records the
   Attestation `redaction:private-peer`, refusing a key of another generation without `--rotate`.
+- Push admission refuses the protected peer identity a push adds once the repository profile
+  declares `[peer_identity] mode = "required"` (default `disabled`), read at the commit push
+  admission trusts. It reads only the commits a push adds beyond every tip the peer advertises and a
+  pushed tag's message, and refuses a fed host, a fed full path, a port after any host and a closed
+  context with a fed value as `peer_identity_literal:<form>:<n>:<m>:<line>`, never with the value;
+  an unreadable advertisement refuses as `peer_identity_range_unknown:<remote>`.
+  `ethos hook commit-range --check peer-identity` checks raw pushes in the GitLab job with the job's
+  own identity variables and is inert without them. Commit validation verifies without a key that a
+  marker edit under a record root reproduces what it replaces. `status` lists a protected peer under
+  `disabled` and an unread mode in `summary.peer_identity_advisories`, and
+  `ethos lane repair-paradigm` moves a `rules.toml` `[artifacts]` table's roots into the profile's
+  `record_roots`, then retires the table.
 - `ethos status`, `ethos land` and `ethos lane prewrite` accept `--change <id>`, and the MCP
   `status` and `land` tools accept `change`, as `plan` and `prove` already did. An explicit Change
   takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks

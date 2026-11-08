@@ -43,6 +43,7 @@ def publication_admission_gaps(
             ):
                 continue
             reports[f"{peer_id}:{target_ref}"] = push_admission_report(
+                advertisement="tracking",
                 root=repo,
                 target_ref=target_ref,
                 pushed_head=zero_oid(repo) if retire else source_object_oid,

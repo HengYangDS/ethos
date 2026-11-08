@@ -1,11 +1,13 @@
 """Hook command group — hook-time write admission and hook installation."""
 
+import os
 import pathlib
 import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
 from typing import Any
+from typing import Literal
 
 from cyclopts import App
 from cyclopts import Group
@@ -28,6 +30,7 @@ from ethos.adapters.repo.runtime.materialization.host_retention import legacy_su
 from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.store.state.schema import state_schema_report
+from ethos.application.peer_identity import peer_identity_backstop
 from ethos.application.retention import apply_record_retirement
 from ethos.application.retention import preview_record_retirement
 from ethos.contracts.admission import HookAdmissionRequest
@@ -155,9 +158,27 @@ def _hook_admit_next_action(report: dict[str, object], verdict: Verdict) -> str:
 
 
 @_app.command(name="commit-range")
-def commit_range(options: Annotated[CommitRangeOptions, Parameter(name="*")]) -> None:
-    """Evaluate commit policy over one exact proposed Git integration range."""
+def commit_range(
+    options: Annotated[CommitRangeOptions, Parameter(name="*")],
+    *,
+    check: Annotated[Literal["policy", "peer-identity"], Parameter(name="--check")] = "policy",
+) -> None:
+    """Evaluate commit policy over one exact range, or check it for a protected peer's identity."""
     repo = resolve_root(options.root)
+    if check == "peer-identity":
+        report = peer_identity_backstop(
+            repo,
+            proposed=options.proposed_head,
+            remote_head=options.remote_head,
+            remote=options.remote,
+            environ=os.environ,
+        )
+        state = str(report["state"])
+        result = _report_result(
+            "hook commit-range", report, {"check": check, "state": state}, lambda _verdict: ""
+        )
+        emit(result, json_output=options.json_output, enforce=True)
+        return
     report = commit_range_admission_report(
         repo,
         target_ref=options.target_ref,

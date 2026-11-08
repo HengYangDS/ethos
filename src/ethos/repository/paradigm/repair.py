@@ -23,6 +23,8 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.openspec import common_rules_repair
 from ethos.repository.paradigm.openspec import schema_repair
+from ethos.repository.paradigm.records import ROOTS
+from ethos.repository.paradigm.records import TABLE
 from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
 
 if TYPE_CHECKING:
@@ -402,6 +404,18 @@ def _restated_field(
     )
 
 
+def _record_binding(
+    paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
+) -> Repair | None:
+    """Declare the profile's record roots, or retire `[artifacts]` once the profile holds them."""
+    detail = gap.carrier.partition(":")[2]
+    name, _sep, roots = detail.partition("=")
+    if name == ROOTS and roots and text is not None:
+        repaired = _set_toml_value(text, ROOTS, roots.split(","))
+        return None if repaired is None else (repaired, "")
+    return _unread_table(paradigm, gap, text) if detail == TABLE else None
+
+
 def _unread_table(
     _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
@@ -496,5 +510,6 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "openspec-schema": schema_repair,
     "openspec-rules": common_rules_repair,
     "workspace-binding": _unread_table,
+    "record-binding": _record_binding,
     "release-mirror": _release_mirror,
 }

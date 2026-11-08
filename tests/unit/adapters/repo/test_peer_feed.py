@@ -32,7 +32,7 @@ def test_the_feed_reads_protected_peers_and_their_former_values(tmp_path: Path) 
         ("forgeFormer", "path=old/team/x"),
     ):
         git(repo, "config", "--add", f"remote.gitlab.{key}", value)
-    git(repo, "remote", "add", "github", "git@github.com:HengYangDS/ethos.git")
+    git(repo, "remote", "add", "github", "https://github.com/HengYangDS/ethos.git")
 
     feed = peer_feed(repo)
 

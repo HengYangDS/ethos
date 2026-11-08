@@ -7,9 +7,8 @@ The existing staged admission owner already evaluates a staged tree against
 current lane authority, official intent and artifact ownership. An index patch
 must reuse that owner rather than substitute working-file bytes.
 
-This is the review gate for the adopted seam. A predecessor source commit is
-retained in Git; its implementation and prior test results do not establish
-approval of this design. Code remains frozen until the owner reviews it.
+The predecessor source remains in Git. Its local results do not replace the
+reviewed contract or released-runtime acceptance.
 
 ## Goals / Non-Goals
 
@@ -37,11 +36,23 @@ directory with the repository object store as a read-only alternate. Run
 `git apply --cached --check` against that captured index before applying the
 same patch to the disposable index to obtain the prospective staged tree.
 
-Pass the same candidate environment to every existing staged owner that reads
-the prospective tree, including staged OpenSpec observations. Do not create a
-second interpretation of paths, intent or artifact ownership. Preview has no
-real staging, working-file, ref, shared-object-store or Lease effect. Candidate
-objects are removed with the owned temporary preparation after every result.
+Pass the candidate environment through the explicit `index_env` parameter to
+the existing prospective staged readers, including staged OpenSpec observations.
+Only scratch preparation writes candidate index/object state; staged readers
+receive that environment, but repository Git writes, ref and lifecycle effects
+never do. A staged reader without candidate custody fails closed rather than
+substituting working-file bytes. Do not create another policy interpretation.
+Preview has no real staging, working-file, ref, shared-object-store or Lease
+effect. Candidate objects disappear with the temporary directory after every
+result; permitting a ref write in that scope could leave a dangling ref.
+
+A split index depends on its `link` extension and `sharedindex.*`, which a lone
+index copy cannot carry. Refuse it as unknown with
+`prewrite_index_split_index_unavailable`. A present real `index.lock` likewise
+refuses as unknown with `prewrite_index_locked`. Sparse indexes use native
+`git apply --cached --check` and cached apply on the disposable copy; successful
+native handling is supported without expanding or changing the real index.
+Other unreadable or conflicted index observations remain unavailable.
 
 ### Exact compare-and-swap binding, not a staging executor
 
@@ -52,10 +63,10 @@ its drift with a dedicated stale-index gap. Unreadable required state is unknown
 Do not restore a concurrent writer's index or working content.
 
 Prewrite does not perform the swap: its result is a non-reusable decision, not
-a permit. The actual staging consumer must reobserve the expected real index
-prestate at the effect boundary and use its native index locking; a preview
-cannot claim that a later mutation already passed compare-and-swap. Existing
-Git-effect admission remains required and unchanged.
+a permit. ETHOS exposes the expected real index tree and preimage digest for
+the caller; it does not execute at the caller's later native `git apply --cached`
+boundary or claim to enforce a CAS there. The existing pre-commit staged
+admission re-admits the actual staged content when the caller commits.
 
 ### Keep one implementation owner
 
@@ -86,14 +97,19 @@ behavior with the existing executor and policy boundaries.
 
 ## Migration Plan
 
-The owner reviews this design before code resumes. Exercise RED against the
+Exercise RED against the
 incumbent for a valid index-only patch, mixed staged/unstaged preservation and
 stale index rejection; then qualify GREEN through the extended public command
-and directly affected sibling consumers.
+and directly affected sibling consumers. Use one fixture repository and
+parametrized journeys/refusals, aiming for at most 250 readable test lines,
+without `noqa` or a file exceeding 500 lines.
 
-Before proof, refresh this lane onto the accepted catalog-root base without
+Before proof, refresh this lane after `record-retirement-apply` lands without
 claiming that base's work as this Change. Notify the owner before any land or
 closeout, use the host proof slot, and keep signing and independent gates.
-Released-runtime acceptance reruns each adopter's exact stage-preview patch and
-checks unchanged source/index state. Local candidate diagnostics do not replace
-that acceptance. Runtime binding and rollback require separate authorization.
+After release, the owning adopter agent reruns its exact stage-preview patch
+and checks unchanged source/index state as adopter follow-up, not a task this
+Change can close. Alphasim and di-effect are deferred families: candidate and
+released-runtime replays stay read-only. Local candidate diagnostics do not
+replace release acceptance. Runtime binding and rollback require separate
+authorization.

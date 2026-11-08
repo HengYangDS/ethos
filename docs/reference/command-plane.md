@@ -522,10 +522,14 @@ ethos land --json
 `ethos lane prewrite <paths> --target index --patch <file>` evaluates exact native patch paths
 against a disposable index; bind `--editor-root <worktree> --require-editor-root` as usual.
 It preserves unrelated staging, working files, shared objects, refs and Lease, and binds the patch,
-real index preimage, HEAD, Lease and prospective tree. Candidate objects use the shared store only
+expected real index tree and preimage digest, HEAD, Lease and prospective tree separately.
+Candidate objects use the shared store only
 as a read-only alternate and are removed with the index before return. The tree names content, not
-a retained artifact. Stale or unreadable prestate fails closed; the actual Git effect needs fresh
-admission and hooks. The default target remains `worktree`.
+a retained artifact. In-preview drift fails closed; a split index or present index lock returns
+unknown. Sparse indexes pass through native cached patch checking on the disposable copy.
+Prewrite exposes expected state but does not enforce a CAS at the caller's later native staging
+effect; the existing commit staged admission re-admits actual staged content. The default target
+remains `worktree`.
 
 ### Routine Scoped Execution
 

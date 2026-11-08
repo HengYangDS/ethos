@@ -1,206 +1,87 @@
-"""Qualify exact index patches without substituting mixed working content."""
+"""Qualify exact index previews through native Git, intent and staged custody."""
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.admission.index_prewrite as index_prewrite
 import ethos.adapters.admission.prewrite as prewrite
-from ethos.adapters.admission.current.authority import CurrentAuthority
+from ethos.adapters.openspec.selection import preserved_incoming_change_paths
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.store.state.lease.projection import lease_rows
+from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
+from tests.support.governed_repository import write_active_commitment
 
 PATCH = (
-    "diff --git a/module.py b/module.py\n"
-    "--- a/module.py\n"
-    "+++ b/module.py\n"
-    "@@ -1 +1 @@\n"
-    "-VALUE = 2\n"
-    "+VALUE = 3\n"
+    "diff --git a/module.py b/module.py\n--- a/module.py\n+++ b/module.py\n"
+    "@@ -1 +1 @@\n-VALUE = 2\n+VALUE = 3\n"
 )
 
 
-def _mixed_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    root = init_git_repo(tmp_path / "repo")
+@pytest.fixture
+def mixed_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    fixture = prepared_work_lane(tmp_path)
+    root = fixture.worktree
     (root / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
     (root / "unrelated.py").write_text("OTHER = 1\n", encoding="utf-8")
-    git(root, "add", "module.py", "unrelated.py")
-    git(root, "commit", "-m", "prepare mixed source")
-    git(root, "checkout", "-b", "work/example")
+    (root / "outside/hidden.py").parent.mkdir()
+    (root / "outside/hidden.py").write_text("HIDDEN = 1\n", encoding="utf-8")
+    commit_fixture(root, "test: prepare index source")
+    write_active_commitment(fixture.candidate, change_id="static-delivery")
+    commit_fixture(fixture.candidate, "test: incoming intent")
+    git(root, "merge", "--no-ff", "--no-commit", git(fixture.candidate, "rev-parse", "HEAD"))
     (root / "module.py").write_text("VALUE = 2\n", encoding="utf-8")
     (root / "unrelated.py").write_text("OTHER = 2\n", encoding="utf-8")
     git(root, "add", "module.py", "unrelated.py")
     (root / "module.py").write_text("VALUE = 99\n", encoding="utf-8")
-    monkeypatch.setattr(prewrite, "runtime_binding_check", lambda _status: {"verdict": "pass"})
-    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test",
-        lease={"holder_ref": "agent:test", "generation": 1},
-        current_head=git(root, "rev-parse", "HEAD"),
-        current_tree=git(root, "rev-parse", "HEAD^{tree}"),
-    )
-    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
     return root
 
 
-def _index_bytes(root: Path) -> bytes:
-    return (root / ".git/index").read_bytes()
+def _index(root: Path) -> Path:
+    return Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "index"))
 
 
-def test_index_patch_admits_exact_postimage_and_preserves_mixed_content(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    before = _index_bytes(root)
-    observe = prewrite.staged_artifact_admission
-    contents = {}
+def _snapshot(root: Path) -> tuple:
+    index = _index(root)
+    objects = Path(git(root, "rev-parse", "--path-format=absolute", "--git-path", "objects"))
+    return (
+        {p.name: p.read_bytes() for p in index.parent.glob("*index*") if p.is_file()},
+        (root / "module.py").read_bytes(),
+        git(root, "show-ref"),
+        {p.relative_to(objects): p.read_bytes() for p in objects.rglob("*") if p.is_file()},
+        lease_rows(state_database(root)),
+    )
 
-    def candidate_contents(repo, baseline, *, index_env):
-        report = observe(repo, baseline, index_env=index_env)
-        tree = report["index_tree"]
-        contents.update(
-            {
-                path: run_git(repo, "show", f"{tree}:{path}", env=index_env).stdout.strip()
-                for path in ("module.py", "unrelated.py")
-            }
-        )
-        return report
 
-    monkeypatch.setattr(prewrite, "staged_artifact_admission", candidate_contents)
-    report = prewrite.prewrite_guard(
+def _preview(root: Path, **kwargs) -> dict:
+    return prewrite.prewrite_guard(
         root=root,
         paths=[root / "module.py"],
         editor_root=root,
         patch=PATCH,
-        target="index",
+        **{"target": "index", **kwargs},
     )
-    assert report["verdict"] == "pass", report
-    assert _index_bytes(root) == before
-    assert (root / "module.py").read_text() == "VALUE = 99\n"
-    assert git(root, "show", ":unrelated.py") == "OTHER = 2"
-    subject = report["request_binding"]
-    assert isinstance(subject, dict)
-    binding = subject["expected_state"]
-    assert isinstance(binding, dict)
-    assert binding["target"] == "index"
-    assert binding["index_preimage_sha256"]
-    assert binding["patch_sha256"]
-    assert binding["index_tree"]
-    assert contents == {"module.py": "VALUE = 3", "unrelated.py": "OTHER = 2"}
-    decision = report["decision"]
-    assert isinstance(decision, dict)
-    assert decision["reusable_authorization"] is False
 
 
-def test_default_target_does_not_silently_stage_the_index_patch(
+def test_public_index_preview_binds_prestate_and_preserves_mixed_content(
+    mixed_lane: Path,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-    )
-    assert report["verdict"] == "block"
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
-    assert "prewrite_patch_preimage_mismatch" in gaps
-    assert _index_bytes(root) == before
-
-
-@pytest.mark.parametrize("coordinate", ["index", "head"])
-def test_index_prestate_drift_cannot_be_hidden_by_stable_scratch(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    coordinate: str,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    original_scope = prewrite.non_openspec_prewrite_scope
-    concurrent = b""
-
-    def concurrent_scope(paths):
-        nonlocal concurrent
-        if coordinate == "index":
-            (root / "unrelated.py").write_text("OTHER = 7\n", encoding="utf-8")
-            git(root, "add", "unrelated.py")
-        else:
-            git(root, "commit", "--allow-empty", "-m", "concurrent writer")
-        concurrent = _index_bytes(root)
-        return original_scope(paths)
-
-    monkeypatch.setattr(prewrite, "non_openspec_prewrite_scope", concurrent_scope)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] == "block", report
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
-    assert f"prewrite_index_{coordinate}_changed_during_admission" in gaps
-    assert _index_bytes(root) == concurrent
-
-
-@pytest.mark.parametrize(
-    ("patch", "paths", "gap"),
-    [
-        ("", ["module.py"], "prewrite_index_patch_required"),
-        (PATCH, ["unrelated.py"], "prewrite_patch_paths_mismatch"),
-        (PATCH, ["../repo/module.py"], "prewrite_patch_paths_mismatch"),
-        (PATCH, ["../outside.py"], "prewrite_patch_paths_mismatch"),
-        (
-            PATCH.replace("VALUE = 2", "VALUE = 4"),
-            ["module.py"],
-            "prewrite_patch_preimage_mismatch",
-        ),
-    ],
-)
-def test_index_patch_refusals_preserve_real_state(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    patch: str,
-    paths: list[str],
-    gap: str,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / path for path in paths],
-        editor_root=root,
-        patch=patch,
-        target="index",
-    )
-    assert report["verdict"] == "block", report
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
-    assert gap in gaps
-    assert _index_bytes(root) == before
-    assert (root / "module.py").read_text() == "VALUE = 99\n"
-
-
-def test_public_cli_routes_index_target(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
+    root = mixed_lane
+    expected_tree = git(root, "write-tree")
+    before = _snapshot(root)
     patch = tmp_path / "selection.patch"
     patch.write_text(PATCH, encoding="utf-8")
-    completed = run_ethos_raw(
+    result = run_ethos_raw(
         "lane",
         "prewrite",
         "module.py",
@@ -210,317 +91,160 @@ def test_public_cli_routes_index_target(
         str(patch),
         "--editor-root",
         str(root),
+        "--require-editor-root",
         "--json",
         cwd=root,
     )
-    assert completed.returncode == 0, completed.stderr or completed.stdout
-    assert full_result(completed)["verdict"] == "pass"
-
-
-@pytest.mark.parametrize("failure", ["missing-index", "unmerged-index", "scope-unknown"])
-def test_index_observation_unknown_has_no_real_effect_and_no_scratch_residue(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    failure: str,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    scratch = tmp_path / "scratch"
-    scratch.mkdir()
-    directory = index_prewrite.tempfile.TemporaryDirectory
-    monkeypatch.setattr(
-        index_prewrite.tempfile,
-        "TemporaryDirectory",
-        lambda **kwargs: directory(dir=scratch, **kwargs),
-    )
-    if failure == "missing-index":
-        (root / ".git/index").unlink()
-    elif failure == "unmerged-index":
-        blob = git(root, "rev-parse", "HEAD:module.py")
-
-        run_git(
-            root,
-            "update-index",
-            "--index-info",
-            stdin=f"0 {'0' * 40}\tmodule.py\n100644 {blob} 1\tmodule.py\n",
-        )
-        assert git(root, "ls-files", "--unmerged")
-        assert run_git(root, "write-tree", check=False).returncode != 0
-    else:
-        monkeypatch.setattr(
-            prewrite,
-            "non_openspec_prewrite_scope",
-            lambda _paths: {"verdict": "unknown", "required_gaps": ["scope_unavailable"]},
-        )
-    index = root / ".git/index"
-    before = index.read_bytes() if index.exists() else None
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] != "pass", report
-    assert (index.read_bytes() if index.exists() else None) == before
-    assert (root / "module.py").read_text() == "VALUE = 99\n"
-    assert list(scratch.iterdir()) == []
-
-
-@pytest.mark.parametrize("boundary", ["protected", "foreign"])
-def test_index_target_does_not_grant_lane_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    boundary: str,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    if boundary == "protected":
-        git(root, "checkout", "dev")
-    else:
-        authority = CurrentAuthority(
-            verdict="block",
-            reason="lease_holder_mismatch:work/example",
-            branch="work/example",
-            actor="agent:foreign",
-            lease={"holder_ref": "agent:test", "generation": 1},
-            current_head=git(root, "rev-parse", "HEAD"),
-            current_tree=git(root, "rev-parse", "HEAD^{tree}"),
-        )
-        monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] == "block", report
-    assert _index_bytes(root) == before
-
-
-def test_failed_index_evaluator_removes_preparation_and_preserves_state(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    scratch = tmp_path / "scratch"
-    scratch.mkdir()
-    directory = index_prewrite.tempfile.TemporaryDirectory
-    monkeypatch.setattr(
-        index_prewrite.tempfile,
-        "TemporaryDirectory",
-        lambda **kwargs: directory(dir=scratch, **kwargs),
-    )
-
-    def unavailable(_paths):
-        message = "scope observer unavailable"
-        raise OSError(message)
-
-    monkeypatch.setattr(prewrite, "non_openspec_prewrite_scope", unavailable)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] == "unknown"
-    assert _index_bytes(root) == before
-    assert list(scratch.iterdir()) == []
-
-
-def test_index_admission_rechecks_lease_after_scope_observation(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    original_scope = prewrite.non_openspec_prewrite_scope
-
-    def transfer_during_scope(paths):
-        foreign = CurrentAuthority(
-            verdict="block",
-            reason="lease_holder_mismatch:work/example",
-            branch="work/example",
-            actor="agent:test",
-            lease={"holder_ref": "agent:other", "generation": 2},
-            current_head=git(root, "rev-parse", "HEAD"),
-            current_tree=git(root, "rev-parse", "HEAD^{tree}"),
-        )
-        monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: foreign)
-        return original_scope(paths)
-
-    monkeypatch.setattr(prewrite, "non_openspec_prewrite_scope", transfer_during_scope)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[root / "module.py"],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] == "block", report
-    assert _index_bytes(root) == before
-
-
-def test_staged_authority_preserves_owned_rebase_context(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    authority = prewrite.observe_current_authority(
-        root=root, branch="work/example", actor="agent:test", required=True
-    )
-    git(root, "checkout", "--detach")
-    rebase = root / ".git/rebase-merge"
-    rebase.mkdir()
-    (rebase / "head-name").write_text("refs/heads/work/example\n", encoding="utf-8")
-
-    def observe(**coordinates):
-        return CurrentAuthority(
-            verdict="pass",
-            reason="matched",
-            branch=coordinates["branch"],
-            actor=authority.actor,
-            lease=authority.lease,
-            current_head=authority.current_head,
-            current_tree=authority.current_tree,
-            head_source=coordinates["head_source"],
-        )
-
-    monkeypatch.setattr(prewrite, "observe_current_authority", observe)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root, paths=[root / "module.py"], editor_root=root, patch=PATCH, target="index"
-    )
-    assert report["verdict"] == "pass", report
-    assert _index_bytes(root) == before
-
-
-def test_index_drift_projects_the_same_refusal_in_decision(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    original = prewrite.non_openspec_prewrite_scope
-
-    def change_index(paths):
-        (root / "unrelated.py").write_text("OTHER = 7\n", encoding="utf-8")
-        git(root, "add", "unrelated.py")
-        return original(paths)
-
-    monkeypatch.setattr(prewrite, "non_openspec_prewrite_scope", change_index)
-    report = prewrite.prewrite_guard(
-        root=root, paths=[root / "module.py"], editor_root=root, patch=PATCH, target="index"
-    )
-    assert report["verdict"] == "block"
-    decision = report["decision"]
-    assert isinstance(decision, dict)
-    assert decision["verdict"] == report["verdict"]
-    assert decision["required_gaps"] == report["required_gaps"]
-    assert decision["next_action"] == "repair_required_gap"
-
-
-@pytest.mark.parametrize("include_source", [False, True])
-def test_index_rename_binds_both_effect_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, include_source: bool
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    observe = prewrite.staged_artifact_admission
-    contents = []
-
-    def candidate_contents(repo, baseline, *, index_env):
-        report = observe(repo, baseline, index_env=index_env)
-        contents.append(
-            run_git(repo, "show", f"{report['index_tree']}:src/moved.py", env=index_env).stdout
-        )
-        return report
-
-    monkeypatch.setattr(prewrite, "staged_artifact_admission", candidate_contents)
-    patch = (
-        "diff --git a/module.py b/src/moved.py\n"
-        "similarity index 100%\n"
-        "rename from module.py\n"
-        "rename to src/moved.py\n"
-    )
-    paths = [root / "src/moved.py", *([root / "module.py"] if include_source else [])]
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root, paths=paths, editor_root=root, patch=patch, target="index"
-    )
-    assert report["verdict"] == ("pass" if include_source else "block"), report
-    if include_source:
-        binding = report["request_binding"]
-        assert isinstance(binding, dict)
-        state = binding["expected_state"]
-        assert isinstance(state, dict)
-        assert sorted(state["paths"]) == ["module.py", "src/moved.py"]
-        assert contents == ["VALUE = 2\n"]
-    else:
-        gaps = report["required_gaps"]
-        assert isinstance(gaps, list)
-        assert "prewrite_patch_paths_mismatch" in gaps
-    assert _index_bytes(root) == before
-    assert (root / "module.py").read_text() == "VALUE = 99\n"
-
-
-@pytest.mark.parametrize("relative", [False, True])
-def test_index_path_identity_does_not_follow_unstaged_symlink(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, relative: bool
-) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    outside = tmp_path / "outside.py"
-    outside.write_text("EXTERNAL = 1\n", encoding="utf-8")
-    source = root / "module.py"
-    source.unlink()
-    source.symlink_to(outside)
-    before = _index_bytes(root)
-    report = prewrite.prewrite_guard(
-        root=root,
-        paths=[source.relative_to(root) if relative else source],
-        editor_root=root,
-        patch=PATCH,
-        target="index",
-    )
-    assert report["verdict"] == "pass", report
-    assert _index_bytes(root) == before
-    assert source.is_symlink()
-    assert outside.read_text() == "EXTERNAL = 1\n"
+    assert result.returncode == 0, result.stderr or result.stdout
+    report = full_result(result)["data"]
+    state = report["request_binding"]["expected_state"]
+    assert state["expected_index_tree"] == expected_tree
+    assert state["index_tree"] != expected_tree
+    assert state["index_preimage_sha256"] == hashlib.sha256(before[0]["index"]).hexdigest()
+    assert state["patch_sha256"] == hashlib.sha256(PATCH.encode()).hexdigest()
+    assert report["decision"]["reusable_authorization"] is False
+    assert _snapshot(root) == before
+    assert git(root, "show", ":unrelated.py") == "OTHER = 2"
 
 
 @pytest.mark.parametrize("outcome", ["pass", "block", "exception"])
-def test_index_preparation_reclaims_candidate_objects(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+def test_candidate_custody_is_explicit_and_cleanup_covers_every_outcome(
+    mixed_lane: Path,
+    outcome: str,
 ) -> None:
-    root = _mixed_repository(tmp_path, monkeypatch)
-    objects = root / ".git/objects"
-    before = {
-        path.relative_to(objects): path.read_bytes()
-        for path in objects.rglob("*")
-        if path.is_file()
-    }
-    index = _index_bytes(root)
-    scratch = []
-    candidates = []
+    root, scratch, candidates = mixed_lane, [], []
+    before = _snapshot(root)
+    incoming = ("openspec/changes/static-delivery/tasks.md",)
 
     def evaluate(environment):
         scratch.append(Path(environment["GIT_INDEX_FILE"]).parent)
         tree = run_git(root, "write-tree", env=environment).stdout.strip()
         candidates.append(tree)
         assert run_git(root, "show", f"{tree}:module.py", env=environment).stdout == "VALUE = 3\n"
+        assert (
+            preserved_incoming_change_paths(root, incoming, tree_ref=tree, environment=environment)
+            == incoming
+        )
+        assert preserved_incoming_change_paths(root, incoming, tree_ref=tree) == ()
         if outcome == "exception":
-            message = "candidate observer unavailable"
+            message = "candidate reader unavailable"
             raise OSError(message)
         return {"verdict": outcome, "index_tree": tree}
 
     report = index_prewrite.index_patch_prewrite(root, [root / "module.py"], PATCH, evaluate)
     assert report["verdict"] == ("unknown" if outcome == "exception" else outcome)
-    assert {
-        path.relative_to(objects): path.read_bytes()
-        for path in objects.rglob("*")
-        if path.is_file()
-    } == before
+    assert _snapshot(root) == before
     assert all(not path.exists() for path in scratch)
-    assert all(
-        run_git(root, "cat-file", "-e", tree, check=False).returncode != 0 for tree in candidates
+    assert all(run_git(root, "cat-file", "-e", tree, check=False).returncode for tree in candidates)
+
+
+@pytest.mark.parametrize(
+    ("condition", "verdict", "gap"),
+    [
+        ("locked", "unknown", "prewrite_index_locked"),
+        ("split", "unknown", "prewrite_index_split_index_unavailable"),
+        ("missing", "unknown", "prewrite_index_observation_unavailable"),
+        ("conflicted", "unknown", "prewrite_index_prestate_unavailable"),
+        ("scope", "block", "prewrite_patch_paths_mismatch"),
+        ("preimage", "block", "prewrite_patch_preimage_mismatch"),
+        ("patch", "block", "prewrite_index_patch_required"),
+        ("editor", "block", "editor_root_mismatch"),
+        ("foreign", "block", "lease_holder_mismatch"),
+    ],
+)
+def test_refusals_leave_real_state_untouched(
+    mixed_lane: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    condition: str,
+    verdict: str,
+    gap: str,
+) -> None:
+    root, patch, paths, editor = mixed_lane, PATCH, [mixed_lane / "module.py"], mixed_lane
+    if condition == "locked":
+        Path(str(_index(root)) + ".lock").write_bytes(b"writer")
+    elif condition == "split":
+        git(root, "update-index", "--split-index")
+        assert git(root, "rev-parse", "--shared-index-path")
+    elif condition == "missing":
+        _index(root).unlink()
+    elif condition == "conflicted":
+        blob = git(root, "rev-parse", "HEAD:module.py")
+        run_git(
+            root,
+            "update-index",
+            "--index-info",
+            stdin=f"0 {'0' * 40}\tmodule.py\n100644 {blob} 1\tmodule.py\n",
+        )
+    elif condition == "scope":
+        paths = [root / "unrelated.py"]
+    elif condition in {"preimage", "patch"}:
+        patch = PATCH.replace("VALUE = 2", "VALUE = 4") if condition == "preimage" else ""
+    elif condition == "editor":
+        editor = root.parent
+    else:
+        monkeypatch.setenv("ETHOS_ACTOR", "agent:foreign")
+    before = _snapshot(root)
+    report = prewrite.prewrite_guard(
+        root=root, paths=paths, editor_root=editor, patch=patch, target="index"
     )
-    assert _index_bytes(root) == index
-    assert (root / "module.py").read_text() == "VALUE = 99\n"
+    assert report["verdict"] == verdict, report
+    assert any(item.startswith(gap) for item in report["required_gaps"])
+    assert _snapshot(root) == before
+
+
+@pytest.mark.parametrize("coordinate", ["index", "head", "lease"])
+def test_in_preview_drift_refuses_without_restoring_the_concurrent_writer(
+    mixed_lane: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    coordinate: str,
+) -> None:
+    root, concurrent = mixed_lane, []
+    original = prewrite.staged_artifact_admission
+
+    def observe(repo, baseline, *, index_env):
+        result = original(repo, baseline, index_env=index_env)
+        if coordinate == "index":
+            (root / "unrelated.py").write_text("OTHER = 7\n", encoding="utf-8")
+            git(root, "add", "unrelated.py")
+        elif coordinate == "head":
+            git(root, "commit", "-m", "test: concurrent writer")
+        else:
+            monkeypatch.setenv("ETHOS_ACTOR", "agent:foreign")
+        concurrent.append(_snapshot(root))
+        return result
+
+    monkeypatch.setattr(prewrite, "staged_artifact_admission", observe)
+    report = _preview(root)
+    assert report["verdict"] == report["decision"]["verdict"] == "block", report
+    assert report["required_gaps"] == report["decision"]["required_gaps"]
+    if coordinate != "lease":
+        assert f"prewrite_index_{coordinate}_changed_during_admission" in report["required_gaps"]
+    assert _snapshot(root) == concurrent[0]
+
+
+@pytest.mark.parametrize("form", ["default", "sparse", "rename", "symlink"])
+def test_native_index_forms_keep_worktree_selection_separate(mixed_lane: Path, form: str) -> None:
+    root, patch, paths = mixed_lane, PATCH, [mixed_lane / "module.py"]
+    if form == "sparse":
+        git(root, "sparse-checkout", "set", "--cone", "--sparse-index", "openspec", ".ethos")
+        assert "040000" in git(root, "ls-files", "--sparse", "--stage")
+    elif form == "rename":
+        patch = (
+            "diff --git a/module.py b/src/moved.py\nsimilarity index 100%\n"
+            "rename from module.py\nrename to src/moved.py\n"
+        )
+        paths.append(root / "src/moved.py")
+    elif form == "symlink":
+        source = root / "module.py"
+        source.unlink()
+        source.symlink_to(root / "unrelated.py")
+    before = _snapshot(root)
+    report = prewrite.prewrite_guard(
+        root=root,
+        paths=paths,
+        editor_root=root,
+        patch=patch,
+        target="worktree" if form == "default" else "index",
+    )
+    assert report["verdict"] == ("block" if form == "default" else "pass"), report
+    assert _snapshot(root) == before

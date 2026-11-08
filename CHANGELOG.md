@@ -37,6 +37,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- The CI model that adopters render their workflows from pins `jdx/mise-action` v5.2.7, whose
+  download failures log the HTTP status and host and whose retries back off longer.
 - **Breaking:** the root commands `status`, `plan`, `prove`, `land`, `publish` and `adopt` select
   one declared catalog operation (`ethos.contracts.operations`) for every transport, so the CLI, the
   SDK functions and the MCP tools refuse the same requests alike. A request whose flags select no

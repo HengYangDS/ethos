@@ -1068,11 +1068,16 @@ malformed marker and a marker equal to the plain or empty-key digest of its pre-
 
 #### Scenario: A marker is not keyed or not well formed
 
-- **WHEN** a marker equals the plain SHA-256 or the empty-key HMAC of its pre-image, or a token ends
-  like a marker but is none
+- **WHEN** a marker equals the plain SHA-256 or the empty-key HMAC of its pre-image, or a run of
+  hexadecimal labels ends like a marker but is none
 - **THEN** commit validation refuses with `record_marker_unkeyed` or `record_marker_malformed`
 
 #### Scenario: No profile of the range reads
 
 - **WHEN** neither the incumbent baseline's profile nor the proposed head's can be read
 - **THEN** commit validation refuses with `record_roots_unread`
+
+#### Scenario: A record describes the marker
+
+- **WHEN** a record names the marker's form by placeholder labels, or names its suffix alone
+- **THEN** commit validation admits the line

@@ -6,17 +6,17 @@ them, so a step names the operation it runs and carries that operation's effects
 
 from collections.abc import Sequence
 
-from ethos.contracts.operations import adopt
-from ethos.contracts.operations import land
-from ethos.contracts.operations import plan
-from ethos.contracts.operations import prove
-from ethos.contracts.operations import publish
-from ethos.contracts.operations import status
+from ethos.contracts.operations.adopt import ADOPT
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import Operation
+from ethos.contracts.operations.land import LAND
+from ethos.contracts.operations.plan import PLAN
+from ethos.contracts.operations.prove import PROVE
+from ethos.contracts.operations.publish import PUBLISH
+from ethos.contracts.operations.status import STATUS
 
 COMMANDS: dict[str, Command] = {
-    module.COMMAND.name: module.COMMAND for module in (status, plan, prove, land, publish, adopt)
+    command.name: command for command in (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT)
 }
 # Options every root command takes besides its request: the bound root and the JSON frame.
 _ROOT_FLAG, _JSON_FLAG = "--root", "--json"

@@ -26,7 +26,7 @@ class PublishRequest(CommandRequest):
 _PROBED = "read remote-read local-evidence-write"
 _APPLIED = "read remote-read local-evidence-write remote-write"
 
-COMMAND = Command(
+PUBLISH = Command(
     name="publish",
     summary="Report readiness or project one exact publication operation.",
     request=PublishRequest,

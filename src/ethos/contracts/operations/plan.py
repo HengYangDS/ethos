@@ -14,7 +14,7 @@ class PlanRequest(CommandRequest):
     change: str | None = described(None, "Plan this active OpenSpec Change.")
 
 
-COMMAND = Command(
+PLAN = Command(
     name="plan",
     summary="Compile deterministic TransitionPlan.",
     request=PlanRequest,

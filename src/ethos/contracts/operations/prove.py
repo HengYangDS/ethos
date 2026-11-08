@@ -26,7 +26,7 @@ class ProofRequest(CommandRequest):
     )
 
 
-COMMAND = Command(
+PROVE = Command(
     name="prove",
     summary="Produce proof readiness or one executed generic proof Attestation.",
     request=ProofRequest,

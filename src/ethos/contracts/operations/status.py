@@ -12,7 +12,7 @@ class StatusRequest(CommandRequest):
     change: str | None = described(None, "Observe this active OpenSpec Change.")
 
 
-COMMAND = Command(
+STATUS = Command(
     name="status",
     summary="Inspect bounded truth, authority, gaps, coordination, and next action.",
     request=StatusRequest,

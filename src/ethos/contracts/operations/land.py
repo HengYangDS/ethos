@@ -51,7 +51,7 @@ _CLOSEOUT = "expect_head candidate_head independent_verification_receipt identit
 _RELEASE = "expect_head release_head release_base tag identity_transition change"
 _APPLIED = "read local-evidence-write local-write"
 
-COMMAND = Command(
+LAND = Command(
     name="land",
     summary="Preview or apply candidate, accepted or release integration under current policy.",
     request=LandRequest,

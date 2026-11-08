@@ -31,7 +31,7 @@ _FORMATION = "purpose starter author_name author_email signing_key trust_anchor 
 _APPLY = "authorize expect_head expect_plan_digest"
 _EXISTING = "create=false evolve_starter=false exit_repository=false"
 
-COMMAND = Command(
+ADOPT = Command(
     name="adopt",
     summary="Plan or apply ETHOS adoption for a repository, or preview and apply its exit.",
     request=AdoptRequest,

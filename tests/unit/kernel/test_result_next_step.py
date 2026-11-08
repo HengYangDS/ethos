@@ -11,6 +11,7 @@ from ethos.result import EthosResult
 _HEAD = "a" * 40
 _CANDIDATE = "c" * 40
 _EVIDENCE_WRITE = ["local-evidence-write", "local-write"]
+_REMOTE = ["read", "remote-read", "local-evidence-write", "remote-write"]
 
 
 def _next(next_action: str, **fields: object) -> dict[str, object]:
@@ -30,9 +31,9 @@ def test_a_publish_apply_names_its_remote_write_and_its_authority() -> None:
 
     assert step == {
         "kind": "command",
-        "form": "",
+        "form": "publish.apply",
         "argv": list(argv),
-        "effects": ["remote-read", "local-evidence-write", "remote-write"],
+        "effects": _REMOTE,
         "destructive": False,
         "authorization": "authorize",
         "binding": {"receipt": "/store/r.json", "head": _HEAD, "root": "/repo"},
@@ -50,8 +51,8 @@ def test_a_land_closeout_binds_both_heads_and_writes_locally() -> None:
 
     step = _next(shlex.join(argv), verdict="block", state="gapped", required_gaps=gaps)
 
-    assert step["kind"] == "command"
-    assert step["effects"] == _EVIDENCE_WRITE
+    assert (step["kind"], step["form"]) == ("command", "land.closeout.apply")
+    assert step["effects"] == ["read", *_EVIDENCE_WRITE]
     assert step["authorization"] == "authorize"
     assert step["binding"] == {"head": _HEAD, "candidate_head": _CANDIDATE, "root": "/repo"}
     assert step["why"] == "accepted_head_unadmitted"
@@ -120,7 +121,6 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
 
 
 _HOST = [*_EVIDENCE_WRITE, "host-write"]
-_REMOTE = ["remote-read", "local-evidence-write", "remote-write"]
 _RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
 _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm-irreversible"
 
@@ -130,12 +130,17 @@ _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm
     [
         ("status --json", ["read"], "none", False),
         ("lane status --root /lane --json", ["read"], "none", False),
-        ("prove --full --execute --json", ["execute", "local-evidence-write"], "none", False),
+        (
+            "prove --full --execute --json",
+            ["read", "execute", "local-evidence-write"],
+            "none",
+            False,
+        ),
         ("hook install --json", _HOST, "none", False),
         ("hook install --reset-state --authorize --json", _HOST, "authorize", True),
         ("host run nox", ["execute", "opaque"], "human", True),
         ("mcp --root /repo", ["execute", "opaque"], "human", True),
-        ("publish --ref refs/heads/dev --json", _REMOTE[:2], "none", False),
+        ("publish --ref refs/heads/dev --json", _REMOTE[:3], "none", False),
         ("publish --retire --receipt /r --apply --authorize", _REMOTE, "authorize", True),
         ("lane handoff revoke-source --apply", _EVIDENCE_WRITE, "apply", True),
         ("lane handoff transfer --apply", _EVIDENCE_WRITE, "apply", False),
@@ -143,9 +148,12 @@ _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm
         ("lane lease takeover --authorization /a --apply", _EVIDENCE_WRITE, "attestation", False),
         (_REFRESH, _HOST, "confirm-irreversible", True),
         ("lane candidate --refresh-from-accepted --apply --authorize", _HOST, "authorize", False),
-        ("land --retag v1 --apply --authorize", _EVIDENCE_WRITE, "authorize", True),
+        ("land --retag v1 --apply --authorize", ["read", *_EVIDENCE_WRITE], "authorize", True),
         # The closeout preview only reads the refs and worktrees it reports.
-        ("land --closeout --json", ["local-evidence-write"], "none", False),
+        ("land --closeout --json", ["read"], "none", False),
+        # A root argv that selects no catalog operation could do anything, so a person decides it.
+        ("land --closeout --release --json", ["opaque"], "human", True),
+        ("publish --apply --json", ["opaque"], "human", True),
         ("lane start --apply", _HOST, "apply", False),
         ("attestation release --apply", _EVIDENCE_WRITE, "apply", True),
     ],

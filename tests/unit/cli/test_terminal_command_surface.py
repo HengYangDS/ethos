@@ -49,7 +49,7 @@ def test_inprocess_command_restores_environment_on_every_exit(tmp_path, monkeypa
         if failure:
             raise failure(2)
 
-    monkeypatch.setattr(cli_runner, "app", command)
+    monkeypatch.setattr(cli_runner, "run_application", command)
     with patch.dict(os.environ):
         if failure is RuntimeError:
             with pytest.raises(RuntimeError):

@@ -306,8 +306,6 @@ def blocked_publication_action(context: PublicationContext) -> str:
 def publication_readiness_result(
     context: PublicationContext,
     *,
-    apply: bool,
-    authorized: bool,
     expect_head: str | None,
     probe_remote: bool,
 ) -> EthosResult:
@@ -399,9 +397,9 @@ def publication_readiness_result(
     )
     return EthosResult(
         command="publish",
-        verdict=publication_verdict if apply else context.verdict,
+        verdict=context.verdict,
         state=(
-            ("publication_deferred" if apply else "local_publish_ready")
+            "local_publish_ready"
             if context.verdict == "pass"
             else "blocked"
             if context.verdict == "block"
@@ -422,8 +420,8 @@ def publication_readiness_result(
             "publication": publication,
             "mutation": mutation_envelope(
                 command="publish",
-                apply=apply,
-                authorized=authorized,
+                apply=False,
+                authorized=False,
                 expect_head=expect_head,
                 decision=publish_decision,
             ),

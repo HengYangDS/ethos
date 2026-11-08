@@ -135,7 +135,7 @@ def _delivery_boundaries(
             "--json",
             cwd=target,
         )
-        assert denied["required_gaps"] == ["local_source_acceptance_effect_forbidden"]
+        assert denied["required_gaps"] == ["command_field_refused:acceptance_purpose"]
     assert git(repo, "rev-parse", roles.accepted_branch) == before
     assert git(repo, "rev-parse", roles.release_branch) == before
     proofs = [

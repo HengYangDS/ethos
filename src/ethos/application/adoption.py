@@ -9,7 +9,7 @@ from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
@@ -44,7 +44,7 @@ _FORMATION_SIGNER_GAPS = frozenset(
 )
 
 
-@application_result("adopt")
+@catalog_operation("adopt")
 def adopt_repository(
     root: Path,
     *,
@@ -73,31 +73,13 @@ def adopt_repository(
     if exit_repository:
         return _exit(
             root,
-            combined=create or evolve_starter or select_runtime,
             apply=apply,
             authorize=authorize,
             expect_head=expect_head,
             expect_plan_digest=expect_plan_digest,
-        )
-    if select_runtime and (create or evolve_starter):
-        return EthosResult(
-            command="adopt",
-            verdict="block",
-            state="blocked",
-            required_gaps=("adoption_runtime_selection_requires_existing_repository",),
-            next_action="Form the repository before selecting its immutable runtime",
         )
     if evolve_starter:
-        return _evolve_starter(
-            root,
-            purpose=purpose,
-            starter=starter,
-            create=create,
-            apply=apply,
-            authorize=authorize,
-            expect_head=expect_head,
-            expect_plan_digest=expect_plan_digest,
-        )
+        return _evolve_starter(root, purpose=purpose, starter=starter, expect_head=expect_head)
     if create:
         return _form_repository(
             root,
@@ -111,7 +93,6 @@ def adopt_repository(
             apply=apply,
             authorize=authorize,
             expect_plan_digest=expect_plan_digest,
-            expect_head=expect_head,
         )
     target = root.resolve()
     current_head = git.current_head(target)
@@ -194,21 +175,12 @@ def adopt_repository(
 def _exit(
     root: Path,
     *,
-    combined: bool,
     apply: bool,
     authorize: bool,
     expect_head: str | None,
     expect_plan_digest: str | None,
 ) -> EthosResult:
-    """Preview a repository's exit or apply its previewed plan, never with an adoption step."""
-    if combined:
-        return EthosResult(
-            command="adopt",
-            verdict="block",
-            state="blocked",
-            required_gaps=("adoption_exit_combined_with_adoption",),
-            next_action="Run the exit alone: ethos adopt --exit --json",
-        )
+    """Preview a repository's exit or apply its previewed plan."""
     target = root.resolve()
     head = git.current_head(target)
     gaps = request_gaps(
@@ -224,33 +196,16 @@ def _exit(
 
 
 def _evolve_starter(
-    root: Path,
-    *,
-    purpose: str,
-    starter: str,
-    create: bool,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    expect_plan_digest: str | None,
+    root: Path, *, purpose: str, starter: str, expect_head: str | None
 ) -> EthosResult:
-    """Expose a reviewed starter proposal without granting generator write authority."""
+    """Expose a reviewed starter proposal; its changes apply through an owned Work Lane."""
     target = root.resolve()
-    gap = (
-        "starter_evolution_requires_work_lane"
-        if apply or authorize
-        else "starter_evolution_request_invalid"
-        if create or expect_plan_digest is not None
-        else "starter_evolution_starter_unsupported"
-        if starter not in {"", "python-library"}
-        else ""
-    )
-    if gap:
+    if starter not in {"", "python-library"}:
         return EthosResult(
             command="adopt",
             verdict="block",
             state="blocked",
-            required_gaps=(gap,),
+            required_gaps=("starter_evolution_starter_unsupported",),
             next_action="Use preview; apply reviewed changes through an owned Work Lane",
             data={"root": str(target), "changed_paths": [], "patch": ""},
         )
@@ -304,7 +259,6 @@ def _form_repository(
     apply: bool,
     authorize: bool,
     expect_plan_digest: str | None,
-    expect_head: str | None,
 ) -> EthosResult:
     """Keep creation distinct from existing-repository HEAD-bound adoption."""
     plan = formation_plan(
@@ -316,14 +270,12 @@ def _form_repository(
         signing_key=signing_key,
         trust_anchor=trust_anchor,
         signing_program=signing_program,
-        apply=apply and expect_head is None,
+        apply=apply,
         authorized=authorize,
         expect_plan_digest=expect_plan_digest,
     )
     gaps = list(string_sequence(plan.get("required_gaps")))
-    if expect_head is not None:
-        gaps.append("formation_expect_head_not_applicable")
-    verdict = "block" if expect_head is not None else report_verdict(plan)
+    verdict = report_verdict(plan)
     digest = str(plan.get("plan_digest") or "")
     applied = plan.get("applied") is True and verdict == "pass"
     target = Path(str(plan.get("root") or root.absolute()))
@@ -410,7 +362,6 @@ def _form_repository(
                 "create": True,
                 "apply": apply,
                 "authorized": authorize,
-                "expect_head": expect_head,
                 "expect_plan_digest": expect_plan_digest,
                 "author_name": author_name,
                 "author_email": author_email,

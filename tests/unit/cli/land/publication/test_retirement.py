@@ -161,9 +161,7 @@ def test_public_retirement_after_dev_absorption_does_not_wait_for_main(
 def test_retirement_never_deletes_an_integration_or_release_resource(tmp_path: Path, target: str):
     """Explicit retirement cannot reclassify protected/candidate roles as proposals."""
     repo, peers, proposal, accepted = retirement_fixture(tmp_path)
-    report = branch_publication(
-        repo, accepted, "--retire", "--apply", "--authorize", target_ref=target, blocked=True
-    )
+    report = branch_publication(repo, accepted, "--retire", target_ref=target, blocked=True)
     assert report["verdict"] == "block"
     assert report["state"] != "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
@@ -306,7 +304,7 @@ def test_retirement_preserves_unknown_review_in_public_preview(tmp_path: Path, m
         return native(root, remote, ref)
 
     monkeypatch.setattr(retirement, "observe_remote_ref", observe)
-    result = branch_publication(repo, accepted, "--retire")
+    result = branch_publication(repo, accepted, "--retire", blocked=True)
     assert result["verdict"] == "unknown"
     assert result["state"] == "observation_unknown"
     assert "--retire" in result["next_action"]
@@ -378,7 +376,7 @@ def test_refreshed_retirement_requires_current_complete_evidence(tmp_path, monke
             retained += (Attestation.issue(data),)
         git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
         record_attestations(repo, retained)
-    report = branch_publication(repo, accepted, "--retire", blocked=fault != "native_timeout")
+    report = branch_publication(repo, accepted, "--retire", blocked=True)
     assert report["verdict"] == ("unknown" if fault == "native_timeout" else "block")
     git(repo, "branch", PROPOSAL_REF.removeprefix("refs/heads/"), proposal)
     local = retire_absorbed_ref(

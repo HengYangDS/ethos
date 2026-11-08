@@ -80,9 +80,10 @@ Use this order for a package that appears physically redundant:
 Directory and file counts are evidence for review, never the decision rule.
 An `__init__.py` is not a marker and a README is not a directory marker.
 
-Command ownership follows the same rule. Concrete Cyclopts declarations own CLI
-names, parameters, help, and dispatch; `system/gates.toml` owns only proof-gate
-adapters. A `surface/cli/**/core.py` command owner, or one module that owns more
+Command ownership follows the same rule. The root operation catalog
+(`ethos.contracts.operations`) owns the root commands' names, parameters, help
+and selection, which one generic adapter renders; concrete Cyclopts declarations
+own the group commands'. `system/gates.toml` owns only proof-gate adapters. A `surface/cli/**/core.py` command owner, or one module that owns more
 than one Cyclopts application, is a hard layout defect.
 
 ## 2. Logical organization — public vs private

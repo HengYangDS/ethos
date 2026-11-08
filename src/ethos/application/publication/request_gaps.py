@@ -83,7 +83,6 @@ def publication_request_gaps(
         (expect_head is None, "expect_head_required"),
         (apply and (not authorize), "authorization_required"),
         (expect_head is not None and expect_head != current_head, "expect_head_mismatch"),
-        (receipt is not None and (not apply), "remote_publication_receipt_apply_required"),
         (receipt is None and (not probe_remote), "publication_remote_probe_required"),
         (not target_refs, "publication_target_ref_required"),
         (len(target_refs) != len(set(target_refs)), "publication_target_ref_duplicate"),

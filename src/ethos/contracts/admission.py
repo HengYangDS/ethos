@@ -94,7 +94,7 @@ StepEffect = Literal[
 STEP_EFFECTS: tuple[StepEffect, ...] = get_args(StepEffect)
 # The authority a step's argv carries, from none to a person's decision.
 StepAuthorization = Literal[
-    "none", "apply", "authorize", "confirm-irreversible", "attestation", "human"
+    "none", "apply", "authorize", "confirm-irreversible", "attestation", "delegation", "human"
 ]
 # The strongest authority token in an argv names its kind; a person decides the rest.
 _AUTHORITY_TOKENS: tuple[tuple[str, StepAuthorization], ...] = (
@@ -103,9 +103,8 @@ _AUTHORITY_TOKENS: tuple[tuple[str, StepAuthorization], ...] = (
     ("--authorize", "authorize"),
     ("--apply", "apply"),
 )
-# Hook admission admits only root readers; a step also reads when it names a lane reader.
-_READ_COMMAND_PATHS = frozenset({*((name,) for name in READONLY_ROOT_COMMANDS), ("lane", "status")})
-_REMOTE_ROOT_COMMANDS = frozenset({"publish"})
+# The rows below classify group argv; a root argv takes its catalog operation's declarations.
+_READ_COMMAND_PATHS = frozenset({("lane", "status")})
 _Row = tuple[tuple[str, ...], frozenset[str]]
 
 
@@ -123,7 +122,6 @@ _HOST_WRITES = _rows(
     "hook retire-supply: --apply",
     "lane start: --apply",
     "lane candidate: --apply",
-    "adopt: --select-runtime --apply",
 )
 # Each shape selects the deletion of something it does not recreate. Cleanup that another
 # operation performs under a liveness check is not counted; that operation reports it.
@@ -136,10 +134,7 @@ _DESTRUCTIVE = _rows(
     "lane housekeeping: --apply --authorize",
     "lane handoff revoke-source: --apply",
     "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
-    "publish: --retire --apply --authorize",
     "attestation release: --apply",
-    "adopt: --exit --apply --authorize --expect-head --expect-plan-digest",
-    "land: --retag --apply --authorize",
     "hook retire-supply: --apply --authorize --expect-plan",
     "hook install: --reset-state --authorize",
 )
@@ -176,22 +171,19 @@ def _matched(arguments: list[str] | tuple[str, ...], rows: tuple[_Row, ...]) -> 
 
 
 def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffect, ...]:
-    """Return what one ETHOS argv does, from the least to the most consequential effect."""
+    """Return what one group ETHOS argv does, from the least to the most consequential effect."""
     if _matched(arguments, _OPAQUE):
         return ("execute", "opaque")
     path = ethos_command_path(arguments)
     flags = _flags(arguments)
     if path in _READ_COMMAND_PATHS and not flags & MUTATING_COMMAND_FLAGS:
         return ("read",)
-    remote = bool(path) and path[0] in _REMOTE_ROOT_COMMANDS
     writes = bool(flags & {"--apply", "--authorize"}) or _matched(arguments, _TOKENLESS_WRITES)
     present = {
-        "remote-read": remote,
         "execute": "--execute" in flags,
         "local-evidence-write": True,
-        "local-write": writes and not remote,
+        "local-write": writes,
         "host-write": _matched(arguments, _HOST_WRITES),
-        "remote-write": writes and remote,
     }
     return tuple(effect for effect in STEP_EFFECTS if present.get(effect, False))
 

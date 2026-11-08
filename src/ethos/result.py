@@ -27,7 +27,8 @@ from ethos.contracts.verdict import require_closed_verdict
 
 # Every command's JSON result is bounded; a command declares a budget only to differ.
 DEFAULT_PAYLOAD_BUDGET = 16 * 1024
-PAYLOAD_BUDGETS = {"status": DEFAULT_PAYLOAD_BUDGET, "plan": 32 * 1024}
+# Help prints the root catalog: 40,755 bytes measured on 2026-11-08, rounded up to a 16 KiB step.
+PAYLOAD_BUDGETS = {"status": DEFAULT_PAYLOAD_BUDGET, "plan": 32 * 1024, "help": 48 * 1024}
 _INLINE_LINES = 20
 _INLINE_ENTRY_BYTES = 1024
 _ARTIFACT_HOME = Path("payloads")

@@ -218,7 +218,7 @@ def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: P
         repo, apply=False, authorized=False, expect_head=None, target_refs=()
     )
     observed = publication_domain.publication_readiness_result(
-        context, apply=False, authorized=False, expect_head=None, probe_remote=False
+        context, expect_head=None, probe_remote=False
     )
     assert observed.model_dump(mode="json")["data"] == payload["data"]
     assert observed.state == payload["state"]

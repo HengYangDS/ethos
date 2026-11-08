@@ -23,7 +23,6 @@ The daily workflow and transport operations are:
 | `ethos land --json`                                                                                        | Report landing readiness.                                                                                                                                  | Effects require the command's explicit guarded options.                                                                                                            |
 | `ethos publish --json`                                                                                     | Report local publication readiness.                                                                                                                        | Read-only.                                                                                                                                                         |
 | `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json`                                | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state.                                                                                  |
-| `ethos publish --ref <full-ref> --probe-remote --apply --authorize --expect-head <head> --json`            | Derive and consume the same full-ref publication request.                                                                                                  | Uses the same receipt-bound exact-CAS executor as explicit receipt apply.                                                                                          |
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers.                                                                             | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
 | `ethos publish --retire --ref <full-ref> --probe-remote --expect-head <head> --json`                       | Derive an exact retirement request for one proposal or legacy role ref whose content an accepted peer branch contains.                                     | Read-only; the returned receipt action applies it after each peer is re-observed.                                                                                  |
 | `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
@@ -54,6 +53,15 @@ reobserve before retrying. Synchronous work drains before queued work; filesyste
 record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
+
+Each workflow root runs one operation of the root catalog (`ethos.contracts.operations`), chosen
+by the flags given: `ethos land --closeout --apply` runs `land.closeout.apply`. A request whose
+flags choose no operation, or that sets a flag its operation does not take, runs nothing and
+exits 2 with `command_operation_unmatched:<command>` or `command_field_refused:<field>`, as JSON
+under `--json`; so does any usage error. A preview exits 0 whatever its verdict, an apply, a
+proof and a publication probe exit 1 unless they pass, and a result that cannot be delivered
+exits 3. `ethos --help --json` prints the catalog: each command's flags and request schema, and
+each operation's selectors, fields, effects, authorization and exit.
 
 `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
 admits it, and exits with the command's own status.
@@ -103,8 +111,9 @@ acquisition/checksums, cold payload, peer-outage and hosted qualification retain
 and `publish_repository` in `ethos.application.inspection`, `ethos.application.plan`,
 `ethos.application.adoption`, `ethos.application.proof.operation`,
 `ethos.application.land.operation` and `ethos.application.publication.operation` return typed
-`EthosResult` values without CLI rendering or changing the caller's working directory. Pass an
-explicit repository path:
+`EthosResult` values without CLI rendering or changing the caller's working directory. Each
+selects its catalog operation first, so a request the CLI refuses returns the same refusal. Pass
+an explicit repository path:
 
 ```python
 from pathlib import Path
@@ -402,7 +411,9 @@ of the committed build that produced the result.
   invocation a person approves; no reader runs it without that approval.
 - `effects` lists what the argv does, ordered `read`, `remote-read`, `execute`,
   `local-evidence-write`, `local-write`, `host-write`, `remote-write` and `opaque`. `host run` and
-  `mcp` are `opaque`: their argv cannot bound what they run.
+  `mcp` are `opaque`: their argv cannot bound what they run. A root argv takes its effects,
+  destructiveness and authorization from the catalog operation it selects; one that selects none
+  is `opaque`, destructive and `human`.
 - `authorization` is the strongest authority token in the argv: `attestation`
   (`--authorization <file>`), `confirm-irreversible`, `authorize` or `apply`. It is `none` without
   one, and `human` for a decision or an opaque step.
@@ -410,12 +421,13 @@ of the committed build that produced the result.
   Cleanup that another operation performs under a liveness check is not counted, and that operation
   reports it in its result. A retirement receipt applies only with `--retire`, and a candidate
   refresh that would drop commits accepted lacks needs `--confirm-irreversible`.
-- `form` is empty until command forms are declared.
+- `form` names the catalog operation a root argv selects, such as `land.closeout.preview`; it is
+  empty for any other step.
 - `binding` names the values the argv binds: `root`, `head`, `candidate_head`, `receipt`,
   `plan_digest` and `lease_expires_at`.
 - `why` is the first required gap, or else the state.
 
-Every JSON result fits its budget: 16 KiB, or 32 KiB for `plan`. A larger result keeps its wire
+Every JSON result fits its budget: 16 KiB, 32 KiB for `plan` or 48 KiB for `help`. A larger result keeps its wire
 fields, its own `data` entries of at most 1 KiB and the scalar fields of a larger mapping, and adds
 a top-level `bound`. `bound.detail` names the digest-bound artifact of the full result; `bound`
 also lists each failing step's id, exit code and first 20 output lines, the entries it shortened

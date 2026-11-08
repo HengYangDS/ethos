@@ -381,6 +381,10 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
     payload = run_ethos_blocked(
         command, "--apply", "--authorize", "--expect-head", head, "--json", cwd=repo
     )
+    if command == "publish":
+        # Only a derived request's receipt applies, so a bare apply selects no operation.
+        assert payload["required_gaps"] == ["command_operation_unmatched:publish"]
+        return
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")
     assert "protected_root_mutation" in payload["required_gaps"]
 

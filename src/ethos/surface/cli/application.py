@@ -5,20 +5,24 @@ from __future__ import annotations
 import importlib
 
 from cyclopts import App
+from cyclopts.exceptions import CycloptsError
 
+from ethos.application.catalog import usage_refusal
 from ethos.contracts.admission import root_command
+from ethos.surface.cli.output import emit
 from ethos.surface.cli.version import version_text
 
 app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
+_CATALOG = "ethos.surface.cli.root.catalog"
 _COMMAND_MODULES = {
-    "status": "ethos.surface.cli.root.inspection",
-    "plan": "ethos.surface.cli.root.planning",
-    "prove": "ethos.surface.cli.root.proof",
-    "land": "ethos.surface.cli.root.land",
-    "publish": "ethos.surface.cli.root.publish",
+    "status": _CATALOG,
+    "plan": _CATALOG,
+    "prove": _CATALOG,
+    "land": _CATALOG,
+    "publish": _CATALOG,
     "mcp": "ethos.surface.cli.root.mcp",
-    "adopt": "ethos.surface.cli.root.adoption",
+    "adopt": _CATALOG,
     "lane": "ethos.surface.cli.lane.lifecycle",
     "hook": "ethos.surface.cli.hook.commands",
     "attestation": "ethos.surface.cli.root.attestation",
@@ -55,3 +59,15 @@ def dispatch_arguments(argv: list[str]) -> list[str]:
     if remaining and applications[-1].default_command is None:
         return [argument for argument in argv if argument not in app.help_flags]
     return argv
+
+
+def run_application(argv: list[str]) -> None:
+    """Run one command; a usage error is a structured result that exits 2, like a refusal."""
+    try:
+        app(dispatch_arguments(argv), exit_on_error=False, print_error=False)
+    except CycloptsError as error:
+        name = root_command(argv)
+        command = name if name in app.resolved_commands() else "ethos"
+        gap = f"command_usage_invalid:{command}"
+        refusal = usage_refusal(command, (gap,), {"usage": str(error)}, message=str(error))
+        emit(refusal, json_output="--json" in argv)

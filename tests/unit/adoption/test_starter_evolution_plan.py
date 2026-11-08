@@ -306,7 +306,14 @@ def test_starter_evolution_public_apply_refuses_generator_authority(
         cwd=repo,
     )
 
-    assert result["required_gaps"] == ["starter_evolution_requires_work_lane"]
+    assert result["required_gaps"] == ["command_operation_unmatched:adopt"]
+    evolution = next(
+        item
+        for item in result["data"]["selection"]["operations"]
+        if item["id"] == "adopt.evolve-starter.preview"
+    )
+    assert evolution["failed"] == ["apply=false"]
+    assert "owned Work Lane" in evolution["summary"]
     assert (repo / "pyproject.toml").read_bytes() == before
 
 

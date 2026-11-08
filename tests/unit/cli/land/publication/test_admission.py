@@ -31,6 +31,7 @@ from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.unit.cli.land.publication.support import accepted_release_fixture
+from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
@@ -343,7 +344,8 @@ def test_selected_proposal_peer_does_not_borrow_repository_proof(tmp_path: Path)
     repo, peers, head = branch_publication_fixture(tmp_path, proof=False)
     git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
-    payload = branch_publication(repo, head, "--peer", "github", "--apply", "--authorize")
+    probe = branch_publication(repo, head, "--peer", "github")
+    payload = apply_receipt(repo, probe["data"]["request_receipt"], head)
 
     assert (payload["verdict"], payload["state"]) == ("pass", "published")
     assert payload["data"]["proof_admission"]["state"] == "not_required"
@@ -360,7 +362,8 @@ def test_review_publication_uses_the_selected_object_not_candidate_checkout(
         tmp_path, source_branch=source_branch, proof=False
     )
 
-    payload = branch_publication(repo, head, "--apply", "--authorize")
+    probe = branch_publication(repo, head)
+    payload = apply_receipt(repo, probe["data"]["request_receipt"], head)
 
     assert payload["state"] == "published"
     assert payload["data"]["proof_admission"]["state"] == "not_required"

@@ -34,7 +34,7 @@ def test_selected_peer_can_publish_when_other_declared_peer_is_unavailable(tmp_p
     repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
     git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
-    default = branch_publication(repo, head, target_ref="refs/heads/main")
+    default = branch_publication(repo, head, target_ref="refs/heads/main", blocked=True)
     assert default["verdict"] == "unknown"
     assert default["data"]["request_receipt"] == {}
 
@@ -81,7 +81,9 @@ def test_unavailable_selected_peer_does_not_fall_back_or_widen_retry(tmp_path: P
     repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
     git(repo, "remote", "set-url", "github", str(tmp_path / "unavailable-github.git"))
 
-    report = branch_publication(repo, head, "--peer", "github", target_ref="refs/heads/main")
+    report = branch_publication(
+        repo, head, "--peer", "github", target_ref="refs/heads/main", blocked=True
+    )
 
     assert report["verdict"] == "unknown"
     assert report["required_gaps"] == [
@@ -114,7 +116,7 @@ def test_receipt_cannot_accept_a_new_peer_selector(tmp_path: Path) -> None:
         cwd=repo,
     )
 
-    assert blocked["required_gaps"] == ["publication_peer_selection_receipt_conflict"]
+    assert blocked["required_gaps"] == ["command_field_refused:peer_ids"]
     for peer in peers.values():
         assert git(peer, "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
 
@@ -136,7 +138,7 @@ def test_unavailable_remote_preserves_unknown_without_false_divergence(
     result = (
         apply_receipt(repo, receipt, head, blocked=True)
         if apply
-        else branch_publication(repo, head, target_ref="refs/heads/dev")
+        else branch_publication(repo, head, target_ref="refs/heads/dev", blocked=True)
     )
     assert result["verdict"] == "unknown"
     assert result["summary"]["remote_push"] == "not_performed"
@@ -379,7 +381,7 @@ def test_publication_keeps_unavailable_intent_observation_unknown(
         assert report["state"] == "preflight_unknown"
         assert report["data"]["remote_effect"]["attempts"] == []
     elif operation == "dry-run":
-        report = branch_publication(repo, head)
+        report = branch_publication(repo, head, blocked=True)
     else:
         report = push_admission_report(
             root=repo,

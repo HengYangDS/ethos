@@ -19,7 +19,7 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -67,7 +67,7 @@ def renewal_action(summary: Mapping[str, object], *, root: Path) -> str:
     return f"ethos lane lease {verb} --root {root.as_posix()}"
 
 
-@application_result("status")
+@catalog_operation("status")
 def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
     with selected_change(change):

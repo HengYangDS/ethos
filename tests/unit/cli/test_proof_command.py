@@ -5,17 +5,17 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
 
 import ethos.application.proof.operation as proof_operation
-import ethos.surface.cli.root.proof as proof_cli
+import ethos.surface.cli.root.catalog as proof_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.gates.proof_slot import SlotAdmission
+from ethos.contracts.operations.prove import ProofRequest
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.plan import PlanNode
@@ -82,7 +82,7 @@ def _attestation(verdict: str = "pass"):
     )
 
 
-def _options(**updates: object) -> SimpleNamespace:
+def _options(**updates: object) -> ProofRequest:
     values = {
         "objective": "ethos proof",
         "scope": "repository",
@@ -95,7 +95,7 @@ def _options(**updates: object) -> SimpleNamespace:
         "probe": False,
     }
     values.update(updates)
-    return SimpleNamespace(**values)
+    return ProofRequest.model_validate(values)
 
 
 def _arrange(

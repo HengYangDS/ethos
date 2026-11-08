@@ -13,7 +13,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.paradigm.declaration import binding_path
@@ -30,7 +30,7 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 
 
-@application_result("plan")
+@catalog_operation("plan")
 def plan_repository(root: Path, *, changed: bool = False, change: str | None = None) -> EthosResult:
     """Compile deterministic TransitionPlan."""
     with selected_change(change):

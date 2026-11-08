@@ -70,9 +70,13 @@ def test_the_readiness_run_executes_only_the_tier_and_names_the_rest_not_run(
 def test_the_readiness_mode_refuses_a_selection_or_a_dry_run(tmp_path: Path) -> None:
     """The readiness run always uses the full plan and executes; any narrowing refuses."""
     repo = init_git_repo(tmp_path / "repo")
-    for extra in (("--execute", "--gate", "lint"), ("--execute", "--host"), ()):
+    for extra, gap in (
+        (("--execute", "--gate", "lint"), "command_field_refused:gate"),
+        (("--execute", "--host"), "command_operation_unmatched:prove"),
+        ((), "command_operation_unmatched:prove"),
+    ):
         result = run_ethos_blocked("prove", "--readiness", *extra, "--json", cwd=repo)
-        assert "proof_readiness_options_invalid" in result["required_gaps"]
+        assert result["required_gaps"] == [gap]
 
 
 def test_a_readiness_run_owes_no_test_bound_obligation_of_the_real_policy(

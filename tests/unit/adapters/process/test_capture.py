@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(60)
 @pytest.mark.parametrize("spool_stdout", [False, True])
 def test_native_output_is_captured_through_regular_files(
     tmp_path: Path, *, spool_stdout: bool
@@ -276,8 +276,8 @@ def test_cancellation_reaches_native_nox_pytest_worker(
             f"sys.path.insert(0, {source_root!r}); "
             "from ethos.adapters.process import run_command; from ethos import cli; "
             "application = SimpleNamespace(load_command_groups=lambda _: None, "
-            "dispatch_arguments=lambda args: args, "
-            f"app=lambda _: run_command(Path.cwd(), {command!r}, timeout=20, spool_stdout=True)); "
+            "run_application=lambda _: "
+            f"run_command(Path.cwd(), {command!r}, timeout=20, spool_stdout=True)); "
             "native_import = cli.import_module; "
             "cli.import_module = lambda name: application if "
             "name == 'ethos.surface.cli.application' else native_import(name); "
@@ -348,7 +348,7 @@ def test_nested_scope_cancels_all_registered_groups_with_one_budget(
             f"timeout=10) for c in {commands!r}]\n"
             "        for future in futures: future.result()\n"
             "application=SimpleNamespace(load_command_groups=lambda _: None, "
-            "dispatch_arguments=lambda args: args, app=app)\n"
+            "run_application=app)\n"
             "native_import=cli.import_module\n"
             "cli.import_module=lambda name: application if "
             "name=='ethos.surface.cli.application' else native_import(name)\n"

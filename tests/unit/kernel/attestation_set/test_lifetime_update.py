@@ -124,7 +124,8 @@ def test_cas_loser_recomputes_lifetime_facts(
     raced: list[bool] = []
 
     def race_first_swap(root: Path, *arguments: str, **options: Any) -> Any:
-        if arguments[:1] == ("update-ref",) and not raced:
+        # The winner lands after the loser derived its root and before the loser's swap.
+        if arguments[:3] == ("hash-object", "-t", "commit") and not raced:
             raced.append(True)
             assert attestation_set.record_attestations(repo, (winner,))["removed"] == ()
             commit_fixture_file(repo, "next.txt", "next\n", "advance dev")

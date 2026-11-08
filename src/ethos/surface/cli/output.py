@@ -1,9 +1,14 @@
-"""CLI result rendering and exit-status enforcement."""
+"""CLI result rendering and exit-status enforcement.
+
+A result exits 0 or, when its verdict is enforced and does not pass, 1; a usage refusal exits 2
+and a result that cannot be delivered exits 3.
+"""
 
 from __future__ import annotations
 
 import os
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Annotated
 from typing import TextIO
@@ -36,21 +41,31 @@ def emit(
         result = apply_payload_budget(
             with_runtime(result), root=lambda: _detail_store(artifact_root)
         )
-    stream = sys.stderr if result.command == "mcp" else sys.stdout
-    if json_output:
-        frame = f"{result.to_json()}\n"
-    else:
-        lines = [f"{result.command}: {result.state}"]
-        lines.extend(f"why: {reason}" for reason in _human_reasons(result))
-        if result.user_decision_required:
-            lines.append("decision: human choice required")
-        if result.next_action:
-            lines.append(f"next: {result.next_action}")
-        frame = "\n".join(lines) + "\n"
-    _write_frame(stream, frame)
+    # A usage refusal is an error: its human frame goes to stderr, beside any JSON on stdout.
+    usage = result.state == "usage_refused"
+    stream = sys.stderr if result.command == "mcp" or (usage and not json_output) else sys.stdout
+    _write_frame(stream, f"{result.to_json()}\n" if json_output else _human_frame(result))
+    if usage:
+        if json_output:
+            # The JSON on stdout is the result; this copy for a person is best effort.
+            with suppress(OSError, ValueError):
+                sys.stderr.write(_human_frame(result))
+                sys.stderr.flush()
+        raise SystemExit(2)
     native_failure = result.data.get("error_boundary") in {"git_execution", "process_execution"}
     if (enforce or native_failure) and result.verdict != "pass":
         raise SystemExit(1)
+
+
+def _human_frame(result: EthosResult) -> str:
+    """Render one result for a person: its state, every distinct reason and the next action."""
+    lines = [f"{result.command}: {result.state}"]
+    lines.extend(f"why: {reason}" for reason in _human_reasons(result))
+    if result.user_decision_required:
+        lines.append("decision: human choice required")
+    if result.next_action:
+        lines.append(f"next: {result.next_action}")
+    return "\n".join(lines) + "\n"
 
 
 def _detail_store(artifact_root: Path | None) -> Path:
@@ -90,7 +105,8 @@ def _write_frame(stream: TextIO, frame: str) -> None:
                 sys.stderr.flush()
             except (OSError, ValueError):
                 pass
-        raise SystemExit(1)
+        # An undelivered result is not the command's verdict; it exits apart from every verdict.
+        raise SystemExit(3)
 
 
 def _human_reasons(result: EthosResult) -> tuple[str, ...]:

@@ -239,8 +239,7 @@ def test_each_command_but_the_mcp_server_is_one_invocation(
 
     monkeypatch.setattr(cli, "command_scope", lambda **_: nullcontext())
     monkeypatch.setattr(application, "load_command_groups", lambda _argv: None)
-    monkeypatch.setattr(application, "dispatch_arguments", lambda arguments: arguments)
-    monkeypatch.setattr(application, "app", dispatch)
+    monkeypatch.setattr(application, "run_application", dispatch)
     monkeypatch.setattr(sys, "argv", ["ethos", *command, "--root", str(tmp_path)])
 
     cli.main()

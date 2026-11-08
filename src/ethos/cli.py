@@ -21,10 +21,15 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
+from ethos.contracts.operations.catalog import COMMANDS
+from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.outcome import outcome_of
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 from ethos.surface.cli.version import version_text
+
+# `ethos --help --json` prints every root command's catalog, `ethos <command> --help --json` one.
+_ROOT_HELP = frozenset({"ethos", *COMMANDS})
 
 
 def console_main() -> None:
@@ -34,7 +39,7 @@ def console_main() -> None:
     try:
         target = _argument_root(argv)
         if (
-            (command == "adopt" and "--create" in argv)
+            _creates_root(argv)
             or (command == "mcp" and "--create-target" in argv)
             or not target.exists()
         ):
@@ -81,11 +86,16 @@ def main() -> None:
                 return
             commands = import_module("ethos.surface.cli.application")
             commands.load_command_groups(argv)
+            if "--json" in argv and {"--help", "-h"} & set(argv) and command in _ROOT_HELP:
+                catalog = import_module("ethos.surface.cli.root.catalog")
+                output = import_module("ethos.surface.cli.output")
+                output.emit(catalog.help_result(command), json_output=True, enforce=False)
+                return
             parameters = import_module("ethos.repository.paradigm.parameters")
             # Every command observes an immutable fact once; the MCP server serves many requests.
             invocation = nullcontext() if command == "mcp" else invocation_scope()
             with parameters.repository_parameters(_argument_root(argv)), invocation:
-                commands.app(commands.dispatch_arguments(argv))
+                commands.run_application(argv)
         except ProcessExecutionError as exc:
             import_module("ethos.surface.cli.output").emit_process_execution_failure(
                 command=command,
@@ -102,12 +112,22 @@ def main() -> None:
             _emit_contract_failure(command, argv, exc)
 
 
+def _creates_root(argv: list[str]) -> bool:
+    """Return whether the argv selects an operation that forms its root instead of binding one."""
+    selected = select_argv(["ethos", *argv])
+    return selected is not None and selected[1] is not None and selected[1].creates_root
+
+
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:
-    """Emit the stable structured invalid-profile result for one public command."""
+    """Emit the stable structured invalid-profile result, exiting as the selected operation does.
+
+    An unselected root argv exits as a refusal would, and a group command keeps exit 0.
+    """
+    selected = select_argv(["ethos", *argv])
     import_module("ethos.surface.cli.output").emit_invalid_repository_profile(
         command=command,
         json_output="--json" in argv,
-        enforce=command == "prove" or (command in {"land", "publish"} and "--apply" in argv),
+        enforce=selected is not None and (selected[1] is None or selected[1].exit == "verdict"),
         root=_argument_root(argv),
     )
 

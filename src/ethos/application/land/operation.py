@@ -23,7 +23,7 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.application.invocation import profile_failure_result
 from ethos.application.land.closeout import closeout_audit_root
 from ethos.application.land.closeout import closeout_result
@@ -369,21 +369,18 @@ def _retag_result(
     apply: bool,
     authorize: bool,
     expect_plan_digest: str,
-    conflict: bool,
 ) -> EthosResult:
     """Preview, or apply under the previewed digest, one batch of mapped release re-tags."""
     parts = [item.partition("=") for item in original_tag]
     originals = {tag: oid for tag, _separator, oid in parts}
-    malformed = len(originals) != len(parts) or any(
+    if len(originals) != len(parts) or any(
         not (tag in tags and separator and oid) for tag, separator, oid in parts
-    )
-    gaps = [
-        *(["release_options_conflict"] if conflict else []),
-        *(["release_retag_original_tag_invalid"] if malformed else []),
-    ]
-    if gaps:
+    ):
         return EthosResult(
-            command="land", verdict="block", state="blocked", required_gaps=tuple(gaps)
+            command="land",
+            verdict="block",
+            state="blocked",
+            required_gaps=("release_retag_original_tag_invalid",),
         )
     report = mapped_retag(
         repo,
@@ -403,7 +400,7 @@ def _retag_result(
     )
 
 
-@application_result("land")
+@catalog_operation("land")
 def land_repository(
     root: Path,
     *,
@@ -428,16 +425,6 @@ def land_repository(
     with selected_change(change):
         repo = root.resolve()
         acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
-        if acceptance_purpose == "local-source" and (closeout or release):
-            return EthosResult(
-                command="land",
-                verdict="block",
-                state="blocked",
-                required_gaps=("local_source_acceptance_effect_forbidden",),
-                next_action=(
-                    "produce strict repository proof before accepted or release integration"
-                ),
-            )
         if profile_blocks_operation(repo, closeout=closeout):
             return profile_failure_result("land", repo)
         if retag:
@@ -448,28 +435,17 @@ def land_repository(
                 apply=apply,
                 authorize=authorize,
                 expect_plan_digest=expect_plan_digest,
-                conflict=bool(release or closeout or candidate_head),
             )
         if release:
-            report = (
-                {
-                    "verdict": "block",
-                    "state": "blocked",
-                    "required_gaps": ["release_options_conflict"],
-                    "next_action": "",
-                    "data": {},
-                }
-                if closeout or candidate_head
-                else promote_release(
-                    repo,
-                    head=expect_head or "",
-                    previous=release_head,
-                    base=release_base,
-                    tag=tag,
-                    apply=apply,
-                    authorized=authorize,
-                    identity_transition=identity_transition,
-                )
+            report = promote_release(
+                repo,
+                head=expect_head or "",
+                previous=release_head,
+                base=release_base,
+                tag=tag,
+                apply=apply,
+                authorized=authorize,
+                identity_transition=identity_transition,
             )
             return EthosResult(
                 command="land",

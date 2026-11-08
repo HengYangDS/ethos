@@ -53,7 +53,7 @@ def test_adoption_selects_runtime_without_replacing_incumbent_hooks(
         repo,
         select_runtime=True,
         apply=apply,
-        authorize=True,
+        authorize=apply,
         expect_head=git(repo, "rev-parse", "HEAD"),
     )
 
@@ -253,7 +253,7 @@ def test_adoption_preserves_existing_authored_surfaces(
     content = content.replace("\n", newline).encode()
     target.write_bytes(content)
     report = adopt_repository(
-        repo, apply=apply, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+        repo, apply=apply, authorize=apply, expect_head=git(repo, "rev-parse", "HEAD")
     )
     result = report.data
     assert (report.verdict, result["applied"]) == ("pass" if valid else "block", apply and valid)
@@ -352,9 +352,16 @@ def test_application_adoption_preserves_admission_and_direct_result(tmp_path, ca
     result = adopt_repository(
         repo,
         apply=condition != "preview",
-        authorize=condition != "denied",
+        # A preview takes neither authorization nor a plan digest.
+        authorize=condition not in {"denied", "preview"},
         expect_head="0" * 40 if condition == "stale" else head,
-        expect_plan_digest="0" * 64 if condition == "digest" else preview.data["plan_digest"],
+        expect_plan_digest=(
+            None
+            if condition == "preview"
+            else "0" * 64
+            if condition == "digest"
+            else preview.data["plan_digest"]
+        ),
     )
     assert result.verdict == ("pass" if condition in {"valid", "preview"} else "block")
     assert result.data["applied"] is (condition == "valid")

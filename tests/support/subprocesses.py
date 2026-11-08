@@ -32,7 +32,9 @@ def ready_descendant(monkeypatch, before_communication):
     connection = None
     with ExitStack() as resources:
         listener = resources.enter_context(socket.create_server(("localhost", 0)))
-        listener.settimeout(10)
+        # The tool deadline stops a deadlocked child; a loaded host may take longer than ten
+        # seconds to start the nested worker that connects, and `accept` returns when it does.
+        listener.settimeout(seconds("tool"))
         child = (
             f"import socket; s=socket.create_connection({listener.getsockname()!r},timeout=10); "
             "s.settimeout(None); s.sendall(b'R'); s.recv(1)"

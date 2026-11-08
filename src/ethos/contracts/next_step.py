@@ -1,7 +1,8 @@
 """The next step as data: what an agent runs, what it changes, who authorizes it and its binding.
 
 A step is derived from the same facts that render a result's `next_action`, so the text and the
-data can never disagree, and it is re-derived on every read rather than stored or replayed.
+data can never disagree, and it is re-derived on every read rather than stored or replayed. A root
+argv takes its form, effects and authority from the catalog operation it selects.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from ethos.contracts.admission import StepEffect
 from ethos.contracts.admission import ethos_step_authorization
 from ethos.contracts.admission import ethos_step_destructive
 from ethos.contracts.admission import ethos_step_effects
+from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.value import JsonObject
 
 StepKind = Literal["command", "instruction", "decision", "done"]
@@ -38,7 +40,7 @@ class NextStep(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     kind: StepKind
-    # Empty until a declared command form selects the invocation.
+    # The catalog operation a root argv selects; empty for any other step.
     form: str = ""
     argv: tuple[str, ...] = ()
     effects: tuple[StepEffect, ...] = ()
@@ -58,17 +60,34 @@ def derive_next_step(text: str, *, continuation: str, why: str) -> NextStep:
         if decision:
             return NextStep(kind="decision", authorization="human", why=why)
         return NextStep(kind="instruction", why=why)
-    effects = ethos_step_effects(argv)
+    form, effects, destructive, authorization = _classified(argv)
     return NextStep(
         kind="decision" if decision else "command",
+        form=form,
         argv=argv,
         effects=effects,
-        destructive=ethos_step_destructive(argv, effects),
+        destructive=destructive,
         # What a person approves carries its argv, and no reader runs it without that approval.
-        authorization="human" if decision else ethos_step_authorization(argv, effects),
+        authorization="human" if decision else authorization,
         binding=_binding(argv),
         why=why,
     )
+
+
+def _classified(
+    argv: tuple[str, ...],
+) -> tuple[str, tuple[StepEffect, ...], bool, StepAuthorization]:
+    """Classify a root argv by the operation it selects and any other argv by its declared rows."""
+    root = select_argv(argv)
+    if root is None:
+        effects = ethos_step_effects(argv)
+        destructive = ethos_step_destructive(argv, effects)
+        return "", effects, destructive, ethos_step_authorization(argv, effects)
+    selected = root[1]
+    if selected is None:
+        # A root argv that selects no operation could do anything, so a person decides it.
+        return "", ("opaque",), True, "human"
+    return selected.id, selected.effects, selected.destructive, selected.authorization
 
 
 def _exact_ethos_argv(text: str) -> tuple[str, ...]:

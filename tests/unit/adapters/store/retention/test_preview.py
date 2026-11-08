@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from filelock import FileLock
 
+import ethos.adapters.store.retention.closure as closure
 import ethos.application.retention as retention
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.store.state.schema import local_state_root
@@ -67,7 +68,7 @@ def test_the_preview_plans_only_unnamed_old_records(repo: Path) -> None:
 
     assert result.verdict == "pass", result
     plan = _plan(result)
-    planned = {Path(entry["path"]) for item in plan["items"] for entry in item["files"]}
+    planned = {store / entry["path"] for item in plan["items"] for entry in item["files"]}
     assert planned == {old, old_unit["request"], old_unit["receipt"]}
     assert not planned & {young, named, reached, in_tree, foreign}
     assert plan["accepted_commit"] == git(repo, "rev-parse", "dev")
@@ -76,7 +77,7 @@ def test_the_preview_plans_only_unnamed_old_records(repo: Path) -> None:
     assert first["state"] == "artifact"
     assert first["files"] == [
         {
-            "path": old.as_posix(),
+            "path": old.relative_to(store).as_posix(),
             "size": old.stat().st_size,
             "mtime_ns": str(old.stat().st_mtime_ns),
         }
@@ -93,7 +94,7 @@ def test_a_live_member_keeps_the_record_it_names(
     """A live Attestation member is a root like any kept store file."""
     store = local_state_root(repo)
     record = put(store, "artifacts", proof_check(), ".json", age_days=30)
-    monkeypatch.setattr(retention, "live_member_bytes", lambda _root: [record.stem.encode()])
+    monkeypatch.setattr(closure, "live_member_bytes", lambda _root: [record.stem.encode()])
 
     plan = _plan(retention.preview_record_retirement(repo))
 
@@ -111,7 +112,7 @@ def test_the_preview_refuses_and_writes_nothing(
         # The fixture repository selects no runtime, so the real check refuses.
         monkeypatch.setattr(retention, "runtime_selected", _REAL_RUNTIME_SELECTED)
     elif refusal == "members":
-        monkeypatch.setattr(retention, "read_attestation_set", _damaged_set)
+        monkeypatch.setattr(closure, "read_attestation_set", _damaged_set)
     elif refusal == "branch":
         absent = SimpleNamespace(accepted_branch="absent")
         monkeypatch.setattr(retention, "load_branch_role_policy", lambda _root: absent)

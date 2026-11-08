@@ -142,7 +142,7 @@ def test_output_pipe_failure_cannot_erase_a_blocked_verdict(
             json_output=False,
         )
 
-    assert exit_info.value.code == 1
+    assert exit_info.value.code == 3
     expected = "output_closed" if isinstance(error, BrokenPipeError) else "output_backpressure"
     assert expected in capsys.readouterr().err
 
@@ -155,7 +155,7 @@ def test_short_json_write_is_not_a_completed_report(
     with pytest.raises(SystemExit) as exit_info:
         output.emit(EthosResult(command="status", verdict="pass", state="done"), json_output=True)
 
-    assert exit_info.value.code == 1
+    assert exit_info.value.code == 3
     assert "output_partial" in capsys.readouterr().err
 
 
@@ -176,7 +176,7 @@ def test_flush_failure_after_write_is_not_reported_as_success(
                 EthosResult(command="status", verdict="pass", state="done"), json_output=True
             )
 
-    assert exit_info.value.code == 1
+    assert exit_info.value.code == 3
     assert "output_closed" in capsys.readouterr().err
 
 
@@ -202,7 +202,7 @@ def test_real_full_nonblocking_pipe_preserves_one_failed_exit() -> None:
         os.close(write_fd)
         write_fd = -1
         _, stderr = process.communicate(timeout=5)
-        assert process.returncode == 1
+        assert process.returncode == 3
         assert b"output_backpressure" in stderr
         assert b"Exception ignored while flushing" not in stderr
     finally:

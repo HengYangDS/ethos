@@ -6248,10 +6248,10 @@ Publication SHALL qualify a re-created release tag by the proof that its origina
 ### Requirement: Store records retire only through an allowlisted write-ahead plan
 
 ETHOS SHALL retire Git-common store records only through `ethos hook retire-records`, run by the
-runtime that `runtime/CURRENT` selects. Its preview SHALL classify only allowlisted kinds by their
-writers' schemas, keep every item that a live member, a kept record, a decoded carrier or the
-accepted tree names, select only items older than their floor, and write its plan before any
-deletion. Any other store file SHALL be reported and kept.
+runtime that `runtime/CURRENT` selects. Its preview SHALL plan only allowlisted kinds older than
+their floor that no live member, kept record, decoded carrier or accepted tree names. Its apply
+SHALL delete only planned items that a fresh scan still selects, through recoverable tombstones,
+while no other ETHOS interpreter of the repository runs. Any other store file SHALL be kept.
 
 #### Scenario: An encoded mention keeps an item
 
@@ -6295,3 +6295,41 @@ deletion. Any other store file SHALL be reported and kept.
 
 - **WHEN** a writer writes content identical to an existing content-addressed file
 - **THEN** the file's mtime is refreshed, so its floor starts again
+
+#### Scenario: An interrupted apply continues
+
+- **WHEN** an apply stopped after renaming items to tombstones or deleting part of a lane unit
+- **THEN** the next preview or apply restores every tombstone first, and a rerun of the plan deletes
+  the rest of the unit, its receipt last
+
+#### Scenario: A swap during the compare keeps what it names
+
+- **WHEN** an Attestation set swap or an accepted-branch advance names a tombstoned item before the
+  unlink
+- **THEN** the item is restored and kept
+
+#### Scenario: Another ETHOS interpreter of the repository runs
+
+- **WHEN** a process runs an ETHOS interpreter of another runtime generation, of an installation
+  this repository uses or of one of its worktrees, or the process listing cannot be read
+- **THEN** the batch defers with `record_retirement_batch_deferred:<kind>:writer` and is restored
+- **AND** a process of another repository or a hook run does not defer it
+
+#### Scenario: A receipt binds each run
+
+- **WHEN** an apply run ends
+- **THEN** its receipt records per kind what it deleted, found absent, kept and deferred, with
+  reasons, and that no deleted digest is among the live members' tokens
+- **AND** an apply of a plan whose receipt has no deferral deletes nothing and reports
+  `already_applied`
+
+#### Scenario: A writer adopts a record during an apply
+
+- **WHEN** a writer writes content identical to a record that the apply renamed away
+- **THEN** the writer links the record again and does not fail with a collision
+
+#### Scenario: An apply is refused
+
+- **WHEN** the plan is missing, altered or of schema 1, `--authorize` is absent or another apply or
+  preview holds `retention.lock`
+- **THEN** the apply refuses with its gap and deletes nothing

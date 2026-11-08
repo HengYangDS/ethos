@@ -10,7 +10,6 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.publication.absorption import absorbed_proposals
 from ethos.adapters.mutation.publication.execution import apply_remote_publication_effect
 from ethos.adapters.mutation.publication.request import compile_remote_publication_request
-from ethos.adapters.mutation.publication.request import load_remote_publication_request
 from ethos.adapters.mutation.publication.request import observe_publication_request
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.mutation.publication.request import persist_remote_publication_request
@@ -32,7 +31,7 @@ from ethos.result import EthosResult
 if TYPE_CHECKING:
     from ethos.application.publication.inspection import PublicationContext
     from ethos.contracts.plan import TransitionPlan
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.application.invocation import profile_failure_result
 from ethos.application.publication.request_gaps import publication_admission_gaps
 from ethos.application.publication.request_gaps import publication_request_gaps
@@ -135,8 +134,6 @@ def _publish_projection(
     current_head = context.head
     gaps.extend(context.required_gaps)
     selected_remotes, selection_gaps = select_publication_peers(context.remotes, selected_ids)
-    if replay and peer_ids:
-        selection_gaps.append("publication_peer_selection_receipt_conflict")
     request_gaps = publication_request_gaps(
         repo=repo,
         apply=apply,
@@ -184,13 +181,9 @@ def _publish_projection(
     if not replay and plan is not None and verdict == "pass":
         request = persist_remote_publication_request(repo, plan)
     execution: dict[str, object] = {"state": "not_applied", "required_gaps": []}
+    # Only a replayed receipt applies; a derived request is persisted for its own replay.
     if apply and verdict == "pass" and (plan is not None):
-        admitted = (
-            plan
-            if replay
-            else load_remote_publication_request(repo, str(request["path"]), str(request["sha256"]))
-        )
-        execution = apply_remote_publication_effect(root=repo, plan=admitted)
+        execution = apply_remote_publication_effect(root=repo, plan=plan)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(execution))
     return _publication_result(
@@ -424,7 +417,7 @@ def _publication_result(
     )
 
 
-@application_result("publish")
+@catalog_operation("publish")
 def publish_repository(
     root: Path,
     *,
@@ -456,19 +449,9 @@ def publish_repository(
             retire=retire,
         )
     context = observe_publication(
-        repo,
-        apply=apply,
-        authorized=authorize,
-        expect_head=expect_head,
-        target_refs=target_refs,
+        repo, apply=False, authorized=False, expect_head=expect_head, target_refs=()
     )
-    return publication_readiness_result(
-        context,
-        apply=apply,
-        authorized=authorize,
-        expect_head=expect_head,
-        probe_remote=probe_remote,
-    )
+    return publication_readiness_result(context, expect_head=expect_head, probe_remote=probe_remote)
 
 
 def _remote_push(execution: Mapping[str, object]) -> str:

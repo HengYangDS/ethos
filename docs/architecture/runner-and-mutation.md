@@ -20,7 +20,7 @@ Initial runners are deliberately small:
   same TransitionPlan contract.
 
 Tracked mutation is gated by a mutation decision. `ethos land --apply` and
-`ethos publish --apply` require explicit authorization and an expected HEAD.
+`ethos publish --receipt <path> --apply` require explicit authorization and an expected HEAD.
 Without both, the command returns `authorization_required` or
 `expect_head_required` instead of mutating.
 

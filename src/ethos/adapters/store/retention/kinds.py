@@ -23,6 +23,12 @@ if TYPE_CHECKING:
 _MERGE_KEYS = frozenset({"observation", "files", "stage_blobs", "metadata"})
 _NATIVE_MEMBERS = frozenset({"execution.json", "stdout.txt", "stderr.txt"})
 _MANIFEST_REFERENCE = re.compile(rb'"manifest":\{"sha256":"([0-9a-f]{64})"')
+_OWNED = (
+    "artifacts",
+    "requests/lane-retirement",
+    "receipts/lane-retirement",
+    "requests/lane-retirement-manifest",
+)
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,24 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
             items.append(StoreItem(kind, "artifact", (path,), frozenset({path.stem})))
     units, foreign = _lane_units(store)
     return (*items, *units), tuple(sorted((*unowned, *foreign)))
+
+
+def owned_directories(store: Path) -> tuple[Path, ...]:
+    """Return the directories that owned writers alone fill, each a directory and no link."""
+    operations = store / "operations" / "lane-retirement"
+    found = [store / name for name in _OWNED]
+    if _real(store, operations):
+        found.extend(path for path in sorted(operations.iterdir()) if path.is_dir())
+    return tuple(path for path in found if _real(store, path))
+
+
+def _real(store: Path, directory: Path) -> bool:
+    """Return whether a directory and each parent below the store are directories, not links."""
+    return all(
+        not path.is_symlink() and path.is_dir()
+        for path in (directory, *directory.parents)
+        if path.is_relative_to(store) and path != store
+    )
 
 
 def _artifact_kind(path: Path, data: bytes) -> str | None:

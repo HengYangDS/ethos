@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 import tools.ci.ci_projection as owner
+from ethos.repository.paradigm.parameters import seconds
 from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
 
@@ -72,8 +73,9 @@ def test_native_workflow_gate_preserves_large_input_and_semantic_rejections(
     native_run = owner.run_command
 
     def bounded_run(root: Path, command: tuple[str, ...], **kwargs):
-        # Bound a deadlocked child, not a loaded runner: shellcheck needs seconds for this input.
-        kwargs["timeout"] = min(kwargs.get("timeout", 30), 30)
+        # Bound a deadlocked child, not a loaded runner: shellcheck needs seconds for this input
+        # on an idle host and far longer on a loaded CI guest, so the tool deadline bounds it.
+        kwargs["timeout"] = min(kwargs.get("timeout", seconds("tool")), seconds("tool"))
         return native_run(root, command, **kwargs)
 
     monkeypatch.setattr(owner, "run_command", bounded_run)

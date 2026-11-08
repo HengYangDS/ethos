@@ -19,9 +19,13 @@ from unittest.mock import patch
 from cyclopts.exceptions import CycloptsError
 
 from ethos.adapters.repo.invocation_facts import invocation_scope
+from ethos.application.catalog import Selected
+from ethos.application.catalog import select_operation
+from ethos.contracts.operations.catalog import select_argv
 from ethos.result import expand_result
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.application import run_application
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -135,9 +139,9 @@ def _reject_implicit_apply_against_repository_checkout(
 def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     _reject_implicit_apply_against_repository_checkout(args, cwd=cwd)
     if "--help" in args or "--version" in args:
-        return _run_subprocess(*args, cwd=cwd)
+        return run_ethos_process(*args, cwd=cwd)
     if "--json" not in args:
-        return _run_subprocess(*args, cwd=cwd)
+        return run_ethos_process(*args, cwd=cwd)
     return _run_inprocess(*args, cwd=cwd)
 
 
@@ -152,12 +156,9 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
         invocation_scope(),
     ):
         try:
-            app(list(args), exit_on_error=False)
+            run_application(list(args))
         except SystemExit as exc:
             returncode = exc.code if isinstance(exc.code, int) else 1
-        except CycloptsError as exc:
-            returncode = 1
-            stderr.write(f"{type(exc).__name__}: {exc}")
     _require_live_next(stdout.getvalue())
     return subprocess.CompletedProcess(
         [sys.executable, "-m", "ethos.cli", *args], returncode, stdout.getvalue(), stderr.getvalue()
@@ -165,7 +166,10 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
 
 
 def _require_live_next(stdout: str) -> None:
-    """Every structured next step is an invocation the live CLI parses, never misread prose."""
+    """Every structured next step is an invocation the live CLI parses, never misread prose.
+
+    A root step names the catalog operation that the parsed request selects.
+    """
     try:
         payload = json.loads(stdout)
     except ValueError:
@@ -179,13 +183,23 @@ def _require_live_next(stdout: str) -> None:
     tokens = list(step["argv"][1:])
     load_command_groups(tokens)
     try:
-        app.parse_args(tokens, exit_on_error=False, print_error=False)
+        bound = app.parse_args(tokens, exit_on_error=False, print_error=False)[1]
     except CycloptsError as error:
         message = f"next_argv_not_parsed:{shlex.join(step['argv'])}"
         raise AssertionError(message) from error
+    root = select_argv(step["argv"])
+    if root is None:
+        return
+    bound.apply_defaults()
+    chosen = select_operation(root[0].name, bound.arguments["request"])
+    form = chosen.operation.id if isinstance(chosen, Selected) else ""
+    if not form or step["form"] != form:
+        message = f"next_form_not_selected:{shlex.join(step['argv'])}:{step['form']}:{form}"
+        raise AssertionError(message)
 
 
-def _run_subprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run_ethos_process(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """Run the console path in a fresh process, whatever the arguments."""
     env = _without_test_git_config_overlay(os.environ)
     env["PYTHONPATH"] = PYTHONPATH
     return subprocess.run(

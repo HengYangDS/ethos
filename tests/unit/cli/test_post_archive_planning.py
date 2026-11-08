@@ -9,10 +9,11 @@ import pytest
 
 import ethos.adapters.admission.current.resolution as resolution_adapter
 import ethos.application.plan as planning_domain
-import ethos.surface.cli.root.planning as planning_cli
+import ethos.surface.cli.root.catalog as planning_cli
 from ethos.adapters.admission.current.resolution import current_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.operations.plan import PlanRequest
 from tests.support.semantic import commitment_fixture
 from tests.unit.admission.current.support import authority
 
@@ -39,7 +40,7 @@ def planning_case(monkeypatch, tmp_path):
     monkeypatch.setattr(planning_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 
     def invoke_cli(**arguments):
-        planning_cli.plan(root=tmp_path, json_output=True, **arguments)
+        planning_cli.plan(PlanRequest(**arguments), root=tmp_path, json_output=True)
         return emitted.pop()
 
     return partial(planning_domain.plan_repository, tmp_path), invoke_cli

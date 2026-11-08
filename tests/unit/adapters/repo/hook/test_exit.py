@@ -250,4 +250,5 @@ def test_ethos_adopt_exit_reports_the_plan(tmp_path: Path, monkeypatch: pytest.M
 
     assert preview.returncode == 0, preview.stdout + preview.stderr
     assert json.loads(preview.stdout)["data"]["selectors"]["CURRENT"]["present"] is True
-    assert json.loads(combined.stdout)["required_gaps"] == ["adoption_exit_combined_with_adoption"]
+    assert combined.returncode == 2
+    assert json.loads(combined.stdout)["required_gaps"] == ["command_operation_unmatched:adopt"]

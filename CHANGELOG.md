@@ -32,13 +32,49 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - `ethos hook retire-records` previews store retention: run by the selected runtime, it classifies
   the store's proof-check documents, merge preimages, gate attempt archives and terminal lane
   retirement units, keeps every record that a live Attestation member, a kept store file or the
-  accepted tree names, and writes the plan of the records older than their floor without deleting
-  anything. The paradigm's new `retention` group declares the floors `grace_seconds` and
+  accepted tree names, and writes the plan of the records older than their floor. Its
+  `--expect-plan <digest> --apply --authorize` deletes, batch by batch through recoverable
+  tombstones, only the planned records that a fresh scan still selects; it defers a batch while
+  another ETHOS interpreter of the repository runs or the Attestation set moves, and receipts each
+  run. The paradigm's new `retention` group declares the floors `grace_seconds` and
   `record_seconds`, which a repository may raise but not lower, and the decoding bounds. Writing
-  content identical to an existing content-addressed file refreshes its mtime.
+  content identical to an existing content-addressed file refreshes its mtime, and links it again
+  when an apply renamed it away; every Attestation set swap takes the custody lock.
+- `ethos --help --json` prints the root operation catalog as one result within its 48 KiB `help`
+  payload budget: each root command's flags and request schema, and each operation's selectors,
+  request fields, effects, destructiveness, authorization and exit; `ethos <command> --help --json`
+  prints one command's part. Text help lists each operation with the flags that select it.
 
 ### Changed
 
+- The CI model that adopters render their workflows from pins `jdx/mise-action` v5.2.7, whose
+  download failures log the HTTP status and host and whose retries back off longer.
+- **Breaking:** the root commands `status`, `plan`, `prove`, `land`, `publish` and `adopt` select
+  one declared catalog operation (`ethos.contracts.operations`) for every transport, so the CLI, the
+  SDK functions and the MCP tools refuse the same requests alike. A request whose flags select no
+  operation, or that sets a flag its operation does not take, exits 2 with
+  `command_operation_unmatched:<command>` or `command_field_refused:<field>` (JSON under `--json`)
+  instead of proceeding, ignoring the flag or blocking with an operation code. A preview refuses
+  `--authorize` and `--expect-plan-digest`. Retired: `release_options_conflict`,
+  `proof_readiness_options_invalid`, `remote_publication_receipt_apply_required`,
+  `publication_peer_selection_receipt_conflict`, `adoption_exit_combined_with_adoption`,
+  `adoption_runtime_selection_requires_existing_repository`, `starter_evolution_requires_work_lane`,
+  `starter_evolution_request_invalid`, `formation_expect_head_not_applicable`, and
+  `local_source_acceptance_effect_forbidden` and `local_source_proof_requires_full_repository` where
+  `--acceptance-purpose` is refused. Drop the flag, or choose an operation from
+  `ethos <command> --help`. `ProofRequest` is now a frozen Pydantic model; import it from
+  `ethos.contracts.operations.prove`.
+- **Breaking (exit status):** a usage error exits 2 with a `usage_refused` result for every command,
+  as JSON on stdout under `--json` and with the parser's message on stderr, and the root commands no
+  longer parse negated flags such as `--no-apply`; a result that cannot be delivered exits 3 (was
+  1); `ethos publish --ref … --probe-remote` exits 1 when its verdict is `unknown` (was 0);
+  `ethos adopt --apply` blocked by an invalid profile exits 1 (was 0); `ethos adopt --create`
+  without `--root` refuses with `formation_root_required` and exits 2 (was 1).
+- `next.form` names a root command's catalog operation, whose effects, destructiveness and
+  authorization `next` carries: `ethos prove --json` and `ethos land --closeout --json` read, and
+  `ethos publish` reads and remote-reads. A root argv that selects no operation is `opaque` and
+  destructive, and a person decides it. The result schema admits the authorization `delegation`,
+  which no step emits yet.
 - `ethos land --closeout` without `--apply` no longer rebinds worktrees left on renamed legacy role
   refs. It reports `branch_role_rebinding_pending:<ref>`, and `ethos status` names the same, with
   `ethos land --closeout --apply --authorize --expect-head <head>` as the next step, which binds
@@ -74,6 +110,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Removed
 
+- **Breaking:** `ethos publish --apply` without `--receipt`, with or without `--ref`, `--peer` or
+  `--retire`, the MCP `publish` tool's `apply` without `receipt`, and with them the readiness state
+  `publication_deferred`. Run
+  `ethos publish --ref <ref> --probe-remote --expect-head <head> --json`, then its `next`.
 - **Breaking for `npm run ethos`:** the npm launcher under `distributions/npm`, its test and the
   root `ethos` and `test:npm` scripts. Run the installed `ethos`, or `uv run ethos` from a checkout.
   `VERSION` is now the release version's only carrier.

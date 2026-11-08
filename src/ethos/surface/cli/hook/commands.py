@@ -28,6 +28,7 @@ from ethos.adapters.repo.runtime.materialization.host_retention import legacy_su
 from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.store.state.schema import state_schema_report
+from ethos.application.retention import apply_record_retirement
 from ethos.application.retention import preview_record_retirement
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.contracts.verdict import Verdict
@@ -466,9 +467,22 @@ def retire_supply(
 
 
 @_app.command(name="retire-records")
-def retire_records(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Preview which store records may retire and write the plan; nothing is deleted."""
-    emit(preview_record_retirement(resolve_root(root)), json_output=json_output, enforce=True)
+def retire_records(
+    *,
+    expect_plan: Annotated[str, Parameter(name="--expect-plan")] = "",
+    apply: bool = False,
+    authorize: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Preview which store records may retire and write the plan; apply an approved plan."""
+    repo = resolve_root(root)
+    result = (
+        apply_record_retirement(repo, expect_plan=expect_plan, authorize=authorize)
+        if apply
+        else preview_record_retirement(repo)
+    )
+    emit(result, json_output=json_output, enforce=True)
 
 
 def _hook_install_recovery_command(repo: pathlib.Path, gap: str) -> str:

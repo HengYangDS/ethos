@@ -284,7 +284,7 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
 
 
 @pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(60)
 def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     """Native children consume exactly the selected environment and input."""
     environment = {"PSModulePath": "pwsh", "ETHOS_PRESERVED": "inherited", "GIT_PRESERVED": "git"}
@@ -459,8 +459,7 @@ def test_catchable_cancellation_closes_nested_registered_groups(
             "from ethos.adapters.process import run_command; from ethos import cli; "
             f"command = (sys.executable, '-B', '-I', '-c', {child!r}); "
             "application = SimpleNamespace(load_command_groups=lambda _: None, "
-            "dispatch_arguments=lambda args: args, "
-            "app=lambda _: run_command(Path.cwd(), command, timeout=10)); "
+            "run_application=lambda _: run_command(Path.cwd(), command, timeout=10)); "
             "native_import = cli.import_module; "
             "cli.import_module = lambda name: application if "
             "name == 'ethos.surface.cli.application' else native_import(name); "

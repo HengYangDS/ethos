@@ -12,7 +12,15 @@
         },
         "authorization": {
           "default": "none",
-          "enum": ["none", "apply", "authorize", "confirm-irreversible", "attestation", "human"],
+          "enum": [
+            "none",
+            "apply",
+            "authorize",
+            "confirm-irreversible",
+            "attestation",
+            "delegation",
+            "human"
+          ],
           "title": "Authorization",
           "type": "string"
         },

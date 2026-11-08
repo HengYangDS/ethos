@@ -9,7 +9,6 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 from contextlib import nullcontext
 from dataclasses import asdict
-from dataclasses import dataclass
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import cast
@@ -34,15 +33,15 @@ from ethos.adapters.mutation.proof_validation import expected_head_gaps
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.invocation import application_result
+from ethos.application.catalog import catalog_operation
 from ethos.application.proof.host import host_gate_observation
 from ethos.application.proof.host import host_probe_boundary
 from ethos.application.proof.host import readiness_observation
 from ethos.application.proof.report import compact_proof_context
 from ethos.application.proof.report import proof_scope_binding
 from ethos.application.proof.report import summarize_checks
+from ethos.contracts.operations.prove import ProofRequest
 from ethos.contracts.outcome import outcome_of
-from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import report_verdict
@@ -64,29 +63,12 @@ if TYPE_CHECKING:
     from ethos.contracts.verdict import Verdict
 
 
-@dataclass(frozen=True, slots=True)
-class ProofRequest:
-    """One proof request: its scope, gates and execution, and the head and Change it binds."""
-
-    objective: str = "ethos proof"
-    scope: str = "repository"
-    execute: bool = False
-    gate: tuple[str, ...] = ()
-    full: bool = False
-    change: str | None = None
-    expect_head: str | None = None
-    host: bool = False
-    probe: bool = False
-    readiness: bool = False
-    acceptance_purpose: AcceptancePurpose = "repository"
-
-
 _DEFAULT_REQUEST = ProofRequest()
 
 
 def _proof_preflight(*, repo: Path, options: ProofRequest) -> EthosResult | None:
     """Admit one proof mode before any governed repository observation."""
-    if getattr(options, "acceptance_purpose", "repository") == "local-source" and (
+    if options.acceptance_purpose == "local-source" and (
         options.host
         or options.probe
         or options.scope != "repository"
@@ -95,9 +77,6 @@ def _proof_preflight(*, repo: Path, options: ProofRequest) -> EthosResult | None
     ):
         return _proof_gap(ValueError("local_source_proof_requires_full_repository"))
     if options.readiness:
-        conflicting = options.gate or options.change or options.host or not options.execute
-        if conflicting:
-            return _proof_gap(ValueError("proof_readiness_options_invalid"))
         return readiness_observation(repo=repo, expect_head=options.expect_head)
     if not (options.host and options.execute):
         return None
@@ -349,7 +328,7 @@ def _apply_proof_effect(
     return attestation, verdict, required_gaps, None
 
 
-@application_result("prove")
+@catalog_operation("prove")
 def prove_repository(root: Path, request: ProofRequest = _DEFAULT_REQUEST) -> EthosResult:
     """Produce proof readiness or one executed generic proof Attestation."""
     with selected_change(request.change):

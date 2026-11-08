@@ -192,8 +192,8 @@ compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
 records; only `--expect-plan <digest> --apply --authorize` retires that plan.
 
 `ethos hook retire-records --json` previews which Git-common store records may retire and writes the
-plan of every owned, unnamed record older than its floor; it deletes nothing, and only the selected
-runtime runs it.
+plan of every owned, unnamed record older than its floor; the selected runtime alone runs it, and
+only `--expect-plan <digest> --apply --authorize` deletes what that plan and a fresh scan select.
 
 ## Accepted Release Selection
 

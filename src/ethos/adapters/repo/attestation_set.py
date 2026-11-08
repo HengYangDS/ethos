@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import subprocess
 import tempfile
-from contextlib import nullcontext
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -19,7 +18,6 @@ from ethos.adapters.repo.attestation_lifetime_facts import observe_lifetime_fact
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
-from ethos.adapters.store.custody import binds_custody
 from ethos.adapters.store.custody import custody_digests
 from ethos.adapters.store.custody import custody_lock
 from ethos.adapters.store.custody import release_custody
@@ -31,7 +29,6 @@ from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from contextlib import AbstractContextManager
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
 _MEMBER_ROOT = "evidence/attestations"
@@ -319,15 +316,6 @@ def _ended_members(
     return ended(members, facts) - frozenset(recorded), ""
 
 
-def _custody_guard(
-    repo: Path, members: Iterable[Attestation], custody: tuple[bytes, ...]
-) -> AbstractContextManager[object]:
-    """Hold custody across a swap that stores, binds or may delete custody bytes."""
-    if custody or any(binds_custody(member) for member in members) or stored_custody(repo):
-        return custody_lock(repo)
-    return nullcontext()
-
-
 def _require_bound_custody(repo: Path, attestations: tuple[Attestation, ...]) -> None:
     """Under the custody lock, every digest a recorded member binds still has its bytes."""
     require_custody(
@@ -390,8 +378,8 @@ def record_attestations(
         new_members = {identity: incoming[identity] for identity in added}
         tree = _write_tree(repo, new_members, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
-        removed = tuple(member for member in members if member.id in finished)
-        with _custody_guard(repo, (*removed, *attestations), custody):
+        # Every swap holds custody, so a record retirement's compare under it sees none land.
+        with custody_lock(repo):
             for payload in custody:
                 store_custody(repo, payload)
             _require_bound_custody(repo, attestations)
@@ -442,8 +430,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         finished, _lifetime_gap = _ended_members(repo, members, incoming)
         tree = _write_tree(repo, incoming, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
-        removed = tuple(member for member in members if member.id in finished)
-        with _custody_guard(repo, (*removed, attestation), ()):
+        with custody_lock(repo):
             _require_bound_custody(repo, (attestation,))
             if not _compare_and_swap_root(repo, desired=desired, observed=observed):
                 continue
@@ -477,7 +464,7 @@ def release_attestation(
             return {"previous_root": observed, "root": observed, "released": identity}
         tree = _write_tree(repo, {}, observed=observed, removed=(identity,))
         desired = _root_identity(repo, tree)
-        with _custody_guard(repo, (target,), ()):
+        with custody_lock(repo):
             if not _compare_and_swap_root(repo, desired=desired, observed=observed):
                 continue
             released, custody_gap = _release_unbound_custody(repo, members, frozenset({identity}))

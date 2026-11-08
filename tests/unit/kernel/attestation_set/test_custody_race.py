@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.store.custody import custody_lock
 from ethos.adapters.store.custody import store_custody
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
@@ -162,3 +163,25 @@ def test_the_next_custody_update_deletes_bytes_a_failed_cleanup_left(
     store = Path(git_common_dir(repo)) / "ethos/custody/sha256"
     assert first["custody_gap"] == "custody store unavailable"
     assert sorted(path.read_bytes() for path in store.iterdir()) == [kept]
+
+
+def test_a_swap_without_custody_waits_for_a_held_custody_lock(tmp_path: Path) -> None:
+    """Every set swap takes the custody lock, so a retention compare holding it sees none land."""
+    repo = init_git_repo(tmp_path / "repo")
+    held = custody_lock(repo)
+    held.acquire()
+    recorded = threading.Event()
+    recorder = threading.Thread(
+        target=lambda: (
+            attestation_set.record_attestations(repo, (occurrence_attestation(6_201),)),
+            recorded.set(),
+        )
+    )
+    try:
+        recorder.start()
+        assert not recorded.wait(timeout=2)
+    finally:
+        held.release()
+    recorder.join(timeout=120)
+
+    assert recorded.is_set()

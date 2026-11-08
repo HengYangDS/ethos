@@ -136,6 +136,7 @@ _DESTRUCTIVE = _rows(
     "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
     "attestation release: --apply",
     "hook retire-supply: --apply --authorize --expect-plan",
+    "hook retire-records: --apply --authorize --expect-plan",
     "hook install: --reset-state --authorize",
 )
 

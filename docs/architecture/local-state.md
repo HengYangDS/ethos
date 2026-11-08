@@ -73,7 +73,14 @@ branch's binding, classifies proof-check documents, merge preimages, gate attemp
 archives and terminal lane retirement units by their writers' forms, keeps every
 record that a live Attestation member, another kept store file or the accepted
 tree names, read through zip, gzip, tar and base64 content, and writes the plan
-of the rest to `requests/record-retirement/<digest>.json`. It deletes nothing.
+of the rest to `requests/record-retirement/<digest>.json`. Only
+`--expect-plan <digest> --apply --authorize`, a user decision, deletes. Each
+batch renames the planned records that a fresh scan still selects to
+`.<name>.retiring` tombstones, defers while another ETHOS interpreter of the
+repository runs, and unlinks under the custody lock only what the refreshed roots
+do not name. Every run first restores the tombstones that an interrupted one
+left, and each apply writes its receipt to
+`receipts/record-retirement/<digest>.json`.
 
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a

@@ -339,8 +339,9 @@ def test_attestation_set_concurrent_writers_recompute_union_after_stale_cas(
     def synchronized_update(root: Path, *args: str, **kwargs):
         nonlocal synchronized
         if (
-            args[:3] == ("update-ref", "--no-deref", attestation_set.ATTESTATION_SET_REF)
-            and synchronized < 2
+            # Both writers derive their root from the same observed one before either swaps;
+            # every swap then holds custody, so the second compare-and-swap is the stale one.
+            args[:3] == ("hash-object", "-t", "commit") and synchronized < 2
         ):
             synchronized += 1
             barrier.wait(timeout=10)
@@ -373,8 +374,9 @@ def test_attestation_set_concurrent_single_winner_selects_one_semantic_witness(
     def synchronized_update(root: Path, *args: str, **kwargs):
         nonlocal synchronized
         if (
-            args[:3] == ("update-ref", "--no-deref", attestation_set.ATTESTATION_SET_REF)
-            and synchronized < 2
+            # Both writers derive their root from the same observed one before either swaps;
+            # every swap then holds custody, so the second compare-and-swap is the stale one.
+            args[:3] == ("hash-object", "-t", "commit") and synchronized < 2
         ):
             synchronized += 1
             barrier.wait(timeout=10)

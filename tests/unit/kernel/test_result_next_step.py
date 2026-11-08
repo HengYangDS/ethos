@@ -123,6 +123,7 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
 _HOST = [*_EVIDENCE_WRITE, "host-write"]
 _RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
 _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm-irreversible"
+_RECORDS = "hook retire-records --expect-plan p --apply --authorize"
 
 
 @pytest.mark.parametrize(
@@ -156,6 +157,7 @@ _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm
         ("publish --apply --json", ["opaque"], "human", True),
         ("lane start --apply", _HOST, "apply", False),
         ("attestation release --apply", _EVIDENCE_WRITE, "apply", True),
+        (_RECORDS, _EVIDENCE_WRITE, "authorize", True),
     ],
 )
 def test_an_argv_names_its_effects_authority_and_any_deletion(

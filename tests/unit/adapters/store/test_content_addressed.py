@@ -64,3 +64,26 @@ def test_an_identical_write_adopts_the_record_again(tmp_path: Path) -> None:
     assert target.read_bytes() == b"{}"
     with pytest.raises(ValueError, match="collision"):
         content_addressed.write_content_addressed(target, b"[]", collision="collision")
+
+
+@pytest.mark.parametrize("window", ["read", "refresh"])
+def test_a_record_retired_during_a_write_is_linked_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, window: str
+) -> None:
+    """A name that vanishes before its read or its refresh is linked again, not a collision."""
+    target = tmp_path / "artifacts" / "record.json"
+    content_addressed.write_content_addressed(target, b"{}", collision="collision")
+    original = getattr(content_addressed.os, "open" if window == "read" else "utime")
+    removed: list[Path] = []
+
+    def vanish_once(path: os.PathLike[str] | str, *args: object, **kwargs: object) -> object:
+        if Path(path) == target and not removed:
+            removed.append(target)
+            target.unlink()
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(content_addressed.os, "open" if window == "read" else "utime", vanish_once)
+
+    assert content_addressed.write_content_addressed(target, b"{}", collision="collision") == target
+    assert removed == [target]
+    assert target.read_bytes() == b"{}"

@@ -26,10 +26,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - `ethos hook retire-records` previews store retention: run by the selected runtime, it classifies
   the store's proof-check documents, merge preimages, gate attempt archives and terminal lane
   retirement units, keeps every record that a live Attestation member, a kept store file or the
-  accepted tree names, and writes the plan of the records older than their floor without deleting
-  anything. The paradigm's new `retention` group declares the floors `grace_seconds` and
+  accepted tree names, and writes the plan of the records older than their floor. Its
+  `--expect-plan <digest> --apply --authorize` deletes, batch by batch through recoverable
+  tombstones, only the planned records that a fresh scan still selects; it defers a batch while
+  another ETHOS interpreter of the repository runs or the Attestation set moves, and receipts each
+  run. The paradigm's new `retention` group declares the floors `grace_seconds` and
   `record_seconds`, which a repository may raise but not lower, and the decoding bounds. Writing
-  content identical to an existing content-addressed file refreshes its mtime.
+  content identical to an existing content-addressed file refreshes its mtime, and links it again
+  when an apply renamed it away; every Attestation set swap takes the custody lock.
 - `ethos --help --json` prints the root operation catalog as one result within its 48 KiB `help`
   payload budget: each root command's flags and request schema, and each operation's selectors,
   request fields, effects, destructiveness, authorization and exit; `ethos <command> --help --json`

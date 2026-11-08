@@ -517,10 +517,15 @@ ethos prove --full --execute --change <change-id> --expect-head <head> --json
 ethos land --json
 ```
 
-`<head>` is the frozen commit, not a branch name. Inspect terminal results and
-follow current continuations; proof grants no landing, installation or publication.
-Preserve failed reports and repair the smallest failing owner before full retry.
-Changed source bytes, including docs or task progress, require a new binding.
+### Exact Index Prewrite
+
+`ethos lane prewrite <paths> --target index --patch <file>` evaluates exact native patch paths
+against a disposable index; bind `--editor-root <worktree> --require-editor-root` as usual.
+It preserves unrelated staging, working files, shared objects, refs and Lease, and binds the patch,
+real index preimage, HEAD, Lease and prospective tree. Candidate objects use the shared store only
+as a read-only alternate and are removed with the index before return. The tree names content, not
+a retained artifact. Stale or unreadable prestate fails closed; the actual Git effect needs fresh
+admission and hooks. The default target remains `worktree`.
 
 ### Routine Scoped Execution
 

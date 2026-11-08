@@ -14,6 +14,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Added
 
+- `ethos lane prewrite --target index --patch <file>` checks an exact selective
+  staging patch without substituting unrelated working content. It reuses staged
+  admission, binds the real index prestate and fences concurrent changes to HEAD,
+  index and lane authority. Candidate indexes and objects are removed before
+  return; the normal Git effect still needs fresh admission and hooks. The
+  default target remains `worktree`.
 - `ethos status`, `ethos land` and `ethos lane prewrite` accept `--change <id>`, and the MCP
   `status` and `land` tools accept `change`, as `plan` and `prove` already did. An explicit Change
   takes precedence over an inherited `ETHOS_CHANGE` for the whole invocation, including the hooks

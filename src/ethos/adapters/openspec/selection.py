@@ -15,6 +15,7 @@ from ethos.repository.openspec.identifiers import logical_change_identifier_issu
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from collections.abc import Mapping
     from pathlib import Path
 
 _SELECTION = "ETHOS_CHANGE"
@@ -121,15 +122,19 @@ def incoming_change_gaps(
 
 
 def preserved_incoming_change_paths(
-    root: Path, paths: tuple[str, ...], *, tree_ref: str
+    root: Path,
+    paths: tuple[str, ...],
+    *,
+    tree_ref: str,
+    environment: Mapping[str, str] | None = None,
 ) -> tuple[str, ...]:
     """Bind a whole-Change import or removal to the exact pending native merge."""
     pending = pending_merge_heads(root)
     if len(pending) != 1:
         return ()
-    incoming, staged, prior = (
-        _change_trees(root, revision) for revision in (pending[0], tree_ref, "HEAD")
-    )
+    incoming = _change_trees(root, pending[0])
+    staged = _change_trees(root, tree_ref, environment=environment)
+    prior = _change_trees(root, "HEAD")
     if incoming is None or staged is None or prior is None:
         return ()
     known = incoming.keys() | prior.keys()
@@ -143,10 +148,22 @@ def preserved_incoming_change_paths(
     )
 
 
-def _change_trees(root: Path, revision: str) -> dict[str, str] | None:
+def _change_trees(
+    root: Path, revision: str, *, environment: Mapping[str, str] | None = None
+) -> dict[str, str] | None:
     tree = revision
     for component in ("openspec", "changes"):
-        entry = run_git(root, "ls-tree", "-z", tree, "--", component, check=False, observation=True)
+        entry = run_git(
+            root,
+            "ls-tree",
+            "-z",
+            tree,
+            "--",
+            component,
+            check=False,
+            env=environment,
+            observation=environment is None,
+        )
         if entry.returncode:
             return None
         if not entry.stdout:
@@ -155,7 +172,9 @@ def _change_trees(root: Path, revision: str) -> dict[str, str] | None:
         _mode, kind, tree = metadata.split()
         if kind != "tree":
             return None
-    result = run_git(root, "ls-tree", "-z", tree, check=False, observation=True)
+    result = run_git(
+        root, "ls-tree", "-z", tree, check=False, env=environment, observation=environment is None
+    )
     if result.returncode:
         return None
     changes = {

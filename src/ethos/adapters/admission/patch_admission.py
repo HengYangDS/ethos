@@ -242,11 +242,27 @@ def _baseline_reference_files(root: Path, head: str) -> dict[str, str]:
 
 
 def _object_files(
-    root: Path, revision: str, extra_paths: frozenset[str] = frozenset()
+    root: Path,
+    revision: str,
+    extra_paths: frozenset[str] = frozenset(),
+    *,
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
+    def read_text_objects(entries: dict[str, str]) -> dict[str, str]:
+        return dict(
+            zip(
+                entries,
+                (
+                    blob.decode("utf-8")
+                    for blob in read_objects(root, tuple(entries.values()), environment=environment)
+                ),
+                strict=True,
+            )
+        )
+
     if not revision:
         return {}
-    records = run_git(root, "ls-tree", "-r", "-z", revision, text=False).stdout
+    records = run_git(root, "ls-tree", "-r", "-z", revision, text=False, env=environment).stdout
     entries = {}
     for record in filter(None, records.split(b"\0")):
         metadata, raw_path = record.split(b"\t", 1)
@@ -261,26 +277,15 @@ def _object_files(
             carrier.name != "markdown" and carrier.matches(path) for carrier in REFERENCE_CARRIERS
         )
     }
-    files = _read_text_objects(root, selected)
+    files = read_text_objects(selected)
     producers = projection_relations(files)
     dependent = {path for item in producers for path in item.materials}
     files.update(
-        _read_text_objects(
-            root,
-            {path: entries[path] for path in sorted(dependent - files.keys()) if path in entries},
+        read_text_objects(
+            {path: entries[path] for path in sorted(dependent - files.keys()) if path in entries}
         )
     )
     return files
-
-
-def _read_text_objects(root: Path, entries: dict[str, str]) -> dict[str, str]:
-    return dict(
-        zip(
-            entries,
-            (blob.decode("utf-8") for blob in read_objects(root, tuple(entries.values()))),
-            strict=True,
-        )
-    )
 
 
 def staged_artifact_admission(
@@ -305,7 +310,7 @@ def staged_artifact_admission(
         prior_paths = frozenset(
             path for item in projection_relations(before) for path in item.materials
         )
-        after = _object_files(root, tree, prior_paths)
+        after = _object_files(root, tree, prior_paths, environment=index_env)
         effects = _indexed_effects(root, index_env=index_env)
         relocation = active_change_relocation(
             root, None, effects, baseline=baseline, tree=tree, environment=index_env

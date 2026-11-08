@@ -28,6 +28,7 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 
@@ -66,11 +67,18 @@ def material_change_scope_report(
 
 
 def prospective_change_scope_report(
-    paths: tuple[str, ...], selected: str, *, root: Path, staged_tree_ref: str | None = None
+    paths: tuple[str, ...],
+    selected: str,
+    *,
+    root: Path,
+    staged_tree_ref: str | None = None,
+    staged_environment: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     """Block cross-Change authoring without blocking a proved incoming merge."""
     preserved = (
-        preserved_incoming_change_paths(root, paths, tree_ref=staged_tree_ref)
+        preserved_incoming_change_paths(
+            root, paths, tree_ref=staged_tree_ref, environment=staged_environment
+        )
         if staged_tree_ref is not None
         else ()
     )
@@ -461,6 +469,24 @@ def canonical_repair_paths(
     if not paths and archived is not None:
         paths = _archived_canonical_repair_paths(root, official, selected, archived)
     return paths
+
+
+def canonical_repair_action(
+    root: Path,
+    official: dict[str, object],
+    *,
+    change: str,
+    archived: tuple[Commitment, dict[str, object]] | None,
+) -> str:
+    """Render the first exact corrective prewrite selected by scope admission."""
+    paths = canonical_repair_paths(root, official, change=change, archived=archived)
+    if not paths:
+        return ""
+    resolved = shlex.quote(root.resolve().as_posix())
+    return (
+        f"ethos lane prewrite --paths {shlex.quote(paths[0])} "
+        f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
+    )
 
 
 def _official_artifact_path(path: str, outputs: tuple[str, ...]) -> bool:

@@ -21,7 +21,7 @@ from cyclopts.exceptions import CycloptsError
 from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.application.catalog import Selected
 from ethos.application.catalog import select_operation
-from ethos.contracts.operations import select_argv
+from ethos.contracts.operations.catalog import select_argv
 from ethos.result import expand_result
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups

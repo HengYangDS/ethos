@@ -19,7 +19,7 @@ from ethos.contracts.admission import StepEffect
 from ethos.contracts.admission import ethos_step_authorization
 from ethos.contracts.admission import ethos_step_destructive
 from ethos.contracts.admission import ethos_step_effects
-from ethos.contracts.operations import select_argv
+from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.value import JsonObject
 
 StepKind = Literal["command", "instruction", "decision", "done"]

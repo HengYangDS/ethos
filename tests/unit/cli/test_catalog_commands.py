@@ -2,10 +2,15 @@
 
 import asyncio
 import json
+import sys
+from contextlib import nullcontext
 
 import pytest
 from fastmcp import Client
 
+from ethos import cli
+from ethos.application.catalog import Refused
+from ethos.application.catalog import select_operation
 from ethos.application.proof.operation import ProofRequest
 from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
@@ -36,24 +41,35 @@ _RECEIPT = {
     ],
 )
 def test_a_refused_request_exits_2_with_its_result_on_stdout(
-    argv: tuple[str, ...], gap: str
+    tmp_path, argv: tuple[str, ...], gap: str
 ) -> None:
-    """The console prints one schema-3 refusal under `--json` and runs nothing."""
-    completed = run_ethos_process(*argv, "--json")
+    """One schema-3 refusal goes to stdout under `--json` and its human frame to stderr."""
+    completed = run_ethos_raw(*argv, "--json", cwd=tmp_path)
 
     assert completed.returncode == 2, completed.stderr
+    assert completed.stderr.startswith(f"{argv[0]}: usage_refused")
     payload = json.loads(completed.stdout)
     assert (payload["schema_version"], payload["verdict"]) == (3, "block")
     assert (payload["state"], payload["required_gaps"]) == ("usage_refused", [gap])
     assert payload["next"]["kind"] == "instruction"
 
 
-def test_help_prints_the_catalog_as_text_and_as_one_bounded_result() -> None:
+def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Help lists each operation with its flags; `--json` prints the catalog within its budget."""
     text = run_ethos_process("land", "--help")
     assert text.returncode == 0
     assert "land.closeout.apply" in text.stdout
     assert "--no-apply" not in text.stdout
+    usage = run_ethos_process("land", "--bogus", "--json")
+    assert (usage.returncode, json.loads(usage.stdout)["state"]) == (2, "usage_refused")
+    assert "Unknown option: --bogus." in usage.stderr
+    monkeypatch.setattr(cli, "command_scope", lambda **_: nullcontext())
+    monkeypatch.setattr(sys, "argv", ["ethos", "land", "--help", "--json", "--root", "/absent"])
+    cli.console_main()
+    console = json.loads(capsys.readouterr().out)
+    assert [entry["name"] for entry in console["data"]["commands"]] == ["land"]
 
     every = run_ethos_process("--help", "--json")
     one = run_ethos_process("land", "--help", "--json")
@@ -90,6 +106,9 @@ def test_every_transport_refuses_the_same_request_alike(tmp_path) -> None:
             return dict(result.structured_content or {})
 
     assert asyncio.run(through_mcp())["required_gaps"] == refused
+    invalid = select_operation("land", {"retag": 5})
+    assert isinstance(invalid, Refused)
+    assert invalid.result.required_gaps == ("command_usage_invalid:land",)
     proof = run_ethos_raw("prove", "--readiness", "--root", str(tmp_path), "--json")
     assert proof.returncode == 2
     assert list(prove_repository(tmp_path, ProofRequest(readiness=True)).required_gaps) == [

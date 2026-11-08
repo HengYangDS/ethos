@@ -17,7 +17,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from ethos.application.invocation import application_result
-from ethos.contracts.operations import COMMANDS
+from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Operation
 from ethos.result import EthosResult

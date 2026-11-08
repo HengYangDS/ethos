@@ -100,8 +100,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 - **Breaking:** `ethos publish --apply` without `--receipt`, with or without `--ref`, `--peer` or
   `--retire`, the MCP `publish` tool's `apply` without `receipt`, and with them the readiness state
-  `publication_deferred`. Run `ethos publish --ref <ref> --probe-remote --expect-head <head> --json`,
-  then its `next`.
+  `publication_deferred`. Run
+  `ethos publish --ref <ref> --probe-remote --expect-head <head> --json`, then its `next`.
 - **Breaking for `npm run ethos`:** the npm launcher under `distributions/npm`, its test and the
   root `ethos` and `test:npm` scripts. Run the installed `ethos`, or `uv run ethos` from a checkout.
   `VERSION` is now the release version's only carrier.

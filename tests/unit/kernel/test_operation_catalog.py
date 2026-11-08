@@ -19,8 +19,8 @@ from ethos.application.plan import plan_repository
 from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
 from ethos.contracts.admission import STEP_EFFECTS
-from ethos.contracts.operations import COMMANDS
-from ethos.contracts.operations import select_argv
+from ethos.contracts.operations.catalog import COMMANDS
+from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Operation

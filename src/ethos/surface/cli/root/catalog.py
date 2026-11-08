@@ -14,8 +14,8 @@ from ethos.application.catalog import Refused
 from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.application.catalog import usage_refusal
-from ethos.contracts.operations import COMMANDS
 from ethos.contracts.operations.adopt import AdoptRequest
+from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.land import LandRequest
 from ethos.contracts.operations.plan import PlanRequest

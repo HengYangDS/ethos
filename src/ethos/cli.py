@@ -21,8 +21,8 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
-from ethos.contracts.operations import COMMANDS
-from ethos.contracts.operations import select_argv
+from ethos.contracts.operations.catalog import COMMANDS
+from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.outcome import outcome_of
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult

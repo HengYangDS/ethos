@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -10,6 +11,7 @@ from ethos.adapters.admission.peer_identity_push import mode_at
 from ethos.adapters.admission.peer_identity_push import peer_identity_push_gaps
 from ethos.application.peer_identity import peer_identity_backstop
 from ethos.application.peer_identity import peer_identity_status
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -198,3 +200,14 @@ def test_status_names_a_protected_peer_left_unchecked(
     elif mode == "unfed":
         git(repo, "config", "--unset", "remote.gitlab.forgePrivate")
     assert peer_identity_status(repo) == expected
+
+
+def test_status_carries_the_advisory_in_its_summary_and_never_as_a_gap(repo: Path) -> None:
+    """`ethos status --json` names a protected peer under `disabled` in its summary only."""
+    _profile(repo, "disabled")
+    completed = run_ethos_raw("status", "--root", str(repo), "--json", cwd=repo)
+    result = json.loads(completed.stdout)
+    assert result["summary"]["peer_identity_advisories"] == [
+        "peer_identity_protected_peer_disabled"
+    ]
+    assert not [gap for gap in result["required_gaps"] if gap.startswith("peer_identity")]

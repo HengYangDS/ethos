@@ -23,7 +23,6 @@ from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
-from ethos.repository.paradigm.parameters import seconds
 from tests.support.governed_repository import ROOT_DOCUMENTS
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -153,16 +152,21 @@ def test_native_inputs_keep_glob_syntax_literal(tmp_path: Path, name: str, targe
     assert report["file_count"] == expected
 
 
-@pytest.mark.timeout(seconds("tool"))
-def test_source_alias_expansion_is_bounded(tmp_path: Path) -> None:
-    """A repeated alias cannot evade cycle detection by lengthening its suffix."""
+@pytest.fixture
+def alias_cycle(tmp_path: Path) -> SourceTree:
+    """Observe a repository whose alias names itself with a longer suffix."""
     repo = _repository(tmp_path, "# Guide\n")
     (repo / "loop").symlink_to("loop/child")
     commit_fixture(repo, "declare an expanding alias cycle")
-    source = SourceTree.observe(repo)
+    return SourceTree.observe(repo)
 
+
+# The tight bound times the resolution alone; the fixture builds the repository before it starts.
+@pytest.mark.timeout(2, func_only=True)
+def test_source_alias_expansion_is_bounded(alias_cycle: SourceTree) -> None:
+    """A repeated alias cannot evade cycle detection by lengthening its suffix."""
     with pytest.raises(ValueError, match="source_target_alias_cycle"):
-        source.resolve_target("loop")
+        alias_cycle.resolve_target("loop")
 
 
 def test_native_exclusions_cannot_hide_undelivered_local_targets(tmp_path: Path) -> None:

@@ -22,7 +22,6 @@ import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.process as process_adapter
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
-from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
 
@@ -285,7 +284,7 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
 
 
 @pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])
-@pytest.mark.timeout(seconds("tool"))
+@pytest.mark.timeout(60)
 def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     """Native children consume exactly the selected environment and input."""
     environment = {"PSModulePath": "pwsh", "ETHOS_PRESERVED": "inherited", "GIT_PRESERVED": "git"}

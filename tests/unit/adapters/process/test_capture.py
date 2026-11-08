@@ -17,14 +17,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.process as process_adapter
-from ethos.repository.paradigm.parameters import seconds
 from tests.support.subprocesses import ready_descendant
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-@pytest.mark.timeout(seconds("tool"))
+@pytest.mark.timeout(60)
 @pytest.mark.parametrize("spool_stdout", [False, True])
 def test_native_output_is_captured_through_regular_files(
     tmp_path: Path, *, spool_stdout: bool

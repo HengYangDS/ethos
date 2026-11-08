@@ -9,7 +9,7 @@
 ## 2. Consumer qualification
 
 - [x] 2.1 Replay exact adopter patches read-only; report preserved state and gaps in `review1/`.
-- [ ] 2.2 Pass original formatters, strict OpenSpec and relevant gates; verify cleanup and scope.
+- [x] 2.2 Pass original formatters, strict OpenSpec and relevant gates; verify cleanup and scope.
 
 ## Workflow follow-up
 

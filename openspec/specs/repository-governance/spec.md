@@ -1723,7 +1723,9 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 
 - **WHEN** an owned lane's reviewed tree contains many generated and nontracked nodes
 - **THEN** the public preview gives its exact receipt and bounded review summary, not a second copy of the complete manifest
-- **AND** the receipt retains every reviewed node for inspection and effect-time drift checks
+- **AND** the receipt binds a content-addressed manifest by its digest and per-root totals
+- **AND** the manifest retains every reviewed node for inspection and effect-time drift checks
+  until the operation is terminal and no request without a terminal receipt binds it
 - **AND** the summary alone never authorizes disposal
 
 #### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
@@ -2732,7 +2734,9 @@ remaining effects, not process flags. Revoke Lease only after worktree/ref absen
 - **AND** it applies only the effects still required for the declared terminal
   state
 - **AND** a repeated recovery of the same terminal request is recognized as
-  complete without a second destructive effect.
+  complete without a second destructive effect
+- **AND** a request that still carries its reviewed nodes inline continues
+  through a fresh admission derived from its coordinates.
 
 #### Scenario: Recovery authority or coordinates are ambiguous
 
@@ -5631,8 +5635,8 @@ Any target drift invalidates the prepared receipt.
 ETHOS SHALL NOT irreversibly retire a dirty Work Lane or a diverged unbound Work
 Lane reference without one exact retirement receipt persisted before any
 destructive effect. The receipt SHALL record the exact target head and tree, the
-accepted head, the reviewed content manifest when content is reviewed, and the
-retirement mode and reason. A clean accepted-absorption finding alone SHALL NOT
+accepted head, the digest and per-root totals of any reviewed content manifest,
+and the retirement mode and reason. A clean accepted-absorption finding alone SHALL NOT
 discard an unreviewed dirty overlay.
 
 #### Scenario: A dirty lane needs a reviewed-content receipt

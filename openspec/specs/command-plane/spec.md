@@ -761,7 +761,8 @@ deleted checkout.
 
 #### Scenario: Reviewed content drift requires a fresh review
 
-- **WHEN** reviewed content no longer matches its receipt before removal
+- **WHEN** reviewed content no longer matches its receipt before removal, or the
+  manifest that the receipt binds is missing or altered
 - **THEN** nothing is removed and `next_action` is a fresh content review for
   the same target instead of `recover`.
 

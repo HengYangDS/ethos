@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import os
 import sys
 import tomllib
@@ -14,6 +15,7 @@ from hypothesis import settings
 from hypothesis.configuration import storage_directory
 
 from ethos.adapters.process import run_command
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     import subprocess
@@ -190,3 +192,29 @@ def test_native_failure_report_never_renders_frame_arguments(tmp_path: Path) -> 
     assert result.returncode == 1, result.stdout + result.stderr
     assert "RuntimeError: interrupted" in result.stdout
     assert not marker.exists()
+
+
+def test_a_per_test_timeout_never_undercuts_the_tool_deadline(tmp_path: Path) -> None:
+    """A literal per-test timeout below the tool deadline times a busy host, so it refuses."""
+    assert _short_timeouts(ROOT / "tests") == []
+    planted = tmp_path / "test_planted.py"
+    planted.write_text("import pytest\n\n\n@pytest.mark.timeout(2)\ndef test_x():\n    pass\n")
+    assert _short_timeouts(tmp_path) == ["test_planted.py:4"]
+
+
+def _short_timeouts(tree: Path) -> list[str]:
+    """Return each `pytest.mark.timeout(<number>)` below the tool deadline, as `path:line`."""
+    return [
+        f"{path.relative_to(tree).as_posix()}:{node.lineno}"
+        for path in sorted(tree.rglob("*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "timeout"
+        and isinstance(node.func.value, ast.Attribute)
+        and node.func.value.attr == "mark"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, int | float)
+        and node.args[0].value < seconds("tool")
+    ]

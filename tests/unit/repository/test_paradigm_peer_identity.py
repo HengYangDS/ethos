@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 
 import pytest
 
@@ -43,6 +44,7 @@ def _forms(line: str) -> list[tuple[str, str]]:
         ("projects/123456789/jobs and port 8443", [("id", "123456789"), ("port", "8443")]),
         ("port 22 and projects/1234567890", []),
         (f"sub.{H1}x is another host", []),
+        (f"the {F1}smith and {F1}.v2 repos", []),
     ],
 )
 def test_each_occurrence_takes_one_form(line: str, forms: list[tuple[str, str]]) -> None:
@@ -67,8 +69,11 @@ def test_each_neighbourhood_yields_exactly_one_host_form(before: str, after: str
 
 
 def test_markers_are_keyed_canonical_and_distinct_per_shape() -> None:
-    """Case, edge slashes and `.git` do not change a marker; the kind and the key do."""
+    """The pre-image is versioned and NUL-joined; case, edge slashes and `.git` do not count."""
     url = marker(KEY, "prefix", H1, "8443", F1)
+    image = b"\0".join((b"ethos.private-peer.v1", b"prefix", H1.encode(), b"8443", F1.encode()))
+    digest = hmac.new(KEY, image, hashlib.sha256).hexdigest()
+    assert url == f"{digest[:32]}.{digest[32:]}.private-peer.invalid"
     assert MARKER.fullmatch(url)
     assert url == marker(KEY, "prefix", H1.upper(), "8443", "/Team/Infra/Tools.git")
     assert url != marker(KEY, "host", H1)

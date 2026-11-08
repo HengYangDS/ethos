@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.application import redaction
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
@@ -97,6 +98,11 @@ def test_a_redaction_is_previewed_applied_and_verified(
     code, verified = _command(worktree, monkeypatch, *verify, key=KEY)
     assert (code, verified["state"]) == (0, "verified"), verified["required_gaps"]
     assert verified["data"]["count"] == 3
+    _set_root, members = read_attestation_set(worktree)
+    [record] = [member for member in members if member.predicate == redaction.PREDICATE]
+    fields = ("base", "head", "roots", "count", "generation")
+    body = json.loads(json.dumps(dict(record.payload.body)))
+    assert body == {name: verified["data"][name] for name in fields}
     code, rotated = _command(worktree, monkeypatch, *verify, key="cd" * 32)
     assert (code, rotated["required_gaps"]) == (1, ["redaction_key_generation_changed"])
     code, missing = _command(

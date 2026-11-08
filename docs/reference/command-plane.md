@@ -524,13 +524,9 @@ ethos land --json
 
 ### Exact Index Prewrite
 
-`ethos lane prewrite <paths> --target index --patch <file>` uses disposable native cached checking;
-bind `--editor-root <worktree> --require-editor-root`. Real Git, worktree and Lease stay unchanged.
-The expected index tree/digest, HEAD, Lease and patch bind prestate, not the prospective tree.
-Scratch objects use the shared store as a read-only alternate and disappear before return.
-Drift fails closed; split/locked indexes are unknown and sparse indexes use native cached apply.
-This preview cannot enforce CAS at later staging; commit admission re-admits actual staged content.
-Worktree stays the default.
+`ethos lane prewrite <paths> --target index --patch <file>` previews disposable native cached checking; bind `--editor-root <worktree> --require-editor-root`. Worktree remains the default. Real Git, worktree and Lease stay unchanged; the expected index tree/digest, HEAD, Lease and patch bind prestate, not the prospective tree.
+
+Scratch objects use the shared store as a read-only alternate and disappear before return. Drift fails closed; split/locked indexes are unknown, and sparse indexes use native cached apply. Preview cannot enforce CAS at later staging; commit admission re-admits actual staged content.
 
 ### Routine Scoped Execution
 

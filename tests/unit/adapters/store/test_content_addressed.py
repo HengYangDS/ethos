@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import pytest
 
 import ethos.adapters.store.content_addressed as content_addressed
 import ethos.adapters.store.durable as durable
-
-if TYPE_CHECKING:
-    import pytest
 
 
 def test_windows_publication_does_not_open_parent_directory(
@@ -52,3 +50,17 @@ def test_posix_publication_synchronizes_parent_directory(
         content_addressed.write_content_addressed(target, b"wheel", collision="collision")
 
     assert target.parent in opened
+
+
+def test_an_identical_write_adopts_the_record_again(tmp_path: Path) -> None:
+    """Writing the same bytes moves an old record's mtime to now; other bytes still collide."""
+    target = tmp_path / "artifacts" / "record.json"
+    content_addressed.write_content_addressed(target, b"{}", collision="collision")
+    os.utime(target, (1_000_000_000, 1_000_000_000))
+
+    content_addressed.write_content_addressed(target, b"{}", collision="collision")
+
+    assert target.stat().st_mtime > 1_000_000_000 + 86_400
+    assert target.read_bytes() == b"{}"
+    with pytest.raises(ValueError, match="collision"):
+        content_addressed.write_content_addressed(target, b"[]", collision="collision")

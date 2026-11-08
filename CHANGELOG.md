@@ -23,6 +23,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   ceiling, and refuses with `pre_commit_code_size_exceeded:<path>:<lines>><ceiling>`, so an
   oversized module fails at its commit instead of at readiness or the proof.
 
+- `ethos hook retire-records` previews store retention: run by the selected runtime, it classifies
+  the store's proof-check documents, merge preimages, gate attempt archives and terminal lane
+  retirement units, keeps every record that a live Attestation member, a kept store file or the
+  accepted tree names, and writes the plan of the records older than their floor without deleting
+  anything. The paradigm's new `retention` group declares the floors `grace_seconds` and
+  `record_seconds`, which a repository may raise but not lower, and the decoding bounds. Writing
+  content identical to an existing content-addressed file refreshes its mtime.
+
 ### Changed
 
 - A reviewed lane abandonment keeps its reviewed nodes in one content-addressed manifest under the

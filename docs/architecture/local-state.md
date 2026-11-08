@@ -66,6 +66,15 @@ read, that a running process uses, or that changed within `--grace-days`
 plan's digest; only `--expect-plan <digest> --apply --authorize`, a user
 decision, records the naming repositories and retires exactly that plan.
 
+Records in the Git-common store retire only through `ethos hook retire-records`,
+which the selected runtime runs. Its preview reads the age floors
+`retention.grace_seconds` and `retention.record_seconds` from the accepted
+branch's binding, classifies proof-check documents, merge preimages, gate attempt
+archives and terminal lane retirement units by their writers' forms, keeps every
+record that a live Attestation member, another kept store file or the accepted
+tree names, read through zip, gzip, tar and base64 content, and writes the plan
+of the rest to `requests/record-retirement/<digest>.json`. It deletes nothing.
+
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a
 linked worktree cannot introduce a parallel state authority.

@@ -87,7 +87,8 @@ changelog_heading = '^## \[(?P<version>Unreleased|[^\]\r\n]+)\](?: - (?P<date>\d
 # Tunable values, one row each. A governed repository keeps every default unless its binding
 # declares its own value in .ethos/rules.toml [paradigm.<group>]: a lower one, or a higher one up to
 # the row's bound with a reason in [paradigm.<group>.reasons]. A lower value is stricter for every
-# row. A value covers the whole repository, never one file, path, language or gate; a retired key is
+# row except a floor, which only rises: a higher floor needs no reason and a lower one is refused.
+# A value covers the whole repository, never one file, path, language or gate; a retired key is
 # reported with the key that replaced it.
 #
 # Per-file ceilings, keyed by class of file: exceeding one needs semantic consolidation, never
@@ -175,6 +176,47 @@ key = "admission_seconds"
 default = 3600
 unit = "seconds"
 bound = 36000
+
+# Store retention. The floors keep a record at least this long after its newest write, grace for
+# proof and gate artifacts and record for operation records; they only rise. The decode bounds
+# limit how deep and how large a kept carrier is read for the digests that keep other records, and
+# status_bytes is the store size above which status suggests a retention preview.
+[[parameter]]
+group = "retention"
+key = "grace_seconds"
+default = 604800
+unit = "seconds"
+bound = 7776000
+floor = true
+
+[[parameter]]
+group = "retention"
+key = "record_seconds"
+default = 1209600
+unit = "seconds"
+bound = 31536000
+floor = true
+
+[[parameter]]
+group = "retention"
+key = "decode_depth"
+default = 6
+unit = "levels"
+bound = 12
+
+[[parameter]]
+group = "retention"
+key = "decode_bytes"
+default = 4294967296
+unit = "bytes"
+bound = 17179869184
+
+[[parameter]]
+group = "retention"
+key = "status_bytes"
+default = 1073741824
+unit = "bytes"
+bound = 1099511627776
 
 # Code languages. A tracked file whose suffix a language lists is code: it stays within the
 # code ceiling unless Git attributes mark it vendored or generated. Python is measured by its

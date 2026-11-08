@@ -37,6 +37,8 @@ def write_content_addressed(path: Path, payload: bytes, *, collision: str) -> Pa
                 raise ValueError(collision) from error
             if existing != payload:
                 raise ValueError(collision) from None
+            # The writer adopts the record again; its retention floor starts from now.
+            os.utime(path)
     finally:
         temporary.unlink(missing_ok=True)
     return path

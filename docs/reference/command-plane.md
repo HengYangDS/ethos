@@ -187,6 +187,10 @@ compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
 `ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
 records; only `--expect-plan <digest> --apply --authorize` retires that plan.
 
+`ethos hook retire-records --json` previews which Git-common store records may retire and writes the
+plan of every owned, unnamed record older than its floor; it deletes nothing, and only the selected
+runtime runs it.
+
 ## Accepted Release Selection
 
 For maintenance from a historical accepted base, select

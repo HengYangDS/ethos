@@ -145,15 +145,20 @@ class ReleaseConventions(BaseModel):
 
 
 class Parameter(BaseModel):
-    """One tunable value: its default, unit and the bound a repository's own value stays within."""
+    """One tunable value: its default, unit and the bound a repository's own value stays within.
+
+    A floor row only rises: a higher value within the bound applies without a reason, and a lower
+    one is refused, since lowering a floor loosens what it protects.
+    """
 
     model_config = _DECLARATION
 
     group: str = Field(pattern=r"^[a-z]+$")
     key: str = Field(pattern=r"^[a-z][a-z_]*[a-z]$")
     default: int = Field(gt=0)
-    unit: Literal["lines", "seconds"]
+    unit: Literal["lines", "seconds", "bytes", "levels"]
     bound: int = Field(gt=0)
+    floor: bool = False
     retired: FrozenTuple[str] = ()
 
     @model_validator(mode="after")

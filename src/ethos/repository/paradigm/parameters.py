@@ -67,7 +67,7 @@ def parameter_resolution(rules: str | None, paradigm: RepositoryParadigm) -> Par
                 gaps.append(gap)
             elif row is not None and isinstance(value, int):
                 values[group][key] = value
-                if value > row.default:
+                if value > row.default and not row.floor:
                     deviation = {"value": value, "default": row.default, "reason": reasons[key]}
                     deviations.append({"parameter": f"{group}.{key}", **deviation})
     return ParameterResolution(values, tuple(gaps), tuple(deviations))
@@ -101,7 +101,10 @@ def _declaration_gap(
     if value == row.default:
         repair = f"remove {key}; {row.default} is the paradigm's default"
         return ParadigmGap("binding-restatement", place, repair)
-    if value > row.bound or (value > row.default and not _stated(reason)):
+    if row.floor and not row.default < value <= row.bound:
+        repair = f"declare {key} above {row.default} and at most {row.bound}, or remove it"
+        return ParadigmGap(kind, place, repair)
+    if not row.floor and (value > row.bound or (value > row.default and not _stated(reason))):
         repair = f"declare {key} at most {row.bound} with its reason, or remove it"
         return ParadigmGap(kind, place, repair)
     return None

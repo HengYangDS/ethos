@@ -13,9 +13,10 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import ref_progress
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.assistants.skills.portfolio import skill_portfolio_report
+from ethos.contracts.operations.plan import PlanRequest
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import compile_plan
@@ -30,9 +31,14 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 
 
-@catalog_operation("plan")
 def plan_repository(root: Path, *, changed: bool = False, change: str | None = None) -> EthosResult:
     """Compile deterministic TransitionPlan."""
+    return invoke("plan", root, locals())
+
+
+def compile_transition_plan(root: Path, request: PlanRequest) -> EthosResult:
+    """Compile one validated `plan.compile` request; only `invoke` calls it."""
+    changed, change = request.changed, request.change
     with selected_change(change):
         repo = root.resolve()
         status_payload, authority = workspace_status_observation(repo)

@@ -69,6 +69,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- The root SDK functions run the request their selection validated, as the CLI and the MCP tools
+  already do: each catalog operation maps to one implementation in
+  `ethos.application.catalog.IMPLEMENTATIONS`, so a list arrives as a tuple,
+  `land_repository(root, apply="false")` previews as it selects, `prove_repository(root, {...})`
+  returns its refusal instead of raising `AttributeError`, and a mapping whose `root` entry is the
+  very `root` argument now runs where it was refused. Names, keyword signatures, defaults and
+  docstrings are unchanged.
 - The CI model that adopters render their workflows from pins `jdx/mise-action` v5.2.7, whose
   download failures log the HTTP status and host and whose retries back off longer.
 - **Breaking:** the root commands `status`, `plan`, `prove`, `land`, `publish` and `adopt` select

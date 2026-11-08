@@ -25,14 +25,18 @@ _FIELDS = ("verdict", "state", "required_gaps", "next_action")
             ProofRequest(acceptance_purpose="local-source", gate=("ruff",)),
             ("--acceptance-purpose", "local-source", "--gate", "ruff"),
         ),
+        (
+            {"acceptance_purpose": "local-source", "gate": ["ruff"]},
+            ("--acceptance-purpose", "local-source", "--gate", "ruff"),
+        ),
         (ProofRequest(), ()),
     ],
-    ids=["refused-mode", "unadopted-repository"],
+    ids=["refused-mode", "refused-mode-mapping", "unadopted-repository"],
 )
 def test_the_operation_returns_what_the_command_renders(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
-    proof_request: ProofRequest,
+    proof_request: ProofRequest | dict[str, object],
     argv: tuple[str, ...],
 ) -> None:
     """In process, proof writes no stdout, raises no exit and agrees with the rendered result."""

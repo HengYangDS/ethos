@@ -33,7 +33,7 @@ from ethos.adapters.mutation.proof_validation import expected_head_gaps
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
 from ethos.application.proof.host import host_gate_observation
 from ethos.application.proof.host import host_probe_boundary
 from ethos.application.proof.host import readiness_observation
@@ -66,8 +66,8 @@ if TYPE_CHECKING:
 _DEFAULT_REQUEST = ProofRequest()
 
 
-def _proof_preflight(*, repo: Path, options: ProofRequest) -> EthosResult | None:
-    """Admit one proof mode before any governed repository observation."""
+def _proof_preflight(*, options: ProofRequest) -> EthosResult | None:
+    """Refuse a local-source proof that is not one full repository proof."""
     if options.acceptance_purpose == "local-source" and (
         options.host
         or options.probe
@@ -76,13 +76,7 @@ def _proof_preflight(*, repo: Path, options: ProofRequest) -> EthosResult | None
         or not options.full
     ):
         return _proof_gap(ValueError("local_source_proof_requires_full_repository"))
-    if options.readiness:
-        return readiness_observation(repo=repo, expect_head=options.expect_head)
-    if not (options.host and options.execute):
-        return None
-    return host_gate_observation(
-        repo=repo, gate_ids=options.gate, expect_head=options.expect_head, full=options.full
-    )
+    return None
 
 
 def _proof_context(
@@ -328,15 +322,36 @@ def _apply_proof_effect(
     return attestation, verdict, required_gaps, None
 
 
-@catalog_operation("prove")
 def prove_repository(root: Path, request: ProofRequest = _DEFAULT_REQUEST) -> EthosResult:
     """Produce proof readiness or one executed generic proof Attestation."""
+    return invoke("prove", root, request)
+
+
+def prove_governed(root: Path, request: ProofRequest) -> EthosResult:
+    """Run `proof.preview`, `proof.execute` and `proof.run`; only `invoke` calls it."""
     with selected_change(request.change):
         return _prove(root.resolve(), request)
 
 
+def prove_readiness(root: Path, request: ProofRequest) -> EthosResult:
+    """Run `proof.readiness`; only `invoke` calls it."""
+    with selected_change(request.change):
+        return readiness_observation(repo=root.resolve(), expect_head=request.expect_head)
+
+
+def prove_on_host(root: Path, request: ProofRequest) -> EthosResult:
+    """Run `proof.host`; only `invoke` calls it."""
+    with selected_change(request.change):
+        return host_gate_observation(
+            repo=root.resolve(),
+            gate_ids=request.gate,
+            expect_head=request.expect_head,
+            full=request.full,
+        )
+
+
 def _prove(repo: Path, options: ProofRequest) -> EthosResult:
-    preflight = _proof_preflight(repo=repo, options=options)
+    preflight = _proof_preflight(options=options)
     if preflight is not None:
         return preflight
     current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)

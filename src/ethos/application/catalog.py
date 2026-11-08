@@ -1,16 +1,14 @@
-"""Select one root catalog operation for a request, the same way for every transport.
+"""Select one root catalog operation for a request, and run the one implementation it maps to.
 
 `select_operation` validates a request against its command's model and selects the one operation
-its set fields choose, or returns the refusal every transport reports. The six root operations
-select through `catalog_operation` before they run, so the CLI, the SDK and MCP refuse the same
-requests alike and a refused request runs nothing.
+its set fields choose, or returns the refusal every transport reports. `invoke` runs the selected
+operation's implementation, the function `IMPLEMENTATIONS` names for it, so the CLI, the SDK and
+MCP run one body for one request and a refused request runs nothing. Only `invoke` calls an
+implementation: one imported directly skips the selection and the failure normalization.
 """
 
-import inspect
-from collections.abc import Callable
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import wraps
 from importlib import import_module
 from pathlib import Path
 
@@ -22,14 +20,42 @@ from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Operation
 from ethos.result import EthosResult
 
-# The application operation of each root command, which selects before it runs.
-OPERATIONS = {
-    "status": "ethos.application.inspection:inspect_repository",
-    "plan": "ethos.application.plan:plan_repository",
-    "prove": "ethos.application.proof.operation:prove_repository",
-    "land": "ethos.application.land.operation:land_repository",
-    "publish": "ethos.application.publication.operation:publish_repository",
-    "adopt": "ethos.application.adoption:adopt_repository",
+_LAND = "ethos.application.land.operation"
+_PUBLISH = "ethos.application.publication.operation"
+_PROVE = "ethos.application.proof.operation"
+_ADOPT = "ethos.application.adoption"
+# Each operation's implementation, `(root, request) -> EthosResult`; operations that share a body
+# share its function, which reads only the fields of its own operations.
+IMPLEMENTATIONS = {
+    "status.inspect": "ethos.application.inspection:inspect_status",
+    "plan.compile": "ethos.application.plan:compile_transition_plan",
+    "proof.preview": f"{_PROVE}:prove_governed",
+    "proof.execute": f"{_PROVE}:prove_governed",
+    "proof.run": f"{_PROVE}:prove_governed",
+    "proof.readiness": f"{_PROVE}:prove_readiness",
+    "proof.host": f"{_PROVE}:prove_on_host",
+    "land.preview": f"{_LAND}:land_on_candidate",
+    "land.apply": f"{_LAND}:land_on_candidate",
+    "land.closeout.preview": f"{_LAND}:close_out",
+    "land.closeout.apply": f"{_LAND}:close_out",
+    "land.release.preview": f"{_LAND}:release_accepted_head",
+    "land.release.apply": f"{_LAND}:release_accepted_head",
+    "land.retag.preview": f"{_LAND}:move_release_tags",
+    "land.retag.apply": f"{_LAND}:move_release_tags",
+    "publish.readiness": f"{_PUBLISH}:report_readiness",
+    "publish.probe": f"{_PUBLISH}:project_publication",
+    "publish.apply": f"{_PUBLISH}:project_publication",
+    "publish.retire.probe": f"{_PUBLISH}:project_publication",
+    "publish.retire.apply": f"{_PUBLISH}:project_publication",
+    "adopt.preview": f"{_ADOPT}:adopt_existing",
+    "adopt.apply": f"{_ADOPT}:adopt_existing",
+    "adopt.runtime.preview": f"{_ADOPT}:adopt_existing",
+    "adopt.runtime.apply": f"{_ADOPT}:adopt_existing",
+    "adopt.create.preview": f"{_ADOPT}:form_repository",
+    "adopt.create.apply": f"{_ADOPT}:form_repository",
+    "adopt.evolve-starter.preview": f"{_ADOPT}:propose_starter_evolution",
+    "adopt.exit.preview": f"{_ADOPT}:leave_ethos",
+    "adopt.exit.apply": f"{_ADOPT}:leave_ethos",
 }
 
 
@@ -89,36 +115,18 @@ def select_operation(
     return Selected(selection.operation, request)
 
 
-def catalog_operation[**P](
-    command: str,
-) -> Callable[[Callable[P, EthosResult]], Callable[P, EthosResult]]:
-    """Run a root operation only for a request that selects one of its catalog operations."""
+def invoke(command: str, root: Path, fields: Mapping[str, object] | CommandRequest) -> EthosResult:
+    """Select one request's operation and run its implementation, or return the refusal unchanged.
 
-    def decorate(function: Callable[P, EthosResult]) -> Callable[P, EthosResult]:
-        signature = inspect.signature(function)
-        normalized = application_result(command)(function)
-
-        @wraps(function)
-        def selected(*args: P.args, **kwargs: P.kwargs) -> EthosResult:
-            arguments = signature.bind(*args, **kwargs).arguments
-            # `prove` takes its request whole; the other root operations take its fields.
-            fields = arguments.get(
-                "request", {name: value for name, value in arguments.items() if name != "root"}
-            )
-            chosen = select_operation(command, fields)
-            if isinstance(chosen, Refused):
-                return chosen.result
-            return normalized(*args, **kwargs)
-
-        return selected
-
-    return decorate
-
-
-def invoke(command: str, root: Path, request: CommandRequest) -> EthosResult:
-    """Run one validated request through its root command's application operation."""
-    module, _separator, name = OPERATIONS[command].partition(":")
-    function = getattr(import_module(module), name)
-    if "request" in inspect.signature(function).parameters:
-        return function(root, request=request)
-    return function(root, **dict(request))
+    A mapping's `root` entry is dropped only when it is the `root` argument itself, as an SDK
+    function's `locals()` passes it, so a caller's stray `root` key is still refused. Selection is
+    pure and runs outside the failure normalization, which wraps the implementation alone.
+    """
+    if isinstance(fields, Mapping) and fields.get("root") is root:
+        fields = {name: value for name, value in fields.items() if name != "root"}
+    chosen = select_operation(command, fields)
+    if isinstance(chosen, Refused):
+        return chosen.result
+    module, _separator, name = IMPLEMENTATIONS[chosen.operation.id].partition(":")
+    implementation = getattr(import_module(module), name)
+    return application_result(command)(implementation)(root, chosen.request)

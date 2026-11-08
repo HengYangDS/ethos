@@ -2,15 +2,18 @@
 
 import inspect
 import re
+from importlib import import_module
 from itertools import product
+from pathlib import Path
 from typing import Literal
 from typing import get_args
 from typing import get_origin
+from typing import get_type_hints
 
 import pytest
 
 from ethos.application.adoption import adopt_repository
-from ethos.application.catalog import OPERATIONS
+from ethos.application.catalog import IMPLEMENTATIONS
 from ethos.application.catalog import Selected
 from ethos.application.catalog import select_operation
 from ethos.application.inspection import inspect_repository
@@ -44,7 +47,6 @@ def test_each_operation_is_declared_once_with_its_effects_and_authority() -> Non
     """IDs are unique; a write needs an authorization kind and a verdict exit, and only a write."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
     assert len(identities) == len(set(identities)) == 29
-    assert set(COMMANDS) == set(OPERATIONS)
     for command in COMMANDS.values():
         fields = command.request.model_fields
         assert set().union(*(item.accepted for item in command.operations)) == set(fields)
@@ -143,6 +145,25 @@ def test_each_root_operation_keeps_its_request_signature() -> None:
         assert {key: item.default for key, item in parameters.items()} == {
             key: info.default for key, info in fields.items()
         }
+        hints = get_type_hints(function, localns={"Path": Path})
+        assert {key: hints[key] for key in parameters} == {
+            key: info.annotation for key, info in fields.items()
+        }
     proof = inspect.signature(prove_repository).parameters["request"]
     assert proof.default == COMMANDS["prove"].request()
-    assert all(value.startswith("ethos.application.") for value in OPERATIONS.values())
+
+
+def test_each_operation_maps_to_one_implementation_of_its_command() -> None:
+    """Every operation names one `(root, request)` function under `ethos.application`."""
+    commands = {item.id: name for name, command in COMMANDS.items() for item in command.operations}
+    assert set(IMPLEMENTATIONS) == set(commands)
+    for operation, target in IMPLEMENTATIONS.items():
+        module, _separator, name = target.partition(":")
+        assert module.startswith("ethos.application.")
+        implementation = getattr(import_module(module), name)
+        parameters = list(inspect.signature(implementation).parameters)
+        request = COMMANDS[commands[operation]].request
+        # `prove` postpones its annotations and imports `Path` for type checking only.
+        hints = get_type_hints(implementation, localns={"Path": Path})
+        assert (len(parameters), hints[parameters[1]]) == (2, request)
+        assert "root" not in request.model_fields

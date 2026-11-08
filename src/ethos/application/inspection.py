@@ -19,12 +19,13 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.application.peer_identity import peer_identity_status
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.operations.status import StatusRequest
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.prove import workspace_status_validation
@@ -68,10 +69,14 @@ def renewal_action(summary: Mapping[str, object], *, root: Path) -> str:
     return f"ethos lane lease {verb} --root {root.as_posix()}"
 
 
-@catalog_operation("status")
 def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
-    with selected_change(change):
+    return invoke("status", root, locals())
+
+
+def inspect_status(root: Path, request: StatusRequest) -> EthosResult:
+    """Inspect one validated `status.inspect` request; only `invoke` calls it."""
+    with selected_change(request.change):
         repo = root.resolve()
         runtime = hook_runtime_binding(repo)
         observed, authority = workspace_status_observation(

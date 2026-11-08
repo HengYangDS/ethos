@@ -9,7 +9,8 @@ from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
+from ethos.contracts.operations.adopt import AdoptRequest
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
@@ -44,7 +45,6 @@ _FORMATION_SIGNER_GAPS = frozenset(
 )
 
 
-@catalog_operation("adopt")
 def adopt_repository(
     root: Path,
     *,
@@ -70,45 +70,26 @@ def adopt_repository(
     the previewed `expect_plan_digest`, it restores the configuration that adoption replaced and
     removes the runtime selectors; a later `ethos hook install` adopts the repository again.
     """
-    if exit_repository:
-        return _exit(
-            root,
-            apply=apply,
-            authorize=authorize,
-            expect_head=expect_head,
-            expect_plan_digest=expect_plan_digest,
-        )
-    if evolve_starter:
-        return _evolve_starter(root, purpose=purpose, starter=starter, expect_head=expect_head)
-    if create:
-        return _form_repository(
-            root,
-            purpose=purpose,
-            starter=starter,
-            author_name=author_name,
-            author_email=author_email,
-            signing_key=signing_key,
-            trust_anchor=trust_anchor,
-            signing_program=signing_program,
-            apply=apply,
-            authorize=authorize,
-            expect_plan_digest=expect_plan_digest,
-        )
+    return invoke("adopt", root, locals())
+
+
+def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
+    """Run `adopt.preview`, `adopt.apply` and their runtime selection; only `invoke` calls it."""
     target = root.resolve()
     current_head = git.current_head(target)
     gaps = request_gaps(
-        apply=apply,
-        authorized=authorize,
-        expect_head=expect_head,
+        apply=request.apply,
+        authorized=request.authorize,
+        expect_head=request.expect_head,
         current_head=current_head,
     )
-    do_apply = apply and not gaps
+    do_apply = request.apply and not gaps
     try:
         plan_payload = adoption_plan(
             target,
             apply=do_apply,
-            expect_plan_digest=expect_plan_digest,
-            select_runtime=select_runtime,
+            expect_plan_digest=request.expect_plan_digest,
+            select_runtime=request.select_runtime,
         )
     except (OSError, ExceptionGroup, ValueError) as error:
         return EthosResult(
@@ -118,7 +99,7 @@ def adopt_repository(
             required_gaps=("adoption_effect_observation_required",),
             next_action=shlex.join(
                 ("ethos", "adopt", "--root", str(target), "--json")
-                + (("--select-runtime",) if select_runtime else ())
+                + (("--select-runtime",) if request.select_runtime else ())
             ),
             data={"root": str(target), "failure": _failure_evidence(error)},
         )
@@ -128,9 +109,9 @@ def adopt_repository(
     applied = do_apply and ok
     conflicts = tuple(gap for gap in required_gaps if gap.startswith("adoption_conflict:"))
     action = ["ethos", "status" if applied else "adopt", "--root", str(target), "--json"]
-    if select_runtime and not applied:
+    if request.select_runtime and not applied:
         action.append("--select-runtime")
-    if not apply and ok:
+    if not request.apply and ok:
         action.extend(
             [
                 "--apply",
@@ -158,49 +139,43 @@ def adopt_repository(
         next_action=next_action,
         user_decision_required=bool(conflicts)
         or "authorization_required" in required_gaps
-        or (not apply and ok),
+        or (not request.apply and ok),
         required_gaps=required_gaps,
         data=plan_payload
         | {
             "mutation": {
-                "apply": apply,
-                "authorized": authorize,
-                "expect_head": expect_head,
+                "apply": request.apply,
+                "authorized": request.authorize,
+                "expect_head": request.expect_head,
                 "current_head": current_head,
             }
         },
     )
 
 
-def _exit(
-    root: Path,
-    *,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    expect_plan_digest: str | None,
-) -> EthosResult:
+def leave_ethos(root: Path, request: AdoptRequest) -> EthosResult:
     """Preview a repository's exit or apply its previewed plan."""
     target = root.resolve()
     head = git.current_head(target)
     gaps = request_gaps(
-        apply=apply, authorized=authorize, expect_head=expect_head, current_head=head
+        apply=request.apply,
+        authorized=request.authorize,
+        expect_head=request.expect_head,
+        current_head=head,
     )
     return adopt_exit(
         target,
         head=head,
         request_gaps=tuple(gaps),
-        apply=apply,
-        expect_plan_digest=expect_plan_digest,
+        apply=request.apply,
+        expect_plan_digest=request.expect_plan_digest,
     )
 
 
-def _evolve_starter(
-    root: Path, *, purpose: str, starter: str, expect_head: str | None
-) -> EthosResult:
+def propose_starter_evolution(root: Path, request: AdoptRequest) -> EthosResult:
     """Expose a reviewed starter proposal; its changes apply through an owned Work Lane."""
     target = root.resolve()
-    if starter not in {"", "python-library"}:
+    if request.starter not in {"", "python-library"}:
         return EthosResult(
             command="adopt",
             verdict="block",
@@ -209,10 +184,10 @@ def _evolve_starter(
             next_action="Use preview; apply reviewed changes through an owned Work Lane",
             data={"root": str(target), "changed_paths": [], "patch": ""},
         )
-    report = plan_starter_evolution(target, purpose=purpose)
+    report = plan_starter_evolution(target, purpose=request.purpose)
     inputs = report.get("source_inputs")
     current = inputs.get("current") if isinstance(inputs, dict) else None
-    if expect_head is not None and current != expect_head:
+    if request.expect_head is not None and current != request.expect_head:
         report = {
             "verdict": "block",
             "required_gaps": ["starter_evolution_head_changed"],
@@ -246,33 +221,20 @@ def _evolve_starter(
     )
 
 
-def _form_repository(
-    root: Path,
-    *,
-    purpose: str,
-    starter: str,
-    author_name: str,
-    author_email: str,
-    signing_key: str,
-    trust_anchor: str,
-    signing_program: str,
-    apply: bool,
-    authorize: bool,
-    expect_plan_digest: str | None,
-) -> EthosResult:
+def form_repository(root: Path, request: AdoptRequest) -> EthosResult:
     """Keep creation distinct from existing-repository HEAD-bound adoption."""
     plan = formation_plan(
         root,
-        purpose=purpose,
-        starter=starter,
-        author_name=author_name,
-        author_email=author_email,
-        signing_key=signing_key,
-        trust_anchor=trust_anchor,
-        signing_program=signing_program,
-        apply=apply,
-        authorized=authorize,
-        expect_plan_digest=expect_plan_digest,
+        purpose=request.purpose,
+        starter=request.starter,
+        author_name=request.author_name,
+        author_email=request.author_email,
+        signing_key=request.signing_key,
+        trust_anchor=request.trust_anchor,
+        signing_program=request.signing_program,
+        apply=request.apply,
+        authorized=request.authorize,
+        expect_plan_digest=request.expect_plan_digest,
     )
     gaps = list(string_sequence(plan.get("required_gaps")))
     verdict = report_verdict(plan)
@@ -281,8 +243,8 @@ def _form_repository(
     target = Path(str(plan.get("root") or root.absolute()))
     sources = plan.get("source_inputs")
     selected = sources if isinstance(sources, dict) else {}
-    selected_name = str(selected.get("author_name") or author_name)
-    selected_email = str(selected.get("author_email") or author_email)
+    selected_name = str(selected.get("author_name") or request.author_name)
+    selected_email = str(selected.get("author_email") or request.author_email)
     preview = [
         "ethos",
         "adopt",
@@ -290,14 +252,14 @@ def _form_repository(
         "--root",
         str(target),
         "--starter",
-        starter,
+        request.starter,
         "--purpose",
-        purpose,
+        request.purpose,
         *(("--author-name", selected_name) if selected_name else ()),
         *(("--author-email", selected_email) if selected_email else ()),
-        *(("--signing-key", signing_key) if signing_key else ()),
-        *(("--trust-anchor", trust_anchor) if trust_anchor else ()),
-        *(("--signing-program", signing_program) if signing_program else ()),
+        *(("--signing-key", request.signing_key) if request.signing_key else ()),
+        *(("--trust-anchor", request.trust_anchor) if request.trust_anchor else ()),
+        *(("--signing-program", request.signing_program) if request.signing_program else ()),
         "--json",
     ]
     mutation = [*preview, "--apply", "--authorize", "--expect-plan-digest", digest]
@@ -360,14 +322,14 @@ def _form_repository(
         | {
             "mutation": {
                 "create": True,
-                "apply": apply,
-                "authorized": authorize,
-                "expect_plan_digest": expect_plan_digest,
-                "author_name": author_name,
-                "author_email": author_email,
-                "signing_key": signing_key,
-                "trust_anchor": trust_anchor,
-                "signing_program": signing_program,
+                "apply": request.apply,
+                "authorized": request.authorize,
+                "expect_plan_digest": request.expect_plan_digest,
+                "author_name": request.author_name,
+                "author_email": request.author_email,
+                "signing_key": request.signing_key,
+                "trust_anchor": request.trust_anchor,
+                "signing_program": request.signing_program,
             }
         },
     )

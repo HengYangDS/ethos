@@ -1,7 +1,9 @@
 """Shared application operations for exact peer publication and continuation."""
 
 import shlex
+from collections.abc import Callable
 from collections.abc import Mapping
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,6 +21,7 @@ from ethos.application.publication.inspection import observe_publication
 from ethos.application.publication.inspection import publication_readiness_result
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.operations.publish import PublishRequest
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -31,11 +34,14 @@ from ethos.result import EthosResult
 if TYPE_CHECKING:
     from ethos.application.publication.inspection import PublicationContext
     from ethos.contracts.plan import TransitionPlan
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
 from ethos.application.invocation import profile_failure_result
 from ethos.application.publication.request_gaps import publication_admission_gaps
 from ethos.application.publication.request_gaps import publication_request_gaps
 from ethos.repository.profile import load_repository_profile
+
+# One publish operation's body, which `_publishing` runs on the resolved root.
+type PublishImplementation = Callable[[Path, PublishRequest], EthosResult]
 
 
 def _publication_effect_observation(
@@ -90,43 +96,62 @@ def _publication_effect_observation(
     return (effect, observations, reports, admission_gaps, verdict)
 
 
-def _publish_projection(
-    repo: Path,
-    *,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    probe_remote: bool,
-    target_refs: tuple[str, ...],
-    peer_ids: tuple[str, ...],
-    receipt: str | None,
-    receipt_sha256: str | None,
-    retire: bool,
-) -> EthosResult:
-    """Derive or replay one full-ref plan through the sole execution path."""
+def _publishing(implementation: PublishImplementation) -> PublishImplementation:
+    """Run a publish implementation on the resolved root, past the profile guard."""
+
+    @wraps(implementation)
+    def publishing(root: Path, request: PublishRequest) -> EthosResult:
+        repo = root.resolve()
+        if load_repository_profile(repo).state == "invalid":
+            return profile_failure_result("publish", repo)
+        return implementation(repo, request)
+
+    return publishing
+
+
+@_publishing
+def report_readiness(root: Path, request: PublishRequest) -> EthosResult:
+    """Run `publish.readiness`; only `invoke` calls it."""
+    context = observe_publication(
+        root, apply=False, authorized=False, expect_head=request.expect_head, target_refs=()
+    )
+    return publication_readiness_result(
+        context, expect_head=request.expect_head, probe_remote=request.probe_remote
+    )
+
+
+@_publishing
+def project_publication(root: Path, request: PublishRequest) -> EthosResult:
+    """Run the probe, apply and retirement operations through the sole execution path.
+
+    Only `invoke` calls it. One full-ref plan is derived, or a receipt's plan replayed.
+    """
     gaps: list[str] = []
     observations: dict[str, dict[str, object]] = {}
     push_admission: dict[str, dict[str, object]] = {}
-    request: dict[str, object] = {}
+    receipt_request: dict[str, object] = {}
     plan: TransitionPlan | None = None
     effect: PublicationEffect | None = None
-    replay = receipt is not None
+    target_refs = request.target_refs
+    replay = request.receipt is not None
     if replay:
-        request = {"path": receipt or "", "sha256": receipt_sha256 or ""}
+        receipt_request = {"path": request.receipt or "", "sha256": request.receipt_sha256 or ""}
         plan, effect, target_refs, gaps = observe_publication_request(
-            repo, str(request["path"]), str(request["sha256"])
+            root, str(receipt_request["path"]), str(receipt_request["sha256"])
         )
-    retirement = effect.retirement if effect is not None else retire
-    if effect is not None and effect.retirement != retire:
+    retirement = effect.retirement if effect is not None else request.retire
+    if effect is not None and effect.retirement != request.retire:
         # The argv shows a deletion: a retirement applies only with --retire, nothing else with it.
         gaps.append("remote_publication_receipt_retire_mismatch")
     projection_verdict: Verdict = "block" if gaps else "pass"
-    selected_ids = tuple(target.id for target in effect.targets) if effect is not None else peer_ids
+    selected_ids = (
+        tuple(target.id for target in effect.targets) if effect is not None else request.peer_ids
+    )
     context = observe_publication(
-        repo,
+        root,
         apply=False,
-        authorized=authorize,
-        expect_head=expect_head,
+        authorized=request.authorize,
+        expect_head=request.expect_head,
         target_refs=target_refs,
         peer_ids=selected_ids,
         retire=retirement,
@@ -135,12 +160,12 @@ def _publish_projection(
     gaps.extend(context.required_gaps)
     selected_remotes, selection_gaps = select_publication_peers(context.remotes, selected_ids)
     request_gaps = publication_request_gaps(
-        repo=repo,
-        apply=apply,
-        authorize=authorize,
-        expect_head=expect_head,
-        receipt=receipt,
-        probe_remote=probe_remote,
+        repo=root,
+        apply=request.apply,
+        authorize=request.authorize,
+        expect_head=request.expect_head,
+        receipt=request.receipt,
+        probe_remote=request.probe_remote,
         current_head=current_head,
         target_refs=target_refs,
         remotes=context.remotes,
@@ -150,9 +175,9 @@ def _publish_projection(
     if not replay and (not request_gaps):
         effect, observations, push_admission, admission_gaps, projection_verdict = (
             _publication_effect_observation(
-                repo=repo,
-                probe_remote=probe_remote,
-                retire=retire,
+                repo=root,
+                probe_remote=request.probe_remote,
+                retire=request.retire,
                 target_refs=target_refs,
                 current_head=current_head,
                 remotes=selected_remotes,
@@ -165,7 +190,7 @@ def _publish_projection(
             proof = string_mapping(context.proof_admission.get("attestation"))
             if proof:
                 proof = {**proof, "selection": str(context.proof_admission.get("selection") or "")}
-            plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
+            plan = compile_remote_publication_request(root=root, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
             projection_verdict = reduce_verdicts(projection_verdict, plan.verdict)
     if effect is not None and effect.source.peeled_commit != context.proof_head:
@@ -179,24 +204,24 @@ def _publish_projection(
         required_gaps=tuple(gaps),
     )
     if not replay and plan is not None and verdict == "pass":
-        request = persist_remote_publication_request(repo, plan)
+        receipt_request = persist_remote_publication_request(root, plan)
     execution: dict[str, object] = {"state": "not_applied", "required_gaps": []}
     # Only a replayed receipt applies; a derived request is persisted for its own replay.
-    if apply and verdict == "pass" and (plan is not None):
-        execution = apply_remote_publication_effect(root=repo, plan=plan)
+    if request.apply and verdict == "pass" and (plan is not None):
+        execution = apply_remote_publication_effect(root=root, plan=plan)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(execution))
     return _publication_result(
-        repo,
+        root,
         context,
         target_refs=target_refs,
-        peer_ids=peer_ids,
+        peer_ids=request.peer_ids,
         retirement=retirement,
         replay=replay,
-        apply=apply,
-        authorize=authorize,
-        expect_head=expect_head,
-        request=request,
+        apply=request.apply,
+        authorize=request.authorize,
+        expect_head=request.expect_head,
+        request=receipt_request,
         plan=plan,
         effect=effect,
         observations=observations,
@@ -417,7 +442,6 @@ def _publication_result(
     )
 
 
-@catalog_operation("publish")
 def publish_repository(
     root: Path,
     *,
@@ -432,26 +456,7 @@ def publish_repository(
     retire: bool = False,
 ) -> EthosResult:
     """Observe or apply exact peer publication without owning local-ref retirement effects."""
-    repo = root.resolve()
-    if load_repository_profile(repo).state == "invalid":
-        return profile_failure_result("publish", repo)
-    if target_refs or peer_ids or receipt is not None or retire:
-        return _publish_projection(
-            repo,
-            apply=apply,
-            authorize=authorize,
-            expect_head=expect_head,
-            probe_remote=probe_remote,
-            target_refs=target_refs,
-            peer_ids=peer_ids,
-            receipt=receipt,
-            receipt_sha256=receipt_sha256,
-            retire=retire,
-        )
-    context = observe_publication(
-        repo, apply=False, authorized=False, expect_head=expect_head, target_refs=()
-    )
-    return publication_readiness_result(context, expect_head=expect_head, probe_remote=probe_remote)
+    return invoke("publish", root, locals())
 
 
 def _remote_push(execution: Mapping[str, object]) -> str:

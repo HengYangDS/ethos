@@ -1,5 +1,7 @@
 """Transport-independent candidate, accepted and release integration operations."""
 
+from collections.abc import Callable
+from functools import wraps
 from pathlib import Path
 from typing import cast
 
@@ -23,7 +25,7 @@ from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
-from ethos.application.catalog import catalog_operation
+from ethos.application.catalog import invoke
 from ethos.application.invocation import profile_failure_result
 from ethos.application.land.closeout import closeout_audit_root
 from ethos.application.land.closeout import closeout_result
@@ -31,8 +33,8 @@ from ethos.application.land.closeout import land_next_action
 from ethos.application.land.closeout import repository_audit_after_admission
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.operations.land import LandRequest
 from ethos.contracts.proof.plan import AcceptancePurpose
-from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -41,6 +43,9 @@ from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.result import EthosResult
+
+# One land operation's body, which `_landing` runs inside its request's Change.
+type LandImplementation = Callable[[Path, LandRequest], EthosResult]
 
 
 def _observed_candidate_head(repo: Path, current_head: str) -> str:
@@ -400,7 +405,6 @@ def _retag_result(
     )
 
 
-@catalog_operation("land")
 def land_repository(
     root: Path,
     *,
@@ -422,69 +426,94 @@ def land_repository(
     change: str | None = None,
 ) -> EthosResult:
     """Preview or apply exact candidate, accepted or release integration under current policy."""
-    with selected_change(change):
-        repo = root.resolve()
-        acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
-        if profile_blocks_operation(repo, closeout=closeout):
-            return profile_failure_result("land", repo)
-        if retag:
-            return _retag_result(
-                repo,
-                tags=retag,
-                original_tag=original_tag,
-                apply=apply,
-                authorize=authorize,
-                expect_plan_digest=expect_plan_digest,
-            )
-        if release:
-            report = promote_release(
-                repo,
-                head=expect_head or "",
-                previous=release_head,
-                base=release_base,
-                tag=tag,
-                apply=apply,
-                authorized=authorize,
-                identity_transition=identity_transition,
-            )
-            return EthosResult(
-                command="land",
-                verdict=cast("Verdict", report["verdict"]),
-                state=str(report["state"]),
-                required_gaps=tuple(string_sequence(report["required_gaps"])),
-                next_action=str(report["next_action"]),
-                data=cast("dict[str, object]", report["data"]),
-            )
-        if closeout:
-            legacy = _legacy_role_result(
-                repo, apply=apply, authorize=authorize, expect_head=expect_head
-            )
-            if legacy is not None:
-                return legacy
-        current_head = git.current_head(repo)
-        command = "closeout" if closeout else "land"
-        return (
-            _closeout_land_result(
-                repo=repo,
-                command=command,
-                apply=apply,
-                authorize=authorize,
-                expect_head=expect_head,
-                candidate_head=candidate_head,
-                current_head=current_head,
-                independent_verification_receipt=independent_verification_receipt,
-                identity_transition=identity_transition,
-            )
-            if closeout
-            else _candidate_land_result(
-                repo=repo,
-                command=command,
-                apply=apply,
-                authorize=authorize,
-                expect_head=expect_head,
-                current_head=current_head,
-                identity_transition=identity_transition,
-                candidate_head=candidate_head,
-                acceptance_purpose=acceptance_purpose,
-            )
-        )
+    return invoke("land", root, locals())
+
+
+def _landing(*, closeout: bool) -> Callable[[LandImplementation], LandImplementation]:
+    """Run a land implementation in its request's Change, on the resolved root, past the guard."""
+
+    def decorate(implementation: LandImplementation) -> LandImplementation:
+        @wraps(implementation)
+        def landing(root: Path, request: LandRequest) -> EthosResult:
+            with selected_change(request.change):
+                repo = root.resolve()
+                if profile_blocks_operation(repo, closeout=closeout):
+                    return profile_failure_result("land", repo)
+                return implementation(repo, request)
+
+        return landing
+
+    return decorate
+
+
+@_landing(closeout=False)
+def move_release_tags(root: Path, request: LandRequest) -> EthosResult:
+    """Run `land.retag.preview` and `land.retag.apply`; only `invoke` calls it."""
+    return _retag_result(
+        root,
+        tags=request.retag,
+        original_tag=request.original_tag,
+        apply=request.apply,
+        authorize=request.authorize,
+        expect_plan_digest=request.expect_plan_digest,
+    )
+
+
+@_landing(closeout=False)
+def release_accepted_head(root: Path, request: LandRequest) -> EthosResult:
+    """Run `land.release.preview` and `land.release.apply`; only `invoke` calls it."""
+    report = promote_release(
+        root,
+        head=request.expect_head or "",
+        previous=request.release_head,
+        base=request.release_base,
+        tag=request.tag,
+        apply=request.apply,
+        authorized=request.authorize,
+        identity_transition=request.identity_transition,
+    )
+    return EthosResult(
+        command="land",
+        verdict=cast("Verdict", report["verdict"]),
+        state=str(report["state"]),
+        required_gaps=tuple(string_sequence(report["required_gaps"])),
+        next_action=str(report["next_action"]),
+        data=cast("dict[str, object]", report["data"]),
+    )
+
+
+@_landing(closeout=True)
+def close_out(root: Path, request: LandRequest) -> EthosResult:
+    """Run `land.closeout.preview` and `land.closeout.apply`; only `invoke` calls it."""
+    legacy = _legacy_role_result(
+        root, apply=request.apply, authorize=request.authorize, expect_head=request.expect_head
+    )
+    if legacy is not None:
+        return legacy
+    return _closeout_land_result(
+        repo=root,
+        command="closeout",
+        apply=request.apply,
+        authorize=request.authorize,
+        expect_head=request.expect_head,
+        candidate_head=request.candidate_head,
+        current_head=git.current_head(root),
+        independent_verification_receipt=request.independent_verification_receipt,
+        identity_transition=request.identity_transition,
+    )
+
+
+@_landing(closeout=False)
+def land_on_candidate(root: Path, request: LandRequest) -> EthosResult:
+    """Run `land.preview` and `land.apply`; only `invoke` calls it."""
+    return _candidate_land_result(
+        repo=root,
+        command="land",
+        apply=request.apply,
+        authorize=request.authorize,
+        expect_head=request.expect_head,
+        current_head=git.current_head(root),
+        identity_transition=request.identity_transition,
+        candidate_head=request.candidate_head,
+        acceptance_purpose=request.acceptance_purpose,
+    )

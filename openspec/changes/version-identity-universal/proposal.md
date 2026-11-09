@@ -13,6 +13,8 @@ can carry no version at all. Of 18 governed repositories, 9 have no `VERSION`.
   `CHANGELOG.md`; only the tag-pattern check stays a release check.
 - A missing `VERSION` whose manifest declares a version names that value in its repair, and no
   repair creates `VERSION`, since a version is the owner's claim.
+- A literal `pyproject.toml` `project.version` equal to `VERSION` counts as its projection, as a
+  `package.json` version does, so a backend that reads only literal metadata keeps working.
 - The repair creates an absent `CHANGELOG.md` with an `[Unreleased]` section.
 - `ethos form` writes `VERSION` and `CHANGELOG.md` for a new repository.
 - The license grant rule is unchanged.

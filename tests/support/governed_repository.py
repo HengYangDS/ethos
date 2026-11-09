@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 # The root documents every governed repository keeps, as the paradigm declares them.
 ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
+RELEASE = load_repository_paradigm().release
 PARADIGM_EDITORCONFIG = (
     "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 )
@@ -184,6 +185,9 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     (path / ".gitignore").write_text("", encoding="utf-8")
     for document in ROOT_DOCUMENTS:
         (path / document).write_text(f"# {Path(document).stem.title()}\n", encoding="utf-8")
+    # Every governed repository carries its version identity.
+    (path / RELEASE.version_file).write_text("0.1.0\n", encoding="utf-8")
+    (path / RELEASE.changelog).write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
     (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
     (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
     for relative, content in PARADIGM_FORMATTERS.items():
@@ -497,10 +501,6 @@ def initialize_adopted_fixture(root: Path) -> None:
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
     write_paradigm_toolchain(root)
-    # Every governed repository carries its version identity.
-    release = load_repository_paradigm().release
-    (root / release.version_file).write_text("0.1.0\n", encoding="utf-8")
-    (root / release.changelog).write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
 
 
 def write_paradigm_toolchain(root: Path) -> None:

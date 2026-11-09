@@ -486,14 +486,15 @@ def _release_gaps(
             f"add {conventions.version_file}{named} as the only version source",
         )
     else:
-        if isinstance(section, dict) and "version" in section:
+        # A manifest that needs a literal version projects VERSION when it repeats it exactly.
+        projected = (tracked_text(root, conventions.version_file, tracked) or "").strip()
+        if isinstance(section, dict) and section.get("version", projected) != projected:
             yield ParadigmGap(
                 "version-source",
                 "pyproject.toml:project.version",
-                f"declare the version dynamic and read it from {conventions.version_file}",
+                f"repeat {conventions.version_file} or declare the version dynamic and read it"
+                f" from {conventions.version_file}",
             )
-        # npm packs only a literal version, so one equal to VERSION is its checked projection.
-        projected = (tracked_text(root, conventions.version_file, tracked) or "").strip()
         if isinstance(manifest, dict) and manifest.get("version", projected) != projected:
             yield ParadigmGap(
                 "version-source",

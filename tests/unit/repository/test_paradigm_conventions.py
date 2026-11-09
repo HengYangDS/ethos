@@ -212,10 +212,18 @@ _RELEASES = {
     "pyproject-version": (
         {
             "pyproject.toml": (
-                '[project]\nname = "sample"\nversion = "1.2.0"\nrequires-python = ">=3.12"\n'
+                '[project]\nname = "sample"\nversion = "1.3.0"\nrequires-python = ">=3.12"\n'
             )
         },
         ["repository_paradigm_version_source:pyproject.toml:project.version"],
+    ),
+    "pyproject-projects-version": (
+        {
+            "pyproject.toml": (
+                '[project]\nname = "sample"\nversion = "1.2.0"\nrequires-python = ">=3.12"\n'
+            )
+        },
+        [],
     ),
     "package-unreadable": (
         {"package.json": "{broken\n"},

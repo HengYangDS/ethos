@@ -147,7 +147,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   as the only version source and a Keep a Changelog `CHANGELOG.md`. Only the tag pattern stays a
   release check, and the license grant stays a duty of released repositories. A missing `VERSION`
   names a manifest's version in its repair and is never seeded; the repair creates an absent
-  changelog, and `ethos form` writes `VERSION` `0.1.0-alpha.0` and the changelog.
+  changelog, and `ethos form` writes `VERSION` `0.1.0-alpha.0` and the changelog. A literal
+  `pyproject.toml` `project.version` equal to `VERSION` now counts as its projection, as a
+  `package.json` version does.
 
 ### Fixed
 

@@ -28,6 +28,7 @@ from ethos.contracts.semantic import Attestation
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import RELEASE
 from tests.support.governed_repository import WorkLaneFixture
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
@@ -73,6 +74,8 @@ def _declare_audit(root: Path, expires: datetime) -> None:
         "package.json": json.dumps(manifest),
         "package-lock.json": json.dumps(lock),
         "pyproject.toml": "[project]\nname='fixture'\nversion='0.0.0'\nrequires-python='>=3.12'\n",
+        # Both manifests project the fixture's own version.
+        RELEASE.version_file: "0.0.0\n",
         "uv.lock": "version = 1\nrequires-python = '>=3.12'\npackage = []\n",
     }
     source_root = Path(tests.__file__).resolve().parent.parent

@@ -4,14 +4,22 @@
 
 Every governed repository SHALL keep `VERSION` as its only version source and `CHANGELOG.md` in
 Keep a Changelog 1.1.0 with an `[Unreleased]` section and bracketed version headings. A root
-`package.json` `version` equal to `VERSION` SHALL count as its projection. No repair SHALL choose
-a version; the license grant SHALL stay a duty of released repositories.
+`package.json` `version` or `pyproject.toml` `project.version` equal to `VERSION` SHALL count as
+its projection. No repair SHALL choose a version; the license grant SHALL stay a duty of released
+repositories.
 
 #### Scenario: A second version source exists
 
 - **WHEN** a governed repository keeps a literal version in `package.json` that differs from
   `VERSION`
 - **THEN** the paradigm reports two version sources.
+
+#### Scenario: The Python manifest projects VERSION
+
+- **WHEN** a governed repository's `pyproject.toml` declares the `project.version` that `VERSION`
+  holds
+- **THEN** the paradigm reports no version-source gap
+- **AND** a different literal version reports two version sources.
 
 #### Scenario: The npm manifest projects VERSION
 

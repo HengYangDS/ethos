@@ -14,6 +14,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Added
 
+- The ETHOS repository's full proof runs `commit-ranges`, which judges with the candidate's own
+  source the commits that the next `dev` and `main` pushes to each configured peer carry beyond
+  its tracking tip, so a new commit check no longer runs first in hosted CI. A checkout without
+  a declared peer remote, such as a hosted one, passes it as not applicable.
 - `ethos lane prewrite --target index --patch <file>` checks an exact selective
   staging patch without substituting unrelated working content. It reuses staged
   admission, binds the real index prestate and fences concurrent changes to HEAD,

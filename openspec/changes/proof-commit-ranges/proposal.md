@@ -13,10 +13,13 @@ proof and a passing land.
 
 - The ETHOS repository's gate registry gains `commit-ranges`, a read-only proof gate whose provider
   validates, with the candidate's own source, the commits that the next accepted and release pushes
-  to each declared peer will carry, with each target's branch-role policy and the configured commit
-  trust anchor.
-- A peer without a tracking tip for a branch is an advisory; when no declared peer has one, the gate
-  refuses with `commit_ranges_unobserved` instead of passing with nothing checked.
+  to each declared peer whose remote the checkout configures will carry, with the commit policy of
+  each revision and the configured commit trust anchor.
+- A configured peer without a tracking tip for a branch is a note; when no configured peer has one,
+  the gate refuses with `commit_ranges_unobserved` instead of passing with nothing checked.
+- A checkout that configures no declared peer remote, as a hosted checkout of `origin` does, starts
+  no publication: the gate passes as not applicable, and the hosted job's `hook commit-range` step
+  keeps validating the actual push.
 
 ## Capabilities
 

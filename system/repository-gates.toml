@@ -4,7 +4,7 @@ source_refs = ["system/repository-gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets"]
+full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets", "commit-ranges"]
 
 [[gates]]
 id = "repository-audit"
@@ -503,3 +503,22 @@ tool_adapter = "gitleaks"
 writes_files = true
 network_policy = "required"
 version_source = "locked-toolchain"
+
+[[gates]]
+id = "commit-ranges"
+kind = "governance"
+providers = ["ethos.adapters.gates.commit_ranges:commit_ranges_report"]
+depends_on = ["repository-audit"]
+policy = "required"
+profile = "product"
+toolchain = "ethos"
+asset_classes = ["git-history"]
+dimensions = ["commit-policy", "publication"]
+execution_mode = "provider"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "ethos-commit-ranges"
+writes_files = false
+timeout_seconds = 300
+network_policy = "offline"
+version_source = "product"

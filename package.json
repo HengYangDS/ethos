@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "npm@12.2.2",
   "dependencies": {
-    "@fission-ai/openspec": "1.16.0",
+    "@fission-ai/openspec": "1.16.1",
     "c8": "12.0.0",
     "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1",
@@ -17,11 +17,11 @@
     "svgo": "4.1.0"
   },
   "devDependencies": {
-    "allure": "3.22.1"
+    "allure": "3.33.0"
   },
   "overrides": {
-    "glob": "14.0.3",
-    "minimatch": "11.0.4",
+    "glob": "14.0.4",
+    "minimatch": "11.0.5",
     "markdownlint-cli2": {
       "markdown-it": "15.0.3",
       "re2js": "2.9.1",
@@ -29,9 +29,6 @@
     },
     "micromark-extension-math": {
       "katex": "0.19.1"
-    },
-    "@allurereport/web-commons": {
-      "dompurify": "3.4.17"
     }
   }
 }

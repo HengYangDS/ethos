@@ -15,7 +15,7 @@ _INFO_SPEC = "openspec_validation_issue:INFO:spec:"
 _FAILED_SPEC = "openspec_validation_failed:spec:"
 
 
-def validation_items(payload: dict[str, Any]) -> list[dict[str, Any]] | None:
+def validation_items(payload: object) -> list[dict[str, Any]] | None:
     """Admit one complete official envelope, including additive producer metadata."""
     if not isinstance(payload, dict) or ("items" in payload) == ("itemFindings" in payload):
         return None
@@ -183,7 +183,7 @@ def validation_issue_diagnostics(payload: object) -> tuple[dict[str, str], ...]:
     items = validation_items(payload) if isinstance(payload, dict) else None
     diagnostics: list[dict[str, str]] = []
     for item in items or ():
-        if not isinstance(item, dict) or item.get("valid") is not False:
+        if item.get("valid") is not False:
             continue
         issues = item.get("issues")
         diagnostics.extend(
@@ -225,7 +225,7 @@ def valid_canonical_info_capabilities(official: dict[str, object]) -> tuple[str,
     if (
         items is None
         or validation_failures(payload) != gaps
-        or any(not isinstance(item, dict) or not isinstance(item.get("id"), str) for item in items)
+        or any(not isinstance(item.get("id"), str) for item in items)
     ):
         return None
     spec_ids = [item["id"] for item in items if item["type"] == "spec"]
@@ -286,7 +286,6 @@ def failed_validation_item(
     matching = [
         item
         for item in items
-        if isinstance(item, dict)
         if item.get("type") == kind and item.get("id") == identifier and item.get("valid") is False
     ]
     return matching[0] if len(matching) == 1 else None

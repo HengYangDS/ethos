@@ -15,6 +15,7 @@ import json
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 from urllib.parse import parse_qs
 from urllib.parse import urlsplit
@@ -28,7 +29,7 @@ from tools.ci.toolchain.native import supply_tool
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import nox
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "build/runtime/work/release-binary-scan"
@@ -129,7 +130,7 @@ def scan_release(
     return report
 
 
-def run(session: nox.Session) -> None:
+def run(session: Session) -> None:
     """Download one published release's inventories, scan them and keep the report."""
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--tag", required=True)
@@ -190,7 +191,7 @@ def _audited_lock(tag: str) -> str:
     return hashlib.sha256(completed.stdout).hexdigest()
 
 
-def _audited_locks(document: dict, audited_lock: str) -> set[str]:
+def _audited_locks(document: dict[str, Any], audited_lock: str) -> set[str]:
     """Return the shipped lock paths whose bytes equal the lock that the release audit checked."""
     return {
         item["location"]["path"]

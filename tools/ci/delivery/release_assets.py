@@ -25,6 +25,7 @@ from operator import itemgetter
 from pathlib import Path
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
+from typing import Any
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -265,7 +266,7 @@ def _inventories(
     return selected
 
 
-def _table(document: dict, key: str) -> dict:
+def _table(document: dict[str, Any], key: str) -> dict[str, Any]:
     value = document.get(key)
     return value if isinstance(value, dict) else {}
 

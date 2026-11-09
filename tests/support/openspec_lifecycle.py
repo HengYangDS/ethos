@@ -120,7 +120,7 @@ def active_change_relocation_patch(
     return repo, git(repo, "rev-parse", "HEAD"), tuple(paths), "".join(patches)
 
 
-def preview_merge(work: Path, mode: str = "inspect", source: str | None = None) -> dict:
+def preview_merge(work: Path, mode: str = "inspect", source: str | None = None) -> dict[str, Any]:
     """Read the public exact-state preview without performing an effect."""
     selection = ("--source-ref", source) if source else ()
     report = run_ethos(
@@ -138,7 +138,7 @@ def preview_merge(work: Path, mode: str = "inspect", source: str | None = None) 
     return report
 
 
-def apply_merge(work: Path, preview: dict) -> dict:
+def apply_merge(work: Path, preview: dict[str, Any]) -> dict[str, Any]:
     """Execute only the public next action returned by the owning command."""
     return run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
 

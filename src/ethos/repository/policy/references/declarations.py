@@ -333,7 +333,7 @@ def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[s
 
 def _declared_surface_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
     surfaces = _toml(_declaration_text(files, "surfaces"))
-    runtime = surfaces.get("runtime", {}) if isinstance(surfaces, dict) else {}
+    runtime = surfaces.get("runtime", {})
     if isinstance(runtime, dict):
         owned["value"].update(_string_items(runtime.get("inputs")))
         owned["executable"].update(_string_items(runtime.get("executables")))
@@ -341,10 +341,10 @@ def _declared_surface_references(files: dict[str, str], owned: dict[str, set[str
 
 def _declared_release_references(files: dict[str, str], owned: dict[str, set[str]]) -> None:
     release = _toml(_declaration_text(files, "release"))
-    host = release.get("host_profile", {}) if isinstance(release, dict) else {}
+    host = release.get("host_profile", {})
     if isinstance(host, dict) and isinstance(provider := host.get("provider"), str):
         owned["reference"].add(provider)
-    publication = release.get("publication", {}) if isinstance(release, dict) else {}
+    publication = release.get("publication", {})
     publication = publication if isinstance(publication, dict) else {}
     # Each publication peer names its forge and the Git remote that reaches it.
     for peer in _table_items(publication.get("peers")):
@@ -397,7 +397,7 @@ def _toml(text: str) -> dict[str, object]:
         payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         return {}
-    return payload if isinstance(payload, dict) else {}
+    return payload
 
 
 def _string_items(value: object) -> tuple[str, ...]:

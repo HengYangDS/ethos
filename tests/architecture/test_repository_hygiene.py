@@ -34,7 +34,7 @@ def test_repository_hygiene_is_one_python_nox_owner(pytestconfig: pytest.Config)
     assert [path.resolve() for path in pytestconfig.getini("pythonpath")] == [ROOT, ROOT / "src"]
     assert "root_host_residue = [" in policy
     assert '".DS_Store"' in policy
-    assert "def repository_hygiene(session: nox.Session)" in sessions
+    assert "def repository_hygiene(session: Session)" in sessions
     assert '"--ignore-noqa"' in sessions
     coverage = tomllib.loads(
         (ROOT / ".config/checks/coverage/coverage.toml").read_text(encoding="utf-8")

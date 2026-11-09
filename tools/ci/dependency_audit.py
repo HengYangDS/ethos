@@ -13,6 +13,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 from filelock import FileLock
 from filelock import Timeout
@@ -35,10 +36,9 @@ from ethos.repository.policy.quality.dependency_acceptance import npm_upstream_o
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
-    import nox
-
     from ethos.repository.policy.quality.dependency_acceptance import AuditScope
     from ethos.repository.policy.quality.dependency_acceptance import AuditSubject
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = "build/evidence/quality/security"
@@ -57,7 +57,9 @@ def requested_scope(arguments: tuple[str, ...]) -> AuditScope:
     raise ValueError(message)
 
 
-def _local_decision(policy: AuditPolicy, payload: dict, scope: str, *, lock_source: bytes) -> dict:
+def _local_decision(
+    policy: AuditPolicy, payload: dict[str, Any], scope: str, *, lock_source: bytes
+) -> dict[str, Any]:
     """Capture native context separately from the shared pure permission algebra."""
     return evaluate_dependency_acceptance(
         policy,
@@ -140,9 +142,9 @@ def _command(ecosystem: str, root: Path) -> tuple[str, ...]:
     )
 
 
-def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
+def _observe(root: Path, ecosystem: str, timeout: int) -> dict[str, Any]:
     """Repeat only a failed advisory request, after each backoff; every attempt is kept."""
-    attempts: list[dict] = []
+    attempts: list[dict[str, Any]] = []
     while True:
         result = _observe_once(root, ecosystem, timeout)
         attempts.append(
@@ -153,7 +155,7 @@ def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
         time.sleep(BACKOFF_SECONDS[len(attempts) - 1])
 
 
-def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict:
+def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict[str, Any]:
     """Settle one external observation, preserving failures before continuing."""
     command: tuple[str, ...] = ()
     try:
@@ -203,9 +205,11 @@ def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict:
         }
 
 
-def _upstream(root: Path, subjects: list[AuditSubject], lock_source: bytes, timeout: int) -> dict:
+def _upstream(
+    root: Path, subjects: list[AuditSubject], lock_source: bytes, timeout: int
+) -> dict[str, Any]:
     """Observe only finding owners that can change acceptance; failures stay unobserved."""
-    observation: dict = {"npm": {}, "observed_at": datetime.now(UTC).isoformat()}
+    observation: dict[str, Any] = {"npm": {}, "observed_at": datetime.now(UTC).isoformat()}
     try:
         owners = sorted(npm_upstream_owners(lock_source, subjects)) if subjects else []
         runtime = input_resolution.resolve_node_runtime() if owners else None
@@ -229,7 +233,7 @@ def _upstream(root: Path, subjects: list[AuditSubject], lock_source: bytes, time
     return observation
 
 
-def _write(path: Path, payload: dict) -> None:
+def _write(path: Path, payload: dict[str, Any]) -> None:
     """Replace the diagnostic receipt atomically; old success cannot survive a new attempt."""
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -242,7 +246,7 @@ def _require_head(head: str) -> None:
         raise ValueError(message)
 
 
-def run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
+def run(session: Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
     """Own one bounded audit attempt; contention never overwrites active evidence."""
     root = root.resolve()
     evidence = root / EVIDENCE
@@ -254,13 +258,13 @@ def run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-rel
         session.error("dependency_audit_in_use: " + str(evidence))
 
 
-def _run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
+def _run(session: Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
     """Observe both native ecosystems and reject incomplete or changed inputs."""
     root = root.resolve()
     evidence = root / EVIDENCE
     evidence.mkdir(parents=True, exist_ok=True)
     summary = evidence / "dependency-audit.json"
-    payload: dict = {
+    payload: dict[str, Any] = {
         "command": "dependency-audit",
         "verdict": "unknown",
         "state": "running",

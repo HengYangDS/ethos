@@ -104,14 +104,15 @@ def patch_admission(
             reason = gaps[0] if gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
-    if not reason:
-        allowed = {
-            kind: baseline_references.get(kind, frozenset())
-            | frozenset(observation.runner_provided.get(kind, ()) if observation else ())
-            for kind in baseline_references
-        }
-        gaps = product_reference_gaps(allowed, {} if root_repair else references)
-        reason = gaps[0] if gaps else ""
+        else:
+            if not reason:
+                allowed = {
+                    kind: baseline_references.get(kind, frozenset())
+                    | frozenset(observation.runner_provided.get(kind, ()))
+                    for kind in baseline_references
+                }
+                gaps = product_reference_gaps(allowed, {} if root_repair else references)
+                reason = gaps[0] if gaps else ""
     success_reason = (
         "native_reference_relocation_preserved"
         if root_repair

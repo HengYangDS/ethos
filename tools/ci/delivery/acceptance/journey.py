@@ -44,9 +44,8 @@ from tools.ci.toolchain.native import prepare_mise
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    import nox
-
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[4]
 WORK = ROOT / "build/runtime/work/release-journey"
@@ -387,7 +386,7 @@ def qualify(
 
 
 def run(
-    session: nox.Session,
+    session: Session,
     *,
     tag: str,
     previous: tuple[str, ...] = (),

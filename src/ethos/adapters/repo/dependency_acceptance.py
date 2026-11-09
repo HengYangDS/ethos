@@ -13,6 +13,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
 
-def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict]:
+def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict[str, Any]]:
     """Bind the selected product's portable policy, independently of subject Git inputs."""
     resource = canonical_resource(AUDIT_POLICY_PATH)
     raw = resource.read_bytes()
@@ -51,7 +52,7 @@ def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict]:
 
 def _captured_audit_materials(
     stdout: str, head: str, source: Callable[[str], bytes]
-) -> tuple[dict, dict, AuditPolicy]:
+) -> tuple[dict[str, Any], dict[str, Any], AuditPolicy]:
     """Resolve every observed source to its exact captured hash before interpretation."""
     payload = json.loads(stdout)
     if not isinstance(payload, dict) or payload.get("command") != "dependency-audit":
@@ -100,7 +101,7 @@ def _captured_audit_materials(
     raise ValueError(message)
 
 
-def _committed_product_policy(raw: bytes) -> tuple[AuditPolicy, dict]:
+def _committed_product_policy(raw: bytes) -> tuple[AuditPolicy, dict[str, Any]]:
     """Project the exact committed policy the way the product ships it."""
     projected = product_audit_projection(raw)
     return AuditPolicy.model_validate(tomllib.loads(projected.decode("utf-8"))), {
@@ -120,7 +121,7 @@ def captured_dependency_acceptance(
     head: str,
     source: Callable[[str], bytes],
     scope: AuditScope,
-) -> dict:
+) -> dict[str, Any]:
     """Read same-attempt native facts, never a build receipt or saved permission."""
     try:
         payload, materials, product = _captured_audit_materials(stdout, head, source)
@@ -142,7 +143,7 @@ def dependency_acceptance_gaps(
     root: Path,
     head: str,
     policy: Mapping[str, object],
-    checks: tuple[dict, ...],
+    checks: tuple[dict[str, Any], ...],
     *,
     acceptance_purpose: AcceptancePurpose,
 ) -> list[str]:

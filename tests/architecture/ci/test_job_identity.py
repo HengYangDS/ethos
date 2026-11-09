@@ -21,7 +21,7 @@ ROOT = owner.ROOT
 
 
 @pytest.fixture(scope="module")
-def materials() -> tuple[dict, dict[str, str]]:
+def materials() -> tuple[dict[str, object], dict[str, str]]:
     """Read the projection declaration and every input it compiles from, once."""
     config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
     paths = {path for relation in observe_projections(ROOT) for path in relation.materials}

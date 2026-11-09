@@ -161,10 +161,11 @@ def artifact_checks(
     artifact = attestation.payload.body.get("artifact")
     gap = ""
     payload = b""
+    digest = str(artifact.get("sha256") or "") if isinstance(artifact, Mapping) else ""
+    digest = digest.removeprefix("sha256:")
     if not isinstance(artifact, Mapping):
         gap = "proof_attestation_artifact_missing"
     else:
-        digest = str(artifact.get("sha256") or "").removeprefix("sha256:")
         relative = (_ARTIFACT_SUBDIR / f"{digest}.json").as_posix()
         if (
             set(artifact) != {"path", "sha256", "size_bytes", "media_type"}

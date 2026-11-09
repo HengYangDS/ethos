@@ -20,7 +20,7 @@ def workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[
         "target": "data",
         "schema": schema_name,
         "verdict": validation["verdict"],
-        "required_gaps": list(cast("list[object]", validation["required_gaps"])),
+        "required_gaps": list(validation["required_gaps"]),
     }
 
 

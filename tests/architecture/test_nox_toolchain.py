@@ -10,8 +10,6 @@ import sys
 import tomllib
 from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -26,12 +24,10 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.gates import load_gate_registry_declaration
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.nox_session import SessionDouble
 from tests.support.registries import repository_registry_path
 from tools.ci import dependency_hygiene
 from tools.ci import sessions
-
-if TYPE_CHECKING:
-    import nox
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -192,7 +188,7 @@ def test_secrets_scans_a_mirror_of_only_the_tracked_files(
     monkeypatch.setattr(sessions, "ROOT", repo)
     observed: list[tuple[tuple[str, ...], list[str], bool]] = []
 
-    def run(_session: object, *args: str) -> None:
+    def run(args: tuple[str, ...], _env: object) -> None:
         mirror = Path(args[2])
         listed = sorted(
             path.relative_to(mirror).as_posix()
@@ -201,7 +197,7 @@ def test_secrets_scans_a_mirror_of_only_the_tracked_files(
         )
         observed.append((args, listed, (mirror / "notes-link.txt").is_symlink()))
 
-    sessions.secrets(cast("nox.Session", type("Session", (), {"run": run})()))
+    sessions.secrets(SessionDouble(run))
     [(args, listed, linked)] = observed
     assert listed == sorted(git(repo, "ls-files").splitlines())
     assert {"notes.txt", "notes-link.txt"} <= set(listed)

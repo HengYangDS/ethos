@@ -310,8 +310,6 @@ def _archive_source_repair_action(
     if items is None:
         return ""
     for item in items:
-        if not isinstance(item, dict):
-            continue
         identifier = item.get("id")
         if item.get("type") != "spec" or not isinstance(identifier, str):
             continue

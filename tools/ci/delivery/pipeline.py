@@ -35,8 +35,7 @@ from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    import nox
-
+    from tools.ci.session import Session
     from tools.ci.toolchain.environment import ProjectRuntime
 
 
@@ -72,7 +71,7 @@ class DeliveryPipeline:
         """Bind delivery inputs only when a delivery operation is selected."""
         return cls(runtime, runtime.node_package_supply())
 
-    def build(self, session: nox.Session, *, release_head: str = "", release_tag: str = "") -> None:
+    def build(self, session: Session, *, release_head: str = "", release_tag: str = "") -> None:
         """Materialize exactly one offline wheel through Hatchling and uv."""
         work = self.runtime.root / "build/runtime/work"
         work.mkdir(parents=True, exist_ok=True)
@@ -115,7 +114,7 @@ class DeliveryPipeline:
 
     def prove_install(
         self,
-        session: nox.Session,
+        session: Session,
         *,
         release_head: str = "",
         release_tag: str = "",
@@ -133,7 +132,7 @@ class DeliveryPipeline:
         else:
             acceptance_effect.run(session, predecessor=predecessor)
 
-    def prove_host(self, session: nox.Session) -> None:
+    def prove_host(self, session: Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
         # The platform cases run in one process, as they were verified; workers only add start-up.
         # Every case reports, so one hosted run shows each of a platform's failures.

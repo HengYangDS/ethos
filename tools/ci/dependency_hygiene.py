@@ -26,7 +26,7 @@ from ethos.contracts.verdict import execution_succeeded
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
-    import nox
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "build/evidence/quality/dependency/deptry-ethos.json"
@@ -131,7 +131,7 @@ def _policy_arguments() -> tuple[str, ...]:
     return tuple(arguments)
 
 
-def run(session: nox.Session) -> None:
+def run(session: Session) -> None:
     """Run deptry and write one bounded verdict over its JSON result."""
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.unlink(missing_ok=True)
@@ -165,7 +165,7 @@ def run(session: nox.Session) -> None:
         session.error(f"dependency hygiene did not pass; see {SUMMARY}")
 
 
-def _observe(command: tuple[str, ...]) -> tuple[dict, str, str, list[str]]:
+def _observe(command: tuple[str, ...]) -> tuple[dict[str, object], str, str, list[str]]:
     """Retain native execution and report failures without claiming a successful run."""
     try:
         result = run_command(ROOT, command, timeout=120)

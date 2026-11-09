@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
+from typing import Any
 
 from packaging.version import InvalidVersion
 from packaging.version import Version
@@ -19,7 +20,7 @@ _BUNDLE = "/node_modules/"
 _ROOT = "node_modules/"
 
 
-def npm_owner(node: str, packages: Mapping[str, dict]) -> NpmArtifact:
+def npm_owner(node: str, packages: Mapping[str, dict[str, Any]]) -> NpmArtifact:
     """Return the locked artifact that ships a node: itself, or the package bundling it."""
     while packages[node].get("inBundle") is True and _BUNDLE in node:
         node = node.rsplit(_BUNDLE, 1)[0]
@@ -51,7 +52,7 @@ def unfixed_npm_subjects(
     }
 
 
-def python_findings(check: dict) -> tuple[set[AuditSubject], set[AuditSubject]] | None:
+def python_findings(check: dict[str, Any]) -> tuple[set[AuditSubject], set[AuditSubject]] | None:
     """Return exact Python advisories and the unfixed ones; adverse statuses stay strict."""
     if check["verdict"] == "pass":
         return set(), set()

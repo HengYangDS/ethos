@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import Self
+from typing import override
 
 from pydantic import AwareDatetime
 from pydantic import BaseModel
@@ -147,6 +148,7 @@ class _SemanticModel(BaseModel):
 
 class _CanonicalSemanticModel(_SemanticModel):
     @classmethod
+    @override
     def model_validate_json(
         cls,
         json_data: str | bytes | bytearray,

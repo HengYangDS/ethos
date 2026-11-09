@@ -14,6 +14,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import override
 from unittest.mock import patch
 
 from cyclopts.exceptions import CycloptsError
@@ -37,6 +38,7 @@ PYTHONPATH = str(ROOT / "src")
 class ImplicitApplyCheckoutError(AssertionError):
     """Raised when a test would mutate the repository checkout by default."""
 
+    @override
     def __str__(self) -> str:
         return (
             "run_ethos* --apply calls must pass cwd=tmp_repo or --root tmp_repo; "

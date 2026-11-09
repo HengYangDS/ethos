@@ -105,7 +105,7 @@ def _initialize(root: Path, git: str, env: dict[str, str]) -> None:
 async def _call(
     surface: str,
     *,
-    client: Client,
+    client: Client[StdioTransport],
     command: tuple[str, ...],
     root: Path,
     name: str,
@@ -336,7 +336,7 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
 
 
 async def _observations(
-    client: Client, command: tuple[str, ...], root: Path, env: dict[str, str]
+    client: Client[StdioTransport], command: tuple[str, ...], root: Path, env: dict[str, str]
 ) -> None:
     """Compare successful planning and live profile failure once across all transports."""
     planning = with_runtime(plan_repository(root, changed=True)).to_dict()

@@ -40,7 +40,7 @@ def capability_records(
         record = {
             "id": capability_id,
             "kind": kind,
-            "command": list(command) if isinstance(command, list) else [],
+            "command": list(command),
         }
         if item.get("guard"):
             record["guard"] = str(item["guard"])

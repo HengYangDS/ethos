@@ -9,7 +9,9 @@ from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import override
 
+from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 if TYPE_CHECKING:
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-class OpenSpecRuntimeHook(BuildHookInterface):
+class OpenSpecRuntimeHook(BuildHookInterface[BuilderConfig]):
     """Project one validated prepared npm closure into package build data."""
 
     PLUGIN_NAME = "openspec-runtime"
@@ -27,6 +29,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         if owned is not None:
             owned.cleanup()
 
+    @override
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         if version == "editable":
             return
@@ -90,6 +93,7 @@ class OpenSpecRuntimeHook(BuildHookInterface):
                 error.add_note(f"Build identity cleanup failed: {cleanup_error}")
             raise
 
+    @override
     def finalize(self, version: str, build_data: dict[str, Any], artifact_path: str) -> None:
         del version, build_data, artifact_path
         self._cleanup_identity()

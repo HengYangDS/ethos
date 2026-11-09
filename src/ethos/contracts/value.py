@@ -84,5 +84,5 @@ def frozen_mapping[T](value: Mapping[str, T]) -> Mapping[str, T]:
 FrozenMapping = Annotated[
     Mapping[str, T],
     AfterValidator(frozen_mapping),
-    PlainSerializer(dict, return_type=dict),
+    PlainSerializer(dict, return_type=dict[str, object]),
 ]

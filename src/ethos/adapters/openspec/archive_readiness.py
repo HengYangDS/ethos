@@ -103,7 +103,7 @@ def _issue_locations(
     locations: dict[tuple[str, str], None] = {}
     names: dict[str, tuple[str, ...]] = {}
     for item in validation_items(payload) or ():
-        if not isinstance(item, dict) or item.get("type") != "spec":
+        if item.get("type") != "spec":
             continue
         spec = str(item.get("id") or "")
         issues = [issue for issue in item.get("issues") or () if isinstance(issue, dict)]

@@ -6,6 +6,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -117,7 +118,7 @@ def projection_input_bindings(values: object, declaration: str) -> dict[str, tup
 
 
 def _compiler_relation(
-    payload: dict, entry: dict, declaration: str
+    payload: dict[str, Any], entry: dict[str, Any], declaration: str
 ) -> tuple[str, tuple[str, ...], str]:
     compiler = payload.get("compiler")
     if (

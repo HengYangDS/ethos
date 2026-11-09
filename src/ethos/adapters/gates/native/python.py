@@ -126,11 +126,12 @@ class RuffInvocation(BaseModel):
             )
         except (ValueError, IndexError, OSError):
             valid = False
+        else:
+            if valid and not required <= subjects:
+                msg = "python_native_static_scope_incomplete"
+                raise ValueError(msg)
         if not valid:
             msg = "python_native_static_invocation_unbound"
-            raise ValueError(msg)
-        if not required <= subjects:
-            msg = "python_native_static_scope_incomplete"
             raise ValueError(msg)
 
 

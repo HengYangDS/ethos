@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
 
-    import nox
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = ROOT / ".config/release/release-sbom/policy.toml"
@@ -72,7 +73,7 @@ def catalog(
     outputs: tuple[Path, Path],
     config: Path,
     run: Callable[[tuple[str, ...]], None],
-) -> tuple[dict, dict]:
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Catalog the archive's bytes once and return its two inventories, bound to its digest."""
     for path in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -149,7 +150,7 @@ def missing_components(
 
 
 def complete_inventory(
-    documents: tuple[dict, dict],
+    documents: tuple[dict[str, Any], dict[str, Any]],
     manifest: Mapping[str, object],
     *,
     native: Mapping[str, str],
@@ -177,7 +178,7 @@ def complete_inventory(
 
 
 def declare_locked_node(
-    documents: tuple[dict, dict],
+    documents: tuple[dict[str, Any], dict[str, Any]],
     *,
     member: str,
     digest: str,
@@ -302,7 +303,7 @@ def locked_node_digest(runtime: str) -> str:
     return _sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
 
 
-def run(session: nox.Session) -> None:
+def run(session: Session) -> None:
     """Catalog the archive the install smoke kept and record the inventories' bounded claims."""
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--host")
@@ -396,7 +397,7 @@ def shipped_node(archive: Path) -> tuple[str, str] | None:
     return None
 
 
-def _manifest(archive: Path) -> dict:
+def _manifest(archive: Path) -> dict[str, Any]:
     with tarfile.open(archive) as packed:
         names = [name for name in packed.getnames() if _MANIFEST.fullmatch(name)]
         member = packed.extractfile(names[0]) if len(names) == 1 else None

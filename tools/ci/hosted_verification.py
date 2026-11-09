@@ -162,8 +162,8 @@ def _receipt(
             and summary["gate_count"] == len(checks)
             and not gaps
         )
+        report["verdict"] = "pass" if valid else "block"
         report.update(
-            verdict="pass" if valid else "block",
             gate_count=len(checks),
             required_gaps=[*observation["required_gaps"], *gaps],
             expected_gate_count=len(policy.nodes),
@@ -315,7 +315,7 @@ def _publish(proof: Path, report: dict[str, Any], checks: list[Any], summary: li
         lines.append("Required gaps: " + ", ".join(report["required_gaps"]))
     rows = ["| Gate | Verdict | Exit | Seconds |", "| --- | --- | --- | --- |"]
     keys = ("action_id", "verdict", "exit_code", "duration_seconds")
-    for check in checks if isinstance(checks, list) else []:
+    for check in checks:
         if isinstance(check, dict):
             cells = (
                 str(check.get(key, "unavailable")).replace("|", "\\|").replace("\n", " ")

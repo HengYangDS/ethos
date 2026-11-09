@@ -8,8 +8,6 @@ import re
 import tomllib
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
-from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -21,12 +19,10 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from tests.support.architecture import isolated_path
+from tests.support.nox_session import SessionDouble
 from tests.support.runtime_scenarios import empty_node_package_supply
 from tools.ci.delivery.pipeline import DeliveryPipeline
 from tools.ci.toolchain.environment import ProjectRuntime
-
-if TYPE_CHECKING:
-    import nox
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -134,15 +130,19 @@ def test_config_quality_projects_the_installed_owner(monkeypatch) -> None:
     monkeypatch.setattr(
         ci_sessions, "import_module", lambda _name: SimpleNamespace(configuration_report=check)
     )
-    session = SimpleNamespace(posargs=(), run=Mock(), log=Mock(), error=pytest.fail)
+    session = SessionDouble()
 
-    ci_sessions.config_quality(cast("nox.Session", session))
+    ci_sessions.config_quality(session)
 
     check.assert_called_once_with(ci_sessions.ROOT, paths=())
-    session.log.assert_called_once()
-    session.run.assert_called_once_with(
-        ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ci_sessions.PRE_COMMIT_CONFIG
-    )
+    assert len(session.logs) == 1
+    assert session.runs == [
+        (
+            str(ci_sessions.RUNTIME.script("pre-commit")),
+            "validate-config",
+            ci_sessions.PRE_COMMIT_CONFIG,
+        )
+    ]
 
 
 def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
@@ -156,12 +156,12 @@ def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
     runtime = resolve_node_runtime()
     observations = []
 
-    def execute(*command, env):
-        result = run_command(ROOT, tuple(command), env=env, timeout=60)
+    def execute(command, env):
+        result = run_command(ROOT, command, env=env, timeout=60)
         observations.append((command, env, result))
         assert result.returncode == 0, result.stdout + result.stderr
 
-    ci_sessions.javascript_tests(cast("nox.Session", SimpleNamespace(run=execute)))
+    ci_sessions.javascript_tests(SessionDouble(execute))
 
     ((command, environment, result),) = observations
     supply = ci_sessions.RUNTIME.node_package_supply()

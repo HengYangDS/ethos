@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import cast
 
 from pydantic import ValidationError
 
@@ -126,7 +125,7 @@ def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     validation = validate_schema_instance("rule.schema.json", rule)
     if validation["verdict"] == "pass":
         return []
-    return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
+    return [str(gap) for gap in validation["required_gaps"]]
 
 
 def _gate_policy(root: Path, *, gate_ids: tuple[str, ...]) -> ResolvedGatePolicy:

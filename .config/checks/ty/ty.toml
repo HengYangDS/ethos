@@ -2,3 +2,13 @@
 # exercised at runtime; their reusable support and architecture checks are typed.
 [src]
 include = ["src", "tools", "tests/support", "tests/architecture", "noxfile.py"]
+
+# Every rule is an error, so a ty upgrade surfaces each new rule. Each ignored rule is owned by a
+# later Change of the gates program: `ty-none-truthiness` for the truthiness rule, whose fixes are
+# behaviour choices, and `ty-sound-any` for the `unsound-*` rules, which typed reports remove.
+[rules]
+all = "error"
+truthiness-test-of-none-union = "ignore"
+unsound-assignment = "ignore"
+unsound-return-statement = "ignore"
+unsound-yield = "ignore"

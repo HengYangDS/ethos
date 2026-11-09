@@ -88,7 +88,7 @@ class _UniqueSafeLoader(yaml.SafeLoader):
     """Use native safe YAML while rejecting duplicate explicit mapping keys."""
 
     @override
-    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[str, Any]:
         keys = [
             self.construct_object(key, deep=deep)
             for key, _value in node.value
@@ -303,7 +303,7 @@ class RetainedDocument(BaseModel):
     relations: Annotated[
         Mapping[NonEmpty, NonEmpty],
         AfterValidator(lambda value: MappingProxyType(dict(value))),
-        PlainSerializer(dict, return_type=dict),
+        PlainSerializer(dict, return_type=dict[str, Any]),
     ]
     origin: NonEmpty
     review_date: NonEmpty
@@ -327,7 +327,9 @@ class RetainedDocument(BaseModel):
         return self
 
 
-def _retained_metadata(relative: str, metadata: dict, original: dict) -> dict:
+def _retained_metadata(
+    relative: str, metadata: dict[str, Any], original: dict[str, Any]
+) -> dict[str, Any]:
     conflicts = any(
         field in metadata and metadata[field] != original[field]
         for field in ("subject", "role", "state")

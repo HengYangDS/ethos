@@ -294,13 +294,10 @@ def main() -> int:
         Timeout,
     ) as error:
         if isinstance(error, subprocess.TimeoutExpired):
+            # A timeout's captured output is always bytes, even in text mode.
             for output in (error.stdout, error.stderr):
                 if output:
-                    sys.stderr.write(
-                        output.decode("utf-8", errors="replace")
-                        if isinstance(output, bytes)
-                        else output
-                    )
+                    sys.stderr.write(output.decode("utf-8", errors="replace"))
         print(f"native_tool_supply_failed:{_failure_chain(error)}", file=sys.stderr)
         return 1
     print(os.pathsep.join(str(path) for path in paths))

@@ -161,6 +161,7 @@ def _observe(
             "release_mirror_requires_accepted_closeout",
         )
     require_release(not apply or authorized, "authorization_required")
+    lease = leases_by_branch(root).get(current_branch(root), {}) if selection.base else {}
     if selection.base:
         require_release(
             selection.tag and not selection.identity_transition, "release_maintenance_tag_required"
@@ -168,7 +169,6 @@ def _observe(
         require_release(
             lane_creation_boundary(root, head) == selection.base, "release_lane_birth_mismatch"
         )
-        lease = leases_by_branch(root).get(current_branch(root), {})
         require_release(lease.get("lease_state") == "valid", "release_live_lease_required")
         require_release(
             lease.get("holder_ref") == process_actor(),

@@ -14,7 +14,9 @@ VERSION = "0.2.0-alpha.5"
 HEAD = "0123456789abcdef0123456789abcdef01234567"
 
 
-def inventory_documents(name: str, digest: str, *, components: int = 1) -> tuple[dict, dict]:
+def inventory_documents(
+    name: str, digest: str, *, components: int = 1
+) -> tuple[dict[str, object], dict[str, object]]:
     """Return an SPDX SBOM and a Syft inventory that describe one archive and its components."""
     root = "SPDXRef-DocumentRoot-File-archive"
     packages = [

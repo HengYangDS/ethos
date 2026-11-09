@@ -43,7 +43,7 @@ def markdown_references(
                 scenario = False
             elif token.tag == "h3":
                 scenario = False
-            elif token.tag == "h4":
+            else:
                 scenario = heading.startswith("Scenario:")
             continue
         if removed_section:

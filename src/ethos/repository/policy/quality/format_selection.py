@@ -129,7 +129,7 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
         if isinstance(priority, bool) or not isinstance(priority, int):
             message = f"format ownership priority is not an integer: {owner}"
             raise TypeError(message)
-    return cast("list[OwnerDeclaration]", value)
+    return [cast("OwnerDeclaration", declaration) for declaration in value]
 
 
 def _matches_glob(path: str, pattern: str) -> bool:

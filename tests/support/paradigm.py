@@ -86,7 +86,7 @@ def paradigm_report(
     untracked: tuple[str, ...] = (),
     received: tuple[str, ...] = (),
     line_endings: dict[str, tuple[str, str]] | None = None,
-) -> dict:
+) -> dict[str, object]:
     """Write the files under root and evaluate the paradigm over the tracked ones.
 
     Every tracked file checks out with LF unless `line_endings` gives its Git attributes.

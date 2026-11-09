@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -55,6 +56,69 @@ def test_native_ty_scope_rejects_errors_in_each_owned_carrier(tmp_path: Path) ->
     }
     assert found == targets
     assert {item["check_name"] for item in diagnostics} == {"invalid-assignment"}
+
+
+_PLANTED = {
+    "missing-type-argument": "VALUES: dict = {}\n",
+    "redundant-condition-strict": (
+        "def f(x: int) -> int:\n    if isinstance(x, int):\n        return x\n    return 0\n"
+    ),
+    "possibly-unresolved-reference": (
+        "import random\n\nif random.random():\n    value = 1\nprint(value)\n"
+    ),
+    "missing-override-decorator": (
+        "class A:\n    def f(self) -> None: ...\n\n\nclass B(A):\n    def f(self) -> None: ...\n"
+    ),
+    "disjoint-cast": 'from typing import cast\n\nVALUE = cast("str", 1)\n',
+}
+
+
+def test_ty_selection_raises_every_rule_but_the_owned_deferrals() -> None:
+    """Each deferral is owned by a later Change; the set may only shrink."""
+    root = Path(__file__).resolve().parents[4]
+    rules = tomllib.loads((root / ".config/checks/ty/ty.toml").read_text(encoding="utf-8"))["rules"]
+
+    assert rules == {
+        "all": "error",
+        "truthiness-test-of-none-union": "ignore",
+        "unsound-assignment": "ignore",
+        "unsound-return-statement": "ignore",
+        "unsound-yield": "ignore",
+    }
+
+
+def test_the_raised_rules_refuse_their_planted_cases(tmp_path: Path) -> None:
+    """Every rule the selection raises reports its planted case as an error."""
+    root = Path(__file__).resolve().parents[4]
+    config = tmp_path / "ty.toml"
+    config.write_bytes((root / ".config/checks/ty/ty.toml").read_bytes())
+    for rule, source in _PLANTED.items():
+        planted = tmp_path / "src" / f"{rule.replace('-', '_')}.py"
+        planted.parent.mkdir(parents=True, exist_ok=True)
+        planted.write_text(source, encoding="utf-8")
+
+    completed = subprocess.run(
+        (
+            sys.executable,
+            "-m",
+            "ty",
+            "check",
+            "--project",
+            str(tmp_path),
+            "--config-file",
+            str(config),
+            "--output-format",
+            "gitlab",
+        ),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    found = {(item["check_name"], item["severity"]) for item in json.loads(completed.stdout)}
+    assert {rule for rule, _severity in found} == set(_PLANTED)
+    assert {severity for _rule, severity in found} == {"major"}
 
 
 def test_ty_gate_requires_native_config(tmp_path: Path) -> None:

@@ -73,7 +73,7 @@ RecordRoots = Annotated[
 CodeCorrectnessMap = Annotated[
     Mapping[str, NonEmpty],
     AfterValidator(lambda value: MappingProxyType(dict(value))),
-    PlainSerializer(dict, return_type=dict),
+    PlainSerializer(dict, return_type=dict[str, object]),
 ]
 GateTuple = Annotated[
     tuple[Gate, ...],
@@ -99,7 +99,7 @@ SourceMembers = Annotated[
     Mapping[RepositoryPath, SourceMember],
     BeforeValidator(lambda value: dict(value) if isinstance(value, Mapping) else value),
     AfterValidator(lambda value: MappingProxyType(dict(value))),
-    PlainSerializer(dict, return_type=dict),
+    PlainSerializer(dict, return_type=dict[str, object]),
 ]
 
 

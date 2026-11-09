@@ -8,6 +8,7 @@ import sys
 import tomllib
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Literal
 
 import tomli_w
@@ -164,7 +165,7 @@ def audit_workspace_manifests(name: str, data: bytes) -> tuple[str, ...]:
     return ()
 
 
-def _npm_roots(raw: dict) -> dict[str, set[tuple[str, str]]]:
+def _npm_roots(raw: dict[str, Any]) -> dict[str, set[tuple[str, str]]]:
     """Resolve npm package aggregates to concrete advisories without counting strings as IDs."""
     aggregates = raw["vulnerabilities"]
     references, direct = {}, {}
@@ -197,7 +198,7 @@ def _npm_roots(raw: dict) -> dict[str, set[tuple[str, str]]]:
     return resolved
 
 
-def _locked_artifact_integrity(node: str, packages: dict) -> str:
+def _locked_artifact_integrity(node: str, packages: dict[str, Any]) -> str:
     """Bind inBundle bytes to their containing lock artifact, never a fabricated child hash."""
     locked = packages[node]
     integrity = locked.get("integrity")
@@ -212,7 +213,9 @@ def _locked_artifact_integrity(node: str, packages: dict) -> str:
     return _locked_artifact_integrity(node.rsplit("/node_modules/", 1)[0], packages)
 
 
-def _locked_instances(name: str, finding: dict, packages: dict) -> dict:
+def _locked_instances(
+    name: str, finding: dict[str, Any], packages: dict[str, Any]
+) -> dict[tuple[str, str], set[str]]:
     """Bind every native aggregate node to its exact package-lock artifact identity."""
     nodes = finding["nodes"]
     if not isinstance(nodes, list) or not nodes:
@@ -237,7 +240,7 @@ def _locked_instances(name: str, finding: dict, packages: dict) -> dict:
     return instances
 
 
-def _npm_subjects(lock_source: bytes, check: dict) -> tuple[set[AuditSubject], int]:
+def _npm_subjects(lock_source: bytes, check: dict[str, Any]) -> tuple[set[AuditSubject], int]:
     """Derive exact advisory subjects while retaining native aggregate counts unchanged."""
     raw = json.loads(check["stdout"])
     roots = _npm_roots(raw)
@@ -267,7 +270,7 @@ def _count(value: object) -> bool:
     return type(value) is int and value >= 0
 
 
-def _python_counts(raw: dict) -> tuple[int, int]:
+def _python_counts(raw: dict[str, Any]) -> tuple[int, int]:
     summary = raw["summary"]
     counts = tuple(
         summary[key] for key in ("audited_packages", "vulnerabilities", "adverse_statuses")
@@ -285,7 +288,7 @@ def _python_counts(raw: dict) -> tuple[int, int]:
     return counts[0], counts[1] + counts[2]
 
 
-def _npm_counts(raw: dict) -> tuple[int, int]:
+def _npm_counts(raw: dict[str, Any]) -> tuple[int, int]:
     summary = raw["metadata"]
     vulnerabilities = summary["vulnerabilities"]
     counts = tuple(vulnerabilities[key] for key in ("info", "low", "moderate", "high", "critical"))
@@ -328,7 +331,7 @@ def _python_advisory_request_failed(output: str, exit_code: int, stderr: str) ->
 
 def interpret_native_audit(
     ecosystem: str, output: str, exit_code: int, stderr: str = ""
-) -> tuple[Verdict, str, dict]:
+) -> tuple[Verdict, str, dict[str, Any]]:
     if ecosystem == "python" and _python_advisory_request_failed(output, exit_code, stderr):
         return "unknown", "advisory_request_failed", {}
     try:
@@ -346,7 +349,7 @@ def interpret_native_audit(
     return "pass", "clean", details
 
 
-def _native_observation_gaps(payload: dict, lock_source: bytes) -> tuple[str, str]:
+def _native_observation_gaps(payload: dict[str, Any], lock_source: bytes) -> tuple[str, str]:
     """Validate a completed raw observation before applying any disposition."""
     checks = payload["checks"]
     if (
@@ -379,14 +382,14 @@ def _native_observation_gaps(payload: dict, lock_source: bytes) -> tuple[str, st
 
 def evaluate_dependency_acceptance(
     policy: AuditPolicy,
-    payload: dict,
+    payload: dict[str, Any],
     *,
     lock_source: bytes,
     scope: AuditScope,
     host: str,
     now: datetime,
     ci: bool,
-) -> dict:
+) -> dict[str, Any]:
     """Reevaluate captured native evidence; saved decisions never grant permission."""
     decision = {"scope": scope, "verdict": "unknown", "reason": "strict_native_result"}
     if scope == "local-development" and ci:

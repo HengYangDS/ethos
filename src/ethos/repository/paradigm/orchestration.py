@@ -318,8 +318,14 @@ def _gitlab_steps(path: str, document: dict[object, object]) -> Iterator[CiStep]
             continue
         for key in _GITLAB_STEPS:
             entries = body.get(key)
-            listed = [entries] if isinstance(entries, str) else entries
-            for index, entry in enumerate(listed if isinstance(listed, list) else ()):
+            listed: list[object] = (
+                [entries]
+                if isinstance(entries, str)
+                else entries
+                if isinstance(entries, list)
+                else []
+            )
+            for index, entry in enumerate(listed):
                 if isinstance(entry, str):
                     yield CiStep(f"{path}:{job}.{key}[{index}]", str(job), entry)
 

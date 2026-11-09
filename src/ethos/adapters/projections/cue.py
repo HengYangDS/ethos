@@ -8,6 +8,7 @@ import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.observation import read_regular_bytes
@@ -90,7 +91,11 @@ def compile_projections(
 
 
 def _compiler_supply(
-    root: Path, declaration: str, compiler: dict, files: Mapping[str, str], executable: Path | None
+    root: Path,
+    declaration: str,
+    compiler: dict[str, Any],
+    files: Mapping[str, str],
+    executable: Path | None,
 ) -> tuple[str, Path, str]:
     """Bind product inputs separately from the repository's real source closure."""
     common = ""
@@ -127,7 +132,7 @@ def _compiler_supply(
     return common, selected, version
 
 
-def _export(executable: Path, root: Path, source: str, *, common: str = "") -> dict:
+def _export(executable: Path, root: Path, source: str, *, common: str = "") -> dict[str, Any]:
     sources = ("cue:", "-")
     if common:
         (root / "common.cue").write_text(common, encoding="utf-8", newline="")

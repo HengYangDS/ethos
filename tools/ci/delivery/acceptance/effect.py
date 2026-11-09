@@ -50,10 +50,9 @@ from tools.ci.toolchain.environment import ProjectRuntime
 if TYPE_CHECKING:
     from concurrent.futures import Future
 
-    import nox
-
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.adapters.repo.runtime.transition import PackageArtifact
+    from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[4]
 ARTIFACTS = ROOT / "build/artifacts/python"
@@ -252,7 +251,7 @@ def observe_installed_package(
 
 
 def observe_package(
-    session: nox.Session,
+    session: Session,
     selected: PackageArtifact,
     *,
     head: str,
@@ -422,7 +421,7 @@ def _retain_failure(error: BaseException, *, head: str, wheel_sha256: str, outpu
 
 
 def run(
-    session: nox.Session,
+    session: Session,
     *,
     artifact: PackageArtifact | None = None,
     evidence: Path | None = None,

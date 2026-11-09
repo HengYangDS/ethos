@@ -18,6 +18,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.paradigm.declaration import RepositoryParadigm
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from tests.support.nox_session import SessionDouble
 from tests.support.private_addresses import DOCUMENTATION_FORGE
 from tests.support.private_addresses import DOCUMENTATION_TEXTS
 from tests.support.private_addresses import PRIVATE_FORGE
@@ -135,10 +136,10 @@ def test_history_alone_fails_neither_content_scan(
     monkeypatch.setattr(sessions, "ROOT", repo)
     outcomes: list[int] = []
 
-    def run(_session: object, *args: str) -> None:
+    def run(args: tuple[str, ...], _env: object) -> None:
         outcomes.append(subprocess.run(args, capture_output=True, check=False).returncode)
 
-    sessions.secrets(type("Session", (), {"run": run, "error": pytest.fail})())
+    sessions.secrets(SessionDouble(run))
     history = run_command(
         repo,
         (_gitleaks(), "git", "--config", str(CONFIG), "--redact=100", "--no-banner", str(repo)),

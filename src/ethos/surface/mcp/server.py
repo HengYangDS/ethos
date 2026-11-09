@@ -6,6 +6,7 @@ from functools import partial
 from functools import wraps
 from pathlib import Path
 from typing import Any
+from typing import override
 
 import anyio
 from fastmcp import FastMCP
@@ -40,6 +41,7 @@ class _BoundCalls(Middleware):
         self.target_binding = target_binding
         self.lock = anyio.Lock()
 
+    @override
     async def on_call_tool(
         self,
         context: MiddlewareContext[CallToolRequestParams],

@@ -25,6 +25,7 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.nox_session import SessionDouble
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance import effect
@@ -34,8 +35,6 @@ from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 
 if TYPE_CHECKING:
     import subprocess
-
-    import nox
 
     from ethos.adapters.repo.runtime.transition import PackageArtifact
 
@@ -249,7 +248,7 @@ def test_terminal_refresh_preserves_complete_failure(monkeypatch, tmp_path, fail
     monkeypatch.setattr(effect, "remove_generated_tree", remove)
     with pytest.raises(OSError, match="interrupted terminal refresh"):
         effect.run(
-            cast("nox.Session", SimpleNamespace(log=lambda _: None)),
+            SessionDouble(),
             artifact=cast("PackageArtifact", SimpleNamespace(sha256="b" * 64)),
             evidence=output,
         )
@@ -320,7 +319,7 @@ def test_failed_stage_observation_cannot_skip_owned_cleanup(monkeypatch, tmp_pat
     monkeypatch.setattr(Path, "open", open_observation)
     with pytest.raises(OSError, match="stage observation refused"):
         effect.run(
-            cast("nox.Session", SimpleNamespace(log=lambda _: None)),
+            SessionDouble(),
             artifact=cast("PackageArtifact", SimpleNamespace(sha256="b" * 64)),
             evidence=output,
         )
@@ -371,9 +370,7 @@ def test_predecessor_preflight_preserves_existing_work_and_evidence(
         monkeypatch.setattr(effect, name, value)
     artifact = cast("PackageArtifact", SimpleNamespace(build=build, sha256="b" * 64))
     with pytest.raises(ValueError, match=expected):
-        effect.run(
-            cast("nox.Session", object()), artifact=artifact, evidence=output, predecessor=previous
-        )
+        effect.run(SessionDouble(), artifact=artifact, evidence=output, predecessor=previous)
     assert {path: path.read_bytes() for path in retained} == before
 
 

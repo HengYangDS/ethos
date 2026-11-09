@@ -12,7 +12,6 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 from typing import cast
 from unittest.mock import Mock
 
@@ -22,13 +21,11 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import build_identity
+from tests.support.nox_session import SessionDouble
 from tools.ci.delivery import artifact as artifact_owner
 from tools.ci.delivery import distribution as native_distribution
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
-
-if TYPE_CHECKING:
-    import nox
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -58,7 +55,6 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     )
     monkeypatch.setattr(effect, "current_runtime", selected_runtime)
     observed: dict[str, object] = {}
-    logs: list[str] = []
     cleanup_evidence_states: list[bool] = []
     remove_generated_tree = effect.remove_generated_tree
 
@@ -158,7 +154,6 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         build=build,
         lifecycle=lifecycle,
         observed=observed,
-        logs=logs,
         cleanup=cleanup_evidence_states,
         sealed_payload=sealed_payload,
         selected_runtime=selected_runtime,
@@ -173,7 +168,7 @@ def test_console_uses_image_source_without_changing_locked_dependency_owner(
     requirements = Mock(return_value=effect.WORK / "locked-requirements.txt")
     monkeypatch.setattr(effect, "_run", command)
     monkeypatch.setattr(effect, "prepare_locked_requirements", requirements)
-    effect.run(cast("nox.Session", SimpleNamespace(error=pytest.fail, log=lambda _: None)))
+    effect.run(SessionDouble())
     assert command.call_args_list[0].args == (
         "/locked/uv",
         "venv",
@@ -197,7 +192,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "ambient-data"))
     case = acceptance_case
     work, evidence = effect.WORK, effect.EVIDENCE
-    session = SimpleNamespace(error=pytest.fail, log=case.logs.append)
+    session = SessionDouble()
     selected = case.wheel
     output = evidence
     artifact = None
@@ -223,12 +218,12 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         else:
             monkeypatch.setattr(effect, "prove_shared_supply", change_artifact)
         with pytest.raises(ValueError, match="package_acceptance_artifact_changed"):
-            effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
+            effect.run(session, artifact=artifact, evidence=output)
         assert not output.exists()
         assert not (tmp_path / "build/artifacts/native").exists()
         assert case.sealed_payload.exists() == (selection != "changed-after")
     else:
-        effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
+        effect.run(session, artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
         events = [
             json.loads(line)
@@ -269,7 +264,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, output)
         assert not work.exists()
         assert case.cleanup == [bool(artifact), bool(artifact)]
-        assert json.loads(case.logs[0]) == payload
+        assert json.loads(str(session.logs[0][0])) == payload
     if artifact:
         assert evidence.read_text() == "previous development acceptance"
 
@@ -316,7 +311,7 @@ def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case, f
     monkeypatch.setattr(effect, "install_locked_runtime", fail_supply)
     monkeypatch.setattr(effect, "remove_generated_tree", remove)
     with pytest.raises(expected):
-        effect.run(cast("nox.Session", object()))
+        effect.run(SessionDouble())
     assert not effect.WORK.exists()
     assert not effect.EVIDENCE.exists()
     assert not acceptance_case.observed
@@ -379,7 +374,7 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
     monkeypatch.setattr(effect, "install_locked_runtime", supply)
     expected = RuntimeError if stage == "terminal" else KeyboardInterrupt
     with pytest.raises(expected):
-        effect.run(cast("nox.Session", SimpleNamespace(error=pytest.fail, log=lambda _: None)))
+        effect.run(SessionDouble())
     payload = json.loads(effect.EVIDENCE.with_suffix(".terminal.json").read_text())
     assert payload["owned_work_absent"] is True
     assert payload["acceptance_written"] is False
@@ -400,7 +395,7 @@ def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(
 
     monkeypatch.setattr(effect.adopter_fixture, "prove_formation", fail_formation)
     with pytest.raises(RuntimeError, match="expected formation failure"):
-        effect.run(cast("nox.Session", object()))
+        effect.run(SessionDouble())
     (formation,) = acceptance_case.observed["bootstrap_users"]
     assert formation.done()
     assert not effect.WORK.exists()

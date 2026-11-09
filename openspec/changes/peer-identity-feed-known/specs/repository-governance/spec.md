@@ -1,34 +1,12 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: A push refuses the protected peer identity it adds
+### Requirement: A push refuses a peer identity feed that the clone cannot know
 
-Under `peer_identity.mode = "required"`, read at the commit that push admission trusts, push
-admission SHALL read the commits a push adds beyond every tip its peer advertises and a pushed tag's
-message, and SHALL refuse a fed host, a fed full path, a port after any host and a closed context
-with a fed value of any protected peer, as `peer_identity_literal:<form>:<n>:<m>:<line>`. Before
-it reads the advertisement, it SHALL refuse a feed the clone cannot know: an invalid publication
-declaration with its own required gaps, else each declared peer whose remote holds no URL in its
-`url` or `pushurl` keys as `peer_identity_feed_unreadable:<remote>`, else a feed of nothing as
-`peer_identity_feed_empty`. A remote that marks itself `forgePrivate` SHALL feed whether or not
-the publication declaration names it. A deletion SHALL pass before the mode is read. No gap
-SHALL carry a value, and no history beyond the advertisement SHALL be read.
-
-#### Scenario: A push adds a fed literal
-
-- **WHEN** a commit or its message names a protected peer's host and the peer does not yet hold it
-- **THEN** push admission refuses with `peer_identity_literal:<form>:<n>:<m>:<line>`
-- **AND** the same content passes once the peer advertises it
-
-#### Scenario: The advertisement cannot be read
-
-- **WHEN** the peer's advertisement cannot be read under `required`
-- **THEN** push admission refuses with `peer_identity_range_unknown:<remote>`
-
-#### Scenario: The mode is disabled or unread
-
-- **WHEN** the trusted commit's profile declares `disabled`, or its profile cannot be read
-- **THEN** push admission reads nothing, and an unread mode is the advisory
-  `peer_identity_mode_unread`
+Under `peer_identity.mode = "required"`, push admission SHALL refuse a feed that the clone cannot
+know before it reads the advertisement: an invalid publication declaration with its own required
+gaps, else each declared peer whose remote holds no URL in its `url` or `pushurl` keys as
+`peer_identity_feed_unreadable:<remote>`, else a feed of nothing as `peer_identity_feed_empty`. A
+remote that marks itself `forgePrivate` SHALL feed whether or not the declaration names it.
 
 #### Scenario: The clone cannot know its protected peers
 

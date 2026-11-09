@@ -9,6 +9,7 @@ import pytest
 from ethos.adapters.mutation.paradigm_repair import repair_paradigm
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.repository.paradigm.report import repository_paradigm_report
+from tests.support.governed_repository import ROOT_DOCUMENTS
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -22,31 +23,23 @@ _FRONT = (
 )
 _AUTHORED = ("repository_paradigm_front_matter", "repository_paradigm_decision_record")
 _NAMES = "repository_paradigm_authored_name"
+_PRETTIER = ".config/checks/prettier/prettier.toml"
 
 
-def _repository(tmp_path: Path, original: str, text: str) -> Path:
-    """Commit one original, then declare it retained in the docs taxonomy."""
+def _repository(tmp_path: Path, original: str, text: str, *, authored: bool = True) -> Path:
+    """Commit one original, then declare it retained; `authored` keeps the other documents."""
     root = init_git_repo(tmp_path / "repo")
+    if not authored:
+        git(root, "rm", "-q", "--", *ROOT_DOCUMENTS)
     path = root / original
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     revision = commit_fixture(root, "capture original observation")
     docs = root / "docs"
-    (docs / "owner.md").write_text(
-        _FRONT.format(subject="owner", role="reference", title="Owner"), encoding="utf-8"
-    )
-    (docs / "README.md").write_text(
-        _FRONT.format(subject="docs", role="index", title="Docs")
-        + "\nStart with [Owner](owner.md).\n",
-        encoding="utf-8",
-    )
     metadata = docs / "_meta"
     metadata.mkdir(exist_ok=True)
-    (metadata / "README.md").write_text(
-        _FRONT.format(subject="metadata", role="index", title="Metadata")
-        + "\nRead [Taxonomy](taxonomy.toml).\n",
-        encoding="utf-8",
-    )
+    if authored:
+        _authored_documents(docs)
     (metadata / "taxonomy.toml").write_text(
         f'[[retained]]\npath = "{original}"\nsubject = "sample:observation"\n'
         f'role = "history"\nstate = "archived"\norigin = "{revision}:{original}"\n'
@@ -56,6 +49,23 @@ def _repository(tmp_path: Path, original: str, text: str) -> Path:
     )
     git(root, "add", "--", "docs")
     return root
+
+
+def _authored_documents(docs: Path) -> None:
+    """Write the owner and the indexes that an authored docs tree carries."""
+    (docs / "owner.md").write_text(
+        _FRONT.format(subject="owner", role="reference", title="Owner"), encoding="utf-8"
+    )
+    (docs / "README.md").write_text(
+        _FRONT.format(subject="docs", role="index", title="Docs")
+        + "\nStart with [Owner](owner.md).\n",
+        encoding="utf-8",
+    )
+    (docs / "_meta" / "README.md").write_text(
+        _FRONT.format(subject="metadata", role="index", title="Metadata")
+        + "\nRead [Taxonomy](taxonomy.toml).\n",
+        encoding="utf-8",
+    )
 
 
 def _gaps(root: Path, *, observed: bool = True) -> list[str]:
@@ -113,3 +123,16 @@ def test_the_repair_plans_no_edit_of_a_verified_original(tmp_path: Path, case: s
         path.write_text(path.read_text(encoding="utf-8") + "Changed.\n", encoding="utf-8")
     edited = [str(edit["path"]) for edit in repair_paradigm(root=root)["edits"]]
     assert (original in edited) is (case == "changed")
+
+
+@pytest.mark.parametrize("case", ["verified", "changed"])
+def test_a_verified_original_alone_selects_no_formatter(tmp_path: Path, case: str) -> None:
+    """Formatter settings bind authored files, and a verified original is the only Markdown here."""
+    original = "docs/history/observation.md"
+    root = _repository(tmp_path, original, "# Original\n\nObserved record.\n", authored=False)
+    (root / _PRETTIER).write_text("printWidth = 80\n", encoding="utf-8")
+    if case == "changed":
+        path = root / original
+        path.write_text(path.read_text(encoding="utf-8") + "Changed.\n", encoding="utf-8")
+    gap = f"repository_paradigm_formatter_setting:{_PRETTIER}:printWidth"
+    assert (gap in _gaps(root)) is (case == "changed")

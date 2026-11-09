@@ -94,8 +94,9 @@ def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[s
     if change:
         command.extend(("--change", change))
     try:
+        # The predecessor plans every gate and audits the tree: one gate's run, not one tool call.
         completed = run_command(
-            root, tuple(command), timeout=seconds("tool"), remove_env_prefixes=("GIT_",)
+            root, tuple(command), timeout=seconds("gate"), remove_env_prefixes=("GIT_",)
         )
     except subprocess.TimeoutExpired:
         return ["predecessor_policy_probe_timeout"]

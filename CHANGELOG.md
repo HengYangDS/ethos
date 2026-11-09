@@ -137,6 +137,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Cancelling a command no longer fails cleanup when Darwin refuses the group signal while the group
   leader is still exiting: the process owner waits within its reaping grace for the leader to become
   reapable, and a lasting refusal still fails as a survivor.
+- Landing's predecessor policy probe is bounded by the gate deadline instead of the tool deadline,
+  so a landing under host load waits for the installed runtime's plan instead of refusing with
+  `predecessor_policy_probe_timeout`.
 
 ### Removed
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from dataclasses import replace
 from datetime import UTC
 from datetime import datetime
@@ -30,6 +31,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import frozen_tuple
 from ethos.contracts.value import mutable_json
+from ethos.repository.paradigm.parameters import seconds
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
@@ -55,12 +57,20 @@ _issue = partial(issue_conformant_proof, issuer="agent:test:case:proof")
 
 @pytest.mark.parametrize(
     "case",
-    ["malformed_json", "wrong_head", "invalid_gaps", "registry_invalid", "missing_plan", "bounded"],
+    [
+        "malformed_json",
+        "wrong_head",
+        "invalid_gaps",
+        "registry_invalid",
+        "missing_plan",
+        "bounded",
+        "slow",
+    ],
 )
 def test_predecessor_policy_probe_preserves_failure_identity(
     case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A planned result is not proof, and malformed predecessor facts do not pass."""
+    """A planned result is not proof, bad predecessor facts fail and a slow plan answers."""
     head = "a" * 40
     registry = "gate_registry_invalid:system/gates.toml"
     report: dict[str, object] = {
@@ -98,11 +108,15 @@ def test_predecessor_policy_probe_preserves_failure_identity(
             )
         ),
     )
-    monkeypatch.setattr(
-        proof_admission,
-        "run_command",
-        Mock(return_value=SimpleNamespace(stdout=payload, returncode=1)),
-    )
+    answer = SimpleNamespace(stdout=payload, returncode=1)
+
+    def run(_root: Path, command: tuple[str, ...], *, timeout: float, **_: object) -> object:
+        # A predecessor plan slower than a tool's deadline still answers within a gate's.
+        if case == "slow" and timeout < seconds("gate"):
+            raise subprocess.TimeoutExpired(command, timeout)
+        return answer
+
+    monkeypatch.setattr(proof_admission, "run_command", run)
 
     gaps = proof_admission.predecessor_policy_gaps(tmp_path, head, Mock())
 

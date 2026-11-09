@@ -31,10 +31,10 @@ let sourceCLI = "\(offlineRun) python -B -I -m ethos.cli"
 let nativeNpm = "python -B -m tools.ci.toolchain.npm"
 let supplyDockerfile = ".config/ci/supply/Dockerfile"
 let supplyImage = "ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:601521e6ada731af199639d4d251fd9ca2b8ce85a8b0c6c073f009660cde0104"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:0b2f67e9f4ee5ffc9a8c718251514e242a1377049ffa7eb87b085060035bd04a"
 
 // The commit the bound image was built from; the CI projection check compares its manifest inputs.
-let gitlabImageSource = "8a2463938de236a4ee6bcc54a42442547143dbb6"
+let gitlabImageSource = "9b2d961242b014744a46e9fa1a2a5fa217bb5c82"
 
 // Commit-scoped GitLab jobs verify a commit once: a main push at dev's commit leaves them to
 // the dev pipeline of the same commit, while commit-policy still admits every pushed ref.

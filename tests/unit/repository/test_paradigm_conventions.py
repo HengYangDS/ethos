@@ -193,10 +193,6 @@ _RELEASES = {
         {"package.json": '{"version": "1.2.0", "scripts": {}}\n', "VERSION": None},
         ["repository_paradigm_version_source:VERSION"],
     ),
-    "tag-only-with-tags": (
-        {".ethos/release.toml": "", "LICENSE": None, "README.md": CONFORMING["README.md"]},
-        [],
-    ),
     "tag-pattern": (
         {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},
         ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],

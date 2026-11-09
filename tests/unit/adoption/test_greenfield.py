@@ -13,6 +13,7 @@ import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_
 import ethos.application.console as console
 import ethos.cli as product_cli
 from ethos.application.adoption import adopt_repository
+from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -251,10 +252,14 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         assert sha256(path.read_bytes()).hexdigest() == row["content_sha256"]
     guidance = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos status --root . --json" in guidance
-    # A formed repository starts with its version identity.
+    # A formed repository starts with its version identity, and no paradigm gap names it.
     assert (target / "VERSION").read_text(encoding="utf-8") == "0.1.0-alpha.0\n"
     changelog = (target / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog == "# Changelog\n\n## [Unreleased]\n"
+    tracked = tuple(git(target, "ls-files").splitlines())
+    report = repository_paradigm_report(target, tracked_paths=tracked, line_endings=None)
+    identity = ("repository_paradigm_version_source", "repository_paradigm_changelog")
+    assert not [gap for gap in report["required_gaps"] if gap.startswith(identity)]
     assert str(ROOT) not in guidance
     assert not list(tmp_path.glob(".ethos-preview-*"))
 

@@ -9,7 +9,7 @@
       changelog.
 - [ ] 1.2 Seed only what no owner chooses. Done when a repair test creates an absent changelog and
       leaves a malformed one, and a formation test shows a formed repository with both files and no
-      paradigm gap.
+      version-source or changelog gap.
 
 ## 2. Acceptance
 

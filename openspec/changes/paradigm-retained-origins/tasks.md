@@ -8,12 +8,13 @@
       altered, mode-mismatched or merely declared original, a malformed taxonomy and an ordinary
       document without front matter keeping theirs; the formatter case uses a fixture whose only
       Markdown file is the original. In the impacted sweep of 336 test files at `a76cb7db7`
-      (19:38:11 to 20:37:47, 6,571 passed, 2 skipped), the ten report cases of
-      `test_paradigm_retained_origins.py`, the formatter pair among them, passed.
+      (19:38:11 to 20:37:47, 6,571 passed, 3 failed in other files, 2 skipped), the ten report cases
+      of `test_paradigm_retained_origins.py`, the formatter pair among them, passed.
 - [x] 1.2 Repair no original. Done when a `repair_paradigm` test with a `<!--`-wrapped verified
       original plans no edit of it, and the same file without verification keeps its planned edit.
-      In the impacted sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 2
-      skipped), both cases of `test_the_repair_plans_no_edit_of_a_verified_original` passed.
+      In the impacted sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 3
+      failed in other files, 2 skipped), both cases of
+      `test_the_repair_plans_no_edit_of_a_verified_original` passed.
 
 ## 2. Acceptance
 

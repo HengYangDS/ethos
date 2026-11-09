@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.mutation.branch_roles import rename_retained_topic
 from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import tracked_paths
 from ethos.adapters.repo.git_attributes import checkout_line_endings
 from ethos.contracts.verdict import report_verdict
@@ -35,11 +36,14 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         return renamed
     tracked = tracked_paths(repo)
     received = paradigm_received_paths(repo, tracked)
+    # One observation serves both reports, so no repair rewrites a verified retained original.
+    origins = observed_document_origins(repo)
     report = repository_paradigm_report(
         repo,
         tracked_paths=tracked,
         received_paths=received,
         line_endings=checkout_line_endings(repo, tracked),
+        retained_origins=origins,
     )
     gaps = [
         ParadigmGap(str(gap.get("obligation")), str(gap.get("carrier")), str(gap.get("repair")))
@@ -79,6 +83,7 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         tracked_paths=remaining_paths,
         received_paths=received,
         line_endings=checkout_line_endings(repo, remaining_paths),
+        retained_origins=origins,
     )
     return {
         **result,

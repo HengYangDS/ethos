@@ -205,6 +205,18 @@ def _observed_retained_origins(
     return retained
 
 
+def verified_originals(root: Path, observation: DocumentOrigins | None) -> frozenset[str]:
+    """Return the declared originals that the observation verifies, or none when it does not.
+
+    A refusal, a malformed taxonomy or a missing observation verifies nothing; the docs report
+    names the refusal, and every authored rule keeps applying to the original.
+    """
+    try:
+        return frozenset(_observed_retained_origins(root, observation))
+    except ValueError:
+        return frozenset()
+
+
 def intent_document_owner(
     relative: str,
 ) -> Literal["openspec", "openspec-history"] | None:

@@ -152,6 +152,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Landing's predecessor policy probe is bounded by the gate deadline instead of the tool deadline,
   so a landing under host load waits for the installed runtime's plan instead of refusing with
   `predecessor_policy_probe_timeout`.
+- The paradigm no longer judges a retained original that the docs registry verifies as an authored
+  document: its front-matter, decision-record-name, authored-name and formatter checks skip it, and
+  `ethos lane repair-paradigm` plans no edit of it. A changed, mode-mismatched, unobserved or
+  malformed original keeps every check.
 
 ### Removed
 

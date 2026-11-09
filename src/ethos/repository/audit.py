@@ -169,6 +169,7 @@ def governance_audit(
             tracked_paths=tracked_paths,
             received_paths=received_paths,
             line_endings=line_endings,
+            retained_origins=retained_origins,
         ),
     }
     gaps = list(

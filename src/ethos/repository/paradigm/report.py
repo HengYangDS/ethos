@@ -31,6 +31,7 @@ from ethos.repository.paradigm.scripts import tracked_script_gaps
 from ethos.repository.paradigm.size import code_size_gaps
 from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
+from ethos.repository.registry.docs.registry import verified_originals
 from ethos.repository.release.changelog import changelog_errors
 from ethos.repository.release.publication import RETIRED_PEER_FIELDS
 from ethos.repository.release.publication import RETIRED_PUBLICATION_FIELDS
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from ethos.contracts.paradigm.declaration import EcosystemModule
     from ethos.contracts.paradigm.declaration import ReleaseConventions
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
+    from ethos.repository.registry.docs.registry import DocumentOrigins
 
 _KEBAB = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _NPM_DEPENDENCY_FIELDS = (
@@ -60,16 +62,20 @@ def repository_paradigm_report(
     tracked_paths: tuple[str, ...],
     received_paths: Iterable[str] = (),
     line_endings: Mapping[str, tuple[str, str]] | None,
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     """Evaluate the shared repository paradigm over one repository's tracked paths.
 
-    Received paths, which Git attributes mark vendored or generated, keep their names.
+    Received paths, which Git attributes mark vendored or generated, keep their names, and the
+    retained originals that the observation verifies are no authored documents.
     Line endings are each tracked path's effective Git `text` and `eol` attributes; None
     means Git did not report them.
     """
     paradigm = load_repository_paradigm()
     tracked = frozenset(tracked_paths)
     received = frozenset(received_paths)
+    # A verified retained original is no authored document; its bytes are the observer's.
+    authored = tracked - verified_originals(root, retained_origins)
     rules = tracked_text(root, paradigm.binding.path("rules"), tracked)
     parameters = parameter_resolution(rules, paradigm)
     release = _release_binding(paradigm, root, tracked)
@@ -85,8 +91,8 @@ def repository_paradigm_report(
         *code_size_gaps(
             paradigm, root, tracked - received, parameters.values["size"]["code_effective_lines"]
         ),
-        *_formatter_gaps(paradigm, root, tracked),
-        *document_gaps(paradigm, root, tracked),
+        *_formatter_gaps(paradigm, root, authored),
+        *document_gaps(paradigm, root, authored),
         *openspec_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, release),
         *_publication_declaration_gaps(paradigm, release),
@@ -95,7 +101,7 @@ def repository_paradigm_report(
         *rules_binding_gaps(paradigm, rules),
         *_release_gaps(paradigm, root, tracked, release),
         *release_binding_gaps(paradigm, release),
-        *authored_name_gaps(paradigm, tracked, received),
+        *authored_name_gaps(paradigm, authored, received),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),
         *tracked_script_gaps(paradigm, root, tracked),

@@ -79,6 +79,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- A failure inside one gate no longer crashes or empties the proof. Any exception that one
+  provider or one gate raises becomes that gate's own outcome, and every other gate keeps running
+  and keeps its evidence. A timeout stays `unknown` with `gate_timeout:<gate>`; a failure that
+  carries a decision keeps its verdict class and gaps; any other error blocks with
+  `gate_runner_error:<gate>` or `gate_provider_error:<gate>:<provider>`, recording its type,
+  message and raising frame. A provider report that JSON cannot hold fails its provider instead
+  of the proof's artifact, and an interrupt still stops the run.
 - The root SDK functions run the request their selection validated, as the CLI and the MCP tools
   already do: each catalog operation maps to one implementation in
   `ethos.application.catalog.IMPLEMENTATIONS`, so a list arrives as a tuple,

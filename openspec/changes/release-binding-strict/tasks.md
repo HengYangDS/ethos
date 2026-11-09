@@ -9,8 +9,8 @@
       `test_paradigm_repair.py` and the release fixture of
       `tests/unit/cli/test_lane_paradigm_repair.py` drop the two keys; the accepted-mirror
       `release-table` case keeps them and asserts that the same pass deletes them. In the impacted
-      sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 2 skipped),
-      `test_an_unread_release_key_is_deleted` (three cases),
+      sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 3 failed in other
+      files, 2 skipped), `test_an_unread_release_key_is_deleted` (three cases),
       `test_an_unread_release_key_on_several_lines_beside_the_mirror_stays_reported` and
       `test_an_accepted_mirror_moves_to_the_release_binding` (three cases) passed.
 

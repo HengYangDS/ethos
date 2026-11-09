@@ -18,11 +18,11 @@ import pytest
 
 import ethos.adapters.gates.tool as gate_tool
 import ethos.repository.release.resources as product_resources
-from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
+from ethos.application.proof.host import observe_gate_execution
 from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo

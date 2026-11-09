@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 from dataclasses import asdict
 from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.runner import readiness_tier
 from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -23,6 +23,8 @@ from ethos.result import EthosResult
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.repository.policy.gates import ResolvedGatePolicy
+
 
 def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     """Describe optional host-readiness flags without minting proof truth."""
@@ -34,6 +36,76 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
         "satisfies_repository_proof": False,
         "truth_boundary": "host-local projection",
         "state": "not_requested" if not (host or probe) else "boundary_recorded",
+    }
+
+
+def observe_gate_execution(
+    root: Path,
+    *,
+    gate_ids: tuple[str, ...] = (),
+    full: bool = False,
+    expect_head: str | None = None,
+) -> dict[str, Any]:
+    """Execute one source-bound quality observation without granting mutation authority."""
+    head = current_tracked_head(root)
+    exact = full or expect_head is not None
+    tree = current_tree(root, head) if head and exact else ""
+    source: dict[str, str] = {}
+    checks: list[dict[str, Any]] = []
+    gaps = ["proof_head_missing"] if not head else []
+    after = failure = Outcome()
+    if expect_head is not None and expect_head != head:
+        gaps.append("expected_head_mismatch")
+    policy = None
+
+    def resolve() -> ResolvedGatePolicy:
+        return resolve_gate_policy(
+            root,
+            tree_ref=head,
+            gate_ids=gate_ids,
+            full=full,
+            selected_obligations=bool(gate_ids) and not full,
+        )
+
+    try:
+        policy = resolve() if not gaps else None
+        if policy is not None:
+            gaps.extend(policy.gaps)
+        if not gaps and exact:
+            source = observe_execution_source(root, head, tree)
+            gaps.extend(
+                execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
+            )
+        if not gaps and policy is not None:
+            results = run_gate_graph(
+                LocalGateRunner(candidate=not exact),
+                policy.nodes,
+                policy.registry,
+                root=root,
+                capacity=max(1, os.cpu_count() or 1),
+                parallel=True,
+            )
+            checks = [asdict(result) for result in results]
+            consequences = policy.result_gaps(checks, source_tree=tree)
+            after = Outcome.of(gate_outcome(checks).verdict, *consequences)
+            if exact and (
+                current_tracked_head(root) != head
+                or observe_execution_source(root, head, tree) != source
+                or resolve().digest != policy.digest
+            ):
+                gaps.append("proof_execution_source_changed")
+    except ValueError as error:
+        failure = outcome_of(error)
+    observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), after, failure)
+    return {
+        "verdict": observed.verdict,
+        "head": head,
+        "policy_digest": policy.digest if policy is not None else "",
+        "execution_source": source,
+        "executed": bool(checks),
+        "checks": checks,
+        "required_gaps": list(observed.gaps),
+        "diagnostics": list(observed.causes),
     }
 
 

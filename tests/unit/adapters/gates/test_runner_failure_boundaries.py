@@ -19,6 +19,7 @@ import ethos.adapters.mutation.proof_artifacts as proof_artifacts
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.gates.verification import classify_action_result
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.application.proof.host import observe_gate_execution
 from ethos.application.proof.report import summarize_checks
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
@@ -510,7 +511,7 @@ def test_public_execution_rejects_foreign_provider_before_any_gate(
         }
         assert result.returncode != 0
     else:
-        observed = gate_runner.observe_gate_execution(repo, full=True, expect_head=head)
+        observed = observe_gate_execution(repo, full=True, expect_head=head)
     assert observed["verdict"] == "block"
     expected = (
         f"gate_provider_source_mismatch:provider:{provider}"
@@ -530,7 +531,7 @@ def test_packaged_provider_requires_exact_candidate_identity(tmp_path, monkeypat
     source.parent.mkdir(parents=True)
     source.write_text("def report_verdict(root): return 'pass'\n")
     head = commit_fixture(repo, "candidate provider")
-    tree = gate_runner.current_tree(repo, head)
+    tree = git_adapter.current_tree(repo, head)
 
     def build():
         if identity_state == "unavailable":

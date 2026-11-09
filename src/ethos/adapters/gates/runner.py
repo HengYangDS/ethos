@@ -27,20 +27,16 @@ from ethos.adapters.gates.native.attempt import gate_attempt
 from ethos.adapters.gates.native.attempt import gate_execution
 from ethos.adapters.gates.verification import assert_provider_execution_source
 from ethos.adapters.gates.verification import classify_action_result
+from ethos.adapters.gates.verification import failure_evidence
+from ethos.adapters.gates.verification import failure_part
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_outcome
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import stream_text
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.worktree_postimage import observe_execution_source
-from ethos.contracts.outcome import Outcome
-from ethos.contracts.outcome import gate_outcome
-from ethos.contracts.outcome import outcome_of
 from ethos.contracts.plan import TransitionPlan
-from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import reduce_verdicts
@@ -55,7 +51,6 @@ if TYPE_CHECKING:
 
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
-    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -296,76 +291,6 @@ class LocalGateRunner:
         )
 
 
-def observe_gate_execution(
-    root: Path,
-    *,
-    gate_ids: tuple[str, ...] = (),
-    full: bool = False,
-    expect_head: str | None = None,
-) -> dict[str, Any]:
-    """Execute one source-bound quality observation without granting mutation authority."""
-    head = current_tracked_head(root)
-    exact = full or expect_head is not None
-    tree = current_tree(root, head) if head and exact else ""
-    source: dict[str, str] = {}
-    checks: list[dict[str, Any]] = []
-    gaps = ["proof_head_missing"] if not head else []
-    after = failure = Outcome()
-    if expect_head is not None and expect_head != head:
-        gaps.append("expected_head_mismatch")
-    policy = None
-
-    def resolve() -> ResolvedGatePolicy:
-        return resolve_gate_policy(
-            root,
-            tree_ref=head,
-            gate_ids=gate_ids,
-            full=full,
-            selected_obligations=bool(gate_ids) and not full,
-        )
-
-    try:
-        policy = resolve() if not gaps else None
-        if policy is not None:
-            gaps.extend(policy.gaps)
-        if not gaps and exact:
-            source = observe_execution_source(root, head, tree)
-            gaps.extend(
-                execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
-            )
-        if not gaps and policy is not None:
-            results = run_gate_graph(
-                LocalGateRunner(candidate=not exact),
-                policy.nodes,
-                policy.registry,
-                root=root,
-                capacity=max(1, os.cpu_count() or 1),
-                parallel=True,
-            )
-            checks = [asdict(result) for result in results]
-            consequences = policy.result_gaps(checks, source_tree=tree)
-            after = Outcome.of(gate_outcome(checks).verdict, *consequences)
-            if exact and (
-                current_tracked_head(root) != head
-                or observe_execution_source(root, head, tree) != source
-                or resolve().digest != policy.digest
-            ):
-                gaps.append("proof_execution_source_changed")
-    except ValueError as error:
-        failure = outcome_of(error)
-    observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), after, failure)
-    return {
-        "verdict": observed.verdict,
-        "head": head,
-        "policy_digest": policy.digest if policy is not None else "",
-        "execution_source": source,
-        "executed": bool(checks),
-        "checks": checks,
-        "required_gaps": list(observed.gaps),
-        "diagnostics": list(observed.causes),
-    }
-
-
 def _tiers(
     nodes: tuple[PlanNode, ...], gates: Mapping[str, Gate]
 ) -> tuple[tuple[str, ...], frozenset[str]]:
@@ -517,10 +442,36 @@ def _run_ready_gate(
             node.id, node.command, reduce_verdicts(*held), None, diagnostics=cause
         )
     started = monotonic()
-    result = runner.run(node, gate, root=root)
+    try:
+        result = runner.run(node, gate, root=root)
+        timeout, source = (None, None) if isinstance(runner, DryRunRunner) else gate_timeout(gate)
+    except Exception as error:
+        verdict, gaps = failure_part(
+            error, class_gap=f"gate_runner_error:{node.id}", timeout_gap=f"gate_timeout:{node.id}"
+        )
+        process = (
+            {"process_failure": error.evidence()}
+            if isinstance(error, ProcessExecutionError)
+            else {}
+        )
+        cause = {
+            "kind": "gate_runner_error",
+            **command_outcome(error, cwd=root),
+            **process,
+            **failure_evidence(error),
+            "required_gaps": [*gaps],
+        }
+        return ActionRunResult(
+            node.id,
+            node.command,
+            verdict,
+            1,
+            diagnostics=(cause,),
+            started_after_seconds=started - epoch,
+            duration_seconds=monotonic() - started,
+        )
     if isinstance(runner, DryRunRunner):
         return result
-    timeout, source = gate_timeout(gate)
     return replace(
         result,
         started_after_seconds=started - epoch,

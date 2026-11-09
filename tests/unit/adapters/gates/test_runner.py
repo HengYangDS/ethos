@@ -369,25 +369,37 @@ def test_command_gate_executes_declared_python_not_ambient_canonical_identity(
     assert not marker.exists()
 
 
-@pytest.mark.parametrize("non_mapping", [False, True])
-def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path, non_mapping) -> None:
-    def broken(_: Path):
-        if non_mapping:
-            return "not-a-mapping"
-        message = "boom"
-        raise RuntimeError(message)
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        (RuntimeError("boom"), "RuntimeError: boom"),
+        (KeyError("lost"), "KeyError: 'lost'"),
+        (ZeroDivisionError("zero"), "ZeroDivisionError: zero"),
+        ("not-a-mapping", "TypeError: gate provider must return a mapping: ethos.test:broken"),
+        (
+            {"verdict": "pass", "values": {1}},
+            "TypeError: Object of type set is not JSON serializable",
+        ),
+    ],
+)
+def test_provider_exception_becomes_failed_result(
+    monkeypatch, tmp_path: Path, outcome: object, expected: str
+) -> None:
+    """Any provider failure, or a report that cannot be recorded, blocks with the provider's gap."""
+
+    def broken(_: Path) -> object:
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
 
     gate = _gate("ethos.test:broken")
     result = _runner(monkeypatch, broken=broken).run(_node(gate), gate, root=tmp_path)
 
     assert (result.verdict, result.exit_code) == ("block", 1)
-    assert result.diagnostics[0]["kind"] == "gate_provider_error"
-    expected = (
-        "TypeError: gate provider must return a mapping: ethos.test:broken"
-        if non_mapping
-        else "RuntimeError: boom"
-    )
-    assert result.diagnostics[0]["error"] == expected
+    (diagnostic,) = result.diagnostics
+    assert diagnostic["kind"] == "gate_provider_error"
+    assert diagnostic["error"] == expected
+    assert diagnostic["required_gaps"] == ["gate_provider_error:gate:ethos.test:broken"]
 
 
 @pytest.mark.parametrize("selection", ["absolute", "relative", "path", "dot-relative"])

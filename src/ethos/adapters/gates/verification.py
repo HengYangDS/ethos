@@ -6,6 +6,7 @@ import importlib
 import inspect
 import json
 import subprocess
+import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,7 @@ from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -158,6 +160,8 @@ def provider_reports(
                     timeout_seconds=remaining,
                     candidate=candidate,
                 )
+                # A report that cannot be recorded fails its own provider, not the proof.
+                json.dumps(report, allow_nan=False)
         except subprocess.TimeoutExpired as exc:
             # The provider did not decide, as a command gate's exit 124 does not.
             reports.append({"provider": reference, "report": {"verdict": "unknown"}})
@@ -173,22 +177,20 @@ def provider_reports(
                 }
             )
             continue
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            subprocess.SubprocessError,
-            TypeError,
-            ValueError,
-        ) as exc:
+        except Exception as exc:
+            verdict, gaps = failure_part(
+                exc,
+                class_gap=f"gate_provider_error:{gate_id}:{reference}",
+                timeout_gap=f"gate_timeout:{gate_id}",
+            )
+            verdicts.append(verdict)
             diagnostics.append(
                 {
                     **command_outcome(exc),
                     "kind": "gate_provider_error",
                     "provider": reference,
-                    "error": f"{type(exc).__name__}: {exc}",
-                    "required_gaps": [f"gate_provider_error:{gate_id}:{reference}"],
+                    **failure_evidence(exc),
+                    "required_gaps": list(gaps),
                 }
             )
             continue
@@ -232,8 +234,37 @@ def provider_reports(
                     "required_gaps": list(provider_gaps),
                 }
             )
-    verdict = reduce_verdicts(*verdicts) if len(reports) == len(references) else "block"
+    verdict = reduce_verdicts(*verdicts) if len(verdicts) == len(references) else "block"
     return reports, verdict, tuple(diagnostics)
+
+
+def failure_part(
+    error: Exception, *, class_gap: str, timeout_gap: str
+) -> tuple[Verdict, tuple[str, ...]]:
+    """Classify one contained failure: a timeout is unknown, a decision keeps its own, else block.
+
+    Any other error carries the seam's class gap alone: its message is evidence, not a gap.
+    """
+    if isinstance(error, subprocess.TimeoutExpired):
+        return "unknown", (timeout_gap,)
+    if isinstance(error, OutcomeError):
+        verdict = "block" if error.outcome.verdict == "pass" else error.outcome.verdict
+        return verdict, tuple(dict.fromkeys((class_gap, *error.outcome.gaps)))
+    return "block", (class_gap,)
+
+
+def failure_evidence(error: BaseException) -> dict[str, str]:
+    """Name one contained failure by its type, message and raising frame."""
+    frames = traceback.extract_tb(error.__traceback__)
+    frame = (
+        {
+            "frame": f"{'/'.join(Path(frames[-1].filename).parts[-2:])}:{frames[-1].lineno}"
+            f" in {frames[-1].name}"
+        }
+        if frames
+        else {}
+    )
+    return {"error": f"{type(error).__name__}: {error}", **frame}
 
 
 def _time_left(deadline: float | None, reference: str, bound: float | None) -> float | None:

@@ -11,7 +11,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-import ethos.adapters.gates.runner as gate_execution
+import ethos.application.proof.host as gate_execution
 import ethos.application.proof.operation as proof_operation
 import ethos.surface.cli.root.reference as reference
 from ethos.adapters.gates.runner import ActionRunResult

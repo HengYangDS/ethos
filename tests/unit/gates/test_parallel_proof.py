@@ -87,8 +87,9 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
             if mode == "parallel":
                 barrier.wait(timeout=2)
             if mode == "interrupted" and node.id == "b":
+                # A gate's own error is that gate's refusal; only an interrupt stops the run.
                 message = "late gate did not complete"
-                raise TimeoutError(message)
+                raise KeyboardInterrupt(message)
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     monkeypatch.setattr(
@@ -97,7 +98,7 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
     monkeypatch.setattr(proof_operation, "LocalGateRunner", Runner)
 
     if mode == "interrupted":
-        with pytest.raises(TimeoutError, match="late gate"):
+        with pytest.raises(KeyboardInterrupt, match="late gate"):
             proof_operation.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
     else:
         checks, passed = proof_operation.run_plan_checks(
@@ -167,26 +168,30 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
 
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):
-            assert gate.id == node.id
-            assert root == tmp_path
+            calls.append((gate.id, node.id, root))
             if concurrent and node.id in {"fast", "slow"}:
                 started.wait(timeout=2)
             if concurrent and node.id == "slow":
-                assert progress.wait(timeout=2)
+                waited.append(progress.wait(timeout=2))
             order.append(node.id)
             if node.id == release_by:
                 progress.set()
             return ActionRunResult(node.id, node.command, "pass", 0)
 
+    calls, waited = [], []
     results = gate_runner.run_gate_graph(
         Runner(), nodes, gates, root=tmp_path, capacity=capacity, parallel=parallel
     )
     assert [result.action_id for result in results] == [node.id for node in nodes]
+    # The gate seam contains a double's own failure, so its checks run after the graph.
+    assert all(result.verdict == "pass" for result in results)
+    assert all(gate == node and root == tmp_path for gate, node, root in calls)
+    assert all(waited)
     assert not concurrent or order.index(release_by) < order.index("slow")
     assert not concurrent or release_by != "queued" or order.index("slow") < order.index("child")
 
 
-@pytest.mark.parametrize("verdict", ["block", "unknown"])
+@pytest.mark.parametrize("verdict", ["block", "unknown", "raise"])
 @pytest.mark.parametrize(
     ("execution_kind", "postexecution_dependency"),
     [("test", "unit-architecture"), ("package", "build")],
@@ -222,9 +227,10 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
 
     class Runner(gate_runner.LocalGateRunner):
         def run(self, node, gate, *, root):
-            assert gate.id == node.id
-            assert root == repo
+            calls.append((gate.id, node.id, root))
             executed.append(node.id)
+            if verdict == "raise" and node.id == readiness_gate:
+                raise KeyError(node.id)
             return ActionRunResult(
                 node.id,
                 node.command,
@@ -234,7 +240,9 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
 
     monkeypatch.setattr(proof_operation, "resolve_gate_policy", lambda *_a, **_k: policy)
     monkeypatch.setattr(proof_operation, "LocalGateRunner", Runner)
+    calls = []
     checks, passed = proof_operation.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=2)
+    assert all(gate == node and root == repo for gate, node, root in calls)
     assert passed is False
     assert readiness_gate in executed
     assert not {"unit-architecture", "build", "local-install-smoke"}.intersection(executed)

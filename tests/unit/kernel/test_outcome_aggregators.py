@@ -8,6 +8,7 @@ from filelock import Timeout
 
 import ethos.adapters.gates.runner as runner
 import ethos.application.inspection as inspection
+import ethos.application.proof.host as host
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_report import failure_report
@@ -37,9 +38,9 @@ def test_host_observation_keeps_a_timed_out_gate_cause_and_class(tmp_path, monke
             f"gate_execution_not_proven:{c['action_id']}" for c in checks
         ),
     )
-    monkeypatch.setattr(runner, "resolve_gate_policy", lambda *_a, **_k: policy)
-    monkeypatch.setattr(runner, "run_gate_graph", lambda *_a, **_k: (timed,))
-    observed = runner.observe_gate_execution(repo)
+    monkeypatch.setattr(host, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(host, "run_gate_graph", lambda *_a, **_k: (timed,))
+    observed = host.observe_gate_execution(repo)
     assert observed["verdict"] == "unknown"
     assert observed["required_gaps"] == [
         "gate_unknown:tests",

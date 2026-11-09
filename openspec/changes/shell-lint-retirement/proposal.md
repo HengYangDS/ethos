@@ -10,9 +10,10 @@ none. The gate therefore passes vacuously in `default` and `full`, though it is 
 
 ## What Changes
 
-- ETHOS's `shell-lint` gate, its Nox session, its pre-commit hook and `.shellcheckrc` are removed,
-  together with their documentation, Skill and test references. `unit-architecture` no longer
-  depends on the gate.
+- ETHOS's `shell-lint` gate, its Nox session and its pre-commit hook are removed, together with
+  their documentation, Skill and test references. `unit-architecture` no longer depends on the
+  gate. `.shellcheckrc` stays as the paradigm's declared ShellCheck carrier, which ETHOS keeps as
+  the paradigm's reference repository.
 - The shipped shell ownership and format rows name the paradigm's script refusal, which every
   `ethos prove` audits, instead of the removed session.
 - A direct test of the session inventory helper replaces the shell case that tested it until now.
@@ -32,7 +33,7 @@ with the next supply move.
 ## Impact
 
 - `system/repository-gates.toml`, `tools/ci/sessions.py`, the pre-commit configuration,
-  `.config/checks/shellcheck/`, `.config/checks/format-selection/policy.toml`,
+  `.config/checks/format-selection/policy.toml`,
   `src/ethos/repository/policy/surfaces.py`, `docs/reference/configuration.md`, the quality Skill
   and its activation entry, and `tests/architecture/test_nox_toolchain.py`.
 - ETHOS's proof runs one gate fewer; no governed repository's obligations change.

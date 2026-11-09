@@ -177,9 +177,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Removed
 
-- ETHOS's own `shell-lint` gate, its Nox session, its pre-commit hook and `.shellcheckrc`. The
-  paradigm already refuses every tracked script that is not recorded generator output, so the
-  gate had nothing to judge. The shipped shell format rows now name that refusal and
+- ETHOS's own `shell-lint` gate, its Nox session and its pre-commit hook. The paradigm already
+  refuses every tracked script that is not recorded generator output, so the gate had nothing to
+  judge; `.shellcheckrc` stays as the paradigm's declared ShellCheck carrier. The shipped shell format rows now name that refusal and
   `ethos prove --json` instead of the removed session.
 - **Breaking:** `ethos publish --apply` without `--receipt`, with or without `--ref`, `--peer` or
   `--retire`, the MCP `publish` tool's `apply` without `receipt`, and with them the readiness state

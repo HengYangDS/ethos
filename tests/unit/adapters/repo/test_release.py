@@ -6,6 +6,7 @@ import pytest
 
 from ethos.adapters.repo.release import committed_release_version
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 
@@ -27,6 +28,8 @@ def test_native_version_sources_are_explicit(
     tmp_path: Path, path: str, content: str, gap: str
 ) -> None:
     repo = init_git_repo(tmp_path / "version")
+    # Each case keeps one native source: drop the base fixture's own version first.
+    git(repo, "rm", "-q", "--", "VERSION")
     commit_fixture_file(repo, path, content, "version fixture")
     if gap:
         with pytest.raises(ValueError, match=gap):

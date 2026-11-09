@@ -25,6 +25,9 @@ def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
     (repo / ".ethos/workspace.toml").write_text('[branch_roles]\nrelease_mirror = "independent"\n')
     if version:
         (repo / "VERSION").write_text("0.2.0-alpha.2\n")
+    else:
+        # This accepted repository predates its version; the base fixture starts with one.
+        (repo / "VERSION").unlink()
     commit_fixture(repo, "accepted")
     git(repo, "worktree", "add", "-q", "-b", "work/runtime", str(lane))
     return repo, lane

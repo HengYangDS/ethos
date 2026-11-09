@@ -12,8 +12,8 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 
+import ethos.repository.paradigm.records as records
 from ethos.repository.paradigm.gap import ParadigmGap
-from ethos.repository.paradigm.records import TABLE as RECORD_TABLE
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -39,4 +39,4 @@ def _moving(key: str, value: object) -> bool:
     """Return whether a table leaves through its own gap: the record binding or a restated size."""
     if not isinstance(value, dict):
         return False
-    return key == RECORD_TABLE or (key == "quality" and "code_size" in value)
+    return key == records.TABLE or (key == "quality" and "code_size" in value)

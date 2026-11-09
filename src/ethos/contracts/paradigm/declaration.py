@@ -55,6 +55,7 @@ class BindingFileSet(BaseModel):
     root: str
     files: FrozenMapping[str]
     workspace_tables: FrozenTuple[str]
+    rules_tables: FrozenTuple[str]
 
     @model_validator(mode="after")
     def require_every_role(self) -> Self:

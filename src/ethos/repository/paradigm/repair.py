@@ -419,7 +419,7 @@ def _record_binding(
 def _unread_table(
     _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
-    """Delete every header block of a workspace table that no reader consults."""
+    """Delete every header block of a binding table that no reader consults."""
     table = gap.carrier.partition(":")[2]
     declared = _parsed(text)
     if declared is None or table not in declared:
@@ -511,5 +511,6 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "openspec-rules": common_rules_repair,
     "workspace-binding": _unread_table,
     "record-binding": _record_binding,
+    "rules-binding": _unread_table,
     "release-mirror": _release_mirror,
 }

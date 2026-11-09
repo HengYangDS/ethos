@@ -131,6 +131,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A Python test run whose tests all pass but whose coverage is below the declared floor now blocks
   with `quality_behavior_coverage_below_floor` instead of `quality_behavior_tests_failed`, and its
   coverage evidence names the floor.
+- The paradigm reports every `rules.toml` table that no reader consults as `rules-binding`, and
+  `ethos lane repair-paradigm --apply` deletes it, or the file once nothing remains. Its readers
+  consult `[paradigm]`, `[profiles]` and `[[rule]]`; `[artifacts]` and a `[quality]` table that
+  holds `code_size` keep their own gaps, and a bare value stays reported without a repair.
 
 ### Fixed
 

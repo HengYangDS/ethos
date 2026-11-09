@@ -369,3 +369,43 @@ def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_pa
     plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
+
+
+_RULES = ".ethos/rules.toml"
+_PROFILES = '[profiles]\nactive = ["python"]\n'
+
+
+@pytest.mark.parametrize(
+    ("rules", "repaired"),
+    [
+        ('[formats]\nline_endings = "LF"\n\n[gates]\nproof = "ethos prove --json"\n', None),
+        (f'{_PROFILES}\n[formats]\nline_endings = "LF"\n', _PROFILES),
+    ],
+    ids=["only-unread-tables", "beside-the-profiles"],
+)
+def test_an_unread_rules_table_is_deleted(tmp_path: Path, rules: str, repaired: str | None) -> None:
+    """A rules table no reader consults goes, and a binding left with no table goes with it."""
+    plan, files = _plan(tmp_path, {_RULES: rules})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_RULES, repaired)]
+    assert not _apply(tmp_path, plan, files, "repository_paradigm_rules")
+
+
+@pytest.mark.parametrize(
+    ("rules", "unread"),
+    [
+        ('[artifacts]\ndurable_evidence_roots = ["evidence"]\n', []),
+        ("[quality.code_size]\nlines = 400\n\n[quality.other]\nkept = 1\n", []),
+        ('[paradigm.size]\ncode_effective_lines = 400\n\n[[rule]]\nid = "x"\n', []),
+        ('formats = "TOML"\n', ["formats"]),
+    ],
+    ids=["record-binding", "restated-size", "read-tables", "bare-value"],
+)
+def test_a_rules_key_that_is_read_moves_or_is_bare_is_never_deleted(
+    tmp_path: Path, rules: str, unread: list[str]
+) -> None:
+    """Read tables and tables with their own move keep them; a bare value is reported only."""
+    plan, _ = _plan(tmp_path, {_RULES: rules})
+    gaps = [*plan.repaired, *plan.report_only]
+    named = [gap.carrier.rpartition(":")[2] for gap in gaps if gap.obligation == "rules-binding"]
+    assert named == unread
+    assert not [edit for edit in plan.edits if edit.path == _RULES and edit.after != rules]

@@ -32,6 +32,9 @@ root = ".ethos"
 # The only table a workspace binding declares. The paradigm fixes every branch role in [branch],
 # and the release binding declares the release mirror.
 workspace_tables = ["commit_policy"]
+# The only tables a rules binding declares, each with its reader: the declared parameters, the
+# profile stack and the rules. `[artifacts]` and `[quality.code_size]` move out through their gaps.
+rules_tables = ["paradigm", "profiles", "rule"]
 
 # Every product reader builds a binding carrier's path from its role here.
 [binding.files]

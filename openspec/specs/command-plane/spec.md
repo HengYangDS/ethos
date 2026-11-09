@@ -458,7 +458,8 @@ projections are derived from the same identity result.
 #### Scenario: Human version is requested
 
 - **WHEN** a user runs `ethos --version`
-- **THEN** ETHOS prints a concise product and distribution identity
+- **THEN** ETHOS prints a concise product and distribution identity with the first 12
+  characters of the source commit that the JSON projection names
 - **AND** it does not serialize a JSON document inside a string.
 
 #### Scenario: Machine version is requested

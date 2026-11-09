@@ -50,6 +50,9 @@ CONFORMING = {
     "package.json": '{"scripts": {"check": "node check.mjs"}}\n',
     "go.mod": "module example.com/sample\n",
     ".ethos/profile.toml": 'profile_id = "sample"\n',
+    # Every governed repository keeps a version identity, whether or not it tags releases.
+    "VERSION": "0.1.0\n",
+    "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n",
     "cmd/sample/main.go": "package main\n",
     "content/intro.md": "# Intro\n",
     "docs/decisions/README.md": "---\nsubject: sample:decisions\n---\n\n# Decisions\n",

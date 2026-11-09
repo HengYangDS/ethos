@@ -32,6 +32,9 @@ from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 
+# A formed repository starts at a SemVer prerelease, and its changelog at an Unreleased section.
+_FIRST_VERSION = "0.1.0-alpha.0\n"
+_FIRST_CHANGELOG = "# Changelog\n\n## [Unreleased]\n"
 _AGENT_ENTRY = """# Agent Entry
 
 Use the installed ETHOS product: run `ethos status --root . --json` and follow
@@ -112,6 +115,11 @@ def formation_plan(
                     f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8", newline="\n"
                 )
                 (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8", newline="\n")
+                # A formed repository starts with its version identity, which ETHOS authors here.
+                (candidate / "VERSION").write_text(_FIRST_VERSION, encoding="utf-8", newline="\n")
+                (candidate / "CHANGELOG.md").write_text(
+                    _FIRST_CHANGELOG, encoding="utf-8", newline="\n"
+                )
                 outputs, starter_outputs, starter_gap, detail = compose_starter(
                     candidate, starter, purpose.strip()
                 )

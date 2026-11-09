@@ -445,47 +445,62 @@ def _release_gaps(
     tracked: frozenset[str],
     declared: Mapping[str, object],
 ) -> Iterator[ParadigmGap]:
-    """Keep one version source and one changelog grammar in a repository that tags releases."""
-    if not (tags := _release_tags(declared)):
-        return
+    """Keep one version source and one changelog grammar, and the tag pattern when releasing.
+
+    Every governed repository keeps a version identity; only the tag check needs release tags.
+    """
     release = paradigm.binding.path("release")
     conventions = paradigm.release
-    if tags != [conventions.tag_pattern]:
+    tags = _release_tags(declared)
+    if tags and tags != [conventions.tag_pattern]:
         yield ParadigmGap(
             "release-tags",
             f"{release}:protected_refs.tags",
             f'tag releases as ["{conventions.tag_pattern}"] followed by a SemVer version',
-        )
-    if conventions.version_file not in tracked:
-        yield ParadigmGap(
-            "version-source",
-            conventions.version_file,
-            f"add {conventions.version_file} as the only version source",
         )
     project = tracked_text(root, "pyproject.toml", tracked)
     try:
         section = tomllib.loads(project).get("project", {}) if project is not None else {}
     except tomllib.TOMLDecodeError:
         section = {}
-    if isinstance(section, dict) and "version" in section:
-        yield ParadigmGap(
-            "version-source",
-            "pyproject.toml:project.version",
-            f"declare the version dynamic and read it from {conventions.version_file}",
-        )
     package = tracked_text(root, "package.json", tracked)
     try:
         manifest = json.loads(package) if package is not None else {}
     except json.JSONDecodeError:
         manifest = {}
-    # npm packs only a literal version, so one equal to VERSION is its checked projection.
-    projected = (tracked_text(root, conventions.version_file, tracked) or "").strip()
-    if isinstance(manifest, dict) and manifest.get("version", projected) != projected:
+    declared_versions = [
+        str(source["version"])
+        for source in (section, manifest)
+        if isinstance(source, dict) and isinstance(source.get("version"), str)
+    ]
+    if conventions.version_file not in tracked:
+        # No repair chooses a version: without VERSION a manifest's version is the only source.
+        named = (
+            f" with {declared_versions[0]}, the version a manifest declares"
+            if declared_versions
+            else ""
+        )
         yield ParadigmGap(
             "version-source",
-            "package.json:version",
-            f"repeat {conventions.version_file} or drop the version; it is the one version source",
+            conventions.version_file,
+            f"add {conventions.version_file}{named} as the only version source",
         )
+    else:
+        if isinstance(section, dict) and "version" in section:
+            yield ParadigmGap(
+                "version-source",
+                "pyproject.toml:project.version",
+                f"declare the version dynamic and read it from {conventions.version_file}",
+            )
+        # npm packs only a literal version, so one equal to VERSION is its checked projection.
+        projected = (tracked_text(root, conventions.version_file, tracked) or "").strip()
+        if isinstance(manifest, dict) and manifest.get("version", projected) != projected:
+            yield ParadigmGap(
+                "version-source",
+                "package.json:version",
+                f"repeat {conventions.version_file} or drop the version; it is the one version"
+                " source",
+            )
     yield from _changelog_gaps(conventions, tracked_text(root, conventions.changelog, tracked))
 
 

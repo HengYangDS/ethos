@@ -422,6 +422,13 @@ def _without_field(text: str, declared: Mapping[str, Any], table: str, name: str
     )
 
 
+def _absent_changelog(
+    _paradigm: RepositoryParadigm, _gap: ParadigmGap, text: str | None
+) -> Repair | None:
+    """Seed a missing changelog with its Unreleased section; an existing one is its owner's."""
+    return ("# Changelog\n\n## [Unreleased]\n", "") if text is None else None
+
+
 def _record_binding(
     paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
@@ -528,6 +535,7 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "openspec-schema": schema_repair,
     "openspec-rules": common_rules_repair,
     "workspace-binding": _unread_table,
+    "changelog": _absent_changelog,
     "record-binding": _record_binding,
     "release-binding": _unread_field,
     "rules-binding": _unread_table,

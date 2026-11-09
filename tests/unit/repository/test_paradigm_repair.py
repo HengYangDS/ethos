@@ -439,3 +439,17 @@ def test_an_unread_release_key_on_several_lines_beside_the_mirror_stays_reported
     plan, _ = _plan(tmp_path, {_RELEASE_BINDING: release})
     assert plan.edits == ()
     assert [gap.carrier for gap in plan.report_only] == [f"{_RELEASE_BINDING}:release.tag_pattern"]
+
+
+@pytest.mark.parametrize(
+    ("changelog", "repaired"),
+    [(None, "# Changelog\n\n## [Unreleased]\n"), ("# Changelog\n\n## 1.0.0\n", None)],
+    ids=["absent", "malformed"],
+)
+def test_only_an_absent_changelog_is_created(
+    tmp_path: Path, changelog: str | None, repaired: str | None
+) -> None:
+    """The repair seeds a missing changelog and leaves a malformed one to its owner."""
+    plan, _ = _plan(tmp_path, {"CHANGELOG.md": changelog})
+    edits = [(edit.path, edit.after) for edit in plan.edits if edit.path == "CHANGELOG.md"]
+    assert edits == ([("CHANGELOG.md", repaired)] if repaired else [])

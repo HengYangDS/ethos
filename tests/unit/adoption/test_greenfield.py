@@ -79,7 +79,9 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     assert result.data["planned_files"] == (
         ".ethos/profile.toml",
         "AGENTS.md",
+        "CHANGELOG.md",
         "README.md",
+        "VERSION",
         "openspec/config.yaml",
     )
     assert not target.exists()
@@ -143,7 +145,9 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
     assert result["data"]["planned_files"] == [
         ".ethos/profile.toml",
         "AGENTS.md",
+        "CHANGELOG.md",
         "README.md",
+        "VERSION",
         "openspec/config.yaml",
     ]
     assert result["data"]["plan_digest"] == direct.data["plan_digest"]
@@ -247,6 +251,10 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         assert sha256(path.read_bytes()).hexdigest() == row["content_sha256"]
     guidance = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos status --root . --json" in guidance
+    # A formed repository starts with its version identity.
+    assert (target / "VERSION").read_text(encoding="utf-8") == "0.1.0-alpha.0\n"
+    changelog = (target / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert changelog == "# Changelog\n\n## [Unreleased]\n"
     assert str(ROOT) not in guidance
     assert not list(tmp_path.glob(".ethos-preview-*"))
 

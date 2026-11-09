@@ -191,16 +191,23 @@ _RELEASES = {
     "package-projects-version": ({"package.json": '{"version": "1.2.0", "scripts": {}}\n'}, []),
     "package-without-version-file": (
         {"package.json": '{"version": "1.2.0", "scripts": {}}\n', "VERSION": None},
-        [
-            "repository_paradigm_version_source:VERSION",
-            "repository_paradigm_version_source:package.json:version",
-        ],
+        ["repository_paradigm_version_source:VERSION"],
+    ),
+    "tag-only-with-tags": (
+        {".ethos/release.toml": "", "LICENSE": None, "README.md": CONFORMING["README.md"]},
+        [],
     ),
     "tag-pattern": (
         {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},
         ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],
     ),
-    "not-released": ({".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None}, []),
+    "not-released": (
+        {".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None},
+        [
+            "repository_paradigm_version_source:VERSION",
+            "repository_paradigm_changelog:CHANGELOG.md",
+        ],
+    ),
     "no-license": ({"LICENSE": None}, ["repository_paradigm_license_grant:LICENSE"]),
     "not-released-without-license": (
         {".ethos/release.toml": "", "LICENSE": None, "README.md": CONFORMING["README.md"]},
@@ -328,3 +335,14 @@ def test_immutable_decision_records_keep_their_names(tmp_path: Path) -> None:
     archived = "openspec/changes/archive/2026-01-01-sample/decisions/ADR-1.md"
     report = paradigm_report(tmp_path, {**CONFORMING, archived: "# Archived\n"})
     assert report["verdict"] == "pass", report
+
+
+def test_a_missing_version_names_the_manifest_version(tmp_path: Path) -> None:
+    """Without VERSION a manifest version is the only source, and its repair names the value."""
+    manifest = '{"version": "1.4.0", "scripts": {}}\n'
+    merged = {**CONFORMING, "VERSION": None, "package.json": manifest}
+    files = {key: value for key, value in merged.items() if value is not None}
+    report = paradigm_report(tmp_path, files)
+    assert report["required_gaps"] == ["repository_paradigm_version_source:VERSION"]
+    [gap] = [gap for gap in report["gaps"] if gap["carrier"] == "VERSION"]
+    assert "1.4.0" in gap["repair"]

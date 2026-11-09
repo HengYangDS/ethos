@@ -143,6 +143,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The paradigm reports every key of the release binding's `[release]` table other than `mirror`
   as `release-binding`, with or without release tags, and `ethos lane repair-paradigm --apply`
   deletes it; `version_source` and `tag_pattern` there had no reader.
+- Every governed repository keeps a version identity, whether or not it tags releases: `VERSION`
+  as the only version source and a Keep a Changelog `CHANGELOG.md`. Only the tag pattern stays a
+  release check, and the license grant stays a duty of released repositories. A missing `VERSION`
+  names a manifest's version in its repair and is never seeded; the repair creates an absent
+  changelog, and `ethos form` writes `VERSION` `0.1.0-alpha.0` and the changelog.
 
 ### Fixed
 

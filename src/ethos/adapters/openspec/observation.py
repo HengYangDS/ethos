@@ -12,6 +12,7 @@ from ethos.repository.openspec.audit import compile_governed_branch_intent_repor
 from ethos.repository.openspec.audit import compile_openspec_shape_report
 
 if TYPE_CHECKING:
+    import subprocess
     from pathlib import Path
 
 
@@ -91,5 +92,5 @@ def _current_branch(root: Path) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _git(root: Path, *args: str):
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return run_git(root, *args, check=False)

@@ -146,7 +146,7 @@ def create_git_commit(
     additional_parents: tuple[str, ...] = (),
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
-) -> Any:
+) -> subprocess.CompletedProcess[str]:
     """Create and verify one signed commit object under the repository commit policy.
 
     A root commit, such as a formed repository's first, has no parent. Git's own failure returns

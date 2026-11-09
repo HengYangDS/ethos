@@ -208,9 +208,8 @@ def retire_absorbed_ref(
             )
         )
 
-    if verdict != "pass":
+    if verdict != "pass" or effect is None:
         return report
-    assert effect is not None
     try:
         plan = _admitted_retirement_plan(
             repo,

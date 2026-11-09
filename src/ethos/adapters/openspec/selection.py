@@ -217,11 +217,13 @@ def _lane_contribution(root: Path, names: set[str], tree_ref: str | None) -> set
             root, "rev-list", "--parents", "-n", "1", merge, observation=True
         ).stdout.split()
         ours, theirs = (parts[1], parts[2]) if len(parts) == 3 else ("", "")
-    return _owned_changes(root, names, revision, ours, theirs, merge)
+    return _owned_changes(
+        root, names=names, revision=revision, ours=ours, theirs=theirs, merge=merge
+    )
 
 
 def _owned_changes(
-    root: Path, names: set[str], revision: str, ours: str, theirs: str, merge: str
+    root: Path, *, names: set[str], revision: str, ours: str, theirs: str, merge: str
 ) -> set[str]:
     if not ours or not theirs:
         raise ValueError

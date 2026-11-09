@@ -190,13 +190,13 @@ def formation_plan(
                 elif apply:
                     result = _publish(
                         candidate,
-                        target,
-                        requested.parent,
-                        candidate_path,
-                        report,
-                        outputs,
-                        starter_outputs,
-                        sources,
+                        target=target,
+                        requested_parent=requested.parent,
+                        candidate_path=candidate_path,
+                        report=report,
+                        outputs=outputs,
+                        starter_outputs=starter_outputs,
+                        sources=sources,
                     )
                 else:
                     result = report
@@ -228,6 +228,7 @@ def _reviewed_signer(
 
 def _publish(
     candidate: Path,
+    *,
     target: Path,
     requested_parent: Path,
     candidate_path: Path,

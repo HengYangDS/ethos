@@ -289,6 +289,7 @@ def _locked_uv(
 
 def _behavior_evidence(
     root: Path,
+    *,
     output: Path,
     source: tuple[str, ...],
     tests: tuple[str, ...],
@@ -441,7 +442,14 @@ def behavior_report(
         bindable = tuple(subject.path for subject in subjects)
         output = Path(mkdtemp(prefix="ethos-python-quality-"))
         try:
-            evidence = _behavior_evidence(root, output, source, tests, bindable, timeout_seconds)
+            evidence = _behavior_evidence(
+                root,
+                output=output,
+                source=source,
+                tests=tests,
+                bindable=bindable,
+                timeout_seconds=timeout_seconds,
+            )
         finally:
             remove_owned_path(output)
         observe_quality_subjects(root, language="python", expected_tree=tree)

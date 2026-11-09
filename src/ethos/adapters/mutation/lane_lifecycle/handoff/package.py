@@ -29,6 +29,8 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from ethos.contracts.coordination import CrossHostHandoff
 
 
@@ -219,7 +221,9 @@ def _verify_export_snapshot(
 
 
 @contextmanager
-def verified_package_snapshot(*, package: Path, manifest: dict[str, Any], root: Path):
+def verified_package_snapshot(
+    *, package: Path, manifest: dict[str, Any], root: Path
+) -> Generator[Path]:
     """Yield one immutable verified package snapshot for an import transaction."""
     with tempfile.TemporaryDirectory(prefix="handoff-import-") as temporary:
         snapshot = Path(temporary) / str(manifest["package_id"])

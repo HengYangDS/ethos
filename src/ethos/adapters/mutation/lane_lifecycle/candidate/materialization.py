@@ -75,9 +75,21 @@ def _materialization_facts(
     if trust["required_gaps"]:
         return facts, cast("list[str]", trust["required_gaps"])
     gap = worktree_sync_gap(
-        repo, (Path(path),), policy.candidate_branch, head, preserved_preimage, head
+        repo,
+        paths=(Path(path),),
+        branch=policy.candidate_branch,
+        ref_head=head,
+        previous=preserved_preimage,
+        head=head,
     )
-    if gap and worktree_sync_gap(repo, (Path(path),), policy.candidate_branch, head, head, head):
+    if gap and worktree_sync_gap(
+        repo,
+        paths=(Path(path),),
+        branch=policy.candidate_branch,
+        ref_head=head,
+        previous=head,
+        head=head,
+    ):
         gaps.append(gap)
     return facts, gaps
 

@@ -302,12 +302,12 @@ def _complete_refresh(
     )
     plan = _refresh_transition_plan(
         root,
-        branch,
-        current_head,
-        rebased_head,
-        candidate_branch,
-        candidate_head,
-        rebase_attestation,
+        branch=branch,
+        current_head=current_head,
+        rebased_head=rebased_head,
+        candidate_branch=candidate_branch,
+        candidate_head=candidate_head,
+        rebase_attestation=rebase_attestation,
     )
     try:
         ref_attestation = execute_git_effect(
@@ -480,6 +480,7 @@ def _restore_interrupted_refresh(
 
 def _refresh_transition_plan(
     root: Path,
+    *,
     branch: str,
     current_head: str,
     rebased_head: str,

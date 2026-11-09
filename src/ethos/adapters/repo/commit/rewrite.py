@@ -5,7 +5,6 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import NamedTuple
 
 from pydantic import TypeAdapter
@@ -19,6 +18,8 @@ from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
+from ethos.contracts.outcome import instance
+from ethos.contracts.outcome import present
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
@@ -108,7 +109,7 @@ def validated_refresh_edge(
     root: Path,
     *,
     branch: str,
-    attestation: Any,
+    attestation: Attestation,
     previous: str | None = None,
 ) -> RewriteEdge | None:
     """Decode one refresh edge only when both Git and native evidence validate."""
@@ -129,9 +130,8 @@ def validated_refresh_edge(
         _require(valid=plan.policy.get("transition") == "lane.refresh")
         effect = git_effect_from_plan(plan)
         ref = f"refs/heads/{branch}"
-        update = effect.updates.get(ref)
-        _require(valid=update is not None and len(effect.updates) == 1)
-        assert update is not None
+        update = present(effect.updates.get(ref), "git_refresh_evidence_invalid")
+        _require(valid=len(effect.updates) == 1)
         _require(valid=previous is None or update.expected == previous)
         validate_git_effect_attestation(
             root,
@@ -145,10 +145,9 @@ def validated_refresh_edge(
         _require(valid=isinstance(carried, Mapping))
         rebase = Attestation.model_validate(mutable_json(carried))
         body = rebase.payload.body
-        freshness = body.get("freshness")
+        freshness = instance(body.get("freshness"), Mapping, "git_refresh_evidence_invalid")
         repository = str(body.get("repository") or "")
-        _require(valid=isinstance(freshness, Mapping) and bool(repository))
-        assert isinstance(freshness, Mapping)
+        _require(valid=bool(repository))
         native = _NATIVE_EFFECT.validate_python(
             {
                 "predicate": "effect:git-rebase",

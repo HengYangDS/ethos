@@ -13,6 +13,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.adapters.repo.trust_anchor.verification import trust_anchor
+from ethos.contracts.outcome import present
 
 
 def bind_commit_trust(root: Path, anchor: Path) -> None:
@@ -20,7 +21,7 @@ def bind_commit_trust(root: Path, anchor: Path) -> None:
     resolved, gaps = trust_anchor(root, str(anchor))
     if gaps:
         raise ValueError(gaps[0])
-    assert resolved is not None
+    resolved = present(resolved, "ci_commit_trust_anchor_unresolved")
     key = "gpg.ssh.allowedSignersFile"
     current = run_git(root, "config", "--local", "--get", key, check=False)
     if current.returncode or current.stdout.strip() != str(resolved):

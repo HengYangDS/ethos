@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import difflib
 import json
+import string
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
@@ -103,7 +104,7 @@ def _patch_path(raw: str) -> str:
             raise ValueError(message)
         raw = (
             decoded.encode("latin-1").decode("utf-8")
-            if any(f"\\{digit}" in raw for digit in "01234567")
+            if any(f"\\{digit}" in raw for digit in string.octdigits)
             else decoded
         )
     if raw == "/dev/null":

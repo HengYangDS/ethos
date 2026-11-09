@@ -47,6 +47,7 @@ def _raw_identity(raw: Path, *, validate: bool = False) -> dict[str, str]:
 
 def _observe_test(
     root: Path,
+    *,
     command: tuple[str, ...],
     tests: tuple[str, ...],
     raw: Path,
@@ -96,6 +97,7 @@ def _test_result(
 
 def _observe_execution(
     root: Path,
+    *,
     execution: NativeExecution,
     command: tuple[str, ...],
     tests: tuple[str, ...],
@@ -138,12 +140,20 @@ def _observe_execution(
             return ["javascript_native_coverage_input_invalid"]
         path.unlink()
     return _observe_test(
-        root, command, tests, output / "raw", environment, removed, observed, timeout=timeout
+        root,
+        command=command,
+        tests=tests,
+        raw=output / "raw",
+        environment=environment,
+        removed=removed,
+        observed=observed,
+        timeout=timeout,
     )
 
 
 def _observe_coverage(
     root: Path,
+    *,
     node: str,
     c8: Path,
     coverage_arguments: tuple[str, ...],
@@ -317,31 +327,38 @@ def behavior_observation(
             gaps.extend(
                 _observe_execution(
                     root,
-                    execution,
-                    command,
-                    tests,
-                    output,
-                    environment,
-                    removed,
-                    observed,
-                    timeout,
+                    execution=execution,
+                    command=command,
+                    tests=tests,
+                    output=output,
+                    environment=environment,
+                    removed=removed,
+                    observed=observed,
+                    timeout=timeout,
                 )
                 if execution is not None
                 else _observe_test(
-                    root, command, tests, raw, environment, removed, observed, timeout=timeout
+                    root,
+                    command=command,
+                    tests=tests,
+                    raw=raw,
+                    environment=environment,
+                    removed=removed,
+                    observed=observed,
+                    timeout=timeout,
                 )
             )
             gaps.extend(
                 _observe_coverage(
                     root,
-                    node,
-                    c8,
-                    coverage_arguments,
-                    subjects,
-                    output,
-                    environment,
-                    removed,
-                    observed,
+                    node=node,
+                    c8=c8,
+                    coverage_arguments=coverage_arguments,
+                    subjects=subjects,
+                    output=output,
+                    environment=environment,
+                    removed=removed,
+                    observed=observed,
                     timeout=max(0, deadline - monotonic()) if deadline else 120,
                 )
             )

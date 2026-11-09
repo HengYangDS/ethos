@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import tomllib
+from operator import itemgetter
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -48,7 +49,7 @@ def generated_artifact_entrypoint_audit(root: Path) -> dict[str, Any]:
     checked_files = [rel for rel, _ in audits]
     findings = sorted(
         (finding for _, audit_findings in audits for finding in audit_findings),
-        key=lambda item: (item["path"], item["check"], item["required_gap"]),
+        key=itemgetter("path", "check", "required_gap"),
     )
     required_gaps = sorted({finding["required_gap"] for finding in findings})
     return {

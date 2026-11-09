@@ -257,8 +257,7 @@ class Gate(BaseModel):
             "exclusive" in (first_mode, second_mode)
             and (
                 first == "*"
-                or second == "*"
-                or first == second
+                or second in ("*", first)
                 or first.startswith(second + "/")
                 or second.startswith(first + "/")
             )

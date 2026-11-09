@@ -74,7 +74,9 @@ def _candidate_plan(
     )
 
 
-def _recovery_plan(root: Path, accepted: str, candidate: str, desired: str, operation: str):
+def _recovery_plan(
+    root: Path, accepted: str, candidate: str, desired: str, operation: str
+) -> TransitionPlan | None:
     return recover_plan(
         root=root,
         ref_name=f"refs/heads/{candidate}",
@@ -128,6 +130,7 @@ def _head_recovery_action(repo: Path, accepted_branch: str) -> str:
 
 def _bootstrap_preflight(
     repo: Path,
+    *,
     policy: BranchRolePolicy,
     status: Mapping[str, object],
     head: str,
@@ -191,7 +194,9 @@ def bootstrap_candidate(
         f"--apply --root {shlex.quote(repo.as_posix())} --json"
     )
     details = {"path": target.as_posix(), "next_action": status_action}
-    refusal = _bootstrap_preflight(repo, policy, status, head, expect_head, details)
+    refusal = _bootstrap_preflight(
+        repo, policy=policy, status=status, head=head, expect_head=expect_head, details=details
+    )
     if refusal is not None:
         return refusal
     candidate = cast("dict[str, object]", status["candidate"])
@@ -280,12 +285,16 @@ def bootstrap_candidate(
 
 
 def _sync_candidate_worktree(
-    root: Path, path: Path, branch: str, ref_head: str, previous: str, desired: str
+    root: Path, *, path: Path, branch: str, ref_head: str, previous: str, desired: str
 ) -> None:
     paths = (path,)
-    gap = worktree_sync_gap(root, paths, branch, ref_head, previous, desired)
+    gap = worktree_sync_gap(
+        root, paths=paths, branch=branch, ref_head=ref_head, previous=previous, head=desired
+    )
     if gap:
-        if worktree_sync_gap(root, paths, branch, ref_head, desired, desired):
+        if worktree_sync_gap(
+            root, paths=paths, branch=branch, ref_head=ref_head, previous=desired, head=desired
+        ):
             raise ValueError(gap)
         return
     result = cast(
@@ -351,7 +360,12 @@ def refresh_candidate_from_accepted(
             gaps.append(str(error))
     if not gaps:
         current_gap = worktree_sync_gap(
-            repo, (path,), policy.candidate_branch, previous, previous, previous
+            repo,
+            paths=(path,),
+            branch=policy.candidate_branch,
+            ref_head=previous,
+            previous=previous,
+            head=previous,
         )
         if current_gap and plan is None:
             gap = (
@@ -411,7 +425,14 @@ def refresh_candidate_from_accepted(
             git_effect_from_plan(plan).updates[f"refs/heads/{policy.candidate_branch}"].expected
         )
         execute_git_effect(repo, plan, issuer=issuer)
-        _sync_candidate_worktree(repo, path, policy.candidate_branch, head, previous, head)
+        _sync_candidate_worktree(
+            repo,
+            path=path,
+            branch=policy.candidate_branch,
+            ref_head=head,
+            previous=previous,
+            desired=head,
+        )
     except (OSError, ValueError) as error:
         message = str(error)
         gap = (

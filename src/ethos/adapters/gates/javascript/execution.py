@@ -27,9 +27,13 @@ from ethos.adapters.store.state.schema import local_state_root
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from collections.abc import Mapping
+    from contextlib import AbstractContextManager
 
 
-def retain_attempt(root: Path, output: Path, observation: dict[str, object]) -> dict[str, object]:
+def retain_attempt(
+    root: Path, output: Path, observation: Mapping[str, object]
+) -> dict[str, object]:
     """Conserve raw measurements and adverse output in the existing immutable artifact store."""
     payload = io.BytesIO()
     with ZipFile(payload, "w", compression=ZIP_DEFLATED) as archive:
@@ -120,7 +124,9 @@ def command_observation(root: Path, command: tuple[str, ...], node: str) -> Gene
             )
 
 
-def prepare_command(root: Path, command: tuple[str, ...]):
+def prepare_command(
+    root: Path, command: tuple[str, ...]
+) -> AbstractContextManager[NodeAttempt] | None:
     """Select Node custody for a native executable without changing gate identity."""
     if not command or Path(command[0]).name not in {"node", "node.exe"}:
         return None

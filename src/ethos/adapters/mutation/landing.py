@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 from typing import cast
 
 import ethos.adapters.mutation.remediation.guidance as remediation
@@ -42,6 +43,17 @@ if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
 
 
+class _CandidateTransition(NamedTuple):
+    """The admitted candidate transition that one landing executes."""
+
+    policy: BranchRolePolicy
+    base_report: dict[str, object]
+    candidate_path: Path
+    candidate_head: str
+    plan: TransitionPlan | None
+    attestation: Attestation | None
+
+
 def apply_land_to_candidate(
     *,
     root: Path,
@@ -68,7 +80,7 @@ def apply_land_to_candidate(
             remediation=remediation.remediation_for_gaps(decision.required_gaps),
         )
     try:
-        blocked, transition = _candidate_plan(
+        transition = _candidate_plan(
             root,
             identity_transition=identity_transition,
             expected_candidate_head=candidate_head,
@@ -82,8 +94,8 @@ def apply_land_to_candidate(
             [gap],
             **({"stderr": str(error)} if gap != str(error) else {}),
         )
-    if blocked:
-        return blocked
+    if isinstance(transition, dict):
+        return transition
     policy, _base_report, candidate_path, candidate_head, plan, attestation = transition
     failure: tuple[str, str] | None = None
     observed_candidate_head = ""
@@ -154,14 +166,14 @@ def apply_land_to_candidate(
 def candidate_transition_readiness(
     *,
     root: Path,
-    status=None,
+    status: dict[str, object] | None = None,
     identity_transition: bool = False,
     candidate_head: str | None = None,
     admitted_decision: AdmissionDecision | None = None,
 ) -> dict[str, object]:
     """Compile and admit the exact candidate CAS without performing its effect."""
     try:
-        blocked, transition = _candidate_plan(
+        transition = _candidate_plan(
             root,
             status=status,
             identity_transition=identity_transition,
@@ -178,8 +190,8 @@ def candidate_transition_readiness(
             [gap],
             **({"stderr": str(error)} if gap != str(error) else {}),
         )
-    if blocked:
-        return blocked
+    if isinstance(transition, dict):
+        return transition
     policy, base_report, candidate_path, _candidate_head, plan, _attestation = transition
     if plan is None:
         return {
@@ -217,11 +229,12 @@ def candidate_transition_readiness(
 def _candidate_plan(
     root: Path,
     *,
-    status=None,
+    status: dict[str, object] | None = None,
     identity_transition: bool = False,
     expected_candidate_head: str | None = None,
     admitted_decision: AdmissionDecision | None = None,
-):
+) -> dict[str, object] | _CandidateTransition:
+    """Return the block that stops the candidate CAS, or the transition that performs it."""
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     base_report = candidate_base_report(root=root, status=status)
@@ -233,7 +246,12 @@ def _candidate_plan(
     ):
         path = Path(str(base_report["path"]))
         if not worktree_sync_gap(
-            root, (path,), policy.candidate_branch, current_head, str(previous), current_head
+            root,
+            paths=(path,),
+            branch=policy.candidate_branch,
+            ref_head=current_head,
+            previous=str(previous),
+            head=current_head,
         ):
             base_report = {
                 **base_report,
@@ -243,7 +261,7 @@ def _candidate_plan(
                 "required_gaps": [],
             }
     if report_verdict(base_report) != "pass":
-        return base_report, None
+        return base_report
     candidate_path = Path(str(base_report["path"]))
     candidate_head = str(base_report["candidate_head"])
     if identity_transition:
@@ -264,19 +282,11 @@ def _candidate_plan(
         acceptance_purpose=purpose,
     )
     if proof is None:
-        return (
-            _blocked(
-                policy,
-                current_head,
-                proof_required,
-                path=candidate_path.as_posix(),
-            ),
-            None,
-        )
+        return _blocked(policy, current_head, proof_required, path=candidate_path.as_posix())
     if candidate_head != current_head and (
         gaps := predecessor_policy_gaps(root, current_head, proof)
     ):
-        return _blocked(policy, current_head, gaps, path=candidate_path.as_posix()), None
+        return _blocked(policy, current_head, gaps, path=candidate_path.as_posix())
     branch = current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
     # The authority is the encoding of the exact source that the admitted proof carries.
@@ -332,7 +342,9 @@ def _candidate_plan(
         if candidate_head != current_head and not recovering
         else None
     )
-    return None, (policy, base_report, candidate_path, candidate_head, plan, attestation)
+    return _CandidateTransition(
+        policy, base_report, candidate_path, candidate_head, plan, attestation
+    )
 
 
 def _carried_change(proof: Attestation) -> str | None:
@@ -426,18 +438,23 @@ def _candidate_admission_gap(error: Exception) -> str:
     )
 
 
-def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
-    return dict(
-        verdict=verdict,
-        state=state,
-        branch=policy.candidate_branch,
-        head=head,
-        required_gaps=gaps,
+def _blocked(
+    policy: BranchRolePolicy, head: str, gaps: list[str], **extra: object
+) -> dict[str, object]:
+    """Return a blocked candidate report; `extra` may refine its verdict and state."""
+    return {
+        "verdict": "block",
+        "state": "blocked",
+        "branch": policy.candidate_branch,
+        "head": head,
+        "required_gaps": gaps,
         **extra,
-    )
+    }
 
 
-def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
+def candidate_base_report(
+    *, root: Path, status: dict[str, object] | None = None
+) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     status = status if status is not None else integration_coordinates(root, policy=policy)

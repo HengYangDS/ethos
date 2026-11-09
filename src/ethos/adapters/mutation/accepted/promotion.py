@@ -28,6 +28,7 @@ from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.branch.roles import BranchRolePolicy
@@ -111,12 +112,16 @@ def _materialization_pending(
         )
     pending = False
     for branch, paths, prefix in scopes:
-        terminal_gap = worktree_sync_gap(root, paths, branch, head, head, head)
+        terminal_gap = worktree_sync_gap(
+            root, paths=paths, branch=branch, ref_head=head, previous=head, head=head
+        )
         if not terminal_gap:
             continue
         update = effect.updates.get(f"refs/heads/{branch}") if effect else None
         gap = (
-            worktree_sync_gap(root, paths, branch, head, update.expected, head)
+            worktree_sync_gap(
+                root, paths=paths, branch=branch, ref_head=head, previous=update.expected, head=head
+            )
             if update
             else terminal_gap
         )
@@ -146,12 +151,12 @@ def recover_current_acceptance(
     release = effect.updates.get(f"refs/heads/{policy.release_branch}")
     result = _synchronize_promotion(
         root,
-        status.get("worktrees", []),
-        policy,
-        effect.updates[f"refs/heads/{policy.accepted_branch}"].expected,
-        current_head,
-        release.expected if release else None,
-        attestation,
+        worktrees=cast("list[dict[str, object]]", status.get("worktrees", [])),
+        policy=policy,
+        current_head=effect.updates[f"refs/heads/{policy.accepted_branch}"].expected,
+        candidate_head=current_head,
+        release_old=release.expected if release else None,
+        attestation=attestation,
     )
     if result["verdict"] == "pass":
         result["state"] = "accepted_current"
@@ -160,30 +165,31 @@ def recover_current_acceptance(
 
 def promote_candidate(
     *,
-    root,
-    policy,
-    current_head,
-    candidate_head,
-    status,
-    control_replacement_receipt=None,
-    apply=True,
-    identity_transition=False,
-):
-    blocker, proof = _promotion_blocker(
+    root: Path,
+    policy: BranchRolePolicy,
+    current_head: str,
+    candidate_head: str,
+    status: Mapping[str, object],
+    control_replacement_receipt: dict[str, object] | None = None,
+    apply: bool = True,
+    identity_transition: bool = False,
+) -> dict[str, object]:
+    """Advance the accepted branch to a proven candidate, or report what blocks it."""
+    admitted = _promotion_blocker(
         root=root,
         policy=policy,
         current_head=current_head,
         candidate_head=candidate_head,
     )
-    if blocker:
-        return blocker
+    if isinstance(admitted, dict):
+        return admitted
     return _candidate_promotion(
         root=root,
         policy=policy,
         status=status,
         current_head=current_head,
         candidate_head=candidate_head,
-        proof=cast("Attestation", proof),
+        proof=admitted,
         control_replacement_receipt=control_replacement_receipt,
         apply=apply,
         identity_transition=identity_transition,
@@ -192,16 +198,16 @@ def promote_candidate(
 
 def _candidate_promotion(
     *,
-    root,
-    policy,
-    status,
-    current_head,
-    candidate_head,
-    proof,
-    control_replacement_receipt,
-    apply,
-    identity_transition,
-):
+    root: Path,
+    policy: BranchRolePolicy,
+    status: Mapping[str, object],
+    current_head: str,
+    candidate_head: str,
+    proof: Attestation,
+    control_replacement_receipt: dict[str, object] | None,
+    apply: bool,
+    identity_transition: bool,
+) -> dict[str, object]:
     worktrees = cast("list[dict[str, object]]", status.get("worktrees", []))
     candidate = cast("dict[str, object]", status.get("candidate", {}))
     candidate_worktree_path = str(candidate.get("worktree_path") or "")
@@ -226,11 +232,11 @@ def _candidate_promotion(
         effect, release_old = _promotion_effect(root, policy, current_head, candidate_head)
         preflight_gap = worktree_sync_gap(
             root,
-            (root,),
-            policy.accepted_branch,
-            current_head,
-            current_head,
-            candidate_head,
+            paths=(root,),
+            branch=policy.accepted_branch,
+            ref_head=current_head,
+            previous=current_head,
+            head=candidate_head,
         )
         preflight_gap = f"accepted_{preflight_gap}" if preflight_gap else ""
         if (
@@ -239,11 +245,11 @@ def _candidate_promotion(
             and (
                 gap := worktree_sync_gap(
                     root,
-                    ref_worktree_paths(worktrees, policy.release_branch),
-                    policy.release_branch,
-                    release_old,
-                    release_old,
-                    candidate_head,
+                    paths=ref_worktree_paths(worktrees, policy.release_branch),
+                    branch=policy.release_branch,
+                    ref_head=release_old,
+                    previous=release_old,
+                    head=candidate_head,
                 )
             )
         ):
@@ -302,13 +308,26 @@ def _candidate_promotion(
                 report.update(verdict="unknown", state="partial_transition")
         return report
     return _synchronize_promotion(
-        root, worktrees, policy, current_head, candidate_head, release_old, attestation
+        root,
+        worktrees=worktrees,
+        policy=policy,
+        current_head=current_head,
+        candidate_head=candidate_head,
+        release_old=release_old,
+        attestation=attestation,
     )
 
 
 def _synchronize_promotion(
-    root, worktrees, policy, current_head, candidate_head, release_old, attestation
-):
+    root: Path,
+    *,
+    worktrees: list[dict[str, object]],
+    policy: BranchRolePolicy,
+    current_head: str,
+    candidate_head: str,
+    release_old: str | None,
+    attestation: Attestation,
+) -> dict[str, object]:
     """Reconcile accepted and mirrored checkouts after the single admitted ref effect."""
     mirror_result = (
         sync_linked_ref_worktree(
@@ -400,7 +419,9 @@ def _accepted_transition_plan(
     )
 
 
-def _promotion_effect(root, policy, current_head, candidate_head):
+def _promotion_effect(
+    root: Path, policy: BranchRolePolicy, current_head: str, candidate_head: str
+) -> tuple[GitEffect, str | None]:
     updates = {
         f"refs/heads/{policy.accepted_branch}": GitRefUpdate(
             expected=current_head,
@@ -433,32 +454,26 @@ def _promotion_effect(root, policy, current_head, candidate_head):
     return GitEffect(updates=updates, assertions=assertions), release_old
 
 
-def _promotion_blocker(*, root, policy, current_head, candidate_head):
+def _promotion_blocker(
+    *, root: Path, policy: BranchRolePolicy, current_head: str, candidate_head: str
+) -> dict[str, object] | Attestation:
+    """Return the block that stops promotion, or the proof that admits it."""
     if not is_ancestor(root, current_head, candidate_head):
-        return (
-            _accepted_block(
-                policy,
-                current_head,
-                ["candidate_diverged_from_accepted"],
-                candidate_head=candidate_head,
-            ),
-            None,
+        return _accepted_block(
+            policy,
+            current_head,
+            ["candidate_diverged_from_accepted"],
+            candidate_head=candidate_head,
         )
     proof, gaps = proof_for_repository_transition(root, candidate_head)
     if proof is None:
-        return (
-            _accepted_block(
-                policy,
-                current_head,
-                gaps,
-                candidate_head=candidate_head,
-            ),
-            None,
-        )
-    return None, proof
+        return _accepted_block(policy, current_head, gaps, candidate_head=candidate_head)
+    return proof
 
 
-def _accepted_block(policy, current, gaps, **extra):
+def _accepted_block(
+    policy: BranchRolePolicy, current: str, gaps: list[str], **extra: object
+) -> dict[str, object]:
     return {
         **accepted_payload(policy, current),
         "candidate_head": extra.pop("candidate_head", ""),
@@ -467,7 +482,8 @@ def _accepted_block(policy, current, gaps, **extra):
     }
 
 
-def accepted_payload(policy, head):
+def accepted_payload(policy: BranchRolePolicy, head: str) -> dict[str, object]:
+    """Return the blocked accepted-branch report that a decision then completes."""
     return {
         "verdict": "block",
         "state": "blocked",

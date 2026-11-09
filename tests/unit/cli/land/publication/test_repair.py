@@ -1,8 +1,8 @@
 """Publish accepted forward work after exact historical identity replacement."""
 
 import json
+from collections.abc import Generator
 from collections.abc import Iterable
-from collections.abc import Iterator
 from contextlib import contextmanager
 from contextlib import redirect_stderr
 from io import StringIO
@@ -36,7 +36,7 @@ SIGNATURE_PREDICATE = "effect:commit-signature"
 
 
 @contextmanager
-def _attestations_without(repo: Path, field: str, value: str) -> Iterator[None]:
+def _attestations_without(repo: Path, field: str, value: str) -> Generator[None]:
     """Select the set without matching attestations for one observation, then restore it."""
     selected, records = read_attestation_set(repo)
     git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)

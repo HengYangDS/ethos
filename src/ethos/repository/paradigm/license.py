@@ -163,15 +163,15 @@ def _template(identifier: str) -> tuple[re.Pattern[str], tuple[tuple[str, str], 
     depth = cursor = 0
     for markup in _MARKUP.finditer(template):
         parts.append(_literal(template[cursor : markup.start()]))
-        cursor, token = markup.end(), markup.group(1)
-        if token == "beginOptional":
+        cursor, keyword = markup.end(), markup.group(1)
+        if keyword == "beginOptional":
             depth += 1
             parts.append("(?:")
-        elif token == "endOptional":
+        elif keyword == "endOptional":
             depth -= 1
             parts.append(")?")
         else:
-            fields = dict(_FIELD.findall(token))
+            fields = dict(_FIELD.findall(keyword))
             group = f"v{len(parts)}"
             if fields["name"] == "copyright" and depth == 0:
                 notices.append((group, _normalize(fields["original"])))

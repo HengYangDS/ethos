@@ -179,7 +179,7 @@ def official_validation_repair_scope_report(
     repair_paths = canonical_repair_paths(root, official, change=change, archived=archived)
     if not repair_paths and archived is not None:
         reference_repair = _archived_reference_repair_scope_report(
-            root, head, official, change, archived, paths
+            root, head=head, official=official, change=change, archived=archived, paths=paths
         )
         if reference_repair:
             return reference_repair
@@ -227,6 +227,7 @@ def official_validation_repair_scope_report(
 
 def _archived_reference_repair_scope_report(
     root: Path,
+    *,
     head: str,
     official: dict[str, object],
     change: str,

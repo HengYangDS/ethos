@@ -27,6 +27,7 @@ from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
+from ethos.contracts.outcome import present
 from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -192,8 +193,7 @@ def accepted_release_source(
             "release_tag_source_untrusted",
         )
         require_release(head == current or plan is not None or base, "release_tag_source_untrusted")
-    if maintenance and mapped is None:
-        assert plan is not None
+    if plan is not None and maintenance and mapped is None:
         require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
         require_release(not base or base == maintenance, "release_base_not_exact_ancestor")
         base = maintenance
@@ -228,17 +228,17 @@ def accepted_release_source(
         require_release(not gaps, *gaps)
     source = observe_git_object(root, head, "commit")
     require_release(not source["required_gaps"], "release_source_signature_untrusted")
-    closeout = accepted_provenance(
-        root,
-        accepted_ref=accepted_ref,
-        candidate_ref=f"refs/heads/{policy.candidate_branch}",
-        head=base or head,
+    closeout = present(
+        accepted_provenance(
+            root,
+            accepted_ref=accepted_ref,
+            candidate_ref=f"refs/heads/{policy.candidate_branch}",
+            head=base or head,
+        ),
+        "accepted_closeout_effect_not_attested",
     )
-    require_release(closeout is not None, "accepted_closeout_effect_not_attested")
-    assert closeout is not None
     accepted_effect = closeout.attestation.model_dump(mode="json")
-    if maintenance:
-        assert plan is not None
+    if plan is not None and maintenance:
         require_release(
             mutable_json(plan.prior_attestations["accepted_effect"]) == accepted_effect,
             "release_maintenance_accepted_evidence_changed",
@@ -436,9 +436,10 @@ def mapped_release_provenance(
         and repair.get("attestation_id") == body.get("mapping_attestation_id"),
         "release_retag_mapping_unverified",
     )
-    plan = release_provenance(root, ref=ref, oid=original, accepted_as=mapped)
-    require_release(plan is not None, "release_qualification_missing")
-    assert plan is not None
+    plan = present(
+        release_provenance(root, ref=ref, oid=original, accepted_as=mapped),
+        "release_qualification_missing",
+    )
     return plan, original
 
 

@@ -145,7 +145,7 @@ def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(tmp_
     ):
         pytest.fail("no gate may run under contention")
 
-    assert sum(host.sleeps) == 60.0
+    assert sum(host.sleeps) == pytest.approx(60.0)
     lock_path, holder_path = _slot(repo)
     # The failed admission's frame is still referenced, so only an explicit release frees it.
     assert contended.value.args == (f"{proof_slot.CONTENDED}:load=30.0:limit=8.0:source=test",)
@@ -327,15 +327,15 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
 
     host = _RenderEnds([20.0, 4.0])
     with host.admit(repo) as admission:
-        token = os.environ[host_admission.TOKEN]
+        token = os.environ[host_admission.ADMISSION_ENV]
         assert queue.holds(token)
 
     assert [event["reason"] for event in host.waits()] == ["host_slot_held", "host_load"]
     holder = host.waits()[0]["holder"]
     assert isinstance(holder, dict)
     assert holder["executable"] == "renderer"
-    assert admission.load == 4.0
-    assert host_admission.TOKEN not in os.environ
+    assert admission.load == pytest.approx(4.0)
+    assert host_admission.ADMISSION_ENV not in os.environ
     assert not queue.live()
 
 
@@ -360,7 +360,7 @@ def test_two_calm_one_minute_samples_admit_the_proof(tmp_path: Path) -> None:
         pass
 
     assert len(host.sleeps) == 3
-    assert admission.load == 6.0
+    assert admission.load == pytest.approx(6.0)
     assert [event["reason"] for event in host.waits()] == ["host_load"]
 
 

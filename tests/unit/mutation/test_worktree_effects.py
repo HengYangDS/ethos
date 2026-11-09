@@ -132,10 +132,20 @@ def test_worktree_preimage_uses_content_not_index_stat_cache(tmp_path: Path) -> 
     index = repo / git(repo, "rev-parse", "--git-path", "index")
     before = index.read_bytes()
     assert run_git(repo, "diff-files", "--quiet", check=False).returncode == 1
-    assert worktree_sync_gap(repo, (repo,), "dev", head, head, head) == ""
+    assert (
+        worktree_sync_gap(
+            repo, paths=(repo,), branch="dev", ref_head=head, previous=head, head=head
+        )
+        == ""
+    )
     assert index.read_bytes() == before
     path.write_text("real user change\n")
-    assert worktree_sync_gap(repo, (repo,), "dev", head, head, head) == "worktree_dirty"
+    assert (
+        worktree_sync_gap(
+            repo, paths=(repo,), branch="dev", ref_head=head, previous=head, head=head
+        )
+        == "worktree_dirty"
+    )
     assert index.read_bytes() == before
 
 
@@ -323,9 +333,9 @@ def test_sync_worktree_refreshes_only_native_index_stat_cache(tmp_path, dirty) -
     index_before = git(repo, "write-tree")
     assert index_before == git(repo, "rev-parse", f"{previous}^{{tree}}")
     assert run_git(repo, "diff-files", "--quiet", check=False).returncode == 1
-    assert worktree_sync_gap(repo, (repo,), "dev", previous, previous, head) == (
-        "worktree_dirty" if dirty else ""
-    )
+    assert worktree_sync_gap(
+        repo, paths=(repo,), branch="dev", ref_head=previous, previous=previous, head=head
+    ) == ("worktree_dirty" if dirty else "")
     git(repo, "update-ref", "refs/heads/dev", head, previous)
 
     if dirty:

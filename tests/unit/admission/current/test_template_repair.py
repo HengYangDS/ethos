@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+from itertools import starmap
+
 import pytest
 
 from tests.unit.admission.current.support import official_artifact
@@ -27,7 +29,7 @@ def _template_drift_report(root: Path, *gaps: str) -> dict[str, object]:
     return official_report(
         change=change,
         gaps=(f"openspec_template_heading_missing:{change}:design:Risks / Trade-offs", *gaps),
-        artifacts=tuple(official_artifact(name, path) for name, path in outputs.items()),
+        artifacts=tuple(starmap(official_artifact, outputs.items())),
         commitment={},
         change_path=change_root.as_posix(),
         status_payload={

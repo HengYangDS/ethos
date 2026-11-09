@@ -87,7 +87,14 @@ def archive_relocation(
     active = active_change_root(change)
     original = _source_documents(root, before, after, active, target)
     documents_at_archive, task_transition = _task_completion_inputs(
-        root, original, before, after, active, target, tree, environment
+        root,
+        original=original,
+        before=before,
+        after=after,
+        active=active,
+        target=target,
+        tree=tree,
+        environment=environment,
     )
     documents = [
         {"before": path, "after": target + path.removeprefix(active), "content": content.decode()}
@@ -96,7 +103,14 @@ def archive_relocation(
     if not documents:
         return {}, {}
     canonical = _canonical_inputs(
-        root, source_head, original, before, after, active, changed_paths, environment
+        root,
+        source_head=source_head,
+        original=original,
+        before=before,
+        after=after,
+        active=active,
+        changed_paths=changed_paths,
+        environment=environment,
     )
     payload = _observe(
         root,
@@ -129,6 +143,7 @@ def archive_relocation(
 
 def _task_completion_inputs(
     root: Path,
+    *,
     original: dict[str, bytes],
     before: TreeEntries,
     after: TreeEntries,
@@ -252,6 +267,7 @@ def _source_documents(
 
 def _canonical_inputs(
     root: Path,
+    *,
     source_head: str,
     original: dict[str, bytes],
     before: TreeEntries,

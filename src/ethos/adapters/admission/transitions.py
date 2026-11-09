@@ -26,11 +26,11 @@ def work_lane_ref_transition_report(
     if not (is_object_id(old_value) and is_object_id(new_value)):
         return _report(
             phase,
-            ref_name,
-            old_value,
-            new_value,
-            {},
-            ["work_lane_ref_oid_invalid"],
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+            lease={},
+            gaps=["work_lane_ref_oid_invalid"],
         )
     if phase in {"committed", "aborted"}:
         return _admit(phase, ref_name, old_value, new_value, f"{phase}_observed")
@@ -80,11 +80,11 @@ def _prepared_work_lane_ref_transition_report(
     if lease.get("lease_state") == "valid" and observed_ref != expected_ref:
         return _report(
             phase,
-            ref_name,
-            old_value,
-            new_value,
-            {},
-            [f"lane_ref_observation_stale:{expected_ref}!={observed_ref}"],
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+            lease={},
+            gaps=[f"lane_ref_observation_stale:{expected_ref}!={observed_ref}"],
         )
     actor = process_actor()
     gaps = _work_lane_ref_transition_gaps(
@@ -125,12 +125,12 @@ def _prepared_work_lane_ref_transition_report(
     )
     return _report(
         phase,
-        ref_name,
-        old_value,
-        new_value,
-        lease,
-        gaps,
-        reason if not gaps else "",
+        ref_name=ref_name,
+        old_value=old_value,
+        new_value=new_value,
+        lease=lease,
+        gaps=gaps,
+        reason=reason if not gaps else "",
     )
 
 
@@ -205,11 +205,11 @@ def _missing_lease_report(
         if intent.get("present") and not intent.get("gap")
         else _report(
             phase,
-            ref_name,
-            update.expected,
-            update.desired,
-            {},
-            [f"work_lane_missing_lease:{branch}"],
+            ref_name=ref_name,
+            old_value=update.expected,
+            new_value=update.desired,
+            lease={},
+            gaps=[f"work_lane_missing_lease:{branch}"],
         )
     )
 
@@ -221,11 +221,20 @@ def _is_zero_oid(value: str) -> bool:
 def _admit(
     phase: str, ref_name: str, old_value: str, new_value: str, reason: str
 ) -> dict[str, object]:
-    return _report(phase, ref_name, old_value, new_value, {}, [], reason)
+    return _report(
+        phase,
+        ref_name=ref_name,
+        old_value=old_value,
+        new_value=new_value,
+        lease={},
+        gaps=[],
+        reason=reason,
+    )
 
 
 def _report(
     phase: str,
+    *,
     ref_name: str,
     old_value: str,
     new_value: str,

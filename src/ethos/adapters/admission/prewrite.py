@@ -183,7 +183,14 @@ def _prewrite_guard(
     patch_report = revalidate_staged_admission(root, patch_report, index_env=index_env)
     _apply_path_effects(checked, patch_report, patch_supplied=bool(patch) or staged)
     blocked = [path for path in checked if path["allowed"] is False]
-    gaps = _gaps(runtime_check, authority, editor, patch_report, scope, blocked)
+    gaps = _gaps(
+        runtime_check=runtime_check,
+        lease_check=authority,
+        editor_check=editor,
+        patch_admission=patch_report,
+        material_scope=scope,
+        blocked_paths=blocked,
+    )
     if profile_invalid and gaps:
         gaps = list(dict.fromkeys([INVALID_PROFILE_ERROR, *gaps]))
     verdict = reduce_verdicts(
@@ -197,11 +204,11 @@ def _prewrite_guard(
     )
     decision = _prewrite_decision(
         root,
-        effective,
-        checked,
-        authority,
-        verdict,
-        tuple(gaps),
+        effective=effective,
+        checked_paths=checked,
+        lease_check=authority,
+        verdict=verdict,
+        gaps=tuple(gaps),
         index_tree=str(patch_report.get("index_tree") or ""),
     )
     next_action = str(scope.get("next_action") or "")
@@ -403,12 +410,12 @@ def _rebase_head_branch(root: Path) -> str:
 
 def _prewrite_decision(
     root: Path,
+    *,
     effective: dict[str, str],
     checked_paths: list[dict[str, object]],
     lease_check: dict[str, object],
     verdict: Verdict,
     gaps: tuple[str, ...],
-    *,
     index_tree: str = "",
 ) -> AdmissionDecision:
     branch, role = effective["branch"], effective["role"]
@@ -478,6 +485,7 @@ def _editor_root_check(
 
 
 def _gaps(
+    *,
     runtime_check: dict[str, object],
     lease_check: dict[str, object],
     editor_check: dict[str, object],

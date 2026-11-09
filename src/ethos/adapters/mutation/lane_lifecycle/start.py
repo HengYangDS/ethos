@@ -49,6 +49,8 @@ from ethos.contracts.plan import GitRefUpdate
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from ethos.contracts.semantic import Attestation
+
 
 def _slug(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
@@ -286,7 +288,7 @@ def _create_ref(
     head: str,
     candidate_head: str,
     holder_ref: str,
-):
+) -> Attestation:
     effect = _start_effect(policy, branch, head, candidate_head)
     plan = compile_observed_git_effect(
         repo,

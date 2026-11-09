@@ -168,7 +168,7 @@ def test_package_projection_does_not_require_execution_only_dependencies(
         ("Linux", "x86_64"): ("linux-x64", "vale_3.24.0_Linux_64-bit.tar.gz"),
         ("Windows", "AMD64"): ("windows-x64", "vale_3.24.0_Windows_64-bit.zip"),
     }
-    target, asset = targets[(system, machine)]
+    target, asset = targets[system, machine]
     root, archive, body, _lock = locked_vale(system, machine, target, asset)
     product = Path(__file__).resolve().parents[6]
     destination = tmp_path / "build-payload"

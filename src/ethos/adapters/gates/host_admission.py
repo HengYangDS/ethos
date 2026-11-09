@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Generator
 
-TOKEN = "ETHOS_HOST_ADMISSION"
+ADMISSION_ENV = "ETHOS_HOST_ADMISSION"
 CPU_CAP = "ETHOS_HOST_CPU_CAP"
 XDIST_WORKERS = "PYTEST_XDIST_AUTO_NUM_WORKERS"
 CONTENDED = "host_admission_contended"
@@ -194,7 +194,7 @@ class HostPlace:
 
     def __init__(self, repository: Path, executable: str) -> None:
         self.queue, self.declaration, self.cpus = host_queue()
-        inherited = os.environ.get(TOKEN, "")
+        inherited = os.environ.get(ADMISSION_ENV, "")
         self.joined = inherited if inherited and self.queue.holds(inherited) else ""
         self.repository = repository
         self.executable = executable
@@ -220,7 +220,7 @@ class HostPlace:
         """What an admitted child receives: the admission's token and the host's worker cap."""
         cap = str(self.declaration.worker_cap(self.cpus))
         token = self.joined or (self.ticket[0].token if self.ticket else "")
-        return {TOKEN: token, CPU_CAP: cap, XDIST_WORKERS: cap}
+        return {ADMISSION_ENV: token, CPU_CAP: cap, XDIST_WORKERS: cap}
 
     def leave(self) -> None:
         """Give up the place, if this run took one."""

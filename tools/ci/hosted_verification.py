@@ -14,6 +14,7 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from allure_pytest.utils import ParsedPytestNodeId
@@ -25,6 +26,9 @@ from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.result import expand_result
 from tools.ci.toolchain.environment import ProjectRuntime
+
+if TYPE_CHECKING:
+    from ethos.adapters.repo.gate_policy import ResolvedGatePolicy
 
 PROVE = (
     *("uv", "run", "--frozen", "--offline", "--no-sync"),
@@ -59,7 +63,14 @@ def run(root: Path, head: str | None = None) -> int:
     remove_owned_path(reports)
     reports.mkdir(parents=True)
     supply_exit, proof_exit = _prove(root, expected, proof, diagnostics, reports)
-    report, checks = _receipt(root, proof, expected, observed, proof_exit, supply_exit)
+    report, checks = _receipt(
+        root,
+        proof=proof,
+        expected=expected,
+        observed=observed,
+        proof_exit=proof_exit,
+        supply_exit=supply_exit,
+    )
     summary = _report_tests(root, report, checks, supply_exit)
     receipt_exit = _publish(proof, report, checks, summary)
     if proof_exit or receipt_exit:
@@ -112,7 +123,7 @@ def _prove(
 
 
 def _receipt(
-    root: Path, proof: Path, expected: str, observed: str, proof_exit: int, supply_exit: int
+    root: Path, *, proof: Path, expected: str, observed: str, proof_exit: int, supply_exit: int
 ) -> tuple[dict[str, Any], list[Any]]:
     """Accept only a complete executed host observation of the declared full gate set."""
     report: dict[str, Any] = {
@@ -170,7 +181,7 @@ def _receipt(
     return report, checks
 
 
-def _policy(root: Path, observed: str, supply_exit: int) -> Any:
+def _policy(root: Path, observed: str, supply_exit: int) -> ResolvedGatePolicy:
     """Resolve the full gate policy of the observed head once its tools were supplied."""
     if supply_exit:
         message = "hosted_tool_supply_failed"

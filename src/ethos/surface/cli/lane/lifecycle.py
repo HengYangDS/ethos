@@ -149,7 +149,7 @@ def project_lane_result(
         diagnostics=diagnostics,
         required_gaps=required_gaps,
         next_action=str(report.get("next_action") or ""),
-        user_decision_required=bool(report.get("user_decision_required", False)),
+        user_decision_required=bool(report.get("user_decision_required")),
         data=report if data is None else data,
     )
     emit(result, json_output=json_output, enforce=enforce)

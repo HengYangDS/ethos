@@ -12,10 +12,14 @@ import sys
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from tools.ci.toolchain.environment import ProjectRuntime
+
+if TYPE_CHECKING:
+    import nox
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
@@ -68,7 +72,7 @@ def _paths(*patterns: str) -> tuple[str, ...]:
     return tuple(path for path in paths if (ROOT / path).is_file())
 
 
-def _python_paths(session) -> tuple[str, ...]:
+def _python_paths(session: nox.Session) -> tuple[str, ...]:
     output = cast(
         "str",
         session.run(
@@ -90,7 +94,7 @@ def _python_paths(session) -> tuple[str, ...]:
     return paths
 
 
-def _host(session, name: str) -> None:
+def _host(session: nox.Session, name: str) -> None:
     head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
     session.run(
         sys.executable,
@@ -107,17 +111,17 @@ def _host(session, name: str) -> None:
     )
 
 
-def source_format(session) -> None:
+def source_format(session: nox.Session) -> None:
     """Project native preview or explicitly authorized fixing without owning format policy."""
     _source_format(session, checking=False)
 
 
-def format_check(session) -> None:
+def format_check(session: nox.Session) -> None:
     """Check the exact same selected native postimages without source writes."""
     _source_format(session, checking=True)
 
 
-def _source_format(session, *, checking: bool) -> None:
+def _source_format(session: nox.Session, *, checking: bool) -> None:
     session.run(
         str(RUNTIME.python),
         "-B",
@@ -136,7 +140,7 @@ def _source_format(session, *, checking: bool) -> None:
 SESSION_IMPLEMENTATIONS = {"format": source_format}
 
 
-def fix(session) -> None:
+def fix(session: nox.Session) -> None:
     """Project explicit fixing through the native source-format admission owner."""
     head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
     session.run(
@@ -157,7 +161,7 @@ def fix(session) -> None:
     )
 
 
-def lint(session) -> None:
+def lint(session: nox.Session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
     common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
@@ -166,7 +170,7 @@ def lint(session) -> None:
     session.run(executable, "format", *common, "--check", *paths)
 
 
-def build(session) -> None:
+def build(session: nox.Session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
     head = owner.release_build_head(tuple(session.posargs))
     if head:
@@ -178,7 +182,7 @@ def build(session) -> None:
     )
 
 
-def install_smoke(session) -> None:
+def install_smoke(session: nox.Session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--predecessor-runtime", type=Path)
@@ -196,7 +200,7 @@ def install_smoke(session) -> None:
     )
 
 
-def release_journey(session) -> None:
+def release_journey(session: nox.Session) -> None:
     parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--previous", default="")
@@ -207,58 +211,58 @@ def release_journey(session) -> None:
     )
 
 
-def host_conformance(session) -> None:
+def host_conformance(session: nox.Session) -> None:
     import_module("tools.ci.delivery.pipeline").DeliveryPipeline.from_runtime(RUNTIME).prove_host(
         session
     )
 
 
-def dependencies(session) -> None:
+def dependencies(session: nox.Session) -> None:
     import_module("tools.ci.dependency_hygiene").run(session)
 
 
-def vulnerabilities(session) -> None:
+def vulnerabilities(session: nox.Session) -> None:
     owner = import_module("tools.ci.dependency_audit")
     owner.run(session, root=RUNTIME.root, scope=owner.requested_scope(tuple(session.posargs)))
 
 
-def supply_chain(session) -> None:
+def supply_chain(session: nox.Session) -> None:
     import_module("tools.ci.release_supply_chain").run(session)
 
 
-def release_binary_scan(session) -> None:
+def release_binary_scan(session: nox.Session) -> None:
     import_module("tools.ci.release_binary_scan").run(session)
 
 
-def ci_templates(session) -> None:
+def ci_templates(session: nox.Session) -> None:
     if import_module("tools.ci.ci_projection").check_templates(json_output=True):
         session.error("CI provider projections differ from their owners")
 
 
-def architecture_projection(session) -> None:
+def architecture_projection(session: nox.Session) -> None:
     if import_module("tools.ci.architecture_projection").main():
         session.error("architecture projections differ from their owner")
 
 
-def format_selection(session) -> None:
+def format_selection(session: nox.Session) -> None:
     if import_module("tools.ci.format_selection").main():
         session.error("format selection policy did not pass")
 
 
-def repository_hygiene(session) -> None:
+def repository_hygiene(session: nox.Session) -> None:
     failures = import_module("tools.ci.repository_hygiene").audit(ROOT)
     if failures:
         session.error("repository hygiene failed:\n" + "\n".join(failures))
 
 
-def prose(session) -> None:
+def prose(session: nox.Session) -> None:
     report = import_module("ethos.adapters.gates.tool").prose_report(ROOT)
     session.log(json.dumps(report))
     if report["verdict"] != "pass":
         session.error("native spelling did not pass")
 
 
-def secrets(session) -> None:
+def secrets(session: nox.Session) -> None:
     """Scan a mirror of the tracked files with Gitleaks and the declared policy.
 
     Secret scanning is a source-quality gate: ignored caches and local evidence
@@ -302,7 +306,7 @@ def _mirror_tracked(target: Path) -> None:
             shutil.copy(source, destination)
 
 
-def shell_lint(session) -> None:
+def shell_lint(session: nox.Session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
@@ -311,14 +315,14 @@ def shell_lint(session) -> None:
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
 
-def markdown_lint(session) -> None:
+def markdown_lint(session: nox.Session) -> None:
     report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
     session.log(json.dumps(report))
     if report["verdict"] != "pass":
         session.error("native Markdown format and semantic lint did not pass")
 
 
-def config_quality(session) -> None:
+def config_quality(session: nox.Session) -> None:
     report = import_module("ethos.adapters.gates.configuration").configuration_report(
         ROOT, paths=tuple(session.posargs)
     )
@@ -329,14 +333,14 @@ def config_quality(session) -> None:
         session.run(RUNTIME.script("pre-commit"), "validate-config", PRE_COMMIT_CONFIG)
 
 
-def hosted_observation(session) -> None:
+def hosted_observation(session: nox.Session) -> None:
     execute = os.environ.get("ETHOS_HOSTED_OBSERVATION_EXECUTE") == "1"
     result = import_module("tools.ci.hosted_observation").capture_observation(execute=execute)
     if execute and result:
         session.error("hosted provider observation failed")
 
 
-def hosted_verification(session) -> None:
+def hosted_verification(session: nox.Session) -> None:
     """Execute and bind the full hosted proof of HEAD, or of the one expected head given."""
     if len(session.posargs) > 1:
         session.error("usage: nox -s hosted_verification [-- expected-head]")
@@ -346,7 +350,7 @@ def hosted_verification(session) -> None:
         session.error(f"hosted verification failed with exit status {status}")
 
 
-def external_links(session) -> None:
+def external_links(session: nox.Session) -> None:
     """Observe external link health for HEAD and keep the observation as evidence."""
     head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
     report = ROOT / "build/evidence/quality/external-links/report.json"
@@ -365,15 +369,15 @@ def external_links(session) -> None:
         session.error(f"external link observation failed with exit status {completed.returncode}")
 
 
-def module_layout(session) -> None:
+def module_layout(session: nox.Session) -> None:
     _host(session, "module-layout")
 
 
-def product_boundary(session) -> None:
+def product_boundary(session: nox.Session) -> None:
     _host(session, "product-boundary")
 
 
-def import_boundaries(session) -> None:
+def import_boundaries(session: nox.Session) -> None:
     cache = ROOT / "build/runtime/tool-cache/import-linter"
     cache.mkdir(parents=True, exist_ok=True)
     session.run(
@@ -386,7 +390,7 @@ def import_boundaries(session) -> None:
     )
 
 
-def schemas(session) -> None:
+def schemas(session: nox.Session) -> None:
     origins = import_module("ethos.adapters.repo.content.observation").observed_document_origins(
         ROOT
     )
@@ -398,7 +402,7 @@ def schemas(session) -> None:
         session.error("schema validation failed: " + ", ".join(report["required_gaps"]))
 
 
-def javascript_tests(session) -> None:
+def javascript_tests(session: nox.Session) -> None:
     """Execute JavaScript behavior under V8 coverage with locked tools and disposable npm state.
 
     The JUnit and lcov reports go to the runner's native output root when it supplies one.
@@ -434,7 +438,7 @@ def javascript_tests(session) -> None:
         )
 
 
-def javascript_lint(session) -> None:
+def javascript_lint(session: nox.Session) -> None:
     paths = _paths("*.js", "*.mjs", "*.cjs")
     if paths:
         _, subjects = import_module("ethos.adapters.repo.gate_policy").observe_quality_subjects(
@@ -450,7 +454,7 @@ def javascript_lint(session) -> None:
         _check_source_paths(session, paths)
 
 
-def _check_source_paths(session, paths: tuple[str, ...]) -> None:
+def _check_source_paths(session: nox.Session, paths: tuple[str, ...]) -> None:
     report = import_module("ethos.adapters.gates.formatting").source_format_report(
         ROOT, paths=paths
     )
@@ -459,7 +463,7 @@ def _check_source_paths(session, paths: tuple[str, ...]) -> None:
         session.error("native source formatting did not pass")
 
 
-def asset_validation(session) -> None:
+def asset_validation(session: nox.Session) -> None:
     for relative in _paths("*.png"):
         with import_module("PIL.Image").open(ROOT / relative) as image:
             image.verify()

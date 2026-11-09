@@ -161,7 +161,7 @@ def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
         observations.append((command, env, result))
         assert result.returncode == 0, result.stdout + result.stderr
 
-    ci_sessions.javascript_tests(SimpleNamespace(run=execute))
+    ci_sessions.javascript_tests(cast("nox.Session", SimpleNamespace(run=execute)))
 
     ((command, environment, result),) = observations
     supply = ci_sessions.RUNTIME.node_package_supply()

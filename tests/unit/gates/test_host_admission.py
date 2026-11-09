@@ -171,13 +171,13 @@ def test_admitted_work_carries_one_token_and_worker_cap(host_root: Path, tmp_pat
         cap = str(max(1, (os.cpu_count() or 1) - 1))
         assert outer[host_admission.CPU_CAP] == outer[host_admission.XDIST_WORKERS] == cap
         with pytest.MonkeyPatch.context() as patch:
-            patch.setenv(host_admission.TOKEN, outer[host_admission.TOKEN])
+            patch.setenv(host_admission.ADMISSION_ENV, outer[host_admission.ADMISSION_ENV])
             with host_admission.admitted_host_work(tmp_path, "inner", seconds=0) as inner:
-                assert inner[host_admission.TOKEN] == outer[host_admission.TOKEN]
+                assert inner[host_admission.ADMISSION_ENV] == outer[host_admission.ADMISSION_ENV]
     with pytest.MonkeyPatch.context() as patch:
-        patch.setenv(host_admission.TOKEN, outer[host_admission.TOKEN])
+        patch.setenv(host_admission.ADMISSION_ENV, outer[host_admission.ADMISSION_ENV])
         with host_admission.admitted_host_work(tmp_path, "later", seconds=0) as later:
-            assert later[host_admission.TOKEN] != outer[host_admission.TOKEN]
+            assert later[host_admission.ADMISSION_ENV] != outer[host_admission.ADMISSION_ENV]
 
 
 def test_the_host_declaration_owns_the_load_limit(host_root: Path) -> None:
@@ -185,4 +185,4 @@ def test_the_host_declaration_owns_the_load_limit(host_root: Path) -> None:
     assert host_admission.read_host_declaration(host_root, cpus=8).load_limit is None
     _declare(host_root, "load_limit = 14.5\n")
 
-    assert host_admission.read_host_declaration(host_root, cpus=8).load_limit == 14.5
+    assert host_admission.read_host_declaration(host_root, cpus=8).load_limit == pytest.approx(14.5)

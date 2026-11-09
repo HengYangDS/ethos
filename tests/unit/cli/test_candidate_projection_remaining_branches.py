@@ -27,7 +27,7 @@ def candidate(tmp_path, monkeypatch):
         projection, "run_git", lambda *_a, **_k: SimpleNamespace(stdout="head", returncode=0)
     )
     monkeypatch.setattr(projection, "_recovery_plan", lambda *_a: None)
-    monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a: "")
+    monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a, **_k: "")
     # The stubbed candidate holds nothing that accepted lacks.
     monkeypatch.setattr(projection, "is_ancestor", lambda *_a: True)
     return status["candidate"]
@@ -93,7 +93,7 @@ def test_refresh_readiness_does_not_execute(
     tmp_path, monkeypatch, candidate, current_gap, apply, previous, recovery_error, state, gaps
 ):
     candidate["head"] = previous
-    monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a: current_gap)
+    monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a, **_k: current_gap)
 
     def recovery(*_args):
         if recovery_error:
@@ -137,14 +137,16 @@ def test_refresh_recovers_exact_plan_and_reports_projection_failure(
             updates={"refs/heads/candidate/dev": SimpleNamespace(expected=previous)}
         ),
     )
-    monkeypatch.setattr(projection, "worktree_sync_gap", lambda *_a: "worktree_index_mismatch")
+    monkeypatch.setattr(
+        projection, "worktree_sync_gap", lambda *_a, **_k: "worktree_index_mismatch"
+    )
     effects, syncs = [], []
     monkeypatch.setattr(
         projection, "execute_git_effect", lambda _r, value, **_k: effects.append(value)
     )
 
-    def sync(_root, _path, branch, ref, old, desired):
-        syncs.append((branch, ref, old, desired))
+    def sync(_root, *, branch, ref_head, previous, desired, **_others):
+        syncs.append((branch, ref_head, previous, desired))
         if error:
             raise ValueError(error)
 

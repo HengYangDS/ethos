@@ -68,11 +68,11 @@ def apply_handoff_import(
             )
             _ensure_import_ref(
                 destination,
-                branch,
-                head,
-                lease,
-                target_holder_ref,
-                object_environment,
+                branch=branch,
+                head=head,
+                lease=lease,
+                target_holder_ref=target_holder_ref,
+                object_environment=object_environment,
             )
             _ensure_import_worktree(
                 destination,
@@ -208,6 +208,7 @@ def _resume_import_lease(
 
 def _ensure_import_ref(
     destination: Path,
+    *,
     branch: str,
     head: str,
     lease: dict[str, Any],

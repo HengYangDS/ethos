@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def merge_command(
-    root: Path, mode: str, head: str, token: str, message: str, source_ref: str | None = None
+    root: Path, *, mode: str, head: str, token: str, message: str, source_ref: str | None = None
 ) -> str:
     """Render the exact merge refresh request that one preview admits."""
     return shlex.join(

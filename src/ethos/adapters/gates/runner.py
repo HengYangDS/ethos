@@ -14,6 +14,7 @@ from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
+from functools import partial
 from graphlib import TopologicalSorter
 from pathlib import Path
 from time import monotonic
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
 
+    from ethos.adapters.repo.gate_policy import ResolvedGatePolicy
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
 
@@ -313,7 +315,7 @@ def observe_gate_execution(
         gaps.append("expected_head_mismatch")
     policy = None
 
-    def resolve():
+    def resolve() -> ResolvedGatePolicy:
         return resolve_gate_policy(
             root,
             tree_ref=head,
@@ -463,6 +465,8 @@ def run_gate_graph(
     scheduled_event = on_schedule or (lambda _action_id: None)
     completed_event = on_result or (lambda _result: None)
 
+    run = partial(_run_ready_gate, runner, results=results, root=root, epoch=epoch)
+
     with ThreadPoolExecutor(max_workers=limit) as executor, command_scope():
         while graph.is_active():
             fresh = graph.get_ready()
@@ -474,13 +478,12 @@ def run_gate_graph(
             for node in selected:
                 ready.remove(node.id)
                 scheduled_event(node.id)
-                arguments = (runner, node, gates[node.id], results, root, epoch)
                 if not parallel or isinstance(runner, DryRunRunner):
-                    results[node.id] = _run_ready_gate(*arguments)
+                    results[node.id] = run(node, gates[node.id])
                     completed_event(results[node.id])
                     graph.done(node.id)
                 else:
-                    future = executor.submit(copy_context().run, _run_ready_gate, *arguments)
+                    future = executor.submit(copy_context().run, run, node, gates[node.id])
                     running[future] = node.id
             if selected:
                 continue
@@ -498,6 +501,7 @@ def _run_ready_gate(
     runner: DryRunRunner | LocalGateRunner,
     node: PlanNode,
     gate: Gate,
+    *,
     results: Mapping[str, ActionRunResult],
     root: Path,
     epoch: float,

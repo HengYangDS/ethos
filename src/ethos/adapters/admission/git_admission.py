@@ -83,26 +83,28 @@ def hook_admission_report(
     base.update(target_paths=[path.as_posix() for path in targets])
     base.update(decision={"action": "allow", "reason": "hook_admitted"}, required_gaps=[])
     if normalized not in HOOK_LAYERS:
-        return _verdict(base, "block", "blocked", "block", "hook_layer_invalid")
+        return _verdict(
+            base, verdict="block", state="blocked", action="block", reason="hook_layer_invalid"
+        )
     report: dict[str, object] | None = None
     if normalized == "context":
         mismatch = expected_root is not None and expected_root.resolve() != repo
         report = _verdict(
             base,
-            "block" if mismatch else "pass",
-            "blocked" if mismatch else "refreshed",
-            "block" if mismatch else "allow",
-            "hook_context_root_mismatch" if mismatch else "context_refreshed",
-            None if mismatch else (),
+            verdict="block" if mismatch else "pass",
+            state="blocked" if mismatch else "refreshed",
+            action="block" if mismatch else "allow",
+            reason="hook_context_root_mismatch" if mismatch else "context_refreshed",
+            gaps=None if mismatch else (),
         )
     elif normalized == "pre-tool":
         if status["role"] in PROTECTED_WRITE_ROLES and not targets:
             report = _verdict(
                 base,
-                "block",
-                "blocked",
-                "block",
-                "protected_root_pretool_paths_required",
+                verdict="block",
+                state="blocked",
+                action="block",
+                reason="protected_root_pretool_paths_required",
             )
     elif normalized == "pre-run":
         report = _pre_run_report(base, request.command, targets)
@@ -110,7 +112,14 @@ def hook_admission_report(
         report = _post_write_report(base, repo, targets)
     else:
         base["fallback"] = True
-        report = _verdict(base, "pass", "fallback", "allow", "fallback_hook_layer", ())
+        report = _verdict(
+            base,
+            verdict="pass",
+            state="fallback",
+            action="allow",
+            reason="fallback_hook_layer",
+            gaps=(),
+        )
     if report is None:
         report = _prewrite_report(
             base,
@@ -130,15 +139,36 @@ def _pre_run_report(
     risk = command_risk(command)
     base.update(command=command, command_risk=risk, git_stash_policy=stash)
     if risk.get("unclassifiable") is True:
-        return _verdict(base, "block", "blocked", "block", "shell_command_unclassifiable")
+        return _verdict(
+            base,
+            verdict="block",
+            state="blocked",
+            action="block",
+            reason="shell_command_unclassifiable",
+        )
     if stash["forbidden"] is True:
-        return _verdict(base, "block", "blocked", "block", "git_stash_forbidden")
+        return _verdict(
+            base, verdict="block", state="blocked", action="block", reason="git_stash_forbidden"
+        )
     if risk["tracked_mutation_risk"] is not True:
-        return _verdict(base, "pass", "admitted", "allow", "command_observe_only", ())
+        return _verdict(
+            base,
+            verdict="pass",
+            state="admitted",
+            action="allow",
+            reason="command_observe_only",
+            gaps=(),
+        )
     return (
         None
         if targets
-        else _verdict(base, "block", "blocked", "block", "hook_prerun_paths_required")
+        else _verdict(
+            base,
+            verdict="block",
+            state="blocked",
+            action="block",
+            reason="hook_prerun_paths_required",
+        )
     )
 
 
@@ -184,9 +214,19 @@ def ref_move_admission_report(
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     operation = ref_transition_operation(repo, policy, ref_name, old_value, new_value)
     if phase in {"committed", "aborted"} and operation:
-        return _terminal_ref_report(repo, base, ref_name, old_value, new_value, phase, operation)
+        return _terminal_ref_report(
+            repo,
+            base=base,
+            ref=ref_name,
+            old=old_value,
+            new=new_value,
+            phase=phase,
+            operation=operation,
+        )
     if operation in {"release.promote", "release.tag"}:
-        return _release_move_report(repo, base, ref_name, old_value, new_value, operation)
+        return _release_move_report(
+            repo, base=base, ref=ref_name, old=old_value, new=new_value, operation=operation
+        )
     if mirror or branch == policy.accepted_branch:
         _, proof_required = proof_for_repository_transition(repo, new_value)
         gaps = [
@@ -213,7 +253,9 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        gaps = _candidate_move_gaps(repo, ref_name, old_value, new_value, operation, policy)
+        gaps = _candidate_move_gaps(
+            repo, ref=ref_name, old=old_value, new=new_value, operation=operation, policy=policy
+        )
         reason = "protected_ref_move_not_proven"
     elif operation == "lane.retire":
         gaps = prepared_ref_intent_gaps(
@@ -248,16 +290,23 @@ def _prewrite_report(
     base.update(admission=admission, role=admission["role"], branch=admission["branch"])
     verdict = report_verdict(admission)
     if verdict == "pass":
-        return _verdict(base, "pass", "admitted", "allow", "prewrite_admitted", ())
+        return _verdict(
+            base,
+            verdict="pass",
+            state="admitted",
+            action="allow",
+            reason="prewrite_admitted",
+            gaps=(),
+        )
     gaps = [str(gap) for gap in cast("list[object]", admission.get("required_gaps", []))]
     reason = str(admission.get("error") or (gaps[0] if gaps else "prewrite_unknown"))
     blocked = _verdict(
         base,
-        verdict,
-        "unknown" if verdict == "unknown" else "blocked",
-        "block",
-        reason,
-        gaps,
+        verdict=verdict,
+        state="unknown" if verdict == "unknown" else "blocked",
+        action="block",
+        reason=reason,
+        gaps=gaps,
     )
     blocked["next_action"] = str(admission.get("next_action") or "")
     blocked["user_decision_required"] = bool(admission.get("user_decision_required", False))
@@ -274,10 +323,25 @@ def _post_write_report(
     base.update(role=status["role"], branch=status["branch"], changed_paths=changed)
     base["unexpected_paths"] = unexpected
     if status["role"] in PROTECTED_WRITE_ROLES and changed:
-        return _verdict(base, "block", "fused", "fuse", "post_write_protected_root_dirty")
+        return _verdict(
+            base,
+            verdict="block",
+            state="fused",
+            action="fuse",
+            reason="post_write_protected_root_dirty",
+        )
     if unexpected:
-        return _verdict(base, "block", "fused", "fuse", "post_write_unexpected_path")
-    return _verdict(base, "pass", "admitted", "allow", "post_write_expected_paths_clean", ())
+        return _verdict(
+            base, verdict="block", state="fused", action="fuse", reason="post_write_unexpected_path"
+        )
+    return _verdict(
+        base,
+        verdict="pass",
+        state="admitted",
+        action="allow",
+        reason="post_write_expected_paths_clean",
+        gaps=(),
+    )
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -290,6 +354,7 @@ def _relative(root: Path, path: Path) -> str:
 
 def _verdict(
     base: dict[str, object],
+    *,
     verdict: Verdict,
     state: str,
     action: str,
@@ -362,7 +427,7 @@ def _retag_intent_gaps(repo: Path, ref: str, old: str, new: str) -> list[str] | 
 
 
 def _release_move_report(
-    repo: Path, base: dict[str, object], ref: str, old: str, new: str, operation: str
+    repo: Path, *, base: dict[str, object], ref: str, old: str, new: str, operation: str
 ) -> dict[str, object]:
     if operation == "release.tag" and not declared_release_tag(repo, ref):
         return base
@@ -376,7 +441,14 @@ def _release_move_report(
             tag=ref.removeprefix("refs/tags/"),
         )
     return (
-        _verdict(base, "block", "blocked", "block", "release_ref_move_not_admitted", gaps)
+        _verdict(
+            base,
+            verdict="block",
+            state="blocked",
+            action="block",
+            reason="release_ref_move_not_admitted",
+            gaps=gaps,
+        )
         if gaps
         else base
     )
@@ -384,6 +456,7 @@ def _release_move_report(
 
 def _terminal_ref_report(
     repo: Path,
+    *,
     base: dict[str, object],
     ref: str,
     old: str,
@@ -404,11 +477,11 @@ def _terminal_ref_report(
     return (
         _verdict(
             base,
-            "block",
-            "repair_required" if phase == "committed" else "blocked",
-            "block",
-            f"ref_intent_{phase}_failed",
-            [gap],
+            verdict="block",
+            state="repair_required" if phase == "committed" else "blocked",
+            action="block",
+            reason=f"ref_intent_{phase}_failed",
+            gaps=[gap],
         )
         if gap
         else base
@@ -416,11 +489,15 @@ def _terminal_ref_report(
 
 
 def _ref_result(base: dict[str, object], reason: str, gaps: list[str]) -> dict[str, object]:
-    return _verdict(base, "block", "blocked", "block", reason, gaps) if gaps else base
+    return (
+        _verdict(base, verdict="block", state="blocked", action="block", reason=reason, gaps=gaps)
+        if gaps
+        else base
+    )
 
 
 def _candidate_move_gaps(
-    repo: Path, ref: str, old: str, new: str, operation: str, policy: BranchRolePolicy
+    repo: Path, *, ref: str, old: str, new: str, operation: str, policy: BranchRolePolicy
 ) -> list[str]:
     intent = claim_ref_intent(
         root=repo,

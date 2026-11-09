@@ -7,6 +7,7 @@ import json
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
+from typing import TYPE_CHECKING
 from typing import Literal
 from typing import Self
 
@@ -23,6 +24,9 @@ from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _KIND_PATTERN = r"^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$"
 _DIGEST_PATTERN = r"^[a-f0-9]{64}$"
@@ -170,7 +174,9 @@ class _CanonicalSemanticModel(_SemanticModel):
         return value
 
 
-def _canonical_set[T](values: tuple[T, ...], *, identity) -> tuple[T, ...]:
+def _canonical_set[T](
+    values: tuple[T, ...], *, identity: Callable[[T], bytes | tuple[str, ...]]
+) -> tuple[T, ...]:
     identities = tuple(identity(value) for value in values)
     if len(identities) != len(set(identities)):
         raise ValueError(_SEMANTIC_COLLECTION_DUPLICATE)

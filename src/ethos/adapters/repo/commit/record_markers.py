@@ -11,6 +11,7 @@ value.
 from __future__ import annotations
 
 import re
+from itertools import starmap
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
@@ -60,9 +61,7 @@ def _hunk_gaps(removed: list[str], added: list[str]) -> Iterator[str]:
             continue
         index, spans = paired
         pool.pop(index)
-        if any(
-            unkeyed(token, span) for token, span in zip(MARKER.findall(line), spans, strict=False)
-        ):
+        if any(starmap(unkeyed, zip(MARKER.findall(line), spans, strict=False))):
             yield "record_marker_unkeyed"
 
 

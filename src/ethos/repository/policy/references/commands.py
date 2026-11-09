@@ -153,11 +153,18 @@ def _shell_command_segments(
         if strict:
             raise
         return ()
-    for index, token in enumerate(tokens):
-        if set(token) <= set("<>&") and ("<" in token or ">" in token):
-            tokens[index] = ""
-            if index + 1 < len(tokens) and not set(tokens[index + 1]) <= set(";&|()<>"):
-                tokens[index + 1] = ""
+    # A redirection operator and the word it redirects to are no command words.
+    redirects = {
+        index
+        for index, token in enumerate(tokens)
+        if set(token) <= set("<>&") and ("<" in token or ">" in token)
+    }
+    targets = {
+        index + 1
+        for index in redirects
+        if index + 1 < len(tokens) and not set(tokens[index + 1]) <= set(";&|()<>")
+    }
+    tokens = ["" if index in redirects | targets else token for index, token in enumerate(tokens)]
     segments: list[tuple[str, ...]] = []
     start = 0
     for index, token in enumerate((*tokens, ";")):

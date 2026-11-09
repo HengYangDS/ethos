@@ -177,7 +177,7 @@ def rename_retained_topic(root: Path, *, apply: bool) -> dict[str, object] | Non
         source, target, head, plan = selected
         report.update(head=head, renames={f"refs/heads/{source}": f"refs/heads/{target}"})
         row = require_owned_topic(root, source, target, recovering=plan is not None)
-        plan = _topic_plan(root, source, target, head, row, plan)
+        plan = _topic_plan(root, source=source, target=target, head=head, row=row, recovered=plan)
         if not apply:
             return {**report, "verdict": "pass", "state": "ready_to_rename"}
         _require_symref_transactions(root)
@@ -217,6 +217,7 @@ def rename_retained_topic(root: Path, *, apply: bool) -> dict[str, object] | Non
 
 def _topic_plan(
     root: Path,
+    *,
     source: str,
     target: str,
     head: str,

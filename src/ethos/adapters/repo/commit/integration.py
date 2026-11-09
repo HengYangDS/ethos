@@ -135,10 +135,8 @@ def _admitted_range(
     policies, policy_gap = _range_policies(
         repo, proposed_commit=proposed_commit, baseline_commit=incumbent_revision
     )
-    if policy_gap or gap:
+    if revisions is None or policies is None:
         return report(state="blocked", required_gaps=[policy_gap or gap])
-    assert revisions is not None
-    assert policies is not None
     candidate, incumbent = policies
     violations, gaps = _validate_commit_revisions(
         repo, revisions, policies=tuple(dict.fromkeys(policies)), verify_trust=True
@@ -180,7 +178,7 @@ def _range_policies(
             commit_policy_for_revision(repo, baseline_commit),
         ), ""
     except (TypeError, ValueError) as error:
-        return None, str(error)
+        return None, str(error).strip() or "commit_policy_invalid"
 
 
 def validate_replayed_commits(

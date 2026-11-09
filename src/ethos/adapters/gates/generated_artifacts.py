@@ -10,6 +10,7 @@ from ethos.contracts.artifacts.topology import load_generated_artifact_topology_
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 
 if TYPE_CHECKING:
+    import subprocess
     from pathlib import Path
 
 _ROOT_TEST_RESIDUE_FILENAMES = frozenset({".coverage", "coverage.xml", "junit.xml"})
@@ -50,5 +51,5 @@ def _ignored_untracked(root: Path, relative: str) -> bool:
     )
 
 
-def _git(root: Path, *args: str):
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return run_git(root, *args, check=False, observation=True)

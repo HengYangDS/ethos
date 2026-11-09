@@ -44,6 +44,7 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import present
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -145,7 +146,11 @@ def _release_paths(root: Path, branch: str) -> tuple[Path, ...]:
     return tuple(paths)
 
 
-def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: TransitionPlan | None):
+def _observe(
+    selection: _Selection, *, apply: bool, authorized: bool, plan: TransitionPlan | None
+) -> tuple[
+    dict[str, object], Attestation, str, tuple[Path, ...], dict[str, str], TransitionPlan | None
+]:
     """Read fresh source, proof, permission and linked-worktree preconditions."""
     root, head = selection.root, selection.head
     policy = release_branch_policy(root)
@@ -178,9 +183,8 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
     proof, gaps = proof_for_repository_transition(
         root, head, attestation_id=str(plan.prior_attestations["proof"]["id"]) if plan else ""
     )
-    require_release(proof is not None, *(gaps or ["release_source_not_proven"]))
+    proof = present(proof, *(gaps or ["release_source_not_proven"]))
     if selection.base:
-        assert proof is not None
         require_release(
             proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
             == lease_generation(lease),
@@ -197,15 +201,23 @@ def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: Tran
     gap = (
         ""
         if selection.base
-        else worktree_sync_gap(root, paths, selection.branch, observed, selection.previous, head)
+        else worktree_sync_gap(
+            root,
+            paths=paths,
+            branch=selection.branch,
+            ref_head=observed,
+            previous=selection.previous,
+            head=head,
+        )
     )
     if gap and observed == head:
-        gap = worktree_sync_gap(root, paths, selection.branch, head, head, head)
+        gap = worktree_sync_gap(
+            root, paths=paths, branch=selection.branch, ref_head=head, previous=head, head=head
+        )
     require_release(not gap, "release_" + gap)
     version = release_tag_policy(root, head, selection.tag) if selection.tag else {}
     preview = None
     if not apply and (plan is not None or (not selection.base and selection.previous != head)):
-        assert proof is not None
         preview = plan or _compile_plan(
             selection,
             selection.effect(f"refs/heads/{policy.accepted_branch}", include_tag=False),
@@ -227,9 +239,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
     tag_oid = ""
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
-        update = effect.updates.get(tag_ref)
-        require_release(update is not None, "release_request_tag_missing")
-        assert update is not None
+        update = present(effect.updates.get(tag_ref), "release_request_tag_missing")
         require_release(update.expected == zero_oid(selection.root), "release_request_tag_invalid")
         release_ref_subject(
             selection.root,
@@ -262,7 +272,7 @@ def _existing_plan(selection: _Selection) -> TransitionPlan | None:
 
 def _compile_plan(
     selection: _Selection, effect: GitEffect, accepted: dict[str, object], proof: Attestation
-):
+) -> TransitionPlan:
     generation = proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
     if selection.base:
         current = leases_by_branch(selection.root).get(current_branch(selection.root), {})
@@ -293,7 +303,9 @@ def _compile_plan(
     )
 
 
-def _prepare_plan(selection: _Selection, accepted: dict[str, object], proof: Attestation):
+def _prepare_plan(
+    selection: _Selection, accepted: dict[str, object], proof: Attestation
+) -> TransitionPlan:
     """Prepare exact native objects, then persist their single existing plan carrier."""
     root = selection.root
     oid = ""
@@ -323,7 +335,7 @@ def _execute(
     paths: tuple[Path, ...],
     accepted: dict[str, object],
     proof: Attestation,
-):
+) -> dict[str, object]:
     """Revalidate before CAS and retain exact pending worktree synchronization."""
     _validate_request_plan(selection, plan)
     expected = _compile_plan(selection, git_effect_from_plan(plan), accepted, proof)
@@ -416,7 +428,6 @@ def promote_release(
                 "release_tag_already_exists",
             )
             if apply and (tag or previous != head):
-                assert proof is not None
                 plan = plan or _prepare_plan(selection, accepted, proof)
                 data.update(_execute(selection, plan, paths, accepted, proof))
     except (OSError, KeyError, TypeError, ValueError, subprocess.SubprocessError, Timeout) as error:

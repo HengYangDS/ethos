@@ -33,6 +33,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from operator import itemgetter
 from pathlib import Path
 
 import pytest
@@ -205,7 +206,7 @@ def _call(state: State, plane: str, target: str, old: str, new: str, **extra: st
     )
 
 
-@pytest.mark.parametrize("row", _ROWS, ids=lambda row: row[0])
+@pytest.mark.parametrize("row", _ROWS, ids=itemgetter(0))
 def test_accepted_ref_admission_claim_matrix(tmp_path: Path, row: tuple[str, ...]) -> None:
     _claim, mode, actions, plane, target, old_key, new_key, verdict, boundary = row
     state = State(tmp_path, mode)

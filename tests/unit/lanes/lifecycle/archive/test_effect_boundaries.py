@@ -79,11 +79,11 @@ def test_archive_plan_rejects_parent_and_postimage_drift(
     with pytest.raises(ValueError, match=f"openspec_archive_target_{gap}"):
         archive_effect.compile_archive_plan(
             tmp_path,
-            "work/change",
-            "change",
-            "a" * 40,
-            "b" * 40,
-            {},
+            branch="work/change",
+            change="change",
+            previous_head="a" * 40,
+            head="b" * 40,
+            lease={},
             commitment=commitment_fixture(id="change:change"),
         )
 
@@ -123,7 +123,13 @@ def test_archive_plan_uses_the_resolved_commitment_without_reloading_intent(
     )
 
     selected = archive_effect.compile_archive_plan(
-        tmp_path, "work/change", "change", "a" * 40, "b" * 40, {}, commitment=commitment
+        tmp_path,
+        branch="work/change",
+        change="change",
+        previous_head="a" * 40,
+        head="b" * 40,
+        lease={},
+        commitment=commitment,
     )
 
     assert selected is commitment

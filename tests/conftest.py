@@ -161,7 +161,7 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")
     # A proof that runs this suite is itself admitted and exports its admission to its gates; no
     # test inherits it, and a test that needs an admission sets one.
-    for name in (host_admission.TOKEN, host_admission.CPU_CAP):
+    for name in (host_admission.ADMISSION_ENV, host_admission.CPU_CAP):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)

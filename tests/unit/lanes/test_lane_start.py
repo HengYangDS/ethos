@@ -261,7 +261,7 @@ def test_identical_start_after_compensated_failure_retains_every_effect(start_ca
         (item.payload.body["plan"]["policy"]["transition"], item.plan_digest)
         for item in read_attestation_set(repo)[1]
     )
-    assert recorded[("lane.start", reports[2]["ref_attestation"]["plan_digest"])] == 3
+    assert recorded["lane.start", reports[2]["ref_attestation"]["plan_digest"]] == 3
     assert sorted(recorded.values()) == [2, 3]
 
 

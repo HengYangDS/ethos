@@ -104,6 +104,7 @@ def _initialize(root: Path, git: str, env: dict[str, str]) -> None:
 
 async def _call(
     surface: str,
+    *,
     client: Client,
     command: tuple[str, ...],
     root: Path,
@@ -142,6 +143,7 @@ async def _call(
 
 async def _adoption(
     surface: str,
+    *,
     command: tuple[str, ...],
     root: Path,
     foreign: Path,
@@ -167,9 +169,22 @@ async def _adoption(
             assert rejected.is_error
             assert not (root / ".ethos").exists()
             assert not (foreign / ".ethos").exists()
-        preview = await _call("sdk", client, command, root, "adopt", {}, env)
+        preview = await _call(
+            "sdk", client=client, command=command, root=root, name="adopt", arguments={}, env=env
+        )
         for caller in ("cli", "mcp"):
-            assert await _call(caller, client, command, root, "adopt", {}, env) == preview
+            assert (
+                await _call(
+                    caller,
+                    client=client,
+                    command=command,
+                    root=root,
+                    name="adopt",
+                    arguments={},
+                    env=env,
+                )
+                == preview
+            )
         exact = {
             "apply": True,
             "authorize": True,
@@ -181,15 +196,39 @@ async def _adoption(
             {"expect_head": "0" * 40},
             {"expect_plan_digest": "0" * 64},
         ):
-            denied = await _call("sdk", client, command, root, "adopt", exact | override, env)
+            denied = await _call(
+                "sdk",
+                client=client,
+                command=command,
+                root=root,
+                name="adopt",
+                arguments=exact | override,
+                env=env,
+            )
             assert denied["verdict"] == "block"
             for caller in ("cli", "mcp"):
                 assert (
-                    await _call(caller, client, command, root, "adopt", exact | override, env)
+                    await _call(
+                        caller,
+                        client=client,
+                        command=command,
+                        root=root,
+                        name="adopt",
+                        arguments=exact | override,
+                        env=env,
+                    )
                     == denied
                 )
             assert not (root / ".ethos").exists()
-        applied = await _call(surface, client, command, root, "adopt", exact, env)
+        applied = await _call(
+            surface,
+            client=client,
+            command=command,
+            root=root,
+            name="adopt",
+            arguments=exact,
+            env=env,
+        )
         assert applied["verdict"] == "pass"
         assert applied["data"]["applied"] is True
         assert set(applied["data"]["planned_files"]) == {
@@ -203,7 +242,15 @@ async def _adoption(
             assert hashlib.sha256(path.read_bytes()).hexdigest() == value, str(path)
         before = {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in retained}
         for caller in ("sdk", "cli", "mcp"):
-            stale = await _call(caller, client, command, root, "adopt", exact, env)
+            stale = await _call(
+                caller,
+                client=client,
+                command=command,
+                root=root,
+                name="adopt",
+                arguments=exact,
+                env=env,
+            )
             assert stale["verdict"] == "block"
             assert not stale["data"]["applied"]
         assert before == {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in retained}
@@ -265,7 +312,15 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
             ).to_dict()
         assert expected["verdict"] == "pass", expected
         for surface in ("cli", "mcp"):
-            actual = await _call(surface, client, command, target, "adopt", request, env)
+            actual = await _call(
+                surface,
+                client=client,
+                command=command,
+                root=target,
+                name="adopt",
+                arguments=request,
+                env=env,
+            )
             assert actual == expected, {
                 "surface": surface,
                 "changed_fields": sorted(
@@ -288,7 +343,16 @@ async def _observations(
     assert (planning["verdict"], planning["state"]) == ("pass", "no_changes"), planning
     for caller in ("cli", "mcp"):
         assert (
-            await _call(caller, client, command, root, "plan", {"changed": True}, env) == planning
+            await _call(
+                caller,
+                client=client,
+                command=command,
+                root=root,
+                name="plan",
+                arguments={"changed": True},
+                env=env,
+            )
+            == planning
         )
     profile = root / ".ethos/profile.toml"
     original = profile.read_bytes()
@@ -296,12 +360,25 @@ async def _observations(
         profile.write_text("not valid TOML [", encoding="utf-8")
         before = profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns
         for name in ("status", "plan", "adopt", "land", "publish"):
-            refused = await _call("sdk", client, command, root, name, {}, env)
+            refused = await _call(
+                "sdk", client=client, command=command, root=root, name=name, arguments={}, env=env
+            )
             assert refused["verdict"] == "block"
             code = "adoption_conflict" if name == "adopt" else "repository_profile_invalid"
             assert refused["required_gaps"] == [f"{code}:.ethos/profile.toml"], refused
             for caller in ("cli", "mcp"):
-                assert await _call(caller, client, command, root, name, {}, env) == refused
+                assert (
+                    await _call(
+                        caller,
+                        client=client,
+                        command=command,
+                        root=root,
+                        name=name,
+                        arguments={},
+                        env=env,
+                    )
+                    == refused
+                )
         assert (profile.read_bytes(), profile.stat().st_ino, profile.stat().st_mtime_ns) == before
     finally:
         profile.write_bytes(original)
@@ -330,13 +407,29 @@ async def _native_failure(
                 os.environ.clear()
                 os.environ.update(isolated)
                 for name in ("status", "plan", "adopt", "land", "publish"):
-                    expected = await _call("sdk", client, command, root, name, {}, isolated)
+                    expected = await _call(
+                        "sdk",
+                        client=client,
+                        command=command,
+                        root=root,
+                        name=name,
+                        arguments={},
+                        env=isolated,
+                    )
                     assert expected["verdict"] == "block"
                     assert expected["required_gaps"] == ["git_executable_unavailable"]
                     assert expected["data"]["cwd"] == str(root)
                     for surface in ("cli", "mcp"):
                         assert (
-                            await _call(surface, client, command, root, name, {}, isolated)
+                            await _call(
+                                surface,
+                                client=client,
+                                command=command,
+                                root=root,
+                                name=name,
+                                arguments={},
+                                env=isolated,
+                            )
                             == expected
                         )
             finally:
@@ -372,7 +465,9 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
         for surface in ("cli", "sdk", "mcp"):
             root = base / surface
             _initialize(root, git, env)
-            asyncio.run(_adoption(surface, command, root, foreign, env, git))
+            asyncio.run(
+                _adoption(surface, command=command, root=root, foreign=foreign, env=env, git=git)
+            )
         if os.name == "posix":
             asyncio.run(_native_failure(command, root, git, env))
         assert not (foreign / ".ethos").exists()

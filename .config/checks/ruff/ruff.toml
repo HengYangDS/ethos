@@ -59,14 +59,70 @@ select = [
   "PLR0911",
   "PLR0912",
   "PLR0915",
-  "S602",
-  "S604",
-  "S605",
+  "PLR0917",
+  "S",
+  "ANN",
+  "ERA",
+  "T10",
+  "T20",
+  "TD",
+  "FIX",
+  "EXE",
+  "INT",
+  "ICN",
+  "INP",
+  "PYI",
+  # Preview rules with real findings when they were selected, by exact code. Not selected, all
+  # their hits being false positives here: RUF027 (git's `rev^{tree}` and format templates),
+  # RUF075 (post-yield verifications that must not run after a failure), PLC2801
+  # (`object.__setattr__` in frozen dataclasses), PLR6104 (an augmented assignment would mutate a
+  # caller's dict in place) and FURB189 (a deliberate `str` subtype).
+  "B909",
+  "FURB118",
+  "FURB140",
+  "FURB156",
+  "PLR1714",
+  "PLR5501",
+  "RUF031",
+  "RUF056",
+  "RUF069",
+  "UP052",
 ]
 
 # Every authored module/package needs a responsibility statement. Symbol-level
 # presence belongs to public interface policy; existing docstrings still obey D.
-ignore = ["D101", "D102", "D103", "D105", "D106", "D107"]
+# S603 and S607 would review every subprocess call; each one passes an argv list through the
+# process owners (`ethos.adapters.process`), which the product boundary reviews instead.
+ignore = ["D101", "D102", "D103", "D105", "D106", "D107", "S603", "S607"]
+
+[lint.per-file-ignores]
+# Tests assert by design, use fake credentials, write their own temporary trees, parse the JUnit XML
+# that pytest writes and keep pytest's fixture signatures unannotated and positional; pytest's
+# importlib mode needs no `__init__.py`.
+"tests/**" = ["S101", "S105", "S106", "S108", "S314", "ANN", "INP", "PLR0917"]
+# The installed-package conformance scripts state their expectations as asserts.
+"tools/ci/delivery/acceptance/**" = ["S101"]
+# Tool entry points print their reports.
+"tools/**" = ["T20"]
+# The JUnit and coverage XML that the repository's own pytest writes is trusted input.
+"src/ethos/repository/policy/quality_reports.py" = ["S314"]
+# `os.execv` re-executes the console into the selected runtime with a list argv and no shell.
+"src/ethos/application/console.py" = ["S606"]
+# The Node supply extracts its verified archive with `filter="data"`.
+"src/ethos/adapters/repo/runtime/materialization/node/supply.py" = ["S202"]
+# Both loaders subclass `yaml.SafeLoader`, adding `!reference` and the duplicate-key check.
+"src/ethos/repository/paradigm/orchestration.py" = ["S506"]
+"src/ethos/repository/registry/docs/registry.py" = ["S506"]
+# Pydantic's `Field` factories and the JSON schema bundle are typed `Any` by their libraries.
+"src/ethos/contracts/operations/declaration.py" = ["ANN401"]
+"src/ethos/repository/policy/schema.py" = ["ANN401"]
+
+[lint.flake8-annotations]
+allow-star-arg-any = true
+
+[lint.flake8-import-conventions.extend-aliases]
+# Modules keep their canonical names (`rules/module-layout.md`), so ElementTree is not `ET`.
+"xml.etree.ElementTree" = "ElementTree"
 
 [lint.mccabe]
 max-complexity = 10

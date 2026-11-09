@@ -8,6 +8,7 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -18,6 +19,9 @@ from ethos.assistants.skills.capabilities import contained_package_path
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_list
 from ethos.repository.policy.schema import load_schema
+
+if TYPE_CHECKING:
+    from jsonschema.exceptions import ValidationError
 
 FRONTMATTER_PART_COUNT = 3
 SKILL_DESCRIPTION_WORD_LIMIT = 60
@@ -247,7 +251,7 @@ def _schema_validation_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str
     return list(dict.fromkeys(gaps))
 
 
-def _schema_gap(skill_id: str, schema: dict[str, Any], error: Any) -> str:
+def _schema_gap(skill_id: str, schema: dict[str, Any], error: ValidationError) -> str:
     node: Any = schema
     nodes = [node]
     for part in error.absolute_schema_path:

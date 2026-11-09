@@ -310,7 +310,7 @@ def test_source_observation_refuses_a_step_after_total_budget_expires(
     monkeypatch.setattr(source, "run_git", exhaust)
     with pytest.raises(GitExecutionError, match="git_process_timed_out") as failure:
         source.source_git_identity(repository, include_overlay=False)
-    assert failure.value.observation["timeout_seconds"] == 0.0
+    assert failure.value.observation["timeout_seconds"] == pytest.approx(0.0)
 
 
 @pytest.mark.parametrize("boundary", ["initial", "overlay", "final"])

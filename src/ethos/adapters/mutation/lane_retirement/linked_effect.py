@@ -25,6 +25,7 @@ from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
+    from ethos.contracts.plan import TransitionPlan
 
 
 def linked_retirement_plan(
@@ -36,7 +37,7 @@ def linked_retirement_plan(
     mode: Literal["landed", "superseded", "abandon"],
     actor: str,
     worktree_clean: bool,
-):
+) -> tuple[Path, TransitionPlan]:
     """Compile the exact linked-lane deletion used by readiness and apply."""
     accepted_branch, accepted_head = accepted
     authority_branch = str(authority.get("branch") or "")

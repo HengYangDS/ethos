@@ -63,7 +63,15 @@ def parameter_resolution(rules: str | None, paradigm: RepositoryParadigm) -> Par
                 continue
             row = rows.get((group, key))
             place = f"{carrier}:paradigm.{group}.{key}"
-            if gap := _declaration_gap(paradigm, group, key, row, value, reasons.get(key), place):
+            if gap := _declaration_gap(
+                paradigm,
+                group=group,
+                key=key,
+                row=row,
+                value=value,
+                reason=reasons.get(key),
+                place=place,
+            ):
                 gaps.append(gap)
             elif row is not None and isinstance(value, int):
                 values[group][key] = value
@@ -75,6 +83,7 @@ def parameter_resolution(rules: str | None, paradigm: RepositoryParadigm) -> Par
 
 def _declaration_gap(
     paradigm: RepositoryParadigm,
+    *,
     group: str,
     key: str,
     row: Parameter | None,

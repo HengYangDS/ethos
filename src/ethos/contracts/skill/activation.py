@@ -15,6 +15,7 @@ from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_list
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Mapping
 
 
@@ -186,13 +187,13 @@ def _route_subjects(
     return route_subjects
 
 
-def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+def _list_of_dicts(value: object) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
 
 
-def _string(value: Any) -> str:
+def _string(value: object) -> str:
     if value is None:
         return ""
     return str(value)
@@ -255,5 +256,5 @@ def _stable_skill_order(
         return None
 
 
-def _ordered_unique(groups: Any) -> list[str]:
+def _ordered_unique(groups: Iterable[Iterable[str]]) -> list[str]:
     return list(dict.fromkeys(item for group in groups for item in group))

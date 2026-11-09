@@ -21,8 +21,13 @@ import hashlib
 import json
 import re
 import shutil
+from operator import itemgetter
 from pathlib import Path
 from pathlib import PureWindowsPath
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _SYSTEMS = {"darwin": "macos", "linux": "linux", "windows": "windows"}
 _MACHINES = {"arm64": "arm64", "x86_64": "x64"}
@@ -225,7 +230,7 @@ def _admitted_legs(
     # A leg that failed before its upload left nothing behind, yet the release still names it.
     named = set(archives) | {item["host"] for item in left_out}
     left_out += [{"host": host, "reason": "leg_incomplete"} for host in optional - named]
-    left_out.sort(key=lambda item: item["host"])
+    left_out.sort(key=itemgetter("host"))
     return archives, left_out
 
 
@@ -280,7 +285,7 @@ def _release_notes(changelog: Path, version: str) -> str:
     return "\n".join(lines[start + 1 : end]).strip() + "\n"
 
 
-def _single(paths, gap: str) -> Path:
+def _single(paths: Iterable[Path], gap: str) -> Path:
     selected = tuple(path for path in paths if path.is_file() and not path.is_symlink())
     if len(selected) != 1:
         raise ValueError(gap)

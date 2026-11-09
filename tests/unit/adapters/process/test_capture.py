@@ -310,7 +310,7 @@ def test_uncooperative_native_command_is_killed_and_reaped(
             process_adapter.run_command(
                 tmp_path, (sys.executable, "-c", command), timeout=0.1, spool_stdout=True
             )
-        assert caught.value.timeout == 0.1
+        assert caught.value.timeout == pytest.approx(0.1)
         assert children[0].returncode == -signal.SIGKILL
         assert closed()
 

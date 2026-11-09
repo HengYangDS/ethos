@@ -27,17 +27,24 @@ def semver_from_text(text: str) -> str:
     return str(Version.parse(value))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Section:
     title: str
     body: tuple[Token, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
+class _Release:
+    version: Version
+    released_on: date
+
+
+@dataclass(frozen=True, slots=True)
 class _Entry:
+    """One `##` section; `Unreleased` alone has no release."""
+
     label: str
-    version: Version | None
-    released_on: date | None
+    release: _Release | None
     body: tuple[Token, ...]
 
 
@@ -74,7 +81,7 @@ def _entry(section: _Section, heading: re.Pattern[str]) -> _Entry:
         if day is not None:
             message = "release_changelog_unreleased_date"
             raise ValueError(message)
-        return _Entry(label, None, None, section.body)
+        return _Entry(label, None, section.body)
     try:
         version = Version.parse(label)
     except ValueError as error:
@@ -85,7 +92,7 @@ def _entry(section: _Section, heading: re.Pattern[str]) -> _Entry:
     except ValueError as error:
         message = f"release_changelog_date_invalid:{label}"
         raise ValueError(message) from error
-    return _Entry(label, version, released_on, section.body)
+    return _Entry(label, _Release(version, released_on), section.body)
 
 
 def _meaningful(tokens: tuple[Token, ...]) -> bool:
@@ -103,7 +110,7 @@ def _meaningful(tokens: tuple[Token, ...]) -> bool:
 
 def _category_errors(entry: _Entry) -> tuple[str, ...]:
     sections = _sections(entry.body, "h3")
-    if not sections and entry.version is not None:
+    if not sections and entry.release is not None:
         return (f"release_changelog_categories_missing:{entry.label}",)
     seen: set[str] = set()
     errors = []
@@ -155,23 +162,20 @@ def _history_errors(entries: tuple[_Entry, ...]) -> tuple[str, ...]:
     elif labels[0] != "Unreleased":
         errors.append("release_changelog_unreleased_order")
     seen: set[str] = set()
-    previous: _Entry | None = None
+    previous: _Release | None = None
     for entry in entries:
         if entry.label in seen:
             errors.append(f"release_changelog_version_duplicate:{entry.label}")
         seen.add(entry.label)
         errors.extend(_category_errors(entry))
-        if entry.version is None:
+        if entry.release is None:
             continue
         if previous is not None:
-            assert previous.version is not None
-            assert entry.released_on is not None
-            assert previous.released_on is not None
-            if entry.version.compare(previous.version) > 0:
+            if entry.release.version.compare(previous.version) > 0:
                 errors.append(f"release_changelog_version_order:{entry.label}")
-            if entry.released_on > previous.released_on:
+            if entry.release.released_on > previous.released_on:
                 errors.append(f"release_changelog_date_order:{entry.label}")
-        previous = entry
+        previous = entry.release
     return tuple(errors)
 
 

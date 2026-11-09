@@ -225,16 +225,17 @@ def _recover_prepared(
         _fail("merge_outcome_unknown")
     return _record_projection(
         root,
-        cast("dict[str, object]", mutable_json(before)),
-        mode,
-        result | {"recovery": mutable_json(body["recovery"])},
-        token,
-        cast("dict[str, object]", mutable_json(body["request"])),
+        before=cast("dict[str, object]", mutable_json(before)),
+        mode=mode,
+        output=result | {"recovery": mutable_json(body["recovery"])},
+        state_digest=token,
+        request=cast("dict[str, object]", mutable_json(body["request"])),
     )
 
 
 def _prepare(
     root: Path,
+    *,
     observed: MergeObservation,
     mode: str,
     recovery: dict[str, object],
@@ -282,6 +283,7 @@ def _prepare(
 
 def _record_projection(
     root: Path,
+    *,
     before: dict[str, object],
     mode: str,
     output: dict[str, object],
@@ -328,22 +330,29 @@ def apply_merge(
     recheck()
     recovery = preserve_merge(root, observed) if mode in {"abort", "continue"} else {}
     if mode != "continue":
-        _prepare(root, observed, mode, recovery, state_digest, request)
+        _prepare(
+            root,
+            observed=observed,
+            mode=mode,
+            recovery=recovery,
+            token=state_digest,
+            request=request,
+        )
     recheck()
     if mode == "continue":
         result = _continue(
             root,
-            observed,
-            candidate_ref,
-            source_head,
-            actor,
-            lease,
-            message,
-            recheck,
-            recheck_authority,
-            state_digest,
-            recovery,
-            request,
+            observed=observed,
+            candidate_ref=candidate_ref,
+            source_head=source_head,
+            actor=actor,
+            lease=lease,
+            message=message,
+            recheck=recheck,
+            recheck_authority=recheck_authority,
+            token=state_digest,
+            recovery=recovery,
+            request=request,
         )
     else:
         args = (
@@ -380,12 +389,18 @@ def apply_merge(
             "observation": after.projection(),
         }
     return _record_projection(
-        root, observed.projection(), mode, result | {"recovery": recovery}, state_digest, request
+        root,
+        before=observed.projection(),
+        mode=mode,
+        output=result | {"recovery": recovery},
+        state_digest=state_digest,
+        request=request,
     )
 
 
 def _continue(
     root: Path,
+    *,
     observed: MergeObservation,
     candidate_ref: str,
     source_head: str,
@@ -433,7 +448,15 @@ def _continue(
         },
         values={"lease_generation": lease, "merge_observation": observed.projection()},
     )
-    _prepare(root, observed, "continue", recovery, token, request, plan)
+    _prepare(
+        root,
+        observed=observed,
+        mode="continue",
+        recovery=recovery,
+        token=token,
+        request=request,
+        plan=plan,
+    )
     recheck()
     attestation = execute_git_effect(root, plan, issuer=actor)
     recheck_authority()

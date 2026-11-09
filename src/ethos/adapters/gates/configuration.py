@@ -8,7 +8,6 @@ import subprocess
 import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
 from typing import override
 
 import yamllint.config as yamllint_config
@@ -197,7 +196,7 @@ def _ini_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
-def _vale_vocabulary_directories(configuration: Any) -> dict[str, Path]:
+def _vale_vocabulary_directories(configuration: object) -> dict[str, Path]:
     """Bind selected files to the vocabulary directories the native parser actually loaded."""
     if (
         not isinstance(configuration, dict)

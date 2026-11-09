@@ -33,6 +33,7 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import present
 from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
@@ -210,14 +211,12 @@ def repair_signature(
         saved = result or attempt
         history = None
         if corrections is not None:
-            _require(backup is not None, "history_repair_backup_required")
-            assert backup is not None
             history = history_repair_coordinates(
                 root,
                 expect_head,
                 corrections=corrections,
                 reason=reason,
-                backup=backup,
+                backup=present(backup, "history_repair_backup_required"),
             )
         coordinates = (
             signature_record_coordinates(saved)

@@ -186,7 +186,7 @@ def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffe
         "local-write": writes,
         "host-write": _matched(arguments, _HOST_WRITES),
     }
-    return tuple(effect for effect in STEP_EFFECTS if present.get(effect, False))
+    return tuple(effect for effect in STEP_EFFECTS if present.get(effect))
 
 
 def ethos_step_authorization(

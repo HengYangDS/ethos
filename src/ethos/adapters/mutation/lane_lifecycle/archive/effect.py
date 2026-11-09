@@ -73,12 +73,12 @@ def recover_archive_effect(
 
 def compile_archive_plan(
     root: Path,
+    *,
     branch: str,
     change: str,
     previous_head: str,
     head: str,
     lease: dict[str, object],
-    *,
     commitment: Commitment,
 ) -> TransitionPlan:
     if git_stdout(root, "rev-parse", f"{head}^") != previous_head:
@@ -199,12 +199,12 @@ def commit_archive_postimage(
     try:
         staged_tree = _complete_pending_archive_projection(
             root,
-            previous_head,
-            change,
-            scope,
-            staged_tree,
-            staged_paths,
-            projection_restore,
+            previous_head=previous_head,
+            change=change,
+            scope=scope,
+            staged_tree=staged_tree,
+            staged_paths=staged_paths,
+            projection_restore=projection_restore,
         )
     except (OSError, TypeError, ValueError):
         restore_failure_boundary()
@@ -250,11 +250,11 @@ def commit_archive_postimage(
     try:
         plan = compile_archive_plan(
             root,
-            branch,
-            change,
-            previous_head,
-            target_head,
-            lease,
+            branch=branch,
+            change=change,
+            previous_head=previous_head,
+            head=target_head,
+            lease=lease,
             commitment=commitment,
         )
         return complete_archive(
@@ -274,6 +274,7 @@ def commit_archive_postimage(
 
 def _complete_pending_archive_projection(
     root: Path,
+    *,
     previous_head: str,
     change: str,
     scope: dict[str, Any],

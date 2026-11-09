@@ -36,6 +36,7 @@ def _worktree_content_gap(path: Path, previous: str) -> str:
 
 def worktree_sync_gap(
     root: Path,
+    *,
     paths: tuple[Path, ...],
     branch: str,
     ref_head: str,
@@ -110,8 +111,16 @@ def sync_ref_worktrees(
     """Synchronize every pre-admitted clean worktree after one ref CAS."""
     outcomes = []
     for path in paths:
-        gap = worktree_sync_gap(root, (path,), branch, head, previous, head)
-        terminal_gap = worktree_sync_gap(root, (path,), branch, head, head, head) if gap else ""
+        gap = worktree_sync_gap(
+            root, paths=(path,), branch=branch, ref_head=head, previous=previous, head=head
+        )
+        terminal_gap = (
+            worktree_sync_gap(
+                root, paths=(path,), branch=branch, ref_head=head, previous=head, head=head
+            )
+            if gap
+            else ""
+        )
         attestation = None
         error = ""
         if not gap or not terminal_gap:
@@ -126,7 +135,11 @@ def sync_ref_worktrees(
             except ValueError as exc:
                 error = str(exc)
         post_gap = (
-            worktree_sync_gap(root, (path,), branch, head, head, head) if attestation else gap
+            worktree_sync_gap(
+                root, paths=(path,), branch=branch, ref_head=head, previous=head, head=head
+            )
+            if attestation
+            else gap
         )
         outcomes.append(
             {

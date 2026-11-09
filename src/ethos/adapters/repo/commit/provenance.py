@@ -15,6 +15,7 @@ from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import instance
 from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
@@ -68,8 +69,7 @@ def accepted_provenance(
         if selected:
             plan, attestation, previous = selected
             for repair in reversed(repairs):
-                mapping = repair["mapping"]
-                assert isinstance(mapping, Mapping)
+                mapping = instance(repair["mapping"], Mapping, "signature_repair_record_invalid")
                 previous = str(mapping.get(previous, previous))
             return AcceptedProvenance(
                 plan,
@@ -81,8 +81,7 @@ def accepted_provenance(
         repair = completed_signature_repair(root, new=current, attestations=attestations)
         if repair is None:
             return None
-        refs = repair["refs"]
-        assert isinstance(refs, Mapping)
+        refs = instance(repair["refs"], Mapping, "signature_repair_record_invalid")
         previous = str(repair["old"])
         if refs.get(accepted_ref) != previous:
             return None

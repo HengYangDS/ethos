@@ -16,6 +16,7 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import unsigned_commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
+from ethos.contracts.outcome import instance
 from ethos.contracts.outcome import refusal
 from ethos.repository.paradigm.parameters import seconds
 
@@ -66,16 +67,16 @@ def _identity(block: bytes) -> tuple[dict[str, str], bytes]:
 
 
 def _correction(value: object) -> Mapping[str, object]:
-    _require(isinstance(value, Mapping) and value, "history_repair_correction_invalid")
-    assert isinstance(value, Mapping)
+    correction = instance(value, Mapping, "history_repair_correction_invalid")
     _require(
-        not set(value) - {"author", "committer", "resign", "remove_attribution_trailers"},
+        correction
+        and not set(correction) - {"author", "committer", "resign", "remove_attribution_trailers"},
         "history_repair_correction_invalid",
     )
-    if "resign" in value:
-        _require(value["resign"] is True, "history_repair_correction_invalid")
-    if "remove_attribution_trailers" in value:
-        trailers = value["remove_attribution_trailers"]
+    if "resign" in correction:
+        _require(correction["resign"] is True, "history_repair_correction_invalid")
+    if "remove_attribution_trailers" in correction:
+        trailers = correction["remove_attribution_trailers"]
         _require(
             isinstance(trailers, list)
             and bool(trailers)
@@ -90,14 +91,10 @@ def _correction(value: object) -> Mapping[str, object]:
             "history_repair_attribution_selection_invalid",
         )
     for role in ("author", "committer"):
-        if role not in value:
+        if role not in correction:
             continue
-        pair = value[role]
-        _require(
-            isinstance(pair, Mapping) and set(pair) == {"expected", "replacement"},
-            "history_repair_correction_invalid",
-        )
-        assert isinstance(pair, Mapping)
+        pair = instance(correction[role], Mapping, "history_repair_correction_invalid")
+        _require(set(pair) == {"expected", "replacement"}, "history_repair_correction_invalid")
         for item in pair.values():
             _require(
                 isinstance(item, Mapping)
@@ -111,7 +108,7 @@ def _correction(value: object) -> Mapping[str, object]:
                 ),
                 "history_repair_correction_invalid",
             )
-    return value
+    return correction
 
 
 def replacement_payload(
@@ -134,11 +131,9 @@ def replacement_payload(
             block = b"parent " + next(parent_values).encode("ascii")
         elif key in {"author", "committer"} and key in selected:
             actual, timestamp = _identity(block)
-            pair = selected[key]
-            assert isinstance(pair, Mapping)
+            pair = instance(selected[key], Mapping, "history_repair_correction_invalid")
             _require(actual == pair["expected"], "history_repair_expected_identity_mismatch")
-            new = pair["replacement"]
-            assert isinstance(new, Mapping)
+            new = instance(pair["replacement"], Mapping, "history_repair_correction_invalid")
             block = f"{key} {new['name']} <{new['email']}> ".encode() + timestamp
         output.append(block)
     trailers = selected.get("remove_attribution_trailers")

@@ -18,6 +18,7 @@ from ethos.adapters.repo.release import release_publication_head
 from ethos.adapters.repo.release import release_qualification
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.adapters.repo.release import require_release
+from ethos.contracts.outcome import present
 from ethos.repository.release.publication import publication_proof_selection
 
 if TYPE_CHECKING:
@@ -130,12 +131,14 @@ def publication_source_baseline(
             head=proof_head,
         )
         if closeout is None:
-            repair = completed_signature_repair(repo, new=proof_head)
-            require_release(
-                repair is not None and accepted_ref in cast("Mapping[str, str]", repair["refs"]),
+            repair = present(
+                completed_signature_repair(repo, new=proof_head),
                 "accepted_closeout_effect_not_attested",
             )
-            assert repair is not None
+            require_release(
+                accepted_ref in cast("Mapping[str, str]", repair["refs"]),
+                "accepted_closeout_effect_not_attested",
+            )
             return (
                 {
                     "attestation_id": repair["attestation_id"],

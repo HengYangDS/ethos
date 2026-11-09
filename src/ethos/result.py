@@ -298,7 +298,7 @@ def _remove_stale_detail(home: Path, *, keep: Path) -> None:
             continue
 
 
-def _detail_bytes(reference: Any) -> bytes:
+def _detail_bytes(reference: Mapping[str, object]) -> bytes:
     """Read one detail artifact, refusing any bytes its reference does not name."""
     try:
         content = Path(str(reference["path"])).read_bytes()

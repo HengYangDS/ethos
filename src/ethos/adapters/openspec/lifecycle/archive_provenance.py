@@ -100,11 +100,10 @@ def _verified_chain(
             repairs[edge.candidate] = completed_signature_repair(
                 root, new=edge.candidate, attestations=attestations
             )
-        repair = repairs[edge.candidate]
-        mapping = repair.get("mapping") if repair else None
+        repair = repairs[edge.candidate] or {}
+        mapping = repair.get("mapping")
         if not isinstance(mapping, Mapping) or mapping.get(edge.previous) != edge.current:
             return None
-        assert repair is not None
         verified.append(edge._replace(attestation_id=str(repair["attestation_id"])))
     return tuple(verified)
 
@@ -145,11 +144,9 @@ def _repair_edges(
                     repair_mappings[new] = {old: new}
             mapping = repair_mappings[new]
         else:
-            repair = cache[new]
-            if repair is None:
+            mapping = (cache[new] or {}).get("mapping")
+            if not isinstance(mapping, Mapping):
                 continue
-            mapping = repair["mapping"]
-            assert isinstance(mapping, dict)
         if current := mapping.get(previous):
             edges.append(RewriteEdge(previous, str(current), attestation.id, "repair", new))
     return tuple(edges)

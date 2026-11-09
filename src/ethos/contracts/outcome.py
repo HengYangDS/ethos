@@ -92,6 +92,20 @@ def refusal(*gaps: str, verdict: Verdict = "block") -> OutcomeError:
     return OutcomeError(Outcome.of(verdict, *gaps))
 
 
+def present[T](value: T | None, *gaps: str) -> T:
+    """Return a value the caller requires, or raise the refusal that names why it is absent."""
+    if value is None:
+        raise refusal(*gaps)
+    return value
+
+
+def instance[T](value: object, kind: type[T], *gaps: str) -> T:
+    """Return a value of the kind the caller requires, or raise the refusal that names the gaps."""
+    if not isinstance(value, kind):
+        raise refusal(*gaps)
+    return value
+
+
 def outcome_of(error: BaseException, *, fallback: str = "") -> Outcome:
     """Read the decision an error carries, or one blocking gap for any other error."""
     if isinstance(error, OutcomeError):

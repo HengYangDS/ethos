@@ -172,5 +172,5 @@ def test_native_git_transport_timeout_kills_and_reaps_the_owned_process(
                 connection.close()
     assert failure.value.command[0] == sys.executable
     assert failure.value.observation["stdout"] == "started\n"
-    assert failure.value.observation["timeout_seconds"] == 0.5
+    assert failure.value.observation["timeout_seconds"] == pytest.approx(0.5)
     assert not late.exists()

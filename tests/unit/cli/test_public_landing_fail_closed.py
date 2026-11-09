@@ -50,7 +50,7 @@ def _pass_decision() -> AdmissionDecision:
 def _candidate_plan(monkeypatch, root, current, previous):
     """Share the exact plan shape while each failure owns its effect boundary."""
     transition = (BranchRolePolicy(), {"head": current}, root, previous, object(), None)
-    monkeypatch.setattr(landing, "_candidate_plan", Mock(return_value=(None, transition)))
+    monkeypatch.setattr(landing, "_candidate_plan", Mock(return_value=transition))
 
 
 @pytest.mark.parametrize("case", ["same", "drift", "unreadable"])

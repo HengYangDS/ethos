@@ -61,7 +61,7 @@ def test_candidate_readiness_reports_exact_equal_transition(
     monkeypatch.setattr(
         landing,
         "_candidate_plan",
-        lambda *_a, **_k: (None, (BranchRolePolicy(), base, tmp_path, "head", None, None)),
+        lambda *_a, **_k: (BranchRolePolicy(), base, tmp_path, "head", None, None),
     )
 
     report = landing.candidate_transition_readiness(root=tmp_path)

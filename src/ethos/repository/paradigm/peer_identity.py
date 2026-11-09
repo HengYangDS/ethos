@@ -172,7 +172,7 @@ def numbering(key: bytes, feed: Feed, domain: str) -> dict[tuple[str, int], int]
     for role, values in (("id", feed.ids), ("port", feed.ports - _WELL_KNOWN_PORTS)):
         for value in sorted(values):
             taken = fed | set(assigned.values())
-            assigned[(role, value)] = number(key, role, value, taken=taken, domain=domain)
+            assigned[role, value] = number(key, role, value, taken=taken, domain=domain)
     return assigned
 
 
@@ -211,7 +211,7 @@ def redact_line(
             _fail("peer_occurrence_unclassified")
         out.append(line[last : span.start])
         if span.kind in _RANGES:
-            out.append(str(numbers[(span.kind, int(span.port))]))
+            out.append(str(numbers[span.kind, int(span.port)]))
         else:
             out.append(marker(key, span.kind, span.host, span.port, span.path))
         last = span.end

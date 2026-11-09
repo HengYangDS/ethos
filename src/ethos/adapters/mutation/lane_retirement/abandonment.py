@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import NoReturn
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
@@ -26,6 +27,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import worktree_record
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import present
 from ethos.contracts.outcome import refusal
 from ethos.contracts.value import mutable_json
 
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
 _REASON_CODE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
-def _fail(*gaps: str) -> None:
+def _fail(*gaps: str) -> NoReturn:
     raise refusal(*gaps)
 
 
@@ -120,10 +122,9 @@ def derive_lane_abandonment(
             _fail("lane_abandonment_branch_invalid")
         status = workspace_status(root)
         worktrees = cast("list[dict[str, object]]", status["worktrees"])
-        control_root = effects.control_root(worktrees, root)
-        if control_root is None:
-            _fail("retirement_control_root_unavailable")
-        assert control_root is not None
+        control_root = present(
+            effects.control_root(worktrees, root), "retirement_control_root_unavailable"
+        )
         selected, head = _selected_worktree(
             control_root, worktrees, branch, review_content=review_content, path=path
         )

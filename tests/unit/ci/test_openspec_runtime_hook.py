@@ -296,16 +296,15 @@ def test_build_hook_rejects_absent_or_drifted_prepared_supply(
         (direct / "package.json").write_text(
             json.dumps({"name": "direct", "version": "9.9.9"}) + "\n", encoding="utf-8"
         )
+    elif mutation == "symlink":
+        target = tmp_path / "external"
+        target.mkdir()
+        direct.rename(tmp_path / "direct-real")
+        direct.symlink_to(target, target_is_directory=True)
     else:
-        if mutation == "symlink":
-            target = tmp_path / "external"
-            target.mkdir()
-            direct.rename(tmp_path / "direct-real")
-            direct.symlink_to(target, target_is_directory=True)
-        else:
-            extra = direct / "node_modules/extra/package.json"
-            extra.parent.mkdir()
-            extra.write_text('{"name":"extra","version":"1.0.0"}\n', encoding="utf-8")
+        extra = direct / "node_modules/extra/package.json"
+        extra.parent.mkdir()
+        extra.write_text('{"name":"extra","version":"1.0.0"}\n', encoding="utf-8")
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
     monkeypatch.setattr(
         subject,

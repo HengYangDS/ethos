@@ -117,11 +117,11 @@ class ResolvedGatePolicy:
         return {
             "owner": _owner_projection(
                 self.declaration,
-                self.profile,
-                self.repository_paths,
-                self.script_paths,
-                self.carrier_roles,
-                self.gates if self.selected_obligations else None,
+                profile=self.profile,
+                repository_paths=self.repository_paths,
+                script_paths=self.script_paths,
+                carrier_roles=self.carrier_roles,
+                selected_gates=self.gates if self.selected_obligations else None,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
@@ -140,6 +140,7 @@ class ResolvedGatePolicy:
 
 def _owner_projection(
     declaration: GateRegistryDeclaration,
+    *,
     profile: RepositoryProfile | None,
     repository_paths: tuple[str, ...],
     script_paths: tuple[str, ...],
@@ -399,11 +400,11 @@ def compile_gate_policy(
     if profile is not None and profile.declaration is not None:
         owner = _owner_projection(
             declaration,
-            profile,
-            repository_paths,
-            script_paths,
-            carrier_roles,
-            gates if selected_obligations else None,
+            profile=profile,
+            repository_paths=repository_paths,
+            script_paths=script_paths,
+            carrier_roles=carrier_roles,
+            selected_gates=gates if selected_obligations else None,
         )
         gaps = (
             *gaps,

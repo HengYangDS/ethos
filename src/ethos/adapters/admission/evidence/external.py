@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -29,6 +30,9 @@ from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
 from ethos.repository.release.configuration import host_git_remote
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _SYSTEM_PROVIDER_CONFIGS = (
     Path("/Library/Application Support/ETHOS/independent-verification.toml"),
@@ -306,7 +310,7 @@ def _receipt_validation_gaps(
     *,
     receipt: IndependentVerificationReceipt,
     request: dict[str, object],
-    signature_verifier: Any | None,
+    signature_verifier: Callable[[IndependentVerificationReceipt], bool] | None,
 ) -> list[str]:
     """Return deterministic failures for one supplied independent-verification receipt."""
     now = datetime.now(UTC)
@@ -342,7 +346,7 @@ def independent_verification_report(
     policy: IndependentVerificationPolicy,
     request: dict[str, object],
     receipt_path: Path | None,
-    signature_verifier: Any | None = None,
+    signature_verifier: Callable[[IndependentVerificationReceipt], bool] | None = None,
 ) -> dict[str, object]:
     """Validate one receipt without upgrading it beyond exact re-execution."""
     base = _local_verification_report(root=root, policy=policy)

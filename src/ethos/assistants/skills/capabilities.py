@@ -30,11 +30,11 @@ def capability_records(
         gaps.extend(
             _semantic_gaps(
                 skill_id,
-                capability_id,
-                kind,
-                command,
-                package_dir or Path(),
-                included_files,
+                capability_id=capability_id,
+                kind=kind,
+                command=command,
+                package_dir=package_dir or Path(),
+                included_files=included_files,
             )
         )
         record = {
@@ -58,6 +58,7 @@ def capability_command_strings(capabilities: Iterable[dict[str, Any]]) -> list[s
 
 def _semantic_gaps(
     skill_id: str,
+    *,
     capability_id: str,
     kind: str,
     command: list[str],

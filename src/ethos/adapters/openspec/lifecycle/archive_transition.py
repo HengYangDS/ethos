@@ -94,8 +94,8 @@ def _attested_archive(
     *,
     head: str,
     change: str | None,
-    attestation: Any,
-    attestations: tuple[Any, ...],
+    attestation: Attestation,
+    attestations: tuple[Attestation, ...],
     repairs: dict[str, dict[str, object] | None],
     repair_mappings: dict[str, dict[str, str]],
 ) -> AttestedArchive | None:

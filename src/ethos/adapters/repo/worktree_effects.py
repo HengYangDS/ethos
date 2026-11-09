@@ -168,7 +168,9 @@ def add_worktree(
     if record:
         _require_binding(record, target=target, branch=branch, head=head)
         effect = _effect("add", target, branch, head)
-        return _attestation(root, "recognized", effect, record, record, environment)
+        return _attestation(
+            root, "recognized", effect, before=record, after=record, environment=environment
+        )
     if os.path.lexists(target):
         _fail("worktree_effect_path_collision")
     if branch != "detached" and ref_head(root, branch, environment=environment) != head:
@@ -184,7 +186,12 @@ def add_worktree(
     record = worktree_record(root, target, environment=environment, runner=runner)
     _require_binding(record, target=target, branch=branch, head=head)
     return _attestation(
-        root, "applied", _effect("add", target, branch, head), {}, record, environment
+        root,
+        "applied",
+        _effect("add", target, branch, head),
+        before={},
+        after=record,
+        environment=environment,
     )
 
 
@@ -209,7 +216,9 @@ def remove_worktree(
         if os.path.lexists(target):
             _fail("worktree_effect_path_ownership_unknown")
         effect = _effect("remove", target, branch, head)
-        return _attestation(root, "recognized", effect, {}, {}, environment)
+        return _attestation(
+            root, "recognized", effect, before={}, after={}, environment=environment
+        )
     absent = not os.path.lexists(target)
     _require_binding(
         record, target=target, branch=branch, head=head, absent=absent, reviewed=dispose is not None
@@ -238,7 +247,7 @@ def remove_worktree(
     ):
         _fail("worktree_effect_postcondition_failed")
     effect = _effect("remove", target, branch, head)
-    return _attestation(root, "applied", effect, record, {}, environment)
+    return _attestation(root, "applied", effect, before=record, after={}, environment=environment)
 
 
 def sync_worktree(
@@ -258,7 +267,9 @@ def sync_worktree(
         root, head, environment=environment
     ):
         effect = _effect("read-tree", target, branch, head)
-        return _attestation(root, "recognized", effect, before, before, environment)
+        return _attestation(
+            root, "recognized", effect, before=before, after=before, environment=environment
+        )
     if before["head"] != head or before["tree"] != current_tree(
         root, previous, environment=environment
     ):
@@ -282,7 +293,9 @@ def sync_worktree(
     if after["head"] != head or after["tree"] != current_tree(root, head, environment=environment):
         _fail("worktree_effect_postcondition_failed")
     effect = _effect("read-tree", target, branch, head)
-    return _attestation(root, "applied", effect, before, after, environment)
+    return _attestation(
+        root, "applied", effect, before=before, after=after, environment=environment
+    )
 
 
 def restore_rejected_checkout_projection(
@@ -352,7 +365,9 @@ def attach_worktree(
     observed_branch = record.get("branch", "").removeprefix("refs/heads/")
     if observed_branch == branch:
         _require_binding(record, target=target, branch=branch, head=head)
-        return _attestation(root, "recognized", effect, record, record, environment)
+        return _attestation(
+            root, "recognized", effect, before=record, after=record, environment=environment
+        )
     indexed = runner(target, "write-tree", check=False, env=environment)
     dirty = working_content_changed(target, environment=environment, runner=runner)
     if (
@@ -367,7 +382,9 @@ def attach_worktree(
         raise ValueError(completed.stderr.strip() or "worktree_effect_attach_failed")
     after = worktree_record(root, target, environment=environment, runner=runner)
     _require_binding(after, target=target, branch=branch, head=head)
-    return _attestation(root, "applied", effect, record, after, environment)
+    return _attestation(
+        root, "applied", effect, before=record, after=after, environment=environment
+    )
 
 
 def worktree_record(
@@ -466,6 +483,7 @@ def _attestation(
     root: Path,
     state: str,
     effect: Mapping[str, str],
+    *,
     before: Mapping[str, str],
     after: Mapping[str, str],
     environment: Mapping[str, str] | None,

@@ -38,7 +38,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
-    from typing import Any
+    import subprocess
 
     from ethos.contracts.semantic import Attestation
 
@@ -254,7 +254,7 @@ def _run_effect_program(
     effect: GitEffect,
     *,
     environment: Mapping[str, str] | None,
-) -> Any:
+) -> subprocess.CompletedProcess[bytes]:
     return run_git(
         root,
         "update-ref",

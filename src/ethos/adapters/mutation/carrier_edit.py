@@ -302,7 +302,15 @@ def _apply(
         KeyboardInterrupt,
     ) as caught:
         error = caught
-    return _finish(root, edits, before, git_before, planned, diagnostics, error)
+    return _finish(
+        root,
+        edits=edits,
+        before=before,
+        git_before=git_before,
+        planned=planned,
+        diagnostics=diagnostics,
+        error=error,
+    )
 
 
 def _authority_gaps(root: Path, admission: dict[str, object]) -> list[str]:
@@ -339,6 +347,7 @@ def _preservation(
 
 def _finish(
     root: Path,
+    *,
     edits: tuple[CarrierEdit, ...],
     before: dict[str, _Image],
     git_before: dict[str, bytes | None],

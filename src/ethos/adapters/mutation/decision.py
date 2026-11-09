@@ -229,7 +229,14 @@ def _candidate_materialization(
     admit_git_effect(root, plan)
     previous = git_effect_from_plan(plan).updates[ref].expected
     path = Path(str(candidate["worktree_path"]))
-    if worktree_sync_gap(root, (path,), policy.candidate_branch, head, previous, head):
+    if worktree_sync_gap(
+        root,
+        paths=(path,),
+        branch=policy.candidate_branch,
+        ref_head=head,
+        previous=previous,
+        head=head,
+    ):
         return {}
     return {"candidate_preimage": previous, "candidate_recovery_plan": plan.digest}
 
@@ -251,7 +258,12 @@ def evaluate_closeout_mutation(
     candidate_head = str(candidate.get("head") or "")
     previous = _closeout_preimage(completed_effect, policy, current_head, candidate_head)
     recoverable = previous is not None and not worktree_sync_gap(
-        root, (root,), policy.accepted_branch, current_head, previous, current_head
+        root,
+        paths=(root,),
+        branch=policy.accepted_branch,
+        ref_head=current_head,
+        previous=previous,
+        head=current_head,
     )
     gaps = request_gaps(
         apply=apply,

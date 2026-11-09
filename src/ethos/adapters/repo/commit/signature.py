@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import subprocess
 from collections.abc import Mapping
+from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -129,7 +130,7 @@ def signature_coordinates(
                 for item in raw_worktree_records(root)
                 if item.get("branch") in refs
             ),
-            key=lambda item: item["path"],
+            key=itemgetter("path"),
         ),
     }
 
@@ -161,11 +162,11 @@ def validate_signature_coordinates(
     for item in cast("list[dict[str, str]]", expected["worktrees"]):
         gap = worktree_sync_gap(
             root,
-            (Path(item["path"]),),
-            item["branch"],
-            live[f"refs/heads/{item['branch']}"],
-            old,
-            new or old,
+            paths=(Path(item["path"]),),
+            branch=item["branch"],
+            ref_head=live[f"refs/heads/{item['branch']}"],
+            previous=old,
+            head=new or old,
         )
         _require(not gap, f"signature_repair_{gap}:{item['path']}")
 
@@ -274,7 +275,12 @@ def observe_signature_effects(
         for item in cast("list[dict[str, str]]", coordinates["worktrees"]):
             head = live[f"refs/heads/{item['branch']}"]
             gap = worktree_sync_gap(
-                root, (Path(item["path"]),), item["branch"], head, old, new or old
+                root,
+                paths=(Path(item["path"]),),
+                branch=item["branch"],
+                ref_head=head,
+                previous=old,
+                head=new or old,
             )
             worktrees.append(
                 {
@@ -406,12 +412,19 @@ def repaired_object_provenance(
         records.append(item)
     validated: dict[str, dict[str, object] | None] = {}
     return _repaired_object_path(
-        root, old, new, tuple(records), attestations, validated, frozenset()
+        root,
+        old=old,
+        head=new,
+        records=tuple(records),
+        attestations=attestations,
+        validated=validated,
+        active=frozenset(),
     )
 
 
 def _repaired_object_path(
     root: Path,
+    *,
     old: str,
     head: str,
     records: tuple[Attestation, ...],
@@ -430,16 +443,21 @@ def _repaired_object_path(
             validated[replacement] = completed_signature_repair(
                 root, new=replacement, attestations=attestations
             )
-        repair = validated[replacement]
-        mapping = repair.get("mapping") if repair else None
+        repair = validated[replacement] or {}
+        mapping = repair.get("mapping")
         if not isinstance(mapping, Mapping):
             continue
-        assert repair is not None
         if old in mapping:
             relation = repair
         else:
             previous = _repaired_object_path(
-                root, old, str(repair["old"]), records, attestations, validated, active | {head}
+                root,
+                old=old,
+                head=str(repair["old"]),
+                records=records,
+                attestations=attestations,
+                validated=validated,
+                active=active | {head},
             )
             if previous is None:
                 continue

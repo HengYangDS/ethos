@@ -372,7 +372,12 @@ def _preview(
         state_digest=token,
         incoming=context.incoming,
         next_action=merge_command(
-            root, selected, head, token, message, context.explicit_source_ref
+            root,
+            mode=selected,
+            head=head,
+            token=token,
+            message=message,
+            source_ref=context.explicit_source_ref,
         ),
         user_decision_required=True,
     )

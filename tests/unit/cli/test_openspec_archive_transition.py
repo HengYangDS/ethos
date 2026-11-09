@@ -231,11 +231,11 @@ def _compiled_archive_plan(
     )
     plan = archive_effect.compile_archive_plan(
         lifecycle.worktree,
-        lifecycle.branch,
-        "fixture-change",
-        lifecycle.completed_head,
-        target,
-        lifecycle.lease,
+        branch=lifecycle.branch,
+        change="fixture-change",
+        previous_head=lifecycle.completed_head,
+        head=target,
+        lease=lifecycle.lease,
         commitment=commitment,
     )
     return lifecycle, plan, target, archive_path

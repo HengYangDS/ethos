@@ -25,6 +25,7 @@ from ethos.repository.paradigm.orchestration import orchestration_gaps
 from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.records import record_binding_gaps
+from ethos.repository.paradigm.release import release_binding_gaps
 from ethos.repository.paradigm.rules import rules_binding_gaps
 from ethos.repository.paradigm.scripts import tracked_script_gaps
 from ethos.repository.paradigm.size import code_size_gaps
@@ -93,6 +94,7 @@ def repository_paradigm_report(
         *record_binding_gaps(paradigm, root, tracked, rules),
         *rules_binding_gaps(paradigm, rules),
         *_release_gaps(paradigm, root, tracked, release),
+        *release_binding_gaps(paradigm, release),
         *authored_name_gaps(paradigm, tracked, received),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),

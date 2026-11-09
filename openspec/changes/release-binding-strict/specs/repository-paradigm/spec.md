@@ -15,7 +15,7 @@ and the table once it declares nothing.
   keeps `mirror`
 - **AND** a `[release]` table left with no key is removed with the comments above it
 
-#### Scenario: A multi-line value stays reported
+#### Scenario: A multi-line value beside the mirror stays reported
 
-- **WHEN** an unread `[release]` key holds a value that spans several lines
+- **WHEN** an unread `[release]` key holds a value that spans several lines beside `mirror`
 - **THEN** the paradigm reports the key and the repair leaves it

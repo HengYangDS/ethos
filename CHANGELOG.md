@@ -140,6 +140,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `ethos lane repair-paradigm --apply` deletes it, or the file once nothing remains. Its readers
   consult `[paradigm]`, `[profiles]` and `[[rule]]`; `[artifacts]` and a `[quality]` table that
   holds `code_size` keep their own gaps, and a bare value stays reported without a repair.
+- The paradigm reports every key of the release binding's `[release]` table other than `mirror`
+  as `release-binding`, with or without release tags, and `ethos lane repair-paradigm --apply`
+  deletes it; `version_source` and `tag_pattern` there had no reader.
 
 ### Fixed
 

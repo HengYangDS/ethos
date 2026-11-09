@@ -389,7 +389,25 @@ def _restated_field(
         return None
     if (table, name) not in _RETIRED_FIELDS and section[name] != _fixed(paradigm, table, name):
         return None
-    lines = (text or "").rstrip("\n").split("\n")
+    return _without_field(text or "", declared, table, name)
+
+
+def _unread_field(
+    _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
+) -> Repair | None:
+    """Delete a binding field that no reader consults; its gap shows that it is unread."""
+    table, _, name = gap.carrier.partition(":")[2].partition(".")
+    declared = _parsed(text)
+    section = declared.get(table) if declared is not None else None
+    if declared is None or not isinstance(section, dict) or name not in section:
+        return None
+    return _without_field(text or "", declared, table, name)
+
+
+def _without_field(text: str, declared: Mapping[str, Any], table: str, name: str) -> Repair | None:
+    """Delete one field on a line of its own; a table left empty goes with its comments."""
+    section = declared[table]
+    lines = text.rstrip("\n").split("\n")
     start = next((index for index, line in enumerate(lines) if _table(line) == table), len(lines))
     end = _block_end(lines, start)
     found = [index for index in range(start + 1, end) if _key(lines[index]) == name]
@@ -511,6 +529,7 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "openspec-rules": common_rules_repair,
     "workspace-binding": _unread_table,
     "record-binding": _record_binding,
+    "release-binding": _unread_field,
     "rules-binding": _unread_table,
     "release-mirror": _release_mirror,
 }

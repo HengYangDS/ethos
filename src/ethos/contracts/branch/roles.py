@@ -38,6 +38,9 @@ LIFECYCLE_COMMIT_ROLES = frozenset({ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE, ROLE_WOR
 RELEASE_MIRROR_INDEPENDENT = "independent"
 RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
 _RELEASE_MIRRORS = frozenset({RELEASE_MIRROR_INDEPENDENT, RELEASE_MIRROR_ACCEPTED_FF})
+# The release binding's `[release]` table declares the release mirror and nothing else.
+RELEASE_MIRROR_KEY = "mirror"
+RELEASE_KEYS = frozenset({RELEASE_MIRROR_KEY})
 _STRICT_RELEASE_TABLE_ERROR = "release must be a table"
 _STRICT_RELEASE_MIRROR_ERROR = "release mirror is invalid"
 _DUPLICATE_RELEASE_MIRROR_ERROR = "release mirror is declared twice"
@@ -180,7 +183,7 @@ def strict_branch_role_policy_from_release_text(text: str) -> BranchRolePolicy:
     release = tomllib.loads(text).get("release", {})
     if type(release) is not dict:
         raise ValueError(_STRICT_RELEASE_TABLE_ERROR)
-    mirror = release.get("mirror", RELEASE_MIRROR_INDEPENDENT)
+    mirror = release.get(RELEASE_MIRROR_KEY, RELEASE_MIRROR_INDEPENDENT)
     if type(mirror) is not str or mirror not in _RELEASE_MIRRORS:
         raise ValueError(_STRICT_RELEASE_MIRROR_ERROR)
     return BranchRolePolicy(release_mirror=mirror)
@@ -199,7 +202,7 @@ def strict_source_branch_role_policy(release_text: str, workspace_text: str) -> 
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     if RELEASE_MIRROR_FIELD not in retired:
         return policy
-    if "mirror" in tomllib.loads(release_text).get("release", {}):
+    if RELEASE_MIRROR_KEY in tomllib.loads(release_text).get("release", {}):
         raise ValueError(_DUPLICATE_RELEASE_MIRROR_ERROR)
     mirror = retired[RELEASE_MIRROR_FIELD]
     if type(mirror) is not str or mirror not in _RELEASE_MIRRORS:

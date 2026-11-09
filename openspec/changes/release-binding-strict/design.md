@@ -31,8 +31,9 @@ the version rule, which `version-identity-universal` owns.
    its own, removes a table left empty with the comments above it, and keeps the result only when it
    parses as exactly the expected binding becomes a helper. `_restated_field` keeps its guard and
    calls it; the `release-binding` handler calls it without a guard, since the gap shows the key is
-   unread. A multi-line value, a subtable or a dotted top-level key fails the parse check and stays
-   reported.
+   unread. Beside other keys, a multi-line value, a subtable or a dotted top-level key fails the
+   parse check and stays reported; a table whose only key it is goes whole, as a workspace table
+   does.
 
 ## Risks / Trade-offs
 

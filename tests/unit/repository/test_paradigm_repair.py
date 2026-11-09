@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from ethos.repository.paradigm.repair import RepairPlan
 
 _RELEASE = (
-    '[release]\nversion_source = "VERSION"\ntag_pattern = "v{version}"\n\n'
     '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "origin"\n'
     'capabilities = ["repository"]\n\n'
     '[[publication.peers]]\nid = "github"\nprovider = "github"\n'
@@ -322,7 +321,7 @@ _PUBLICATION = '[publication]\ntransport_tags = ["native-inputs-*"]\n'
         (_PUBLICATION, f'{_PUBLICATION}\n[release]\nmirror = "accepted_ff"\n'),
         (
             f'[release]\nversion_source = "VERSION"\n\n{_PUBLICATION}',
-            f'[release]\nversion_source = "VERSION"\nmirror = "accepted_ff"\n\n{_PUBLICATION}',
+            f'[release]\nmirror = "accepted_ff"\n\n{_PUBLICATION}',
         ),
     ],
     ids=["no-release-binding", "no-release-table", "release-table"],
@@ -409,3 +408,34 @@ def test_a_rules_key_that_is_read_moves_or_is_bare_is_never_deleted(
     named = [gap.carrier.rpartition(":")[2] for gap in gaps if gap.obligation == "rules-binding"]
     assert named == unread
     assert not [edit for edit in plan.edits if edit.path == _RULES and edit.after != rules]
+
+
+@pytest.mark.parametrize(
+    ("release", "repaired"),
+    [
+        ('[release]\nversion_source = "VERSION"\ntag_pattern = "v{version}"\n', None),
+        (
+            '[release]\nversion_source = "VERSION"\nmirror = "accepted_ff"\n',
+            '[release]\nmirror = "accepted_ff"\n',
+        ),
+        ('# Unread keys.\n[release]\ntag_pattern = "v*"\n\n' + _PUBLICATION, _PUBLICATION),
+    ],
+    ids=["only-unread", "beside-the-mirror", "with-its-comment"],
+)
+def test_an_unread_release_key_is_deleted(
+    tmp_path: Path, release: str, repaired: str | None
+) -> None:
+    """Every `[release]` key but the mirror goes, without release tags, and an empty table too."""
+    plan, files = _plan(tmp_path, {_RELEASE_BINDING: release})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_RELEASE_BINDING, repaired)]
+    assert not _apply(tmp_path, plan, files, "repository_paradigm_release")
+
+
+def test_an_unread_release_key_on_several_lines_beside_the_mirror_stays_reported(
+    tmp_path: Path,
+) -> None:
+    """A value that spans lines beside the mirror is reported and left; alone it is its table."""
+    release = '[release]\ntag_pattern = """\nv*"""\nmirror = "accepted_ff"\n'
+    plan, _ = _plan(tmp_path, {_RELEASE_BINDING: release})
+    assert plan.edits == ()
+    assert [gap.carrier for gap in plan.report_only] == [f"{_RELEASE_BINDING}:release.tag_pattern"]

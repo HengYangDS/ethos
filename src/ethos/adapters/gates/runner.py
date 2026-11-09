@@ -53,9 +53,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Mapping
 
-    from ethos.adapters.repo.gate_policy import ResolvedGatePolicy
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
+    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 
 @dataclass(frozen=True, slots=True)

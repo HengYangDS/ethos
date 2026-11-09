@@ -28,7 +28,7 @@ from ethos.result import expand_result
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
-    from ethos.adapters.repo.gate_policy import ResolvedGatePolicy
+    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 PROVE = (
     *("uv", "run", "--frozen", "--offline", "--no-sync"),

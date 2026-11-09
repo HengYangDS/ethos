@@ -9,8 +9,7 @@ import pytest
 from ethos.adapters.mutation.paradigm_repair import repair_paradigm
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.repository.paradigm.report import repository_paradigm_report
-from tests.support.governed_repository import RELEASE
-from tests.support.governed_repository import ROOT_DOCUMENTS
+from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -31,7 +30,7 @@ def _repository(tmp_path: Path, original: str, text: str, *, authored: bool = Tr
     """Commit one original, then declare it retained; `authored` keeps the other documents."""
     root = init_git_repo(tmp_path / "repo")
     if not authored:
-        git(root, "rm", "-q", "--", *ROOT_DOCUMENTS, RELEASE.changelog)
+        git(root, "rm", "-q", "--", *BASE_MARKDOWN)
     path = root / original
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

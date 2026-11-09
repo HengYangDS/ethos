@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 # The root documents every governed repository keeps, as the paradigm declares them.
 ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
 RELEASE = load_repository_paradigm().release
+# The Markdown documents every fixture repository starts with.
+BASE_MARKDOWN = (*ROOT_DOCUMENTS, RELEASE.changelog)
 PARADIGM_EDITORCONFIG = (
     "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 )

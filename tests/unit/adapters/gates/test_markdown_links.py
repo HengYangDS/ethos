@@ -23,7 +23,7 @@ from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
-from tests.support.governed_repository import ROOT_DOCUMENTS
+from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
@@ -331,7 +331,7 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
     report = gate_tool.markdown_links_report(repo)
 
     assert report["verdict"] == "unknown", report
-    assert report["file_count"] == len(ROOT_DOCUMENTS) + 1
+    assert report["file_count"] == len(BASE_MARKDOWN) + 1
     assert report["required_gaps"] == ["source_member_link_or_type_forbidden:docs/deleted.md"]
     assert not observed
 
@@ -359,7 +359,7 @@ def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     report = gate_tool.markdown_links_report(repo)
 
     assert report["verdict"] == "pass", report
-    assert (report["file_count"], report["source_tree"]) == (len(ROOT_DOCUMENTS), tree)
+    assert (report["file_count"], report["source_tree"]) == (len(BASE_MARKDOWN), tree)
     assert report["native"][0]["command"][0] == str(_LYCHEE)
 
 

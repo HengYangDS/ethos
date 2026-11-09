@@ -20,7 +20,7 @@ from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import ROOT_DOCUMENTS
+from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
@@ -157,7 +157,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(
             )
         ),
     )
-    expected = {*ROOT_DOCUMENTS, "docs/current.md"}
+    expected = {*BASE_MARKDOWN, "docs/current.md"}
     resolve = Mock(wraps=formatting_gate.resolve_node_runtime)
     monkeypatch.setattr(formatting_gate, "resolve_node_runtime", resolve)
     formatted = {item.path for item in prepare_source_format(root) if item.path.endswith(".md")}

@@ -23,7 +23,7 @@ from ethos.application.proof.report import summarize_checks
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import ROOT_DOCUMENTS
+from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -102,7 +102,7 @@ def test_native_markdown_consumes_literal_tracked_and_untracked_authored_inputs(
     pending = "docs/pending-\u03b2-[literal].md"
     (repo / pending).write_text("# Pending\n\n[Empty]()\n")
     report = gate_tool.markdown_lint_report(repo)
-    expected = {*ROOT_DOCUMENTS, "docs/usage-\u03b1-[literal].md", pending} - {"README.md"}
+    expected = {*BASE_MARKDOWN, "docs/usage-\u03b1-[literal].md", pending} - {"README.md"}
     assert (report["verdict"], report["file_count"]) == ("block", len(expected))
     assert "MD042" in report["native"][1]["stderr"]
     assert set(report["native"][0]["files"]) == expected
@@ -147,7 +147,7 @@ def test_native_markdown_verified_empty_inventory_still_passes(tmp_path: Path, p
     `markdown_link_source_empty` in the link tests instead.
     """
     repo = init_git_repo(tmp_path / "repo")
-    for relative in ROOT_DOCUMENTS:
+    for relative in BASE_MARKDOWN:
         (repo / relative).unlink()
     commit_fixture(repo, "record empty Markdown inventory")
     report = getattr(gate_tool, provider)(repo)

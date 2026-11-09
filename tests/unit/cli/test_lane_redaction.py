@@ -58,6 +58,7 @@ def lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
     git(worktree, "config", "remote.gitlab.url", f"ssh://git@{H1}:2222/{F1}.git")
     git(worktree, "config", "remote.gitlab.forgePrivate", "true")
     git(worktree, "config", "remote.gitlab.forgeProjectId", "123456789")
+    git(worktree, "config", "remote.github.url", str(tmp_path / "github.git"))
     for name, lead in (("docs/peer.bin", b"\0"), ("docs/peer.txt", b"\xff")):
         (worktree / name).parent.mkdir(parents=True, exist_ok=True)
         (worktree / name).write_bytes(lead + f" ssh://git@{H1}\n".encode())
@@ -162,7 +163,7 @@ def _admitted(**_arguments: object) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("case", "gap"),
     [
-        ("unfed", ""),
+        ("unfed", "peer_identity_feed_empty"),
         ("dirty", "redaction_preimage_changed"),
         ("unadmitted", "openspec_requested_change_missing:absent-change"),
         ("raced", "redaction_preimage_changed"),
@@ -173,7 +174,7 @@ def _admitted(**_arguments: object) -> dict[str, object]:
 def test_an_apply_proves_each_step_and_never_overwrites(
     lane: tuple[Path, str], monkeypatch: pytest.MonkeyPatch, case: str, gap: str
 ) -> None:
-    """No fed peer is unchanged; a moved preimage, a refused admission or a failed apply blocks."""
+    """No fed peer is unknown; a moved preimage, a refused admission or a failed apply blocks."""
     worktree, base = lane
     edited = TEXT + "edited\n"
     if case == "unfed":
@@ -198,7 +199,7 @@ def test_an_apply_proves_each_step_and_never_overwrites(
     report = redaction.redact_private_addresses(
         worktree, apply=True, key=KEY, authorize=True, expect_head=base
     )
-    expected = ("unchanged", []) if not gap else ("blocked", [gap])
+    expected = ("feed_unknown" if case == "unfed" else "blocked", [gap])
     assert (report["state"], report["required_gaps"]) == expected
     kept = edited if case in {"dirty", "raced"} else TEXT
     assert (worktree / RECORD).read_text(encoding="utf-8") == kept
@@ -219,3 +220,24 @@ def test_a_verify_refuses_a_head_its_base_does_not_derive(
     )
     unverified = [f"redaction_unverified:{path}" for path in (RECORD, INDEX)]
     assert (report["state"], report["required_gaps"]) == ("blocked", unverified)
+
+
+def test_every_mode_answers_unknown_without_a_known_feed(
+    lane: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With a declared peer unread the preview still lists; apply and verify write nothing."""
+    worktree, base = lane
+    git(worktree, "config", "--unset", "remote.github.url")
+    unread = ["peer_identity_feed_unreadable:github"]
+    code, preview = _command(worktree, monkeypatch)
+    assert (code, preview["verdict"], preview["required_gaps"]) == (0, "unknown", unread)
+    assert preview["data"]["count"] == 4
+    applying = (*_APPLY, "--authorize", "--expect-head", base)
+    code, applied = _command(worktree, monkeypatch, *applying, key=KEY)
+    assert (code, applied["verdict"], applied["required_gaps"]) == (1, "unknown", unread)
+    assert (worktree / RECORD).read_text(encoding="utf-8") == TEXT
+    verify = ("--verify", "--key-stdin", "--base", base, "--head", base)
+    code, verified = _command(worktree, monkeypatch, *verify, key=KEY)
+    assert (code, verified["verdict"], verified["required_gaps"]) == (1, "unknown", unread)
+    _set_root, members = read_attestation_set(worktree)
+    assert not [member for member in members if member.predicate == redaction.PREDICATE]

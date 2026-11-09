@@ -30,12 +30,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   prewrite, and a record holding a redacted file's SHA-256 follows it;
   `--verify --key-stdin --base <rev> --head <rev>` re-derives them from the base and records the
   Attestation `redaction:private-peer`, refusing a key of another generation without `--rotate`.
+  Without a feed the clone can know, every mode answers `unknown` with
+  `peer_identity_feed_unreadable:<remote>` or `peer_identity_feed_empty` and writes and records
+  nothing.
 - Push admission refuses the protected peer identity a push adds once the repository profile
   declares `[peer_identity] mode = "required"` (default `disabled`), read at the commit push
   admission trusts. It reads only the commits a push adds beyond every tip the peer advertises and a
   pushed tag's message, and refuses a fed host, a fed full path, a port after any host and a closed
   context with a fed value as `peer_identity_literal:<form>:<n>:<m>:<line>`, never with the value;
-  an unreadable advertisement refuses as `peer_identity_range_unknown:<remote>`.
+  an unreadable advertisement refuses as `peer_identity_range_unknown:<remote>`. A feed the clone
+  cannot know refuses first, with the same gaps as the redaction verb, and a remote marked
+  `forgePrivate` feeds whether or not the publication declaration names it.
   `ethos hook commit-range --check peer-identity` checks raw pushes in the GitLab job with the job's
   own identity variables and is inert without them. Commit validation verifies without a key that a
   marker edit under a record root reproduces what it replaces, and admits a record that describes

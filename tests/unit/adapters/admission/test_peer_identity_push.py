@@ -41,6 +41,7 @@ def repo(tmp_path: Path) -> Path:
     peer = tmp_path / "peer.git"
     git(tmp_path, "init", "--bare", "-q", str(peer))
     git(repo, "remote", "add", "gitlab", str(peer))
+    git(repo, "remote", "add", "github", str(tmp_path / "github.git"))
     git(repo, "config", "remote.gitlab.forgePrivate", "true")
     git(repo, "config", "--add", "remote.gitlab.forgeFormer", f"host={H1}")
     _profile(repo, "required")
@@ -74,14 +75,13 @@ def test_a_push_refuses_the_identity_it_adds_and_only_that(repo: Path) -> None:
     [
         ("disabled", ([], [])),
         ("invalid", ([], ["peer_identity_mode_unread"])),
-        ("unfed", ([], [])),
         ("deleted", ([], [])),
     ],
 )
 def test_the_mode_decides_whether_a_push_is_read(
     repo: Path, case: str, expected: tuple[list[str], list[str]]
 ) -> None:
-    """A disabled mode, an unread one, an unfed peer or a deletion reads nothing."""
+    """A disabled mode, an unread one or a deletion reads nothing."""
     (repo / "notes.md").write_text(f"ssh git@{H1}\n", encoding="utf-8")
     pushed = commit_fixture(repo, "name a peer")
     trusted = git(repo, "rev-parse", "HEAD~1")
@@ -90,8 +90,6 @@ def test_the_mode_decides_whether_a_push_is_read(
     elif case == "invalid":
         (repo / ".ethos/profile.toml").write_text("profile_id = 1\n", encoding="utf-8")
         pushed = trusted = commit_fixture(repo, "break the profile")
-    elif case == "unfed":
-        git(repo, "config", "--unset", "remote.gitlab.forgePrivate")
     elif case == "deleted":
         pushed = "0" * 40
     found = peer_identity_push_gaps(
@@ -211,3 +209,25 @@ def test_status_carries_the_advisory_in_its_summary_and_never_as_a_gap(repo: Pat
         "peer_identity_protected_peer_disabled"
     ]
     assert not [gap for gap in result["required_gaps"] if gap.startswith("peer_identity")]
+
+
+@pytest.mark.parametrize(
+    ("case", "gap"),
+    [("unread", "peer_identity_feed_unreadable:github"), ("unfed", "peer_identity_feed_empty")],
+)
+def test_a_feed_the_clone_cannot_know_refuses_before_the_advertisement(
+    repo: Path, case: str, gap: str
+) -> None:
+    """An unread declared peer or an empty feed refuses before an unreachable peer is read."""
+    (repo / "notes.md").write_text(f"ssh git@{H1}\n", encoding="utf-8")
+    pushed = commit_fixture(repo, "name a peer")
+    trusted = git(repo, "rev-parse", "HEAD~1")
+    git(repo, "remote", "set-url", "gitlab", str(repo.parent / "absent.git"))
+    if case == "unread":
+        git(repo, "remote", "remove", "github")
+    else:
+        git(repo, "config", "--unset", "remote.gitlab.forgePrivate")
+    found = peer_identity_push_gaps(
+        repo, remote="gitlab", pushed=pushed, trusted=trusted, advertisement="network"
+    )
+    assert found == ([gap], [])

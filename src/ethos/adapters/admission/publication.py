@@ -482,7 +482,7 @@ def push_admission_report(
     reason = (
         "publication_ref_unavailable"
         if ref_gaps
-        else "peer_identity_literal_refused"
+        else "peer_identity_refused"
         if identity_gaps
         else "push_to_protected_role_not_proven"
         if proof_gaps or topology_gaps or closeout_gaps

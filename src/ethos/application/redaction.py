@@ -21,7 +21,7 @@ from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
-from ethos.adapters.repo.peer_feed import peer_feed
+from ethos.adapters.repo.peer_feed import local_feed
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.paradigm.peer_identity import Feed
@@ -58,21 +58,34 @@ def redact_private_addresses(
     head: str = "",
     rotate: bool = False,
 ) -> dict[str, object]:
-    """Preview, apply or verify one redaction; every gap names a form or a path, never a value."""
+    """Preview, apply or verify one redaction; every gap names a form or a path, never a value.
+
+    Without a known feed every mode answers `unknown` before it validates or uses a key: the
+    preview still lists what it reads, and the apply and the verify write and record nothing.
+    """
     try:
+        known = local_feed(root)
+        unknown = {"verdict": "unknown", "state": "feed_unknown", "required_gaps": [*known.gaps]}
+        if known.gaps and (apply or verify):
+            return unknown
         if verify:
-            return _verify(root, key=key, base=base, head=head, rotate=rotate)
+            return _verify(root, known.feed, key=key, base=base, head=head, rotate=rotate)
         if apply:
             return _apply(
-                root, key=key, authorize=authorize, expect_head=expect_head, rotate=rotate
+                root,
+                known.feed,
+                key=key,
+                authorize=authorize,
+                expect_head=expect_head,
+                rotate=rotate,
             )
-        return _preview(root)
+        preview = _preview(root, known.feed)
+        return preview | unknown if known.gaps else preview
     except (OSError, ValueError) as error:
         return {"verdict": "block", "state": "blocked", "required_gaps": [str(error)]}
 
 
-def _preview(root: Path) -> dict[str, object]:
-    feed = peer_feed(root)
+def _preview(root: Path, feed: Feed) -> dict[str, object]:
     head = current_tracked_head(root)
     roots = effective_record_roots(load_repository_profile(root))
     occurrences = _occurrences(_texts(root, head), feed, roots)
@@ -90,7 +103,7 @@ def _preview(root: Path) -> dict[str, object]:
 
 
 def _apply(
-    root: Path, *, key: str, authorize: bool, expect_head: str, rotate: bool
+    root: Path, feed: Feed, *, key: str, authorize: bool, expect_head: str, rotate: bool
 ) -> dict[str, object]:
     if not authorize:
         _fail("authorization_required")
@@ -99,7 +112,6 @@ def _apply(
     if expect_head != head:
         _fail("expect_head_mismatch")
     _require_generation(root, secret, rotate=rotate)
-    feed = peer_feed(root)
     roots = effective_record_roots(load_repository_profile(root))
     texts = _texts(root, head)
     manual = [
@@ -151,7 +163,9 @@ def _apply(
     return {**report, "state": "redacted"}
 
 
-def _verify(root: Path, *, key: str, base: str, head: str, rotate: bool) -> dict[str, object]:
+def _verify(
+    root: Path, feed: Feed, *, key: str, base: str, head: str, rotate: bool
+) -> dict[str, object]:
     secret = read_key(key)
     commits = [_commit(root, revision) for revision in (base, head)]
     if not all(commits):
@@ -162,7 +176,6 @@ def _verify(root: Path, *, key: str, base: str, head: str, rotate: bool) -> dict
         }
     _require_generation(root, secret, rotate=rotate)
     base_commit, head_commit = commits
-    feed = peer_feed(root)
     roots = effective_record_roots(load_repository_profile(root))
     before, after = _texts(root, base_commit), _texts(root, head_commit)
     expected = {**before, **_redacted(before, feed, secret, roots)}

@@ -14,7 +14,7 @@ from ethos.adapters.admission.peer_identity_push import added_literals
 from ethos.adapters.admission.peer_identity_push import mode_at
 from ethos.adapters.admission.peer_identity_push import tracking_base
 from ethos.adapters.repo.peer_feed import ci_feed
-from ethos.adapters.repo.peer_feed import peer_feed
+from ethos.adapters.repo.peer_feed import local_feed
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -59,7 +59,7 @@ def peer_identity_status(repo: Path) -> list[str]:
     The count of literals outside the record roots is the redaction preview's to report: it reads
     the whole tracked tree, which took 10 s on ETHOS under load, too slow for every `status`.
     """
-    if not peer_feed(repo):
+    if not local_feed(repo):
         return []
     mode = mode_at(repo, "HEAD")
     if mode is None:

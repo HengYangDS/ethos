@@ -3,7 +3,8 @@
 A push is read only as far as the commits it adds beyond every tip the peer advertises, so what the
 peer already holds counts as disclosed and no history is scanned. The mode comes from the profile
 of the commit that push admission already trusts, never from the working tree. An unreadable
-advertisement is `unknown`. Gaps carry forms and positions, never a value.
+advertisement is `unknown`, and a feed the clone cannot know refuses before any advertisement is
+read. Gaps carry forms and positions, never a value.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from typing import Literal
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import run_network_git
 from ethos.adapters.repo.invocation_facts import invocation_fact
-from ethos.adapters.repo.peer_feed import peer_feed
+from ethos.adapters.repo.peer_feed import local_feed
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.paradigm.parameters import seconds
@@ -42,13 +43,13 @@ def peer_identity_push_gaps(
         return [], ["peer_identity_mode_unread"]
     if mode != "required":
         return [], []
-    feed = peer_feed(repo)
-    if not feed:
-        return [], []
+    known = local_feed(repo)
+    if known.gaps:
+        return list(known.gaps), []
     tips = _advertised(repo, remote) if advertisement == "network" else _tracking(repo, remote)
     if tips is None:
         return [f"peer_identity_range_unknown:{remote}"], []
-    return added_literals(repo, pushed, tips, feed), []
+    return added_literals(repo, pushed, tips, known.feed), []
 
 
 def tracking_base(repo: Path, remote: str) -> str:

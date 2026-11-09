@@ -67,6 +67,13 @@ job's `ethos hook commit-range --check peer-identity` checks raw pushes the same
 way. Under the default `disabled`, `ethos status` names a protected peer in
 `summary.peer_identity_advisories`.
 
+Both need a feed that the clone can know. Every declared peer needs a remote with a URL, and the
+declared peers or a remote marked `forgePrivate` must feed something; such a remote feeds even
+when the publication declaration does not name it. Otherwise the redaction verb answers `unknown`
+in every mode with `peer_identity_feed_unreadable:<remote>` or `peer_identity_feed_empty` and
+writes and records nothing, and under `required` push admission refuses with the same gap before
+it reads the peer's advertisement.
+
 Authoring permission and resource retirement are distinct. An explicitly named
 local topic ref may retire after exact accepted absorption even if its name is
 not `work/*`. Use `ethos lane retire absorbed-ref --branch <branch> --expect-head

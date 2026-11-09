@@ -45,7 +45,9 @@ def test_version_human_output_is_concise(tmp_path, monkeypatch) -> None:
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.startswith(f"ethos {_PRODUCT} ")
     assert _DEVELOPMENT in completed.stdout
-    assert f"OpenSpec {result_projection.OFFICIAL_VERSION}" in completed.stdout
+    identity = json.loads(run_ethos_raw("--version", "--json").stdout)["data"]["identity"]
+    tail = f"; {identity['source_commit'][:12]}; OpenSpec {result_projection.OFFICIAL_VERSION})"
+    assert tail in completed.stdout
     assert "{" not in completed.stdout
     monkeypatch.setattr(sys, "prefix", (tmp_path / "runtime" / ("a" * 64) / "python").as_posix())
     monkeypatch.setattr(result_projection, "require_selected_runtime", Mock(side_effect=ValueError))

@@ -497,6 +497,10 @@ def initialize_adopted_fixture(root: Path) -> None:
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
     write_paradigm_toolchain(root)
+    # Every governed repository carries its version identity.
+    release = load_repository_paradigm().release
+    (root / release.version_file).write_text("0.1.0\n", encoding="utf-8")
+    (root / release.changelog).write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
 
 
 def write_paradigm_toolchain(root: Path) -> None:

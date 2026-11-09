@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
+_RELEASE = load_repository_paradigm().release
 # The adopted repository's authored files, written as LF bytes on every host.
 SMOKE_CHANGE = "openspec/changes/smoke-change"
 # The retained fixture is the predecessor's adopter, so it keeps the publication fields that
@@ -52,6 +55,9 @@ capabilities = ["repository", "publication"]
     "README.md": "# installed CLI adopter\n",
     "AGENTS.md": "# Agents\n",
     "CONTRIBUTING.md": "# Contributing\n",
+    # Every governed repository carries its version identity.
+    _RELEASE.version_file: "0.1.0\n",
+    _RELEASE.changelog: "# Changelog\n\n## [Unreleased]\n",
     ".editorconfig": (
         "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
     ),

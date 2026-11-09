@@ -116,10 +116,12 @@ def formation_plan(
                 )
                 (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8", newline="\n")
                 # A formed repository starts with its version identity, which ETHOS authors here.
-                (candidate / "VERSION").write_text(_FIRST_VERSION, encoding="utf-8", newline="\n")
-                (candidate / "CHANGELOG.md").write_text(
-                    _FIRST_CHANGELOG, encoding="utf-8", newline="\n"
-                )
+                release = load_repository_paradigm().release
+                for name, text in (
+                    (release.version_file, _FIRST_VERSION),
+                    (release.changelog, _FIRST_CHANGELOG),
+                ):
+                    (candidate / name).write_text(text, encoding="utf-8", newline="\n")
                 outputs, starter_outputs, starter_gap, detail = compose_starter(
                     candidate, starter, purpose.strip()
                 )

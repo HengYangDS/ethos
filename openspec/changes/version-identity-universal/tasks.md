@@ -6,15 +6,16 @@
       untagged repository without `VERSION` reported once, its repair naming a manifest's version,
       the tag pattern checked only with release tags, an untagged repository without `LICENSE`
       reporting no license gap, and the conforming tree carrying `VERSION` and a changelog. In the
-      impacted sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 2
-      skipped), every row of `test_a_releasing_repository_keeps_one_version_source_and_changelog`,
-      the Python and npm projection rows among them, and
-      `test_a_missing_version_names_the_manifest_version` passed.
+      impacted sweep of 336 test files at `a76cb7db7` (19:38:11 to 20:37:47, 6,571 passed, 3 failed
+      in other files, 2 skipped), every row of
+      `test_a_releasing_repository_keeps_one_version_source_and_changelog`, the Python and npm
+      projection rows among them, and `test_a_missing_version_names_the_manifest_version` passed.
 - [x] 1.2 Seed only what no owner chooses. Done when a repair test creates an absent changelog and
       leaves a malformed one, and a formation test shows a formed repository with both files and no
       version-source or changelog gap. In the impacted sweep of 336 test files at `a76cb7db7`
-      (19:38:11 to 20:37:47, 6,571 passed, 2 skipped), `test_only_an_absent_changelog_is_created`
-      and `test_greenfield_apply_forms_one_author_attributed_repository` passed.
+      (19:38:11 to 20:37:47, 6,571 passed, 3 failed in other files, 2 skipped),
+      `test_only_an_absent_changelog_is_created` and
+      `test_greenfield_apply_forms_one_author_attributed_repository` passed.
 
 ## 2. Acceptance
 

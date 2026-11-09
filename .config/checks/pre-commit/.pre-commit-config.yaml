@@ -31,9 +31,3 @@ repos:
         entry: uv run --frozen --offline python -m nox -s product_boundary
         language: system
         pass_filenames: false
-      - id: shell-lint
-        name: shell lint
-        entry: uv run --frozen --offline python -m nox -s shell_lint
-        language: system
-        types: [shell]
-        pass_filenames: false

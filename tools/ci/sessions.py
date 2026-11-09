@@ -50,7 +50,6 @@ PUBLIC_SESSIONS = (
     "repository_hygiene",
     "prose",
     "secrets",
-    "shell_lint",
     "markdown_lint",
     "javascript_lint",
     "javascript_tests",
@@ -66,7 +65,8 @@ PUBLIC_SESSIONS = (
 )
 
 
-def _paths(*patterns: str) -> tuple[str, ...]:
+def tracked_files(*patterns: str) -> tuple[str, ...]:
+    """Return the tracked files matching `patterns` that still exist in the worktree."""
     output = subprocess.check_output(("git", "ls-files", "-z", *patterns), cwd=ROOT)
     paths = tuple(item.decode() for item in output.split(b"\0") if item)
     return tuple(path for path in paths if (ROOT / path).is_file())
@@ -306,15 +306,6 @@ def _mirror_tracked(target: Path) -> None:
             shutil.copy(source, destination)
 
 
-def shell_lint(session: Session) -> None:
-    paths = _paths("*.sh")
-    if paths:
-        session.run(
-            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
-        )
-        session.run(RUNTIME.script("shfmt"), "-d", *paths)
-
-
 def markdown_lint(session: Session) -> None:
     report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
     session.log(json.dumps(report))
@@ -424,7 +415,7 @@ def javascript_tests(session: Session) -> None:
             f"--test-reporter-destination={reports / 'javascript-junit.xml'}",
             "--test-reporter=spec",
             "--test-reporter-destination=stdout",
-            *_paths("*.test.mjs"),
+            *tracked_files("*.test.mjs"),
             env={
                 "PATH": os.pathsep.join((str(Path(node).parent), os.environ.get("PATH", ""))),
                 "ETHOS_NODE_PACKAGE_SUPPLY": str(supply),
@@ -439,7 +430,7 @@ def javascript_tests(session: Session) -> None:
 
 
 def javascript_lint(session: Session) -> None:
-    paths = _paths("*.js", "*.mjs", "*.cjs")
+    paths = tracked_files("*.js", "*.mjs", "*.cjs")
     if paths:
         _, subjects = import_module("ethos.adapters.repo.gate_policy").observe_quality_subjects(
             ROOT, language="javascript"
@@ -464,7 +455,7 @@ def _check_source_paths(session: Session, paths: tuple[str, ...]) -> None:
 
 
 def asset_validation(session: Session) -> None:
-    for relative in _paths("*.png"):
+    for relative in tracked_files("*.png"):
         with import_module("PIL.Image").open(ROOT / relative) as image:
             image.verify()
         session.log(f"{relative}: valid PNG")

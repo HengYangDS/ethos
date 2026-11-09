@@ -71,7 +71,8 @@ configuration plane, not a truth center.
   its locked supply; `tools/ci/toolchain/native.py` verifies the installed bytes.
   The `secrets` Nox session scans an isolated `git ls-files` mirror,
   preserving tracked-source coverage without scanning ignored host state.
-- `.config/checks/shellcheck/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
+- Shell has no lint policy of its own: the paradigm refuses every tracked script that is not the
+  recorded output of a catalogued generator, and every `ethos prove` audits that rule.
 - `.config/checks/prettier/prettier.toml` owns Markdown spacing, container layout
   and formatting style; `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns
   non-formatting document and link semantics, plus the spacing and style rules of

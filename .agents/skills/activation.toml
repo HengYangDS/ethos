@@ -156,7 +156,6 @@ during_rules = [
 post_checks = [
   "uv run --frozen --offline python -m nox -s lint",
   "uv run --frozen --offline python -m nox -s config_quality",
-  "uv run --frozen --offline python -m nox -s shell_lint",
   "ethos prove --gate repository-audit --json",
   "uv run --frozen --offline python -B -I -m ethos.cli prove --full --execute --json",
 ]

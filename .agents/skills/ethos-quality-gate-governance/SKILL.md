@@ -1,6 +1,6 @@
 ---
 name: ethos-quality-gate-governance
-description: Use when changing ETHOS quality gates, CI, pre-commit hooks, lint, format, type checks, docstrings, coverage, config lint, shell lint, or proof gate registry policy.
+description: Use when changing ETHOS quality gates, CI, pre-commit hooks, lint, format, type checks, docstrings, coverage, config lint, or proof gate registry policy.
 ---
 
 # ETHOS Quality Gate Governance
@@ -33,7 +33,7 @@ provider projections.
    name can select the full test suite. Carry the current worker, shard, root and
    evidence controls explicitly into every process; inspect the actual child
    command before treating it as the intended run. For CI or shell edits, check
-   repository hygiene, native shell lint and compiled workflow syntax first;
+   repository hygiene, the paradigm's script rule and compiled workflow syntax first;
    never replace a diagnostic with a lint suppression. Then run one exact-HEAD
    `--full --execute` proof from the candidate's locked Python module, not the
    `ethos` launcher that selects the accepted runtime; `--host` is not an Attestation.
@@ -52,7 +52,6 @@ Follow current command decisions and use owner scripts and proof output:
 ```bash
 uv run --frozen --offline python -m nox -s lint
 uv run --frozen --offline python -m nox -s config_quality
-uv run --frozen --offline python -m nox -s shell_lint
 uv run --frozen --offline python -m nox -s prose
 ethos prove --gate repository-audit --json
 ethos prove --gate python-types --json

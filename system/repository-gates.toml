@@ -3,8 +3,8 @@ id = "repository-gate-registry"
 source_refs = ["system/repository-gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "shell-lint", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets", "commit-ranges"]
+default = ["repository-audit", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene"]
+full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "code-static", "python-types", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "github-workflow-syntax", "source-budget", "javascript-lint", "javascript-tests", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "dependency-vulnerabilities", "release-sbom", "secrets", "commit-ranges"]
 
 [[gates]]
 id = "repository-audit"
@@ -100,7 +100,6 @@ depends_on = [
   "skills",
   "ruff",
   "module-layout",
-  "shell-lint",
   "source-budget",
   "python-types",
   "import-boundaries",
@@ -230,23 +229,6 @@ trust_bearing = true
 tool_adapter = "lychee"
 writes_files = false
 network_policy = "required"
-version_source = "adopter-toolchain"
-
-[[gates]]
-id = "shell-lint"
-kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "shell_lint"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["shell-scripts"]
-dimensions = ["lint"]
-execution_mode = "adapter"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "shellcheck"
-writes_files = false
-network_policy = "offline"
 version_source = "adopter-toolchain"
 
 [[gates]]

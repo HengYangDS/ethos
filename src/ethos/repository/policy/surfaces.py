@@ -80,7 +80,6 @@ TEXT_SUFFIXES = {
 }
 TEXT_FILENAMES = {
     ".gitignore",
-    ".shellcheckrc",
     "Containerfile",
     "Dockerfile",
     "LICENSE",

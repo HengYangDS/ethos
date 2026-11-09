@@ -105,7 +105,17 @@ def test_pytest_process_environment_is_hermetic() -> None:
     assert (os.environ["OPENSPEC_TELEMETRY"], os.environ["OPENSPEC_NO_UPDATE_CHECK"]) == ("0", "1")
 
 
-@pytest.mark.parametrize(("name", "filename"), [("lint", "alive.py"), ("shell_lint", "alive.sh")])
+def test_session_paths_keep_live_files_and_drop_deleted_ones(tmp_path, monkeypatch):
+    """The session inventory keeps tracked files that exist and drops deleted paths."""
+    (tmp_path / "alive.js").write_text("// fixture\n", encoding="utf-8")
+    inventory = b"alive.js\0deleted.js\0"
+    monkeypatch.setattr(sessions, "ROOT", tmp_path)
+    monkeypatch.setattr(sessions.subprocess, "check_output", lambda *_a, **_kw: inventory)
+
+    assert sessions.tracked_files("*.js") == ("alive.js",)
+
+
+@pytest.mark.parametrize(("name", "filename"), [("lint", "alive.py")])
 def test_quality_inventory_excludes_deleted_worktree_paths(tmp_path, monkeypatch, name, filename):
     """Both native inventory transports retain live paths and omit deleted ones."""
     (tmp_path / filename).write_text("# fixture\n", encoding="utf-8")
@@ -118,10 +128,6 @@ def test_quality_inventory_excludes_deleted_worktree_paths(tmp_path, monkeypatch
     getattr(sessions, name)(session)
     checked = [call.args for call in session.run.call_args_list if call.args[0] != "git"]
     assert checked
-    if name == "shell_lint":
-        assert [Path(args[0]).name for args in checked] == ["shellcheck", "shfmt"]
-        assert "-d" in checked[1]
-        assert "-w" not in checked[1]
     assert all(filename in args for args in checked)
     assert all(f"deleted{Path(filename).suffix}" not in args for args in checked)
 

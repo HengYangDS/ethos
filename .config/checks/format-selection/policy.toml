@@ -115,8 +115,8 @@ extensions = [".sh", ".bash", ".zsh"]
 format_owner = "shfmt"
 format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
 format_check = "ethos lane format --check"
-validation_owner = "shellcheck"
-validation_command = "uv run --frozen --offline python -m nox -s shell_lint"
+validation_owner = "repository-paradigm"
+validation_command = "ethos prove --json"
 mutation_policy = "native-formatter"
 
 [[ownership]]
@@ -295,9 +295,9 @@ truth_boundary = "authored CI supply input"
 extensions = [".sh", ".bash", ".zsh"]
 shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
-owner = ".config/checks/shellcheck/.shellcheckrc"
-execution = "uv run --frozen --offline python -m nox -s shell_lint"
-truth_boundary = "runner adapter scripts"
+owner = "src/ethos/contracts/paradigm/paradigm.toml"
+execution = "ethos prove --json"
+truth_boundary = "recorded official generator output"
 budget = [{ category = "shell", comment_prefixes = ["#"] }]
 
 [[format]]

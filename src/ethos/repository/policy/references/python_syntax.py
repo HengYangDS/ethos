@@ -33,6 +33,10 @@ _BINDERS = (ast.Name, ast.Import, ast.ImportFrom, ast.arg, *_SCOPES)
 _DEPTH = 8
 # Cyclopts' documented default command name splits PascalCase where its own transform does.
 _CASE_BOUNDARY = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])|(?<=[a-z0-9])(?=[A-Z])")
+# The operation catalog's declarations, which name an `ethos` command or group by its literal path.
+_CATALOG_DECLARATIONS = frozenset(
+    ("ethos.contracts.operations.declaration", name) for name in ("Command", "Group")
+)
 
 
 def complete_python_tree(text: str) -> ast.AST | None:
@@ -429,6 +433,19 @@ def cyclopts_command_owners(
                 command = normalize_command(f"{prefix} {name}")
                 owners.setdefault(command, set()).add(f"{path}:{node.name}")
     return owners
+
+
+def catalog_command_owners(path: str, tree: ast.AST) -> dict[str, set[str]]:
+    """Return the `ethos` commands and groups that one module's catalog declarations name."""
+    imported = _from_imports(path, tree)
+    return {
+        normalize_command(f"ethos {name}"): {f"{path}:{name}"}
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and imported.get(node.func.id) in _CATALOG_DECLARATIONS
+        and (name := _name_keyword(node))
+    }
 
 
 def _command_names(decorator: ast.AST, function_name: str) -> tuple[str, tuple[str, ...]]:

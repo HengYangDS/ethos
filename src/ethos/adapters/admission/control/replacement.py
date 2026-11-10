@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
     from ethos.repository.policy.gates import ResolvedGatePolicy
 
-_CONTROL_PREFIXES = (
+# The governance controls whose replacement needs independent verification. The catalog, its
+# selection and every transport that runs a group entry are controls (widened 2026-11-09 with the
+# owner's acknowledgement), as are the halves of the entries that write or run a caller's command.
+CONTROL_PREFIXES = (
     ".ethos/",
     ".config/checks/",
     "system/",
@@ -32,6 +35,11 @@ _CONTROL_PREFIXES = (
     "src/ethos/contracts/",
     "src/ethos/measure.py",
     "src/ethos/adapters/",
+    "src/ethos/application/attestation.py",
+    "src/ethos/application/catalog.py",
+    "src/ethos/application/console.py",
+    "src/ethos/application/host.py",
+    "src/ethos/application/invocation.py",
     "src/ethos/application/land/",
     "src/ethos/application/proof/",
     "src/ethos/domain/source_budget/",
@@ -42,8 +50,13 @@ _CONTROL_PREFIXES = (
     "src/ethos/repository/policy/",
     "src/ethos/repository/profile.py",
     "src/ethos/repository/release/",
+    "src/ethos/surface/cli/application.py",
+    "src/ethos/surface/cli/catalog.py",
     "src/ethos/surface/cli/hook/",
+    "src/ethos/surface/cli/output.py",
     "src/ethos/surface/cli/root/",
+    "src/ethos/surface/cli/root_binding.py",
+    "src/ethos/surface/mcp/",
 )
 
 
@@ -187,7 +200,7 @@ def _changed_paths(root: Path, accepted_head: str, candidate_head: str) -> tuple
 
 def _is_control_path(path: str) -> bool:
     return path == ".gitattributes" or any(
-        path == prefix or path.startswith(prefix) for prefix in _CONTROL_PREFIXES
+        path == prefix or path.startswith(prefix) for prefix in CONTROL_PREFIXES
     )
 
 

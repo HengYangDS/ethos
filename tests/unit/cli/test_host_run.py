@@ -53,4 +53,14 @@ def test_a_missing_command_is_refused(tmp_path: Path) -> None:
     """`ethos host run` without a command names the missing command."""
     payload = run_ethos_blocked("host", "run", "--json", cwd=tmp_path)
 
-    assert payload["required_gaps"] == ["host_run_command_missing"]
+    assert (payload["command"], payload["required_gaps"]) == (
+        "host run",
+        ["host_run_command_missing"],
+    )
+
+
+def test_an_admitted_command_exits_with_its_status_and_prints_no_frame(tmp_path: Path) -> None:
+    """The `process` exit replaces the result frame even under `--json`."""
+    argv = ("host", "run", "--json", "--", sys.executable, "-c", "pass")
+    completed = run_ethos_raw(*argv, cwd=tmp_path)
+    assert (completed.returncode, completed.stdout) == (0, "")

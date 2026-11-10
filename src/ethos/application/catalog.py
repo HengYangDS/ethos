@@ -1,10 +1,11 @@
-"""Select one root catalog operation for a request, and run the one implementation it maps to.
+"""Select one catalog operation for a request, and run the one implementation it maps to.
 
 `select_operation` validates a request against its command's model and selects the one operation
 its set fields choose, or returns the refusal every transport reports. `invoke` runs the selected
-operation's implementation, the function `IMPLEMENTATIONS` names for it, so the CLI, the SDK and
-MCP run one body for one request and a refused request runs nothing. Only `invoke` calls an
-implementation: one imported directly skips the selection and the failure normalization.
+operation's implementation, the function `IMPLEMENTATIONS` names for it or else for its command,
+so the CLI, the SDK and MCP run one body for one request and a refused request runs nothing. Only
+`invoke` calls an implementation: one imported directly skips the selection and the failure
+normalization.
 """
 
 from collections.abc import Mapping
@@ -24,38 +25,35 @@ _LAND = "ethos.application.land.operation"
 _PUBLISH = "ethos.application.publication.operation"
 _PROVE = "ethos.application.proof.operation"
 _ADOPT = "ethos.application.adoption"
-# Each operation's implementation, `(root, request) -> EthosResult`; operations that share a body
-# share its function, which reads only the fields of its own operations.
+_ATTESTATION = "ethos.application.attestation"
+# Each implementation, `(root, request) -> EthosResult`, keyed by an operation ID or by a command
+# whose every operation without a row of its own shares it; a shared body reads only the fields of
+# its own operations.
 IMPLEMENTATIONS = {
-    "status.inspect": "ethos.application.inspection:inspect_status",
-    "plan.compile": "ethos.application.plan:compile_transition_plan",
-    "proof.preview": f"{_PROVE}:prove_governed",
-    "proof.execute": f"{_PROVE}:prove_governed",
-    "proof.run": f"{_PROVE}:prove_governed",
+    "status": "ethos.application.inspection:inspect_status",
+    "plan": "ethos.application.plan:compile_transition_plan",
+    "prove": f"{_PROVE}:prove_governed",
     "proof.readiness": f"{_PROVE}:prove_readiness",
     "proof.host": f"{_PROVE}:prove_on_host",
-    "land.preview": f"{_LAND}:land_on_candidate",
-    "land.apply": f"{_LAND}:land_on_candidate",
+    "land": f"{_LAND}:land_on_candidate",
     "land.closeout.preview": f"{_LAND}:close_out",
     "land.closeout.apply": f"{_LAND}:close_out",
     "land.release.preview": f"{_LAND}:release_accepted_head",
     "land.release.apply": f"{_LAND}:release_accepted_head",
     "land.retag.preview": f"{_LAND}:move_release_tags",
     "land.retag.apply": f"{_LAND}:move_release_tags",
+    "publish": f"{_PUBLISH}:project_publication",
     "publish.readiness": f"{_PUBLISH}:report_readiness",
-    "publish.probe": f"{_PUBLISH}:project_publication",
-    "publish.apply": f"{_PUBLISH}:project_publication",
-    "publish.retire.probe": f"{_PUBLISH}:project_publication",
-    "publish.retire.apply": f"{_PUBLISH}:project_publication",
-    "adopt.preview": f"{_ADOPT}:adopt_existing",
-    "adopt.apply": f"{_ADOPT}:adopt_existing",
-    "adopt.runtime.preview": f"{_ADOPT}:adopt_existing",
-    "adopt.runtime.apply": f"{_ADOPT}:adopt_existing",
+    "adopt": f"{_ADOPT}:adopt_existing",
     "adopt.create.preview": f"{_ADOPT}:form_repository",
     "adopt.create.apply": f"{_ADOPT}:form_repository",
     "adopt.evolve-starter.preview": f"{_ADOPT}:propose_starter_evolution",
     "adopt.exit.preview": f"{_ADOPT}:leave_ethos",
     "adopt.exit.apply": f"{_ADOPT}:leave_ethos",
+    "attestation record": f"{_ATTESTATION}:record_attestation",
+    "attestation query": f"{_ATTESTATION}:query_attestations",
+    "attestation release": f"{_ATTESTATION}:release_attestation_member",
+    "host run": "ethos.application.host:run_host_command",
 }
 
 
@@ -127,6 +125,7 @@ def invoke(command: str, root: Path, fields: Mapping[str, object] | CommandReque
     chosen = select_operation(command, fields)
     if isinstance(chosen, Refused):
         return chosen.result
-    module, _separator, name = IMPLEMENTATIONS[chosen.operation.id].partition(":")
+    target = IMPLEMENTATIONS.get(chosen.operation.id) or IMPLEMENTATIONS[command]
+    module, _separator, name = target.partition(":")
     implementation = getattr(import_module(module), name)
     return application_result(command)(implementation)(root, chosen.request)

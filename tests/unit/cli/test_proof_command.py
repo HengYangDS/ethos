@@ -5,13 +5,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
 
 import ethos.application.proof.operation as proof_operation
-import ethos.surface.cli.root.catalog as proof_cli
+import ethos.surface.cli.catalog as proof_cli
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.gates.proof_slot import SlotAdmission
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _REPAIR = "repair the Commitment or repository facts"
+_prove = partial(proof_cli.run, "prove")
 
 
 def _plan(*, gap: str = "", gaps: tuple[str, ...] = ()):
@@ -160,7 +162,7 @@ def test_invalid_common_audit_stops_before_check_execution(
         pytest.fail("checks must not execute after failed common admission")
 
     monkeypatch.setattr(proof_operation, "run_plan_checks", unexpected)
-    proof_cli.prove(_options(execute=True), root=repo, json_output=True)
+    _prove(_options(execute=True), root=repo, json_output=True)
     assert emitted[-1].verdict == verdict
     assert emitted[-1].required_gaps == ("protected_branches_policy_missing",)
     assert emitted[-1].next_action == "repair declared protected roles"
@@ -183,7 +185,7 @@ def test_prove_fail_closed_before_result_compilation(
         target = "proof_plan" if case == "plan-error" else "run_plan_checks"
         monkeypatch.setattr(proof_operation, target, Mock(side_effect=ValueError(expected_gap)))
 
-    proof_cli.prove(root=tmp_path, json_output=True)
+    _prove({}, root=tmp_path, json_output=True)
 
     assert emitted[-1].required_gaps == (expected_gap,)
     assert emitted[-1].next_action == next_action
@@ -211,7 +213,7 @@ def test_a_focused_plan_refused_for_unselected_axes_names_the_full_proof(
     """Only axes a focused selection left out route to the proof that selects every axis."""
     _repo, emitted = _arrange(monkeypatch, tmp_path, plan=_plan(gaps=gaps))
 
-    proof_cli.prove(_options(gate=gate), root=tmp_path, json_output=True)
+    _prove(_options(gate=gate), root=tmp_path, json_output=True)
 
     assert (emitted[-1].required_gaps, emitted[-1].next_action) == (gaps, next_action)
 
@@ -249,7 +251,7 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
         ),
     )
 
-    proof_cli.prove(root=tmp_path, json_output=True)
+    _prove({}, root=tmp_path, json_output=True)
 
     result = emitted[-1]
     assert result.verdict == resolution.verdict
@@ -280,7 +282,7 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
     )
 
     with pytest.raises(ValueError, match=r"^resolution_failed$"):
-        proof_cli.prove(root=tmp_path, json_output=True)
+        _prove({}, root=tmp_path, json_output=True)
 
 
 @pytest.mark.parametrize(
@@ -308,7 +310,7 @@ def test_prove_result_matrix(monkeypatch, tmp_path, case, options, check, expect
         "issue_proof_attestation",
         lambda _repo, payload: _attestation(str(payload["verdict"])),
     )
-    proof_cli.prove(options, root=tmp_path, json_output=True)
+    _prove(options, root=tmp_path, json_output=True)
     result = emitted[-1]
     assert result.state == ("gapped" if expected_gap else "ready")
     assert (expected_gap in result.required_gaps) is bool(expected_gap)
@@ -325,7 +327,7 @@ def test_prove_emits_the_carried_verdict_cause_and_remedy(monkeypatch, tmp_path)
     monkeypatch.setattr(
         proof_operation, "issue_proof_attestation", Mock(side_effect=OutcomeError(timed))
     )
-    proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
+    _prove(_options(execute=True), root=tmp_path, json_output=True)
     result = emitted[-1]
     assert (result.verdict, result.state, result.required_gaps) == ("unknown", "gapped", timed.gaps)
     assert result.to_dict()["diagnostics"] == list(timed.causes)
@@ -348,7 +350,7 @@ def test_prove_persists_pass_and_routes_the_next_public_command(
     )
     options = _options(execute=True, gate=("gate",) if focused else ())
 
-    proof_cli.prove(options, root=tmp_path, json_output=True)
+    _prove(options, root=tmp_path, json_output=True)
 
     result = emitted[-1]
     assert result.state == "proven"
@@ -378,7 +380,7 @@ def test_prove_reports_failed_evidence_boundary_once(monkeypatch, tmp_path, boun
         )
     )
     monkeypatch.setattr(proof_operation, target, Mock(side_effect=ValueError(error)))
-    proof_cli.prove(_options(execute=True), root=tmp_path, json_output=True)
+    _prove(_options(execute=True), root=tmp_path, json_output=True)
     assert len(emitted) == 1
     assert emitted[0].state == "gapped"
     assert emitted[0].required_gaps == (expected,)
@@ -392,9 +394,9 @@ def test_compact_and_detailed_proof_preserve_the_same_observed_meaning(
 ) -> None:
     """A presentation choice cannot drop coordinates, checks or lifecycle identity."""
     _repo, emitted = _arrange(monkeypatch, tmp_path)
-    proof_cli.prove(_options(expect_head="a" * 40), root=tmp_path, json_output=True)
+    _prove(_options(expect_head="a" * 40), root=tmp_path, json_output=True)
     compact = emitted[-1]
-    proof_cli.prove(_options(expect_head="a" * 40, gate=("gate",)), root=tmp_path, json_output=True)
+    _prove(_options(expect_head="a" * 40, gate=("gate",)), root=tmp_path, json_output=True)
     detailed = emitted[-1]
     assert compact.state == detailed.state == "ready"
     assert compact.data["boundary"] == "repository"
@@ -476,7 +478,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     monkeypatch.setattr(proof_operation, "run_plan_checks", lambda **_kwargs: ([_check()], True))
     monkeypatch.setattr(proof_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 
-    proof_cli.prove(_options(full=True), root=tmp_path, json_output=True)
+    _prove(_options(full=True), root=tmp_path, json_output=True)
 
     assert emitted[-1].data["changed_paths"] == ("a.py",)
     observed = emitted[-1].data["openspec_lifecycle"]
@@ -514,7 +516,7 @@ def test_a_full_proof_admits_its_tests_only_after_readiness(monkeypatch, tmp_pat
     rules = f"[paradigm.timeout]\ngate_seconds = 1200\n{reason}\n"
     (binding / ".ethos/rules.toml").write_text(rules)
     with repository_parameters(binding):
-        proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
+        _prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
     assert order == ["readiness", f"admitted:{'a' * 40}", "gates", "released"]
     assert emitted[-1].data["admission"] == {"waited_seconds": 4.0, "load": 3.0, "limit": 9.0}
@@ -558,7 +560,7 @@ def test_ended_admission_runs_no_test_gate_and_records_nothing(
     monkeypatch.setattr(proof_operation, "run_plan_checks", gates)
     monkeypatch.setattr(proof_operation, "issue_proof_attestation", issued)
 
-    proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
+    _prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
     assert (emitted[-1].required_gaps, emitted[-1].next_action) == ((gap,), next_action)
     issued.assert_not_called()

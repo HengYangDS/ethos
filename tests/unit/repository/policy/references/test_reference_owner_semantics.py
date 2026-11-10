@@ -99,6 +99,26 @@ def test_literal_names_keep_exact_cyclopts_identities() -> None:
     assert owners["tool lane stop"] == frozenset({"src/tool/cli.py:halt"})
 
 
+def test_catalog_declarations_own_the_ethos_commands_they_name() -> None:
+    """A catalog `Command` or `Group` with a literal name owns that `ethos` path; others do not."""
+    source = (
+        "from ethos.contracts.operations.declaration import Command\n"
+        "from ethos.contracts.operations.declaration import Group\n"
+        "GROUPS = {'tool': Group(name='tool', help='')}\n"
+        "RUN = Command(name='tool run', summary='')\n"
+        "LATER = Command(name=NAME, summary='')\n"
+    )
+    files = {
+        "src/ethos/tool.py": source,
+        "src/other.py": "from x import Command\nCommand(name='a')\n",
+    }
+
+    assert command_owner_sources_from_files(files) == {
+        "ethos tool": frozenset({"src/ethos/tool.py:tool"}),
+        "ethos tool run": frozenset({"src/ethos/tool.py:tool run"}),
+    }
+
+
 @pytest.mark.parametrize("function", ["start_now", "_private_step", "HTTPServer", "runV2Now"])
 def test_function_command_names_follow_the_documented_cyclopts_rule(function: str) -> None:
     """The rule ETHOS models gives the name Cyclopts itself serves for the same function."""

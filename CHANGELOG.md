@@ -79,6 +79,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- **Breaking:** `ethos attestation record`, `query` and `release` and `ethos host run` are
+  catalog entries (`ethos.contracts.operations`) that the one generic adapter renders, as the root
+  commands are. A usage error names the command's full path
+  (`command_usage_invalid:attestation record`, with that path as the result's `command`), and
+  their negated flags `--no-apply`, `--no-review-content`, `--empty-evidence` and `--no-json` are
+  no longer parsed. `host run` takes `--root`, which binds before `--` as `--json` and `--wait`
+  already did; the documented `ethos host run [--wait <seconds>] -- <command...>` is unchanged and
+  still exits with the command's status without printing a result. The structured `next` takes
+  these commands' effects, authority and deletion from their entries, and
+  `ethos attestation --help --json` prints that group's part of the catalog.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

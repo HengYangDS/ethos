@@ -1,4 +1,4 @@
-"""The root catalog declares every root mode once, and every transport selects it alike."""
+"""The catalog declares every command mode once, and every transport selects it alike."""
 
 import inspect
 import re
@@ -12,6 +12,7 @@ from typing import get_type_hints
 
 import pytest
 
+from ethos.adapters.admission.control.replacement import CONTROL_PREFIXES
 from ethos.application.adoption import adopt_repository
 from ethos.application.catalog import IMPLEMENTATIONS
 from ethos.application.catalog import Selected
@@ -23,6 +24,7 @@ from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
 from ethos.contracts.admission import STEP_EFFECTS
 from ethos.contracts.operations.catalog import COMMANDS
+from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
@@ -30,10 +32,12 @@ from ethos.contracts.operations.declaration import Operation
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 
-# Assignments of a command's selectors that select no operation, pinned so a change is reviewed.
-_UNMATCHED = {"status": 0, "plan": 0, "prove": 6, "land": 8, "publish": 9, "adopt": 23}
+# Assignments of a command's selectors that select no operation, pinned so a change is reviewed;
+# a command not named here has none.
+_UNMATCHED = {"prove": 6, "land": 8, "publish": 9, "adopt": 23}
+_ROOT = Path(__file__).resolve().parents[3]
 _ID = re.compile(r"[a-z]+(?:\.[a-z][a-z-]*)+")
-_WRITES = frozenset({"local-write", "host-write", "remote-write"})
+_WRITES = frozenset({"local-write", "host-write", "remote-write", "opaque"})
 _SDK = {
     "status": inspect_repository,
     "plan": plan_repository,
@@ -44,13 +48,15 @@ _SDK = {
 
 
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
-    """IDs are unique; a write needs an authorization kind and a verdict exit, and only a write."""
+    """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 29
+    assert len(identities) == len(set(identities)) == 35
+    assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields
         assert set().union(*(item.accepted for item in command.operations)) == set(fields)
         assert all(info.kw_only and info.description for info in fields.values())
+        assert {*command.positionals, *command.hyphen} <= set(fields)
         for item in command.operations:
             names = [name for name, _want in item.selectors]
             assert _ID.fullmatch(item.id)
@@ -64,11 +70,12 @@ def test_each_operation_is_declared_once_with_its_effects_and_authority() -> Non
             assert item.effects == tuple(e for e in STEP_EFFECTS if e in item.effects)
             writes = _WRITES & set(item.effects)
             assert (item.authorization != "none") is bool(writes)
-            assert item.exit == "verdict" or not writes
+            assert item.exit != "observe" or not writes
             assert writes or not item.destructive
+            assert "opaque" not in item.effects or item.authorization == "human"
 
 
-@pytest.mark.parametrize("name", sorted(_UNMATCHED))
+@pytest.mark.parametrize("name", sorted(COMMANDS))
 def test_selectors_choose_at_most_one_operation_for_every_assignment(name: str) -> None:
     """Enumerating every selector assignment finds no overlap and the pinned unmatched count."""
     command = COMMANDS[name]
@@ -79,7 +86,7 @@ def test_selectors_choose_at_most_one_operation_for_every_assignment(name: str) 
         matched = [item for item in command.operations if not item.failed(present)]
         assert len(matched) <= 1, (name, present)
         unmatched += not matched
-    assert unmatched == _UNMATCHED[name]
+    assert unmatched == _UNMATCHED.get(name, 0)
 
 
 def _value(command: Command, name: str) -> list[str]:
@@ -88,52 +95,71 @@ def _value(command: Command, name: str) -> list[str]:
         return [command.flag(name)]
     annotation = command.request.model_fields[name].annotation
     literal = get_origin(annotation) is Literal
-    return [command.flag(name), get_args(annotation)[-1] if literal else "x"]
+    return [command.flag(name), get_args(annotation)[-1] if literal else "1"]
+
+
+def _required(command: Command) -> list[str]:
+    """Return the command's path and argv that sets each field every request must set."""
+    fields = command.request.model_fields
+    required = sorted(name for name, info in fields.items() if info.is_required())
+    return [*command.name.split(), *(token for name in required for token in _value(command, name))]
 
 
 def _example(command: Command, item: Operation) -> list[str]:
     """Return the shortest argv that selects one operation."""
-    argv = ["ethos", command.name]
+    argv = ["ethos", *_required(command)]
     for name, want in item.selectors:
         argv.extend(_value(command, name) if want in {"true", "set"} else ())
     return argv
 
 
-def _parsed(argv: list[str]) -> CommandRequest:
-    """Return the request Cyclopts binds for one root argv."""
+def _parsed(command: Command, argv: list[str]) -> CommandRequest:
+    """Return the request Cyclopts binds for one argv, which names the command's path."""
     bound = app.parse_args(argv, exit_on_error=False, print_error=False)[1]
     bound.apply_defaults()
-    return bound.arguments["request"]
+    fields = command.request.model_fields
+    return command.request(
+        **{key: value for key, value in bound.arguments.items() if key in fields}
+    )
 
 
 def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
     """The kernel's argv reading, Cyclopts' parse and the application selection agree."""
     load_command_groups([])
     for command in COMMANDS.values():
-        for name in command.request.model_fields:
-            assert command.present(_parsed([command.name, *_value(command, name)])) == {name}
+        required = command.present(_parsed(command, _required(command)))
+        for name in command.request.model_fields.keys() - required:
+            request = _parsed(command, [*_required(command), *_value(command, name)])
+            assert command.present(request) == {name, *required}
         for item in command.operations:
             argv = _example(command, item)
             assert select_argv(argv) == (command, item)
-            chosen = select_operation(command.name, _parsed(argv[1:]))
+            chosen = select_operation(command.name, _parsed(command, argv[1:]))
             assert isinstance(chosen, Selected)
             assert chosen.operation is item
 
 
 @pytest.mark.parametrize(
-    "argv",
+    ("argv", "operation"),
     [
-        ("ethos", "land", "--apply=false"),
-        ("ethos", "land", "--no-apply"),
-        ("ethos", "land", "--expect-head"),
-        ("ethos", "land", "positional"),
-        ("ethos", "land", "--closeout", "--release"),
-        ("ethos", "land", "--release", "--candidate-head", "c"),
+        ("land --apply=false", ""),
+        ("land --no-apply", ""),
+        ("land --expect-head", ""),
+        ("land positional", ""),
+        ("land --closeout --release", ""),
+        ("land --release --candidate-head c", ""),
+        ("host run --wait 5 -- git --root x", "host.run"),
+        ("host run git -C x status --json", "host.run"),
+        ("host run --command x y", ""),
+        ("attestation record file.json --apply", "attestation.record.apply"),
+        ("attestation query word", ""),
+        ("attestation --apply", None),
     ],
 )
-def test_an_argv_outside_the_declared_forms_selects_nothing(argv: tuple[str, ...]) -> None:
-    """A negated, valueless, positional, unmatched or refused form leaves the argv unselected."""
-    assert select_argv(argv) == (COMMANDS["land"], None)
+def test_an_argv_selects_its_declared_form_and_nothing_else(argv: str, operation: str) -> None:
+    """A path takes words and `--` for its positionals; any other form leaves it unselected."""
+    chosen = select_argv(["ethos", *argv.split()])
+    assert (chosen and (chosen[1].id if chosen[1] else "")) == operation
 
 
 def test_each_root_operation_keeps_its_request_signature() -> None:
@@ -154,16 +180,27 @@ def test_each_root_operation_keeps_its_request_signature() -> None:
 
 
 def test_each_operation_maps_to_one_implementation_of_its_command() -> None:
-    """Every operation names one `(root, request)` function under `ethos.application`."""
+    """Every operation names one `(root, request)` function under `ethos.application`.
+
+    A row is keyed by a command, serving each of its operations, or by an operation ID, which
+    overrides its command's row and never repeats its body. The body of a group entry that writes
+    or runs a caller's command lies under one of the control fence's prefixes, which all exist.
+    """
+    assert all((_ROOT / prefix).exists() for prefix in CONTROL_PREFIXES)
     commands = {item.id: name for name, command in COMMANDS.items() for item in command.operations}
-    assert set(IMPLEMENTATIONS) == set(commands)
-    for operation, target in IMPLEMENTATIONS.items():
-        module, _separator, name = target.partition(":")
-        assert module.startswith("ethos.application.")
-        implementation = getattr(import_module(module), name)
-        parameters = list(inspect.signature(implementation).parameters)
-        request = COMMANDS[commands[operation]].request
-        # `prove` postpones its annotations and imports `Path` for type checking only.
-        hints = get_type_hints(implementation, localns={"Path": Path})
-        assert (len(parameters), hints[parameters[1]]) == (2, request)
-        assert "root" not in request.model_fields
+    assert set(IMPLEMENTATIONS) <= commands.keys() | COMMANDS.keys()
+    for name, command in COMMANDS.items():
+        for item in command.operations:
+            own, shared = IMPLEMENTATIONS.get(item.id), IMPLEMENTATIONS.get(name)
+            assert own or shared
+            assert own != shared
+            module, _separator, function = (own or shared or "").partition(":")
+            assert module.startswith("ethos.application.")
+            implementation = getattr(import_module(module), function)
+            parameters = list(inspect.signature(implementation).parameters)
+            # `prove` postpones its annotations and imports `Path` for type checking only.
+            hints = get_type_hints(implementation, localns={"Path": Path})
+            assert (len(parameters), hints[parameters[1]]) == (2, command.request)
+            assert "root" not in command.request.model_fields
+            fenced = f"src/{module.replace('.', '/')}.py".startswith(CONTROL_PREFIXES)
+            assert fenced or " " not in name or not _WRITES & set(item.effects)

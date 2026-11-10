@@ -182,7 +182,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
 def _require_live_next(stdout: str) -> None:
     """Every structured next step is an invocation the live CLI parses, never misread prose.
 
-    A root step names the catalog operation that the parsed request selects.
+    A catalog step names the operation that the parsed request selects.
     """
     try:
         payload = json.loads(stdout)
@@ -205,7 +205,10 @@ def _require_live_next(stdout: str) -> None:
     if root is None:
         return
     bound.apply_defaults()
-    chosen = select_operation(root[0].name, bound.arguments["request"])
+    fields = root[0].request.model_fields
+    chosen = select_operation(
+        root[0].name, {k: v for k, v in bound.arguments.items() if k in fields}
+    )
     form = chosen.operation.id if isinstance(chosen, Selected) else ""
     if not form or step["form"] != form:
         message = f"next_form_not_selected:{shlex.join(step['argv'])}:{step['form']}:{form}"

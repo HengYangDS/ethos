@@ -1,0 +1,2185 @@
+{
+  "leaves": 37,
+  "rows": [
+    {
+      "argv": ["ethos", "lane", "archive-change"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "archive-change", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "archive-change", "--compensate"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "archive-change", "--apply", "--compensate"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--confirm-irreversible"],
+      "effects": ["local-evidence-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--materialize"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--confirm-irreversible"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--materialize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--authorize", "--confirm-irreversible"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--authorize", "--materialize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--authorize", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--confirm-irreversible", "--materialize"],
+      "effects": ["local-evidence-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--confirm-irreversible", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--materialize", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--authorize", "--confirm-irreversible"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--authorize", "--materialize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--authorize", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--confirm-irreversible", "--materialize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--confirm-irreversible",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "candidate", "--apply", "--materialize", "--refresh-from-accepted"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--authorize",
+        "--confirm-irreversible",
+        "--materialize"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--authorize",
+        "--confirm-irreversible",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--authorize",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--confirm-irreversible",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--authorize",
+        "--confirm-irreversible",
+        "--materialize"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--authorize",
+        "--confirm-irreversible",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--authorize",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--confirm-irreversible",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--authorize",
+        "--confirm-irreversible",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--apply",
+        "--authorize",
+        "--confirm-irreversible",
+        "--materialize",
+        "--refresh-from-accepted"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--check"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--apply", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--authorize", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "--apply", "--authorize", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "housekeeping"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "housekeeping", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "housekeeping", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "housekeeping", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "prewrite"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--check"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--apply", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--authorize", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "project", "--apply", "--authorize", "--check"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "refresh-base"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "refresh-base", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "refresh-base", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "refresh-base", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-paradigm"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-paradigm", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-signature"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-signature", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-signature", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-signature", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "start"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "start", "--apply"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "status"],
+      "effects": ["read"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "trust-commit-signer"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "trust-commit-signer", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "trust-commit-signer", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "trust-commit-signer", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "admit"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "commit-range"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "commit-range", "--check", "peer-identity"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "install"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "install", "--authorize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "install", "--reset-state"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "install", "--authorize", "--reset-state"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "ref-transaction"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "ref-update"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-records"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-records", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-records", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-records",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-records", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-records",
+        "--apply",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-records",
+        "--authorize",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-records",
+        "--apply",
+        "--authorize",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-supply"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-supply", "--apply"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-supply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-supply",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "hook", "retire-supply", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-supply",
+        "--apply",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-supply",
+        "--authorize",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-supply",
+        "--apply",
+        "--authorize",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "attestation", "query"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "attestation", "record"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "attestation", "record", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "attestation", "release"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "attestation", "release", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "host", "run"],
+      "effects": ["execute", "opaque"],
+      "authorization": "human",
+      "destructive": true,
+      "exit": "process"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "export"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "export", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "import"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "import", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "revoke-source"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "revoke-source", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "transfer"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "handoff", "transfer", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "reacquire"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "reacquire", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "reacquire", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "reacquire", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "renew"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "renew", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "resume"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "resume", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "takeover"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "lease", "takeover", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "lease",
+        "takeover",
+        "--authorization",
+        "/store/authorization.json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "attestation",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "lease",
+        "takeover",
+        "--apply",
+        "--authorization",
+        "/store/authorization.json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "attestation",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--verify"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--apply", "--verify"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "redact", "private-addresses", "--authorize", "--verify"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "redact",
+        "private-addresses",
+        "--apply",
+        "--authorize",
+        "--verify"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon", "--receipt", "/store/receipt.json"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "abandon", "--apply", "--receipt", "/store/receipt.json"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--apply",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--authorize",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--apply",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--apply",
+        "--authorize",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--apply",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--apply",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--confirm-irreversible"],
+      "effects": ["local-evidence-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--apply", "--confirm-irreversible"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "absorbed-ref", "--authorize", "--confirm-irreversible"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "absorbed-ref",
+        "--apply",
+        "--authorize",
+        "--confirm-irreversible"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "landed"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "landed", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "landed", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "landed", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover", "--receipt", "/store/receipt.json"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "recover", "--apply", "--receipt", "/store/receipt.json"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--apply",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--authorize",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--apply",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--apply",
+        "--authorize",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--apply",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "recover",
+        "--apply",
+        "--authorize",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "superseded"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "superseded", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "superseded", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "observe"
+    },
+    {
+      "argv": ["ethos", "lane", "retire", "superseded", "--apply", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-paradigm", "--apply", "--json"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/repository/release/publication.py:333"
+    },
+    {
+      "argv": ["ethos", "lane", "status", "--root", "/repo", "--json"],
+      "effects": ["read"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe",
+      "source": "src/ethos/adapters/mutation/publication/retirement.py:456"
+    },
+    {
+      "argv": ["ethos", "lane", "status", "--json"],
+      "effects": ["read"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/archive/command.py:238"
+    },
+    {
+      "argv": [
+        "ethos",
+        "attestation",
+        "query",
+        "--predicate",
+        "lane-resolution:takeover",
+        "--subject",
+        "git:branch:lane",
+        "--json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/archive/command.py:464"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "lease",
+        "resume",
+        "--generation",
+        "1",
+        "--expires-at",
+        "2026-08-30T00:00:00Z",
+        "--branch",
+        "lane",
+        "--holder-ref",
+        "agent:test",
+        "--apply",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/archive/command.py:469"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--path",
+        "/lane",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/candidate_projection.py:192"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--refresh-from-accepted",
+        "--apply",
+        "--authorize",
+        "--confirm-irreversible",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/candidate_projection.py:330"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "candidate",
+        "--refresh-from-accepted",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/application/land/closeout.py:167"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/work_lane_refresh_report.py:54"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/application/proof/operation.py:283"
+    },
+    {
+      "argv": ["ethos", "lane", "refresh-base", "--strategy", "merge", "--root", "/repo", "--json"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/work_lane_refresh.py:135"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "repair-signature",
+        "--root",
+        "/repo",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--apply",
+        "--authorize",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/accepted/signature.py:192"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "repair-signature",
+        "--root",
+        "/repo",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--replacement",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "--apply",
+        "--authorize",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/accepted/signature.py:285"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "project",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--patch",
+        "/store/preview.patch",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/projection.py:126"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "prewrite",
+        "--paths",
+        "openspec/changes/c/proposal.md",
+        "--editor-root",
+        "/repo",
+        "--require-editor-root",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/archive/effect.py:327"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "start",
+        "20261110-lane",
+        "--holder-ref",
+        "agent:test",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/start.py:119"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "start",
+        "20261110-lane",
+        "--path",
+        "/lanes/lane",
+        "--holder-ref",
+        "agent:test",
+        "--base",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/start.py:394"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "landed",
+        "--branch",
+        "lane",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--authorize",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_retirement/linked.py:253"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "superseded",
+        "--branch",
+        "lane",
+        "--path",
+        "/lanes/lane",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--absorbed-by",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "--reason",
+        "superseded",
+        "--authorize",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_retirement/linked.py:253"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "abandon",
+        "--receipt",
+        "/store/receipt.json",
+        "--receipt-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "--authorize",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_retirement/abandonment.py:172"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "retire",
+        "absorbed-ref",
+        "--branch",
+        "lane",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--accepted-head",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "--authorize",
+        "--confirm-irreversible",
+        "--apply",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "confirm-irreversible",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_retirement/absorbed.py:379"
+    },
+    {
+      "argv": ["ethos", "lane", "housekeeping", "--authorize", "--apply", "--json"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/worktree/detached_cleanup.py:78"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "archive-change",
+        "--change",
+        "c",
+        "--expect-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--compensate",
+        "--apply",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/remediation/guidance.py:29"
+    },
+    {
+      "argv": [
+        "ethos",
+        "lane",
+        "trust-commit-signer",
+        "--target-commit",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--expected-anchor-sha256",
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "--authorize",
+        "--apply",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/repo/trust_anchor/authorization.py:93"
+    },
+    {
+      "argv": ["ethos", "hook", "install", "--root", "/repo", "--json"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/mutation/lane_lifecycle/lease/acquisition.py:257"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "install",
+        "--root",
+        "/repo",
+        "--reset-state",
+        "--authorize",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/application/console.py:197"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "retire-records",
+        "--expect-plan",
+        "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+        "--apply",
+        "--authorize",
+        "--root",
+        "/repo",
+        "--json"
+      ],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": true,
+      "exit": "verdict",
+      "source": "src/ethos/application/retention.py:161"
+    },
+    {
+      "argv": ["ethos", "hook", "install", "--json"],
+      "effects": ["local-evidence-write", "local-write", "host-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "src/ethos/adapters/repo/hook/activation.py:136"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "commit-range",
+        "--target-ref",
+        "refs/heads/main",
+        "--proposed-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--remote-head",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "--remote",
+        "origin",
+        "--root",
+        ".",
+        "--json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": ".gitlab-ci.yml:72"
+    },
+    {
+      "argv": [
+        "ethos",
+        "hook",
+        "commit-range",
+        "--check",
+        "peer-identity",
+        "--target-ref",
+        "refs/heads/main",
+        "--proposed-head",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--remote-head",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "--remote",
+        "origin",
+        "--root",
+        ".",
+        "--json"
+      ],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": ".gitlab-ci.yml:73"
+    },
+    {
+      "argv": ["ethos", "lane", "repair-paradigm", "--root", "/lane"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "observe",
+      "source": "tools/ci/delivery/acceptance/brownfield.py:233"
+    },
+    {
+      "argv": ["ethos", "lane", "format", "README.md", "--root", "/lane", "--json"],
+      "effects": ["local-evidence-write"],
+      "authorization": "none",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "tools/ci/delivery/acceptance/first_change.py:192"
+    },
+    {
+      "argv": ["ethos", "attestation", "query", "--apply"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "apply",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "audit:attestation query"
+    },
+    {
+      "argv": ["ethos", "attestation", "record", "--input", "x", "--authorize"],
+      "effects": ["local-evidence-write", "local-write"],
+      "authorization": "authorize",
+      "destructive": false,
+      "exit": "verdict",
+      "source": "audit:attestation record"
+    }
+  ]
+}

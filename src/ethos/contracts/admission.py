@@ -103,7 +103,8 @@ _AUTHORITY_TOKENS: tuple[tuple[str, StepAuthorization], ...] = (
     ("--authorize", "authorize"),
     ("--apply", "apply"),
 )
-# The rows below classify group argv; a root argv takes its catalog operation's declarations.
+# The rows below classify the group argv that no catalog command names; a catalog argv takes
+# its operation's declarations.
 _READ_COMMAND_PATHS = frozenset({("lane", "status")})
 _Row = tuple[tuple[str, ...], frozenset[str]]
 
@@ -115,7 +116,7 @@ def _rows(*shapes: str) -> tuple[_Row, ...]:
 
 
 # A command that runs a caller's command cannot see that command's effects.
-_OPAQUE = _rows("host run", "mcp")
+_OPAQUE = _rows("mcp")
 _TOKENLESS_WRITES = _rows("hook install")
 _HOST_WRITES = _rows(
     "hook install",
@@ -134,7 +135,6 @@ _DESTRUCTIVE = _rows(
     "lane housekeeping: --apply --authorize",
     "lane handoff revoke-source: --apply",
     "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
-    "attestation release: --apply",
     "hook retire-supply: --apply --authorize --expect-plan",
     "hook retire-records: --apply --authorize --expect-plan",
     "hook install: --reset-state --authorize",

@@ -8,37 +8,33 @@ from cyclopts import App
 from cyclopts.exceptions import CycloptsError
 
 from ethos.application.catalog import usage_refusal
+from ethos.contracts.admission import ethos_command_path
 from ethos.contracts.admission import root_command
+from ethos.contracts.operations.catalog import command_path
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.version import version_text
 
 app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
-_CATALOG = "ethos.surface.cli.root.catalog"
+# The modules that declare the commands outside the operation catalog, by their first word.
 _COMMAND_MODULES = {
-    "status": _CATALOG,
-    "plan": _CATALOG,
-    "prove": _CATALOG,
-    "land": _CATALOG,
-    "publish": _CATALOG,
     "mcp": "ethos.surface.cli.root.mcp",
-    "adopt": _CATALOG,
     "lane": "ethos.surface.cli.lane.lifecycle",
     "hook": "ethos.surface.cli.hook.commands",
-    "attestation": "ethos.surface.cli.root.attestation",
-    "host": "ethos.surface.cli.root.host",
 }
 
 
 def load_command_groups(argv: list[str]) -> None:
-    """Import only the command registration modules needed by this invocation."""
+    """Declare only the commands this invocation names, or every command for none."""
     selected_name = root_command(argv)
+    if selected_name not in _COMMAND_MODULES:
+        importlib.import_module("ethos.surface.cli.catalog").register(selected_name)
     if selected_name in _COMMAND_MODULES:
         selected = (_COMMAND_MODULES[selected_name],)
     elif selected_name:
         selected = ()
     else:
-        selected = tuple(dict.fromkeys(_COMMAND_MODULES.values()))
+        selected = tuple(_COMMAND_MODULES.values())
     for module in selected:
         importlib.import_module(module)
         if module == _COMMAND_MODULES["lane"]:
@@ -63,12 +59,16 @@ def dispatch_arguments(argv: list[str]) -> list[str]:
 
 
 def run_application(argv: list[str]) -> None:
-    """Run one command; a usage error is a structured result that exits 2, like a refusal."""
+    """Run one command; a usage error is a structured result that exits 2, like a refusal.
+
+    The error names the longest catalog path the argv starts with, else its command word if one
+    is declared, else `ethos`.
+    """
     try:
         app(dispatch_arguments(argv), exit_on_error=False, print_error=False)
     except CycloptsError as error:
-        name = root_command(argv)
-        command = name if name in app.resolved_commands() else "ethos"
+        path, name = command_path(ethos_command_path(["ethos", *argv])), root_command(argv)
+        command = path.name if path else name if name in app.resolved_commands() else "ethos"
         gap = f"command_usage_invalid:{command}"
         refusal = usage_refusal(command, (gap,), {"usage": str(error)}, message=str(error))
         emit(refusal, json_output="--json" in argv)

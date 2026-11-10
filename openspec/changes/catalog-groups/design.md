@@ -92,20 +92,42 @@ Non-Goals:
     additive keyword spelling of positionals. Body checks that own a gap code (`lane retire abandon`
     without `--receipt`, `lane refresh-base --source-ref` with rebase) stay, their fields optional.
 
+## Audit
+
+Decision 12's rows for the S1 leaves, read from the old commands and the new adapter (the S1 spike
+and the CLI tests). Product callers were searched in `src`, `tools`, `.gitlab-ci.yml` and `.github`;
+the one emitter, `src/ethos/adapters/mutation/lane_lifecycle/archive/command.py:464`, renders
+`attestation query --predicate … --subject … --json`, which selects `attestation.query`. S2 to S4
+add their leaves' rows before writing entries.
+
+| Leaf                  | Flag or shape                                                        | Exit before                           | Exit after                                      |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- |
+| `attestation record`  | missing `--input`                                                    | 2 `command_usage_invalid:attestation` | 2 `command_usage_invalid:attestation record`    |
+| `attestation record`  | the input as a word                                                  | binds                                 | binds: `input_path` stays positional            |
+| `attestation record`  | `--evidence` without `--apply`                                       | read by the preview                   | unchanged: a field of both entries              |
+| `attestation record`  | `--authorize`, which no entry takes                                  | 2, unknown option                     | 2 `command_usage_invalid:attestation record`    |
+| `attestation release` | missing `--id`                                                       | 2, the group word                     | 2, the full path                                |
+| `attestation release` | `--reason` without `--review-content`, or the reverse                | ignored by the body                   | unchanged: fields of both entries               |
+| `attestation query`   | `--apply`, or a word                                                 | 2, usage error                        | 2 `command_usage_invalid:attestation query`     |
+| all three             | `--no-apply`, `--no-review-content`, `--empty-evidence`, `--no-json` | accepted                              | 2: no negated forms, as for the root commands   |
+| `host run`            | no command                                                           | 1 `host_run_command_missing`          | unchanged                                       |
+| `host run`            | the command's status                                                 | the exit status, no frame             | unchanged, also under `--json`                  |
+| `host run`            | `--root <path>` before `--`                                          | taken into the command                | ETHOS's `--root`, as `--json` and `--wait` were |
+
 ## Slices
 
 One Change, ordered commits. Each slice records its measured product and test delta in its task and
 ends with ruff, `ty`, `lint-imports`, the module-layout gate, the table test, the golden data, the
 impacted sweep and readiness.
 
-| Slice | Content                                                                                                                 | Import rows | Destructive rows | Product      | Tests        |
-| ----- | ----------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------- | ------------ | ------------ |
-| S1    | spike, golden data, path keys, `GROUPS`, `modes()`, mixins, `process`, adapter, `attestation`, `host run`, fence part 1 | 5           | 1                | at most +110 | at most +100 |
-| S2    | `hook` (7 leaves)                                                                                                       | 14          | 3                | +10          | -60          |
-| S3    | `lane` lifecycle (7) and repair (6)                                                                                     | 18          | 2                | +50          | -80          |
-| S4    | `lane` retire, handoff, lease (13)                                                                                      | 12          | 6                | +20          | -80          |
-| S5    | delete old modules and tables, provider move, spec, rule, docs                                                          | 3           | 0                | -50          | -30          |
-| total |                                                                                                                         | 52          | 12               | gate +200    | gate -100    |
+| Slice | Content                                                                                                                      | Import rows | Destructive rows | Product      | Tests        |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------- | ------------ | ------------ |
+| S1    | spike, golden data, path keys, `GROUPS`, `modes()`, field types, `process`, adapter, `attestation`, `host run`, fence part 1 | 5           | 1                | at most +110 | at most +100 |
+| S2    | `hook` (7 leaves)                                                                                                            | 14          | 3                | +10          | -60          |
+| S3    | `lane` lifecycle (7) and repair (6)                                                                                          | 18          | 2                | +50          | -80          |
+| S4    | `lane` retire, handoff, lease (13)                                                                                           | 12          | 6                | +20          | -80          |
+| S5    | delete old modules and tables, provider move, spec, rule, docs                                                               | 3           | 0                | -50          | -30          |
+| total |                                                                                                                              | 52          | 12               | gate +200    | gate -100    |
 
 A slice that misses its figure is re-cut before the next begins. If S2 to S4 cannot recover toward
 the test total, the work stops and returns to the committee.

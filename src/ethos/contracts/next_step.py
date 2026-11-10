@@ -1,8 +1,9 @@
 """The next step as data: what an agent runs, what it changes, who authorizes it and its binding.
 
 A step is derived from the same facts that render a result's `next_action`, so the text and the
-data can never disagree, and it is re-derived on every read rather than stored or replayed. A root
-argv takes its form, effects and authority from the catalog operation it selects.
+data can never disagree, and it is re-derived on every read rather than stored or replayed. An
+argv that names a catalog command takes its form, effects and authority from the operation it
+selects.
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ class NextStep(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     kind: StepKind
-    # The catalog operation a root argv selects; empty for any other step.
+    # The catalog operation the argv selects; empty for any other step.
     form: str = ""
     argv: tuple[str, ...] = ()
     effects: tuple[StepEffect, ...] = ()
@@ -77,15 +78,15 @@ def derive_next_step(text: str, *, continuation: str, why: str) -> NextStep:
 def _classified(
     argv: tuple[str, ...],
 ) -> tuple[str, tuple[StepEffect, ...], bool, StepAuthorization]:
-    """Classify a root argv by the operation it selects and any other argv by its declared rows."""
-    root = select_argv(argv)
-    if root is None:
+    """Classify a catalog argv by the operation it selects and any other argv by its rows."""
+    command = select_argv(argv)
+    if command is None:
         effects = ethos_step_effects(argv)
         destructive = ethos_step_destructive(argv, effects)
         return "", effects, destructive, ethos_step_authorization(argv, effects)
-    selected = root[1]
+    selected = command[1]
     if selected is None:
-        # A root argv that selects no operation could do anything, so a person decides it.
+        # A catalog argv that selects no operation could do anything, so a person decides it.
         return "", ("opaque",), True, "human"
     return selected.id, selected.effects, selected.destructive, selected.authorization
 

@@ -172,17 +172,19 @@ def command_owner_sources_from_files(
             owners.setdefault(command, set()).add(f"{path}:{variable}")
     for path in sources:
         if (tree := parsed_files.get(path)) is not None:
-            for command, symbols in python_references.cyclopts_command_owners(
-                path, tree, prefixes
-            ).items():
+            for command, symbols in (
+                *python_references.cyclopts_command_owners(path, tree, prefixes).items(),
+                *python_references.catalog_command_owners(path, tree).items(),
+            ):
                 owners.setdefault(command, set()).update(symbols)
     return {command: frozenset(symbols) for command, symbols in owners.items()}
 
 
 def _command_declarations(files: dict[str, str]) -> dict[str, str]:
-    """Select the command carriers that declare a Cyclopts application or command."""
+    """Select the command carriers that declare a Cyclopts application, command or catalog entry."""
     commands = declaration_files(files, "commands")
-    return {path: text for path, text in commands.items() if "App(" in text or ".command" in text}
+    markers = ("App(", ".command", "Command(", "Group(")
+    return {path: text for path, text in commands.items() if any(item in text for item in markers)}
 
 
 def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, ...]], set[str]]:

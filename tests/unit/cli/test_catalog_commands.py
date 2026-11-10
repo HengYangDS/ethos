@@ -14,12 +14,15 @@ from ethos.application.catalog import Refused
 from ethos.application.catalog import select_operation
 from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
+from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.prove import ProofRequest
 from ethos.result import PAYLOAD_BUDGETS
 from ethos.surface.mcp.server import create_server
 from tests.support.ethos_cli_runner import run_ethos_process
 from tests.support.ethos_cli_runner import run_ethos_raw
 
+_RECORD = "command_usage_invalid:attestation record"
+_GROUP = ("attestation record", "attestation query", "attestation release")
 _RECEIPT = {
     "receipt": "request.json",
     "receipt_sha256": "0" * 64,
@@ -30,29 +33,48 @@ _RECEIPT = {
 
 
 @pytest.mark.parametrize(
-    ("argv", "gap"),
+    ("argv", "command", "gap"),
     [
-        (("land", "--closeout", "--release"), "command_operation_unmatched:land"),
-        (("land", "--tag", "v1"), "command_field_refused:tag"),
-        (("land", "--bogus"), "command_usage_invalid:land"),
-        (("land", "true"), "command_usage_invalid:land"),
-        (("land", "--no-apply"), "command_usage_invalid:land"),
-        (("publish", "--apply"), "command_operation_unmatched:publish"),
-        (("adopt", "--create", "--purpose", "p"), "formation_root_required"),
+        (("land", "--closeout", "--release"), "land", "command_operation_unmatched:land"),
+        (("land", "--tag", "v1"), "land", "command_field_refused:tag"),
+        (("land", "--bogus"), "land", "command_usage_invalid:land"),
+        (("land", "true"), "land", "command_usage_invalid:land"),
+        (("land", "--no-apply"), "land", "command_usage_invalid:land"),
+        (("publish", "--apply"), "publish", "command_operation_unmatched:publish"),
+        (("adopt", "--create", "--purpose", "p"), "adopt", "formation_root_required"),
+        (("attestation", "record", "--input", "x", "--authorize"), "attestation record", _RECORD),
+        (("attestation", "bogus"), "attestation", "command_usage_invalid:attestation"),
+        (("bogus",), "ethos", "command_usage_invalid:ethos"),
     ],
 )
 def test_a_refused_request_exits_2_with_its_result_on_stdout(
-    tmp_path, argv: tuple[str, ...], gap: str
+    tmp_path, argv: tuple[str, ...], command: str, gap: str
 ) -> None:
-    """One schema-3 refusal goes to stdout under `--json` and its human frame to stderr."""
+    """One schema-3 refusal naming its command path goes to stdout, its human frame to stderr."""
     completed = run_ethos_raw(*argv, "--json", cwd=tmp_path)
 
     assert completed.returncode == 2, completed.stderr
-    assert completed.stderr.startswith(f"{argv[0]}: usage_refused")
+    assert completed.stderr.startswith(f"{command}: usage_refused")
     payload = json.loads(completed.stdout)
     assert (payload["schema_version"], payload["verdict"]) == (3, "block")
+    assert payload["command"] == command
     assert (payload["state"], payload["required_gaps"]) == ("usage_refused", [gap])
     assert payload["next"]["kind"] == "instruction"
+
+
+_REQUIRING = [
+    name
+    for name, command in COMMANDS.items()
+    if any(info.is_required() for info in command.request.model_fields.values())
+]
+
+
+@pytest.mark.parametrize("name", _REQUIRING)
+def test_a_missing_required_field_names_the_full_command_path(tmp_path, name: str) -> None:
+    """A usage error names the longest catalog path, in its gap and in the payload's command."""
+    payload = json.loads(run_ethos_raw(*name.split(), "--json", cwd=tmp_path).stdout)
+    assert payload["command"] == name
+    assert payload["required_gaps"] == [f"command_usage_invalid:{name}"]
 
 
 def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
@@ -85,6 +107,9 @@ def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
     ]
     assert len(operations) == 29
     assert [entry["name"] for entry in json.loads(one.stdout)["data"]["commands"]] == ["land"]
+    for argv, names in (("attestation",), _GROUP), (("attestation", "query"), _GROUP[1:2]):
+        described = json.loads(run_ethos_process(*argv, "--help", "--json").stdout)
+        assert [entry["name"] for entry in described["data"]["commands"]] == list(names)
 
 
 def test_every_transport_refuses_the_same_request_alike(tmp_path) -> None:

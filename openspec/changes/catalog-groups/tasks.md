@@ -2,28 +2,31 @@
 
 ## 1. S1: catalog machinery, attestation and host run
 
-- [ ] 1.1 Spike the two unspiked cases in owned scratch. Done when the `process` exit and
+- [x] 1.1 Spike the two unspiked cases in owned scratch. Done when the `process` exit and
       `lane prewrite --patch -` stdin both work through a generated signature, with the five earlier
       spike cases re-run on the real adapter.
-- [ ] 1.2 Generate the golden `next` data with the uncommitted generator. Done when one JSON file
+- [x] 1.2 Generate the golden `next` data with the uncommitted generator. Done when one JSON file
       under `tests/fixtures/` holds `(argv, effects, authorization, destructive, exit kind)` for
       every leaf and its mode-bearing flag subsets, and the test docstring records its provenance.
-- [ ] 1.3 Complete the attestation and `host run` audit rows. Done when each ignored or checked flag
+- [x] 1.3 Complete the attestation and `host run` audit rows. Done when each ignored or checked flag
       has its exit before and after in the design's audit, with the product callers searched.
-- [ ] 1.4 Add path keys, `GROUPS`, `modes()`, the field types S1 uses and the `process` exit kind.
+- [x] 1.4 Add path keys, `GROUPS`, `modes()`, the field types S1 uses and the `process` exit kind.
       Done when `select_argv` selects a three-word path with positionals and `--`, and the table
       test passes over every path.
-- [ ] 1.5 Build the generic group adapter and the full-path usage refusal. Done when the
+- [x] 1.5 Build the generic group adapter and the full-path usage refusal. Done when the
       `(argv, command, exit)` table and the missing-required-field test pass for every migrated
       path.
-- [ ] 1.6 Convert `attestation` and `host run` to entries. Done when their CLI tests pass through
+- [x] 1.6 Convert `attestation` and `host run` to entries. Done when their CLI tests pass through
       the adapter, `host run` exits with its child's status, and the 5 rows and 1 destructive row
       leave.
-- [ ] 1.7 Fence part 1 and its test. Done when the listed S1 prefixes are in
+- [x] 1.7 Fence part 1 and its test. Done when the listed S1 prefixes are in
       `src/ethos/adapters/admission/control/replacement.py` and the prefix test passes.
 - [ ] 1.8 Record S1 deltas. Done when the measured kernel import cost, product delta (at most +110)
       and test delta (at most +100) are written in this task and the owner's fence acknowledgement
-      is named.
+      is named. Measured on `ff8de8f41`: product +122 LE (`python_product` +142, 77,618), tests
+      +102 LE (`python_tests` +142, 100,075, over the 100,000 terminal ceiling); kernel import
+      +1.7 ms of about 215 ms; fence widening acknowledged by 97f828 on 2026-11-09. Open: both
+      figures; the unplanned reference-closure owners cost +15 product LE.
 
 ## 2. S2: hook
 

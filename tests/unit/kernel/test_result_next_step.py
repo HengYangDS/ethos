@@ -139,7 +139,6 @@ _RECORDS = "hook retire-records --expect-plan p --apply --authorize"
         ),
         ("hook install --json", _HOST, "none", False),
         ("hook install --reset-state --authorize --json", _HOST, "authorize", True),
-        ("host run nox", ["execute", "opaque"], "human", True),
         ("mcp --root /repo", ["execute", "opaque"], "human", True),
         ("publish --ref refs/heads/dev --json", _REMOTE[:3], "none", False),
         ("publish --retire --receipt /r --apply --authorize", _REMOTE, "authorize", True),
@@ -156,7 +155,6 @@ _RECORDS = "hook retire-records --expect-plan p --apply --authorize"
         ("land --closeout --release --json", ["opaque"], "human", True),
         ("publish --apply --json", ["opaque"], "human", True),
         ("lane start --apply", _HOST, "apply", False),
-        ("attestation release --apply", _EVIDENCE_WRITE, "apply", True),
         (_RECORDS, _EVIDENCE_WRITE, "authorize", True),
     ],
 )

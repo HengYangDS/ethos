@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from ethos.application.console import command_boundary
 from ethos.application.console import invocation_parameters
 from ethos.application.console import run_console
+from ethos.contracts.admission import ethos_command_path
 from ethos.contracts.admission import root_command
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.surface.cli.version import version_text
@@ -16,8 +17,9 @@ from ethos.surface.cli.version import version_text
 if TYPE_CHECKING:
     from ethos.result import EthosResult
 
-# `ethos --help --json` prints every root command's catalog, `ethos <command> --help --json` one.
-_ROOT_HELP = frozenset({"ethos", *COMMANDS})
+# `ethos --help --json` prints the root commands' catalog, `ethos <path> --help --json` the
+# command or the group that the path names.
+_CATALOG_HELP = frozenset({"ethos", *(name.split()[0] for name in COMMANDS)})
 
 
 def console_main() -> None:
@@ -38,9 +40,11 @@ def main() -> None:
             return
         commands = import_module("ethos.surface.cli.application")
         commands.load_command_groups(argv)
-        if "--json" in argv and {"--help", "-h"} & set(argv) and command in _ROOT_HELP:
-            catalog = import_module("ethos.surface.cli.root.catalog")
-            _emit(catalog.help_result(command), json_output=True, enforce=False)
+        if "--json" in argv and {"--help", "-h"} & set(argv) and command in _CATALOG_HELP:
+            described = import_module("ethos.surface.cli.catalog").help_result(
+                ethos_command_path(["ethos", *argv])
+            )
+            _emit(described, json_output=True, enforce=False)
             return
         with invocation_parameters(command, argv):
             commands.run_application(argv)

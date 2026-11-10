@@ -38,6 +38,7 @@ prerelease = "disallow"
 [dependency-groups]
 dev = [
   "allure-pytest>=2.16.2",
+  "complexipy>=8.3.0",
   "deptry>=0.25.1",
   "editables>=0.6",
   "hatchling>=1.33.0",

@@ -10,7 +10,8 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 [lint]
-# Preview rules apply only when selected by exact code; PLW1514 and DOC102 are preview in Ruff 0.17.
+# Preview rules apply only when selected by exact code; PLW1514, DOC102 and PLR0916 are preview in
+# Ruff 0.17.
 preview = true
 explicit-preview-rules = true
 select = [
@@ -35,7 +36,6 @@ select = [
   "TID",
   "PIE",
   "RUF",
-  "C90",
   "TRY",
   "FBT",
   "SLF",
@@ -57,8 +57,8 @@ select = [
   "PLW1514",
   "DOC102",
   "PLR0911",
-  "PLR0912",
   "PLR0915",
+  "PLR0916",
   "PLR0917",
   "S",
   "ANN",
@@ -127,8 +127,11 @@ allow-star-arg-any = true
 # Modules keep their canonical names (`rules/module-layout.md`), so ElementTree is not `ET`.
 "xml.etree.ElementTree" = "ElementTree"
 
-[lint.mccabe]
-max-complexity = 10
+[lint.pylint]
+# A ratchet at the measured maximum, lowered toward the default 5 as conditions are rewritten.
+# Cognitive complexity (`tests/architecture/test_decision_density.py`) owns branch and nesting
+# density; it counts a run of like Boolean operators once, so long conditions need this limit.
+max-bool-expr = 23
 
 [lint.isort]
 force-single-line = true

@@ -295,7 +295,7 @@ github: {
 				name: "Build the supply image"
 				run:  "docker buildx build --platform linux/arm64 --file \(supplyDockerfile) --target supply --tag \(supplyImage) --load ."
 			}, {
-				uses: "docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6"
+				uses: "docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550"
 				with: {
 					registry: "ghcr.io"
 					username: "${{ github.actor }}"

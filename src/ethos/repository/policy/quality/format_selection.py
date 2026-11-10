@@ -132,23 +132,23 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
     return [cast("OwnerDeclaration", declaration) for declaration in value]
 
 
-def matches_glob(path: str, pattern: str) -> bool:
+def _matches_glob(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern) or Path(path).match(pattern)
 
 
-def matches_patterns(path: str, patterns: list[str]) -> bool:
-    return any(matches_glob(path, pattern) for pattern in patterns)
+def _matches_patterns(path: str, patterns: list[str]) -> bool:
+    return any(_matches_glob(path, pattern) for pattern in patterns)
 
 
 def _owner_matches(path: str, declaration: OwnerDeclaration) -> bool:
     suffix = Path(path).suffix.lower()
     extensions = declaration.get("extensions", [])
     has_selector = bool(declaration.get("paths")) or bool(extensions)
-    selected = matches_patterns(path, declaration.get("paths", [])) or suffix in extensions
+    selected = _matches_patterns(path, declaration.get("paths", [])) or suffix in extensions
     return (
         has_selector
         and selected
-        and not matches_patterns(path, declaration.get("exclude_paths", []))
+        and not _matches_patterns(path, declaration.get("exclude_paths", []))
     )
 
 

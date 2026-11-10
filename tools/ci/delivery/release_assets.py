@@ -17,6 +17,7 @@ runs it with uv's Python and without the project environment.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -25,8 +26,6 @@ from pathlib import Path
 from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 from typing import Any
-
-from ethos.contracts.digest import file_sha256
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -143,13 +142,13 @@ def assemble(
     for platform, (archive, wheel, native, inventories) in sorted(archives.items()):
         if native:
             shutil.copy2(wheel, assets / wheel.name)
-            sums[wheel.name] = file_sha256(assets / wheel.name)
+            sums[wheel.name] = _sha256(assets / wheel.name)
         published = f"ethos-{version}-{platform}.tar.gz"
         shutil.copy2(archive, assets / published)
-        sums[published] = file_sha256(assets / published)
+        sums[published] = _sha256(assets / published)
         for suffix, inventory in zip(_INVENTORIES, inventories, strict=True):
             shutil.copy2(inventory, assets / f"ethos-{version}-{platform}{suffix}")
-            sums[f"ethos-{version}-{platform}{suffix}"] = file_sha256(inventory)
+            sums[f"ethos-{version}-{platform}{suffix}"] = _sha256(inventory)
         # The archive's console directory, not the runtime's scripts: adopters get `ethos` alone.
         declaration.append(
             f'{platform} = {{ url = "{base_url}/{published}", checksum = "sha256:'
@@ -208,8 +207,8 @@ def _admitted_legs(
             platform not in _HOSTS
             or runtime.partition("-")[0] != platform.partition("-")[0]
             or (native and wheel.name in published_wheels)
-            or file_sha256(archive) != distribution["sha256"]
-            or file_sha256(wheel) != distribution["wheel_sha256"]
+            or _sha256(archive) != distribution["sha256"]
+            or _sha256(wheel) != distribution["wheel_sha256"]
             or distribution["product_version"] != version
         ):
             message = f"release_assets_distribution_mismatch:{platform}"
@@ -292,6 +291,11 @@ def _single(paths: Iterable[Path], gap: str) -> Path:
     if len(selected) != 1:
         raise ValueError(gap)
     return selected[0]
+
+
+def _sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def main(arguments: list[str] | None = None) -> int:

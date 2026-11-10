@@ -22,15 +22,22 @@ Non-Goals:
 1. Identity is structural: a body is compared after renaming what it binds, in order of first use
    across the signature and the body, keeping every name it reads. `a - b` and `b - a` differ;
    a renamed copy does not.
-2. Below 6 syntax nodes a body is an idiom, not an implementation. There is no allowlist.
-3. `refuse(*gaps, cause=None)` raises `refusal(*gaps)`, chained `from cause` only when a cause is
+2. Below 4 statement and expression nodes (the module wrapper and Load/Store markers not counted)
+   a body is an idiom such as `return name`; a delegated call such as `raise ValueError(reason)` is
+   the smallest implementation. What a body binds includes parameters, targets, `except ... as`,
+   `match` captures, nested definitions and imports. There is no allowlist.
+3. A script run by `uv run --no-project python ...` in a workflow is its own deployment unit; it
+   cannot import an owner. The gate reads that set from `.github/workflows/`, skips it, and
+   requires it to import only `sys.stdlib_module_names`. `tools/ci/delivery/release_assets.py` keeps
+   its own standard-library digest.
+4. `refuse(*gaps, cause=None)` raises `refusal(*gaps)`, chained `from cause` only when a cause is
    given; otherwise the error being handled stays the implicit context, as a plain raise keeps it.
    Call sites keep a statement, because Ruff's message rule refuses a string literal inside
    `raise`. The four functions that end in a refusal raise it explicitly, so the implicit-return
    rule sees the exit.
-4. `file_sha256` reads in bounded chunks with `hashlib.file_digest`; callers and their tests keep
+5. `file_sha256` reads in bounded chunks with `hashlib.file_digest`; callers and their tests keep
    the name `file_sha256`.
-5. The two identical model digest methods become one function, `model_digest(model)`, found
+6. The two identical model digest methods become one function, `model_digest(model)`, found
    through the type checker: removing the methods named exactly the nine call sites.
 
 ## Risks / Trade-offs

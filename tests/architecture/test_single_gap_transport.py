@@ -10,7 +10,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 # The refusal owners raise the gaps they are given.
-_HELPERS = re.compile(r"^(refuse|require)$")
+_HELPERS = re.compile(r"^(refusal|refuse|require)$")
 
 
 def test_product_code_never_transports_only_the_first_gap() -> None:
@@ -25,6 +25,7 @@ def test_product_code_never_transports_only_the_first_gap() -> None:
         ("raise ValueError(gaps[0] if gaps else 'gate_missing')", 1),
         ("refuse(str(report['required_gaps'][0]))", 1),
         ("require(ready, gaps[0])", 1),
+        ("raise refusal(gaps[0])", 1),
         ("raise ProcessExecutionError(gaps[0], reason='r')", 1),
         ("return subprocess.CompletedProcess(args, 1, out, gaps[0])", 1),
         ("raise ProcessExecutionError(gaps[0], reason='r', observation={'required_gaps': g})", 0),

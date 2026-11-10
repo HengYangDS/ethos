@@ -88,3 +88,10 @@ def require_closed_verdict(
     """Reject a false pass at a typed boundary."""
     if close_verdict(verdict, required_gaps, warnings) != verdict:
         raise ValueError("pass_with_warnings" if warnings else "pass_with_required_gaps")
+
+
+def lease_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:
+    """Pass without gaps; stay unknown when every gap is an unknown Lease; otherwise block."""
+    if not gaps:
+        return "pass"
+    return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"

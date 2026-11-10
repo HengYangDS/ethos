@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 HEX_DIGITS = frozenset("0123456789abcdef")
 
 
@@ -18,3 +24,9 @@ def is_sha256_hex(value: object) -> bool:
 def is_object_id(value: object) -> bool:
     """Return whether a value is a SHA-1 or SHA-256 Git object ID."""
     return is_hex(value, 40, 64)
+
+
+def file_sha256(path: Path) -> str:
+    """Return the SHA-256 digest of one file's bytes, read in bounded chunks."""
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()

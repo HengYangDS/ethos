@@ -38,6 +38,7 @@ from ethos.application.catalog import invoke
 from ethos.application.invocation import profile_failure_result
 from ethos.application.publication.request_gaps import publication_admission_gaps
 from ethos.application.publication.request_gaps import publication_request_gaps
+from ethos.contracts.semantic import model_digest
 from ethos.repository.profile import load_repository_profile
 
 # One publish operation's body, which `_publishing` runs on the resolved root.
@@ -377,7 +378,7 @@ def _publication_result(
                 "root": repo.resolve().as_posix(),
                 "source_head": current_head,
                 "target_refs": target_refs,
-                "effect_digest": effect.digest() if effect is not None else "",
+                "effect_digest": model_digest(effect) if effect is not None else "",
                 "plan_digest": plan.digest if plan is not None else "",
             },
         ),

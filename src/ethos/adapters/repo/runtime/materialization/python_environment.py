@@ -2,27 +2,24 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import ntpath
 import os
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import NoReturn
 
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import RuntimeEnvironment
 from ethos.adapters.repo.runtime.manifest import interpreter_machine
 from ethos.adapters.repo.runtime.manifest import runtime_environment
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refuse
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from os import PathLike
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
 
 
 def observe_python_facts(python: Path) -> dict[str, str]:
@@ -47,7 +44,7 @@ def observe_python_facts(python: Path) -> dict[str, str]:
     try:
         facts = {key: str(value) for key, value in json.loads(completed.stdout).items()}
     except (AttributeError, TypeError, ValueError) as error:
-        _fail("hook_runtime_python_abi_invalid", error)
+        refuse("hook_runtime_python_abi_invalid", cause=error)
     # Its build names the machine that interpreter executes, as for this process.
     build = facts.pop("build_platform", "")
     facts["architecture"] = interpreter_machine(build, facts.get("architecture", ""))
@@ -62,7 +59,7 @@ def observe_python_facts(python: Path) -> dict[str, str]:
         "base_prefix",
     )
     if completed.returncode or not all(facts.get(key) for key in required):
-        _fail("hook_runtime_python_abi_invalid")
+        refuse("hook_runtime_python_abi_invalid")
     return facts
 
 
@@ -160,12 +157,12 @@ def require_python_image_source(invoked_python: Path) -> dict[str, str]:
     if not invoked_python.is_absolute() or not all(
         Path(invoked[key]).is_absolute() for key in coordinates
     ):
-        _fail("hook_runtime_interpreter_source_unavailable")
+        refuse("hook_runtime_interpreter_source_unavailable")
     if not same_python_path(
         Path(invoked["executable"]).resolve(),
         invoked_python.resolve(),
     ) or not python_path_within(invoked["executable"], invoked["prefix"]):
-        _fail("hook_runtime_interpreter_source_unavailable")
+        refuse("hook_runtime_interpreter_source_unavailable")
     base = Path(invoked["base_executable"]).resolve()
     if source_facts := _admitted_python_image_source(base, invoked):
         return source_facts
@@ -176,7 +173,8 @@ def require_python_image_source(invoked_python: Path) -> dict[str, str]:
         source_facts = _admitted_python_image_source(source, invoked)
         if source_facts is not None:
             return source_facts
-    _fail("hook_runtime_interpreter_source_unavailable")
+    gap = "hook_runtime_interpreter_source_unavailable"
+    raise refusal(gap)
 
 
 def _admitted_python_image_source(
@@ -256,11 +254,6 @@ def _installed_python_candidates(
             return ()
         candidates.add((directory / row["path"]).resolve())
     return tuple(sorted(candidates, key=lambda path: path.as_posix()))
-
-
-def file_sha256(path: Path) -> str:
-    """Return the SHA-256 digest of one exact materialization input."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def observe_runtime_environment(

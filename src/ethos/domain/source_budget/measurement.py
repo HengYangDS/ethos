@@ -13,13 +13,14 @@ from collections import Counter
 from pathlib import Path
 from typing import NotRequired
 from typing import TypedDict
-from typing import cast
 
 import yaml
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.measure import effective_code_lines_for_source
 from ethos.measure import layout_invariant_code_tokens
+from ethos.normalization.coercion import required_mapping
+from ethos.normalization.coercion import required_sequence
 from ethos.repository.policy.quality.source_budget import PYTHON_CATEGORIES
 from ethos.repository.policy.quality.source_budget import Carrier
 from ethos.repository.policy.quality.source_budget import Policy
@@ -57,18 +58,6 @@ class SourceBudgetReport(TypedDict):
     cross_check: CrossCheck
     required_gaps: list[str]
     advisory_gaps: list[str]
-
-
-def _table(value: object) -> dict[str, object]:
-    if not isinstance(value, dict):
-        raise TypeError
-    return {str(key): item for key, item in value.items()}
-
-
-def _sequence(value: object) -> list[object]:
-    if not isinstance(value, list):
-        raise TypeError
-    return cast("list[object]", value)
 
 
 def _blocked(*gaps: str) -> SourceBudgetReport:
@@ -354,12 +343,12 @@ def _scc_counts(
             check=False,
             timeout=config.timeout_seconds,
         )
-        payload = _table(json.loads(completed.stdout))
+        payload = required_mapping(json.loads(completed.stdout))
         counts: dict[str, int] = {}
-        for raw_language in _sequence(payload.get("languageSummary")):
-            language = _table(raw_language)
-            for raw_file in _sequence(language.get("Files", [])):
-                item = _table(raw_file)
+        for raw_language in required_sequence(payload.get("languageSummary")):
+            language = required_mapping(raw_language)
+            for raw_file in required_sequence(language.get("Files", [])):
+                item = required_mapping(raw_file)
                 relative = _relative(root.resolve(), item.get("Location"))
                 if relative not in records:
                     continue

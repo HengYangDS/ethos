@@ -7,12 +7,13 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
-from typing import NoReturn
 
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 from ethos.repository.release.admission import AcceptedReleaseIdentity
 from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identities
@@ -30,10 +31,6 @@ class PackageArtifact(NamedTuple):
     build: BuildIdentity
 
 
-def _fail(reason: str) -> NoReturn:
-    raise ValueError(reason)
-
-
 def materialize_package_wheel(
     repo: Path,
     wheel: Path,
@@ -46,14 +43,14 @@ def materialize_package_wheel(
     sha256 = hashlib.sha256(payload).hexdigest()
     build = wheel_build_identity(wheel)
     if build != expected_build:
-        _fail("release_wheel_build_identity_stale")
+        refuse("release_wheel_build_identity_stale")
     common = Path(git_common_dir(repo))
     package_store = common / "ethos" / "packages"
     _require_package_store(common, package_store)
     target = package_store / sha256 / wheel.name
     durable = write_content_addressed(target, payload, collision=collision)
-    if wheel_build_identity(durable) != build or _sha256(durable) != sha256:
-        _fail("identity_transition_post_observation_mismatch")
+    if wheel_build_identity(durable) != build or file_sha256(durable) != sha256:
+        refuse("identity_transition_post_observation_mismatch")
     return PackageArtifact(target, sha256, build)
 
 
@@ -69,7 +66,7 @@ def materialize_explicit_release(
     sha256 = hashlib.sha256(payload).hexdigest()
     build = wheel_build_identity(wheel)
     if build != expected_build:
-        _fail("release_wheel_build_identity_stale")
+        refuse("release_wheel_build_identity_stale")
     release = accepted_release_identity(build, wheel_sha256=sha256)
     _root, attestations = read_attestation_set(repo)
     if gaps := release_identity_admission_gaps(release, accepted_release_identities(attestations)):
@@ -81,22 +78,18 @@ def materialize_explicit_release(
     durable = write_content_addressed(target, payload, collision=collision)
     observed = _observe_release_wheel(durable)
     if observed != release:
-        _fail("identity_transition_post_observation_mismatch")
+        refuse("identity_transition_post_observation_mismatch")
     recorded = record_attestation_once(
         repo,
         accepted_release_attestation(observed, issued_at=datetime.now(UTC)),
     )
     if accepted_release_identities((recorded,)) != (observed,):
-        _fail("identity_transition_attestation_mismatch")
+        refuse("identity_transition_attestation_mismatch")
     return observed
 
 
 def _observe_release_wheel(path: Path) -> AcceptedReleaseIdentity:
-    return accepted_release_identity(wheel_build_identity(path), wheel_sha256=_sha256(path))
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return accepted_release_identity(wheel_build_identity(path), wheel_sha256=file_sha256(path))
 
 
 def _require_package_store(common: Path, store: Path) -> None:
@@ -105,10 +98,10 @@ def _require_package_store(common: Path, store: Path) -> None:
         current = store
         while current != common_root:
             if current.is_symlink():
-                _fail("release_package_store_invalid")
+                refuse("release_package_store_invalid")
             current = current.parent
         if current != common_root or common.is_symlink():
-            _fail("release_package_store_invalid")
+            refuse("release_package_store_invalid")
     except (OSError, RuntimeError, ValueError) as error:
         if str(error) == "release_package_store_invalid":
             raise

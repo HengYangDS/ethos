@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import model_digest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -65,7 +66,7 @@ def terminal_publication_result(
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
             "policy_digest": plan.inputs.policy,
-            "effect_digest": effect.digest(),
+            "effect_digest": model_digest(effect),
             "evidence_refs": tuple(
                 sorted(
                     f"git:{target.remote}:{update.target_ref}:{update.desired}"

@@ -39,12 +39,12 @@ from ethos.adapters.repo.release import release_checkout_gaps
 from ethos.adapters.repo.release import release_ref_subject
 from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.release import release_tag_policy
-from ethos.adapters.repo.release import require_release
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import present
+from ethos.contracts.outcome import require
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -154,23 +154,21 @@ def _observe(
     """Read fresh source, proof, permission and linked-worktree preconditions."""
     root, head = selection.root, selection.head
     policy = release_branch_policy(root)
-    require_release(head and selection.previous, "release_exact_coordinates_required")
+    require(head and selection.previous, "release_exact_coordinates_required")
     if policy.release_mirror == "accepted_ff" and not selection.base:
-        require_release(
+        require(
             selection.previous == head == ref_head(root, selection.ref),
             "release_mirror_requires_accepted_closeout",
         )
-    require_release(not apply or authorized, "authorization_required")
+    require(not apply or authorized, "authorization_required")
     lease = leases_by_branch(root).get(current_branch(root), {}) if selection.base else {}
     if selection.base:
-        require_release(
+        require(
             selection.tag and not selection.identity_transition, "release_maintenance_tag_required"
         )
-        require_release(
-            lane_creation_boundary(root, head) == selection.base, "release_lane_birth_mismatch"
-        )
-        require_release(lease.get("lease_state") == "valid", "release_live_lease_required")
-        require_release(
+        require(lane_creation_boundary(root, head) == selection.base, "release_lane_birth_mismatch")
+        require(lease.get("lease_state") == "valid", "release_live_lease_required")
+        require(
             lease.get("holder_ref") == process_actor(),
             "lease_actor_mismatch",
         )
@@ -178,20 +176,20 @@ def _observe(
         release_checkout_gaps(root, head, base=selection.base)
         + hook_runtime_binding(root)["required_gaps"]
     )
-    require_release(not gaps, *gaps)
+    require(not gaps, *gaps)
     accepted = accepted_release_source(root, head, base=selection.base)
     proof, gaps = proof_for_repository_transition(
         root, head, attestation_id=str(plan.prior_attestations["proof"]["id"]) if plan else ""
     )
     proof = present(proof, *(gaps or ["release_source_not_proven"]))
     if selection.base:
-        require_release(
+        require(
             proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
             == lease_generation(lease),
             "proof_lease_generation_stale",
         )
     observed = ref_head(root, selection.ref)
-    require_release(
+    require(
         observed == selection.previous
         if selection.base
         else observed in {selection.previous, head} and is_ancestor(root, selection.previous, head),
@@ -214,7 +212,7 @@ def _observe(
         gap = worktree_sync_gap(
             root, paths=paths, branch=selection.branch, ref_head=head, previous=head, head=head
         )
-    require_release(not gap, "release_" + gap)
+    require(not gap, "release_" + gap)
     version = release_tag_policy(root, head, selection.tag) if selection.tag else {}
     preview = None
     if not apply and (plan is not None or (not selection.base and selection.previous != head)):
@@ -231,7 +229,7 @@ def _observe(
 def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
     """Re-derive complete permitted refs; a stored plan never grants broader effects."""
     effect = git_effect_from_plan(plan)
-    require_release(
+    require(
         plan.authority.get("actor") == (process_issuer()),
         "release_request_actor_mismatch",
     )
@@ -240,7 +238,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
         update = present(effect.updates.get(tag_ref), "release_request_tag_missing")
-        require_release(update.expected == zero_oid(selection.root), "release_request_tag_invalid")
+        require(update.expected == zero_oid(selection.root), "release_request_tag_invalid")
         release_ref_subject(
             selection.root,
             ref=tag_ref,
@@ -249,7 +247,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
             base=selection.base,
         )
         tag_oid = update.desired
-    require_release(
+    require(
         effect == selection.effect(f"refs/heads/{policy.accepted_branch}", tag_oid)
         and plan.facts.get("head") == selection.head
         and plan.policy.get("transition") == "release.promote"
@@ -263,8 +261,8 @@ def _existing_plan(selection: _Selection) -> TransitionPlan | None:
     if not selection.stored.exists():
         return None
     payload = json.loads(selection.stored.read_text(encoding="utf-8"))
-    require_release(isinstance(payload, dict), "release_request_invalid")
-    require_release(payload.get("request") == selection.request(), "release_request_collision")
+    require(isinstance(payload, dict), "release_request_invalid")
+    require(payload.get("request") == selection.request(), "release_request_collision")
     plan = TransitionPlan.model_validate(payload["plan"])
     _validate_request_plan(selection, plan)
     return plan
@@ -276,7 +274,7 @@ def _compile_plan(
     generation = proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
     if selection.base:
         current = leases_by_branch(selection.root).get(current_branch(selection.root), {})
-        require_release(
+        require(
             current.get("lease_state") == "valid" and generation == lease_generation(current),
             "proof_lease_generation_stale",
         )
@@ -311,7 +309,7 @@ def _prepare_plan(
     oid = ""
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
-        require_release(not ref_head(root, tag_ref), "release_tag_already_exists")
+        require(not ref_head(root, tag_ref), "release_tag_already_exists")
         oid = create_signed_tag(
             root, name=selection.tag, head=selection.head, staging=selection.signing
         )
@@ -339,11 +337,11 @@ def _execute(
     """Revalidate before CAS and retain exact pending worktree synchronization."""
     _validate_request_plan(selection, plan)
     expected = _compile_plan(selection, git_effect_from_plan(plan), accepted, proof)
-    require_release(plan.digest == expected.digest, "release_request_evidence_stale")
+    require(plan.digest == expected.digest, "release_request_evidence_stale")
     if selection.signing.exists():
-        require_release(not selection.signing.is_symlink(), "release_request_unsafe")
+        require(not selection.signing.is_symlink(), "release_request_unsafe")
         shutil.rmtree(selection.signing)
-    require_release(current_tracked_head(selection.root) == selection.head, "release_source_stale")
+    require(current_tracked_head(selection.root) == selection.head, "release_source_stale")
     attestation = execute_git_effect(
         selection.root,
         plan,
@@ -356,9 +354,7 @@ def _execute(
             selection.root, paths, selection.branch, selection.head, selection.previous
         )
     )
-    require_release(
-        sync["worktree_sync"] not in {"failed", "dirty"}, "release_worktree_sync_pending"
-    )
+    require(sync["worktree_sync"] not in {"failed", "dirty"}, "release_worktree_sync_pending")
     return {
         "attestation": attestation.model_dump(mode="json"),
         "worktree_sync": sync,
@@ -390,7 +386,7 @@ def promote_release(
     )
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:
-        require_release(
+        require(
             all(
                 not path.is_symlink()
                 for path in (
@@ -419,11 +415,11 @@ def promote_release(
                     transition_plan=preview.model_dump(mode="json"),
                     preview_scope="branch-and-existing-effects" if plan else "branch-only",
                 )
-            require_release(
+            require(
                 plan is not None or observed != head or previous == head,
                 "release_effect_evidence_missing",
             )
-            require_release(
+            require(
                 plan is not None or not tag or not ref_head(root, f"refs/tags/{tag}"),
                 "release_tag_already_exists",
             )

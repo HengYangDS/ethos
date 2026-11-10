@@ -10,7 +10,6 @@ import subprocess
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import NoReturn
 
 from filelock import FileLock
 
@@ -37,7 +36,6 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import (
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_project
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_wheel
 from ethos.adapters.repo.runtime.materialization.input_resolution import selected_runtime_source
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import (
     observe_runtime_environment,
@@ -54,15 +52,13 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
 
 
 def materialize_runtime(
@@ -86,12 +82,12 @@ def materialize_runtime(
             else _runtime_supply_wheel(selected) is not None
         )
         if not valid_supply:
-            _fail("hook_runtime_installed_supply_invalid")
+            refuse("hook_runtime_installed_supply_invalid")
         return pin_installed_runtime(selected, consumer=common) / "python"
     project = build_source or resolve_runtime_project(package_source)
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
-        _fail("hook_runtime_root_invalid")
+        refuse("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
         if reusable := _reusable_runtime(
@@ -151,7 +147,7 @@ def _host_runtime_store() -> Path:
     """Choose user-owned installed supply independently of package-manager files."""
     root = host_store_root()
     if root is None:
-        _fail("hook_runtime_host_store_invalid")
+        refuse("hook_runtime_host_store_invalid")
     return root / "installations"
 
 
@@ -162,9 +158,9 @@ def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
     installation = store / selected.digest[:16]
     target = installation / "runtime" / selected.digest
     if _runtime_supply_wheel(selected) is None:
-        _fail("hook_runtime_installed_supply_invalid")
+        refuse("hook_runtime_installed_supply_invalid")
     if store.is_symlink() or installation.is_symlink():
-        _fail("hook_runtime_host_store_invalid")
+        refuse("hook_runtime_host_store_invalid")
     store.mkdir(parents=True, mode=0o700, exist_ok=True)
     lock = store / "install.lock"
     with FileLock(lock, timeout=seconds("lock"), fallback_to_soft=False, preserve_lock_file=True):
@@ -186,18 +182,18 @@ def pin_installed_runtime(selected: SelectedRuntime, *, consumer: Path) -> Path:
             _seal_pinned_payload(staged_runtime)
             wheel = _runtime_supply_wheel(selected)
             if wheel is None:
-                _fail("hook_runtime_installed_supply_invalid")
+                refuse("hook_runtime_installed_supply_invalid")
             staged_package = staging / "packages" / selected.wheel_sha256
             staged_package.mkdir(parents=True)
             try:
                 shutil.copyfile(wheel, staged_package / wheel.name)
             except OSError as error:
-                _fail("hook_runtime_installed_supply_invalid", error)
+                refuse("hook_runtime_installed_supply_invalid", cause=error)
             pinned = require_selected_runtime(
                 staged_runtime, expected_root=target, expected_build=selected.build
             )
             if _runtime_supply_wheel(pinned) is None:
-                _fail("hook_runtime_host_store_copy_invalid")
+                refuse("hook_runtime_host_store_copy_invalid")
             staging.rename(installation)
             record_consumer(installation, consumer)
             return require_selected_runtime(target, expected_build=selected.build).root
@@ -214,7 +210,7 @@ def _reuse_installation(installation: Path, selected: SelectedRuntime) -> Path:
         or not owner.is_file()
         or owner.read_text(encoding="utf-8") != selected.digest + "\n"
     ):
-        _fail("hook_runtime_host_store_conflict")
+        refuse("hook_runtime_host_store_conflict")
     try:
         pinned = require_selected_runtime(
             installation / "runtime" / selected.digest, expected_build=selected.build
@@ -224,9 +220,9 @@ def _reuse_installation(installation: Path, selected: SelectedRuntime) -> Path:
             # Reuse restores a seal that an earlier pin or an outside writer left open.
             _seal_pinned_payload(pinned.root)
     except (OSError, ValueError) as error:
-        _fail("hook_runtime_host_store_conflict", error)
+        refuse("hook_runtime_host_store_conflict", cause=error)
     if not complete:
-        _fail("hook_runtime_host_store_conflict")
+        refuse("hook_runtime_host_store_conflict")
     return pinned.root
 
 
@@ -243,10 +239,10 @@ def _recover_pin_staging(store: Path) -> None:
             or marker.is_symlink()
             or not marker.is_file()
         ):
-            _fail("hook_runtime_host_store_residue_unreviewed")
+            refuse("hook_runtime_host_store_residue_unreviewed")
         digest = marker.read_text(encoding="utf-8")
         if not _valid_pin_marker(digest):
-            _fail("hook_runtime_host_store_residue_unreviewed")
+            refuse("hook_runtime_host_store_residue_unreviewed")
         remove_generated_tree(work)
         marker.unlink()
     for marker in store.glob(".pin-*.owner"):
@@ -256,7 +252,7 @@ def _recover_pin_staging(store: Path) -> None:
             or not marker.is_file()
             or not _valid_pin_marker(marker.read_text(encoding="utf-8"))
         ):
-            _fail("hook_runtime_host_store_residue_unreviewed")
+            refuse("hook_runtime_host_store_residue_unreviewed")
         marker.unlink()
 
 
@@ -313,11 +309,11 @@ def _reusable_runtime(
             ):
                 return supplied
             condition = "unavailable" if absent else "invalid"
-            _fail(f"hook_runtime_installed_supply_{condition}:{candidate}", error)
+            refuse(f"hook_runtime_installed_supply_{condition}:{candidate}", cause=error)
     if upgrade:
         return _invoker_supply(invoking_source, expected_build, project, common=common)
     if external:
-        _fail(f"hook_runtime_installed_supply_invalid:{candidate}")
+        refuse(f"hook_runtime_installed_supply_invalid:{candidate}")
     return None
 
 
@@ -456,7 +452,7 @@ def publish_runtime_generation(
         or manifest.exists()
         or manifest.is_symlink()
     ):
-        _fail("hook_runtime_staging_invalid")
+        refuse("hook_runtime_staging_invalid")
     _seal_runtime_payload(staging)
     runtime_files = runtime_file_inventory(staging)
     digest = runtime_digest(
@@ -493,7 +489,7 @@ def _finalize_runtime(
 ) -> None:
     python = runtime_python(runtime / "python")
     if not python.is_file():
-        _fail("hook_runtime_python_missing")
+        refuse("hook_runtime_python_missing")
     (runtime / "manifest.json").write_bytes(
         runtime_manifest_bytes(
             digest=target.name,
@@ -554,9 +550,9 @@ def require_runtime_identity(
         or manifest.build != artifact.build
         or manifest.environment != environment
     ):
-        _fail("hook_runtime_manifest_invalid")
+        refuse("hook_runtime_manifest_invalid")
     if manifest.runtime_files != runtime_file_inventory(runtime):
-        _fail("hook_runtime_payload_mismatch")
+        refuse("hook_runtime_payload_mismatch")
 
 
 def require_runtime_execution(text: str, *, smoke: bool = False) -> None:
@@ -571,7 +567,7 @@ def require_runtime_execution(text: str, *, smoke: bool = False) -> None:
     facts = observe_python_facts(python)
     prefix = (runtime / "python").resolve().as_posix()
     if not all(same_python_path(facts[key], prefix) for key in ("prefix", "base_prefix")):
-        _fail("hook_runtime_python_not_relocatable")
+        refuse("hook_runtime_python_not_relocatable")
     if smoke:
         command = (python, *PYTHON_FLAGS, "-m", "ethos.cli", "--version")
         completed = subprocess.run(command, capture_output=True, check=False, encoding="utf-8")
@@ -585,4 +581,4 @@ def require_runtime_execution(text: str, *, smoke: bool = False) -> None:
                     f"stderr={completed.stderr.strip()}",
                 )
             )
-            _fail(detail)
+            refuse(detail)

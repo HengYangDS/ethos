@@ -8,17 +8,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from pathlib import PurePosixPath
-from typing import NoReturn
 from urllib.parse import unquote
 from urllib.parse import urlsplit
+
+from ethos.contracts.outcome import refuse
 
 _ADVERSE = frozenset({"warning", "error"})
 _LEVELS = frozenset({"none", "note", *_ADVERSE})
 _KINDS = frozenset({"notApplicable", "pass", "fail", "review", "open", "informational"})
-
-
-def _invalid(code: str, error: Exception | None = None) -> NoReturn:
-    raise ValueError(code) from error
 
 
 def repository_file(name: str, *, repository_root: Path) -> str:
@@ -28,10 +25,10 @@ def repository_file(name: str, *, repository_root: Path) -> str:
         try:
             return native.resolve().relative_to(repository_root).as_posix()
         except ValueError as error:
-            _invalid("coverage_source_outside_repository", error)
+            refuse("coverage_source_outside_repository", cause=error)
     relative = PurePosixPath(name)
     if not name or ".." in relative.parts or "\\" in name:
-        _invalid("coverage_file_invalid")
+        refuse("coverage_file_invalid")
     return relative.as_posix()
 
 
@@ -49,23 +46,23 @@ def _lcov_records(text: str) -> Iterator[tuple[str, list[tuple[str, str]]]]:
             name, entries = None, []
         elif key == "SF":
             if name is not None:
-                _invalid("lcov_record_unterminated")
+                refuse("lcov_record_unterminated")
             name = value
         elif name is None or not separator or not key.isupper():
-            _invalid("lcov_invalid")
+            refuse("lcov_invalid")
         else:
             entries.append((key, value))
     if name is not None:
-        _invalid("lcov_record_unterminated")
+        refuse("lcov_record_unterminated")
 
 
 def _count(value: str, gap: str) -> int:
     try:
         number = int(value)
     except ValueError as error:
-        _invalid(gap, error)
+        refuse(gap, cause=error)
     if number < 0:
-        _invalid(gap)
+        refuse(gap)
     return number
 
 
@@ -77,16 +74,16 @@ def _lcov_lines(entries: list[tuple[str, str]]) -> dict[int, int]:
         if key == "DA":
             fields = value.split(",")
             if len(fields) not in {2, 3}:
-                _invalid("lcov_line_invalid")
+                refuse("lcov_line_invalid")
             number = _count(fields[0], "lcov_line_invalid")
             if number < 1:
-                _invalid("lcov_line_invalid")
+                refuse("lcov_line_invalid")
             lines[number] = lines.get(number, 0) + _count(fields[1], "lcov_line_invalid")
         elif key in {"LF", "LH"}:
             declared[key] = _count(value, "lcov_count_mismatch")
     found, executed = len(lines), sum(count > 0 for count in lines.values())
     if declared.get("LF", found) != found or declared.get("LH", executed) != executed:
-        _invalid("lcov_count_mismatch")
+        refuse("lcov_count_mismatch")
     return lines
 
 
@@ -97,17 +94,17 @@ def lcov_files(
     try:
         text = payload.decode("utf-8")
     except UnicodeDecodeError as error:
-        _invalid("lcov_invalid", error)
+        refuse("lcov_invalid", cause=error)
     hits: dict[str, dict[int, int]] = {}
     for name, entries in _lcov_records(text):
         path = repository_file(name, repository_root=repository_root)
         if path not in tracked_paths:
-            _invalid("coverage_file_unbound")
+            refuse("coverage_file_unbound")
         merged = hits.setdefault(path, {})
         for number, count in _lcov_lines(entries).items():
             merged[number] = merged.get(number, 0) + count
     if not hits:
-        _invalid("lcov_files_missing")
+        refuse("lcov_files_missing")
     return {
         name: {"lines": len(counts), "hit_lines": sum(count > 0 for count in counts.values())}
         for name, counts in hits.items()
@@ -126,13 +123,13 @@ class SarifReport:
 
 def _mapping(value: object) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
-        _invalid("sarif_invalid")
+        refuse("sarif_invalid")
     return value
 
 
 def _sequence(value: object) -> list[object]:
     if not isinstance(value, list):
-        _invalid("sarif_invalid")
+        refuse("sarif_invalid")
     return value
 
 
@@ -174,7 +171,7 @@ def _level(result: Mapping[str, object], rules: list[object]) -> tuple[str, str]
         configured = _mapping(_mapping(rule).get("defaultConfiguration", {})).get("level")
         level = (configured or "warning") if kind == "fail" else "none"
     if kind not in _KINDS or level not in _LEVELS:
-        _invalid("sarif_invalid")
+        refuse("sarif_invalid")
     return str(kind), str(level)
 
 
@@ -250,10 +247,10 @@ def sarif_report(
     try:
         document = _mapping(json.loads(payload))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        _invalid("sarif_invalid", error)
+        refuse("sarif_invalid", cause=error)
     runs = _sequence(document.get("runs"))
     if document.get("version") != "2.1.0" or not runs:
-        _invalid("sarif_invalid")
+        refuse("sarif_invalid")
     findings: list[dict[str, object]] = []
     failures: list[str] = []
     inventory: set[str] | None = None
@@ -261,7 +258,7 @@ def sarif_report(
         run = _mapping(run_value)
         driver = _mapping(_mapping(run.get("tool")).get("driver"))
         if not isinstance(driver.get("name"), str) or "results" not in run:
-            _invalid("sarif_invalid" if "results" in run else "sarif_results_missing")
+            refuse("sarif_invalid" if "results" in run else "sarif_results_missing")
         bases = _mapping(run.get("originalUriBaseIds", {}))
         failures.extend(_run_failures(run))
         findings.extend(

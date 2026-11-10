@@ -21,6 +21,7 @@ from filelock import Timeout
 import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.dependency_acceptance import product_audit_snapshot
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
@@ -172,18 +173,14 @@ def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict[str, Any]:
         ProcessExecutionError,
         subprocess.TimeoutExpired,
     ) as error:
-
-        def text(value: str | bytes | None) -> str:
-            return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
-
         return {
             "ecosystem": ecosystem,
             "command": command,
             "verdict": "unknown",
             "reason": "native_execution_unavailable",
             "exit_code": None,
-            "stdout": text(getattr(error, "output", None)),
-            "stderr": text(getattr(error, "stderr", None)) or str(error),
+            "stdout": stream_text(getattr(error, "output", None)),
+            "stderr": stream_text(getattr(error, "stderr", None)) or str(error),
             "failure": error.evidence()
             if isinstance(error, ProcessExecutionError)
             else {

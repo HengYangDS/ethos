@@ -10,7 +10,6 @@ from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
-from typing import Never
 
 from ethos.adapters.gates.javascript.analysis import static_observation
 from ethos.adapters.gates.javascript.behavior import behavior_observation
@@ -24,6 +23,7 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
+from ethos.contracts.outcome import refuse
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.quality_reports import go_covered_paths
 from ethos.repository.policy.quality_reports import unproven
@@ -40,17 +40,12 @@ _CHECKED = {
 }
 
 
-def _invalid(reason: str) -> Never:
-    """Reject an unproved native quality observation."""
-    raise ValueError(reason)
-
-
 def _executable(root: Path, name: str) -> str:
     if (files := repository_mise_files(root)) is not None:
         return str(locked_tool(root, name, files=files))
     path = shutil.which(name)
     if path is None:
-        _invalid(f"native_tool_unavailable:{name}")
+        refuse(f"native_tool_unavailable:{name}")
     return str(Path(path).resolve())
 
 
@@ -80,7 +75,7 @@ def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
         remove_env_prefixes=("MISE_",),
     )
     if result.returncode:
-        _invalid("go_package_scope_unavailable")
+        refuse("go_package_scope_unavailable")
     decoder = json.JSONDecoder()
     position = 0
     packages: list[dict[str, object]] = []
@@ -92,9 +87,9 @@ def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
         try:
             package, position = decoder.raw_decode(result.stdout, position)
         except json.JSONDecodeError:
-            _invalid("go_package_scope_invalid")
+            refuse("go_package_scope_invalid")
         if not isinstance(package, dict) or package.get("Error") or package.get("Incomplete"):
-            _invalid("go_package_scope_invalid")
+            refuse("go_package_scope_invalid")
         packages.append(package)
     return packages
 
@@ -105,9 +100,9 @@ def _go_file_names(package: dict[str, object], key: str) -> list[str]:
     if not isinstance(files, list) or any(
         not isinstance(name, str) or Path(name).name != name for name in files
     ):
-        _invalid("go_package_scope_invalid")
+        refuse("go_package_scope_invalid")
     if key != "IgnoredGoFiles" and any(name.endswith("_test.go") for name in files):
-        _invalid("go_package_scope_invalid")
+        refuse("go_package_scope_invalid")
     return files
 
 
@@ -115,11 +110,11 @@ def _go_package_identity(root: Path, package: dict[str, object]) -> tuple[Path, 
     """Bind a native package import path to a directory inside this repository."""
     directory, import_path = package.get("Dir"), package.get("ImportPath")
     if not isinstance(directory, str) or not isinstance(import_path, str) or not import_path:
-        _invalid("go_package_scope_invalid")
+        refuse("go_package_scope_invalid")
     try:
         return Path(directory).resolve().relative_to(root.resolve()), import_path
     except ValueError:
-        _invalid("go_package_scope_invalid")
+        refuse("go_package_scope_invalid")
 
 
 def _go_package_sources(
@@ -138,19 +133,19 @@ def _go_package_sources(
                     ignored.add(path)
                     continue
                 if path not in tracked:
-                    _invalid("go_package_source_untracked")
+                    refuse("go_package_source_untracked")
                 source = f"{import_path}/{name}"
                 if source in sources and sources[source] != path:
-                    _invalid("go_package_scope_invalid")
+                    refuse("go_package_scope_invalid")
                 sources[source] = path
     if not sources:
-        _invalid("go_behavior_source_missing")
+        refuse("go_behavior_source_missing")
     unlisted = tracked - set(sources.values()) - ignored
     if any(
         not any(part.startswith(("_", ".")) or part == "testdata" for part in Path(path).parts[:-1])
         for path in unlisted
     ):
-        _invalid("go_source_scope_unknown")
+        refuse("go_source_scope_unknown")
     return sources
 
 
@@ -172,14 +167,14 @@ def _go_zero_statement_source(root: Path, path: str, output: Path, native: dict[
         remove_env_prefixes=("MISE_",),
     )
     if result.returncode or not output.is_file():
-        _invalid("go_coverage_applicability_unknown")
+        refuse("go_coverage_applicability_unknown")
     marker = "var EthosCoverageProbe = struct {"
     generated = output.read_text(encoding="utf-8")
     if marker not in generated:
-        _invalid("go_coverage_applicability_unknown")
+        refuse("go_coverage_applicability_unknown")
     match = re.match(r"\s*Count\s+\[(\d+)\]uint32", generated.rsplit(marker, 1)[1])
     if match is None:
-        _invalid("go_coverage_applicability_unknown")
+        refuse("go_coverage_applicability_unknown")
     return int(match.group(1)) == 0
 
 
@@ -190,10 +185,10 @@ def _go_behavior(
     if not (root / "go.mod").is_file() or not any(
         subject.path.endswith("_test.go") for subject in subjects
     ):
-        _invalid("go_tests_or_module_missing")
+        refuse("go_tests_or_module_missing")
     production = tuple(subject.path for subject in subjects if not subject.is_test)
     if not production:
-        _invalid("go_behavior_source_missing")
+        refuse("go_behavior_source_missing")
     source_paths = _go_package_sources(root, production, native)
     with TemporaryDirectory(prefix="ethos-go-coverage-") as directory:
         coverage = Path(directory) / "coverage.out"
@@ -226,7 +221,7 @@ def _go_behavior(
                 },
             )
         if not coverage.is_file():
-            _invalid("go_coverage_missing")
+            refuse("go_coverage_missing")
         profile = coverage.read_text(encoding="utf-8").splitlines()
         try:
             events = [json.loads(line) for line in result.stdout.splitlines() if line]
@@ -239,7 +234,7 @@ def _go_behavior(
             if isinstance(event, dict)
         )
         if passes == 0:
-            _invalid("go_tests_unexecuted")
+            refuse("go_tests_unexecuted")
         observed_sources = {line.partition(":")[0] for line in profile[1:]}
         missing = [path for source, path in source_paths.items() if source not in observed_sources]
         zero_statement_paths = frozenset(
@@ -260,7 +255,7 @@ def _go_behavior(
 
 def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> dict[str, object]:
     if not (root / "go.mod").is_file():
-        _invalid("go_module_missing")
+        refuse("go_module_missing")
     formatted = run_command(
         root,
         (_executable(root, "gofmt"), "-l", *paths),
@@ -268,7 +263,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
         remove_env_prefixes=("MISE_",),
     )
     if formatted.returncode or formatted.stdout.strip():
-        _invalid("go_format_diagnostics")
+        refuse("go_format_diagnostics")
     vetted = run_command(
         root,
         (_executable(root, "go"), "vet", "./..."),
@@ -276,7 +271,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
         remove_env_prefixes=("MISE_",),
     )
     if vetted.returncode:
-        _invalid("go_vet_diagnostics")
+        refuse("go_vet_diagnostics")
     return {"language": "go", "checked_paths": len(paths)}
 
 
@@ -286,7 +281,7 @@ def _script_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -
     result = run_command(root, command, env=native)
     document = json.loads(result.stdout)
     if not isinstance(document, dict) or not isinstance(document.get("comments"), list):
-        _invalid("script_static_report_invalid")
+        refuse("script_static_report_invalid")
     findings = document["comments"]
     if any(
         not isinstance(finding, dict)
@@ -295,7 +290,7 @@ def _script_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -
         or not isinstance(finding.get("message"), str)
         for finding in findings
     ):
-        _invalid("script_static_report_invalid")
+        refuse("script_static_report_invalid")
     return {
         "language": "script",
         "tool": "shellcheck",
@@ -330,7 +325,7 @@ def _python_observation(
     if report.get("verdict") == "pass" and (
         not isinstance(selected, dict) or selected.get("selected_paths") != expected
     ):
-        _invalid("python_quality_unproven")
+        refuse("python_quality_unproven")
     return {"language": "python", **report}
 
 
@@ -361,7 +356,7 @@ def _claims(axis: str, tree: str, subjects: tuple[CodeSubject, ...]) -> dict[str
 def _checked_languages(axis: str, subjects: tuple[CodeSubject, ...]) -> set[str]:
     """Select the observed languages ETHOS checks; the rest stay for a native contributor."""
     if not subjects:
-        _invalid("code_sources_missing")
+        refuse("code_sources_missing")
     observed = (
         {subject.language for subject in subjects if subject.requires_behavior or subject.is_test}
         if axis == "behavior"
@@ -369,7 +364,7 @@ def _checked_languages(axis: str, subjects: tuple[CodeSubject, ...]) -> set[str]
     )
     languages = observed & _CHECKED[axis]
     if observed and not languages:
-        _invalid(f"native_language_unsupported:{min(observed)}")
+        refuse(f"native_language_unsupported:{min(observed)}")
     return languages
 
 

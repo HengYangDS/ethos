@@ -7,7 +7,6 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import NoReturn
 
 from ethos.adapters.repo.runtime.filesystem import make_owned_tree_writable
 from ethos.adapters.repo.runtime.filesystem import runtime_python
@@ -15,7 +14,6 @@ from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.dependency_supply import project_dependency_supply
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import (
     python_image_source_capable,
@@ -23,10 +21,8 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import python_path_within
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 
 
 def materialize_python_image(
@@ -50,15 +46,15 @@ def materialize_python_image(
         )
         or not python_image_source_capable(interpreter, facts)
     ):
-        _fail("hook_runtime_interpreter_source_unavailable")
+        refuse("hook_runtime_interpreter_source_unavailable")
     _copy_python_runtime(home, interpreter, target, facts["python_version"])
     make_owned_tree_writable(target)
     python = runtime_python(target)
     if not python.is_file():
-        _fail("hook_runtime_python_missing")
+        refuse("hook_runtime_python_missing")
     if locked_requirements is not None:
         if dependency_python is None:
-            _fail("hook_runtime_dependency_supply_missing")
+            refuse("hook_runtime_dependency_supply_missing")
         install_locked_runtime(
             source,
             dependency_python,
@@ -111,7 +107,7 @@ def render_windows_console_script(name: str, interpreter: str = "..\\python.exe"
 
 def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: str) -> None:
     if home.is_symlink() or not home.is_dir() or interpreter.is_symlink():
-        _fail("hook_runtime_interpreter_source_unavailable")
+        refuse("hook_runtime_interpreter_source_unavailable")
     target.mkdir(parents=True)
     if os.name == "nt":
         runtime_scripts(target).mkdir()
@@ -136,17 +132,17 @@ def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: s
 
 def _copy_runtime_tree(source: Path, target: Path) -> None:
     if source.is_symlink() or not source.is_dir():
-        _fail("hook_runtime_interpreter_source_unavailable")
+        refuse("hook_runtime_interpreter_source_unavailable")
     root = source.resolve()
     for path in source.rglob("*"):
         if path.is_symlink():
             try:
                 link = path.readlink()
                 if link.is_absolute():
-                    _fail("hook_runtime_python_symlink_invalid")
+                    refuse("hook_runtime_python_symlink_invalid")
                 path.resolve(strict=True).relative_to(root)
             except (OSError, RuntimeError, ValueError) as error:
-                _fail("hook_runtime_python_symlink_invalid", error)
+                refuse("hook_runtime_python_symlink_invalid", cause=error)
     shutil.copytree(
         source,
         target,
@@ -171,15 +167,15 @@ def _copy_runtime_file(source: Path, target: Path) -> None:
         if source.is_symlink():
             link = source.readlink()
             if link.is_absolute():
-                _fail("hook_runtime_python_symlink_invalid")
+                refuse("hook_runtime_python_symlink_invalid")
             resolved = source.resolve(strict=True)
             resolved.relative_to(source.parent.resolve())
         else:
             resolved = source
     except (OSError, RuntimeError, ValueError) as error:
-        _fail("hook_runtime_python_symlink_invalid", error)
+        refuse("hook_runtime_python_symlink_invalid", cause=error)
     if not resolved.is_file():
-        _fail("hook_runtime_python_symlink_invalid")
+        refuse("hook_runtime_python_symlink_invalid")
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(resolved, target)
 
@@ -208,9 +204,9 @@ def console_script_entries(python: Path) -> dict[str, str]:
         )
         rows = json.loads(completed.stdout)
     except (OSError, TypeError, ValueError) as error:
-        _fail("hook_runtime_entrypoint_missing", error)
+        refuse("hook_runtime_entrypoint_missing", cause=error)
     if completed.returncode or not isinstance(rows, list):
-        _fail("hook_runtime_entrypoint_missing")
+        refuse("hook_runtime_entrypoint_missing")
     entries: dict[str, str] = {}
     for row in rows:
         if (
@@ -218,7 +214,7 @@ def console_script_entries(python: Path) -> dict[str, str]:
             or len(row) != 2
             or not all(isinstance(value, str) for value in row)
         ):
-            _fail("hook_runtime_console_script_invalid")
+            refuse("hook_runtime_console_script_invalid")
         name, value = row
         if (
             not name
@@ -228,7 +224,7 @@ def console_script_entries(python: Path) -> dict[str, str]:
             or "\\" in name
             or name in entries
         ):
-            _fail("hook_runtime_console_script_invalid")
+            refuse("hook_runtime_console_script_invalid")
         entries[name] = value
     return entries
 
@@ -238,7 +234,7 @@ def _rewrite_console_scripts(runtime: Path) -> None:
     scripts = runtime_scripts(runtime)
     entries = console_script_entries(python)
     if "ethos" not in entries:
-        _fail("hook_runtime_entrypoint_missing")
+        refuse("hook_runtime_entrypoint_missing")
     if os.name == "nt":
         _write_windows_console_scripts(scripts, entries)
         return
@@ -247,17 +243,17 @@ def _rewrite_console_scripts(runtime: Path) -> None:
         if path == python:
             continue
         if path.is_symlink() or path.is_dir():
-            _fail("hook_runtime_console_script_invalid")
+            refuse("hook_runtime_console_script_invalid")
         try:
             is_script = path.read_bytes().startswith(b"#!")
         except OSError as error:
-            _fail("hook_runtime_console_script_invalid", error)
+            refuse("hook_runtime_console_script_invalid", cause=error)
         if is_script:
             path.unlink()
     for name in sorted(entries):
         script = scripts / name
         if script.exists():
-            _fail("hook_runtime_console_script_invalid")
+            refuse("hook_runtime_console_script_invalid")
         script.write_text(render_console_script(name), encoding="utf-8", newline="\n")
         script.chmod(0o755)
 
@@ -269,7 +265,7 @@ def _write_windows_console_scripts(scripts: Path, entries: dict[str, str]) -> No
             (scripts / f"{name}{suffix}").unlink(missing_ok=True)
         launcher = scripts / f"{name}.cmd"
         if launcher.exists() or launcher.is_symlink():
-            _fail("hook_runtime_console_script_invalid")
+            refuse("hook_runtime_console_script_invalid")
         launcher.write_text(render_windows_console_script(name), encoding="utf-8", newline="\r\n")
 
 
@@ -282,8 +278,8 @@ def _require_package_runtime_source(
     runtime = Path(python_facts["prefix"]).parent
     selected = require_selected_runtime(runtime, carrier=True)
     if selected.python.resolve() != interpreter.resolve():
-        _fail("hook_runtime_package_interpreter_stale")
+        refuse("hook_runtime_package_interpreter_stale")
     if selected.wheel_sha256 != file_sha256(wheel):
-        _fail("hook_runtime_package_wheel_stale")
+        refuse("hook_runtime_package_wheel_stale")
     if selected.dependency_lock_sha256 != file_sha256(source / "uv.lock"):
-        _fail("hook_runtime_package_lock_stale")
+        refuse("hook_runtime_package_lock_stale")

@@ -8,6 +8,7 @@ import tomllib
 from typing import TYPE_CHECKING
 
 import yaml
+from packaging.utils import canonicalize_name
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import StrictStr
@@ -24,7 +25,6 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.manifests import PythonManifest
-from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
@@ -199,13 +199,13 @@ def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, .
     native = payload.get("package_module_name_map")
     for distribution, modules in native.items() if isinstance(native, dict) else ():
         if names := ((modules,) if isinstance(modules, str) else _string_items(modules)):
-            mappings[normalized_distribution(distribution)] = names
+            mappings[canonicalize_name(distribution)] = names
     for package in _table_items(payload.get("package")):
         first_party.update(_string_items(package.get("known_first_party")))
         for item in _string_items(package.get("package_module_name_map")):
             distribution, separator, modules = item.partition("=")
             if separator and distribution and (names := tuple(filter(None, modules.split("|")))):
-                mappings[normalized_distribution(distribution)] = names
+                mappings[canonicalize_name(distribution)] = names
     return mappings, first_party
 
 

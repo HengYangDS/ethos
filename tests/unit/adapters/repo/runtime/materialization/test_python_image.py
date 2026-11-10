@@ -13,7 +13,7 @@ from unittest.mock import call
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.python_image as python_image
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
+from ethos.contracts.digest import file_sha256
 
 if TYPE_CHECKING:
     from pathlib import Path

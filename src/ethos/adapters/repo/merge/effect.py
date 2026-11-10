@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
-from typing import NoReturn
 from typing import cast
 
 from ethos.adapters.process import ProcessExecutionError
@@ -29,7 +28,7 @@ from ethos.adapters.repo.merge.recovery import preserve_merge
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
-from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refuse
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -41,10 +40,6 @@ from ethos.contracts.value import mutable_json
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
-
-
-def _fail(*gaps: str) -> NoReturn:
-    raise refusal(*gaps)
 
 
 def _subject(root: Path, state: str, mode: str) -> dict[str, object]:
@@ -87,7 +82,7 @@ def prepared_merge(root: Path, current: MergeObservation) -> Attestation | None:
     if not selected:
         return None
     if len(selected) != 1:
-        _fail("merge_preparation_ambiguous")
+        refuse("merge_preparation_ambiguous")
     _prepared_plan(root, selected[0], current, parents)
     return selected[0]
 
@@ -102,12 +97,12 @@ def _prepared_plan(
     body = prepared.payload.body
     before, request = body["observation"], body.get("request")
     if not isinstance(request, Mapping) or prepared.plan_digest is None:
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     try:
         plan = TransitionPlan.model_validate(mutable_json(body.get("plan")))
         effect = git_effect_from_plan(plan)
     except ValueError:
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     update = effect.updates.get(f"refs/heads/{before['branch']}")
     if (
         body["subject"] != _subject(root, str(body["subject"]["state_digest"]), "continue")
@@ -130,12 +125,12 @@ def _prepared_plan(
         )
         or run_git(root, "diff", "--quiet", check=False, observation=True).returncode
     ):
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     if parents is None:
         observed = run_git(root, "rev-list", "--parents", "-n", "1", "HEAD", observation=True)
         parents = tuple(observed.stdout.split()[1:])
     if parents != (before["head"], *before["parents"]):
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     return plan
 
 
@@ -159,10 +154,10 @@ def recognized_merge(
             if not request_matches(
                 before, cast("dict[str, object]", mutable_json(body["input"].get("request", {})))
             ):
-                _fail("merge_request_stale")
+                refuse("merge_request_stale")
             output = cast("dict[str, object]", mutable_json(body.get("output", {})))
             if output.get("observation") != observe_merge(root).projection():
-                _fail("merge_result_stale")
+                refuse("merge_result_stale")
             return output
     prepared = [
         item
@@ -173,14 +168,14 @@ def recognized_merge(
     if not prepared:
         return None
     if len(prepared) != 1:
-        _fail("merge_preparation_ambiguous")
+        refuse("merge_preparation_ambiguous")
     body = prepared[0].payload.body
     before = cast("dict[str, object]", mutable_json(body["observation"]))
     request = body.get("request", {})
     if mode == "continue" and not isinstance(body.get("request"), Mapping):
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     if not request_matches(before, cast("dict[str, object]", mutable_json(request))):
-        _fail("merge_request_stale")
+        refuse("merge_request_stale")
     recheck()
     return _recover_prepared(root, prepared[0], mode, state, recheck)
 
@@ -193,10 +188,10 @@ def _recover_prepared(
     current = observe_merge(root)
     if canonical_json_digest(current.projection()) == canonical_json_digest(before):
         if mode == "continue":
-            _fail("merge_outcome_unknown")
+            refuse("merge_outcome_unknown")
         return None
     if current.competing or current.untracked_digest != before["untracked_digest"]:
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     if mode == "continue":
         plan = _prepared_plan(root, prepared, current)
         effect = git_effect_from_plan(plan)
@@ -219,10 +214,10 @@ def _recover_prepared(
         # Without a post-effect acknowledgement only the exact clean rollback is provable.
         for args in (("diff", "HEAD", "--quiet"), ("diff", "--cached", "HEAD", "--quiet")):
             if run_git(root, *args, check=False, observation=True).returncode:
-                _fail("merge_outcome_unknown")
+                refuse("merge_outcome_unknown")
         result = {"head": current.head, "state": "merge_aborted"}
     else:
-        _fail("merge_outcome_unknown")
+        refuse("merge_outcome_unknown")
     return _record_projection(
         root,
         before=cast("dict[str, object]", mutable_json(before)),
@@ -418,7 +413,7 @@ def _continue(
         root, tree=tree, parent=observed.head, additional_parents=observed.parents, message=message
     )
     if created.returncode:
-        _fail(created.stderr.strip() or "merge_commit_creation_failed")
+        refuse(created.stderr.strip() or "merge_commit_creation_failed")
     desired = created.stdout.strip()
     admission = commit_range_admission_report(
         root,
@@ -428,7 +423,7 @@ def _continue(
         remote_name="",
     )
     if admission["verdict"] != "pass":
-        _fail(*cast("list[str]", admission["required_gaps"]))
+        refuse(*cast("list[str]", admission["required_gaps"]))
     recheck()
     effect = GitEffect(
         updates={
@@ -473,17 +468,17 @@ def _finish_metadata(root: Path, before: dict[str, object]) -> None:
     """Clear only still-matching merge metadata after the proven ref effect."""
     observed = observe_merge(root)
     if observed.competing or observed.untracked_digest != before["untracked_digest"]:
-        _fail("merge_projection_stale")
+        refuse("merge_projection_stale")
     if observed.index_digest != before["index_digest"]:
-        _fail("merge_projection_stale")
+        refuse("merge_projection_stale")
     if run_git(root, "diff", "--quiet", check=False, observation=True).returncode:
-        _fail("merge_projection_stale")
+        refuse("merge_projection_stale")
     for name in MERGE_METADATA:
         if name != "ORIG_HEAD":
             raw = metadata_bytes(git_path(root, name))
             if raw is not None and hashlib.sha256(raw).hexdigest() != cast(
                 "dict[str, str]", before["metadata"]
             ).get(name):
-                _fail("merge_projection_stale")
+                refuse("merge_projection_stale")
     if any(name != "ORIG_HEAD" for name in observed.metadata):
         run_git(root, "merge", "--quit")

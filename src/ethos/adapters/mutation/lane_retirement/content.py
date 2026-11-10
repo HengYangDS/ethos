@@ -15,10 +15,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.artifacts.topology import artifact_origin
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
-
-
-def _fail(reason: str) -> None:
-    raise ValueError(reason)
+from ethos.contracts.outcome import refuse
 
 
 def unreviewed_content(root: Path) -> dict[str, str]:
@@ -27,7 +24,7 @@ def unreviewed_content(root: Path) -> dict[str, str]:
         root, "ls-files", "--others", "--directory", "--no-empty-directory", "-z", check=False
     )
     if observed.returncode:
-        _fail("retirement_content_observation_unavailable")
+        refuse("retirement_content_observation_unavailable")
     if not observed.stdout:
         return {}
     declaration = load_generated_artifact_topology_declaration()
@@ -78,9 +75,9 @@ def _directory(
 def _entry(name: str, directory: int) -> dict[str, object]:
     before = os.stat(name, dir_fd=directory, follow_symlinks=False)
     if before.st_uid != os.getuid():
-        _fail("retirement_content_owner_mismatch")
+        refuse("retirement_content_owner_mismatch")
     if before.st_dev != os.fstat(directory).st_dev:
-        _fail("retirement_content_filesystem_mismatch")
+        refuse("retirement_content_filesystem_mismatch")
     record: dict[str, object] = {"identity": _identity(before)}
     if stat.S_ISDIR(before.st_mode):
         record["kind"] = "directory"
@@ -90,15 +87,15 @@ def _entry(name: str, directory: int) -> dict[str, object]:
         descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
         with os.fdopen(descriptor, "rb") as stream:
             if _identity(os.fstat(stream.fileno())) != _identity(before):
-                _fail("retirement_content_drift")
+                refuse("retirement_content_drift")
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
             if _identity(os.fstat(stream.fileno())) != _identity(before):
-                _fail("retirement_content_drift")
+                refuse("retirement_content_drift")
         record.update(kind="file", sha256=digest)
     else:
-        _fail("retirement_content_unsafe")
+        refuse("retirement_content_unsafe")
     if _identity(os.stat(name, dir_fd=directory, follow_symlinks=False)) != _identity(before):
-        _fail("retirement_content_drift")
+        refuse("retirement_content_drift")
     return record
 
 
@@ -108,28 +105,28 @@ def _snapshot(root: Path, index: Path) -> dict[str, object]:
         root_record = _entry(root.name, root_parent)
         root_fd = _directory(root, stack)
         if _identity(os.fstat(root_fd)) != root_record["identity"]:
-            _fail("retirement_content_drift")
+            refuse("retirement_content_drift")
         index_parent = _directory(index.parent, stack)
         index_record = _entry(index.name, index_parent)
         if index_record["kind"] != "file":
-            _fail("retirement_index_unsafe")
+            refuse("retirement_index_unsafe")
         entries: dict[str, dict[str, object]] = {}
         for parent, directories, files, descriptor in os.fwalk(
             ".", dir_fd=root_fd, follow_symlinks=False, onerror=_walk_error
         ):
             expected = root_record if parent == "." else entries[Path(parent).as_posix()]
             if _identity(os.fstat(descriptor)) != expected["identity"]:
-                _fail("retirement_content_drift")
+                refuse("retirement_content_drift")
             for name in sorted((*directories, *files)):
                 record = _entry(name, descriptor)
                 if name == ".git" and (parent != "." or record["kind"] != "file"):
-                    _fail("retirement_nested_repository")
+                    refuse("retirement_nested_repository")
                 entries[(Path(parent) / name).as_posix()] = record
         if (
             _entry(root.name, root_parent) != root_record
             or _entry(index.name, index_parent) != index_record
         ):
-            _fail("retirement_content_drift")
+            refuse("retirement_content_drift")
     return {
         "root": root_record,
         "index_path": index.as_posix(),
@@ -161,14 +158,14 @@ def _require_node(current: object, expected: object, removed_links: int = 0) -> 
         and int(observed[7]) == int(original[7]) - removed_links
     ):
         return
-    _fail("retirement_content_drift")
+    refuse("retirement_content_drift")
 
 
 def _require_index(expected: dict[str, object]) -> None:
     index = Path(str(expected["index_path"]))
     with ExitStack() as stack:
         if _entry(index.name, _directory(index.parent, stack)) != expected["index"]:
-            _fail("retirement_content_drift")
+            refuse("retirement_content_drift")
 
 
 def verify_reviewed_content(
@@ -185,7 +182,7 @@ def verify_reviewed_content(
         current = _snapshot(root, Path(str(expected["index_path"])))
         _require_node(current["root"], expected["root"])
         if current["index"] != expected["index"]:
-            _fail("retirement_content_drift")
+            refuse("retirement_content_drift")
         entries = cast("dict[str, dict[str, object]]", expected["entries"])
         survivors = cast("dict[str, dict[str, object]]", current["entries"])
         # An empty directory holds no content, so a process holding it open loses nothing.
@@ -209,7 +206,7 @@ def verify_reviewed_content(
         tuple(map(int, cast("list[str]", node["identity"])[:2])) in open_identities
         for node in nodes
     ):
-        _fail("retirement_content_in_use")
+        refuse("retirement_content_in_use")
     return removed
 
 
@@ -231,7 +228,7 @@ def remove_reviewed_content(root: Path, expected: dict[str, object]) -> None:
             _require_node(current, nodes[path], removed[identity])
             parent_stat = os.fstat(parent)
             if parent_stat.st_uid != os.getuid():
-                _fail("retirement_content_owner_mismatch")
+                refuse("retirement_content_owner_mismatch")
             if path != root and parent_stat.st_mode & stat.S_IRWXU != stat.S_IRWXU:
                 os.fchmod(parent, parent_stat.st_mode | stat.S_IRWXU)
             if current["kind"] == "directory":
@@ -245,26 +242,26 @@ def remove_reviewed_content(root: Path, expected: dict[str, object]) -> None:
 def reviewed_content(root: Path) -> dict[str, object]:
     """Bind all literal nodes and the index; ignored files receive no exemption."""
     if not all(hasattr(os, name) for name in ("fwalk", "O_NOFOLLOW", "O_DIRECTORY")):
-        _fail("retirement_content_observation_unavailable")
+        refuse("retirement_content_observation_unavailable")
     if root.is_symlink() or is_junction(root) or not root.is_dir():
-        _fail("retirement_content_unsafe")
+        refuse("retirement_content_unsafe")
     index = Path(
         run_git(
             root, "rev-parse", "--path-format=absolute", "--git-path", "index", observation=True
         ).stdout.strip()
     )
     if index.is_symlink() or is_junction(index) or not index.is_file():
-        _fail("retirement_index_unsafe")
+        refuse("retirement_index_unsafe")
     first = _snapshot(root, index)
     if cast("dict[str, dict[str, object]]", first["entries"]).get(".git", {}).get("kind") != "file":
-        _fail("retirement_content_unsafe")
+        refuse("retirement_content_unsafe")
     entries = run_git(root, "ls-files", "--stage", "-z", observation=True).stdout
     if any(
         row.partition("\t")[0].rsplit(" ", 1)[-1] != "0" or row.startswith("160000 ")
         for row in entries.split("\0")
         if row
     ):
-        _fail("retirement_index_unmerged_or_submodule")
+        refuse("retirement_index_unmerged_or_submodule")
     if first != _snapshot(root, index):
-        _fail("retirement_content_drift")
+        refuse("retirement_content_drift")
     return first

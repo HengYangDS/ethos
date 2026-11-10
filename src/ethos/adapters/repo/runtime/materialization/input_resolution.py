@@ -12,7 +12,6 @@ import uuid
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 from pathlib import Path
-from typing import NoReturn
 from urllib.parse import urlparse
 
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
@@ -22,18 +21,15 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import prod
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
 
 
 def require_runtime_wheel_provenance() -> None:
@@ -73,7 +69,7 @@ def resolve_runtime_wheel(
     if (source / "pyproject.toml").is_file():
         wheel_dir.parent.mkdir(parents=True, exist_ok=True)
         if wheel_dir.exists():
-            _fail("hook_runtime_wheel_invalid")
+            refuse("hook_runtime_wheel_invalid")
         staging = wheel_dir.parent / f".{wheel_dir.name}-{uuid.uuid4().hex}"
         try:
             run_runtime_tool(
@@ -88,7 +84,7 @@ def resolve_runtime_wheel(
             )
             wheels = tuple(staging.glob("ethos-*.whl"))
             if len(wheels) != 1:
-                _fail("hook_runtime_wheel_invalid")
+                refuse("hook_runtime_wheel_invalid")
             staging.rename(wheel_dir)
             return wheel_dir / wheels[0].name
         finally:
@@ -101,12 +97,12 @@ def resolve_runtime_wheel(
         direct_url = json.loads(metadata.read_text("direct_url.json") or "")
         parsed = urlparse(str(direct_url.get("url") or ""))
         if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
-            _fail("hook_runtime_wheel_provenance_missing")
+            refuse("hook_runtime_wheel_provenance_missing")
         wheel = Path(urllib.request.url2pathname(parsed.path))
     except (AttributeError, OSError, PackageNotFoundError, ValueError) as error:
-        _fail("hook_runtime_wheel_provenance_missing", error)
+        refuse("hook_runtime_wheel_provenance_missing", cause=error)
     if not wheel.is_file() or wheel.suffix != ".whl":
-        _fail("hook_runtime_wheel_provenance_missing")
+        refuse("hook_runtime_wheel_provenance_missing")
     return wheel
 
 
@@ -117,7 +113,7 @@ def resolve_runtime_project(package_source: Path) -> Path:
         return package_source
     project = packaged_resource()
     if not all((project / name).is_file() for name in required):
-        _fail("hook_runtime_packaged_project_missing")
+        refuse("hook_runtime_packaged_project_missing")
     return project
 
 
@@ -127,15 +123,15 @@ def resolve_locked_environment_python(project: Path) -> Path:
     relative = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
     python = environment / relative
     if not python.is_file():
-        _fail(f"hook_runtime_locked_environment_invalid:{python}")
+        refuse(f"hook_runtime_locked_environment_invalid:{python}")
     try:
         facts = observe_python_facts(python)
         if not same_python_path(facts["executable"], python) or not same_python_path(
             facts["prefix"], environment
         ):
-            _fail(f"hook_runtime_locked_environment_invalid:{python}")
+            refuse(f"hook_runtime_locked_environment_invalid:{python}")
     except (KeyError, OSError, ValueError) as error:
-        _fail(f"hook_runtime_locked_environment_invalid:{python}", error)
+        refuse(f"hook_runtime_locked_environment_invalid:{python}", cause=error)
     return python
 
 
@@ -200,7 +196,7 @@ def invoking_runtime_requirement() -> str | None:
     try:
         wheel = _selected_runtime_wheel(selected)
     except OSError as error:
-        _fail("hook_runtime_wheel_provenance_missing", error)
+        refuse("hook_runtime_wheel_provenance_missing", cause=error)
     return f"ethos @ {wheel.as_uri()}#sha256={selected.wheel_sha256}"
 
 
@@ -212,14 +208,14 @@ def _managed_runtime_wheel(source: Path) -> Path | None:
 def _selected_runtime_wheel(selected: SelectedRuntime) -> Path:
     package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
-        _fail("hook_runtime_wheel_provenance_missing")
+        refuse("hook_runtime_wheel_provenance_missing")
     wheels = tuple(
         path
         for path in package_root.glob("ethos-*.whl")
         if path.is_file() and not path.is_symlink()
     )
     if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
-        _fail("hook_runtime_wheel_provenance_missing")
+        refuse("hook_runtime_wheel_provenance_missing")
     return wheels[0]
 
 

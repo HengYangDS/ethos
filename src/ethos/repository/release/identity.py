@@ -7,11 +7,13 @@ import zipfile
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import NamedTuple
-from typing import NoReturn
 from typing import cast
 
 from packaging.version import InvalidVersion
 from packaging.version import Version
+
+from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refuse
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,10 +27,6 @@ from ethos.repository.release.resources import packaged_resource
 _BUILD_SOURCE_INVALID = "build_source_identity_invalid"
 _PACKAGE_BUILD_INVALID = "package_build_identity_invalid"
 _PACKAGE_BUILD_MISSING = "package_build_identity_missing"
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
 
 
 class BuildIdentity(NamedTuple):
@@ -49,7 +47,7 @@ def product_version(root: Path) -> str:
     try:
         raw = (root / source).read_text(encoding="ascii")
     except (OSError, UnicodeError) as error:
-        _fail(f"product_version_missing:{source}", error)
+        refuse(f"product_version_missing:{source}", cause=error)
     return product_version_from_text(raw)
 
 
@@ -57,7 +55,7 @@ def product_version_from_text(raw: str) -> str:
     """Validate exact text read from the tracked SemVer version authority."""
     value = raw.strip()
     if raw != f"{value}\n" or value != _canonical_semver(value):
-        _fail(f"product_version_invalid:{load_repository_paradigm().release.version_file}")
+        refuse(f"product_version_invalid:{load_repository_paradigm().release.version_file}")
     return value
 
 
@@ -72,9 +70,9 @@ def build_identity(
     if not is_object_id(source_commit) or not is_object_id(source_tree):
         raise ValueError(_BUILD_SOURCE_INVALID)
     if not isinstance(release, bool):
-        _fail("release_build_flag_invalid")
+        refuse("release_build_flag_invalid")
     if product != _canonical_semver(product):
-        _fail("product_version_invalid")
+        refuse("product_version_invalid")
     base = str(Version(product))
     distribution = base if release else f"{base}.dev0+g{source_commit}.t{source_tree}"
     return BuildIdentity(
@@ -141,7 +139,7 @@ def wheel_build_identity(wheel: Path) -> BuildIdentity:
                 archive.read((WHEEL_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE).as_posix())
             )
     except (KeyError, OSError, ValueError, zipfile.BadZipFile) as error:
-        _fail("hook_runtime_wheel_build_identity_invalid", error)
+        refuse("hook_runtime_wheel_build_identity_invalid", cause=error)
 
 
 def node_manifests_without_version(root: Path) -> None:
@@ -152,10 +150,10 @@ def node_manifests_without_version(root: Path) -> None:
     packages = cast("dict[str, object]", raw_packages) if isinstance(raw_packages, dict) else {}
     root_locked = packages.get("")
     if "version" in root_package:
-        _fail("package_version_parallel_owner:package.json")
+        refuse("package_version_parallel_owner:package.json")
     # A workspace would put a version into the lock that hosted supply hashes.
     if "version" in lock or not isinstance(root_locked, dict) or "version" in root_locked:
-        _fail("package_version_parallel_owner:package-lock.json")
+        refuse("package_version_parallel_owner:package-lock.json")
 
 
 def _canonical_semver(raw: str) -> str:
@@ -179,7 +177,8 @@ def _json_object(path: Path, label: str) -> dict[str, object]:
             return value
     except (OSError, TypeError, UnicodeError, ValueError):
         pass
-    _fail(f"package_version_projection_invalid:{label}")
+    gap = f"package_version_projection_invalid:{label}"
+    raise refusal(gap)
 
 
 def _canonical(value: object) -> bytes:

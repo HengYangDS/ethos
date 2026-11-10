@@ -13,7 +13,9 @@ import hmac
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import NoReturn
+
+from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refuse
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -67,10 +69,6 @@ _CONTEXTS = {
         )
     ),
 }
-
-
-def _fail(reason: str) -> NoReturn:
-    raise ValueError(reason)
 
 
 def normalized_path(path: str) -> str:
@@ -133,7 +131,7 @@ def read_key(data: bytes | str) -> bytes:
     text = data.decode("ascii", errors="replace") if isinstance(data, bytes) else data
     text = text.removesuffix("\n")
     if not _KEY.fullmatch(text) or not text.strip("0"):
-        _fail("redaction_key_invalid")
+        refuse("redaction_key_invalid")
     return bytes.fromhex(text)
 
 
@@ -162,7 +160,8 @@ def number(key: bytes, role: str, value: int, *, taken: Collection[int], domain:
             and not re.search(rf"(?<!\d){candidate}(?!\d)", domain)
         ):
             return candidate
-    _fail("numeric_replacement_exhausted")
+    gap = "numeric_replacement_exhausted"
+    raise refusal(gap)
 
 
 def numbering(key: bytes, feed: Feed, domain: str) -> dict[tuple[str, int], int]:
@@ -208,7 +207,7 @@ def redact_line(
     last = 0
     for span in sorted(found, key=lambda item: item.start):
         if span.form == "manual":
-            _fail("peer_occurrence_unclassified")
+            refuse("peer_occurrence_unclassified")
         out.append(line[last : span.start])
         if span.kind in _RANGES:
             out.append(str(numbers[span.kind, int(span.port)]))

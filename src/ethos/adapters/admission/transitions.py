@@ -12,11 +12,10 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.digest import is_object_id
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.verdict import lease_verdict
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.contracts.verdict import Verdict
 
 
 def work_lane_ref_transition_report(
@@ -242,7 +241,7 @@ def _report(
     gaps: list[str],
     reason: str = "",
 ) -> dict[str, object]:
-    verdict = _transition_verdict(gaps)
+    verdict = lease_verdict(gaps)
     return {
         "verdict": verdict,
         "state": "admitted" if verdict == "pass" else verdict,
@@ -259,12 +258,6 @@ def _report(
         },
         "required_gaps": gaps,
     }
-
-
-def _transition_verdict(gaps: list[str]) -> Verdict:
-    if not gaps:
-        return "pass"
-    return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
 def _work_lane_ref_transition_gaps(

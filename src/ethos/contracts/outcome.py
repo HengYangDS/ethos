@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import NoReturn
 from typing import cast
 
 from ethos.contracts.verdict import Verdict
@@ -90,6 +91,22 @@ class OutcomeError(ValueError):
 def refusal(*gaps: str, verdict: Verdict = "block") -> OutcomeError:
     """Return the error that carries every gap of one refusal, ready to raise."""
     return OutcomeError(Outcome.of(verdict, *gaps))
+
+
+def refuse(*gaps: str, cause: BaseException | None = None) -> NoReturn:
+    """Raise the refusal that names every gap; a given cause is chained explicitly.
+
+    Without one, the error being handled stays the refusal's context, as a plain raise keeps it.
+    """
+    if cause is None:
+        raise refusal(*gaps)
+    raise refusal(*gaps) from cause
+
+
+def require(condition: object, *gaps: str) -> None:
+    """Refuse with the gaps unless the condition holds."""
+    if not condition:
+        raise refusal(*gaps)
 
 
 def present[T](value: T | None, *gaps: str) -> T:

@@ -10,7 +10,6 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Annotated
-from typing import NoReturn
 from typing import TypedDict
 from xml.etree import ElementTree
 
@@ -20,6 +19,7 @@ from pydantic import StrictStr
 from pydantic import TypeAdapter
 from pydantic import ValidationError
 
+from ethos.contracts.outcome import refuse
 from ethos.repository.policy.quality.pytest import pytest_report
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def validate_node_precise_coverage(payload: bytes) -> None:
     try:
         report = _PRECISE_COVERAGE_ADAPTER.validate_json(payload)
     except ValidationError as error:
-        _invalid("javascript_native_coverage_invalid", error)
+        refuse("javascript_native_coverage_invalid", cause=error)
     scripts = report["result"]
     if len({script["scriptId"] for script in scripts}) != len(scripts) or any(
         item["startOffset"] > item["endOffset"]
@@ -75,11 +75,7 @@ def validate_node_precise_coverage(payload: bytes) -> None:
         for function in script["functions"]
         for item in function["ranges"]
     ):
-        _invalid("javascript_native_coverage_invalid")
-
-
-def _invalid(code: str, error: Exception | None = None) -> NoReturn:
-    raise ValueError(code) from error
+        refuse("javascript_native_coverage_invalid")
 
 
 def unproven(axis: str, reason: str) -> dict[str, object]:
@@ -94,7 +90,7 @@ def junit_stream_report(
     try:
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError as error:
-        _invalid("junit_invalid", error)
+        refuse("junit_invalid", cause=error)
     native = pytest_report(pytest_events) if pytest_events is not None else None
     return _junit_roots_report((root,), native=native)
 
@@ -105,10 +101,10 @@ def _junit_roots_report(
     native: PytestReport | None = None,
 ) -> tuple[dict[str, int], bool]:
     if any(root.tag not in {"testsuite", "testsuites"} for root in roots):
-        _invalid("junit_root_invalid")
+        refuse("junit_root_invalid")
     cases = tuple(case for root in roots for case in root.iter("testcase"))
     if not cases:
-        _invalid("junit_empty")
+        refuse("junit_empty")
     counts = {
         "total": len(cases),
         "failures": sum(case.find("failure") is not None for case in cases),
@@ -118,7 +114,7 @@ def _junit_roots_report(
     if native is not None:
         identities = Counter((case.get("classname", ""), case.get("name", "")) for case in cases)
         if identities != Counter(native.cases):
-            _invalid("pytest_junit_scope_mismatch")
+            refuse("pytest_junit_scope_mismatch")
         outcomes = Counter(
             (case.get("classname", ""), case.get("name", ""), child.tag)
             for case in cases
@@ -126,7 +122,7 @@ def _junit_roots_report(
             if child.tag in {"failure", "error", "skipped"}
         )
         if outcomes != Counter(native.outcomes):
-            _invalid("pytest_junit_outcome_mismatch")
+            refuse("pytest_junit_outcome_mismatch")
         counts = {
             "total": native.total,
             "failures": native.failures,
@@ -150,7 +146,7 @@ def _validated_suite_failures(
     """Reject incomplete suite totals and retain suite-level failure evidence."""
     failed = False
     if native is not None and sum(len(tuple(root.iter("testsuite"))) for root in roots) != 1:
-        _invalid("pytest_junit_scope_mismatch")
+        refuse("pytest_junit_scope_mismatch")
     for root in roots:
         for suite in root.iter():
             if suite.tag not in {"testsuite", "testsuites"}:
@@ -181,11 +177,11 @@ def _suite_count_failure(suite: ElementTree.Element, observed: dict[str, int]) -
         try:
             value = int(raw)
         except ValueError as error:
-            _invalid("junit_suite_count_invalid", error)
+            refuse("junit_suite_count_invalid", cause=error)
         if value < 0:
-            _invalid("junit_suite_count_invalid")
+            refuse("junit_suite_count_invalid")
         if key in observed and value != observed[key]:
-            _invalid("junit_suite_count_mismatch")
+            refuse("junit_suite_count_mismatch")
         if key in {"failures", "errors"}:
             failed |= value > 0
     return failed
@@ -202,7 +198,7 @@ def coverage_report(
     try:
         root = ElementTree.parse(path).getroot()
     except ElementTree.ParseError as error:
-        _invalid("coverage_invalid", error)
+        refuse("coverage_invalid", cause=error)
     return _coverage_root_report(
         root,
         include_files=include_files,
@@ -227,7 +223,7 @@ def coverage_stream_report(
     try:
         root = ElementTree.fromstring(payload)
     except ElementTree.ParseError as error:
-        _invalid("coverage_invalid", error)
+        refuse("coverage_invalid", cause=error)
     return _coverage_root_report(
         root,
         include_files=include_files,
@@ -245,7 +241,7 @@ def _coverage_root_report(
 ) -> dict[str, object]:
     """Share identical count and scope validation for native path and stream readers."""
     if root.tag != "coverage":
-        _invalid("coverage_root_invalid")
+        refuse("coverage_root_invalid")
     # A branch total declares branch measurement; kcov writes only a constant covered value.
     names = ("lines", "branches") if "branches-valid" in root.attrib else ("lines",)
     try:
@@ -254,13 +250,13 @@ def _coverage_root_report(
             for name in names
         )
     except (KeyError, ValueError) as error:
-        _invalid("coverage_count_invalid", error)
+        refuse("coverage_count_invalid", cause=error)
     if any(not 0 <= covered <= total for covered, total in pairs):
-        _invalid("coverage_count_invalid")
+        refuse("coverage_count_invalid")
     covered = sum(item[0] for item in pairs)
     total = sum(item[1] for item in pairs)
     if not total:
-        _invalid("coverage_empty")
+        refuse("coverage_empty")
     report: dict[str, object] = {
         "covered": covered,
         "total": total,
@@ -281,9 +277,9 @@ def _coverage_source_roots(root: ElementTree.Element, repository_root: Path) -> 
                 native.resolve().relative_to(repository_root) if native.is_absolute() else native
             )
         except ValueError as error:
-            _invalid("coverage_source_outside_repository", error)
+            refuse("coverage_source_outside_repository", cause=error)
         if ".." in relative.parts:
-            _invalid("coverage_source_outside_repository")
+            refuse("coverage_source_outside_repository")
         prefixes.append(relative.as_posix())
     return tuple(dict.fromkeys(prefixes)) or (".",)
 
@@ -301,7 +297,7 @@ def _coverage_files(
         filename = item.get("filename", "")
         relative = PurePosixPath(filename)
         if not filename or relative.is_absolute() or ".." in relative.parts or "\\" in filename:
-            _invalid("coverage_file_invalid")
+            refuse("coverage_file_invalid")
         if prefixes:
             matches = {
                 PurePosixPath(prefix, filename).as_posix()
@@ -309,33 +305,33 @@ def _coverage_files(
                 if PurePosixPath(prefix, filename).as_posix() in declared
             }
             if not matches:
-                _invalid("coverage_file_unbound")
+                refuse("coverage_file_unbound")
             if len(matches) != 1:
-                _invalid("coverage_file_ambiguous")
+                refuse("coverage_file_ambiguous")
             filename = next(iter(matches))
         if filename in files:
-            _invalid("coverage_file_invalid")
+            refuse("coverage_file_invalid")
         try:
             hits = tuple(int(line.get("hits", "")) for line in item.iter("line"))
         except ValueError as error:
-            _invalid("coverage_hit_invalid", error)
+            refuse("coverage_hit_invalid", cause=error)
         if any(hit < 0 for hit in hits):
-            _invalid("coverage_hit_invalid")
+            refuse("coverage_hit_invalid")
         files[filename] = {"lines": len(hits), "hit_lines": sum(hit > 0 for hit in hits)}
     if not files:
-        _invalid("coverage_files_missing")
+        refuse("coverage_files_missing")
     return files
 
 
 def _go_coverage_rows(profile: list[str]) -> list[tuple[str, int, int]]:
     """Parse Go's native coverage rows before resolving repository identity."""
     if not profile or profile[0] not in {"mode: set", "mode: count", "mode: atomic"}:
-        _invalid("go_coverage_invalid")
+        refuse("go_coverage_invalid")
     rows = []
     for line in profile[1:]:
         row = re.fullmatch(r"(.+):[0-9]+\.[0-9]+,[0-9]+\.[0-9]+ ([0-9]+) ([0-9]+)", line)
         if row is None:
-            _invalid("go_coverage_invalid")
+            refuse("go_coverage_invalid")
         rows.append((row.group(1), int(row.group(2)), int(row.group(3))))
     return rows
 
@@ -350,25 +346,25 @@ def go_covered_paths(
     """Bind Go's complete native profile through exact package-file identities."""
     scope = set(production)
     if not source_paths or not set(source_paths.values()) <= scope:
-        _invalid("go_coverage_source_map_invalid")
+        refuse("go_coverage_source_map_invalid")
     observed: set[str] = set()
     applicable: set[str] = set()
     covered: set[str] = set()
     for source, statements, count in _go_coverage_rows(profile):
         candidate = source_paths.get(source)
         if candidate is None:
-            _invalid("go_coverage_source_unmapped")
+            refuse("go_coverage_source_unmapped")
         observed.add(candidate)
         if statements:
             applicable.add(candidate)
             if count:
                 covered.add(candidate)
     if applicable - covered:
-        _invalid("go_source_unexercised")
+        refuse("go_source_unexercised")
     if observed | zero_statement_paths != set(source_paths.values()):
-        _invalid("go_coverage_source_missing")
+        refuse("go_coverage_source_missing")
     if not applicable:
-        _invalid("go_coverage_no_applicable_statements")
+        refuse("go_coverage_no_applicable_statements")
     return [path for path in production if path in applicable]
 
 
@@ -402,22 +398,22 @@ def node_event_report(
     try:
         events = tuple(json.loads(line) for line in payload.splitlines() if line)
     except json.JSONDecodeError as error:
-        _invalid("javascript_native_events_invalid", error)
+        refuse("javascript_native_events_invalid", cause=error)
     if not events or any(
         not isinstance(event, dict)
         or not isinstance(event.get("type"), str)
         or not isinstance(event.get("data"), dict)
         for event in events
     ):
-        _invalid("javascript_native_events_invalid")
+        refuse("javascript_native_events_invalid")
     terminal = events[-1]
     if terminal["type"] != "test:summary" or "file" in terminal["data"]:
-        _invalid("javascript_native_events_incomplete")
+        refuse("javascript_native_events_incomplete")
     if (
         sum(event["type"] == "test:summary" and "file" not in event["data"] for event in events)
         != 1
     ):
-        _invalid("javascript_native_events_incomplete")
+        refuse("javascript_native_events_incomplete")
     summary = terminal["data"]
     counts = summary.get("counts")
     names = ("tests", "passed", "failed", "cancelled", "skipped", "todo")
@@ -428,7 +424,7 @@ def node_event_report(
         or counts["tests"] != sum(counts[key] for key in names[1:])
         or summary["success"] != (not counts["failed"] and not counts["cancelled"])
     ):
-        _invalid("javascript_native_summary_invalid")
+        refuse("javascript_native_summary_invalid")
     _node_test_scope(root, events, tests)
     diagnostics = tuple(
         str(event["data"].get("message", ""))
@@ -458,17 +454,17 @@ def istanbul_coverage_report(
     try:
         document = json.loads(report.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
-        _invalid("javascript_coverage_invalid", error)
+        refuse("javascript_coverage_invalid", cause=error)
     if not isinstance(document, dict) or not isinstance(document.get("total"), dict):
-        _invalid("javascript_coverage_invalid")
+        refuse("javascript_coverage_invalid")
     expected = {(root / path).resolve(): path for path in production}
     files = {Path(path).resolve(): values for path, values in document.items() if path != "total"}
     if len(files) != len(document) - 1 or set(files) != set(expected):
-        _invalid("javascript_coverage_scope_incomplete")
+        refuse("javascript_coverage_scope_incomplete")
     axes = ("lines", "branches", "functions", "statements")
     for summary in document.values():
         if not isinstance(summary, dict):
-            _invalid("javascript_coverage_invalid")
+            refuse("javascript_coverage_invalid")
         for axis in axes:
             counts = summary.get(axis)
             if (
@@ -477,16 +473,16 @@ def istanbul_coverage_report(
                 or not 0 <= counts["covered"] <= counts["total"]
                 or not 0 <= counts["skipped"] <= counts["total"]
             ):
-                _invalid("javascript_coverage_invalid")
+                refuse("javascript_coverage_invalid")
     totals = document["total"]
     if any(
         totals[axis][key] != sum(summary[axis][key] for summary in files.values())
         for axis in axes
         for key in ("total", "covered", "skipped")
     ):
-        _invalid("javascript_coverage_count_invalid")
+        refuse("javascript_coverage_count_invalid")
     if not totals["statements"]["total"]:
-        _invalid("javascript_coverage_empty")
+        refuse("javascript_coverage_empty")
     covered = {
         expected[path]
         for path, summary in files.items()
@@ -521,4 +517,4 @@ def _node_test_scope(
             path.relative_to(base).as_posix() if path.is_relative_to(base) else str(path)
             for path in entered - selected.keys()
         }
-        _invalid(f"javascript_native_test_scope_incomplete:{','.join(sorted(differing))}")
+        refuse(f"javascript_native_test_scope_incomplete:{','.join(sorted(differing))}")

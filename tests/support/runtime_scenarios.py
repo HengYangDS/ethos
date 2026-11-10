@@ -28,13 +28,13 @@ from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import (
     observe_runtime_environment,
 )
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_identity
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.contracts.digest import file_sha256
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 

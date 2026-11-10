@@ -17,7 +17,7 @@ from ethos.adapters.repo.git_object import unsigned_commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
 from ethos.contracts.outcome import instance
-from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import require
 from ethos.repository.paradigm.parameters import seconds
 
 
@@ -28,23 +28,18 @@ class PreparedHistoryRepair(TypedDict):
     mapping: dict[str, str]
 
 
-def _require(condition: object, *gaps: str) -> None:
-    if not condition:
-        raise refusal(*gaps)
-
-
 def _headers(payload: bytes) -> tuple[list[bytes], bytes]:
     header, separator, message = payload.partition(b"\n\n")
-    _require(separator, "history_repair_payload_unavailable")
+    require(separator, "history_repair_payload_unavailable")
     blocks: list[bytes] = []
     for line in header.split(b"\n"):
         if line.startswith(b" "):
-            _require(blocks, "history_repair_header_invalid")
+            require(blocks, "history_repair_header_invalid")
             blocks[-1] += b"\n" + line
         else:
             blocks.append(line)
     for key in (b"tree", b"author", b"committer"):
-        _require(
+        require(
             sum(block.startswith(key + b" ") for block in blocks) == 1,
             "history_repair_header_invalid",
         )
@@ -62,22 +57,22 @@ def _parents(payload: bytes) -> tuple[str, ...]:
 def _identity(block: bytes) -> tuple[dict[str, str], bytes]:
     identity, separator, timestamp = block.split(b" ", 1)[1].rpartition(b"> ")
     name, opening, email = identity.rpartition(b" <")
-    _require(separator and opening, "history_repair_identity_invalid")
+    require(separator and opening, "history_repair_identity_invalid")
     return {"name": name.decode("utf-8"), "email": email.decode("utf-8")}, timestamp
 
 
 def _correction(value: object) -> Mapping[str, object]:
     correction = instance(value, Mapping, "history_repair_correction_invalid")
-    _require(
+    require(
         correction
         and not set(correction) - {"author", "committer", "resign", "remove_attribution_trailers"},
         "history_repair_correction_invalid",
     )
     if "resign" in correction:
-        _require(correction["resign"] is True, "history_repair_correction_invalid")
+        require(correction["resign"] is True, "history_repair_correction_invalid")
     if "remove_attribution_trailers" in correction:
         trailers = correction["remove_attribution_trailers"]
-        _require(
+        require(
             isinstance(trailers, list)
             and bool(trailers)
             and all(
@@ -94,9 +89,9 @@ def _correction(value: object) -> Mapping[str, object]:
         if role not in correction:
             continue
         pair = instance(correction[role], Mapping, "history_repair_correction_invalid")
-        _require(set(pair) == {"expected", "replacement"}, "history_repair_correction_invalid")
+        require(set(pair) == {"expected", "replacement"}, "history_repair_correction_invalid")
         for item in pair.values():
-            _require(
+            require(
                 isinstance(item, Mapping)
                 and set(item) == {"name", "email"}
                 and all(
@@ -120,7 +115,7 @@ def replacement_payload(
 ) -> bytes:
     """Allow only explicit attribution fields and position-preserving parent replacement."""
     blocks, message = _headers(payload)
-    _require(len(parents) == len(_parents(payload)), "history_repair_parent_count_changed")
+    require(len(parents) == len(_parents(payload)), "history_repair_parent_count_changed")
     parent_values = iter(parents)
     selected = _correction(correction) if correction is not None else {}
     output = []
@@ -132,7 +127,7 @@ def replacement_payload(
         elif key in {"author", "committer"} and key in selected:
             actual, timestamp = _identity(block)
             pair = instance(selected[key], Mapping, "history_repair_correction_invalid")
-            _require(actual == pair["expected"], "history_repair_expected_identity_mismatch")
+            require(actual == pair["expected"], "history_repair_expected_identity_mismatch")
             new = instance(pair["replacement"], Mapping, "history_repair_correction_invalid")
             block = f"{key} {new['name']} <{new['email']}> ".encode() + timestamp
         output.append(block)
@@ -154,12 +149,12 @@ def _remove_attribution_trailers(root: Path, message: bytes, trailers: list[str]
         text=False,
     ).stdout.splitlines()
     selected = tuple(trailer.encode("utf-8") for trailer in trailers)
-    _require(
+    require(
         all(observed.count(trailer) == 1 for trailer in selected),
         "history_repair_attribution_trailer_mismatch",
     )
     lines = message.splitlines(keepends=True)
-    _require(
+    require(
         all(sum(line.rstrip(b"\r\n") == trailer for line in lines) == 1 for trailer in selected),
         "history_repair_attribution_trailer_ambiguous",
     )
@@ -170,7 +165,7 @@ def history_repair_scope(
     root: Path, old: str, *, corrections: Mapping[str, object]
 ) -> tuple[str, ...]:
     """Derive an exact affected DAG from existing objects without creating any object."""
-    _require(corrections, "history_repair_selection_required")
+    require(corrections, "history_repair_selection_required")
     graph = tuple(
         tuple(line.split())
         for line in run_git(
@@ -178,7 +173,7 @@ def history_repair_scope(
         ).stdout.splitlines()
     )
     ordered = tuple(row[0] for row in graph)
-    _require(set(corrections) <= set(ordered), "history_repair_selection_not_reachable")
+    require(set(corrections) <= set(ordered), "history_repair_selection_not_reachable")
     selected_objects = tuple(oid for oid in ordered if oid in corrections)
     payloads = dict(
         zip(selected_objects, read_objects(root, selected_objects, kind="commit"), strict=True)
@@ -189,13 +184,13 @@ def history_repair_scope(
         inherited = any(parent in affected for parent in parents)
         if oid in corrections:
             payload = unsigned_commit_payload(payloads[oid])
-            _require(_parents(payload) == parents, "history_repair_parent_count_changed")
+            require(_parents(payload) == parents, "history_repair_parent_count_changed")
             selected = _correction(corrections[oid])
             replacement = replacement_payload(root, payload, parents=parents, correction=selected)
             if replacement == payload and not inherited:
-                _require(selected.get("resign") is True, "history_repair_no_effect")
+                require(selected.get("resign") is True, "history_repair_no_effect")
                 trust = verify_git_object_trust(root, oid, "commit")
-                _require(
+                require(
                     trust["verdict"] != "pass"
                     or trust.get("fingerprint") != configured_signer_fingerprint(root),
                     "history_repair_no_effect",
@@ -226,11 +221,11 @@ def prepare_history_repair(
             for revision in existing.get(replacement, ())
             if verify_commit_trust(root, revision)["verdict"] == "pass"
         ]
-        _require(len(matches) <= 1, "history_repair_recovery_ambiguous")
+        require(len(matches) <= 1, "history_repair_recovery_ambiguous")
         mapping[oid] = matches[0] if matches else create_signed_payload(root, replacement)
     replacement = mapping[old]
     observed = validate_history_repair(root, old, replacement, corrections=corrections)
-    _require(observed == mapping, "history_repair_mapping_mismatch")
+    require(observed == mapping, "history_repair_mapping_mismatch")
     return {"replacement": replacement, "mapping": mapping}
 
 
@@ -261,7 +256,7 @@ def validate_history_repair(
     """Reconstruct and verify the replacement relation from actual DAGs, not a claimed map."""
     mapping = observe_history_repair_mapping(root, old, new, corrections=corrections)
     trust = verify_commit_trust(root, tuple(mapping.values()))
-    _require(trust["verdict"] == "pass", "history_repair_signature_untrusted")
+    require(trust["verdict"] == "pass", "history_repair_signature_untrusted")
     return mapping
 
 
@@ -281,30 +276,30 @@ def observe_history_repair_mapping(
     while pending:
         previous, current = pending.pop()
         if previous not in affected:
-            _require(previous == current, "history_repair_unselected_object_changed")
+            require(previous == current, "history_repair_unselected_object_changed")
             continue
-        _require(previous != current, "history_repair_selected_object_unchanged")
+        require(previous != current, "history_repair_selected_object_unchanged")
         if previous in mapping:
-            _require(mapping[previous] == current, "history_repair_mapping_ambiguous")
+            require(mapping[previous] == current, "history_repair_mapping_ambiguous")
             continue
-        _require(
+        require(
             current not in inverse or inverse[current] == previous,
             "history_repair_mapping_not_bijective",
         )
-        _require(current in payloads, "history_repair_unselected_object_changed")
+        require(current in payloads, "history_repair_unselected_object_changed")
         payload, actual = payloads[previous], payloads[current]
         parents, replacements = _parents(payload), _parents(actual)
-        _require(len(parents) == len(replacements), "history_repair_parent_count_changed")
+        require(len(parents) == len(replacements), "history_repair_parent_count_changed")
         expected = replacement_payload(
             root,
             payload,
             parents=replacements,
             correction=_correction(corrections[previous]) if previous in corrections else None,
         )
-        _require(actual == expected, "history_repair_payload_changed")
+        require(actual == expected, "history_repair_payload_changed")
         mapping[previous], inverse[current] = current, previous
         pending.extend(zip(parents, replacements, strict=True))
-    _require(set(mapping) == affected, "history_repair_mapping_incomplete")
+    require(set(mapping) == affected, "history_repair_mapping_incomplete")
     return mapping
 
 
@@ -312,27 +307,27 @@ def history_repair_coordinates(
     root: Path, old: str, *, corrections: Mapping[str, object], reason: str, backup: Path
 ) -> dict[str, object]:
     """Bind explicit repair intent to a native verified original-object bundle."""
-    _require(reason.strip(), "history_repair_reason_required")
-    _require(
+    require(reason.strip(), "history_repair_reason_required")
+    require(
         backup.is_absolute() and backup.is_file() and not backup.is_symlink(),
         "history_repair_backup_required",
     )
-    _require(backup.resolve() == backup, "history_repair_backup_path_invalid")
+    require(backup.resolve() == backup, "history_repair_backup_path_invalid")
     data = backup.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     header, separator, _pack = data.partition(b"\n\n")
-    _require(
+    require(
         separator and not any(line.startswith(b"-") for line in header.splitlines()),
         "history_repair_backup_not_self_contained",
     )
     verified = run_git(root, "bundle", "verify", str(backup), check=False)
-    _require(verified.returncode == 0, "history_repair_backup_invalid")
+    require(verified.returncode == 0, "history_repair_backup_invalid")
     heads = run_git(root, "bundle", "list-heads", str(backup)).stdout.splitlines()
-    _require(
+    require(
         any(line.split(" ", 1)[0] == old for line in heads), "history_repair_backup_missing_head"
     )
     _verify_backup_recovery(root, old, backup)
-    _require(
+    require(
         hashlib.sha256(backup.read_bytes()).hexdigest() == digest, "history_repair_backup_changed"
     )
     affected = history_repair_scope(root, old, corrections=corrections)
@@ -357,4 +352,4 @@ def _verify_backup_recovery(root: Path, old: str, backup: Path) -> None:
             ("fsck", "--full", "--no-dangling", old),
         ):
             restored = run_git(recovery, *command, check=False, timeout=seconds("git_history"))
-            _require(restored.returncode == 0, "history_repair_backup_not_recoverable")
+            require(restored.returncode == 0, "history_repair_backup_not_recoverable")

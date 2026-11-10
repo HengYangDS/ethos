@@ -15,6 +15,9 @@ from pydantic import Field
 from pydantic import ValidationError
 from pydantic import model_validator
 
+from ethos.normalization.coercion import required_mapping
+from ethos.normalization.coercion import required_sequence
+
 POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
 PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
 AGGREGATE_TOTALS = ("python_total", "global_total")
@@ -135,20 +138,8 @@ def policy_for_root(root: Path) -> tuple[Policy | None, tuple[str, ...]]:
     return current, ()
 
 
-def _table(value: object) -> dict[str, object]:
-    if not isinstance(value, dict):
-        raise TypeError
-    return {str(key): item for key, item in value.items()}
-
-
-def _sequence(value: object) -> list[object]:
-    if not isinstance(value, list):
-        raise TypeError
-    return list(value)
-
-
 def _strings(value: object, *, empty: bool = False) -> tuple[str, ...]:
-    values = _sequence(value)
+    values = required_sequence(value)
     if (not empty and not values) or any(not isinstance(item, str) or not item for item in values):
         raise TypeError
     return tuple(str(item) for item in values)
@@ -168,7 +159,7 @@ def _integer(value: object) -> int:
 
 def _ratios(value: object) -> dict[str, float]:
     ratios: dict[str, float] = {}
-    for name, ratio in _table(value).items():
+    for name, ratio in required_mapping(value).items():
         if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
             raise TypeError
         ratios[name] = float(ratio)
@@ -177,7 +168,7 @@ def _ratios(value: object) -> dict[str, float]:
 
 def _pairs(value: object) -> tuple[tuple[str, str], ...]:
     pairs: list[tuple[str, str]] = []
-    for raw in _sequence(value):
+    for raw in required_sequence(value):
         try:
             first, second = _strings(raw)
         except ValueError:
@@ -188,12 +179,12 @@ def _pairs(value: object) -> tuple[tuple[str, str], ...]:
 
 def _raw_carriers(payload: dict[str, object]) -> tuple[Carrier, ...]:
     carriers: list[Carrier] = []
-    for raw_format in _sequence(payload.get("format")):
-        format_record = _table(raw_format)
+    for raw_format in required_sequence(payload.get("format")):
+        format_record = required_mapping(raw_format)
         extensions = _strings(format_record.get("extensions"))
         shebangs = _strings(format_record.get("shebangs", []), empty=True)
-        for raw_budget in _sequence(format_record.get("budget", [])):
-            budget = _table(raw_budget)
+        for raw_budget in required_sequence(format_record.get("budget", [])):
+            budget = required_mapping(raw_budget)
             carriers.append(
                 Carrier(
                     category=_string(budget.get("category")),
@@ -224,12 +215,13 @@ def _raw_carriers(payload: dict[str, object]) -> tuple[Carrier, ...]:
 
 def _policy_contract(payload: dict[str, object]) -> Policy | None:
     try:
-        source = _table(payload.get("source_budget"))
-        terminal = TerminalTotals.model_validate(_table(source.get("terminal")))
-        cross = _table(source.get("cross_check"))
-        tolerance = CrossCheckTotals.model_validate(_table(cross.get("tolerance")))
+        source = required_mapping(payload.get("source_budget"))
+        terminal = TerminalTotals.model_validate(required_mapping(source.get("terminal")))
+        cross = required_mapping(source.get("cross_check"))
+        tolerance = CrossCheckTotals.model_validate(required_mapping(cross.get("tolerance")))
         aggregates = {
-            name: _strings(value) for name, value in _table(source.get("aggregates")).items()
+            name: _strings(value)
+            for name, value in required_mapping(source.get("aggregates")).items()
         }
         return Policy(
             terminal=terminal,

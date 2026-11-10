@@ -13,7 +13,6 @@ import hashlib
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
-from typing import NoReturn
 
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -22,6 +21,8 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
 from ethos.adapters.repo.peer_feed import local_feed
+from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refuse
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.paradigm.peer_identity import Feed
@@ -40,10 +41,6 @@ if TYPE_CHECKING:
 
 PREDICATE = "redaction:private-peer"
 _BLOBS = frozenset({b"100644", b"100755"})
-
-
-def _fail(reason: str) -> NoReturn:
-    raise ValueError(reason)
 
 
 def redact_private_addresses(
@@ -106,11 +103,11 @@ def _apply(
     root: Path, feed: Feed, *, key: str, authorize: bool, expect_head: str, rotate: bool
 ) -> dict[str, object]:
     if not authorize:
-        _fail("authorization_required")
+        refuse("authorization_required")
     secret = read_key(key)
     head = current_tracked_head(root)
     if expect_head != head:
-        _fail("expect_head_mismatch")
+        refuse("expect_head_mismatch")
     _require_generation(root, secret, rotate=rotate)
     roots = effective_record_roots(load_repository_profile(root))
     texts = _texts(root, head)
@@ -133,7 +130,7 @@ def _apply(
     if not changed:
         return {**report, "state": "unchanged"}
     if any((root / path).read_bytes() != texts[path].encode() for path in changed):
-        _fail("redaction_preimage_changed")
+        refuse("redaction_preimage_changed")
     patch = unified_patch((path, texts[path].encode(), changed[path].encode()) for path in changed)
     admission = prewrite_guard(
         root=root,
@@ -152,14 +149,14 @@ def _apply(
     if current_tracked_head(root) != head or any(
         (root / path).read_bytes() != texts[path].encode() for path in changed
     ):
-        _fail("redaction_preimage_changed")
+        refuse("redaction_preimage_changed")
     applied = run_git(
         root, "apply", "--whitespace=nowarn", "-", stdin=patch.encode(), text=False, check=False
     )
     if applied.returncode or any(
         (root / path).read_bytes() != text.encode() for path, text in changed.items()
     ):
-        _fail("redaction_postimage_mismatch")
+        refuse("redaction_postimage_mismatch")
     return {**report, "state": "redacted"}
 
 
@@ -229,7 +226,8 @@ def _redacted(
         if not followed:
             return changed
         changed.update(followed)
-    _fail("redaction_digest_cycle")
+    gap = "redaction_digest_cycle"
+    raise refusal(gap)
 
 
 def _occurrences(
@@ -295,7 +293,7 @@ def _require_generation(root: Path, key: bytes, *, rotate: bool) -> None:
     )
     last = recorded[-1].payload.body.get("generation") if recorded else None
     if last is not None and last != generation(key) and not rotate:
-        _fail("redaction_key_generation_changed")
+        refuse("redaction_key_generation_changed")
 
 
 def _attestation(head: str, body: Mapping[str, object]) -> Attestation:

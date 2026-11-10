@@ -28,7 +28,7 @@ from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.outcome import present
-from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import require
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import git_effect_from_plan
@@ -45,19 +45,13 @@ if TYPE_CHECKING:
     from ethos.contracts.plan import TransitionPlan
 
 
-def require_release(condition: object, *gaps: str) -> None:
-    """Require one precise release invariant without converting unknown into success."""
-    if not condition:
-        raise refusal(*gaps)
-
-
 def release_branch_policy(root: Path) -> BranchRolePolicy:
     """Keep release roles anchored to current accepted policy, not candidate edits."""
     policy = load_branch_role_policy(root)
     committed = strict_branch_role_policy_from_release_text(
         committed_file_text(root, ref_head(root, policy.accepted_branch), binding_path("release"))
     )
-    require_release(policy == committed, "release_branch_policy_changed")
+    require(policy == committed, "release_branch_policy_changed")
     return policy
 
 
@@ -97,14 +91,14 @@ def _version_value(name: str, raw: str) -> str:
     if name == load_repository_paradigm().release.version_file:
         return semver_from_text(raw)
     payload = json.loads(raw) if name.endswith(".json") else tomllib.loads(raw)
-    require_release(isinstance(payload, dict), "release_version_source_not_object")
+    require(isinstance(payload, dict), "release_version_source_not_object")
     source = payload if name.endswith(".json") else payload.get("project", {})
-    require_release(isinstance(source, dict), "release_version_source_not_object")
+    require(isinstance(source, dict), "release_version_source_not_object")
     if "version" not in source:
         return ""
-    require_release("version" not in source.get("dynamic", ()), "release_version_source_dynamic")
+    require("version" not in source.get("dynamic", ()), "release_version_source_dynamic")
     value = source["version"]
-    require_release(isinstance(value, str), "release_version_source_not_text")
+    require(isinstance(value, str), "release_version_source_not_text")
     return semver_from_text(value + "\n")
 
 
@@ -122,14 +116,14 @@ def committed_release_version(root: Path, revision: str) -> dict[str, str]:
         text=False,
         check=False,
     )
-    require_release(not listed.returncode, "release_version_source_unreadable")
+    require(not listed.returncode, "release_version_source_unreadable")
     values = {}
     for entry in filter(None, listed.stdout.split(b"\0")):
         metadata, raw_path = entry.split(b"\t", 1)
         mode, kind, oid = metadata.split()
         name = raw_path.decode()
         gap = f"release_version_source_invalid:{name}"
-        require_release(mode in {b"100644", b"100755"} and kind == b"blob", gap)
+        require(mode in {b"100644", b"100755"} and kind == b"blob", gap)
         raw = run_git(root, "cat-file", "blob", oid.decode()).stdout
         try:
             value = _version_value(name, raw)
@@ -137,8 +131,8 @@ def committed_release_version(root: Path, revision: str) -> dict[str, str]:
             raise ValueError(gap) from error
         if value:
             values[name] = value
-    require_release(values, "release_version_source_missing")
-    require_release(len(set(values.values())) == 1, "release_version_source_ambiguous")
+    require(values, "release_version_source_missing")
+    require(len(set(values.values())) == 1, "release_version_source_ambiguous")
     return {"version": next(iter(values.values())), "source": ",".join(sorted(values))}
 
 
@@ -154,9 +148,9 @@ def declared_release_tag(root: Path, ref: str) -> bool:
 
 def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
     """Bind a requested tag to exact committed declaration and native version."""
-    require_release(declared_release_tag(root, f"refs/tags/{name}"), "release_tag_not_declared")
+    require(declared_release_tag(root, f"refs/tags/{name}"), "release_tag_not_declared")
     version = committed_release_version(root, head)
-    require_release(name == f"v{version['version']}", "release_tag_version_mismatch")
+    require(name == f"v{version['version']}", "release_tag_version_mismatch")
     changelog = load_repository_paradigm().release.changelog
     if errors := changelog_errors(
         committed_file_text(root, head, changelog), target=version["version"]
@@ -188,25 +182,25 @@ def accepted_release_source(
     )
     if ref.startswith("refs/tags/") and new:
         tag = observe_git_object(root, new, "annotated-tag")
-        require_release(
+        require(
             not tag["required_gaps"] and tag["peeled_commit"] == head,
             "release_tag_source_untrusted",
         )
-        require_release(head == current or plan is not None or base, "release_tag_source_untrusted")
+        require(head == current or plan is not None or base, "release_tag_source_untrusted")
     if plan is not None and maintenance and mapped is None:
-        require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
-        require_release(not base or base == maintenance, "release_base_not_exact_ancestor")
+        require(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
+        require(not base or base == maintenance, "release_base_not_exact_ancestor")
         base = maintenance
-    require_release(
+    require(
         bool(base) or head == current or plan is not None,
         "release_source_not_current_accepted",
     )
     if base:
-        require_release(
+        require(
             ref_head(root, base) == base and is_ancestor(root, base, head),
             "release_base_not_exact_ancestor",
         )
-        require_release(
+        require(
             not observe_git_object(root, base, "commit")["required_gaps"],
             "release_base_signature_untrusted",
         )
@@ -225,9 +219,9 @@ def accepted_release_source(
             proposed_commit=head,
             policy=commit_policy,
         )
-        require_release(not gaps, *gaps)
+        require(not gaps, *gaps)
     source = observe_git_object(root, head, "commit")
-    require_release(not source["required_gaps"], "release_source_signature_untrusted")
+    require(not source["required_gaps"], "release_source_signature_untrusted")
     closeout = present(
         accepted_provenance(
             root,
@@ -239,7 +233,7 @@ def accepted_release_source(
     )
     accepted_effect = closeout.attestation.model_dump(mode="json")
     if plan is not None and maintenance:
-        require_release(
+        require(
             mutable_json(plan.prior_attestations["accepted_effect"]) == accepted_effect,
             "release_maintenance_accepted_evidence_changed",
         )
@@ -289,7 +283,7 @@ def accepted_delivery_report(
             if source is not None
             else accepted_release_source(root, head, ref=target, old=remote_head, new=proposed)
         )
-        require_release(
+        require(
             accepted.get("head") == head
             and accepted.get("publication") == {"ref": target, "old": remote_head, "new": proposed},
             "release_source_binding_mismatch",
@@ -334,14 +328,12 @@ def release_ref_subject(
         )
         if selected != head and not allow_identical and not base:
             base = lane_creation_boundary(root, selected)
-            require_release(base, "release_tag_source_untrusted")
+            require(base, "release_tag_source_untrusted")
         head = selected
         release_tag_policy(root, head, ref.removeprefix("refs/tags/"))
     else:
-        require_release(new == head, "release_source_not_current_accepted")
-        require_release(
-            old == zero_oid(root) or is_ancestor(root, old, new), "release_not_fast_forward"
-        )
+        require(new == head, "release_source_not_current_accepted")
+        require(old == zero_oid(root) or is_ancestor(root, old, new), "release_not_fast_forward")
     accepted_release_source(
         root,
         head,
@@ -349,7 +341,7 @@ def release_ref_subject(
         ref=ref if allow_identical else "",
         new=new if allow_identical else "",
     )
-    require_release(
+    require(
         ref_head(root, policy.accepted_branch) == accepted_head,
         "release_source_not_current_accepted",
     )
@@ -375,19 +367,19 @@ def release_provenance(
         return None
     effect = git_effect_from_plan(plan)
     update = effect.updates.get(ref)
-    require_release(
+    require(
         ref.startswith("refs/tags/")
         and update is not None
         and (update.expected, update.desired) == (zero_oid(root), oid),
         "release_tag_source_untrusted",
     )
     if plan.facts.get("values", {}).get("release_request", {}).get("base"):
-        require_release(set(effect.updates) == {ref}, "release_maintenance_effect_invalid")
+        require(set(effect.updates) == {ref}, "release_maintenance_effect_invalid")
     else:
         policy = release_branch_policy(root)
         source = observe_git_object(root, oid, "annotated-tag")
         released = str(source["peeled_commit"])
-        require_release(
+        require(
             not source["required_gaps"]
             and effect.assertions.get(f"refs/heads/{policy.accepted_branch}") == released
             and plan.facts.get("head") == released
@@ -418,7 +410,7 @@ def mapped_release_provenance(
     original = str(body.get("original_tag") or "")
     source = observe_git_object(root, oid, "annotated-tag")
     mapped = str(body.get("mapped_target") or "")
-    require_release(
+    require(
         body.get("tag") == ref.removeprefix("refs/tags/")
         and not source["required_gaps"]
         and source["peeled_commit"] == mapped,
@@ -429,7 +421,7 @@ def mapped_release_provenance(
         root, old=released, new=ref_head(root, policy.accepted_branch)
     )
     repaired = repair.get("mapping") if repair is not None else None
-    require_release(
+    require(
         isinstance(repaired, dict)
         and repaired.get(released) == mapped
         and repair is not None
@@ -470,15 +462,13 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
 def immutable_tag_commit(root: Path, *, ref: str, old: str, new: str, allow_identical: bool) -> str:
     """Validate signature, native header, message and immutable identity for any admitted tag."""
     source = observe_git_object(root, new, "annotated-tag")
-    require_release(not source["required_gaps"], "release_tag_source_untrusted")
+    require(not source["required_gaps"], "release_tag_source_untrusted")
     header, _separator, message = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")
     names = [line.removeprefix("tag ") for line in header.splitlines() if line.startswith("tag ")]
-    require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
+    require(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
     named = load_repository_paradigm().names_private_address(message)
-    require_release(not named, "release_tag_message_private_address")
-    require_release(
-        old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
-    )
+    require(not named, "release_tag_message_private_address")
+    require(old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable")
     return str(source["peeled_commit"])
 
 

@@ -16,6 +16,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.semantic import model_digest
 from ethos.contracts.value import JsonObject
 from ethos.contracts.value import mutable_json
 
@@ -130,10 +131,6 @@ class PublicationEffect(BaseModel):
         """Derive retirement from exact updates, without another persisted mode."""
         return all(update.deletion for target in self.targets for update in target.updates)
 
-    def digest(self) -> str:
-        """Return the canonical identity of this exact peer-local CAS effect."""
-        return canonical_json_digest(self.model_dump(mode="json"))
-
     @classmethod
     def compile(
         cls,
@@ -172,7 +169,7 @@ def compile_publication_plan(
     prior_attestations: JsonObject,
 ) -> TransitionPlan:
     """Compile one exact-object publication through the semantic kernel."""
-    effect_digest = effect.digest()
+    effect_digest = model_digest(effect)
     policy = {
         "operation": effect.operation,
         "effect_digest": effect_digest,
@@ -210,7 +207,7 @@ def publication_effect_from_plan(plan: TransitionPlan) -> PublicationEffect:
     except (TypeError, ValueError) as error:
         message = "publication_plan_invalid"
         raise ValueError(message) from error
-    effect_digest = effect.digest()
+    effect_digest = model_digest(effect)
     if (
         validated.inputs.effect != effect_digest
         or validated.policy.get("operation") != effect.operation

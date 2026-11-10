@@ -10,7 +10,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 from typing import Literal
-from typing import NoReturn
 from typing import NotRequired
 from typing import TypedDict
 
@@ -32,6 +31,7 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 from ethos.contracts.digest import is_sha256_hex
+from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.admission import accepted_release_identities
 
@@ -48,14 +48,10 @@ class GenerationCleanup(TypedDict):
     error: NotRequired[str]
 
 
-def _fail(reason: str) -> NoReturn:
-    raise ValueError(reason)
-
-
 def _directory_identity(path: Path) -> tuple[int, int, int, int]:
     metadata = path.lstat()
     if not stat.S_ISDIR(metadata.st_mode) or is_junction(path):
-        _fail("hook_runtime_generation_root_invalid")
+        refuse("hook_runtime_generation_root_invalid")
     return metadata.st_dev, metadata.st_ino, metadata.st_mtime_ns, metadata.st_ctime_ns
 
 
@@ -87,12 +83,12 @@ def process_commands(
                 timeout=seconds("probe"), exclude_pid=exclude_pid, strict=strict
             )
         except ProcessExecutionError:
-            _fail("hook_runtime_consumers_unknown")
+            refuse("hook_runtime_consumers_unknown")
         return "\n".join(lines)
     listing = process_listing_command(with_pid=exclude_pid is not None)
     completed = run_command(root, listing, timeout=seconds("probe"), remove_env_prefixes=("GIT_",))
     if completed.returncode or completed.stderr:
-        _fail("hook_runtime_consumers_unknown")
+        refuse("hook_runtime_consumers_unknown")
     if exclude_pid is None:
         return completed.stdout
     rows = (line.strip().partition(" ") for line in completed.stdout.splitlines())
@@ -104,12 +100,12 @@ def _interpreter_bindings(worktree: Path) -> tuple[str, ...]:
     if not environment.exists() and not environment.is_symlink():
         return ()
     if not environment.is_dir() or is_junction(environment):
-        _fail("hook_runtime_consumers_unknown")
+        refuse("hook_runtime_consumers_unknown")
     references = [environment.resolve(strict=True).as_posix()]
     metadata = environment / "pyvenv.cfg"
     if metadata.exists() or metadata.is_symlink():
         if metadata.is_symlink() or not metadata.is_file():
-            _fail("hook_runtime_consumers_unknown")
+            refuse("hook_runtime_consumers_unknown")
         references.extend(
             value.strip()
             for line in metadata.read_text(encoding="utf-8").splitlines()
@@ -128,18 +124,18 @@ def _operational_references(root: Path) -> str:
     references = [process_commands(root)]
     result = run_git(root, "worktree", "list", "--porcelain", "-z", check=False)
     if result.returncode:
-        _fail("hook_runtime_worktrees_unreadable")
+        refuse("hook_runtime_worktrees_unreadable")
     worktrees = tuple(
         Path(field[len("worktree ") :])
         for field in result.stdout.split("\0")
         if field.startswith("worktree ")
     )
     if not worktrees or any(not path.is_dir() for path in worktrees):
-        _fail("hook_runtime_worktrees_unreadable")
+        refuse("hook_runtime_worktrees_unreadable")
     for worktree in worktrees:
         config = run_git(worktree, "config", "--null", "--get-regexp", ".*", check=False)
         if config.returncode not in {0, 1}:
-            _fail("hook_runtime_consumers_unknown")
+            refuse("hook_runtime_consumers_unknown")
         references.append(config.stdout)
         references.extend(_interpreter_bindings(worktree))
     return "\n".join(references).replace("\\", "/")
@@ -236,7 +232,7 @@ def _require_identity(path: Path, expected: tuple[int, int, int, int]) -> None:
         message = "hook_runtime_generation_identity_stale"
         raise ValueError(message) from failure
     if current != expected:
-        _fail("hook_runtime_generation_identity_stale")
+        refuse("hook_runtime_generation_identity_stale")
 
 
 def _require_identities(
@@ -246,7 +242,7 @@ def _require_identities(
     for path in paths:
         expected = identities.get(path)
         if expected is None:
-            _fail("hook_runtime_generation_identity_stale")
+            refuse("hook_runtime_generation_identity_stale")
         else:
             _require_identity(path, expected)
 
@@ -328,7 +324,7 @@ def _retire_packages(
             if not path.exists() and not path.is_symlink():
                 removed.append(path)
         if path not in removed:
-            _fail("hook_runtime_package_cleanup_failed")
+            refuse("hook_runtime_package_cleanup_failed")
 
 
 def _unplanned(
@@ -404,7 +400,7 @@ def retire_generations(
                     if not path.exists() and not path.is_symlink():
                         removed.append(path)
                 if path not in removed:
-                    _fail("hook_runtime_generation_cleanup_failed")
+                    refuse("hook_runtime_generation_cleanup_failed")
         with runtime_selection_transaction(common, expected_current=expected):
             _require_identities(retained, identities)
             if only is None:

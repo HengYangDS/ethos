@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import NoReturn
 
+from ethos.contracts.outcome import refuse
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
 
@@ -30,7 +30,7 @@ def product_node_module(name: str) -> Path:
     key = _LOCK_PREFIX + name
     metadata = _locked_node_modules(lock).get(key)
     if not isinstance(metadata, dict) or metadata.get("dev"):
-        _fail("product_node_module_undeclared")
+        refuse("product_node_module_undeclared")
     path = supply / name
     _validate_package(path, key, str(metadata.get("version") or ""))
     return path
@@ -43,17 +43,17 @@ def _select_supply(source: Path) -> tuple[Path, Path, bool]:
         return source, source / "node_modules", False
     supply = Path(configured)
     if not supply.is_absolute():
-        _fail("node_package_supply_path_not_absolute")
+        refuse("node_package_supply_path_not_absolute")
     return source, supply, True
 
 
 def _validate_complete_supply(source: Path, supply: Path) -> Path:
     if supply.is_symlink() or not supply.is_dir():
-        _fail("node_package_supply_unavailable")
+        refuse("node_package_supply_unavailable")
     source_packages = _locked_node_modules(source / "package-lock.json")
     installed_packages = _locked_node_modules(supply / ".package-lock.json")
     if source_packages != installed_packages:
-        _fail("node_package_supply_lock_mismatch")
+        refuse("node_package_supply_lock_mismatch")
     return supply.resolve()
 
 
@@ -61,7 +61,7 @@ def resolve_node_package_projection(source: Path) -> tuple[Path, tuple[Path, ...
     """Return the prepared tree and its validated production package roots."""
     source, supply, explicit = _select_supply(source)
     if supply.is_symlink() or not supply.is_dir():
-        _fail("node_package_supply_unavailable")
+        refuse("node_package_supply_unavailable")
     if explicit or (supply / ".package-lock.json").is_file():
         supply = _validate_complete_supply(source, supply)
     packages = _locked_node_modules(source / "package-lock.json")
@@ -80,22 +80,22 @@ def resolve_node_package_projection(source: Path) -> tuple[Path, tuple[Path, ...
             selected.append(relative)
     undeclared = sorted(_observed_package_roots(supply) - declared)
     if undeclared:
-        _fail(f"node_package_supply_invalid:{_LOCK_PREFIX}{undeclared[0].as_posix()}")
+        refuse(f"node_package_supply_invalid:{_LOCK_PREFIX}{undeclared[0].as_posix()}")
     return supply.resolve(), tuple(selected)
 
 
 def _locked_node_modules(path: Path) -> dict[str, object]:
     if path.is_symlink() or not path.is_file():
-        _fail("node_package_supply_lock_invalid")
+        refuse("node_package_supply_lock_invalid")
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        _fail("node_package_supply_lock_invalid", error)
+        refuse("node_package_supply_lock_invalid", cause=error)
     if not isinstance(payload, dict):
-        _fail("node_package_supply_lock_invalid")
+        refuse("node_package_supply_lock_invalid")
     packages = payload.get("packages")
     if payload.get("lockfileVersion") != 3 or not isinstance(packages, dict):
-        _fail("node_package_supply_lock_invalid")
+        refuse("node_package_supply_lock_invalid")
     return {
         key: value
         for key, value in packages.items()
@@ -129,17 +129,13 @@ def _observed_package_roots(supply: Path) -> set[Path]:
 
 def _validate_package(package: Path, lock_key: str, expected_version: str) -> None:
     if not expected_version or package.is_symlink() or not package.is_dir():
-        _fail(f"node_package_supply_invalid:{lock_key}")
+        refuse(f"node_package_supply_invalid:{lock_key}")
     declaration = package / "package.json"
     if declaration.is_symlink() or not declaration.is_file():
-        _fail(f"node_package_supply_invalid:{lock_key}")
+        refuse(f"node_package_supply_invalid:{lock_key}")
     try:
         observed = json.loads(declaration.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        _fail(f"node_package_supply_invalid:{lock_key}", error)
+        refuse(f"node_package_supply_invalid:{lock_key}", cause=error)
     if not isinstance(observed, dict) or observed.get("version") != expected_version:
-        _fail(f"node_package_supply_invalid:{lock_key}")
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
+        refuse(f"node_package_supply_invalid:{lock_key}")

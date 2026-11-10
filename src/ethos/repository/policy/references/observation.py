@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 
 import yaml
+from packaging.utils import canonicalize_name
 
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.markdown as markdown_observation
@@ -28,7 +29,6 @@ from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.declarations import command_owner_sources_from_files
 from ethos.repository.policy.references.manifests import PythonManifest
-from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
@@ -95,7 +95,7 @@ def installed_distribution_modules(root: Path) -> dict[str, tuple[str, ...]]:
         except (OSError, TypeError, UnicodeError, ValueError):
             continue
         if isinstance(name, str):
-            modules[normalized_distribution(name)].update(
+            modules[canonicalize_name(name)].update(
                 module for module in names if module.isidentifier()
             )
     return {name: tuple(sorted(found)) for name, found in sorted(modules.items()) if found}
@@ -353,7 +353,7 @@ def deleted_input_gaps(
         frozenset(
             path
             for path in deleted
-            if normalized_distribution(python_references.module_name(path).partition(".")[0])
+            if canonicalize_name(python_references.module_name(path).partition(".")[0])
             not in provided
         ),
     )

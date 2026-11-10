@@ -14,9 +14,11 @@ from typing import cast
 
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import refuse
 from ethos.contracts.retirement import RetirementOperation
 from ethos.contracts.retirement import ReviewedManifest
 from ethos.contracts.semantic import canonical_json_bytes
+from ethos.contracts.semantic import model_digest
 from ethos.contracts.value import mutable_json
 
 if TYPE_CHECKING:
@@ -24,10 +26,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _SNAPSHOT_KEYS = ("root", "index_path", "index")
-
-
-def _fail(reason: str) -> None:
-    raise ValueError(reason)
 
 
 def manifest_store(root: Path) -> Path:
@@ -66,7 +64,7 @@ def expanded_content(root: Path, reviewed: Mapping[str, object]) -> dict[str, ob
         entries = cast("dict[str, object]", json.loads(payload)["entries"])
         # The file must be exactly the canonical bytes of the nodes the reference counts.
         if manifest_reference(entries) != (mutable_json(reference), payload):
-            _fail("lane_retirement_manifest_mismatch")
+            refuse("lane_retirement_manifest_mismatch")
     except (KeyError, TypeError, ValueError) as error:
         message = "lane_retirement_manifest_mismatch"
         raise ValueError(message) from error
@@ -81,7 +79,7 @@ def release_manifest(root: Path, request: RetirementOperation) -> dict[str, obje
     digest = str(cast("Mapping[str, object]", request.reviewed_content["manifest"])["sha256"])
     path = manifest_store(root) / f"{digest}.json"
     try:
-        if _bound_elsewhere(root, request.digest(), digest):
+        if _bound_elsewhere(root, model_digest(request), digest):
             return {"path": path.as_posix(), "state": "kept"}
         path.unlink(missing_ok=True)
     except (OSError, ValueError) as error:
@@ -101,7 +99,7 @@ def _bound_elsewhere(root: Path, request_digest: str, digest: str) -> bool:
     if not binding:
         return False
     receipted = {
-        RetirementOperation.model_validate(json.loads(payload)["request"]).digest()
+        model_digest(RetirementOperation.model_validate(json.loads(payload)["request"]))
         for path in (store / "receipts" / "lane-retirement").glob("*.json")
         if needle in (payload := path.read_bytes())
     }

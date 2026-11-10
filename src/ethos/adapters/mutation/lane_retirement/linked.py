@@ -16,7 +16,6 @@ from ethos.adapters.mutation.lane_retirement.continuation import content_review_
 from ethos.adapters.mutation.lane_retirement.linked_admission import landed_gaps
 from ethos.adapters.mutation.lane_retirement.linked_admission import leased_successor
 from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_target
-from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_verdict
 from ethos.adapters.mutation.lane_retirement.linked_admission import superseded_gaps
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
 from ethos.adapters.mutation.lane_retirement.operation import apply_operation
@@ -27,6 +26,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.verdict import lease_verdict
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
@@ -110,7 +110,7 @@ def retire_linked_work_lane(
         )
     required_gaps = sorted(set(gaps))
 
-    verdict = retirement_verdict(required_gaps)
+    verdict = lease_verdict(required_gaps)
     if lane:
         lane = {**lane, "retire_ready": not required_gaps, "required_gaps": required_gaps}
 
@@ -121,7 +121,7 @@ def retire_linked_work_lane(
     def mutation(current_gaps: list[str]) -> dict[str, object]:
         required_holder = effects.holder_ref(authority)
         gaps = tuple(sorted(set(current_gaps)))
-        current_verdict = retirement_verdict(gaps)
+        current_verdict = lease_verdict(gaps)
         expected_state = {
             "ref": f"refs/heads/{branch}" if branch else "",
             "head": (request.expect_head or "").strip(),

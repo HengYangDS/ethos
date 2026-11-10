@@ -9,7 +9,6 @@ import uuid
 from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import NoReturn
 
 from filelock import Timeout
 
@@ -45,6 +44,7 @@ from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.outcome import refuse
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
@@ -59,10 +59,6 @@ class HookActivationError(ValueError):
         self.observation = observation
 
 
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
-
-
 def install_hook_launchers(
     root: Path,
     *,
@@ -73,11 +69,11 @@ def install_hook_launchers(
 ) -> HookRuntimeBinding:
     """Install and activate one common-dir hook/runtime generation."""
     if reset_state and not authorized:
-        _fail("state_reset_authorization_required")
+        refuse("state_reset_authorization_required")
     repo = root.resolve()
     source_python = python or Path(sys.executable)
     if not source_python.is_absolute() or not source_python.is_file():
-        _fail("hook_runtime_python_invalid")
+        refuse("hook_runtime_python_invalid")
     expected = expected_runtime_build(repo, installed_runtime=installed_runtime)
     expected_build, build_source = expected.identity, expected.source
     if installed_runtime is not None:
@@ -203,9 +199,9 @@ def _activate_with_state(
             database.unlink(missing_ok=True)
             _remove_state_sidecars(database)
         if failures:
-            _fail("hook_runtime_activation_compensation_failed:" + ",".join(failures), error)
+            refuse("hook_runtime_activation_compensation_failed:" + ",".join(failures), cause=error)
         if isinstance(error, sqlite3.Error):
-            _fail(f"state_activation_failed:{error}", error)
+            refuse(f"state_activation_failed:{error}", cause=error)
         raise
     if not database_existed:
         _remove_state_sidecars(database)
@@ -266,12 +262,12 @@ def _remove_state_sidecars(database: Path) -> None:
 def materialize_hook_launchers(generations: Path) -> Path:
     """Materialize or repair one immutable content-addressed hook generation."""
     if generations.parent.is_symlink() or generations.is_symlink():
-        _fail("hook_generation_root_invalid")
+        refuse("hook_generation_root_invalid")
     contract = load_hook_contract()
     expected = contract["launchers"]
     target = generations / contract["generation_digest"]
     if target.is_symlink():
-        _fail("hook_launcher_projection_invalid")
+        refuse("hook_launcher_projection_invalid")
     try:
         require_hook_projection(target, contract)
     except ValueError:
@@ -337,15 +333,15 @@ def _activate_common_runtime(
         repo, expected_build=expected_build, selected_runtime=selected_runtime
     )
     if binding["hooks_path"] != hooks.as_posix():
-        _fail("hook_runtime_activation_drift")
+        refuse("hook_runtime_activation_drift")
     if binding["required_gaps"]:
         reason = "hook_runtime_activation_invalid:" + ",".join(binding["required_gaps"])
         if observation := binding.get("contract_observation"):
             raise HookActivationError(reason, observation)
-        _fail(reason)
+        refuse(reason)
     observed = expected_runtime_build(repo, installed_runtime=installed_runtime)
     if observed.identity != expected_build:
-        _fail("hook_runtime_expected_build_stale")
+        refuse("hook_runtime_expected_build_stale")
     return binding
 
 
@@ -407,7 +403,7 @@ def _runtime_selection_bytes(common: Path) -> bytes | None:
     except FileNotFoundError:
         return None
     except OSError as error:
-        _fail("hook_runtime_current_invalid", error)
+        refuse("hook_runtime_current_invalid", cause=error)
 
 
 def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
@@ -429,7 +425,7 @@ def linked_worktree_paths(root: Path) -> tuple[Path, ...]:
         if field.startswith("worktree ")
     )
     if not paths or any(not path.is_dir() for path in paths):
-        _fail("hook_runtime_worktrees_unreadable")
+        refuse("hook_runtime_worktrees_unreadable")
     return paths
 
 
@@ -441,13 +437,13 @@ def _require_common_activation(
     if config_effects.config_values(root, ACTIVATION_KEYS, scope="local") != _common_activation(
         hooks
     ):
-        _fail("hook_runtime_common_activation_drift")
+        refuse("hook_runtime_common_activation_drift")
     if any(
         config_effects.config_values(worktree, WORKTREE_ACTIVATION_KEYS, scope="worktree")
         != dict.fromkeys(WORKTREE_ACTIVATION_KEYS, ())
         for worktree in worktrees
     ):
-        _fail("hook_runtime_worktree_activation_drift")
+        refuse("hook_runtime_worktree_activation_drift")
 
 
 def _restore_activation(

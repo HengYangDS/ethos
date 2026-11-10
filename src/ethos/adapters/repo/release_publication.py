@@ -17,8 +17,8 @@ from ethos.adapters.repo.release import release_provenance
 from ethos.adapters.repo.release import release_publication_head
 from ethos.adapters.repo.release import release_qualification
 from ethos.adapters.repo.release import release_tag_policy
-from ethos.adapters.repo.release import require_release
 from ethos.contracts.outcome import present
+from ethos.contracts.outcome import require
 from ethos.repository.release.publication import publication_proof_selection
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ def publication_source_baseline(
             selected = immutable_tag_commit(
                 repo, ref=target_ref, old=remote_head, new=source_oid, allow_identical=True
             )
-            require_release(selected == proof_head, "release_source_binding_mismatch")
+            require(selected == proof_head, "release_source_binding_mismatch")
         if release:
             accepted = None
             try:
@@ -118,7 +118,7 @@ def publication_source_baseline(
         )
         if not required:
             return {}, [], "", "", None
-        require_release(
+        require(
             not release
             or release_publication_head(repo, ref=target_ref, new=source_oid) == proof_head,
             "release_source_not_current_accepted",
@@ -135,7 +135,7 @@ def publication_source_baseline(
                 completed_signature_repair(repo, new=proof_head),
                 "accepted_closeout_effect_not_attested",
             )
-            require_release(
+            require(
                 accepted_ref in cast("Mapping[str, str]", repair["refs"]),
                 "accepted_closeout_effect_not_attested",
             )

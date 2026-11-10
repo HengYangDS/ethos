@@ -27,6 +27,7 @@ from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.content.source import SourceTargetUnavailableError
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
@@ -42,11 +43,6 @@ from ethos.repository.release.resources import canonical_resource
 
 _MARKDOWN = MarkdownIt("commonmark")
 _VALE_CONTROL = re.compile(r"<!--\s*vale\s")
-
-
-def _observed_output(value: str | bytes | None) -> str:
-    """Preserve observed text, including native timeout streams returned as bytes."""
-    return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
 
 
 def quality_tool_report(
@@ -93,10 +89,10 @@ def quality_tool_report(
             "state": "tool_error",
             "error": f"{type(error).__name__}: {error}",
             "exit_code": None,
-            "stdout": _observed_output(error.stdout)
+            "stdout": stream_text(error.stdout)
             if isinstance(error, subprocess.TimeoutExpired)
             else "",
-            "stderr": _observed_output(error.stderr)
+            "stderr": stream_text(error.stderr)
             if isinstance(error, subprocess.TimeoutExpired)
             else "",
             "required_gaps": [f"quality_tool_execution_unknown:{gate_id}"],

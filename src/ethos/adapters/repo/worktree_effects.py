@@ -14,7 +14,6 @@ from threading import Timer
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import NoReturn
 
 from ethos.adapters.process import CommandScope
 from ethos.adapters.process import ProcessExecutionError
@@ -29,6 +28,7 @@ from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
@@ -42,20 +42,16 @@ if TYPE_CHECKING:
 _ABORT_GRACE_SECONDS = 5
 
 
-def _fail(message: str) -> NoReturn:
-    raise ValueError(message)
-
-
 def _ref_assertions(root: Path, assertions: Mapping[str, str], timeout_seconds: float) -> None:
     if not assertions or timeout_seconds <= 0:
-        _fail("worktree_effect_ref_binding_invalid")
+        refuse("worktree_effect_ref_binding_invalid")
     for ref, head in assertions.items():
         if (
             not head
             or set(head) - set("0123456789abcdef")
             or run_git(root, "check-ref-format", ref, check=False).returncode
         ):
-            _fail("worktree_effect_ref_binding_invalid")
+            refuse("worktree_effect_ref_binding_invalid")
 
 
 def _abort_ref_input(process: subprocess.Popen[bytes]) -> None:
@@ -110,7 +106,7 @@ def hold_worktree_refs(
         timer.start()
         try:
             if process.stdin is None or process.stdout is None:
-                _fail("worktree_effect_ref_lock_unavailable")
+                refuse("worktree_effect_ref_lock_unavailable")
             program = (
                 "start\n"
                 + "".join(
@@ -138,15 +134,15 @@ def hold_worktree_refs(
             timer.cancel()
             timer.join()
             if expired.is_set():
-                _fail("worktree_effect_ref_lock_timeout")
+                refuse("worktree_effect_ref_lock_timeout")
             yield
             if monotonic() >= deadline:
-                _fail("worktree_effect_ref_lock_timeout")
+                refuse("worktree_effect_ref_lock_timeout")
             process.stdin.write(b"abort\n")
             process.stdin.flush()
             output, _ = process.communicate(timeout=timeout_seconds)
             if process.returncode or output != b"abort: ok\n":
-                _fail("worktree_effect_ref_lock_release_failed")
+                refuse("worktree_effect_ref_lock_release_failed")
         finally:
             timer.cancel()
             timer.join()
@@ -172,9 +168,9 @@ def add_worktree(
             root, "recognized", effect, before=record, after=record, environment=environment
         )
     if os.path.lexists(target):
-        _fail("worktree_effect_path_collision")
+        refuse("worktree_effect_path_collision")
     if branch != "detached" and ref_head(root, branch, environment=environment) != head:
-        _fail("worktree_effect_ref_stale")
+        refuse("worktree_effect_ref_stale")
     arguments = (
         ("worktree", "add", "--detach", target.as_posix(), head)
         if branch == "detached"
@@ -209,12 +205,12 @@ def remove_worktree(
 ) -> Attestation:
     """Remove an exact binding after caller admission, or recognize its absence."""
     if path.is_symlink() or is_junction(path):
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
     target = path.resolve()
     record = worktree_record(root, target, environment=environment, runner=runner)
     if not record:
         if os.path.lexists(target):
-            _fail("worktree_effect_path_ownership_unknown")
+            refuse("worktree_effect_path_ownership_unknown")
         effect = _effect("remove", target, branch, head)
         return _attestation(
             root, "recognized", effect, before={}, after={}, environment=environment
@@ -245,7 +241,7 @@ def remove_worktree(
     if worktree_record(root, target, environment=environment, runner=runner) or os.path.lexists(
         target
     ):
-        _fail("worktree_effect_postcondition_failed")
+        refuse("worktree_effect_postcondition_failed")
     effect = _effect("remove", target, branch, head)
     return _attestation(root, "applied", effect, before=record, after={}, environment=environment)
 
@@ -273,7 +269,7 @@ def sync_worktree(
     if before["head"] != head or before["tree"] != current_tree(
         root, previous, environment=environment
     ):
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
     refreshed = runner(target, "update-index", "--refresh", check=False, env=environment)
     if refreshed.returncode:
         raise ValueError(refreshed.stderr.strip() or "worktree_effect_preimage_dirty")
@@ -291,7 +287,7 @@ def sync_worktree(
         raise ValueError(completed.stderr.strip() or "worktree_effect_sync_failed")
     after = _sync_observation(root, target, branch, environment=environment, runner=runner)
     if after["head"] != head or after["tree"] != current_tree(root, head, environment=environment):
-        _fail("worktree_effect_postcondition_failed")
+        refuse("worktree_effect_postcondition_failed")
     effect = _effect("read-tree", target, branch, head)
     return _attestation(
         root, "applied", effect, before=before, after=after, environment=environment
@@ -360,7 +356,7 @@ def attach_worktree(
     target = path.resolve()
     record = worktree_record(root, target, environment=environment, runner=runner)
     if ref_head(root, branch, environment=environment) != head:
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
     effect = _effect("switch", target, branch, head)
     observed_branch = record.get("branch", "").removeprefix("refs/heads/")
     if observed_branch == branch:
@@ -376,7 +372,7 @@ def attach_worktree(
         or indexed.stdout.strip() != current_tree(root, head, environment=environment)
         or dirty is not False
     ):
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
     completed = runner(target, "switch", branch, check=False, env=environment)
     if completed.returncode:
         raise ValueError(completed.stderr.strip() or "worktree_effect_attach_failed")
@@ -402,7 +398,7 @@ def worktree_record(
         if record.get("worktree") and Path(record["worktree"]).resolve() == target
     ]
     if len(matches) > 1:
-        _fail("worktree_effect_observation_ambiguous")
+        refuse("worktree_effect_observation_ambiguous")
     return matches[0] if matches else {}
 
 
@@ -415,7 +411,7 @@ def raw_worktree_records(
     """Observe native worktree records, preserving flags and observation failures."""
     completed = runner(root, "worktree", "list", "--porcelain", check=False, env=environment)
     if completed.returncode:
-        _fail("worktree_effect_observation_failed")
+        refuse("worktree_effect_observation_failed")
     return tuple(
         dict(line.partition(" ")[::2] for line in block.splitlines() if line)
         for block in completed.stdout.split("\n\n")
@@ -449,7 +445,7 @@ def _require_binding(
         or target.is_symlink()
         or (os.path.lexists(target) if absent else not target.is_dir())
     ):
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
 
 
 def _sync_observation(
@@ -470,7 +466,7 @@ def _sync_observation(
         or target.is_symlink()
         or not target.is_dir()
     ):
-        _fail("worktree_effect_binding_stale")
+        refuse("worktree_effect_binding_stale")
     return {
         "path": target.as_posix(),
         "branch": observed_branch,

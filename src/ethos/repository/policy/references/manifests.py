@@ -8,6 +8,7 @@ import tomllib
 from collections import defaultdict
 from typing import Literal
 
+from packaging.utils import canonicalize_name
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -77,7 +78,7 @@ class PythonManifest(BaseModel):
 
     def dependency_distributions(self) -> frozenset[str]:
         """Return the distributions the code and tests run with, never the project itself."""
-        own = normalized_distribution(self.project.name or "")
+        own = canonicalize_name(self.project.name or "")
         return frozenset(_distributions(self._dependencies()) - {own})
 
     def _dependencies(self) -> list[str]:
@@ -200,15 +201,10 @@ def npm_script_commands(files: dict[str, str]) -> dict[str, set[str]]:
     return dict(scripts)
 
 
-def normalized_distribution(value: str) -> str:
-    """Normalize a native package identity with the PEP 503 name relation."""
-    return re.sub(r"[-_.]+", "-", value).lower()
-
-
 def _distributions(requirements: list[str]) -> set[str]:
     """Normalize the distribution name each requirement string starts with."""
     return {
-        normalized_distribution(match.group())
+        canonicalize_name(match.group())
         for requirement in requirements
         if (match := re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement))
     }

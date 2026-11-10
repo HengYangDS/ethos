@@ -1,6 +1,5 @@
 """Resolve declared carrier ownership without granting mutation authority."""
 
-import fnmatch
 import json
 import subprocess
 import sys
@@ -8,25 +7,15 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import TypeGuard
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.repository.policy.quality.format_selection import audit
+from ethos.repository.policy.quality.format_selection import record
+from ethos.repository.policy.quality.format_selection import records
+from ethos.repository.policy.quality.format_selection import strings
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/format-selection/policy.toml"
-
-
-def _record(value: object) -> TypeGuard[dict[str, object]]:
-    return isinstance(value, dict) and all(isinstance(key, str) for key in value)
-
-
-def _records(value: object) -> TypeGuard[list[dict[str, object]]]:
-    return isinstance(value, list) and all(_record(item) for item in value)
-
-
-def _strings(value: object) -> TypeGuard[list[str]]:
-    return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
 def _tracked_files() -> list[str]:
@@ -39,14 +28,6 @@ def _load_config() -> dict[str, object]:
 
 def _matches_any(path: str, roots: list[str]) -> bool:
     return any(path == root.rstrip("/") or path.startswith(root) for root in roots)
-
-
-def _matches_glob(path: str, pattern: str) -> bool:
-    return fnmatch.fnmatchcase(path, pattern) or Path(path).match(pattern)
-
-
-def _matches_patterns(path: str, patterns: list[str]) -> bool:
-    return any(_matches_glob(path, pattern) for pattern in patterns)
 
 
 def _path_allowed_for_extension(path: str, suffix: str, policy: dict[str, object]) -> bool:
@@ -68,13 +49,13 @@ def _empty_policy_roots(tracked: list[str], policy: dict[str, object]) -> list[d
         ("yaml_allowed_roots", frozenset({".yml", ".yaml"})),
     ):
         roots = policy.get(key, [])
-        if _strings(roots):
+        if strings(roots):
             declared.extend((key, root, suffixes) for root in roots)
     extension_paths = policy.get("extension_paths", {})
-    constraints = extension_paths if _record(extension_paths) else {}
+    constraints = extension_paths if record(extension_paths) else {}
     for suffix, constraint in constraints.items():
-        roots = constraint.get("roots", []) if _record(constraint) else []
-        if _strings(roots):
+        roots = constraint.get("roots", []) if record(constraint) else []
+        if strings(roots):
             declared.extend(
                 (f"extension_paths.{suffix}", root, frozenset({suffix})) for root in roots
             )
@@ -91,13 +72,13 @@ def main() -> int:
     config = _load_config()
     formats = config.get("format", [])
     policy = config.get("policy", {})
-    if not _records(formats) or not _record(policy):
+    if not records(formats) or not record(policy):
         message = "format selection has an invalid format or policy record"
         raise ValueError(message)
     known_exts: set[str] = set()
     for item in formats:
         extensions = item.get("extensions", [])
-        if not _strings(extensions):
+        if not strings(extensions):
             message = "format selection extensions must be strings"
             raise TypeError(message)
         known_exts.update(extensions)
@@ -108,7 +89,7 @@ def main() -> int:
     jsonl_roots = policy.get("jsonl_allowed_roots", [])
     yaml_roots = policy.get("yaml_allowed_roots", [])
     unregistered_extension = policy.get("unregistered_extension", "observe")
-    if not _strings(forbidden) or not _strings(jsonl_roots) or not _strings(yaml_roots):
+    if not strings(forbidden) or not strings(jsonl_roots) or not strings(yaml_roots):
         message = "format selection policy lists must contain strings"
         raise TypeError(message)
     if not isinstance(unregistered_extension, str):

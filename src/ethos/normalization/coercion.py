@@ -36,6 +36,20 @@ def string_mapping(value: object) -> dict[str, object]:
     return {str(key): item for key, item in value.items()}
 
 
+def required_mapping(value: object) -> dict[str, object]:
+    """Return a string-keyed copy of a dictionary, refusing any other value."""
+    if not isinstance(value, dict):
+        raise TypeError
+    return {str(key): item for key, item in value.items()}
+
+
+def required_sequence(value: object) -> list[object]:
+    """Return a copy of a list, refusing any other value."""
+    if not isinstance(value, list):
+        raise TypeError
+    return list(value)
+
+
 def integer(value: object, *, default: int = 0) -> int:
     """Return an integer value without accepting booleans or arbitrary scalars."""
     return value if isinstance(value, int) and not isinstance(value, bool) else default

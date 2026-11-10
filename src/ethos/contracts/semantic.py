@@ -137,6 +137,11 @@ def canonical_json_digest(value: object) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 
+def model_digest(model: BaseModel) -> str:
+    """Digest a model's complete JSON form, the identity of an immutable request or effect."""
+    return canonical_json_digest(model.model_dump(mode="json"))
+
+
 class _SemanticModel(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,

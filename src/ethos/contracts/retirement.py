@@ -16,17 +16,13 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
-from ethos.contracts.semantic import canonical_json_digest
+from ethos.contracts.outcome import refuse
 from ethos.contracts.value import FrozenTuple
 from ethos.contracts.value import JsonObject
 
 RetirementEffect = Literal["remove_worktree", "delete_ref", "revoke_lease"]
 CarrierState = Literal["expected", "absent", "moved", "unavailable"]
 AcceptedState = Literal["expected", "advanced", "absent", "moved", "unavailable"]
-
-
-def _fail(reason: str) -> None:
-    raise ValueError(reason)
 
 
 class _ContentNode(BaseModel):
@@ -47,7 +43,7 @@ class _ContentNode(BaseModel):
         if self.kind != "directory":
             fields.add("sha256" if self.kind == "file" else "target")
         if self.model_fields_set != fields:
-            _fail("retirement_content_node_invalid")
+            refuse("retirement_content_node_invalid")
         return self
 
 
@@ -64,7 +60,7 @@ class ReviewedManifest(BaseModel):
     def validate_tree(self) -> Self:
         marker = self.entries.get(".git")
         if marker is None or marker.kind != "file":
-            _fail("retirement_content_tree_invalid")
+            refuse("retirement_content_tree_invalid")
         for name in self.entries:
             path = PurePosixPath(name)
             parent = self.entries.get(path.parent.as_posix())
@@ -80,7 +76,7 @@ class ReviewedManifest(BaseModel):
                     and (parent is None or parent.kind != "directory")
                 )
             ):
-                _fail("retirement_content_tree_invalid")
+                refuse("retirement_content_tree_invalid")
         return self
 
     def totals(self) -> dict[str, dict[str, int]]:
@@ -136,7 +132,7 @@ class _ReviewedContent(BaseModel):
             or marker is None
             or (marker.directories, marker.files, marker.symlinks) != (0, 1, 0)
         ):
-            _fail("retirement_content_tree_invalid")
+            refuse("retirement_content_tree_invalid")
         return self
 
 
@@ -209,28 +205,24 @@ class RetirementOperation(BaseModel):
             or self.lease
             or self.git_plan
         ):
-            _fail("retirement_detached_resources_invalid")
+            refuse("retirement_detached_resources_invalid")
         expected = (
             *(("remove_worktree",) if self.worktree_initial == "linked" else ()),
             *(("delete_ref",) if self.branch else ()),
             *(("revoke_lease",) if self.lease_state != "missing" else ()),
         )
         if self.effects and self.effects != expected:
-            _fail("retirement_operation_effects_invalid")
+            refuse("retirement_operation_effects_invalid")
         if self.worktree_initial == "linked" and not self.worktree_path:
-            _fail("retirement_operation_worktree_path_missing")
+            refuse("retirement_operation_worktree_path_missing")
         if self.mode == "abandon" and not self.reason:
-            _fail("lane_abandonment_reason_invalid")
+            refuse("lane_abandonment_reason_invalid")
         if self.reviewed_content and (self.mode != "abandon" or self.worktree_initial != "linked"):
-            _fail("retirement_reviewed_content_invalid")
+            refuse("retirement_reviewed_content_invalid")
         if not self.execution_root:
             object.__setattr__(self, "execution_root", self.control_root)
         object.__setattr__(self, "effects", expected)
         return self
-
-    def digest(self) -> str:
-        """Return the content identity of this immutable operation."""
-        return canonical_json_digest(self.model_dump(mode="json"))
 
 
 class UninspectableProcess(BaseModel):

@@ -24,11 +24,14 @@ from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 from typing import Any
 
+from packaging.utils import canonicalize_name
+
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.runtime.materialization.native_supply import NATIVE_BACKENDS
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
+from ethos.contracts.digest import file_sha256
 from tools.ci.delivery.release_assets import inventory_gaps
 from tools.ci.toolchain.native import supply_tool
 
@@ -95,7 +98,7 @@ def catalog(
         )
     )
     documents = tuple(json.loads(path.read_text(encoding="utf-8")) for path in outputs)
-    if gaps := inventory_gaps(*documents, name=name, digest=_sha256(archive)):
+    if gaps := inventory_gaps(*documents, name=name, digest=file_sha256(archive)):
         subject = any(gap.endswith("_subject") for gap in gaps)
         message = (
             f"release_inventory_{'subject_mismatch' if subject else 'components_missing'}:"
@@ -122,12 +125,16 @@ def missing_components(
                 (artifact.get("type"), artifact.get("name"), artifact.get("version"))
             )
     python = {
-        (_normal(str(item.get("name", ""))), item.get("version"))
+        (canonicalize_name(str(item.get("name", ""))), item.get("version"))
         for item in artifacts
         if item.get("type") == "python"
     }
     files = [str(path) for path in _sequence(manifest, "runtime_files")]
-    shipped = {_normal(match[1]): match[2] for path in files if (match := _DIST.search(path))}
+    shipped = {
+        str(canonicalize_name(match[1])): match[2]
+        for path in files
+        if (match := _DIST.search(path))
+    }
     missing = [
         f"python:{name}@{version}"
         for name, version in shipped.items()
@@ -300,7 +307,7 @@ def locked_node_digest(runtime: str) -> str:
         message = "release_inventory_component_unverified:node"
         raise RuntimeError(message)
     directory = supply_tool(ROOT, "node")
-    return _sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
+    return file_sha256(directory / ("node.exe" if runtime.startswith("windows-") else "node"))
 
 
 def run(session: Session) -> None:
@@ -317,7 +324,7 @@ def run(session: Session) -> None:
         / str(distribution["runtime_digest"])
         / PureWindowsPath(str(distribution["path"])).name
     )
-    digest = _sha256(archive)
+    digest = file_sha256(archive)
     if digest != distribution["sha256"]:
         message = "release_inventory_archive_mismatch"
         raise RuntimeError(message)
@@ -362,7 +369,7 @@ def run(session: Session) -> None:
         "generated_at": datetime.now(UTC).isoformat(),
         "artifact": {"name": name, "sha256": digest},
         "inventories": {
-            path.name: {"path": path.relative_to(ROOT).as_posix(), "sha256": _sha256(path)}
+            path.name: {"path": path.relative_to(ROOT).as_posix(), "sha256": file_sha256(path)}
             for path in outputs
         },
         "expected": {
@@ -410,12 +417,3 @@ def _manifest(archive: Path) -> dict[str, Any]:
 def _sequence(document: Mapping[str, object], key: str) -> list[object]:
     value = document.get(key)
     return list(value) if isinstance(value, (dict, list, tuple)) else []
-
-
-def _normal(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-def _sha256(path: Path) -> str:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()

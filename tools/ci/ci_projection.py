@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import subprocess
@@ -21,6 +20,7 @@ import yaml
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
+from ethos.contracts.digest import file_sha256
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_input_bindings
 from tools.ci import supply_image
@@ -40,10 +40,6 @@ def _git_output(*args: str) -> str:
         ["git", *args], cwd=ROOT, capture_output=True, encoding="utf-8", check=False
     )
     return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def check_workflow(root: Path = ROOT) -> int:
@@ -351,11 +347,11 @@ def check_templates(*, json_output: bool) -> int:
                 "source": relation.source,
                 "projection": str(projection.relative_to(ROOT)),
                 "input_sha256": {
-                    path: _sha256(ROOT / path)
+                    path: file_sha256(ROOT / path)
                     for path in relation.materials
                     if path != relation.output and (ROOT / path).is_file()
                 },
-                "projection_sha256": _sha256(projection),
+                "projection_sha256": file_sha256(projection),
                 "projection_matches_source": match,
                 "required_owner_scripts": list(entry.get("required_owner_scripts", [])),
                 "provider_specific_owner_scripts": dict(

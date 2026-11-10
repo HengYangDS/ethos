@@ -17,7 +17,6 @@ import tomllib
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import NoReturn
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -40,6 +39,7 @@ from ethos.adapters.store.retention.writers import writer_roots
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.application.invocation import application_result
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.outcome import refuse
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.result import EthosResult
@@ -56,10 +56,6 @@ if TYPE_CHECKING:
 
 _COMMAND = "hook retire-records"
 _NANOSECONDS = 1_000_000_000
-
-
-def _fail(reason: str) -> NoReturn:
-    raise ValueError(reason)
 
 
 def _selected(root: Path) -> SelectedRuntime | None:
@@ -86,7 +82,7 @@ def preview_record_retirement(root: Path) -> EthosResult:
     store = local_state_root(repo)
     try:
         if not runtime_selected(repo):
-            _fail("record_retirement_runtime_unselected")
+            refuse("record_retirement_runtime_unselected")
         with _holding(try_hold(store / "retention.lock"), "record_retirement_in_progress"):
             conflicts = _restored(store)
             floors = _accepted_floors(repo)
@@ -112,11 +108,11 @@ def apply_record_retirement(root: Path, *, expect_plan: str, authorize: bool) ->
     store = local_state_root(repo)
     try:
         if not authorize:
-            _fail("authorization_required")
+            refuse("authorization_required")
         if not expect_plan:
-            _fail("record_retirement_plan_required")
+            refuse("record_retirement_plan_required")
         if not runtime_selected(repo):
-            _fail("record_retirement_runtime_unselected")
+            refuse("record_retirement_runtime_unselected")
         with _holding(try_hold(store / "retention.lock"), "record_retirement_in_progress"):
             conflicts = _restored(store)
             plan = read_plan(store, expect_plan)
@@ -138,7 +134,7 @@ def apply_record_retirement(root: Path, *, expect_plan: str, authorize: bool) ->
 def _holding(lock: FileLock | None, refusal: str) -> Generator[None]:
     """Hold a lock taken without waiting for one block, or refuse when another process held it."""
     if lock is None:
-        _fail(refusal)
+        refuse(refusal)
     try:
         yield
     finally:
@@ -176,7 +172,7 @@ def _accepted_floors(repo: Path) -> tuple[str, str, dict[str, int]]:
         repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}", check=False
     )
     if observed.returncode:
-        _fail("record_retirement_floor_unreadable")
+        refuse("record_retirement_floor_unreadable")
     commit = observed.stdout.strip()
     carrier = f"{commit}:{paradigm.binding.path('rules')}"
     text = ""
@@ -184,7 +180,7 @@ def _accepted_floors(repo: Path) -> tuple[str, str, dict[str, int]]:
         shown = run_git(repo, "show", carrier, check=False)
         try:
             if shown.returncode:
-                _fail("record_retirement_floor_unreadable")
+                refuse("record_retirement_floor_unreadable")
             tomllib.loads(shown.stdout)
         except tomllib.TOMLDecodeError as error:
             message = "record_retirement_floor_unreadable"

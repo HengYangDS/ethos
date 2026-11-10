@@ -82,15 +82,15 @@ class CarrierAudit(TypedDict):
     assignments: list[CarrierAssignment]
 
 
-def _record(value: object) -> TypeGuard[dict[str, object]]:
+def record(value: object) -> TypeGuard[dict[str, object]]:
     return isinstance(value, dict) and all(isinstance(key, str) for key in value)
 
 
-def _records(value: object) -> TypeGuard[list[dict[str, object]]]:
-    return isinstance(value, list) and all(_record(item) for item in value)
+def records(value: object) -> TypeGuard[list[dict[str, object]]]:
+    return isinstance(value, list) and all(record(item) for item in value)
 
 
-def _strings(value: object) -> TypeGuard[list[str]]:
+def strings(value: object) -> TypeGuard[list[str]]:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
@@ -104,7 +104,7 @@ def _required_text(record: dict[str, object], field: str) -> str:
 
 def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
     """Reject malformed native owners before selector precedence can hide one."""
-    if not _records(value):
+    if not records(value):
         message = "format ownership declarations must be records"
         raise TypeError(message)
     for declaration in value:
@@ -119,7 +119,7 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
         ):
             _required_text(declaration, field)
         for field in ("paths", "exclude_paths", "extensions", "semantic_companions"):
-            if not _strings(declaration.get(field, [])):
+            if not strings(declaration.get(field, [])):
                 message = f"format ownership selector is not a string list: {owner}:{field}"
                 raise TypeError(message)
         if "projection_kind" in declaration and not _required_text(declaration, "projection_kind"):
@@ -132,23 +132,23 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
     return [cast("OwnerDeclaration", declaration) for declaration in value]
 
 
-def _matches_glob(path: str, pattern: str) -> bool:
+def matches_glob(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern) or Path(path).match(pattern)
 
 
-def _matches_patterns(path: str, patterns: list[str]) -> bool:
-    return any(_matches_glob(path, pattern) for pattern in patterns)
+def matches_patterns(path: str, patterns: list[str]) -> bool:
+    return any(matches_glob(path, pattern) for pattern in patterns)
 
 
 def _owner_matches(path: str, declaration: OwnerDeclaration) -> bool:
     suffix = Path(path).suffix.lower()
     extensions = declaration.get("extensions", [])
     has_selector = bool(declaration.get("paths")) or bool(extensions)
-    selected = _matches_patterns(path, declaration.get("paths", [])) or suffix in extensions
+    selected = matches_patterns(path, declaration.get("paths", [])) or suffix in extensions
     return (
         has_selector
         and selected
-        and not _matches_patterns(path, declaration.get("exclude_paths", []))
+        and not matches_patterns(path, declaration.get("exclude_paths", []))
     )
 
 

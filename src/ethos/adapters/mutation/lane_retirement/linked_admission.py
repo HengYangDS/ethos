@@ -17,7 +17,6 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
     from ethos.contracts.retirement import LinkedRetirementRequest
-    from ethos.contracts.verdict import Verdict
 
 
 def retirement_target(
@@ -134,12 +133,6 @@ def _unbound_path_gaps(target: Path, worktrees: list[dict[str, object]]) -> list
         if (path := str(row.get("path") or ""))
     )
     return ["retirement_recovery_path_registered"] if registered else []
-
-
-def retirement_verdict(gaps: list[str] | tuple[str, ...]) -> Verdict:
-    if not gaps:
-        return "pass"
-    return "unknown" if all(gap.startswith("work_lane_lease_unknown:") for gap in gaps) else "block"
 
 
 def _with_archive_absorption(

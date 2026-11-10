@@ -44,6 +44,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import refuse
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.retirement import AcceptedState
 from ethos.contracts.retirement import CarrierState
@@ -52,16 +53,13 @@ from ethos.contracts.retirement import RetirementObservation
 from ethos.contracts.retirement import RetirementOperation
 from ethos.contracts.retirement import RetirementProgress
 from ethos.contracts.semantic import canonical_json_bytes
+from ethos.contracts.semantic import model_digest
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-
-def _fail(reason: str) -> None:
-    raise ValueError(reason)
 
 
 # The failure keys that the report's own verdict and gaps replace.
@@ -117,14 +115,14 @@ def verified_bytes(store: Path, path: str, sha256: str) -> bytes:
         or candidate.parent != store.resolve()
         or candidate.name != f"{digest}.json"
     ):
-        _fail("lane_retirement_receipt_path_invalid")
+        refuse("lane_retirement_receipt_path_invalid")
     try:
         payload = candidate.read_bytes()
     except OSError as error:
         message = "lane_retirement_receipt_missing"
         raise ValueError(message) from error
     if hashlib.sha256(payload).hexdigest() != digest:
-        _fail("lane_retirement_receipt_sha256_mismatch")
+        refuse("lane_retirement_receipt_sha256_mismatch")
     return payload
 
 
@@ -145,7 +143,7 @@ def persist_progress(
     root: Path, request: RetirementOperation, progress: RetirementProgress
 ) -> dict[str, object]:
     """Persist one immutable observed progress snapshot."""
-    store = local_state_root(root) / "operations" / "lane-retirement" / request.digest()
+    store = local_state_root(root) / "operations" / "lane-retirement" / model_digest(request)
     return _receipt(
         store,
         progress.model_dump(mode="json"),
@@ -155,7 +153,7 @@ def persist_progress(
 
 def _removal_observation(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
     """Return the one boundary this request's verified snapshots record for its removal."""
-    store = local_state_root(root) / "operations" / "lane-retirement" / request.digest()
+    store = local_state_root(root) / "operations" / "lane-retirement" / model_digest(request)
     recorded: set[OpenFileBoundary] = set()
     for path in store.glob("*.json"):
         try:
@@ -191,9 +189,9 @@ def reduce_progress(
 ) -> RetirementProgress:
     """Reduce current carrier facts into one monotonic operation state."""
     if request.worktree_initial == "unbound" and observation.worktree_state != "absent":
-        _fail("retirement_operation_state_drift")
+        refuse("retirement_operation_state_drift")
     if request.lease_state == "missing" and observation.lease_state != "absent":
-        _fail("retirement_operation_state_drift")
+        refuse("retirement_operation_state_drift")
     states = {
         "remove_worktree": observation.worktree_state,
         "delete_ref": observation.ref_state,
@@ -202,15 +200,15 @@ def reduce_progress(
     if observation.accepted_state not in {"expected", "advanced"} or any(
         states[effect] in {"moved", "unavailable"} for effect in request.effects
     ):
-        _fail("retirement_operation_state_drift")
+        refuse("retirement_operation_state_drift")
     completed = tuple(effect for effect in request.effects if states[effect] == "absent")
     remaining = tuple(effect for effect in request.effects if states[effect] == "expected")
     completion_flags = tuple(effect in completed for effect in request.effects)
     if completion_flags != tuple(sorted(completion_flags, reverse=True)):
-        _fail("retirement_operation_state_drift")
+        refuse("retirement_operation_state_drift")
     state = "terminal" if not remaining else "partial_transition" if completed else "ready"
     return RetirementProgress(
-        request_digest=request.digest(),
+        request_digest=model_digest(request),
         state=state,
         observation=observation,
         completed_effects=completed,
@@ -224,7 +222,7 @@ def _require_accepted_coordinate(progress: RetirementProgress) -> None:
         "remove_worktree",
         "delete_ref",
     } & set(progress.remaining_effects):
-        _fail("retirement_accepted_coordinate_drift")
+        refuse("retirement_accepted_coordinate_drift")
 
 
 def _lease_outcome(root: Path, request: RetirementOperation) -> CarrierState:
@@ -321,7 +319,7 @@ def _admit_content(root: Path, request: RetirementOperation) -> OpenFileBoundary
         if os.path.lexists(request.worktree_path) and unreviewed_content(
             Path(request.worktree_path)
         ):
-            _fail("retirement_content_review_required")
+            refuse("retirement_content_review_required")
         return None
     observation = observe_open_files(
         root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
@@ -337,15 +335,15 @@ def _admit_content(root: Path, request: RetirementOperation) -> OpenFileBoundary
 def preflight_operation(root: Path, request: RetirementOperation) -> RetirementProgress:
     """Return observed progress after validating process and authority coordinates."""
     if not _current_actor(request):
-        _fail("foreign_work_lane_retire_authority_required")
+        refuse("foreign_work_lane_retire_authority_required")
     control = Path(request.control_root)
     execution_root = Path(request.execution_root)
     if request.worktree_path and execution_root.resolve() == Path(request.worktree_path).resolve():
-        _fail("retirement_execution_root_is_target")
+        refuse("retirement_execution_root_is_target")
     for role, path in (("control", control), ("execution", execution_root)):
         unavailable = f"retirement_{role}_root_unavailable"
         if not path.is_absolute() or not path.is_dir() or path.is_symlink() or is_junction(path):
-            _fail(unavailable)
+            refuse(unavailable)
         observed = run_git(
             path,
             "rev-parse",
@@ -356,9 +354,9 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
         )
         coordinates = observed.stdout.splitlines()
         if observed.returncode or len(coordinates) != 2 or Path(coordinates[0]) != path.resolve():
-            _fail(unavailable)
+            refuse(unavailable)
         if Path(coordinates[1]).resolve().as_posix() != request.repository_common_dir:
-            _fail(
+            refuse(
                 "lane_retirement_receipt_repository_mismatch" if role == "control" else unavailable
             )
     if (
@@ -366,7 +364,7 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
         and repository_identity(control, tree_ref=request.accepted_head)
         != request.repository_identity
     ):
-        _fail("lane_retirement_receipt_repository_mismatch")
+        refuse("lane_retirement_receipt_repository_mismatch")
     progress = reduce_progress(request, observe_operation(root, request))
     _require_accepted_coordinate(progress)
     if "delete_ref" in progress.remaining_effects:
@@ -564,12 +562,12 @@ def execute_retirement_operation(
     receipt = {"path": receipt_path, "sha256": receipt_sha256}
     try:
         if apply and not authorized:
-            _fail("authorization_required")
+            refuse("authorization_required")
         request = load_operation(repo, receipt_path, receipt_sha256)
         if expected_mode is not None and request.mode != expected_mode:
-            _fail("lane_retirement_receipt_mode_invalid")
+            refuse("lane_retirement_receipt_mode_invalid")
         if not _current_actor(request):
-            _fail("foreign_work_lane_retire_authority_required")
+            refuse("foreign_work_lane_retire_authority_required")
         return apply_operation(request, request_receipt=receipt, apply=apply)
     except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
         return {

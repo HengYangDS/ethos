@@ -6,14 +6,14 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import NoReturn
 
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.input_resolution import run_runtime_tool
-from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_identity
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
+from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 
 _SUPPLY_OBSERVATION = """
 import hashlib
@@ -35,10 +35,6 @@ for distribution in distributions():
         files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
 print(json.dumps({"prefix": prefix.as_posix(), "files": files}, sort_keys=True))
 """
-
-
-def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
-    raise ValueError(reason) from cause
 
 
 def prepare_locked_requirements(
@@ -80,7 +76,7 @@ def prepare_locked_requirements(
         python=source_python,
     )
     if not requirements.is_file():
-        _fail("hook_runtime_locked_requirements_missing")
+        refuse("hook_runtime_locked_requirements_missing")
     return requirements
 
 
@@ -127,11 +123,11 @@ def project_dependency_supply(source_python: Path, target_python: Path) -> None:
     target_facts = observe_python_facts(target_python)
     target_prefix = Path(target_facts["prefix"]).resolve()
     if not same_python_path(source_prefix, Path(source_facts["prefix"]).resolve()):
-        _fail("hook_runtime_dependency_supply_invalid")
+        refuse("hook_runtime_dependency_supply_invalid")
     if not same_python_identity(source_facts, target_facts):
-        _fail("hook_runtime_dependency_supply_incompatible")
+        refuse("hook_runtime_dependency_supply_incompatible")
     if same_python_path(source_prefix, target_prefix):
-        _fail("hook_runtime_dependency_supply_alias")
+        refuse("hook_runtime_dependency_supply_alias")
     projection: list[tuple[Path, Path, str]] = []
     for relative, expected_sha256 in files:
         source = source_prefix / relative
@@ -144,13 +140,13 @@ def project_dependency_supply(source_python: Path, target_python: Path) -> None:
             or target.is_symlink()
             or not target.resolve().is_relative_to(target_prefix)
         ):
-            _fail("hook_runtime_dependency_supply_invalid")
+            refuse("hook_runtime_dependency_supply_invalid")
         projection.append((source, target, expected_sha256))
     for source, target, expected_sha256 in projection:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         if file_sha256(target) != expected_sha256:
-            _fail("hook_runtime_dependency_supply_invalid")
+            refuse("hook_runtime_dependency_supply_invalid")
 
 
 def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str], ...]]:
@@ -168,7 +164,7 @@ def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str
             (Path(relative), sha256) for relative, sha256 in sorted(payload["files"].items())
         )
     except (KeyError, TypeError, ValueError) as error:
-        _fail("hook_runtime_dependency_supply_invalid", error)
+        refuse("hook_runtime_dependency_supply_invalid", cause=error)
     if (
         completed.returncode
         or not prefix.is_absolute()
@@ -179,5 +175,5 @@ def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str
         )
     ):
         detail = completed.stderr.strip() or completed.stdout.strip()
-        _fail(f"hook_runtime_dependency_supply_invalid:{detail}")
+        refuse(f"hook_runtime_dependency_supply_invalid:{detail}")
     return prefix, files

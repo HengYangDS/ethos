@@ -24,6 +24,7 @@ import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.toolchain.mise import native_tool_cache
+from ethos.contracts.digest import file_sha256
 from tools.ci.toolchain.native import supply_tool
 
 if TYPE_CHECKING:
@@ -73,7 +74,7 @@ def scan_release(
         if not inventory.is_file():
             entry |= {"state": "not_scanned", "reason": "inventory_missing"}
             continue
-        if _sha256(inventory) != sums.get(inventory.name):
+        if file_sha256(inventory) != sums.get(inventory.name):
             message = f"release_binary_scan_inventory_digest_mismatch:{host}"
             raise ValueError(message)
         document = json.loads(inventory.read_text(encoding="utf-8"))
@@ -122,7 +123,7 @@ def scan_release(
             for item in document.get("files") or ()
             if any(_UNIDENTIFIED in note for note in item.get("unknowns") or ())
         )
-        entry |= {"state": "scanned", "inventory_sha256": _sha256(inventory)}
+        entry |= {"state": "scanned", "inventory_sha256": file_sha256(inventory)}
     report["rows"] = [rows[key] for key in sorted(rows, key=lambda key: tuple(map(str, key)))]
     report["unidentified_executables"] = [
         {"archive": archive, "path": path} for archive, path in sorted(unidentified)
@@ -199,8 +200,3 @@ def _audited_locks(document: dict[str, Any], audited_lock: str) -> set[str]:
         if ("sha256", audited_lock)
         in {(digest.get("algorithm"), digest.get("value")) for digest in item.get("digests") or ()}
     }
-
-
-def _sha256(path: Path) -> str:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()

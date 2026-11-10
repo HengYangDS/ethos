@@ -34,14 +34,9 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.outcome import present
-from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import require
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
-
-
-def _require(condition: object, *gaps: str) -> None:
-    if not condition:
-        raise refusal(*gaps)
 
 
 def _record(predicate: str, coordinates: dict[str, object], **result: object) -> Attestation:
@@ -79,17 +74,17 @@ def _records(root: Path, old: str, actor: str) -> tuple[Attestation | None, Atte
         coordinates = signature_record_coordinates(item)
         if coordinates["old"] != old:
             continue
-        _require(coordinates["actor"] == actor, "signature_repair_actor_mismatch")
-        _require(coordinates["root"] == root.as_posix(), "signature_repair_root_mismatch")
+        require(coordinates["actor"] == actor, "signature_repair_actor_mismatch")
+        require(coordinates["root"] == root.as_posix(), "signature_repair_root_mismatch")
         selected.append(item)
     attempts = [item for item in selected if item.predicate == ATTEMPT]
     results = [item for item in selected if item.predicate == RESULT]
-    _require(len(attempts) <= 1 and len(results) <= 1, "signature_repair_evidence_ambiguous")
+    require(len(attempts) <= 1 and len(results) <= 1, "signature_repair_evidence_ambiguous")
     attempt, result = next(iter(attempts), None), next(iter(results), None)
     if attempt:
-        _require(attempt.plan_digest is None, "signature_repair_evidence_invalid")
+        require(attempt.plan_digest is None, "signature_repair_evidence_invalid")
     if result:
-        _require(
+        require(
             attempt is not None
             and attempt.payload.body["coordinates"] == result.payload.body["coordinates"],
             "signature_repair_attempt_mismatch",
@@ -109,13 +104,13 @@ def _apply(
     try:
         if result is None:
             history = coordinates.get("history")
-            _require(
+            require(
                 attempt is None or bool(replacement) or isinstance(history, Mapping),
                 "signature_repair_signing_outcome_unknown",
             )
             recovering = attempt is not None
             if attempt is None:
-                _require(not replacement, "signature_repair_replacement_without_attempt")
+                require(not replacement, "signature_repair_replacement_without_attempt")
                 attempt = record_attestation_once(root, _record(ATTEMPT, coordinates))
                 validate_signature_coordinates(root, coordinates, actor)
                 if not isinstance(history, Mapping):
@@ -148,7 +143,7 @@ def _apply(
             observed = sync_ref_worktrees(
                 root, (Path(item["path"]),), item["branch"], replacement, old
             )
-            _require(
+            require(
                 observed["worktree_sync"] == "synced",
                 f"signature_repair_worktree_sync_failed:{item['path']}",
             )
@@ -198,13 +193,13 @@ def repair_signature(
         f"--expect-head {expect_head} --apply --authorize --json"
     )
     try:
-        _require(bool(actor), "signature_repair_actor_required")
-        _require(not apply or authorized, "authorization_required")
+        require(bool(actor), "signature_repair_actor_required")
+        require(not apply or authorized, "authorization_required")
         attempt, result = _records(root, expect_head, actor)
-        _require(
+        require(
             attempt is not None or not replacement, "signature_repair_replacement_without_attempt"
         )
-        _require(
+        require(
             result is None or not replacement or result.payload.body["replacement"] == replacement,
             "signature_repair_replacement_mismatch",
         )
@@ -224,10 +219,10 @@ def repair_signature(
             else signature_coordinates(root, expect_head, actor, history=history)
         )
         if history is not None:
-            _require(coordinates.get("history") == history, "history_repair_request_changed")
+            require(coordinates.get("history") == history, "history_repair_request_changed")
         new = str(result.payload.body["replacement"]) if result else replacement
         validate_signature_coordinates(root, coordinates, actor, new)
-        _require(
+        require(
             not (attempt and not result and not new and "history" not in coordinates),
             "signature_repair_signing_outcome_unknown",
         )
@@ -244,7 +239,7 @@ def repair_signature(
         lock.parent.mkdir(parents=True, exist_ok=True)
         with FileLock(str(lock), mode=0o600, blocking=False):
             attempt, result = _records(root, expect_head, actor)
-            _require(
+            require(
                 attempt is not None or not replacement,
                 "signature_repair_replacement_without_attempt",
             )

@@ -18,6 +18,8 @@ from typing import Any
 from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import refusal
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
@@ -61,8 +63,11 @@ def _audit_payload(stdout: str) -> dict[str, Any]:
         message = "dependency_audit_payload_invalid"
         raise ValueError(message)
     if payload.get("state") == "refused":
-        message = str((payload.get("decision") or {}).get("reason") or "dependency_audit_refused")
-        raise ValueError(message)
+        gaps = payload.get("required_gaps")
+        named = (
+            isinstance(gaps, list) and gaps and all(isinstance(gap, str) and gap for gap in gaps)
+        )
+        raise refusal(*(gaps if named else ["dependency_audit_refused"]))
     return payload
 
 
@@ -128,6 +133,11 @@ def _policy_identity(binding: Mapping[str, object]) -> tuple[object, object]:
     return binding.get("path"), binding.get("sha256")
 
 
+def decision_gaps(decision: dict[str, Any], prefix: str = "") -> list[str]:
+    """Every gap of a captured decision, each under the caller's prefix."""
+    return [prefix + gap for gap in decision.get("required_gaps") or [decision["reason"]]]
+
+
 def captured_dependency_acceptance(
     stdout: str,
     *,
@@ -149,7 +159,13 @@ def captured_dependency_acceptance(
             ci=bool(os.environ.get("CI")),
         )
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-        return {"scope": scope, "verdict": "unknown", "reason": str(error)}
+        gaps = outcome_of(error).gaps
+        return {
+            "scope": scope,
+            "verdict": "unknown",
+            "reason": gaps[0],
+            "required_gaps": list(gaps),
+        }
 
 
 def dependency_acceptance_gaps(
@@ -197,5 +213,5 @@ def dependency_acceptance_gaps(
             scope=scope,
         )
         if decision["verdict"] != "pass":
-            gaps.append(f"proof_dependency_acceptance:{decision['reason']}")
+            gaps.extend(decision_gaps(decision, "proof_dependency_acceptance:"))
     return gaps

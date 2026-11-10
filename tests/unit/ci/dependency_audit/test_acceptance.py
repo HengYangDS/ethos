@@ -447,7 +447,12 @@ def test_captured_acceptance_binds_exact_same_attempt_inputs(fault, reason):
     decision = captured_dependency_acceptance(
         json.dumps(payload), head="a" * 40, source=sources.__getitem__, scope="production-release"
     )
-    assert decision == {"scope": "production-release", "verdict": "unknown", "reason": reason}
+    assert decision == {
+        "scope": "production-release",
+        "verdict": "unknown",
+        "reason": reason,
+        "required_gaps": [reason],
+    }
 
 
 def _native_observation(fault: str) -> tuple[dict, bytes]:

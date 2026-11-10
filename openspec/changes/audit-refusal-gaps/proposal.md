@@ -28,5 +28,5 @@ None. The gate's verdicts are unchanged; only the gap it names changes.
 
 ## Impact
 
-`tools/ci/dependency_audit.py`, `src/ethos/adapters/repo/dependency_acceptance.py` and
-`tests/unit/ci/dependency_audit/test_observation.py`.
+`tools/ci/dependency_audit.py`, `src/ethos/adapters/repo/dependency_acceptance.py`,
+`src/ethos/adapters/gates/runner.py` and two test modules under `tests/unit/ci/dependency_audit/`.

@@ -35,6 +35,7 @@ from ethos.adapters.process import command_outcome
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import stream_text
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
+from ethos.adapters.repo.dependency_acceptance import decision_gaps
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.verdict import Verdict
@@ -230,7 +231,7 @@ class LocalGateRunner:
                 {
                     "kind": "dependency_acceptance",
                     "verdict": verdict,
-                    "required_gaps": [] if verdict == "pass" else [decision["reason"]],
+                    "required_gaps": [] if verdict == "pass" else decision_gaps(decision),
                 },
             )
         else:

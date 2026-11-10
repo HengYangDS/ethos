@@ -138,15 +138,21 @@ def test_active_evidence_is_preserved_and_interruption_recovers(
             audit.run(Mock(error=pytest.fail), root=repository)
         assert not observed
         assert summary.read_bytes() == previous
-        refusal = capsys.readouterr().out
-        for stdout, reason in ((refusal, "dependency_audit_in_use"), ("", "payload_missing")):
+        refused = {"command": "dependency-audit", "state": "refused", "decision": "unmapped"}
+        cases = (
+            (capsys.readouterr().out, ["dependency_audit_in_use"]),
+            ("", ["dependency_audit_payload_missing"]),
+            (json.dumps({**refused, "required_gaps": ["first_gap", "second_gap"]}), None),
+            (json.dumps({**refused, "required_gaps": [""]}), ["dependency_audit_refused"]),
+        )
+        for stdout, gaps in cases:
             decision = captured_dependency_acceptance(
                 stdout,
                 head="a" * 40,
                 source=lambda name: (repository / name).read_bytes(),
                 scope="production-release",
             )
-            assert decision["reason"].endswith(reason), decision
+            assert decision["required_gaps"] == (gaps or ["first_gap", "second_gap"]), decision
     else:
 
         def interrupt(_root, _command, _ecosystem):

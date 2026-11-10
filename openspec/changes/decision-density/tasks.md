@@ -17,5 +17,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck, the impacted tests and readiness at the lane head. Done when each
-      passes on the committed head.
+- [x] 2.1 Pass the precheck, the impacted tests and readiness at the lane head. Done when each
+      passes on the committed head. At 51817dcd2: the precheck passed with 0 findings, the impacted
+      sweep (330 files) passed 6,149 tests with 3 skipped, local-install-smoke passed, and readiness
+      passed 28 of 28 gates.

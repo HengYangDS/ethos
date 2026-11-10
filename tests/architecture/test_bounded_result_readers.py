@@ -15,8 +15,14 @@ _FOREIGN_ARGVS = frozenset(
         "tools/ci/delivery/acceptance/first_change.py",
     }
 )
-# Modules that read the ETHOS-shaped report of their own helper program, which no bound shortens.
-_FOREIGN_REPORTS = frozenset({"src/ethos/adapters/openspec/configuration.py"})
+# Modules that read the ETHOS-shaped report of their own helper program, which no bound shortens:
+# the OpenSpec configuration helper and the dependency audit session.
+_FOREIGN_REPORTS = frozenset(
+    {
+        "src/ethos/adapters/openspec/configuration.py",
+        "src/ethos/adapters/repo/dependency_acceptance.py",
+    }
+)
 _ETHOS_FIELDS = frozenset({"required_gaps", "missing_facts_or_evidence", "bound"})
 _PARSES = frozenset({"loads", "model_validate_json"})
 _ARGV = 'argv = ("python", "-m", "ethos.cli")\n'

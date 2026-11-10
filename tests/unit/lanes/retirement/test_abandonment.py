@@ -18,6 +18,7 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.retirement import OpenFileBoundary
 from ethos.contracts.retirement import UninspectableProcess
+from ethos.contracts.semantic import model_digest
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
@@ -389,7 +390,7 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         lambda *_a: pytest.fail("recovery replays worktree removal"),
     )
     # An unverifiable snapshot neither blocks recovery nor replaces the recorded boundary.
-    store = local_state_root(repo) / "operations" / "lane-retirement" / request.digest()
+    store = local_state_root(repo) / "operations" / "lane-retirement" / model_digest(request)
     (store / f"{'0' * 64}.json").write_bytes(b"{}")
     for _ in range(2):
         _assert_retired_receipt(apply_retirement_receipt(repo, receipt), request, removing)

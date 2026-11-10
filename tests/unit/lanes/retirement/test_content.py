@@ -22,6 +22,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.retirement import OpenFileBoundary
+from ethos.contracts.semantic import model_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
@@ -353,9 +354,8 @@ def test_reviewed_absorbed_content_derives_exact_public_receipt(
         assert (request.branch, request.git_plan, request.lease) == ("", {}, {})
     else:
         assert request.git_plan["facts"]["values"]["linked_worktree"]["clean"] is False
-    assert (
-        request.digest()
-        == operation.load_operation(repo, receipt["path"], receipt["sha256"]).digest()
+    assert model_digest(request) == model_digest(
+        operation.load_operation(repo, receipt["path"], receipt["sha256"])
     )
     assert before == (git(repo, "show-ref"), git(lane, "diff", "--cached"), target.read_bytes())
 

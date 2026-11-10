@@ -12,6 +12,7 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.mutation.lane_retirement.manifest import manifest_reference
 from ethos.contracts.retirement import RetirementOperation
+from ethos.contracts.semantic import model_digest
 from tests.support.lane_scenarios import retirement_request
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ def test_empty_review_extension_preserves_historical_receipt_identity(tmp_path, 
 
     restored = operation.load_operation(tmp_path, str(path), digest)
 
-    assert restored.digest() == digest
+    assert model_digest(restored) == digest
     assert restored.model_dump(mode="json") == historical
     assert operation.persist_operation(tmp_path, restored)["path"] == str(path)
     assert path.read_bytes() == payload
@@ -53,8 +54,8 @@ def test_reviewed_receipt_uses_the_same_identity_as_its_request(tmp_path, monkey
     raw = pathlib.Path(path).read_bytes()
 
     assert raw.index('"\U00010000"'.encode()) < raw.index('"\ue000"'.encode())
-    assert digest == f"sha256:{request.digest()}"
-    assert pathlib.Path(path).stem == request.digest()
+    assert digest == f"sha256:{model_digest(request)}"
+    assert pathlib.Path(path).stem == model_digest(request)
     assert operation.load_operation(tmp_path, path, digest) == request
 
 

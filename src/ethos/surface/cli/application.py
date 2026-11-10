@@ -20,7 +20,6 @@ app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 _COMMAND_MODULES = {
     "mcp": "ethos.surface.cli.root.mcp",
     "lane": "ethos.surface.cli.lane.lifecycle",
-    "hook": "ethos.surface.cli.hook.commands",
 }
 
 

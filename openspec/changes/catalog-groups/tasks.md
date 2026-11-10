@@ -30,13 +30,22 @@
 
 ## 2. S2: hook
 
-- [ ] 2.1 Add the `hook` audit rows. Done when every hook flag combination that changes from ignored
-      to refused is listed with its product callers.
-- [ ] 2.2 Convert the 7 `hook` leaves to entries with `A/hook/` halves. Done when `S/hook/` is gone,
+- [x] 2.1 Add the `hook` audit rows. Done when every hook flag combination that changes from ignored
+      to refused is listed with its product callers. The design's Audit holds the `hook` table from
+      one probe of 62 argv shapes on both trees, and the CHANGELOG has one Breaking line per
+      refusal.
+- [x] 2.2 Convert the 7 `hook` leaves to entries with `A/hook/` halves. Done when `S/hook/` is gone,
       `hook commit-range --check peer-identity` selects, and the golden data passes for the group.
-- [ ] 2.3 Retarget the hook tests and the fence. Done when the 14 rows and 3 destructive rows leave,
-      `test_activation.py` passes, and the hook and retention prefixes are fenced.
-- [ ] 2.4 Record S2 deltas. Done when product (+10) and test (-60) deltas are written.
+      `K/hook.py` declares 10 operations, run by `A/hook/{admission,installation}.py` and
+      `A/retention.py:retire_records`; the golden test passes all 31 hook rows, 5 listed as refused.
+- [x] 2.3 Retarget the hook tests and the fence. Done when the 14 rows and 3 destructive rows leave,
+      `test_activation.py` passes, and the hook and retention prefixes are fenced. `lint-imports`
+      keeps 4 contracts with 35 surface ignores (49 before), `_DESTRUCTIVE` has 8 rows (11 before),
+      `tests/unit/adapters/repo/hook` passes (302), and the fence holds `A/hook/`, `retention.py`
+      and `peer_identity.py` instead of `S/hook/`.
+- [x] 2.4 Record S2 deltas. Done when product (+10) and test (-60) deltas are written. Measured
+      against `d11cd9854`: product +4 LE (`python_product` +18, 77,636), tests -83 LE
+      (`python_tests` -73, 100,002, still 2 over the 100,000 terminal ceiling at this base).
 
 ## 3. S3: lane lifecycle and repair
 

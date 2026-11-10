@@ -35,6 +35,8 @@ from ethos.surface.cli.application import load_command_groups
 # Assignments of a command's selectors that select no operation, pinned so a change is reviewed;
 # a command not named here has none.
 _UNMATCHED = {"prove": 6, "land": 8, "publish": 9, "adopt": 23}
+# The one write without an authorization token, a named exemption that A8 retires.
+_TOKENLESS = "hook.install"
 _ROOT = Path(__file__).resolve().parents[3]
 _ID = re.compile(r"[a-z]+(?:\.[a-z][a-z-]*)+")
 _WRITES = frozenset({"local-write", "host-write", "remote-write", "opaque"})
@@ -50,7 +52,7 @@ _SDK = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 35
+    assert len(identities) == len(set(identities)) == 45
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields
@@ -69,7 +71,7 @@ def test_each_operation_is_declared_once_with_its_effects_and_authority() -> Non
             )
             assert item.effects == tuple(e for e in STEP_EFFECTS if e in item.effects)
             writes = _WRITES & set(item.effects)
-            assert (item.authorization != "none") is bool(writes)
+            assert (item.authorization != "none") is bool(writes) or item.id == _TOKENLESS
             assert item.exit != "observe" or not writes
             assert writes or not item.destructive
             assert "opaque" not in item.effects or item.authorization == "human"
@@ -153,6 +155,7 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         ("host run --command x y", ""),
         ("attestation record file.json --apply", "attestation.record.apply"),
         ("attestation query word", ""),
+        ("hook commit-range refs/heads/main --remote origin", ""),
         ("attestation --apply", None),
     ],
 )

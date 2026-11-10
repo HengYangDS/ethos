@@ -22,8 +22,17 @@ from ethos.contracts.operations.catalog import select_argv
 
 _ROWS = json.loads((Path(__file__).parents[2] / "fixtures/next-golden.json").read_text())["rows"]
 _RANK = get_args(StepAuthorization)
+_PLAN = "--expect-plan " + "p" * 64
 # The golden argv a catalog entry refuses, each setting a field its operation does not take.
-_REFUSED = {"ethos attestation query --apply", "ethos attestation record --input x --authorize"}
+_REFUSED = {
+    "ethos attestation query --apply",
+    "ethos attestation record --input x --authorize",
+    "ethos hook install --authorize",
+    "ethos hook retire-records --authorize",
+    f"ethos hook retire-records --authorize {_PLAN}",
+    "ethos hook retire-supply --authorize",
+    f"ethos hook retire-supply --authorize {_PLAN}",
+}
 
 
 @pytest.mark.parametrize("row", _ROWS, ids=lambda row: shlex.join(row["argv"][1:]))

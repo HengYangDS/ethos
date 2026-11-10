@@ -97,8 +97,8 @@ Non-Goals:
 Decision 12's rows for the S1 leaves, read from the old commands and the new adapter (the S1 spike
 and the CLI tests). Product callers were searched in `src`, `tools`, `.gitlab-ci.yml` and `.github`;
 the one emitter, `src/ethos/adapters/mutation/lane_lifecycle/archive/command.py:464`, renders
-`attestation query --predicate … --subject … --json`, which selects `attestation.query`. S2 to S4
-add their leaves' rows before writing entries.
+`attestation query --predicate … --subject … --json`, which selects `attestation.query`. S2 adds
+the `hook` rows below; S3 and S4 add their leaves' rows before writing entries.
 
 | Leaf                  | Flag or shape                                                        | Exit before                           | Exit after                                      |
 | --------------------- | -------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- |
@@ -113,6 +113,32 @@ add their leaves' rows before writing entries.
 | `host run`            | no command                                                           | 1 `host_run_command_missing`          | unchanged                                       |
 | `host run`            | the command's status                                                 | the exit status, no frame             | unchanged, also under `--json`                  |
 | `host run`            | `--root <path>` before `--`                                          | taken into the command                | ETHOS's `--root`, as `--json` and `--wait` were |
+
+The `hook` rows come from one probe that runs every shape below through the old commands and the
+new adapter and records each exit and the arguments each body received. Product callers were
+searched in `src`, `tools`, `.gitlab-ci.yml`, `.github`, `.config/ci` and `.agents`: the CI jobs
+render `hook commit-range` with named coordinates, alone or after `--check peer-identity`;
+`src/ethos/adapters/repo/hook/admission.py` renders
+`hook ref-transaction <ref> <old> <new> --phase prepared`; the install continuations render
+`hook install --root <root>`, with `--runtime <path>` or `--reset-state --authorize`; and each
+retirement preview renders its own `--apply --authorize` step. Each selects its entry and none
+renders a refused shape; no caller renders `hook admit` or `hook ref-update`. With a profile that
+does not validate, every hook command keeps its exit, as each body reports the profile's gap.
+
+| Leaf                                   | Flag or shape                                                                               | Exit before                            | Exit after                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| all seven                              | a missing or invalid field, or an unknown option                                            | 2 `command_usage_invalid:hook`         | 2, the full path, such as `command_usage_invalid:hook admit` |
+| all seven                              | `--no-require-editor-root`, `--no-reset-state`, `--no-apply`, `--no-authorize`, `--no-json` | accepted                               | 2: no negated forms                                          |
+| `hook admit`                           | several paths after one `--paths`                                                           | binds them                             | 2 `command_usage_invalid:hook admit`                         |
+| `hook admit`                           | the paths as words, or `--paths` once per path                                              | binds                                  | unchanged                                                    |
+| `hook commit-range`                    | `--check peer-identity` with `--trusted-baseline`                                           | ignored by the body                    | unchanged: one entry takes every field                       |
+| `hook commit-range`                    | the coordinates as words                                                                    | 2, the group word                      | 2, the full path: the coordinates stay named                 |
+| `hook ref-transaction`                 | `--ref-name`, `--old-value` and `--new-value` for the words                                 | binds                                  | unchanged                                                    |
+| `hook install`                         | `--authorize` without `--reset-state`                                                       | ignored by the body                    | 2 `command_field_refused:authorize`                          |
+| `hook install`                         | `--reset-state` without `--authorize`                                                       | 1 `state_reset_authorization_required` | unchanged: a body check                                      |
+| `hook retire-supply`, `retire-records` | `--authorize` without `--apply`, with or without `--expect-plan`                            | ignored by the preview                 | 2 `command_field_refused:authorize`                          |
+| `hook retire-supply`, `retire-records` | `--expect-plan` without `--apply`                                                           | ignored by the preview                 | unchanged: a field of both entries                           |
+| `hook retire-supply`, `retire-records` | `--apply` without `--authorize`                                                             | 1 `authorization_required`             | unchanged: a body check                                      |
 
 ## Slices
 

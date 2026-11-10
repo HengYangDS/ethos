@@ -1,43 +1,28 @@
-"""Public hook reports and installation, separate from native Git transport."""
+"""The hook commands' halves: report projection, installation and its executable recovery."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.surface.cli.hook.commands as commands
+import ethos.application.hook.admission as admission
+import ethos.application.hook.installation as installation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.hook.rollback import RESTORE_ACTION
 from ethos.adapters.repo.hook.rollback import RollbackRefusalError
-from tests.support.ethos_cli_runner import run_ethos_raw
+from ethos.application.catalog import invoke
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.result import EthosResult
+_MOVE = {"ref_name": "refs/heads/topic/example", "old_value": "a" * 40, "new_value": "b" * 40}
 
 
-@pytest.fixture
-def emitted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[EthosResult]:
-    results: list[EthosResult] = []
-    monkeypatch.setattr(commands, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(commands, "emit", lambda result, **_kwargs: results.append(result))
-    return results
-
-
-def test_commit_range_grammar_requires_named_coordinates() -> None:
-    help_result = run_ethos_raw("hook", "commit-range", "--help")
-    assert help_result.returncode == 0, help_result.stderr
-    assert "TARGET-REF" not in help_result.stdout.splitlines()[0]
-    for option in ("--target-ref", "--proposed-head", "--remote-head", "--remote"):
-        assert option in help_result.stdout
-    rejected = run_ethos_raw(
-        "hook", "commit-range", "refs/heads/dev", "a" * 40, "b" * 40, "origin", "--json"
-    )
-    assert rejected.returncode != 0
-    assert "--target-ref requires an argument" in rejected.stderr
+def _raising(failure: Exception):
+    return lambda *_a, **_k: (_ for _ in ()).throw(failure)
 
 
 @pytest.mark.parametrize(
@@ -58,18 +43,11 @@ def test_commit_range_grammar_requires_named_coordinates() -> None:
     ],
 )
 def test_install_failure_preserves_diagnostics_and_executable_recovery(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult], failure: Exception
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception
 ) -> None:
-    monkeypatch.setattr(
-        commands, "install_hook_launchers", lambda *_a, **_k: (_ for _ in ()).throw(failure)
-    )
-    monkeypatch.setattr(
-        commands,
-        "state_schema_report",
-        lambda _root: (_ for _ in ()).throw(ValueError("unavailable")),
-    )
-    commands.install(json_output=True)
-    result = emitted[-1]
+    monkeypatch.setattr(installation, "install_hook_launchers", _raising(failure))
+    monkeypatch.setattr(installation, "state_schema_report", _raising(ValueError("unavailable")))
+    result = invoke("hook install", tmp_path, {})
     state = str(failure).startswith("state_")
     assert (result.verdict, result.state, result.summary["wired"]) == ("block", "blocked", False)
     assert result.required_gaps == ((str(failure) if state else f"hook_install_failed:{failure}"),)
@@ -97,7 +75,7 @@ def test_install_failure_preserves_diagnostics_and_executable_recovery(
 
 @pytest.mark.parametrize("deferred", [False, True])
 def test_install_projects_runtime_and_retains_deferred_cleanup(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult], *, deferred: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, deferred: bool
 ) -> None:
     runtime = {
         "hooks_path": str(tmp_path / "hooks"),
@@ -116,9 +94,8 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
         },
         "required_gaps": ["hook_runtime_cleanup_deferred"] if deferred else [],
     }
-    monkeypatch.setattr(commands, "install_hook_launchers", lambda *_a, **_k: runtime)
-    commands.install()
-    result = emitted[-1]
+    monkeypatch.setattr(installation, "install_hook_launchers", lambda *_a, **_k: runtime)
+    result = invoke("hook install", tmp_path, {})
     assert result.to_dict()["data"] == runtime
     assert result.verdict == ("block" if deferred else "pass")
     assert result.summary["wired"] is True
@@ -134,17 +111,64 @@ def test_install_projects_runtime_and_retains_deferred_cleanup(
 
 
 def test_a_refused_rollback_reports_its_exact_gap_and_the_restore(
-    monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The refusal is not wrapped as an install failure; its next action restores first."""
     refusal = RollbackRefusalError("runtime_rollback_declaration_repaired", RESTORE_ACTION)
-    monkeypatch.setattr(
-        commands, "install_hook_launchers", lambda *_a, **_k: (_ for _ in ()).throw(refusal)
-    )
-    commands.install(json_output=True)
-    result = emitted[-1]
+    monkeypatch.setattr(installation, "install_hook_launchers", _raising(refusal))
+    result = invoke("hook install", tmp_path, {})
     assert (result.verdict, result.required_gaps, result.next_action) == (
         "block",
         ("runtime_rollback_declaration_repaired",),
         RESTORE_ACTION,
     )
+
+
+@pytest.mark.parametrize(
+    ("verdict", "gap", "action", "expected_action"),
+    [
+        ("block", "actor_missing", "set ETHOS_ACTOR=owner", "set ETHOS_ACTOR=owner"),
+        ("block", "path_uncovered", None, "ethos lane prewrite <path>"),
+        ("pass", None, None, ""),
+    ],
+)
+def test_hook_admit_projects_report_action_before_fallback(
+    tmp_path, monkeypatch, verdict, gap, action, expected_action
+):
+    report = {
+        "verdict": verdict,
+        "state": "blocked" if gap else "admitted",
+        "layer": "pre-tool",
+        "role": "work_lane",
+        "required_gaps": [gap] if gap else [],
+    }
+    if action is not None:
+        report["next_action"] = action
+    monkeypatch.setattr(admission, "hook_admission_report", lambda **_kwargs: report)
+    result = invoke("hook admit", tmp_path, {"layer": "pre-tool", "paths": ("README.md",)})
+    assert (result.verdict, result.next_action) == (verdict, expected_action)
+
+
+def test_ref_transaction_policy_failure_emits_actionable_block(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(admission, "resolve_ref_move_policy", _raising(ValueError("missing")))
+    result = invoke("hook ref-transaction", tmp_path, _MOVE)
+    assert (result.verdict, result.required_gaps, result.next_action) == (
+        "block",
+        ("ref_move_policy_unavailable",),
+        "ethos land --closeout",
+    )
+
+
+@pytest.mark.parametrize("decision", [None, "allow"])
+def test_ref_transaction_summary_omits_non_mapping_decision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, decision: object
+) -> None:
+    policy = SimpleNamespace(role_for_branch=lambda _branch: "topic")
+    monkeypatch.setattr(admission, "resolve_ref_move_policy", lambda *_args: policy)
+    report = {"verdict": "pass", "state": "admitted", "branch": "topic/example"}
+    monkeypatch.setattr(
+        admission, "ref_move_admission_report", lambda **_k: report | {"decision": decision}
+    )
+    assert invoke("hook ref-transaction", tmp_path, _MOVE).summary["decision"] == ""

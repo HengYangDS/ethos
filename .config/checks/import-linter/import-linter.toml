@@ -26,20 +26,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.git_admission",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.paths",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.publication",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.ref_move_policy",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.admission.transitions",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.process",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.commit.integration",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.hook.activation",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.hook.rollback",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.host_store",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.materialization.host_retention",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.repo.runtime.retirement",
-  "ethos.surface.cli.hook.commands -> ethos.adapters.store.state.schema",
-  "ethos.surface.cli.hook.commands -> ethos.normalization.coercion",
   "ethos.surface.cli.lane.commit_signer -> ethos.adapters.mutation.accepted.signature",
   "ethos.surface.cli.lane.commit_signer -> ethos.adapters.repo.trust_anchor.authorization",
   "ethos.surface.cli.lane.formatting -> ethos.adapters.mutation.source_format",

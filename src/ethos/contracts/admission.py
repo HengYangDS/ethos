@@ -117,13 +117,7 @@ def _rows(*shapes: str) -> tuple[_Row, ...]:
 
 # A command that runs a caller's command cannot see that command's effects.
 _OPAQUE = _rows("mcp")
-_TOKENLESS_WRITES = _rows("hook install")
-_HOST_WRITES = _rows(
-    "hook install",
-    "hook retire-supply: --apply",
-    "lane start: --apply",
-    "lane candidate: --apply",
-)
+_HOST_WRITES = _rows("lane start: --apply", "lane candidate: --apply")
 # Each shape selects the deletion of something it does not recreate. Cleanup that another
 # operation performs under a liveness check is not counted; that operation reports it.
 _DESTRUCTIVE = _rows(
@@ -135,9 +129,6 @@ _DESTRUCTIVE = _rows(
     "lane housekeeping: --apply --authorize",
     "lane handoff revoke-source: --apply",
     "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
-    "hook retire-supply: --apply --authorize --expect-plan",
-    "hook retire-records: --apply --authorize --expect-plan",
-    "hook install: --reset-state --authorize",
 )
 
 
@@ -179,11 +170,10 @@ def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffe
     flags = _flags(arguments)
     if path in _READ_COMMAND_PATHS and not flags & MUTATING_COMMAND_FLAGS:
         return ("read",)
-    writes = bool(flags & {"--apply", "--authorize"}) or _matched(arguments, _TOKENLESS_WRITES)
     present = {
         "execute": "--execute" in flags,
         "local-evidence-write": True,
-        "local-write": writes,
+        "local-write": bool(flags & {"--apply", "--authorize"}),
         "host-write": _matched(arguments, _HOST_WRITES),
     }
     return tuple(effect for effect in STEP_EFFECTS if present.get(effect))

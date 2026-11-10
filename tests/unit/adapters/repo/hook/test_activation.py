@@ -14,12 +14,12 @@ import pytest
 import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.selection as runtime_selection
-import ethos.surface.cli.hook.commands as hook_commands
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.application.catalog import invoke
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import git_process
@@ -158,10 +158,7 @@ def test_hook_install_restores_state_and_activation_after_failure(
 
 @pytest.mark.parametrize("before_state", ["legacy", "absent"])
 def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    before_state: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before_state: str
 ) -> None:
     """A selected data-read failure cannot leave partial activation behind."""
     repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
@@ -180,10 +177,7 @@ def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
         return reader(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "read_text", unreadable)
-    with pytest.raises(SystemExit) as stopped:
-        hook_commands.install(root=repo, json_output=True)
-    assert stopped.value.code != 0
-    result = json.loads(capsys.readouterr().out)
+    result = invoke("hook install", repo, {}).to_dict()
     assert result["verdict"] == "block"
     assert not result["summary"]["wired"]
     assert len(paths) == 1

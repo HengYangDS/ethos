@@ -89,6 +89,22 @@ historical bindings are governed by the [distribution specification](openspec/sp
   still exits with the command's status without printing a result. The structured `next` takes
   these commands' effects, authority and deletion from their entries, and
   `ethos attestation --help --json` prints that group's part of the catalog.
+- **Breaking:** the seven `ethos hook` commands are catalog entries that the generic adapter
+  renders. A usage error names the command's full path (`command_usage_invalid:hook install`, with
+  that path as the result's `command`), `ethos hook --help --json` prints the group's part of the
+  catalog, and the structured `next` takes these commands' effects, authority and deletion from
+  their entries.
+- **Breaking:** `ethos hook install --authorize` without `--reset-state` exits 2 with
+  `command_field_refused:authorize`; the authorization was ignored, since it authorizes only the
+  state reset.
+- **Breaking:** `ethos hook retire-supply` and `ethos hook retire-records` refuse `--authorize`
+  without `--apply`, which their previews ignored, with exit 2 and
+  `command_field_refused:authorize`.
+- **Breaking:** `ethos hook admit` takes one path per `--paths`, so several paths after one flag
+  exit 2 with `command_usage_invalid:hook admit`; paths given as words or by repeating the flag
+  bind as before.
+- **Breaking:** the hook commands' negated flags `--no-require-editor-root`, `--no-reset-state`,
+  `--no-apply`, `--no-authorize` and `--no-json` are no longer parsed.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

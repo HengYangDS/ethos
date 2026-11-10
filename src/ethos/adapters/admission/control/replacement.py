@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 # The governance controls whose replacement needs independent verification. The catalog, its
 # selection and every transport that runs a group entry are controls (widened 2026-11-09 with the
-# owner's acknowledgement), as are the halves of the entries that write or run a caller's command.
+# owner's acknowledgement), as are the halves of the hook guards and of the entries that write or
+# run a caller's command.
 CONTROL_PREFIXES = (
     ".ethos/",
     ".config/checks/",
@@ -38,10 +39,13 @@ CONTROL_PREFIXES = (
     "src/ethos/application/attestation.py",
     "src/ethos/application/catalog.py",
     "src/ethos/application/console.py",
+    "src/ethos/application/hook/",
     "src/ethos/application/host.py",
     "src/ethos/application/invocation.py",
     "src/ethos/application/land/",
+    "src/ethos/application/peer_identity.py",
     "src/ethos/application/proof/",
+    "src/ethos/application/retention.py",
     "src/ethos/domain/source_budget/",
     "src/ethos/domain/status.py",
     "src/ethos/repository/adoption/",
@@ -52,7 +56,6 @@ CONTROL_PREFIXES = (
     "src/ethos/repository/release/",
     "src/ethos/surface/cli/application.py",
     "src/ethos/surface/cli/catalog.py",
-    "src/ethos/surface/cli/hook/",
     "src/ethos/surface/cli/output.py",
     "src/ethos/surface/cli/root/",
     "src/ethos/surface/cli/root_binding.py",

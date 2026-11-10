@@ -32,6 +32,7 @@ _PREVIEWED = "read local-evidence-write"
 Apply = Annotated[
     bool, Field(kw_only=True, description="Apply the selected operation instead of previewing it.")
 ]
+Authorize = Annotated[bool, Field(kw_only=True, description="Authorize the selected operation.")]
 Reason = Annotated[str, Field(kw_only=True, description="Why the operation is requested.")]
 
 
@@ -119,8 +120,9 @@ def modes(
     authorization: StepAuthorization = "apply",
     destructive: bool = False,
     preview_exit: ExitKind = "observe",
+    writes: str = "local-write",
 ) -> tuple[Operation, Operation]:
-    """Declare a command's preview and its apply, which `apply` selects and adds a local write to.
+    """Declare a command's preview and its apply, which `apply` selects and adds its writes to.
 
     Both take the request fields; an apply authorized by `--authorize` also takes `authorize`.
     """
@@ -139,7 +141,7 @@ def modes(
             apply,
             select="apply=true",
             request=authorized,
-            effects=f"{_PREVIEWED} local-write",
+            effects=f"{_PREVIEWED} {writes}",
             authorization=authorization,
             destructive=destructive,
             exit_kind="verdict",
@@ -153,6 +155,8 @@ class Group:
 
     name: str
     help: str
+    # A hidden group runs and documents its commands but is not listed in the bare help.
+    hidden: bool = False
 
 
 @dataclass(frozen=True, slots=True)

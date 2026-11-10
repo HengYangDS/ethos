@@ -129,7 +129,8 @@ def _group(words: Sequence[str]) -> App:
     parent = app
     for depth, word in enumerate(words, start=1):
         if word not in parent:
-            parent.command(App(name=word, help=GROUPS[" ".join(words[:depth])].help))
+            group = GROUPS[" ".join(words[:depth])]
+            parent.command(App(name=word, help=group.help, show=not group.hidden))
         parent = parent[word]
     return parent
 

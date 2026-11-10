@@ -8,27 +8,31 @@ record or the accepted tree names, and writes the plan of the others. The apply 
 batch, only the planned items that a fresh scan still selects, and receipts each run.
 """
 
-from __future__ import annotations
-
 import shlex
 import sys
 import time
 import tomllib
+from collections.abc import Generator
+from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from filelock import FileLock
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.store.retention.apply import Apply
 from ethos.adapters.store.retention.apply import hold_proof_slot
 from ethos.adapters.store.retention.apply import try_hold
 from ethos.adapters.store.retention.closure import Closure
+from ethos.adapters.store.retention.kinds import StoreItem
 from ethos.adapters.store.retention.kinds import classify_store
 from ethos.adapters.store.retention.kinds import owned_directories
 from ethos.adapters.store.retention.plan import Cutoffs
+from ethos.adapters.store.retention.plan import RetirementPlan
 from ethos.adapters.store.retention.plan import RetirementReceipt
 from ethos.adapters.store.retention.plan import applied_receipt
 from ethos.adapters.store.retention.plan import read_plan
@@ -37,22 +41,12 @@ from ethos.adapters.store.retention.plan import write_receipt
 from ethos.adapters.store.retention.tombstones import restore_all
 from ethos.adapters.store.retention.writers import writer_roots
 from ethos.adapters.store.state.schema import local_state_root
-from ethos.application.invocation import application_result
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.operations.hook import RetireRecordsRequest
 from ethos.contracts.outcome import refuse
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.result import EthosResult
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
-    from collections.abc import Sequence
-
-    from filelock import FileLock
-
-    from ethos.adapters.repo.runtime.selection import SelectedRuntime
-    from ethos.adapters.store.retention.kinds import StoreItem
-    from ethos.adapters.store.retention.plan import RetirementPlan
 
 _COMMAND = "hook retire-records"
 _NANOSECONDS = 1_000_000_000
@@ -75,7 +69,15 @@ def runtime_selected(root: Path) -> bool:
     )
 
 
-@application_result(_COMMAND)
+def retire_records(root: Path, request: RetireRecordsRequest) -> EthosResult:
+    """Run the retirement a request selects: the preview, or the apply of its approved plan."""
+    if request.apply:
+        return apply_record_retirement(
+            root, expect_plan=request.expect_plan, authorize=request.authorize
+        )
+    return preview_record_retirement(root)
+
+
 def preview_record_retirement(root: Path) -> EthosResult:
     """Plan the retirement of every owned, unnamed record older than its floor."""
     repo = root.resolve()
@@ -101,7 +103,6 @@ def preview_record_retirement(root: Path) -> EthosResult:
     )
 
 
-@application_result(_COMMAND)
 def apply_record_retirement(root: Path, *, expect_plan: str, authorize: bool) -> EthosResult:
     """Delete the planned records that a fresh scan still selects, and receipt the run."""
     repo = root.resolve()

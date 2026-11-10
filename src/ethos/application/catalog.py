@@ -26,6 +26,7 @@ _PUBLISH = "ethos.application.publication.operation"
 _PROVE = "ethos.application.proof.operation"
 _ADOPT = "ethos.application.adoption"
 _ATTESTATION = "ethos.application.attestation"
+_HOOK = "ethos.application.hook"
 # Each implementation, `(root, request) -> EthosResult`, keyed by an operation ID or by a command
 # whose every operation without a row of its own shares it; a shared body reads only the fields of
 # its own operations.
@@ -54,6 +55,13 @@ IMPLEMENTATIONS = {
     "attestation query": f"{_ATTESTATION}:query_attestations",
     "attestation release": f"{_ATTESTATION}:release_attestation_member",
     "host run": "ethos.application.host:run_host_command",
+    "hook admit": f"{_HOOK}.admission:admit_write",
+    "hook commit-range": f"{_HOOK}.admission:admit_commit_range",
+    "hook ref-update": f"{_HOOK}.admission:admit_ref_update",
+    "hook ref-transaction": f"{_HOOK}.admission:admit_ref_transaction",
+    "hook install": f"{_HOOK}.installation:install_hook_runtime",
+    "hook retire-supply": f"{_HOOK}.installation:retire_host_supply",
+    "hook retire-records": "ethos.application.retention:retire_records",
 }
 
 

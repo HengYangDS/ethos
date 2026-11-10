@@ -22,8 +22,8 @@ Non-Goals:
 
 1. The measure is complexipy's `file_complexity`, keyed by repository path and qualified function
    name; two definitions under one key keep the higher score.
-2. The baseline is data in `tests/fixtures/`, written by hand or by the test's own failure message,
-   never by the gate, so no gate run writes a tracked file.
+2. The baseline is data in `tests/fixtures/`, written by hand from the measured `scores()`, never by
+   the gate, so no gate run writes a tracked file.
 3. PLR0916 at 23 is a ratchet with a target of 5, not a calibrated pass: the distribution is 67
    conditions over 5, 20 over 8, 12 over 10, 6 over 12, 3 over 15 and 1 over 20.
 4. C901 and PLR0912 leave the Ruff selection together with `[lint.mccabe]`; PLR0911 and PLR0915
@@ -31,7 +31,10 @@ Non-Goals:
 
 ## Risks / Trade-offs
 
-- complexipy does not traverse every expression position (keyword arguments among them); a planted
-  case records what it counts, and PLR0916 covers long conditions.
+- complexipy 8.3.0 skips decisions inside keyword arguments, lambdas, f-strings, subscripts and
+  `yield`: at `c89ac1884`, 541 of 6,847 conditional expressions and Boolean operations in `src/`
+  and `tools/`, in 248 functions, sit there. A planted case pins that a keyword-argument decision
+  scores 0, so an upgrade that counts them fails it and must re-pin the baseline; the gap goes to
+  complexipy upstream. PLR0916 covers long `if` conditions.
 - The baseline is large; its size falls only through real refactors, which the stale-entry rule
   forces to be recorded.

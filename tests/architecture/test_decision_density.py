@@ -61,3 +61,6 @@ def test_a_dense_function_is_refused_and_a_stale_pin_is_named() -> None:
     assert departures({"m.py::judge": 3}, {"m.py::judge": 20}) == {
         "m.py::judge": "pinned 20, measured 3"
     }
+    # complexipy 8.3.0 skips a decision inside a keyword argument; an upgrade that counts it changes
+    # the scores, fails here and must re-pin the baseline.
+    assert code_complexity("def f(a, b):\n    return g(x=a if b else 0)\n").complexity == 0

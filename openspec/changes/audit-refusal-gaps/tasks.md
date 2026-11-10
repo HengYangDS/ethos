@@ -12,5 +12,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck, the impacted sweep and readiness at the lane head. Done when each
-      passes on the committed head.
+- [x] 2.1 Pass the precheck, the impacted sweep and readiness at the lane head. Done when each
+      passes on the committed head. At 4280f49c1: the impacted tests ran 1,988 with one failure (the
+      bounded-result-reader rule), fixed in a2c8d165b and rerun green, the static precheck passed,
+      and readiness passed 28 of 28 gates.

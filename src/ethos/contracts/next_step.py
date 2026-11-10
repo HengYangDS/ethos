@@ -18,7 +18,6 @@ from pydantic import Field
 from ethos.contracts.admission import StepAuthorization
 from ethos.contracts.admission import StepEffect
 from ethos.contracts.admission import ethos_step_authorization
-from ethos.contracts.admission import ethos_step_destructive
 from ethos.contracts.admission import ethos_step_effects
 from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.value import JsonObject
@@ -78,12 +77,14 @@ def derive_next_step(text: str, *, continuation: str, why: str) -> NextStep:
 def _classified(
     argv: tuple[str, ...],
 ) -> tuple[str, tuple[StepEffect, ...], bool, StepAuthorization]:
-    """Classify a catalog argv by the operation it selects and any other argv by its rows."""
+    """Classify a catalog argv by the operation it selects and any other argv by its rows.
+
+    Every deletion is a catalog operation's, so another argv deletes nothing unless it is opaque.
+    """
     command = select_argv(argv)
     if command is None:
         effects = ethos_step_effects(argv)
-        destructive = ethos_step_destructive(argv, effects)
-        return "", effects, destructive, ethos_step_authorization(argv, effects)
+        return "", effects, "opaque" in effects, ethos_step_authorization(argv, effects)
     selected = command[1]
     if selected is None:
         # A catalog argv that selects no operation could do anything, so a person decides it.

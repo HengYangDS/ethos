@@ -133,6 +133,31 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - **Breaking:** `ethos lane redact private-addresses --apply --verify` exits 2 with
   `command_operation_unmatched:lane redact private-addresses`; the verify ran and `--apply` was
   ignored.
+- **Breaking:** `ethos lane retire abandon`, `recover`, `absorbed-ref`, `superseded` and `landed`,
+  `ethos lane lease renew`, `resume`, `reacquire` and `takeover` and `ethos lane handoff transfer`,
+  `export`, `import` and `revoke-source` are catalog entries that the generic adapter renders, so
+  no `lane` command keeps a parser of its own. A usage error names the command's full path
+  (`command_usage_invalid:lane retire landed`, with that path as the result's `command`), an
+  unknown subcommand names its group (`command_usage_invalid:lane retire`, also for
+  `lane redact`), `ethos lane retire --help --json`, `lane lease` and `lane handoff` print their
+  group's entries, and their negated flags, such as `--no-apply` and `--no-review-content`, are no
+  longer parsed. The structured `next` takes these commands' effects, authority and deletion from
+  their entries, so a rendered retirement, Lease or handoff step names its form, a takeover
+  preview reads as `attestation` as its apply does, and `lane handoff import --apply` adds
+  `host-write`, since the import adds a worktree. A Lease result whose verdict is `unknown` reports
+  the state `unknown` instead of `blocked`, as every lane result does.
+- **Breaking:** `ethos lane retire abandon`, `recover`, `absorbed-ref`, `superseded` and `landed`
+  and `ethos lane lease reacquire` refuse `--authorize` without `--apply`, which their previews
+  ignored, with exit 2 and `command_field_refused:authorize`, and `lane retire absorbed-ref`
+  refuses `--confirm-irreversible` without `--apply` alike.
+- **Breaking:** `ethos lane retire abandon` selects its receipt by `--receipt` alone:
+  `--receipt-sha256` without `--receipt`, which ran the receipt path with an empty receipt, exits 2
+  with `command_field_refused:receipt_sha256`, and the derivation's `--branch`, `--path`,
+  `--reason-code`, `--reason` and `--review-content` beside `--receipt`, which the receipt ignored,
+  exit 2 with `command_field_refused:<field>`. `--apply` without `--receipt` keeps its
+  `lane_retirement_receipt_required` gap.
+- **Breaking:** `ethos lane handoff export` no longer takes `--ttl-seconds`, which no export read;
+  it exits 2 with `command_usage_invalid:lane handoff export`.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

@@ -64,9 +64,7 @@ def _retire(
         accepted,
         "--root",
         repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        *(("--apply",) if apply else ()),
+        *(("--authorize", "--confirm-irreversible", "--apply") if apply else ()),
         "--json",
     )
     return command(*arguments, cwd=repo)

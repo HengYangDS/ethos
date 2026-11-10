@@ -179,6 +179,48 @@ leaves are `housekeeping`, `refresh-base`, `project`, `format`, `trust-commit-si
 | `refresh-base`             | `--source-ref` with the rebase strategy                                                                                      | the body's merge path                                            | unchanged: a field of both entries                                 |
 | `repair-signature`         | `--corrections`, `--corrections-sha256`, `--reason`, `--backup`, `--replacement`                                             | the corrections' checks and the extended next action             | unchanged                                                          |
 
+The S4 rows come from one probe of 106 argv shapes through the old commands and the new adapter,
+recording each exit, the gaps, the next step's form and the arguments each body received, and from
+13 real previews against a profile that does not validate, which keep their exits, verdicts and
+gaps. Product callers were searched in `src`, `tools`, `.gitlab-ci.yml`, `.github`, `.config/ci`
+and `.agents`: the abandonment derivation renders
+`lane retire abandon --receipt <path> --receipt-sha256 <sha> --authorize --apply`; the retirement
+continuations render `recover` with the same receipt and `--authorize --apply`, the content review
+`abandon --branch|--path --review-content --reason-code --reason`, the re-derivations
+`abandon --branch --reason-code --reason` and `landed --branch`, and the unbound routes
+`superseded --branch --expect-head --path --absorbed-by --reason` and
+`absorbed-ref --branch --expect-head --accepted-head`; linked and absorbed retirement render their
+own `--authorize --apply` step, with `--confirm-irreversible` for an absorbed ref; status bindings
+render `lane retire landed --branch`; archive, status and admission render
+`lane lease resume|renew` with the four coordinates and `--apply` or the bare preview, and
+`lane lease reacquire --path --holder-ref`, whose preview adds
+`--expect-head --expect-snapshot --expires-at --authorize --apply`; and the CI acceptance derives
+and recovers an abandonment, takes `lane handoff transfer` and the reacquisition through their
+previews and applies, and previews an absorbed ref. Each selects its entry and none renders a
+refused shape. The authorized leaves are the five `lane retire` commands and
+`lane lease reacquire`.
+
+| Leaf                                        | Flag or shape                                                                                   | Exit before                               | Exit after                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
+| all thirteen                                | a missing or invalid field, or an unknown option                                                | 2 `command_usage_invalid:lane`            | 2, the full path, such as `command_usage_invalid:lane retire landed`            |
+| `lane retire`, `lease`, `handoff`, `redact` | no subcommand, or an unknown one                                                                | 2 `command_usage_invalid:lane`            | 2, the group, such as `command_usage_invalid:lane retire`                       |
+| all thirteen                                | `--no-apply`, `--no-authorize`, `--no-review-content`, `--no-json` and every other negated flag | accepted                                  | 2: no negated forms                                                             |
+| all thirteen                                | a next action that renders one of them                                                          | `next` without a form, from the argv rows | `next` names the entry, with its effects, authority and deletion                |
+| the authorized leaves                       | `--authorize` without `--apply`                                                                 | ignored by the preview                    | 2 `command_field_refused:authorize`                                             |
+| the authorized leaves                       | `--apply` without `--authorize`                                                                 | 1, the body's authorization gap           | unchanged: a body check                                                         |
+| `retire absorbed-ref`                       | `--confirm-irreversible` without `--apply`                                                      | ignored by the preview                    | 2 `command_field_refused:confirm_irreversible`                                  |
+| `retire absorbed-ref`                       | `--apply` without `--confirm-irreversible`                                                      | 1 `irreversible_confirmation_required`    | unchanged: a body check                                                         |
+| `retire abandon`                            | `--apply` without `--receipt`                                                                   | 1 `lane_retirement_receipt_required`      | unchanged: a body check of the derivation's apply                               |
+| `retire abandon`                            | `--receipt-sha256` without `--receipt`                                                          | the receipt path, with an empty receipt   | 2 `command_field_refused:receipt_sha256`                                        |
+| `retire abandon`                            | `--branch`, `--path`, `--reason-code`, `--reason` or `--review-content` with `--receipt`        | ignored by the receipt                    | 2 `command_field_refused:<field>`                                               |
+| `retire abandon`, `recover`                 | `--receipt` without `--receipt-sha256`                                                          | the receipt's own gap, or 2 for `recover` | unchanged                                                                       |
+| `lease renew`, `resume`                     | a preview that omits some of the four coordinates                                               | reads them from the current Lease         | unchanged                                                                       |
+| `lease renew`, `resume`                     | `--apply` without all four coordinates                                                          | 1 `lease_coordinates_required`            | unchanged: a body check                                                         |
+| `lease takeover`                            | `--authorization`, which every takeover takes                                                   | `attestation` from the token              | unchanged; `next` reads its preview and its apply as `attestation`              |
+| `handoff export`                            | `--ttl-seconds`, which no export reads                                                          | accepted                                  | 2 `command_usage_invalid:lane handoff export`                                   |
+| `handoff import`                            | `--apply`                                                                                       | `next` reads `local-write`                | unchanged; `next` adds `host-write`, as the import adds a worktree like `start` |
+| the `lease` leaves, `handoff transfer`      | a result whose verdict is `unknown`                                                             | state `blocked`                           | state `unknown`, as every lane result                                           |
+
 ## Slices
 
 One Change, ordered commits. Each slice records its measured product and test delta in its task and

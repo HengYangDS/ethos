@@ -97,7 +97,7 @@ def test_a_decision_carries_the_command_a_person_approves() -> None:
     step = _next(shlex.join(argv), user_decision_required=True)
 
     assert (step["kind"], step["argv"], step["authorization"]) == ("decision", list(argv), "human")
-    assert (step["destructive"], step["effects"]) == (True, _EVIDENCE_WRITE)
+    assert (step["destructive"], step["effects"]) == (True, ["read", *_EVIDENCE_WRITE])
     assert step["binding"] == {"receipt": "/r.json"}
 
 
@@ -120,9 +120,6 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
     assert step["why"] == "gate_failed:static"
 
 
-_RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
-
-
 @pytest.mark.parametrize(
     ("command", "effects", "authorization", "destructive"),
     [
@@ -136,10 +133,6 @@ _RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
         ("mcp --root /repo", ["execute", "opaque"], "human", True),
         ("publish --ref refs/heads/dev --json", _REMOTE[:3], "none", False),
         ("publish --retire --receipt /r --apply --authorize", _REMOTE, "authorize", True),
-        ("lane handoff revoke-source --apply", _EVIDENCE_WRITE, "apply", True),
-        ("lane handoff transfer --apply", _EVIDENCE_WRITE, "apply", False),
-        (_RETIRE, _EVIDENCE_WRITE, "confirm-irreversible", True),
-        ("lane lease takeover --authorization /a --apply", _EVIDENCE_WRITE, "attestation", False),
         ("land --retag v1 --apply --authorize", ["read", *_EVIDENCE_WRITE], "authorize", True),
         # The closeout preview only reads the refs and worktrees it reports.
         ("land --closeout --json", ["read"], "none", False),

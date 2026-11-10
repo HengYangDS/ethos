@@ -159,7 +159,7 @@ def register(word: str = "") -> None:
 def help_result(words: Sequence[str]) -> EthosResult | None:
     """Return the catalog of the command or group the words name, or of every root command.
 
-    None means the words name neither; a group's commands that are not yet entries have no catalog.
+    None means the words name neither.
     """
     named, prefix = command_path(words), " ".join(words)
     if named is None and words and prefix not in GROUPS:

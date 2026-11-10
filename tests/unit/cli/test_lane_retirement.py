@@ -12,10 +12,12 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.git_effects as git_effects
+import ethos.application.lane.retirement as retirement
 from ethos.adapters.mutation.lane_retirement.operation import load_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.application.catalog import invoke
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -36,6 +38,20 @@ def test_retirement_help_exposes_recovery_inputs(command, options):
     completed = run_ethos_raw("lane", "retire", *command, "--help")
     assert completed.returncode == 0, completed.stderr
     assert all(option in completed.stdout for option in options)
+
+
+def test_an_abandonment_applies_only_through_its_receipt(tmp_path, monkeypatch) -> None:
+    """An apply without a receipt keeps its gap and runs nothing; a receipt runs as abandonment."""
+    calls: list[dict[str, object]] = []
+    ran = {"verdict": "pass", "state": "ready"}
+    monkeypatch.setattr(
+        retirement, "execute_retirement_operation", lambda **kw: calls.append(kw) or ran
+    )
+    refused = invoke("lane retire abandon", tmp_path, {"apply": True, "authorize": True})
+    invoke("lane retire abandon", tmp_path, {"receipt": "r.json", "receipt_sha256": "0" * 64})
+
+    assert refused.required_gaps == ("lane_retirement_receipt_required",)
+    assert [call["expected_mode"] for call in calls] == ["abandon"]
 
 
 @pytest.mark.parametrize(
@@ -76,7 +92,6 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         branch,
         "--root",
         repo.as_posix(),
-        "--authorize",
         "--json",
     )
     if boundary in {"current", "pre_adoption"}:
@@ -90,7 +105,9 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         assert observe_lease(state_database(repo), branch).state == "missing"
         return
     expected_head = "0" * 40 if boundary == "stale_head" else source
-    blocked = run_ethos_blocked(*args, "--expect-head", expected_head, "--apply", cwd=repo)
+    blocked = run_ethos_blocked(
+        *args, "--expect-head", expected_head, "--apply", "--authorize", cwd=repo
+    )
     expected = {
         "dirty": "work_lane_dirty",
         "ignored": "retirement_content_review_required",
@@ -134,7 +151,6 @@ def test_landed_topic_retirement_survives_an_accepted_identity_rename(tmp_path: 
         branch,
         "--root",
         repo.as_posix(),
-        "--authorize",
         "--json",
         cwd=repo,
     )

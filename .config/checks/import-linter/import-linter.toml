@@ -26,18 +26,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "ethos.surface.cli.lane.handoff -> ethos.adapters.mutation.lane_lifecycle.handoff.transfer",
-  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.acquisition",
-  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.operation",
-  "ethos.surface.cli.lane.lease -> ethos.adapters.mutation.lane_lifecycle.lease.takeover",
-  "ethos.surface.cli.lane.lease -> ethos.adapters.repo.git",
-  "ethos.surface.cli.lane.lease -> ethos.adapters.repo.status.bindings",
-  "ethos.surface.cli.lane.lease -> ethos.normalization.coercion",
-  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.abandonment",
-  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.absorbed",
-  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.linked",
-  "ethos.surface.cli.lane.retirement -> ethos.adapters.mutation.lane_retirement.operation",
-  "ethos.surface.cli.lane.retirement -> ethos.normalization.coercion",
   "ethos.surface.cli.root.reference -> ethos.adapters.repo.content.observation",
   "ethos.surface.cli.root.reference -> ethos.adapters.repo.git",
   "ethos.surface.cli.root.reference -> ethos.repository.registry.docs.health",

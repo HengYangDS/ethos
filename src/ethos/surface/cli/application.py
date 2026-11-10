@@ -10,28 +10,22 @@ from cyclopts.exceptions import CycloptsError
 from ethos.application.catalog import usage_refusal
 from ethos.contracts.admission import ethos_command_path
 from ethos.contracts.admission import root_command
-from ethos.contracts.operations.catalog import command_path
+from ethos.contracts.operations.catalog import COMMANDS
+from ethos.contracts.operations.catalog import GROUPS
 from ethos.surface.cli.output import emit
 from ethos.surface.cli.version import version_text
 
 app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
-# The modules that declare the commands outside the operation catalog, by the path they serve;
-# `lane` declares the group's App, which the catalog's `lane` commands then join.
-_COMMAND_MODULES = {
-    "mcp": "ethos.surface.cli.root.mcp",
-    "lane": "ethos.surface.cli.lane.lifecycle",
-    "lane handoff": "ethos.surface.cli.lane.handoff",
-    "lane lease": "ethos.surface.cli.lane.lease",
-    "lane retire": "ethos.surface.cli.lane.retirement",
-}
+# The module that declares the one command outside the operation catalog, by the path it serves.
+_COMMAND_MODULES = {"mcp": "ethos.surface.cli.root.mcp"}
 
 
 def load_command_groups(argv: list[str]) -> None:
     """Declare only the commands this invocation names, or every command for none.
 
-    A module serves the invocation that names its path or a prefix of it, so `lane prewrite`
-    builds no `lane retire` command.
+    A module serves the invocation that names its path or a prefix of it, and the catalog builds
+    only the commands under the invocation's first word.
     """
     words = ethos_command_path(["ethos", *argv])
     for path, module in _COMMAND_MODULES.items():
@@ -54,14 +48,16 @@ def dispatch_arguments(argv: list[str]) -> list[str]:
 def run_application(argv: list[str]) -> None:
     """Run one command; a usage error is a structured result that exits 2, like a refusal.
 
-    The error names the longest catalog path the argv starts with, else its command word if one
-    is declared, else `ethos`.
+    The error names the longest catalog command or group the argv starts with, else its command
+    word if one is declared, else `ethos`.
     """
     try:
         app(dispatch_arguments(argv), exit_on_error=False, print_error=False)
     except CycloptsError as error:
-        path, name = command_path(ethos_command_path(["ethos", *argv])), root_command(argv)
-        command = path.name if path else name if name in app.resolved_commands() else "ethos"
+        words, name = ethos_command_path(["ethos", *argv]), root_command(argv)
+        paths = (" ".join(words[:count]) for count in (3, 2, 1))
+        declared = name if name in app.resolved_commands() else "ethos"
+        command = next((path for path in paths if path in COMMANDS or path in GROUPS), declared)
         gap = f"command_usage_invalid:{command}"
         refusal = usage_refusal(command, (gap,), {"usage": str(error)}, message=str(error))
         emit(refusal, json_output="--json" in argv)

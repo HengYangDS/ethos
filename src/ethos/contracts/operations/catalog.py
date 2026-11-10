@@ -15,21 +15,22 @@ from ethos.contracts.operations.attestation import ATTESTATION
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import Group
 from ethos.contracts.operations.declaration import Operation
+from ethos.contracts.operations.handoff import HANDOFF
 from ethos.contracts.operations.hook import HOOK
 from ethos.contracts.operations.host import HOST_RUN
 from ethos.contracts.operations.land import LAND
 from ethos.contracts.operations.lane import LANE
 from ethos.contracts.operations.lane_repair import LANE_REPAIR
+from ethos.contracts.operations.lease import LEASE
 from ethos.contracts.operations.plan import PLAN
 from ethos.contracts.operations.prove import PROVE
 from ethos.contracts.operations.publish import PUBLISH
+from ethos.contracts.operations.retire import RETIRE
 from ethos.contracts.operations.status import STATUS
 
 _ROOTS = (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT)
-COMMANDS: dict[str, Command] = {
-    command.name: command
-    for command in (*_ROOTS, *ATTESTATION, HOST_RUN, *HOOK, *LANE, *LANE_REPAIR)
-}
+_LEAVES = (*ATTESTATION, HOST_RUN, *HOOK, *LANE, *LANE_REPAIR, *RETIRE, *LEASE, *HANDOFF)
+COMMANDS: dict[str, Command] = {command.name: command for command in (*_ROOTS, *_LEAVES)}
 GROUPS: dict[str, Group] = {
     group.name: group
     for group in (
@@ -38,6 +39,9 @@ GROUPS: dict[str, Group] = {
         Group(name="hook", help="Hook admission and guard reports.", hidden=True),
         Group(name="lane", help="Work Lane lifecycle and write admission.", hidden=True),
         Group(name="lane redact", help="Redact protected peer identity in a lane's records."),
+        Group(name="lane retire", help="Bounded Work Lane retirement lifecycle."),
+        Group(name="lane lease", help="Generation-bound local Lane Lease lifecycle."),
+        Group(name="lane handoff", help="Local and cross-host Work Lane handoff."),
     )
 }
 # Options every command takes besides its request: the bound root and the JSON frame; after the

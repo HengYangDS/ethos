@@ -8,7 +8,6 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import cast
-from typing import get_type_hints
 from unittest.mock import patch
 
 import pytest
@@ -18,7 +17,6 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.application.inspection import inspect_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
-from ethos.surface.cli.lane.lease import TakeoverOptions
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
@@ -107,12 +105,6 @@ def test_takeover_is_a_public_generation_bound_lease_command() -> None:
         "--target-holder-ref",
     ):
         assert option in completed.stdout
-
-
-def test_takeover_runtime_annotations_are_fully_resolvable() -> None:
-    annotations = get_type_hints(TakeoverOptions)
-
-    assert annotations["authorization"]
 
 
 @pytest.mark.parametrize("condition", ["idle", "foreign", "candidate"])

@@ -31,6 +31,8 @@ _ATTESTATION = "ethos.application.attestation"
 _HOOK = "ethos.application.hook"
 _LIFECYCLE = "ethos.application.lane.lifecycle"
 _REPAIR = "ethos.application.lane.repair"
+_RETIRE = "ethos.application.lane.retirement"
+_LEASE = "ethos.application.lane.lease"
 # Each implementation, `(root, request) -> EthosResult`, keyed by an operation ID or by a command
 # whose every operation without a row of its own shares it; a shared body reads only the fields of
 # its own operations.
@@ -83,6 +85,21 @@ IMPLEMENTATIONS = {
     "lane trust-commit-signer": f"{_REPAIR}:trust_lane_signer",
     "lane repair-signature": f"{_REPAIR}:repair_lane_signature",
     "lane redact private-addresses": f"{_REPAIR}:redact_lane_peers",
+    "lane retire abandon": f"{_RETIRE}:derive_abandonment",
+    "lane.retire.abandon.receipt.preview": f"{_RETIRE}:abandon_by_receipt",
+    "lane.retire.abandon.receipt.apply": f"{_RETIRE}:abandon_by_receipt",
+    "lane retire recover": f"{_RETIRE}:recover_retirement",
+    "lane retire absorbed-ref": f"{_RETIRE}:retire_absorbed",
+    "lane retire superseded": f"{_RETIRE}:retire_superseded",
+    "lane retire landed": f"{_RETIRE}:retire_landed",
+    "lane lease renew": f"{_LEASE}:renew_lease",
+    "lane lease resume": f"{_LEASE}:resume_lease",
+    "lane lease reacquire": f"{_LEASE}:reacquire_lane_lease",
+    "lane lease takeover": f"{_LEASE}:take_over_lease",
+    "lane handoff transfer": f"{_LEASE}:transfer_lease",
+    "lane handoff export": f"{_LEASE}:export_handoff",
+    "lane handoff import": f"{_LEASE}:import_handoff",
+    "lane handoff revoke-source": f"{_LEASE}:revoke_handoff_source",
 }
 # The text the transport read from standard input for the running invocation, or empty.
 _STANDARD_INPUT: ContextVar[str] = ContextVar("ethos_standard_input", default="")

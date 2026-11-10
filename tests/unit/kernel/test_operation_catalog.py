@@ -59,7 +59,7 @@ _SDK = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 74
+    assert len(identities) == len(set(identities)) == 102
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields
@@ -78,7 +78,9 @@ def test_each_operation_is_declared_once_with_its_effects_and_authority() -> Non
             )
             assert item.effects == tuple(e for e in STEP_EFFECTS if e in item.effects)
             writes = _WRITES & set(item.effects)
-            assert (item.authorization != "none") is bool(writes) or item.id == _TOKENLESS
+            assert item.authorization != "none" or not writes or item.id == _TOKENLESS
+            # A read authorizes nothing, unless its argv carries the Attestation that authorizes it.
+            assert writes or item.authorization in {"none", "attestation"}
             assert item.exit != "observe" or not writes
             assert writes or not item.destructive
             assert "opaque" not in item.effects or item.authorization == "human"

@@ -34,7 +34,8 @@ Apply = Annotated[
 ]
 Authorize = Annotated[bool, Field(kw_only=True, description="Authorize the selected operation.")]
 Reason = Annotated[str, Field(kw_only=True, description="Why the operation is requested.")]
-# A head, Change or subject that a request leaves unset is `None`, so a type admits it everywhere.
+# A head, Change, subject or receipt that a request leaves unset is `None`, so a type admits it
+# everywhere.
 ExpectHead = Annotated[
     str | None, Field(kw_only=True, description="The head the operation compares before it acts.")
 ]
@@ -44,6 +45,8 @@ Change = Annotated[
 Subject = Annotated[
     str | None, Field(kw_only=True, description="The subject of the commit the operation writes.")
 ]
+Receipt = Annotated[str | None, Field(kw_only=True, description="The immutable receipt to run.")]
+ReceiptSha256 = Annotated[str | None, Field(kw_only=True, description="The receipt's SHA-256.")]
 # The fields that an apply's authorization kind adds to its request.
 _TOKENS = {"authorize": "authorize", "confirm-irreversible": "authorize confirm_irreversible"}
 

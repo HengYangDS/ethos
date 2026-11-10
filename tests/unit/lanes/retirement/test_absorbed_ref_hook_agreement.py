@@ -33,9 +33,7 @@ def _retire(repo: Path, branch: str, head: str, *, apply: bool, blocked: bool) -
         head,
         "--root",
         repo.as_posix(),
-        "--authorize",
-        "--confirm-irreversible",
-        *(("--apply",) if apply else ()),
+        *(("--authorize", "--confirm-irreversible", "--apply") if apply else ()),
         "--json",
         cwd=repo,
     )

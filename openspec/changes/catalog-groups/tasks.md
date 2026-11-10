@@ -73,12 +73,25 @@
 
 ## 4. S4: lane retire, handoff, lease
 
-- [ ] 4.1 Add the audit rows for the 13 leaves. Done when each is listed with its callers.
-- [ ] 4.2 Convert `lane retire`, `handoff` and `lease`. Done when the receipt and source-ref body
-      checks keep their gap codes and the golden data passes.
-- [ ] 4.3 Retarget the lease and handoff tests. Done when the 12 rows and 6 destructive rows leave.
-- [ ] 4.4 Record S4 deltas. Done when product (+20) and test (-80) deltas are written, and the test
-      total is on course for the gate or the work is returned to the committee.
+- [x] 4.1 Add the audit rows for the 13 leaves. Done when each is listed with its callers. The
+      design's Audit holds the S4 table from one probe of 106 argv shapes on both trees and 13 real
+      previews against an invalid profile, and the CHANGELOG has one Breaking line per refusal.
+- [x] 4.2 Convert `lane retire`, `handoff` and `lease`. Done when the receipt and source-ref body
+      checks keep their gap codes and the golden data passes. `K/retire.py`, `K/lease.py` and
+      `K/handoff.py` declare 28 operations, run by `A/lane/{retirement,lease}.py` through
+      `A/lane/result.py`; `lane retire abandon --apply` without `--receipt` keeps
+      `lane_retirement_receipt_required` and `lane refresh-base --source-ref` keeps
+      `merge_source_ref_requires_merge_strategy` on both trees, and the golden test passes all 215
+      rows, 58 marked refused.
+- [x] 4.3 Retarget the lease and handoff tests. Done when the 12 rows and 6 destructive rows leave.
+      `lint-imports` keeps 4 contracts with 5 surface ignores (17 before), `_DESTRUCTIVE` and
+      `ethos_step_destructive` are gone (6 rows before), `S/lane/` is deleted, and
+      `tests/unit/cli/test_lease_commands.py` runs the Lease and handoff halves through `invoke`
+      in place of `test_lane_handoff.py`.
+- [x] 4.4 Record S4 deltas. Done when product (+20) and test (-80) deltas are written, and the test
+      total is on course for the gate or the work is returned to the committee. Measured against
+      `0ab830dfa`: product +17 LE (`python_product` -2, 77,747), tests -153 LE (`python_tests`
+      -73, 99,854); the Change stands at +189 product and -227 test LE before S5.
 
 ## 5. S5: removal, provider and documents
 

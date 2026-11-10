@@ -1,214 +1,159 @@
-"""Public CLI projection for generation-bound Lease operations."""
+"""Lease and handoff operations run one exact request and project the Lease it leaves."""
 
 from __future__ import annotations
 
-import json
 from datetime import UTC
 from datetime import datetime
 
 import pytest
 
-import ethos.surface.cli.lane.lease as lease_cli
-from ethos.surface.cli.lane.lease import TakeoverOptions
-from ethos.surface.cli.lane.lease import emit_lease_result
-from ethos.surface.cli.lane.lease import lane_lease_takeover
-from tests.support.ethos_cli_runner import run_ethos_raw
+import ethos.application.lane.lease as lease
+from ethos.application.catalog import invoke
 from tests.support.semantic import attestation_fixture
 
-
-@pytest.mark.parametrize(
-    ("operation", "command"), [("renew", "lane lease renew"), ("resume", "lane lease resume")]
-)
-def test_declared_lease_cli_compiles_exact_request_and_emits_json(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, operation: str, command: str
-) -> None:
-    captured = {}
-
-    def execute(*, root, request):
-        captured.update(root=root, request=request)
-        return {
-            "verdict": "pass",
-            "state": "planned",
-            "branch": request.branch,
-            "lease": {},
-            "required_gaps": [],
-        }
-
-    monkeypatch.setattr(lease_cli, "execute_lease_operation", execute)
-    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
-    completed = run_ethos_raw(
-        "lane",
-        "lease",
-        operation,
-        "--root",
-        tmp_path.as_posix(),
-        "--branch",
-        "work/example",
-        "--holder-ref",
-        "agent:test:case:holder",
-        "--generation",
-        "3",
-        "--expires-at",
-        "2026-08-10T00:00:00+00:00",
-        "--json",
-    )
-
-    assert completed.returncode == 0, completed.stderr
-    payload = json.loads(completed.stdout)
-    assert (payload["command"], payload["verdict"], payload["state"]) == (
-        command,
-        "pass",
-        "planned",
-    )
-    assert captured["root"] == tmp_path
-    assert captured["request"].generation == 3
-    assert captured["request"].operation == operation
-
-
-CURRENT = {
-    "branch": "work/example",
-    "holder_ref": "agent:test:case:holder",
-    "generation": 3,
-    "expires_at": "2026-08-10T00:00:00+00:00",
+_PROOF = {"generation": 3, "expires_at": "2026-08-10T00:00:00+00:00"}
+LEASE = _PROOF | {"branch": "work/example", "holder_ref": "agent:test:case:holder"}
+_TARGET = {"target_holder_ref": "agent:test:case:target"}
+_PACKAGE = {"package": "package", "expect_head": "b" * 40}
+# Each handoff, the owner that runs it and the fields it hands that owner unchanged.
+_HANDOFFS = {
+    "transfer": ("execute_lease_operation", LEASE | _TARGET),
+    "export": (
+        "export_cross_host_handoff",
+        LEASE | _TARGET | {"expect_head": "b" * 40, "context_file": "c.md", "output_root": "out"},
+    ),
+    "import": ("import_cross_host_handoff", {"package": "package"} | _TARGET),
+    "revoke-source": (
+        "revoke_cross_host_source",
+        _PROOF | _PACKAGE | {"acknowledgement": "ack.json", "holder_ref": LEASE["holder_ref"]},
+    ),
 }
 
 
+def _owner(
+    monkeypatch: pytest.MonkeyPatch, name: str, report: dict[str, object] | None = None
+) -> list[dict[str, object]]:
+    """Replace one owner with a recorder of its root and request that returns `report`."""
+    calls: list[dict[str, object]] = []
+    planned = {"verdict": "pass", "state": "planned", "branch": "work/example", "lease": {}}
+
+    def owner(*args: object, **kwargs: object) -> dict[str, object]:
+        calls.append({"root": kwargs.get("root"), "request": kwargs.get("request", *args)})
+        return report or planned | {"required_gaps": []}
+
+    monkeypatch.setattr(lease, name, owner)
+    return calls
+
+
 @pytest.mark.parametrize("operation", ["renew", "resume"])
-def test_a_preview_without_coordinates_plans_on_the_current_lease(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, operation: str
+@pytest.mark.parametrize("given", [LEASE, {"generation": 3}])
+def test_a_lease_preview_binds_its_coordinates_and_names_its_exact_apply(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, operation: str, given: dict[str, object]
 ) -> None:
-    """The preview reads the current Lease and names the exact apply command."""
-    captured = {}
+    """Given coordinates bind as given and omitted ones are the current Lease's."""
+    calls = _owner(monkeypatch, "execute_lease_operation")
+    monkeypatch.setattr(lease, "current_lease_coordinates", lambda _root: LEASE | {"branch": "x"})
+    result = invoke(f"lane lease {operation}", tmp_path, given | {"branch": "work/example"})
 
-    def execute(*, request, **_options):
-        captured.update(request=request)
-        return {
-            "verdict": "pass",
-            "state": "planned",
-            "branch": request.branch,
-            "lease": {},
-            "required_gaps": [],
-        }
-
-    monkeypatch.setattr(lease_cli, "execute_lease_operation", execute)
-    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
-    monkeypatch.setattr(lease_cli, "current_lease_coordinates", lambda _root: CURRENT)
-    completed = run_ethos_raw("lane", "lease", operation, "--root", tmp_path.as_posix(), "--json")
-
-    assert completed.returncode == 0, completed.stderr
-    request = captured["request"]
-    assert (request.branch, request.holder_ref, request.generation, request.expires_at) == (
-        "work/example",
-        "agent:test:case:holder",
-        3,
-        "2026-08-10T00:00:00+00:00",
-    )
-    assert request.apply is False
-    assert json.loads(completed.stdout)["next_action"] == (
+    request = calls[0]["request"]
+    assert (calls[0]["root"], request.operation, request.apply) == (tmp_path, operation, False)
+    assert {name: getattr(request, name) for name in LEASE} == LEASE
+    apply = (
         f"ethos lane lease {operation} --generation 3 --expires-at 2026-08-10T00:00:00+00:00"
-        " --branch work/example --holder-ref agent:test:case:holder"
+        f" --branch work/example --holder-ref agent:test:case:holder"
         f" --root {tmp_path.as_posix()} --apply"
     )
+    assert (result.command, result.state, result.next_action) == (
+        f"lane lease {operation}",
+        "planned",
+        apply,
+    )
 
 
-def test_an_apply_without_coordinates_refuses_before_any_effect(
+def test_an_apply_without_every_coordinate_refuses_before_any_effect(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The compare-and-swap still needs every coordinate that the caller saw."""
-    called: list[object] = []
-    monkeypatch.setattr(lease_cli, "execute_lease_operation", lambda **kw: called.append(kw))
-    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
-    monkeypatch.setattr(lease_cli, "current_lease_coordinates", lambda _root: CURRENT)
-    completed = run_ethos_raw(
-        "lane", "lease", "renew", "--root", tmp_path.as_posix(), "--apply", "--json"
-    )
+    calls = _owner(monkeypatch, "execute_lease_operation")
+    result = invoke("lane lease renew", tmp_path, {"generation": 3, "apply": True})
 
-    payload = json.loads(completed.stdout)
-    assert (payload["verdict"], payload["required_gaps"]) == (
+    assert (result.verdict, result.required_gaps, calls) == (
         "block",
-        ["lease_coordinates_required"],
+        ("lease_coordinates_required",),
+        [],
     )
-    assert not called
 
 
-def test_lease_result_summary_uses_the_minimal_applied_lease(monkeypatch) -> None:
-    emitted = []
-    monkeypatch.setattr(lease_cli, "emit", lambda result, **_kwargs: emitted.append(result))
+def test_a_lease_result_summarizes_the_lease_its_transition_left() -> None:
+    """A passing transition points at the lane's status and keeps only mapping diagnostics."""
     report = {
         "verdict": "pass",
         "state": "renewed",
         "branch": "work/example",
-        "lease": {
-            "generation": 2,
-            "holder_ref": "holder",
-            "expires_at": "2026-08-10T00:00:00+00:00",
-        },
+        "lease": LEASE,
         "diagnostics": [{"severity": "info"}, "ignored"],
         "required_gaps": [],
     }
+    result = lease.lease_result("lane lease renew", report)
 
-    emit_lease_result("lane lease test", report, json_output=True)
-
-    assert emitted[0].summary == {
-        "branch": "work/example",
-        "generation": 2,
-        "holder_ref": "holder",
-        "expires_at": "2026-08-10T00:00:00+00:00",
-    }
+    assert (result.summary, result.diagnostics, result.to_dict()["data"]) == (
+        LEASE,
+        ({"severity": "info"},),
+        report,
+    )
+    assert result.next_action == "ethos lane status --json"
 
 
-def test_takeover_cli_loads_authorization_and_projects_exact_request(
+def test_a_takeover_loads_the_attestation_that_authorizes_it(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    now = datetime.now(UTC)
+    """The request carries the parsed Attestation, never its path."""
     authorization = attestation_fixture(
         predicate="lane-resolution:takeover",
         verifier="maintainer:test:case:reviewer",
         subject="git:branch:work/example",
-        issued_at=now,
+        issued_at=datetime.now(UTC),
         payload_kind="authorization:lane-takeover",
         payload_body={"authorization": {"test": "cli"}},
         evidence_refs=("evidence:test:takeover",),
     )
     path = tmp_path / "authorization.json"
     path.write_text(authorization.canonical_json(), encoding="utf-8")
-    captured = {}
-    monkeypatch.setattr(lease_cli, "resolve_root", lambda root: root)
-    monkeypatch.setattr(
-        lease_cli,
-        "execute_lease_takeover",
-        lambda *, root, request: (
-            captured.update(root=root, request=request)
-            or {
-                "verdict": "pass",
-                "state": "planned",
-                "branch": request.branch,
-                "lease": {},
-                "required_gaps": [],
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        lease_cli,
-        "emit_lease_result",
-        lambda command, report, **kwargs: captured.update(command=command, report=report, **kwargs),
-    )
-    options = TakeoverOptions(
-        apply=False,
-        root=tmp_path,
-        json_output=True,
-        branch="work/example",
-        source_holder_ref="agent:test:case:source",
-        target_holder_ref="agent:test:case:target",
-        generation=4,
-        expires_at="2026-08-10T00:00:00+00:00",
-        source_state="source_lost",
-        authorization=path,
+    calls = _owner(monkeypatch, "execute_lease_takeover")
+    source = {"source_holder_ref": "agent:test:case:source", "source_state": "source_lost"}
+    fields = _PROOF | _TARGET | source | {"branch": "work/example", "authorization": path}
+    result = invoke("lane lease takeover", tmp_path, fields)
+
+    request = calls[0]["request"]
+    assert (request.authorization, request.generation, result.command) == (
+        authorization,
+        3,
+        "lane lease takeover",
     )
 
-    lane_lease_takeover(options)
 
-    assert captured["command"] == "lane lease takeover"
-    assert captured["json_output"] is True
-    assert captured["request"].authorization == authorization
-    assert captured["request"].generation == 4
+@pytest.mark.parametrize("operation", sorted(_HANDOFFS))
+def test_a_handoff_hands_its_owner_the_exact_request_and_keeps_its_block(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    """Each handoff passes every given field unchanged and projects the owner's blocked report."""
+    name, fields = _HANDOFFS[operation]
+    report = {
+        "verdict": "block",
+        "state": "blocked",
+        "branch": "work/example",
+        "lease": {},
+        "required_gaps": ["handoff_failed"],
+    }
+    calls = _owner(monkeypatch, name, report)
+    result = invoke(f"lane handoff {operation}", tmp_path, fields | {"apply": True})
+
+    request = calls[0]["request"]
+    assert {key: getattr(request, key) for key in fields} == fields
+    assert getattr(request, "operation", "transfer") == "transfer"
+    assert (request.apply, result.verdict, result.to_dict()["data"], result.next_action) == (
+        True,
+        "block",
+        report,
+        "",
+    )

@@ -116,16 +116,6 @@ def _rows(*shapes: str) -> tuple[_Row, ...]:
 
 # A command that runs a caller's command cannot see that command's effects.
 _OPAQUE = _rows("mcp")
-# Each shape selects the deletion of something it does not recreate. Cleanup that another
-# operation performs under a liveness check is not counted; that operation reports it.
-_DESTRUCTIVE = _rows(
-    "lane retire abandon: --receipt --receipt-sha256 --apply --authorize",
-    "lane retire recover: --receipt --receipt-sha256 --apply --authorize",
-    "lane retire superseded: --apply --authorize",
-    "lane retire landed: --apply --authorize",
-    "lane retire absorbed-ref: --apply --authorize --confirm-irreversible",
-    "lane handoff revoke-source: --apply",
-)
 
 
 def ethos_command_path(arguments: list[str] | tuple[str, ...]) -> tuple[str, ...]:
@@ -179,13 +169,6 @@ def ethos_step_authorization(
         return "human"
     flags = _flags(arguments)
     return next((kind for token, kind in _AUTHORITY_TOKENS if token in flags), "none")
-
-
-def ethos_step_destructive(
-    arguments: list[str] | tuple[str, ...], effects: tuple[StepEffect, ...]
-) -> bool:
-    """Return whether one argv selects the deletion of something it does not recreate."""
-    return "opaque" in effects or _matched(arguments, _DESTRUCTIVE)
 
 
 def _path_text(value: object) -> str:

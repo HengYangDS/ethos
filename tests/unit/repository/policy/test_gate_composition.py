@@ -341,7 +341,7 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
                     Gate(
                         id="native-docs",
                         kind="docs",
-                        providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                        providers=("ethos.application.docs_registry:docs_registry_report",),
                     ),
                     Gate(id="script-docs", kind="docs", command=("tools/docs.py",)),
                 ),
@@ -371,13 +371,13 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
             "tools/check.py",
             "tools/docs.py",
             "tools/upstream.js",
-            "src/ethos/surface/cli/root/reference.py",
+            "src/ethos/application/docs_registry.py",
         ),
         source_materials={
             "tools/check.py": b"print('native')\n",
             "tools/docs.py": b"print('documents')\n",
-            "@ethos/surface/cli/root/reference.py": b"document provider\n",
-            "src/ethos/surface/cli/root/reference.py": b"document provider\n",
+            "@ethos/application/docs_registry.py": b"document provider\n",
+            "src/ethos/application/docs_registry.py": b"document provider\n",
         },
         repository_python="python",
     )

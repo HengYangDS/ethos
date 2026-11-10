@@ -49,7 +49,7 @@ def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: 
                 Gate(
                     id="docs-registry",
                     kind="docs",
-                    providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                    providers=("ethos.application.docs_registry:docs_registry_report",),
                 ),
                 Gate(
                     id="markdown-links",

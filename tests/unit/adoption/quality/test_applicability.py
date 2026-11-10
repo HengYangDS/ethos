@@ -34,7 +34,7 @@ def document_repository(tmp_path: Path) -> Path:
             {
                 "id": "docs-registry",
                 "kind": "docs",
-                "providers": ["ethos.surface.cli.root.reference:docs_registry_report"],
+                "providers": ["ethos.application.docs_registry:docs_registry_report"],
             },
             {
                 "id": "markdown-links",

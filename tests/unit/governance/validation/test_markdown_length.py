@@ -16,6 +16,7 @@ from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.application.docs_registry import docs_registry_report
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.domain.status import audit_for_root
 from ethos.repository.design.integrity import design_integrity_report
@@ -24,7 +25,6 @@ from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.registry import DocumentOrigins
 from ethos.repository.registry.docs.registry import retained_document_origins
 from ethos.repository.release.resources import canonical_resource
-from ethos.surface.cli.root.reference import docs_registry_report
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git

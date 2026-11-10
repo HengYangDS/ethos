@@ -201,7 +201,7 @@ def test_profile_native_document_roots_do_not_require_code_axes() -> None:
                     {
                         "id": "docs-registry",
                         "kind": "docs",
-                        "providers": ["ethos.surface.cli.root.reference:docs_registry_report"],
+                        "providers": ["ethos.application.docs_registry:docs_registry_report"],
                     },
                     {
                         "id": "markdown-links",

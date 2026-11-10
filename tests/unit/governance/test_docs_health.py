@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.application.docs_registry import docs_registry_report
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -14,7 +15,6 @@ from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
 from ethos.repository.registry.docs.registry import front_matter
-from ethos.surface.cli.root.reference import docs_registry_report
 from tests.support.documentation import documentation_fixture
 from tests.support.literal_cases import literal_case
 

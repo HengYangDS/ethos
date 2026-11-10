@@ -98,8 +98,13 @@
 - [ ] 5.1 Delete the old command modules, `_COMMAND_MODULES`, `load_command_groups`, the admission
       tables and the classifier fallback. Done when no `lane`, `hook` or `attestation` module
       remains under `surface/cli/` and `ethos_step_*` are gone.
-- [ ] 5.2 Move the docs-registry provider as its own commit. Done when the docs-registry gate passes
-      and the five importing tests use the exported constant.
+- [x] 5.2 Move the docs-registry provider as its own commit. Done when the docs-registry gate passes
+      and the five importing tests use the exported constant. `A/docs_registry.py` checks each
+      example against the catalog's command and group paths and the `mcp` launcher, and
+      `system/gates.toml` and the fence name it; the 3 `surface.cli.root.reference` rows leave (2
+      surface ignores remain), and the docs-registry, markdown-links and prose gates pass on this
+      commit's tree. The five tests take the provider from `A/docs_registry.py`;
+      `test_host_gate_proof.py` patches it through the exported `DOCS_REGISTRY_PROVIDER`.
 - [ ] 5.3 Update the command-plane spec, `rules/module-layout.md`, `docs/reference/command-plane.md`
       and `CHANGELOG.md`. Done when the docs gates pass and the CHANGELOG names every refusal.
 - [ ] 5.4 Record S5 deltas. Done when product (-50) and test (-30) deltas are written.

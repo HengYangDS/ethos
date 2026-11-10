@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 import ethos.application.proof.host as gate_execution
 import ethos.application.proof.operation as proof_operation
-import ethos.surface.cli.root.reference as reference
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -38,9 +38,9 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     """Hosted quality checks share gate owners without minting repository proof."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
+    # The gate resolves the provider `system/gates.toml` names, so the fake replaces exactly that.
     monkeypatch.setattr(
-        reference,
-        "docs_registry_report",
+        DOCS_REGISTRY_PROVIDER.replace(":", "."),
         lambda _root: {
             "verdict": verdict,
             "state": "clean" if verdict == "pass" else "failed",

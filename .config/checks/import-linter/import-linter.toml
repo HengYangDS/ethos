@@ -26,9 +26,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-  "ethos.surface.cli.root.reference -> ethos.adapters.repo.content.observation",
-  "ethos.surface.cli.root.reference -> ethos.adapters.repo.git",
-  "ethos.surface.cli.root.reference -> ethos.repository.registry.docs.health",
   "ethos.surface.mcp.server -> ethos.adapters.actor",
   "ethos.surface.mcp.server -> ethos.repository.paradigm.parameters",
 ]

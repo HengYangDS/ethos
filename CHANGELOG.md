@@ -158,6 +158,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `lane_retirement_receipt_required` gap.
 - **Breaking:** `ethos lane handoff export` no longer takes `--ttl-seconds`, which no export read;
   it exits 2 with `command_usage_invalid:lane handoff export`.
+- **Breaking:** the `docs-registry` gate's provider is
+  `ethos.application.docs_registry:docs_registry_report`; a gate registry that names the former
+  `ethos.surface.cli.root.reference:docs_registry_report` no longer resolves it. The provider checks
+  each documented command example against the catalog's command and group paths and the `mcp`
+  launcher instead of building the command line, and an unknown example's
+  `unknown_ethos_command_example` gap names every word before its first option, or `ethos` when it
+  starts with an option.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

@@ -116,21 +116,24 @@ def standalone_scripts(root: Path) -> frozenset[str]:
 
 
 def implementations(root: Path, bases: tuple[str, ...]) -> list[list[str]]:
-    """Group every function whose body another function of the same deployment unit repeats."""
-    groups: defaultdict[str, list[str]] = defaultdict(list)
-    excluded = standalone_scripts(root)
+    """Group every function whose body another function of the same deployment unit repeats.
+
+    The package and its tools form one unit; each standalone script is a unit of its own, so a
+    copy inside one script is found while a script never has to import the package.
+    """
+    groups: defaultdict[tuple[str, str], list[str]] = defaultdict(list)
+    standalone = standalone_scripts(root)
     for base in bases:
         for path in sorted((root / base).rglob("*.py")):
             relative = path.relative_to(root).as_posix()
-            if relative in excluded:
-                continue
+            unit = relative if relative in standalone else "package"
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                 if (
                     isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
                     and not _overload(node)
                     and (shape := _shape(node)) is not None
                 ):
-                    groups[shape].append(f"{relative}:{node.lineno}:{node.name}")
+                    groups[unit, shape].append(f"{relative}:{node.lineno}:{node.name}")
     return [places for places in groups.values() if len(places) > 1]
 
 
@@ -190,8 +193,16 @@ def test_a_renamed_copy_is_the_same_implementation(tmp_path: Path) -> None:
         ("i.py", "def same(other):\n    return other\n"),
     ):
         (tmp_path / "src" / name).write_text(source, encoding="utf-8")
+    # A standalone script is compared with itself only: its copy of `fail` is no package copy.
+    (tmp_path / "tools").mkdir()
+    script = "def a(p):\n    raise ValueError(p)\n\n\ndef b(q):\n    raise ValueError(q)\n"
+    (tmp_path / "tools/s.py").write_text(script, encoding="utf-8")
+    (tmp_path / ".github/workflows").mkdir(parents=True)
+    run = "run: uv run --no-project python -B -I tools/s.py\n"
+    (tmp_path / ".github/workflows/w.yml").write_text(run, encoding="utf-8")
 
-    assert implementations(tmp_path, ("src",)) == [
+    assert implementations(tmp_path, ("src", "tools")) == [
         ["src/a.py:1:fail", "src/b.py:1:_invalid"],
         ["src/f.py:1:read", "src/g.py:1:load"],
+        ["tools/s.py:1:a", "tools/s.py:5:b"],
     ]

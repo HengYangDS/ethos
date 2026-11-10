@@ -139,7 +139,7 @@
   "src/ethos/adapters/repo/config_effects.py::replace_config_values": 17,
   "src/ethos/adapters/repo/content/observation.py::_retained_tree_members": 16,
   "src/ethos/adapters/repo/coordination.py::collaboration_competition_projection": 16,
-  "src/ethos/adapters/repo/dependency_acceptance.py::_captured_audit_materials": 20,
+  "src/ethos/adapters/repo/dependency_acceptance.py::_captured_audit_materials": 18,
   "src/ethos/adapters/repo/dependency_acceptance.py::dependency_acceptance_gaps": 20,
   "src/ethos/adapters/repo/gate_policy.py::_material": 20,
   "src/ethos/adapters/repo/gate_policy.py::_materials": 17,

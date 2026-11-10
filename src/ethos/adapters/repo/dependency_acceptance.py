@@ -50,14 +50,27 @@ def product_audit_snapshot(*, build: BuildIdentity) -> tuple[AuditPolicy, dict[s
     }
 
 
+def _audit_payload(stdout: str) -> dict[str, Any]:
+    """Read the session's one payload; a refusal or an unreadable output raises its own gap."""
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as error:
+        message = "dependency_audit_payload_missing"
+        raise ValueError(message) from error
+    if not isinstance(payload, dict) or payload.get("command") != "dependency-audit":
+        message = "dependency_audit_payload_invalid"
+        raise ValueError(message)
+    if payload.get("state") == "refused":
+        message = str((payload.get("decision") or {}).get("reason") or "dependency_audit_refused")
+        raise ValueError(message)
+    return payload
+
+
 def _captured_audit_materials(
     stdout: str, head: str, source: Callable[[str], bytes]
 ) -> tuple[dict[str, Any], dict[str, Any], AuditPolicy]:
     """Resolve every observed source to its exact captured hash before interpretation."""
-    payload = json.loads(stdout)
-    if not isinstance(payload, dict) or payload.get("command") != "dependency-audit":
-        message = "dependency_audit_payload_invalid"
-        raise ValueError(message)
+    payload = _audit_payload(stdout)
     if payload.get("head") != head:
         message = "dependency_audit_head_mismatch"
         raise ValueError(message)

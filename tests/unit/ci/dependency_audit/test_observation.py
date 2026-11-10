@@ -16,6 +16,7 @@ from filelock import FileLock
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
 import ethos.repository.release.resources as resource_owner
+from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from tests.support.registries import repository_registry
@@ -116,7 +117,9 @@ def test_registry_has_one_security_owner_without_making_offline_tests_online() -
 
 
 @pytest.mark.parametrize("fault", ["contention", "interrupt"])
-def test_active_evidence_is_preserved_and_interruption_recovers(repository, monkeypatch, fault):
+def test_active_evidence_is_preserved_and_interruption_recovers(
+    repository, monkeypatch, capsys, fault
+):
     """Concurrent readers preserve the slot; interrupted owners invalidate and recover."""
     observed = native_transport(
         monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem)
@@ -127,6 +130,7 @@ def test_active_evidence_is_preserved_and_interruption_recovers(repository, monk
     previous = summary.read_bytes()
     observed.clear()
     if fault == "contention":
+        capsys.readouterr()
         with (
             FileLock(evidence / ".dependency-audit.lock", timeout=0),
             pytest.raises(pytest.fail.Exception, match="dependency_audit_in_use"),
@@ -134,6 +138,15 @@ def test_active_evidence_is_preserved_and_interruption_recovers(repository, monk
             audit.run(Mock(error=pytest.fail), root=repository)
         assert not observed
         assert summary.read_bytes() == previous
+        refusal = capsys.readouterr().out
+        for stdout, reason in ((refusal, "dependency_audit_in_use"), ("", "payload_missing")):
+            decision = captured_dependency_acceptance(
+                stdout,
+                head="a" * 40,
+                source=lambda name: (repository / name).read_bytes(),
+                scope="production-release",
+            )
+            assert decision["reason"].endswith(reason), decision
     else:
 
         def interrupt(_root, _command, _ecosystem):

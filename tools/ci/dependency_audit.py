@@ -252,7 +252,17 @@ def run(session: Session, *, root: Path = ROOT, scope: str = "production-release
         with FileLock(evidence / ".dependency-audit.lock", timeout=0):
             _run(session, root=root, scope=scope)
     except Timeout:
-        session.error("dependency_audit_in_use: " + str(evidence))
+        # The refusal names its gap on stdout, the channel the gate reads, before the session fails.
+        gap = "dependency_audit_in_use"
+        refusal = {
+            "command": "dependency-audit",
+            "state": "refused",
+            "verdict": "unknown",
+            "required_gaps": [gap],
+            "decision": {"scope": scope, "verdict": "unknown", "reason": gap},
+        }
+        print(json.dumps(refusal, sort_keys=True), flush=True)
+        session.error(gap + ": " + str(evidence))
 
 
 def _run(session: Session, *, root: Path = ROOT, scope: str = "production-release") -> None:

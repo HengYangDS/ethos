@@ -18,6 +18,7 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from tests.support.git_isolation import work_tree_refusal
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.proof import seed_executed_proof
 
@@ -184,3 +185,15 @@ def test_isolated_fixture_python_reads_the_test_gate_bytecode_prefix(
     )
 
     assert (completed.stdout.strip(), completed.stderr) == (str(prefix), "")
+
+
+def test_a_temporary_root_inside_a_repository_is_refused(tmp_path):
+    """Product code finds a repository by walking up, so no session runs its fixtures inside one."""
+    repo = tmp_path / "checkout"
+    (repo / "build" / "basetemp").mkdir(parents=True)
+    fixtures.git(repo, "init", "-b", "dev")
+    (tmp_path / "outside").mkdir()
+
+    assert work_tree_refusal(tmp_path / "outside") is None
+    for inside in (repo / "build" / "basetemp", repo / ".git"):
+        assert "is inside a Git repository" in str(work_tree_refusal(inside))

@@ -36,6 +36,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
 from tests.support.git_isolation import GIT_ISOLATION
+from tests.support.git_isolation import work_tree_refusal
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 # What every case and its children inherit, set once before xdist starts its workers: hidden Git
@@ -168,3 +169,10 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
     # Commands a case runs cannot write into the attempt's report root.
     monkeypatch.delenv("ETHOS_NATIVE_OUTPUT_DIR", raising=False)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _temporary_root_outside_repositories(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Stop the session before any test when its temporary root sits inside a repository."""
+    if refusal := work_tree_refusal(tmp_path_factory.getbasetemp()):
+        pytest.exit(refusal, returncode=pytest.ExitCode.USAGE_ERROR)

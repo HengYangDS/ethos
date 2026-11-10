@@ -8,24 +8,21 @@ import pytest
 
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.boundary.product import release_visible_historical_files
+from tests.support.governed_repository import write_file
 from tests.support.private_addresses import DOCUMENTATION_FORGE
 from tests.support.private_addresses import INTERNAL_FORGE
 from tests.support.private_addresses import PRIVATE_FORGE
+from tests.support.private_addresses import ipv4
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def test_release_history_public_inventory_skips_dependency_directories(tmp_path: Path) -> None:
     visible = tmp_path / "docs/history/record.md"
     skipped = tmp_path / "docs/history/node_modules/record.md"
     for path in (visible, skipped):
-        _write(path, "record\n")
+        write_file(path, "record\n")
 
     assert release_visible_historical_files(tmp_path) == [visible]
 
@@ -34,8 +31,8 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
     tmp_path: Path,
 ) -> None:
     (tmp_path / "README.md").write_bytes(b"\xff")
-    _write(tmp_path / "package.json", "[]")
-    _write(tmp_path / "pyproject.toml", "project = []\n")
+    write_file(tmp_path / "package.json", "[]")
+    write_file(tmp_path / "pyproject.toml", "project = []\n")
 
     report = product_boundary_report(tmp_path)
 
@@ -48,16 +45,12 @@ def test_product_boundary_public_report_ignores_non_utf8_and_non_object_metadata
 LOOPBACK_AND_LINK_LOCAL_IDS = ["loopback", "link-local", "link-local-v6", "loopback-v6", "ssh-user"]
 
 
-def _dotted(*octets: int) -> str:
-    return ".".join(map(str, octets))
-
-
 LOOPBACK_AND_LINK_LOCAL = [
-    '("' + _dotted(127, 0, 0, 1) + '", 0)',
-    "addr=" + _dotted(169, 254, 1, 1),
+    '("' + ipv4(127, 0, 0, 1) + '", 0)',
+    "addr=" + ipv4(169, 254, 1, 1),
     "fe" + "80::1%en0",
     "http://[" + ":" + ":1]:9/",
-    "ssh://deploy@" + _dotted(127, 0, 0, 1) + "/repo",
+    "ssh://deploy@" + ipv4(127, 0, 0, 1) + "/repo",
 ]
 
 
@@ -84,7 +77,7 @@ def test_product_surfaces_refuse_the_paradigm_address_classes(
     tmp_path: Path, line: str, *, found: bool
 ) -> None:
     """The boundary takes address classes from the paradigm and keeps refusing localhost URLs."""
-    _write(tmp_path / "README.md", line + "\n")
+    write_file(tmp_path / "README.md", line + "\n")
 
     report = product_boundary_report(tmp_path)
 

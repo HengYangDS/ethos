@@ -11,21 +11,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.host_admission as host_admission
+from tests.support.clock import FakeClock
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-class _Clock:
-    """A fake clock whose sleeps advance it by their own duration."""
-
-    def __init__(self) -> None:
-        self.now = 0.0
-        self.sleeps: list[float] = []
-
-    def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
-        self.now += seconds
 
 
 @pytest.fixture
@@ -143,7 +132,7 @@ def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> Non
     """A run that waits for the whole bound ends without running and names who holds the host."""
     queue = _queue(host_root)
     holder = queue.enter(tmp_path / "busy-repository", "renderer")
-    clock = _Clock()
+    clock = FakeClock()
 
     with (
         pytest.raises(ValueError, match="host_admission_contended") as refused,

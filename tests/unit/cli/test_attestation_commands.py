@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
@@ -128,10 +129,7 @@ def test_attestation_record_projects_the_writer_gaps(
     input_path = tmp_path / "attestation.json"
     _input(input_path, 2, carried_id=False)
 
-    def unobservable(*_arguments: object) -> object:
-        message = "git worktree list unavailable"
-        raise OSError(message)
-
+    unobservable = Mock(side_effect=OSError("git worktree list unavailable"))
     monkeypatch.setattr(attestation_set, "observe_lifetime_facts", unobservable)
     applied = _command(repo, "record", "--input", input_path.as_posix(), "--apply")
 

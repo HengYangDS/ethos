@@ -1,4 +1,4 @@
-"""One behavior has one implementation: no two function bodies in product code are the same."""
+"""One behavior has one implementation: no two source, tool or test function bodies are the same."""
 
 from __future__ import annotations
 
@@ -6,11 +6,12 @@ import ast
 import re
 import sys
 from collections import defaultdict
+from itertools import starmap
 from pathlib import Path
 from typing import override
 
 ROOT = Path(__file__).resolve().parents[2]
-PRODUCT = ("src", "tools")
+PRODUCT = ("src", "tools", "tests")
 # Statement and expression nodes, without the module wrapper and the Load/Store markers: a bare
 # `return name` is an idiom; a delegated call such as `raise ValueError(reason)` is the smallest
 # implementation a second module may not repeat.
@@ -88,7 +89,11 @@ def _statements(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.st
 
 
 def _shape(function: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
-    """Return a body's structure with bound names renamed, or None for an idiom or a stub."""
+    """Return a body's structure with bound names renamed, or None for an idiom or a stub.
+
+    A test's decorators are part of its shape: parametrize data is a test's input, so two tests
+    that share a body such as `assert helper(x)` but not their parameters are no copies.
+    """
     copy = ast.parse(ast.unparse(function)).body[0]
     if not isinstance(copy, ast.FunctionDef | ast.AsyncFunctionDef):
         return None
@@ -96,9 +101,11 @@ def _shape(function: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     size = sum(1 for node in ast.walk(body) if not isinstance(node, ast.Module | ast.expr_context))
     if size < MINIMUM_NODES:
         return None
+    # Decorators are read in the enclosing scope, so they keep every name they use.
+    inputs = "".join(map(ast.dump, copy.decorator_list)) if copy.name.startswith("test_") else ""
     # One renaming for the signature and then the body, so `a - b` never equals `b - a`.
     renaming = _BoundNames(_bound(copy))
-    return ast.dump(renaming.visit(copy.args)) + ast.dump(renaming.visit(body))
+    return inputs + ast.dump(renaming.visit(copy.args)) + ast.dump(renaming.visit(body))
 
 
 def _overload(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -118,8 +125,8 @@ def standalone_scripts(root: Path) -> frozenset[str]:
 def implementations(root: Path, bases: tuple[str, ...]) -> list[list[str]]:
     """Group every function whose body another function of the same deployment unit repeats.
 
-    The package and its tools form one unit; each standalone script is a unit of its own, so a
-    copy inside one script is found while a script never has to import the package.
+    The package, its tools and its tests form one unit; each standalone script is a unit of its
+    own, so a copy inside one script is found while a script never has to import the package.
     """
     groups: defaultdict[tuple[str, str], list[str]] = defaultdict(list)
     standalone = standalone_scripts(root)
@@ -206,3 +213,13 @@ def test_a_renamed_copy_is_the_same_implementation(tmp_path: Path) -> None:
         ["src/f.py:1:read", "src/g.py:1:load"],
         ["tools/s.py:1:a", "tools/s.py:5:b"],
     ]
+
+
+def test_a_test_with_other_parameters_is_no_copy(tmp_path: Path) -> None:
+    """Equal decorators repeat a test; other parametrize data gives the same body other input."""
+    case = '@pytest.mark.parametrize("x", [{}])\ndef test_{}(x):\n    assert helper(x)\n'
+    (tmp_path / "tests").mkdir()
+    source = "".join(starmap(case.format, ((1, "a"), (2, "b"), (1, "c"))))
+    (tmp_path / "tests/t.py").write_text(source, encoding="utf-8")
+
+    assert implementations(tmp_path, ("tests",)) == [["tests/t.py:2:test_a", "tests/t.py:8:test_c"]]

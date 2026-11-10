@@ -9,6 +9,7 @@ import pytest
 from ethos.repository.policy.layout.facades import facade_findings
 from ethos.repository.policy.layout.facades import identity_forward_findings
 from ethos.repository.policy.layout.facades import private_alias_findings
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -16,19 +17,11 @@ if TYPE_CHECKING:
 _SRC = {"semantic_paths": ["src"]}
 
 
-def _write(root: Path, relative: str, source: str) -> Path:
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(source, encoding="utf-8")
-    return path
-
-
 def test_private_alias_audit_reports_direct_and_from_import_compatibility_aliases(
     tmp_path: Path,
 ) -> None:
-    carrier = _write(
-        tmp_path,
-        "src/ethos/consumer.py",
+    carrier = write_file(
+        tmp_path / "src/ethos/consumer.py",
         "import public_api as _legacy\nfrom ethos.api import Result as _Result\n",
     )
 
@@ -43,9 +36,8 @@ def test_private_alias_audit_reports_direct_and_from_import_compatibility_aliase
 def test_private_alias_audit_allows_namespace_aliases_and_relative_imports_without_module(
     tmp_path: Path,
 ) -> None:
-    carrier = _write(
-        tmp_path,
-        "src/ethos/consumer.py",
+    carrier = write_file(
+        tmp_path / "src/ethos/consumer.py",
         "import public_api as stable\nfrom . import sibling as _sibling\n",
     )
 
@@ -67,8 +59,8 @@ def test_alias_audit_reports_renames_that_no_collision_or_module_namespace_needs
     tmp_path: Path, source: str, *, renamed: bool
 ) -> None:
     """A from-import keeps the canonical name unless the module already binds that name."""
-    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
-    _write(tmp_path, "src/ethos/consumer.py", source)
+    write_file(tmp_path / "src/ethos/api.py", "class Result:\n    pass\n")
+    write_file(tmp_path / "src/ethos/consumer.py", source)
 
     findings = private_alias_findings(tmp_path, {"semantic_paths": ["src"]})
 
@@ -90,7 +82,7 @@ def test_alias_audit_reports_renames_that_no_collision_or_module_namespace_needs
 def test_package_init_audit_classifies_public_runtime_facades(
     tmp_path: Path, source: str, reasons: list[str]
 ) -> None:
-    carrier = _write(tmp_path, "src/ethos/sample/__init__.py", source)
+    carrier = write_file(tmp_path / "src/ethos/sample/__init__.py", source)
 
     findings = facade_findings(tmp_path, _SRC, files=(carrier,))["package_init_facade_findings"]
 
@@ -120,7 +112,7 @@ def test_package_init_audit_classifies_public_runtime_facades(
 def test_module_facade_audit_distinguishes_import_shells_from_owned_runtime(
     tmp_path: Path, source: str, expected_count: int
 ) -> None:
-    carrier = _write(tmp_path, "src/ethos/sample.py", source)
+    carrier = write_file(tmp_path / "src/ethos/sample.py", source)
 
     findings = facade_findings(tmp_path, _SRC, files=(carrier,))["module_facade_findings"]
 
@@ -141,7 +133,7 @@ def test_module_facade_audit_distinguishes_import_shells_from_owned_runtime(
 def test_dynamic_compatibility_audit_exposes_lazy_module_exports(
     tmp_path: Path, source: str, reasons: list[str]
 ) -> None:
-    carrier = _write(tmp_path, "src/ethos/sample.py", source)
+    carrier = write_file(tmp_path / "src/ethos/sample.py", source)
 
     findings = facade_findings(tmp_path, _SRC, files=(carrier,))["dynamic_compat_facade_findings"]
 
@@ -151,8 +143,8 @@ def test_dynamic_compatibility_audit_exposes_lazy_module_exports(
 
 
 def test_ordinary_module_audits_skip_package_initializers(tmp_path: Path) -> None:
-    carrier = _write(
-        tmp_path, "src/ethos/sample/__init__.py", "def __getattr__(name):\n    return name\n"
+    carrier = write_file(
+        tmp_path / "src/ethos/sample/__init__.py", "def __getattr__(name):\n    return name\n"
     )
     policy = {"semantic_paths": ["src"]}
 
@@ -202,7 +194,7 @@ _IMPORTED = "from ethos.api import load\n"
 def test_identity_forward_audit_reports_functions_that_only_forward_their_parameters(
     tmp_path: Path, source: str, *, forwards: bool
 ) -> None:
-    carrier = _write(tmp_path, "src/ethos/sample.py", source)
+    carrier = write_file(tmp_path / "src/ethos/sample.py", source)
 
     findings = identity_forward_findings(tmp_path, _SRC, files=(carrier,))
 

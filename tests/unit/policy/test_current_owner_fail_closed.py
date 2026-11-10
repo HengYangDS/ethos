@@ -16,17 +16,13 @@ from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 from tests.support.governed_repository import git
+from tests.support.governed_repository import write_file
 
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
 def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path: Path) -> None:
-    _write(
+    write_file(
         tmp_path / "package.json",
         json.dumps(
             {
@@ -39,13 +35,13 @@ def test_product_boundary_reports_native_metadata_and_identity_failures(tmp_path
             }
         ),
     )
-    _write(
+    write_file(
         tmp_path / "pyproject.toml",
         '[project]\nname = "fixture"\nauthors = [{name = "Person"}]\n'
         'maintainers = [{name = "Maintainer"}]\n',
     )
     host_path = f"/{'Users'}/owner/repo\n"
-    _write(tmp_path / "openspec/changes/archive/private-change/proposal.md", host_path)
+    write_file(tmp_path / "openspec/changes/archive/private-change/proposal.md", host_path)
     report = product_boundary_report(tmp_path)
     findings = report["findings"]
     assert isinstance(findings, list)
@@ -64,8 +60,8 @@ def test_unreadable_metadata_does_not_invent_semantic_leak_findings(
     tmp_path: Path, package: str, project: str
 ) -> None:
     """Native syntax validation owns malformed carriers, not invented leak findings."""
-    _write(tmp_path / "package.json", package)
-    _write(tmp_path / "pyproject.toml", project)
+    write_file(tmp_path / "package.json", package)
+    write_file(tmp_path / "pyproject.toml", project)
     report = product_boundary_report(tmp_path)
     assert report["findings"] == []
     assert report["required_gaps"] == []
@@ -75,7 +71,7 @@ def test_unreadable_metadata_does_not_invent_semantic_leak_findings(
 def test_release_visible_history_checks_paths_and_content(tmp_path: Path, prefix: str) -> None:
     """Both historical surfaces retain path and content provenance checks."""
     relative = f"{prefix}/~" + "/projects/private.md"
-    _write(tmp_path / relative, f"/{'Users'}/owner/repo\n")
+    write_file(tmp_path / relative, f"/{'Users'}/owner/repo\n")
     report = product_boundary_report(tmp_path)
     observed = report["findings"]
     assert isinstance(observed, list)
@@ -173,7 +169,7 @@ def test_source_budget_public_report_blocks_missing_inventory_and_cross_check(
     assert unavailable_inventory["required_gaps"] == ["source_budget_inventory_unavailable"]
 
     source = tmp_path / "src/ethos/example.py"
-    _write(source, '"""Fixture."""\nVALUE = 1\n')
+    write_file(source, '"""Fixture."""\nVALUE = 1\n')
     git(tmp_path, "init", "-q", "-b", "dev")
     git(tmp_path, "add", ".")
     host_which = source_budget.shutil.which

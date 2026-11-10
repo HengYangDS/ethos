@@ -24,6 +24,19 @@ from tests.support.governed_repository import start_adopted_candidate
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
+def _observed_reads(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """Record each runtime whose file inventory is read, and still read it."""
+    inventory = runtime_selection.runtime_file_inventory
+    reads: list[Path] = []
+
+    def observe(runtime: Path):
+        reads.append(runtime)
+        return inventory(runtime)
+
+    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    return reads
+
+
 def test_selected_runtime_provenance_does_not_replace_incumbent_hooks(tmp_path: Path) -> None:
     """A selected package can own execution without claiming hook enforcement."""
     root = init_git_repo(tmp_path / "repo")
@@ -192,14 +205,7 @@ def test_self_console_validates_runtime_once_and_rereads_on_the_next_command(
     """A status command must not hash one selected image twice or retain it for the next call."""
     repo, _candidate = start_adopted_candidate(tmp_path)
     selected = current_runtime(Path(git_common_dir(repo)))
-    inventory = runtime_selection.runtime_file_inventory
-    reads: list[Path] = []
-
-    def observe(runtime: Path):
-        reads.append(runtime)
-        return inventory(runtime)
-
-    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    reads = _observed_reads(monkeypatch)
     monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
     monkeypatch.setattr(cli.sys, "argv", ["ethos", "status", "--root", repo.as_posix(), "--json"])
 
@@ -277,20 +283,14 @@ def test_status_runtime_observation_is_repository_bound(
     other, _other_candidate = start_adopted_candidate(tmp_path / "other")
     selected = current_runtime(Path(git_common_dir(repo)))
     other_selected = current_runtime(Path(git_common_dir(other)))
-    inventory = runtime_selection.runtime_file_inventory
-    reads: list[Path] = []
+    reads = _observed_reads(monkeypatch)
     observations = []
     main = cli.main
-
-    def observe(runtime: Path):
-        reads.append(runtime)
-        return inventory(runtime)
 
     def inspect_other_repository() -> None:
         observations.append(hook_runtime_binding(other))
         main()
 
-    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
     monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
     monkeypatch.setattr(cli.sys, "argv", ["ethos", "status", "--root", repo.as_posix(), "--json"])
     monkeypatch.setattr(cli, "main", inspect_other_repository)
@@ -312,14 +312,7 @@ def test_prewrite_console_validates_runtime_independently_of_routing(
     """Write admission keeps its own fresh payload validation after console routing."""
     fixture = prepared_work_lane(tmp_path)
     selected = current_runtime(Path(git_common_dir(fixture.worktree)))
-    inventory = runtime_selection.runtime_file_inventory
-    reads: list[Path] = []
-
-    def observe(runtime: Path):
-        reads.append(runtime)
-        return inventory(runtime)
-
-    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    reads = _observed_reads(monkeypatch)
     monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     monkeypatch.setattr(

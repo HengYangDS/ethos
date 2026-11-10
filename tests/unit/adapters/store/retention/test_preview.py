@@ -16,10 +16,8 @@ import ethos.adapters.store.retention.closure as closure
 import ethos.application.retention as retention
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.store.state.schema import local_state_root
-from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.retention_store import archive
 from tests.support.retention_store import lane_unit
 from tests.support.retention_store import merge_preimage
@@ -33,15 +31,6 @@ _REAL_RUNTIME_SELECTED = retention.runtime_selected
 def _damaged_set(_root: Path) -> tuple[str, tuple[object, ...]]:
     message = "attestation_set_ref_invalid"
     raise ValueError(message)
-
-
-@pytest.fixture
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Provide a governed repository whose preview runs as the selected runtime."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    monkeypatch.setattr(retention, "runtime_selected", lambda _root: True)
-    return repo
 
 
 def _plan(result: Any) -> dict[str, Any]:

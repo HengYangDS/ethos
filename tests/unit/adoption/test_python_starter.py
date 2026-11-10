@@ -18,13 +18,12 @@ import ethos.adapters.repo.starter.generation as generator_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.application.adoption import adopt_repository
 from tests.support.fixture_signer import fixture_signer_inputs
+from tests.support.governed_repository import apply_reviewed_adoption
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.result import EthosResult
 
 
 def _request(purpose: str = "Verifiable changes.") -> dict[str, object]:
@@ -35,14 +34,6 @@ def _request(purpose: str = "Verifiable changes.") -> dict[str, object]:
         "starter": "python-library",
         **fixture_signer_inputs(),
     }
-
-
-def _apply(target: Path, request: dict[str, object], preview: EthosResult) -> EthosResult:
-    """Apply one request against the plan digest its preview reviewed."""
-    digest = str(preview.data["plan_digest"])
-    return adopt_repository(
-        target, **request, apply=True, authorize=True, expect_plan_digest=digest
-    )
 
 
 def test_python_library_starter_uses_pinned_native_generator(
@@ -64,7 +55,7 @@ def test_python_library_starter_uses_pinned_native_generator(
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
-    applied = _apply(target, request, preview)
+    applied = apply_reviewed_adoption(target, request, preview)
 
     assert applied.verdict == "pass"
     assert "A verifiable Python library." in (target / "pyproject.toml").read_text()
@@ -91,7 +82,7 @@ def test_python_library_changed_input_invalidates_preview(tmp_path: Path) -> Non
     target = tmp_path / "new-project"
     preview = adopt_repository(target, **_request("First purpose."))
 
-    result = _apply(target, _request("Revised purpose."), preview)
+    result = apply_reviewed_adoption(target, _request("Revised purpose."), preview)
 
     assert result.required_gaps == ("formation_plan_digest_mismatch",)
     assert not target.exists()
@@ -110,7 +101,7 @@ def test_python_library_generator_version_invalidates_preview(
         return "changed-generator-version" if name == "uv" else observed_version(name)
 
     monkeypatch.setattr(formation_effect.metadata, "version", changed_version)
-    result = _apply(target, request, preview)
+    result = apply_reviewed_adoption(target, request, preview)
 
     assert result.required_gaps == ("formation_plan_digest_mismatch",)
     assert not target.exists()

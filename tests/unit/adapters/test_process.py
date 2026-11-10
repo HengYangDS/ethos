@@ -26,14 +26,21 @@ from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
 
 
-def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
-    """A checked failure cancels only when it escapes the caller's scope."""
+def _observed_children():
+    """Record each child whose handshake completes and signal when the first one is ready."""
     ready = threading.Event()
     children = []
 
     def observed(child, _options):
         children.append(child)
         ready.set()
+
+    return ready, children, observed
+
+
+def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
+    """A checked failure cancels only when it escapes the caller's scope."""
+    ready, children, observed = _observed_children()
 
     with (
         ready_descendant(monkeypatch, observed) as (body, _closed),
@@ -73,12 +80,7 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None
 
 def test_nested_scope_owns_the_commands_started_under_it(tmp_path, monkeypatch) -> None:
     """A handled nested failure ends only its own commands; enclosing cancellation ends all."""
-    ready = threading.Event()
-    children = []
-
-    def observed(child, _options):
-        children.append(child)
-        ready.set()
+    ready, children, observed = _observed_children()
 
     def nested_sibling():
         with process_adapter.command_scope():

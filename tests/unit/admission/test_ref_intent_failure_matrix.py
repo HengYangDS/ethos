@@ -16,13 +16,10 @@ import pytest
 
 import ethos.adapters.admission.ref_intent as intent
 from ethos.contracts.plan import GitRefUpdate
+from tests.support.git_effect import oid
 
 if TYPE_CHECKING:
     from multiprocessing.synchronize import Event
-
-
-def _oid(label: str) -> str:
-    return hashlib.sha1(label.encode(), usedforsecurity=False).hexdigest()
 
 
 def _digest(label: str) -> str:
@@ -30,7 +27,7 @@ def _digest(label: str) -> str:
 
 
 def _update(old: str = "old", new: str = "new") -> GitRefUpdate:
-    return GitRefUpdate(expected=_oid(old), desired=_oid(new))
+    return GitRefUpdate(expected=oid(old), desired=oid(new))
 
 
 def _write(root, *, operation="candidate.accept", plan="plan", old="old", new="new"):
@@ -57,7 +54,7 @@ def _claim(
 
 
 def _committed(root):
-    return intent.committed_ref_intent(root=root, operation="candidate.accept", desired=_oid("new"))
+    return intent.committed_ref_intent(root=root, operation="candidate.accept", desired=oid("new"))
 
 
 def test_ref_intent_dir_falls_back_to_repository_git_path(

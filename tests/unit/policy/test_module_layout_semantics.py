@@ -15,19 +15,12 @@ from ethos.repository.policy.layout.policy import empty_package_findings
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
 from ethos.repository.policy.layout.report import module_layout_report
-
-
-def _write(root, relative, source):
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(source, encoding="utf-8")
-    return path
+from tests.support.governed_repository import write_file
 
 
 def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:
-    _write(
-        tmp_path,
-        "src/ethos/legacy.py",
+    write_file(
+        tmp_path / "src/ethos/legacy.py",
         'from ethos.result import EthosResult\n\n__all__ = ["EthosResult"]\n',
     )
 
@@ -36,7 +29,7 @@ def test_module_facade_with_all_is_still_blocked(tmp_path) -> None:
 
 
 def test_empty_package_shell_without_consumers_is_blocked(tmp_path) -> None:
-    _write(tmp_path, "src/ethos/empty/__init__.py", '"""Marker only."""\n')
+    write_file(tmp_path / "src/ethos/empty/__init__.py", '"""Marker only."""\n')
 
     assert empty_package_findings(tmp_path, {"semantic_paths": ["."]}) == [
         {
@@ -48,14 +41,14 @@ def test_empty_package_shell_without_consumers_is_blocked(tmp_path) -> None:
 
 
 def test_empty_package_with_a_public_import_boundary_is_retained(tmp_path) -> None:
-    _write(tmp_path, "src/ethos/empty/__init__.py", '"""Public namespace."""\n')
-    _write(tmp_path, "src/ethos/consumer.py", "import ethos.empty\n")
+    write_file(tmp_path / "src/ethos/empty/__init__.py", '"""Public namespace."""\n')
+    write_file(tmp_path / "src/ethos/consumer.py", "import ethos.empty\n")
 
     assert empty_package_findings(tmp_path, {"semantic_paths": ["."]}) == []
 
 
 def test_ambiguous_module_name_is_always_blocked(tmp_path) -> None:
-    _write(tmp_path, "src/ethos/domain/core.py", "def decide():\n    return True\n")
+    write_file(tmp_path / "src/ethos/domain/core.py", "def decide():\n    return True\n")
     policy = {"paths": ["src/ethos"], "ambiguous_module_names": ["core"]}
 
     assert ambiguous_module_findings(tmp_path, policy) == [
@@ -69,7 +62,7 @@ def test_ambiguous_module_name_is_always_blocked(tmp_path) -> None:
 
 
 def test_ambiguous_module_name_tokens_cannot_hide_in_compounds(tmp_path) -> None:
-    _write(tmp_path, "tests/support/contract_helpers.py", "VALUE = 1\n")
+    write_file(tmp_path / "tests/support/contract_helpers.py", "VALUE = 1\n")
     policy = {"semantic_paths": ["tests"], "ambiguous_module_names": ["helpers"]}
 
     assert ambiguous_module_findings(tmp_path, policy) == [
@@ -84,7 +77,7 @@ def test_ambiguous_module_name_tokens_cannot_hide_in_compounds(tmp_path) -> None
 
 def test_role_contract_cannot_exempt_ambiguous_module_name(tmp_path) -> None:
     relative = "src/ethos/domain/core.py"
-    _write(tmp_path, relative, "def decide():\n    return True\n")
+    write_file(tmp_path / relative, "def decide():\n    return True\n")
     policy = {
         "paths": ["src/ethos"],
         "ambiguous_module_names": ["core"],
@@ -106,9 +99,8 @@ def test_role_contract_cannot_exempt_ambiguous_module_name(tmp_path) -> None:
 
 def test_surface_core_command_and_multiple_apps_are_blocked(tmp_path) -> None:
     relative = "src/ethos/surface/cli/lane/core.py"
-    _write(
-        tmp_path,
-        relative,
+    write_file(
+        tmp_path / relative,
         """@lane_app.command()
 def status():
     pass
@@ -135,7 +127,7 @@ def test_semantic_scope_covers_source_tests_tools_and_agent_scripts(tmp_path) ->
         "tools/ci/check.py",
     }
     for relative in expected:
-        _write(tmp_path, relative, "VALUE = 1\n")
+        write_file(tmp_path / relative, "VALUE = 1\n")
     policy = {
         "semantic_paths": [".agents/skills", "src/ethos", "tests", "tools"],
         "package_paths": ["src/ethos"],
@@ -151,11 +143,11 @@ def test_semantic_scope_covers_source_tests_tools_and_agent_scripts(tmp_path) ->
 
 def test_semantic_scope_includes_untracked_and_excludes_deleted_python(tmp_path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    tracked = _write(tmp_path, "src/ethos/model.py", "VALUE = 1\n")
-    deleted = _write(tmp_path, "src/ethos/deleted.py", "VALUE = 1\n")
+    tracked = write_file(tmp_path / "src/ethos/model.py", "VALUE = 1\n")
+    deleted = write_file(tmp_path / "src/ethos/deleted.py", "VALUE = 1\n")
     subprocess.run(["git", "add", tracked, deleted], cwd=tmp_path, check=True)
     deleted.unlink()
-    _write(tmp_path, "tools/core.py", "VALUE = 1\n")
+    write_file(tmp_path / "tools/core.py", "VALUE = 1\n")
 
     files = {
         path.relative_to(tmp_path).as_posix()
@@ -167,11 +159,11 @@ def test_semantic_scope_includes_untracked_and_excludes_deleted_python(tmp_path)
 
 def test_module_layout_gate_includes_untracked_and_excludes_ignored_python(tmp_path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    tracked = _write(tmp_path, "src/ethos/model.py", "VALUE = 1\n")
-    _write(tmp_path, ".gitignore", "tools/ignored.py\n")
+    tracked = write_file(tmp_path / "src/ethos/model.py", "VALUE = 1\n")
+    write_file(tmp_path / ".gitignore", "tools/ignored.py\n")
     subprocess.run(["git", "add", tracked, ".gitignore"], cwd=tmp_path, check=True)
-    _write(tmp_path, "tools/core.py", "VALUE = 1\n")
-    _write(tmp_path, "tools/ignored.py", "VALUE = 1\n")
+    write_file(tmp_path / "tools/core.py", "VALUE = 1\n")
+    write_file(tmp_path / "tools/ignored.py", "VALUE = 1\n")
 
     report = module_layout_gate_report(tmp_path)
 
@@ -187,7 +179,7 @@ def test_ambiguous_names_are_blocked_in_every_owned_python_carrier(tmp_path) -> 
         "tests/support/common.py",
         "tools/ci/utils.py",
     ):
-        _write(tmp_path, relative, "VALUE = 1\n")
+        write_file(tmp_path / relative, "VALUE = 1\n")
     policy = {
         "semantic_paths": [".agents/skills", "src/ethos", "tests", "tools"],
         "package_paths": ["src/ethos"],
@@ -211,7 +203,7 @@ def test_native_test_and_tool_names_are_not_treated_as_ambiguous(tmp_path) -> No
         "tools/ci/change_index.py",
         "tools/ci/change_native.py",
     ):
-        _write(tmp_path, relative, "VALUE = 1\n")
+        write_file(tmp_path / relative, "VALUE = 1\n")
     policy = {
         "semantic_paths": ["src/ethos", "tests", "tools"],
         "package_paths": ["src/ethos"],
@@ -231,9 +223,8 @@ def test_native_test_and_tool_names_are_not_treated_as_ambiguous(tmp_path) -> No
     ],
 )
 def test_code_entities_use_semantic_names_in_every_owned_carrier(tmp_path, relative) -> None:
-    _write(
-        tmp_path,
-        relative,
+    write_file(
+        tmp_path / relative,
         "class PlanV2: pass\ndef compile_v3(v4): return v4\nplan_v1 = PlanV2()\n",
     )
 
@@ -249,9 +240,8 @@ def test_code_entities_use_semantic_names_in_every_owned_carrier(tmp_path, relat
 
 
 def test_protocol_values_do_not_define_numbered_code_entities(tmp_path) -> None:
-    _write(
-        tmp_path,
-        "src/ethos/planning.py",
+    write_file(
+        tmp_path / "src/ethos/planning.py",
         'protocol_version = "schema-v2"\n'
         'ipv4 = "192.0.2.1"\n'
         "class Revision: pass\n"
@@ -275,7 +265,7 @@ def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypa
             "from pkg.child import __dunder__, _private, public\n"
         ),
     }
-    paths = tuple(_write(tmp_path, path, source) for path, source in sources.items())
+    paths = tuple(write_file(tmp_path / path, source) for path, source in sources.items())
     monkeypatch.setattr(layout_imports, "package_python_files", lambda *_a, **_k: paths)
     monkeypatch.setattr(layout_imports, "semantic_python_files", lambda *_a, **_k: paths)
     roots = layout_imports.package_root_submodule_import_findings(tmp_path, {}, paths)
@@ -299,15 +289,14 @@ def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypa
 def test_import_policy_names_the_defining_module_of_an_indirect_import(
     tmp_path, statement, owner
 ) -> None:
-    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
-    _write(
-        tmp_path,
-        "src/ethos/facade.py",
+    write_file(tmp_path / "src/ethos/api.py", "class Result:\n    pass\n")
+    write_file(
+        tmp_path / "src/ethos/facade.py",
         "import json as codec\nfrom ethos.api import Result\nfrom ...... import lost\n"
         "try:\n    from ethos.api import Fallback\nexcept ImportError:\n    Fallback = None\n"
         "VALUE = Result\n",
     )
-    _write(tmp_path, "src/ethos/use.py", statement + "\n")
+    write_file(tmp_path / "src/ethos/use.py", statement + "\n")
 
     findings = layout_imports.private_import_findings(tmp_path, {"semantic_paths": ["src"]})
 
@@ -327,9 +316,9 @@ def test_import_policy_names_the_defining_module_of_an_indirect_import(
 )
 def test_public_layout_gate_refuses_renaming_aliases_and_indirect_imports(tmp_path, statement, gap):
     """An import names a symbol canonically at its definer unless a collision needs `as`."""
-    _write(tmp_path, "src/ethos/api.py", "class Result:\n    pass\n")
-    _write(tmp_path, "src/ethos/facade.py", "from ethos.api import Result\n\nVALUE = Result\n")
-    _write(tmp_path, "src/ethos/use.py", statement + "\nprint('consumer')\n")
+    write_file(tmp_path / "src/ethos/api.py", "class Result:\n    pass\n")
+    write_file(tmp_path / "src/ethos/facade.py", "from ethos.api import Result\n\nVALUE = Result\n")
+    write_file(tmp_path / "src/ethos/use.py", statement + "\nprint('consumer')\n")
 
     report = module_layout_report(tmp_path)
 
@@ -371,10 +360,10 @@ def test_public_layout_gate_refuses_renaming_aliases_and_indirect_imports(tmp_pa
 )
 def test_public_layout_gate_enforces_private_ownership(tmp_path, consumer, statement, blocked):
     """Import spelling cannot cross ownership, while internal cooperation stays legal."""
-    _write(tmp_path, "src/ethos/owner/_engine.py", "def run():\n    return 1\n")
-    _write(tmp_path, "src/ethos/owner/api.py", "def run():\n    return 1\n")
-    _write(tmp_path, "src/ethos/owner/_internal/api.py", "def run():\n    return 1\n")
-    _write(tmp_path, consumer, statement + "\nprint('consumer')\n")
+    write_file(tmp_path / "src/ethos/owner/_engine.py", "def run():\n    return 1\n")
+    write_file(tmp_path / "src/ethos/owner/api.py", "def run():\n    return 1\n")
+    write_file(tmp_path / "src/ethos/owner/_internal/api.py", "def run():\n    return 1\n")
+    write_file(tmp_path / consumer, statement + "\nprint('consumer')\n")
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
 
     report = module_layout_gate_report(tmp_path)

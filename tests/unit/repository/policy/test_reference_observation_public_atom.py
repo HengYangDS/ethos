@@ -26,6 +26,19 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _recorded_parses(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record every source the Python reference observer parses, and still parse it."""
+    calls: list[str] = []
+    original = reference_declarations.python_references.ast.parse
+
+    def record_parse(source: str) -> ast.AST:
+        calls.append(source)
+        return original(source)
+
+    monkeypatch.setattr(reference_declarations.python_references.ast, "parse", record_parse)
+    return calls
+
+
 def _observed() -> dict[str, set[str]]:
     return {
         "command": set(),
@@ -223,14 +236,7 @@ def status() -> None:
     plain_text = "def plain() -> None:\n    pass\n"
     write_reference_source(tmp_path, "src/example/commands.py", command_text)
     write_reference_source(tmp_path, "src/example/plain.py", plain_text)
-    calls: list[str] = []
-    original = reference_declarations.python_references.ast.parse
-
-    def record_parse(source: str) -> object:
-        calls.append(source)
-        return original(source)
-
-    monkeypatch.setattr(reference_declarations.python_references.ast, "parse", record_parse)
+    calls = _recorded_parses(monkeypatch)
     repository_semantic_closure(tmp_path)
 
     assert calls.count(command_text) == 1
@@ -241,14 +247,7 @@ def test_command_owner_observation_skips_python_without_command_syntax(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Command ownership parses only files capable of declaring a command."""
-    parsed: list[str] = []
-    original = reference_declarations.python_references.ast.parse
-
-    def record_parse(text: str) -> object:
-        parsed.append(text)
-        return original(text)
-
-    monkeypatch.setattr(reference_declarations.python_references.ast, "parse", record_parse)
+    parsed = _recorded_parses(monkeypatch)
 
     owners = reference_declarations.command_owner_sources_from_files(
         {
@@ -282,16 +281,9 @@ def test_product_observation_parses_only_native_python_once_and_keeps_inputs_fre
         "docs/README.md": "Run `example run --json`.\n",
         "package.json": "{}\n",
     }
-    calls: list[str] = []
-    original = reference_declarations.python_references.ast.parse
-
-    def record_parse(text: str) -> ast.AST:
-        calls.append(text)
-        return original(text)
-
     context = {"src/example/app.py": application}
     with monkeypatch.context() as scope:
-        scope.setattr(reference_declarations.python_references.ast, "parse", record_parse)
+        calls = _recorded_parses(scope)
         observed = product_references_from_files(files, context_files=context)
         first_calls = Counter(calls)
         calls.clear()

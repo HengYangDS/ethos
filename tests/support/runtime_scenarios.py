@@ -22,6 +22,7 @@ from ethos.adapters.repo.hook.activation import materialize_hook_launchers
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.manifest import runtime_digest
@@ -176,13 +177,6 @@ def git_process(root: Path, *args: object, stdin: str = "") -> subprocess.Comple
         text=True,
         check=False,
     )
-
-
-def runtime_executable(runtime: Path, name: str) -> Path:
-    """Return one platform-native executable path inside a Python image."""
-    directory = "Scripts" if os.name == "nt" else "bin"
-    suffix = ".exe" if os.name == "nt" else ""
-    return runtime / directory / f"{name}{suffix}"
 
 
 def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIdentity:

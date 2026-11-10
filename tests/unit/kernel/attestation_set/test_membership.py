@@ -24,6 +24,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _synchronized_swaps(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """Hold the first two writers until both derived a new root; record each writer it held."""
+    synchronized: list[Path] = []
+    barrier, original = Barrier(2), attestation_set.run_git
+
+    def synchronized_update(root: Path, *args: str, **kwargs):
+        if (
+            # Both writers derive their root from the same observed one before either swaps;
+            # every swap then holds custody, so the second compare-and-swap is the stale one.
+            args[:3] == ("hash-object", "-t", "commit") and len(synchronized) < 2
+        ):
+            synchronized.append(root)
+            barrier.wait(timeout=10)
+        return original(root, *args, **kwargs)
+
+    monkeypatch.setattr(attestation_set, "run_git", synchronized_update)
+    return synchronized
+
+
 def _canonical_root(repo: Path, tree: str) -> str:
     payload = (
         f"tree {tree}\n"
@@ -334,20 +353,7 @@ def test_attestation_set_concurrent_writers_recompute_union_after_stale_cas(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     one, two = occurrence_attestation(5), occurrence_attestation(6)
-    barrier, original, synchronized = Barrier(2), attestation_set.run_git, 0
-
-    def synchronized_update(root: Path, *args: str, **kwargs):
-        nonlocal synchronized
-        if (
-            # Both writers derive their root from the same observed one before either swaps;
-            # every swap then holds custody, so the second compare-and-swap is the stale one.
-            args[:3] == ("hash-object", "-t", "commit") and synchronized < 2
-        ):
-            synchronized += 1
-            barrier.wait(timeout=10)
-        return original(root, *args, **kwargs)
-
-    monkeypatch.setattr(attestation_set, "run_git", synchronized_update)
+    synchronized = _synchronized_swaps(monkeypatch)
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = tuple(
             executor.submit(attestation_set.record_attestations, repo, (record,))
@@ -355,7 +361,7 @@ def test_attestation_set_concurrent_writers_recompute_union_after_stale_cas(
         )
         results = tuple(future.result(timeout=20) for future in futures)
 
-    assert synchronized == 2
+    assert len(synchronized) == 2
     root, members = attestation_set.read_attestation_set(repo)
     assert root in {str(result["root"]) for result in results}
     assert members == tuple(sorted((one, two), key=lambda item: item.id))
@@ -369,20 +375,7 @@ def test_attestation_set_concurrent_single_winner_selects_one_semantic_witness(
     payload = first.model_dump(mode="python", exclude={"id"})
     payload["issued_at"] = datetime(2026, 8, 14, 0, 0, 1, tzinfo=UTC)
     second = Attestation.issue(payload)
-    barrier, original, synchronized = Barrier(2), attestation_set.run_git, 0
-
-    def synchronized_update(root: Path, *args: str, **kwargs):
-        nonlocal synchronized
-        if (
-            # Both writers derive their root from the same observed one before either swaps;
-            # every swap then holds custody, so the second compare-and-swap is the stale one.
-            args[:3] == ("hash-object", "-t", "commit") and synchronized < 2
-        ):
-            synchronized += 1
-            barrier.wait(timeout=10)
-        return original(root, *args, **kwargs)
-
-    monkeypatch.setattr(attestation_set, "run_git", synchronized_update)
+    synchronized = _synchronized_swaps(monkeypatch)
     with ThreadPoolExecutor(max_workers=2) as executor:
         selected = tuple(
             future.result(timeout=20)
@@ -392,7 +385,7 @@ def test_attestation_set_concurrent_single_winner_selects_one_semantic_witness(
             )
         )
 
-    assert synchronized == 2
+    assert len(synchronized) == 2
     assert selected[0] == selected[1]
     assert attestation_set.read_attestation_set(repo)[1] == (selected[0],)
 

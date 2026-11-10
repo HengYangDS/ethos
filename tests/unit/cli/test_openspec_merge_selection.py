@@ -37,7 +37,6 @@ from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_test_profile
-from tests.support.openspec_lifecycle import native_merge_fixture
 from tests.support.proof import declare_native_proof_checks
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.semantic import reissue_attestation
@@ -61,12 +60,6 @@ def _archive(root: Path, head: str, change: str) -> str:
     archived = git(root, "rev-parse", "HEAD")
     _prove(root, archived, "--change", change)
     return archived
-
-
-@pytest.fixture
-def pending_merge(tmp_path: Path) -> Path:
-    """Reproduce independent open Changes with a real unresolved native merge."""
-    return native_merge_fixture(tmp_path)
 
 
 @pytest.mark.parametrize(

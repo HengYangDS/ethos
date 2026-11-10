@@ -107,3 +107,8 @@ def paradigm_report(
 def conforming_checkout(tracked: tuple[str, ...]) -> dict[str, tuple[str, str]]:
     """Return the Git text and eol attributes the shared rule gives every tracked file."""
     return dict.fromkeys(tracked, ("auto", "lf"))
+
+
+def python_lines(count: int) -> str:
+    """Return `count` one-line assignments: Python source of exactly `count` effective lines."""
+    return "".join(f"value_{index} = {index}\n" for index in range(count))

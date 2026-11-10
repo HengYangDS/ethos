@@ -12,6 +12,7 @@ from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.paradigm import CONFORMING
 from tests.support.paradigm import conforming_checkout
 from tests.support.paradigm import paradigm_report
+from tests.support.paradigm import python_lines
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -297,16 +298,12 @@ def test_unreadable_tracked_manifest_is_a_gap(tmp_path: Path, damage: bytes | No
     ]
 
 
-def _statements(count: int) -> str:
-    return "".join(f"value_{index} = {index}\n" for index in range(count))
-
-
 @pytest.mark.parametrize(
     ("source", "gaps"),
     [
-        (_statements(_CODE_CEILING), []),
-        (_statements(_CODE_CEILING + 1), [f"repository_paradigm_code_size:{_MODULE}"]),
-        ('"""' + "documentation\n" * 600 + '"""\n' + _statements(_CODE_CEILING), []),
+        (python_lines(_CODE_CEILING), []),
+        (python_lines(_CODE_CEILING + 1), [f"repository_paradigm_code_size:{_MODULE}"]),
+        ('"""' + "documentation\n" * 600 + '"""\n' + python_lines(_CODE_CEILING), []),
         ("def invalid(\n", [f"repository_paradigm_code_size:{_MODULE}"]),
     ],
     ids=["at-ceiling", "over-ceiling", "docstring-uncounted", "invalid"],
@@ -387,7 +384,7 @@ def test_a_binding_declares_its_ceiling_within_the_contract(
     tmp_path: Path, rules: str, lines: int, gaps: list[str]
 ) -> None:
     """A repository value applies within the contract's law; any other leaves the default."""
-    files = {**CONFORMING, _RULES: rules, _MODULE: _statements(lines)}
+    files = {**CONFORMING, _RULES: rules, _MODULE: python_lines(lines)}
     assert paradigm_report(tmp_path, files)["required_gaps"] == gaps
 
 
@@ -458,7 +455,7 @@ def test_received_code_and_data_carriers_stay_outside_the_code_ceiling(tmp_path:
 )
 def test_a_retired_key_names_its_rename(tmp_path: Path, key: str, renamed: str) -> None:
     """A 0.2.0-alpha.22 key leaves the default in force and names the class key."""
-    files = {**CONFORMING, _RULES: f"[paradigm.size]\n{key} = 400\n", _MODULE: _statements(450)}
+    files = {**CONFORMING, _RULES: f"[paradigm.size]\n{key} = 400\n", _MODULE: python_lines(450)}
     report = paradigm_report(tmp_path, files)
     carrier = f"{_RULES}:paradigm.size.{key}"
     assert report["required_gaps"] == [f"repository_paradigm_size_declaration:{carrier}"]

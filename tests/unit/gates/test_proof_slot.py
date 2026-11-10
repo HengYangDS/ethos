@@ -13,6 +13,7 @@ from filelock import Timeout
 import ethos.adapters.gates.host_admission as host_admission
 import ethos.adapters.gates.proof_slot as proof_slot
 from ethos.adapters.store.state.schema import local_state_root
+from tests.support.clock import FakeClock
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -25,21 +26,16 @@ if TYPE_CHECKING:
 _HEAD = "a" * 40
 
 
-class _Host:
-    """Fake load, clock and sleep; each sleep advances the clock by its own duration."""
+class _Host(FakeClock):
+    """Fake load beside the fake clock, whose sleeps advance it by their own duration."""
 
     def __init__(self, loads: list[float | None]) -> None:
+        super().__init__()
         self.loads = loads
-        self.now = 0.0
-        self.sleeps: list[float] = []
         self.events: list[dict[str, object]] = []
 
     def load(self) -> float | None:
         return self.loads.pop(0) if len(self.loads) > 1 else self.loads[0]
-
-    def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
-        self.now += seconds
 
     def admit(
         self,

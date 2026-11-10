@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from contextlib import redirect_stderr
-from io import StringIO
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -13,36 +10,22 @@ import pytest
 import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.mutation.proof_record as proof_record
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.repo.release import release_provenance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.proof import seed_executed_proof
+from tests.unit.cli.land.publication.support import TAG_REF
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import later_policy
+from tests.unit.cli.land.publication.support import pre_push
 from tests.unit.cli.land.publication.support import publication_peers
 from tests.unit.cli.land.publication.support import release_cli
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-TAG_REF = "refs/tags/v1.2.3"
-
-
-def _pre_push(repo: Path, tag: str, remote_oid: str) -> tuple[int, list[str]]:
-    stream = StringIO()
-    with redirect_stderr(stream):
-        code = execute_hook(
-            repo,
-            "pre-push",
-            ("gitlab",),
-            stdin=StringIO(f"{TAG_REF} {tag} {TAG_REF} {remote_oid}\n"),
-        )
-    output = stream.getvalue()
-    return code, json.loads(output)["required_gaps"] if output else []
 
 
 def _historical_release(tmp_path: Path) -> tuple[Path, dict[str, Path], str, str, str]:
@@ -87,7 +70,7 @@ def test_a_historical_release_publishes_under_its_recorded_policy(tmp_path: Path
     repo, peers, head, accepted, tag = _historical_release(tmp_path)
     bound = _bound_proof(repo, tag)
     with patch.object(proof_admission, "resolve_proof_policies", later_policy):
-        assert _pre_push(repo, tag, "0" * len(head)) == (0, [])
+        assert pre_push(repo, tag, "0" * len(head)) == (0, [])
         preview = branch_publication(repo, accepted, "--peer", "gitlab", target_ref=TAG_REF)
         assert preview["verdict"] == "pass", preview
         assert preview["data"]["proof_admission"]["attestation"]["id"] == bound
@@ -148,7 +131,7 @@ def test_an_unverifiable_qualification_refuses_by_name(tmp_path: Path, case: str
         else patch.object(proof_admission, "recorded_proof", embedded)
     )
     with patch.object(proof_admission, "resolve_proof_policies", later_policy), replacement:
-        code, hook_gaps = _pre_push(repo, tag, "0" * len(head))
+        code, hook_gaps = pre_push(repo, tag, "0" * len(head))
         blocked = branch_publication(
             repo, accepted, "--peer", "gitlab", target_ref=TAG_REF, blocked=True
         )

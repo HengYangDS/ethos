@@ -7,12 +7,12 @@ private ones are neutral examples of their class, never a real peer's address.
 from __future__ import annotations
 
 
-def _ipv4(*octets: int) -> str:
+def ipv4(*octets: int) -> str:
     """Join octets when used, so tracked text names no literal of a private class."""
     return ".".join(map(str, octets))
 
 
-PRIVATE_FORGE = _ipv4(192, 168, 0, 10) + ":8080"
+PRIVATE_FORGE = ipv4(192, 168, 0, 10) + ":8080"
 INTERNAL_FORGE = "forge." + "internal:8080"
 DOCUMENTATION_FORGE = "192.0.2.1:8080"
 
@@ -23,9 +23,9 @@ PEER_MARKER = f"{'ab' * 16}.{'cd' * 16}.private-peer.invalid"
 # One line each, so a native scan's line numbers identify the case.
 PRIVATE_TEXTS = {
     "private-forge-url": f"remote http://{PRIVATE_FORGE}/team/repo",
-    "rfc1918-bare": "host " + _ipv4(10, 1, 2, 3) + " is up",
-    "rfc1918-upper-edge": "[" + _ipv4(172, 31, 255, 1) + "]",
-    "sentence-end": "the forge is at " + _ipv4(10, 0, 0, 9) + ".",
+    "rfc1918-bare": "host " + ipv4(10, 1, 2, 3) + " is up",
+    "rfc1918-upper-edge": "[" + ipv4(172, 31, 255, 1) + "]",
+    "sentence-end": "the forge is at " + ipv4(10, 0, 0, 9) + ".",
     "unique-local-v6": "http://[" + "fd12" + ":3456::1]:8080/",
     "internal-port": f"http://{INTERNAL_FORGE}/team/repo",
     "lan-scp": "git@forge." + "lan:group/repo.git",
@@ -49,8 +49,8 @@ DOCUMENTATION_TEXTS = {
     "digest": "sha256:fd12ab34cd56ef7890",
     "localhost": "localhost:8080 and ('localhost', 0)",
     # Loopback and link-local literals disclose no peer, so they pass outside ETHOS's surfaces.
-    "loopback": '("' + _ipv4(127, 0, 0, 1) + '", 0)',
-    "link-local": "addr=" + _ipv4(169, 254, 1, 1),
+    "loopback": '("' + ipv4(127, 0, 0, 1) + '", 0)',
+    "link-local": "addr=" + ipv4(169, 254, 1, 1),
     "link-local-v6": "fe" + "80::1%en0",
     "loopback-v6": "http://[" + ":" + ":1]:9/",
     "redaction": f"remote https://user@{PEER_MARKER}/x and git@{PEER_MARKER}:{PEER_MARKER}",

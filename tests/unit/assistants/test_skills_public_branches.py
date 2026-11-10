@@ -9,6 +9,7 @@ import pytest
 from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import skill_portfolio_report
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -39,15 +40,10 @@ Repository source and command JSON are truth.
 """
 
 
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
 def _package(root: Path, skill_id: str, *, commands: bool = False) -> None:
     package = root / f".agents/skills/{skill_id}"
     skill = package / "SKILL.md"
-    _write(skill, _SKILL.format(skill_id=skill_id))
+    write_file(skill, _SKILL.format(skill_id=skill_id))
     digest = compute_skill_package_digest(package, ["SKILL.md"])
     capability = (
         '\n[[capability]]\nid = "ethos.status"\nkind = "command_readonly"\n'
@@ -55,7 +51,7 @@ def _package(root: Path, skill_id: str, *, commands: bool = False) -> None:
         if commands
         else ""
     )
-    _write(
+    write_file(
         package / "package.toml",
         f"""schema_version = 2
 id = "{skill_id}"
@@ -95,11 +91,11 @@ def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps
     tmp_path: Path,
 ) -> None:
     skills = tmp_path / ".agents/skills"
-    _write(skills / "README.md", "# Skills\n")
+    write_file(skills / "README.md", "# Skills\n")
     for skill_id in ("escaped", "absolute", "absent", "quality", "mismatch"):
         _package(tmp_path, skill_id)
-    _write(skills / "mismatch/OTHER.md", "alternate entrypoint\n")
-    _write(skills / "quality/SKILL.md", "# malformed\n")
+    write_file(skills / "mismatch/OTHER.md", "alternate entrypoint\n")
+    write_file(skills / "quality/SKILL.md", "# malformed\n")
     activation = (
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
         "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n\n"
@@ -125,7 +121,7 @@ def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps
             package_manifest=".agents/skills/mismatch/package.toml",
         )
     )
-    _write(skills / "activation.toml", activation)
+    write_file(skills / "activation.toml", activation)
 
     report = skill_portfolio_report(tmp_path)
     gaps = set(report["required_gaps"])
@@ -155,7 +151,7 @@ def test_skill_portfolio_report_rejects_missing_invalid_and_unsupported_activati
     assert ".agents/skills/activation.toml" in missing["required_gaps"]
     assert ".agents/skills" in missing["required_gaps"]
 
-    _write(tmp_path / ".agents/skills/activation.toml", "[meta\n")
+    write_file(tmp_path / ".agents/skills/activation.toml", "[meta\n")
     invalid = skill_portfolio_report(tmp_path)
     assert ".agents/skills/activation.toml:invalid_toml" in invalid["required_gaps"]
 
@@ -172,7 +168,7 @@ def test_original_activation_fields_cannot_disappear(tmp_path: Path, extra: str)
     """Validation precedes normalization that would otherwise erase unknown input."""
     _package(tmp_path, "valid", commands=True)
     skills = tmp_path / ".agents/skills"
-    _write(skills / "README.md", "# Skills\n")
+    write_file(skills / "README.md", "# Skills\n")
     activation = (
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n'
         "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n"
@@ -180,7 +176,7 @@ def test_original_activation_fields_cannot_disappear(tmp_path: Path, extra: str)
         + extra
         + "\n"
     )
-    _write(skills / "activation.toml", activation)
+    write_file(skills / "activation.toml", activation)
 
     report = skill_portfolio_report(tmp_path)
 
@@ -208,7 +204,7 @@ def test_incomplete_original_skill_is_rejected(tmp_path: Path, field: str) -> No
     """Every former record obligation is enforced before lossy projection."""
     record = _record("sample", package_manifest=".agents/skills/sample/package.toml")
     record = "\n".join(line for line in record.splitlines() if not line.startswith(f"{field} ="))
-    _write(
+    write_file(
         tmp_path / ".agents/skills/activation.toml",
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n'
         "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n" + record,
@@ -225,17 +221,17 @@ def test_skill_schema_cannot_be_replaced_by_adopter_checkout(tmp_path: Path) -> 
     manifest = ".agents/skills/valid/package.toml"
     expected = validate_skill_package_manifest(tmp_path, manifest)
     assert expected["verdict"] == "pass"
-    _write(tmp_path / "system/schemas/kernel/skill-package-manifest.schema.json", "false\n")
+    write_file(tmp_path / "system/schemas/kernel/skill-package-manifest.schema.json", "false\n")
     assert validate_skill_package_manifest(tmp_path, manifest) == expected
 
 
 def test_a_package_that_no_record_routes_is_reported(tmp_path: Path) -> None:
     """Every package under the Skills root has one route: an active record or a retirement."""
     skills = tmp_path / ".agents/skills"
-    _write(skills / "README.md", "# Skills\n")
+    write_file(skills / "README.md", "# Skills\n")
     for skill_id in ("routed", "unrouted"):
         _package(tmp_path, skill_id)
-    _write(
+    write_file(
         skills / "activation.toml",
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
         "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n\n"

@@ -105,3 +105,8 @@ def runtime_python(interpreter_home: Path) -> Path:
 def runtime_scripts(interpreter_home: Path) -> Path:
     """Return the console-script directory inside one owned interpreter home."""
     return interpreter_home / ("Scripts" if os.name == "nt" else "bin")
+
+
+def runtime_executable(interpreter_home: Path, name: str) -> Path:
+    """Return one platform-native console executable inside one owned interpreter home."""
+    return runtime_scripts(interpreter_home) / (f"{name}.exe" if os.name == "nt" else name)

@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.repo.commit.creation import configured_signer_fingerprint
+from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
@@ -30,6 +34,21 @@ from tests.support.signature import configure_signer
 
 PROPOSAL = "terminal-convergence"
 PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
+TAG_REF = "refs/tags/v1.2.3"
+
+
+def pre_push(repo: Path, tag: str, remote_oid: str) -> tuple[int, list[str]]:
+    """Run native pre-push for one gitlab tag update and return its gaps."""
+    stream = StringIO()
+    with redirect_stderr(stream):
+        code = execute_hook(
+            repo,
+            "pre-push",
+            ("gitlab",),
+            stdin=StringIO(f"{TAG_REF} {tag} {TAG_REF} {remote_oid}\n"),
+        )
+    output = stream.getvalue()
+    return code, json.loads(output)["required_gaps"] if output else []
 
 
 def later_policy(*_args: object, **_kwargs: object) -> tuple[tuple[str, object], ...]:

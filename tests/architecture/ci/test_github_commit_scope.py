@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-import yaml
 
 import tools.ci.ci_projection as owner
 
@@ -14,28 +13,23 @@ COMMIT_SCOPED_JOBS = ("host-conformance", "quality", "external-links", "verify",
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 
 
-@pytest.fixture(scope="module")
-def workflow() -> dict[str, Any]:
-    return yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
-
-
 @pytest.mark.parametrize("job", COMMIT_SCOPED_JOBS)
 def test_a_main_push_leaves_the_commit_scoped_jobs_to_the_dev_run(
-    workflow: dict[str, Any], job: str
+    github: dict[str, Any], job: str
 ) -> None:
-    condition = workflow["jobs"][job]["if"]
+    condition = github["jobs"][job]["if"]
     assert condition.startswith("${{ ")
     assert condition.endswith(f" && !({MAIN_PUSH}) }}}}")
     assert "||" not in condition
 
 
-def test_a_main_push_still_admits_its_pushed_range(workflow: dict[str, Any]) -> None:
-    assert "main" in workflow["on"]["push"]["branches"]
-    job = workflow["jobs"]["commit-policy"]
+def test_a_main_push_still_admits_its_pushed_range(github: dict[str, Any]) -> None:
+    assert "main" in github["on"]["push"]["branches"]
+    job = github["jobs"]["commit-policy"]
     assert job["if"] == f"${{{{ {MAIN_PUSH} }}}}"
     pushed = [
         step["run"]
-        for step in workflow["jobs"]["quality"]["steps"]
+        for step in github["jobs"]["quality"]["steps"]
         if step.get("name") == "Admit pushed commit range"
     ]
     admitted = [step["run"] for step in job["steps"] if "hook commit-range" in step.get("run", "")]

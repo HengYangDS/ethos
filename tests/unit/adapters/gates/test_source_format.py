@@ -23,7 +23,6 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import BASE_MARKDOWN
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_test_profile
 from tests.support.governed_repository import write_tree
 
@@ -35,13 +34,6 @@ def _command(root: Path, *arguments: str) -> tuple[int, dict[str, Any]]:
     completed = run_ethos_raw("lane", "format", *arguments, "--root", str(root), "--json", cwd=root)
     assert completed.stdout.startswith("{"), completed.stderr
     return completed.returncode, json.loads(completed.stdout)
-
-
-@pytest.fixture
-def lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
-    return prepared_work_lane(tmp_path, name="format").worktree
 
 
 def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:

@@ -20,9 +20,7 @@ from ethos.adapters.store.retention.plan import write_plan
 from ethos.adapters.store.retention.tombstones import retire
 from ethos.adapters.store.retention.tombstones import tombstone_of
 from ethos.adapters.store.state.schema import local_state_root
-from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import init_git_repo
 from tests.support.retention_store import lane_unit
 from tests.support.retention_store import merge_preimage
 from tests.support.retention_store import native_attempt
@@ -31,15 +29,6 @@ from tests.support.retention_store import put
 
 _REAL_RUNTIME_SELECTED = retention.runtime_selected
 _DEFERRED = "record_retirement_batch_deferred:proof-check"
-
-
-@pytest.fixture
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Provide a governed repository whose preview and apply run as the selected runtime."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    monkeypatch.setattr(retention, "runtime_selected", lambda _root: True)
-    return repo
 
 
 def _planned(repo: Path) -> str:

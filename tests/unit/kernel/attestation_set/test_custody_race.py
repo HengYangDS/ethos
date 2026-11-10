@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -148,10 +149,7 @@ def test_the_next_custody_update_deletes_bytes_a_failed_cleanup_left(
     attestation_set.record_attestations(repo, (ended_binder,))
     original = attestation_set.release_custody
 
-    def failing_release(*_arguments: object) -> tuple[str, ...]:
-        message = "custody store unavailable"
-        raise OSError(message)
-
+    failing_release = Mock(side_effect=OSError("custody store unavailable"))
     monkeypatch.setattr(attestation_set, "release_custody", failing_release)
     first = attestation_set.record_attestations(repo, (occurrence_attestation(7_001),))
     monkeypatch.setattr(attestation_set, "release_custody", original)

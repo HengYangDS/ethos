@@ -28,9 +28,22 @@ from tests.support.mise_host import outside_ci
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from collections.abc import Sequence
 
 GITLEAKS_BODY = b"#!/bin/sh\nprintf '8.30.1\\n'\n"
+
+
+def _served_downloads(monkeypatch: pytest.MonkeyPatch, package: Path) -> list[tuple[str, ...]]:
+    """Serve one archive as every native download and record each download command."""
+    calls: list[tuple[str, ...]] = []
+
+    def download(command: tuple[str, ...], *, root: Path, **_options: object) -> None:
+        calls.append(command)
+        target = root / "data/downloads" / package.name
+        target.parent.mkdir(parents=True)
+        shutil.copyfile(package, target)
+
+    monkeypatch.setattr(native_supply, "download_tool", download)
+    return calls
 
 
 def _locked_gitleaks(root: Path, package: Path) -> None:
@@ -78,15 +91,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     commit_fixture(repo, "lock native supply")
     linked = tmp_path / "linked"
     git(repo, "worktree", "add", "--detach", str(linked), "HEAD")
-    calls: list[Sequence[str]] = []
-
-    def supply_download(command: tuple[str, ...], *, root: Path, **_options: object) -> None:
-        calls.append(command)
-        destination = root / "data/downloads" / package.name
-        destination.parent.mkdir(parents=True)
-        shutil.copyfile(package, destination)
-
-    monkeypatch.setattr(native_supply, "download_tool", supply_download)
+    calls = _served_downloads(monkeypatch, package)
     with ThreadPoolExecutor(max_workers=2) as pool:
         caches = tuple(
             pool.map(
@@ -163,15 +168,7 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
 ) -> None:
     """One verified cache serves both roots and refuses drift before execution."""
     repo, linked, package, body = linked_node_supply
-    calls: list[tuple[str, ...]] = []
-
-    def download(command: tuple[str, ...], *, root: Path, **_options: object) -> None:
-        calls.append(command)
-        target = root / "data/downloads" / package.name
-        target.parent.mkdir(parents=True)
-        shutil.copyfile(package, target)
-
-    monkeypatch.setattr(native_supply, "download_tool", download)
+    calls = _served_downloads(monkeypatch, package)
     with ThreadPoolExecutor(max_workers=2) as pool:
         paths = tuple(
             pool.map(

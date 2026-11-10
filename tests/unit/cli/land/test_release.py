@@ -30,6 +30,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import write_release_mirror
 from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
+from tests.support.windows_host import translate_alternates_like_windows
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import assert_signed_publication
@@ -121,16 +122,9 @@ def test_signed_tag_alternates_survive_windows_text_newline_translation(
 ) -> None:
     """A release tag can read its source objects with byte-exact alternate paths."""
     repo, _main, _old, head = accepted_release_fixture(tmp_path)
-    native_write_text = Path.write_text
-
-    def windows_text_write(path: Path, content: str, *, encoding: str | None = None) -> int:
-        if path.name == "alternates":
-            return path.write_bytes(content.replace("\n", "\r\n").encode(encoding or "utf-8"))
-        return native_write_text(path, content, encoding=encoding)
-
     staging = tmp_path / "tag"
     with monkeypatch.context() as translated:
-        translated.setattr(Path, "write_text", windows_text_write)
+        translate_alternates_like_windows(translated)
         tag = signing_owner.create_signed_tag(repo, name="v1.2.3", head=head, staging=staging)
 
     objects = git(repo, "rev-parse", "--path-format=absolute", "--git-path", "objects")

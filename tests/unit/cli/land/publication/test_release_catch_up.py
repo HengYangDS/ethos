@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from contextlib import redirect_stderr
-from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,32 +9,17 @@ import ethos.adapters.repo.release as release_owner
 import ethos.adapters.repo.release_publication as publication_reads
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.hook.protocol import execute_hook
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.proof import seed_executed_proof
+from tests.unit.cli.land.publication.support import TAG_REF
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
+from tests.unit.cli.land.publication.support import pre_push
 from tests.unit.cli.land.publication.support import publication_peers
 from tests.unit.cli.land.publication.support import release_cli
-
-TAG_REF = "refs/tags/v1.2.3"
-
-
-def _pre_push(repo: Path, tag: str, remote_oid: str) -> tuple[int, list[str]]:
-    """Run native pre-push for one gitlab tag update and return its gaps."""
-    stream = StringIO()
-    with redirect_stderr(stream):
-        code = execute_hook(
-            repo,
-            "pre-push",
-            ("gitlab",),
-            stdin=StringIO(f"{TAG_REF} {tag} {TAG_REF} {remote_oid}\n"),
-        )
-    output = stream.getvalue()
-    return code, json.loads(output)["required_gaps"] if output else []
 
 
 def _released_while_gitlab_was_away(tmp_path: Path) -> tuple[Path, dict[str, Path], str, str]:
@@ -117,8 +99,8 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
         assert admitted["verdict"] == "pass", admitted
         assert source.call_count == 1
         assert provenance.call_count + owner_provenance.call_count == 1
-    assert _pre_push(repo, tag, "0" * len(head)) == (0, [])
-    assert _pre_push(repo, tag, tag) == (0, [])
+    assert pre_push(repo, tag, "0" * len(head)) == (0, [])
+    assert pre_push(repo, tag, tag) == (0, [])
 
     preview = branch_publication(repo, accepted, "--peer", "gitlab", target_ref=TAG_REF)
     assert preview["verdict"] == "pass", preview
@@ -154,12 +136,12 @@ def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_pa
     for signing in (("-s", "-m", "re-signed release"), ("-a", "-m", "unsigned release")):
         git(repo, "tag", "-f", *signing, "v1.2.3", head)
         replacements.append(git(repo, "rev-parse", TAG_REF))
-        code, gaps = _pre_push(repo, replacements[-1], zero)
+        code, gaps = pre_push(repo, replacements[-1], zero)
         assert (code, "release_tag_source_untrusted" in gaps) == (1, True), gaps
     git(repo, "update-ref", TAG_REF, tag)
 
     git(repo, "push", "gitlab", f"{replacements[0]}:{TAG_REF}")
-    code, gaps = _pre_push(repo, tag, replacements[0])
+    code, gaps = pre_push(repo, tag, replacements[0])
     assert (code, "release_tag_immutable" in gaps) == (1, True), gaps
     blocked = branch_publication(
         repo, accepted, "--peer", "gitlab", target_ref=TAG_REF, blocked=True
@@ -172,7 +154,7 @@ def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_pa
     trust = anchor.read_text(encoding="utf-8")
     anchor.write_text("", encoding="utf-8")
     try:
-        code, gaps = _pre_push(repo, tag, zero)
+        code, gaps = pre_push(repo, tag, zero)
         assert (code, "release_tag_source_untrusted" in gaps) == (1, True), gaps
     finally:
         anchor.write_text(trust, encoding="utf-8")
@@ -182,6 +164,6 @@ def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_pa
     (detached / "rewritten.txt").write_text("accepted without the release\n", encoding="utf-8")
     rewritten = commit_fixture(detached, "fix: accepted history without the release")
     git(repo, "update-ref", "refs/heads/dev", rewritten, accepted)
-    code, gaps = _pre_push(repo, tag, zero)
+    code, gaps = pre_push(repo, tag, zero)
     assert (code, "release_tag_source_untrusted" in gaps) == (1, True), gaps
     assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", TAG_REF) == ""

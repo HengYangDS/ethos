@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.repo.hook.admission as hook_runtime
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from tests.support.paradigm import python_lines
 from tests.support.runtime_scenarios import git_process
 
 if TYPE_CHECKING:
@@ -19,36 +19,21 @@ _CEILING = load_repository_paradigm().parameter_defaults("size")["code_effective
 _LOWERED = "[paradigm.size]\ncode_effective_lines = 400\n"
 
 
-def _python(count: int) -> str:
-    return "".join(f"value_{index} = {index}\n" for index in range(count))
-
-
 def _javascript(count: int) -> str:
     return "".join(f"const value_{index} = {index};\n" for index in range(count))
-
-
-@pytest.fixture
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Provide an empty repository whose `pre-commit` runs only its staged content checks."""
-    assert git_process(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(
-        "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
-    )
-    return tmp_path
 
 
 @pytest.mark.parametrize(
     ("staged", "unstaged", "gap"),
     [
-        ({"module.py": _python(_CEILING + 1)}, {}, f"module.py:{_CEILING + 1}>{_CEILING}"),
+        ({"module.py": python_lines(_CEILING + 1)}, {}, f"module.py:{_CEILING + 1}>{_CEILING}"),
         ({"module.js": _javascript(_CEILING + 1)}, {}, f"module.js:{_CEILING + 1}>{_CEILING}"),
-        ({"module.py": _python(_CEILING)}, {"module.py": _python(_CEILING + 1)}, ""),
-        ({"module.py": _python(401)}, {".ethos/rules.toml": _LOWERED}, "module.py:401>400"),
+        ({"module.py": python_lines(_CEILING)}, {"module.py": python_lines(_CEILING + 1)}, ""),
+        ({"module.py": python_lines(401)}, {".ethos/rules.toml": _LOWERED}, "module.py:401>400"),
         (
             {
                 ".gitattributes": "module.py linguist-generated\n",
-                "module.py": _python(_CEILING + 1),
+                "module.py": python_lines(_CEILING + 1),
             },
             {},
             "",

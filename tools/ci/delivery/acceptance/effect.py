@@ -26,6 +26,7 @@ from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
 from ethos.adapters.repo.runtime.materialization.dependency_supply import (
@@ -59,13 +60,6 @@ ARTIFACTS = ROOT / "build/artifacts/python"
 WORK = ROOT / "build/runtime/work/local-install-smoke"
 EVIDENCE = ROOT / "build/evidence/local-install/smoke.json"
 RUNTIME = ProjectRuntime.discover(ROOT)
-
-
-def _venv_executable(root: Path, name: str) -> Path:
-    """Return a virtual-environment executable on POSIX or Windows."""
-    directory = "Scripts" if os.name == "nt" else "bin"
-    suffix = ".exe" if os.name == "nt" else ""
-    return root / directory / f"{name}{suffix}"
 
 
 def _run(
@@ -199,7 +193,7 @@ def _verify_resources(wheel: Path) -> list[str]:
 def observe_installed_package(
     smoke: Path, adopter: Path, *, environment: dict[str, str]
 ) -> tuple[str, str, dict[str, object]]:
-    python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
+    python, ethos = runtime_executable(smoke, "python"), runtime_executable(smoke, "ethos")
     _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK, env=environment)
     version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK, env=environment)
     status_json = _run(
@@ -278,7 +272,7 @@ def observe_package(
         install_locked_runtime(
             ROOT,
             source_python,
-            _venv_executable(smoke, "python"),
+            runtime_executable(smoke, "python"),
             wheel,
             requirements,
         )
@@ -293,7 +287,7 @@ def observe_package(
         origin, version, command_plane = observe_installed_package(
             smoke, adopter, environment=package_environment
         )
-    installed_ethos = _venv_executable(smoke, "ethos")
+    installed_ethos = runtime_executable(smoke, "ethos")
     build, wheel_sha256 = selected.build, selected.sha256
     # Formation owns only the repositories it creates, so it runs beside the other
     # installed-console stages; the lifecycle waits for it before retiring the console.
@@ -322,7 +316,7 @@ def observe_package(
                 "pip",
                 "check",
                 "--python",
-                str(_venv_executable(smoke, "python")),
+                str(runtime_executable(smoke, "python")),
                 env=package_environment,
             )
         with observe_stage("wheel_resources"):

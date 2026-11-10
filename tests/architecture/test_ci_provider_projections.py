@@ -20,7 +20,6 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.paradigm.parameters import seconds
-from ethos.repository.policy.projections import observe_projections
 from tests.support.registries import repository_registry_path
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
@@ -28,28 +27,6 @@ from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
 MISE_FLOOR = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())["min_version"]
-
-
-@pytest.fixture(scope="module")
-def ci_materials():
-    """Share immutable native inputs; every fault case gets its own mutable copy."""
-    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
-    paths = {path for relation in observe_projections(ROOT) for path in relation.materials}
-    paths.update(path for entry in config["projection"] for path in entry["required_owner_scripts"])
-    paths.update(entry["projection"] for entry in config["forge_surface"])
-    return config, {path: (ROOT / path).read_text() for path in paths}
-
-
-@pytest.fixture(scope="module")
-def github():
-    """Read the actual hosted projection once; source parity is checked separately."""
-    return yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
-
-
-@pytest.fixture(scope="module")
-def gitlab():
-    """Read the actual GitLab projection consumed by its native runner."""
-    return yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text())
 
 
 def _range_coordinates(command: str) -> tuple[str, ...]:

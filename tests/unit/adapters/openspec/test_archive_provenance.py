@@ -19,6 +19,19 @@ from tests.support.semantic import commitment_fixture
 TRAILER = "Co-authored-by: Legacy Agent <legacy@example.invalid>"
 
 
+def _refused_plans(monkeypatch, owner):
+    """Refuse every effect plan `owner` decodes as invalid; return the candidates it decoded."""
+    decoded = []
+
+    def invalid_plan(candidate):
+        decoded.append(candidate)
+        message = "invalid selected plan"
+        raise ValueError(message)
+
+    monkeypatch.setattr(owner, "plan_from_attestation", invalid_plan)
+    return decoded
+
+
 @pytest.mark.parametrize("valid", [False, True])
 @pytest.mark.parametrize("related", [False, True])
 def test_archive_candidates_verify_repair_once_per_fresh_observation(
@@ -203,14 +216,7 @@ def test_archive_resolution_selects_exact_refresh_predecessor(tmp_path, monkeypa
             }
         ),
     )
-    decoded = []
-
-    def invalid_plan(candidate):
-        decoded.append(candidate)
-        message = "invalid selected plan"
-        raise ValueError(message)
-
-    monkeypatch.setattr(rewrite, "plan_from_attestation", invalid_plan)
+    decoded = _refused_plans(monkeypatch, rewrite)
     refs = git(root, "show-ref")
     assert (
         provenance.resolve_archive_head(
@@ -281,15 +287,7 @@ def test_archive_readers_decode_only_relevant_effect_plans(
             }
         ),
     )
-    decoded = []
-
-    def invalid_plan(candidate):
-        decoded.append(candidate)
-        message = "invalid selected plan"
-        raise ValueError(message)
-
-    owner = archive if reader == "archive" else rewrite
-    monkeypatch.setattr(owner, "plan_from_attestation", invalid_plan)
+    decoded = _refused_plans(monkeypatch, archive if reader == "archive" else rewrite)
     if reader == "archive":
         monkeypatch.setattr(archive, "read_attestation_set", lambda _root: ("selected", (record,)))
         result = archive.attested_archive_transition(tmp_path, head="head")

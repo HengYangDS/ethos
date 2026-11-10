@@ -9,11 +9,13 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import NamedTuple
 
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.application.adoption import adopt_repository
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -27,6 +29,8 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from ethos.result import EthosResult
 
 # The root documents every governed repository keeps, as the paradigm declares them.
 ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
@@ -121,11 +125,17 @@ def lane_start_arguments(
     )
 
 
+def write_file(path: Path, text: str) -> Path:
+    """Write one UTF-8 fixture file, creating its directory, and return its path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def write_tree(root: Path, files: Mapping[str, str]) -> None:
     """Write UTF-8 fixture files at their relative paths, creating their directories."""
     for relative, content in files.items():
-        (root / relative).parent.mkdir(parents=True, exist_ok=True)
-        (root / relative).write_text(content, encoding="utf-8")
+        write_file(root / relative, content)
 
 
 def commit_fixture_file(root: Path, relative: str, content: str, message: str) -> str:
@@ -351,6 +361,16 @@ def write_release_mirror(repo: Path, release_mirror: str) -> None:
     kept = text.rstrip("\n")
     rendered = render_release_mirror(release_mirror)
     release.write_text(f"{kept}\n\n{rendered}" if kept else rendered, encoding="utf-8")
+
+
+def apply_reviewed_adoption(
+    target: Path, request: dict[str, Any], preview: EthosResult
+) -> EthosResult:
+    """Apply one adoption request against the plan digest its preview reviewed."""
+    digest = str(preview.data["plan_digest"])
+    return adopt_repository(
+        target, **request, apply=True, authorize=True, expect_plan_digest=digest
+    )
 
 
 def adopt_and_commit(

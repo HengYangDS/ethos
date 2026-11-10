@@ -21,17 +21,6 @@ _SECRET_POLICY = ".config/checks/gitleaks/gitleaks.toml"
 _SECRET_IGNORE = ".config/checks/gitleaks/gitleaksignore"
 
 
-@pytest.fixture
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Provide an empty repository whose selected runtime and prewrite owner are neutral."""
-    assert git_process(tmp_path, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(
-        "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
-    )
-    return tmp_path
-
-
 def _commit_fixture(repo: Path, message: str) -> None:
     """Record fixture history without signing, hooks or ambient identity."""
     assert (

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -13,6 +13,10 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.windows_host import translate_alternates_like_windows
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
@@ -42,15 +46,8 @@ def test_git_alternates_survive_windows_text_newline_translation(
     """Native object alternates must not acquire a carriage return on Windows."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
-    native_write_text = Path.write_text
-
-    def windows_text_write(path: Path, content: str, *, encoding: str | None = None) -> int:
-        if path.name == "alternates":
-            return path.write_bytes(content.replace("\n", "\r\n").encode(encoding or "utf-8"))
-        return native_write_text(path, content, encoding=encoding)
-
     with monkeypatch.context() as translated:
-        translated.setattr(Path, "write_text", windows_text_write)
+        translate_alternates_like_windows(translated)
         with isolated_git_objects(repo) as isolated:
             assert isolated("cat-file", "-t", head).returncode == 0
 

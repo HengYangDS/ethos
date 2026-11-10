@@ -5,22 +5,24 @@ from __future__ import annotations
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.custody import store_custody
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
+from tests.support.semantic import custody_path
 from tests.support.semantic import occurrence_attestation
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos.contracts.semantic import Attestation
 
 _START = datetime(2026, 10, 1, tzinfo=UTC)
@@ -63,10 +65,6 @@ def _proof(commit: str) -> Attestation:
         payload_body={"head": commit},
         evidence_refs=("evidence:test:proof",),
     )
-
-
-def _custody_path(repo: Path, digest: str) -> Path:
-    return Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
 
 
 def _members(repo: Path) -> set[str]:
@@ -147,10 +145,7 @@ def test_unobservable_lifetime_facts_remove_nothing(
     closed = _expiring_record(hour=1)
     attestation_set.record_attestations(repo, (closed,))
 
-    def unobservable(*_arguments: object) -> object:
-        message = "git worktree list unavailable"
-        raise OSError(message)
-
+    unobservable = Mock(side_effect=OSError("git worktree list unavailable"))
     monkeypatch.setattr(attestation_set, "observe_lifetime_facts", unobservable)
     added = occurrence_attestation(6_006)
     result = attestation_set.record_attestations(repo, (added,))
@@ -187,7 +182,7 @@ def test_ended_member_custody_leaves_with_its_last_binder(tmp_path: Path) -> Non
     result = attestation_set.record_attestations(repo, (occurrence_attestation(6_004),))
 
     assert result["removed"] == (expired.id,)
-    assert not _custody_path(repo, digest).exists()
+    assert not custody_path(repo, digest).exists()
 
 
 def test_custody_a_recorded_member_binds_outlives_an_ended_binder(tmp_path: Path) -> None:
@@ -209,7 +204,7 @@ def test_custody_a_recorded_member_binds_outlives_an_ended_binder(tmp_path: Path
     result = attestation_set.record_attestations(repo, (successor,))
 
     assert result["removed"] == (expired.id,)
-    assert _custody_path(repo, digest).read_bytes() == b"shared custody evidence"
+    assert custody_path(repo, digest).read_bytes() == b"shared custody evidence"
 
 
 def test_custody_cleanup_failure_does_not_fail_a_committed_update(
@@ -221,17 +216,14 @@ def test_custody_cleanup_failure_does_not_fail_a_committed_update(
     expired = _expiring_record(digest, hour=0)
     attestation_set.record_attestations(repo, (expired,))
 
-    def failing_release(*_arguments: object) -> tuple[str, ...]:
-        message = "custody store unavailable"
-        raise OSError(message)
-
+    failing_release = Mock(side_effect=OSError("custody store unavailable"))
     monkeypatch.setattr(attestation_set, "release_custody", failing_release)
     added = occurrence_attestation(6_007)
     result = attestation_set.record_attestations(repo, (added,))
 
     assert (result["added"], result["removed"]) == ((added.id,), (expired.id,))
     assert result["custody_gap"] == "custody store unavailable"
-    assert _custody_path(repo, digest).exists()
+    assert custody_path(repo, digest).exists()
 
 
 def test_an_existing_member_above_the_bound_records_again_unchanged(

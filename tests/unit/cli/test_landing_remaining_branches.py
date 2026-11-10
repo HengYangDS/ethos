@@ -9,19 +9,16 @@ import pytest
 
 import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
+from tests.support.subprocesses import completed
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _git(stdout: str = "head", returncode: int = 0) -> SimpleNamespace:
-    return SimpleNamespace(stdout=stdout, returncode=returncode)
-
-
 def test_land_apply_stops_at_public_mutation_admission(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git())
+    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: completed("head"))
     monkeypatch.setattr(
         landing,
         "evaluate_mutation",
@@ -37,7 +34,7 @@ def test_land_apply_stops_at_public_mutation_admission(
 def test_land_apply_normalizes_unexpected_candidate_plan_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git())
+    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: completed("head"))
     monkeypatch.setattr(
         landing, "evaluate_mutation", lambda **_k: SimpleNamespace(verdict="pass", required_gaps=())
     )
@@ -81,7 +78,7 @@ def test_candidate_base_report_exposes_missing_projection_coordinates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, candidate: dict[str, object], gap: str
 ) -> None:
     monkeypatch.setattr(landing, "load_branch_role_policy", lambda _root: BranchRolePolicy())
-    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git())
+    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: completed("head"))
 
     report = landing.candidate_base_report(root=tmp_path, status={"candidate": candidate})
 
@@ -100,7 +97,7 @@ def test_candidate_base_report_blocks_dirty_and_non_ancestor_candidate(
         }
     }
     monkeypatch.setattr(landing, "load_branch_role_policy", lambda _root: BranchRolePolicy())
-    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: _git("candidate"))
+    monkeypatch.setattr(landing, "run_git", lambda *_a, **_k: completed("candidate"))
     monkeypatch.setattr(landing, "has_changed_paths", lambda _root: True)
 
     assert landing.candidate_base_report(root=tmp_path, status=status)["required_gaps"] == [

@@ -19,6 +19,7 @@ import ethos.adapters.repo.runtime.manifest as runtime_manifest
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
@@ -28,7 +29,6 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
-from tests.support.runtime_scenarios import runtime_executable
 
 
 @pytest.mark.parametrize("source", ["current", "alternate", "package"])

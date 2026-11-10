@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-import yaml
 
 import tools.ci.ci_projection as owner
 
@@ -13,11 +12,6 @@ ROOT = owner.ROOT
 COMMIT_SCOPED_JOBS = ("ethos:host-conformance", "ethos:verify", "ethos:external-links", "ethos:npm")
 REF_SCOPED_JOBS = ("ethos:commit-policy",)
 MAIN = '$CI_COMMIT_BRANCH == "main"'
-
-
-@pytest.fixture(scope="module")
-def gitlab() -> dict[str, Any]:
-    return yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("job", COMMIT_SCOPED_JOBS)

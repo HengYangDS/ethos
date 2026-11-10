@@ -4,25 +4,14 @@ from __future__ import annotations
 
 import shlex
 from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
 
 from ethos.adapters.repo.commit.creation import commit_signer_action
-from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import commit_policy_capability
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.runtime_scenarios import git_process
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from ethos.adapters.repo.hook.observation import CommitPolicyEnforcement
-
-
-def _capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEnforcement]:
-    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
-    return projected, cast(
-        "CommitPolicyEnforcement", projected["data"]["commit_policy_enforcement"]
-    )
 
 
 def test_lifecycle_role_requires_the_local_signer_of_commit_creation(tmp_path: Path) -> None:
@@ -30,7 +19,7 @@ def test_lifecycle_role_requires_the_local_signer_of_commit_creation(tmp_path: P
     repo, _candidate = start_adopted_candidate(tmp_path)
     assert git_process(repo, "config", "--unset", "user.signingkey").returncode == 0
 
-    projected, capability = _capability(repo)
+    projected, capability = commit_policy_capability(repo)
 
     assert projected["data"]["role"] == "accepted_root"
     assert projected["verdict"] == "block"
@@ -56,7 +45,7 @@ def test_verifying_checkout_reports_a_missing_signer_without_blocking(tmp_path: 
     assert git_process(repo, "worktree", "add", "--detach", str(detached), "dev").returncode == 0
     assert git_process(repo, "config", "--unset", "user.signingkey").returncode == 0
 
-    projected, capability = _capability(detached)
+    projected, capability = commit_policy_capability(detached)
 
     assert projected["data"]["role"] == "detached"
     assert "git_effect_signing_key_invalid" not in projected["required_gaps"]

@@ -14,6 +14,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 from typing import override
 from unittest.mock import patch
 
@@ -31,6 +32,8 @@ from tests.support.git_isolation import GIT_ISOLATION
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
+
+    from ethos.adapters.repo.hook.observation import CommitPolicyEnforcement
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHONPATH = str(ROOT / "src")
@@ -90,6 +93,14 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = True) ->
         raise AssertionError(completed.stderr or completed.stdout)
     payload = json.loads(completed.stdout)
     return expand_result(payload) if full_payload else payload
+
+
+def commit_policy_capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEnforcement]:
+    """Return public status and the commit-policy enforcement it projects for one repository."""
+    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    return projected, cast(
+        "CommitPolicyEnforcement", projected["data"]["commit_policy_enforcement"]
+    )
 
 
 def _externalized(payload: object) -> bool:

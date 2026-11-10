@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
@@ -24,6 +25,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 ISSUER = "agent:test:case:one"
+
+
+def oid(label: str) -> str:
+    """Return the stable SHA-1 object ID that one label names, for refs no repository holds."""
+    return hashlib.sha1(label.encode(), usedforsecurity=False).hexdigest()
 
 
 def fixture(root: Path, identity: str = "repository:repo") -> SimpleNamespace:

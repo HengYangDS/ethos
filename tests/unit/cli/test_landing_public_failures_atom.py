@@ -15,16 +15,13 @@ from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import seed_executed_proof
+from tests.support.subprocesses import completed
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 HEAD = "a" * 40
 CANDIDATE = "b" * 40
-
-
-def _git(stdout: str = "head", returncode: int = 0) -> SimpleNamespace:
-    return SimpleNamespace(stdout=stdout, returncode=returncode)
 
 
 def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, object]:
@@ -79,7 +76,7 @@ def test_apply_returns_candidate_plan_block_without_effect(
 ) -> None:
     _candidate_transition(tmp_path, monkeypatch)
     blocked = {"verdict": "block", "state": "blocked", "required_gaps": ["proof_not_proven"]}
-    monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: _git())
+    monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: completed("head"))
     monkeypatch.setattr(landing, "candidate_base_report", lambda **_kwargs: blocked)
 
     assert (
@@ -107,7 +104,7 @@ def test_apply_reports_candidate_effect_failure_coordinates(
     monkeypatch.setattr(
         landing,
         "run_git",
-        lambda _root, *args, **_kwargs: _git(
+        lambda _root, *args, **_kwargs: completed(
             CANDIDATE if args[:2] == ("rev-parse", "candidate/dev") else HEAD
         ),
     )
@@ -129,7 +126,7 @@ def test_candidate_transition_readiness_requires_proof(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _candidate_transition(tmp_path, monkeypatch)
-    monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: _git(HEAD))
+    monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: completed(HEAD))
     monkeypatch.setattr(
         landing, "proof_attestation", lambda *_args, **_kwargs: (None, ["proof_not_proven"])
     )
@@ -143,7 +140,7 @@ def test_candidate_to_accepted_stops_at_decision_and_reobservation_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     blocked_decision = SimpleNamespace(verdict="block", required_gaps=("authorization_required",))
-    monkeypatch.setattr(accepted_admission, "run_git", lambda *_args, **_kwargs: _git("head"))
+    monkeypatch.setattr(accepted_admission, "run_git", lambda *_args, **_kwargs: completed("head"))
     monkeypatch.setattr(
         accepted_admission, "accepted_transition_policy", lambda *_args: BranchRolePolicy()
     )
@@ -180,7 +177,7 @@ def test_default_accepted_policy_rejects_unreadable_or_changed_carrier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, returncode: int, stdout: str
 ) -> None:
     monkeypatch.setattr(
-        accepted_admission, "run_git", lambda *_args, **_kwargs: _git(stdout, returncode)
+        accepted_admission, "run_git", lambda *_a, **_k: completed(stdout, returncode=returncode)
     )
 
     report = accepted_admission.candidate_to_accepted(

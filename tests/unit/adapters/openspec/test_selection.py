@@ -16,7 +16,6 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.openspec_lifecycle import native_merge_fixture
 from tests.support.runtime_scenarios import git_process
 
 ACTIVE = [{"name": "active", "status": "in-progress"}]
@@ -45,12 +44,6 @@ def test_an_explicit_change_binds_one_invocation_and_its_children(
         seen.append(requested_change())
     assert seen == ["inner", "inner\n", inherited]
     assert requested_change() == inherited
-
-
-@pytest.fixture
-def pending_merge(tmp_path: Path) -> Path:
-    """Reproduce independent open Changes with a real unresolved native merge."""
-    return native_merge_fixture(tmp_path)
 
 
 @pytest.mark.parametrize(

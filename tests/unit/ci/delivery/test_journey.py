@@ -30,10 +30,8 @@ CHANGELOG = """# Changelog
 """
 VERSION, PLATFORM = "0.2.0-alpha.29", "linux-x64"
 ARCHIVE = f"ethos-{VERSION}-{PLATFORM}.tar.gz"
-
-
-def _digest(content: bytes) -> str:
-    return hashlib.sha256(content).hexdigest()
+# The expected SHA-256 of each archive body a case publishes.
+SHA256 = {body: hashlib.sha256(body).hexdigest() for body in (b"archive", b"other")}
 
 
 def test_the_previous_release_is_the_next_published_changelog_entry() -> None:
@@ -101,11 +99,11 @@ def test_only_verified_release_bytes_reach_the_installation(
         if command[1:3] == ("release", "download"):
             target = Path(command[command.index("--dir") + 1])
             (target / ARCHIVE).write_bytes(b"archive")
-            (target / "SHA256SUMS").write_text(f"{_digest(listed)}  {ARCHIVE}\n")
+            (target / "SHA256SUMS").write_text(f"{SHA256[listed]}  {ARCHIVE}\n")
             (target / f"ethos-{VERSION}.mise.toml").write_text(
                 f'[tools."http:ethos"]\nversion = "{VERSION}"\n\n[tools."http:ethos".platforms]\n'
                 f'{PLATFORM} = {{ url = "https://example.invalid/{ARCHIVE}", '
-                f'checksum = "sha256:{_digest(declared)}", bin_path = "ethos/bin" }}\n'
+                f'checksum = "sha256:{SHA256[declared]}", bin_path = "ethos/bin" }}\n'
             )
             return subprocess.CompletedProcess(command, 0, "", "")
         return subprocess.CompletedProcess(command, verified, "", "denied" if verified else "")
@@ -119,9 +117,9 @@ def test_only_verified_release_bytes_reach_the_installation(
         published = journey.download_release(
             f"v{VERSION}", target, platform=PLATFORM, attested=True
         )
-        assert (published.version, published.sha256) == (VERSION, _digest(b"archive"))
+        assert (published.version, published.sha256) == (VERSION, SHA256[b"archive"])
         assert published.archive == target / ARCHIVE
-        assert f'checksum = "sha256:{_digest(b"archive")}"' in published.declaration
+        assert f'checksum = "sha256:{SHA256[b"archive"]}"' in published.declaration
     attested = [command for command in calls if command[1:3] == ("attestation", "verify")]
     expected = (
         []

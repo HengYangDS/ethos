@@ -6,13 +6,11 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
-import pytest
 import yaml
 
 import tools.ci.ci_projection as owner
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
-from ethos.repository.policy.projections import observe_projections
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -20,19 +18,9 @@ if TYPE_CHECKING:
 ROOT = owner.ROOT
 
 
-@pytest.fixture(scope="module")
-def materials() -> tuple[dict[str, object], dict[str, str]]:
-    """Read the projection declaration and every input it compiles from, once."""
-    config = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
-    paths = {path for relation in observe_projections(ROOT) for path in relation.materials}
-    paths.update(path for entry in config["projection"] for path in entry["required_owner_scripts"])
-    paths.update(entry["projection"] for entry in config["forge_surface"])
-    return config, {path: (ROOT / path).read_text() for path in paths}
-
-
-def test_each_projected_job_is_named_by_its_matrix_coordinates(tmp_path, materials) -> None:
+def test_each_projected_job_is_named_by_its_matrix_coordinates(tmp_path, ci_materials) -> None:
     """A required check keeps its identity: only its own matrix axes vary a job's name."""
-    config, files = materials
+    config, files = ci_materials
     mise = config["compiler"]["inputs"]["mise"]
     tools = tomllib.loads(files[mise])["tools"]
     changed = files[mise]

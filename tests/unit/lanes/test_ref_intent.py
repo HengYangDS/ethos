@@ -29,16 +29,13 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.contracts.plan import GitRefUpdate
 from tests.support.git_effect import ISSUER
 from tests.support.git_effect import fixture
+from tests.support.git_effect import oid
 from tests.support.git_effect import proof_plan
 from tests.support.governed_repository import git
 
 
-def _oid(label: str) -> str:
-    return hashlib.sha1(label.encode(), usedforsecurity=False).hexdigest()
-
-
 def _update(*, old: str = "old", new: str = "new") -> GitRefUpdate:
-    return GitRefUpdate(expected=_oid(old), desired=_oid(new))
+    return GitRefUpdate(expected=oid(old), desired=oid(new))
 
 
 def _write(
@@ -94,8 +91,8 @@ def test_intent_persists_only_exact_operation_transition_and_recovery(tmp_path: 
         "schema_version": 2,
         "operation": "candidate.accept",
         "ref_name": "refs/heads/dev",
-        "old_value": _oid("old"),
-        "new_value": _oid("new"),
+        "old_value": oid("old"),
+        "new_value": oid("new"),
         "plan_digest": hashlib.sha256(b"plan", usedforsecurity=False).hexdigest(),
         "nonce": "",
         "phase": "issued",
@@ -151,12 +148,12 @@ def test_committed_intent_carries_the_exact_plan_digest(tmp_path: Path) -> None:
     assert _claim(tmp_path, "committed", plan_digest=plan_digest)["gap"] == ""
 
     recovered = committed_ref_intent(
-        root=tmp_path, ref_name="refs/heads/dev", operation="candidate.accept", desired=_oid("new")
+        root=tmp_path, ref_name="refs/heads/dev", operation="candidate.accept", desired=oid("new")
     )
 
     assert recovered["gap"] == ""
     assert recovered["plan_digest"] == plan_digest
-    assert recovered["old_value"] == _oid("old")
+    assert recovered["old_value"] == oid("old")
 
 
 def test_expired_prepared_intent_recovers_after_observed_git_cas(tmp_path: Path) -> None:

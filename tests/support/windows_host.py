@@ -31,6 +31,18 @@ def translate_like_windows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "write_text", translated)
 
 
+def translate_alternates_like_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Write Git's object `alternates` with CRLF newlines, as a Windows text write would."""
+    write_text = Path.write_text
+
+    def windows_text_write(path: Path, content: str, *, encoding: str | None = None) -> int:
+        if path.name == "alternates":
+            return path.write_bytes(content.replace("\n", "\r\n").encode(encoding or "utf-8"))
+        return write_text(path, content, encoding=encoding)
+
+    monkeypatch.setattr(Path, "write_text", windows_text_write)
+
+
 def without_descriptor_chain(monkeypatch: pytest.MonkeyPatch) -> None:
     """Show the content owner the `os` surface of a host without no-follow descriptor opens."""
     absent = {"O_DIRECTORY", "O_NOFOLLOW", "O_NONBLOCK"}

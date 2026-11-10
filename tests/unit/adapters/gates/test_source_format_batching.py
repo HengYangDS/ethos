@@ -10,18 +10,10 @@ import pytest
 
 import ethos.adapters.gates.formatting as formatting_gate
 from ethos.adapters.gates.formatting import prepare_source_format
-from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-@pytest.fixture
-def lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
-    return prepared_work_lane(tmp_path, name="format").worktree
 
 
 def test_clean_selection_costs_the_same_native_checks_at_any_size(

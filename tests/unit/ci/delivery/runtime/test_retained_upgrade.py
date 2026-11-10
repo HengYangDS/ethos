@@ -9,6 +9,7 @@ import sys
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -33,19 +34,21 @@ from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance.brownfield import prove_retained_authoring
 
 
+def _run(*command: str, cwd: Path, env: dict[str, str] | None = None) -> str:
+    """Run one checked command in its directory and return its stripped output."""
+    result = run_command(cwd, command, env=env)
+    result.check_returncode()
+    return result.stdout.strip()
+
+
 def test_retained_adopter_is_signed_legacy_source_before_activation(tmp_path: Path) -> None:
     """Prepare historical inputs, not a bypass of an already installed governor."""
     configuration = tmp_path / "config.yaml"
     configuration.write_bytes(b"schema: spec-driven\n")
     repository = tmp_path / "retained"
 
-    def run(*command, cwd=tmp_path, env=None):
-        result = run_command(cwd, command, env=env)
-        result.check_returncode()
-        return result.stdout.strip()
-
     head = adopter_fixture.materialize_adopter(
-        repository, openspec_config=configuration, run=run, retained=True
+        repository, openspec_config=configuration, run=partial(_run, cwd=tmp_path), retained=True
     )
     original = repository / "openspec/changes/smoke-change-20261008"
     assert (original / ".openspec.yaml").is_file()
@@ -72,13 +75,8 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
     configuration = REPOSITORY_ROOT / "openspec/config.yaml"
     repository = tmp_path / "retained"
 
-    def run(*command, cwd=tmp_path, env=None):
-        result = run_command(cwd, command, env=env)
-        result.check_returncode()
-        return result.stdout.strip()
-
     adopter_fixture.materialize_adopter(
-        repository, openspec_config=configuration, run=run, retained=True
+        repository, openspec_config=configuration, run=partial(_run, cwd=tmp_path), retained=True
     )
     branch, holder = "work/retained-upgrade-fixture", "agent:test:package-only:retained"
     run_git(repository, "branch", "-m", branch)

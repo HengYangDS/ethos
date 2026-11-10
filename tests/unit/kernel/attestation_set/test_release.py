@@ -5,18 +5,19 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.custody import store_custody
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
+from tests.support.semantic import custody_path
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos.contracts.semantic import Attestation
 
 _OWNER = "agent:test:custody-owner"
@@ -36,10 +37,6 @@ def _claim(ordinal: int, *references: str, predicate: str = "observation:custody
     )
 
 
-def _stored(repo: Path, digest: str) -> Path:
-    return Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
-
-
 def test_verifier_release_removes_the_member_and_its_unbound_custody(tmp_path: Path) -> None:
     """Bytes leave with their last binder; bytes another member binds stay."""
     repo = init_git_repo(tmp_path / "repo")
@@ -54,8 +51,8 @@ def test_verifier_release_removes_the_member_and_its_unbound_custody(tmp_path: P
     assert result["released"] == first.id
     assert result["custody_deleted"] == (alone,)
     assert attestation_set.read_attestation_set(repo) == (result["root"], (second,))
-    assert _stored(repo, shared).exists()
-    assert not _stored(repo, alone).exists()
+    assert custody_path(repo, shared).exists()
+    assert not custody_path(repo, alone).exists()
     last = attestation_set.release_attestation(repo, second.id, actor=_OWNER)
     assert last["custody_deleted"] == (shared,)
     assert attestation_set.read_attestation_set(repo)[1] == ()

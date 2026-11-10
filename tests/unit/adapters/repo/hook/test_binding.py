@@ -8,9 +8,6 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -26,16 +23,13 @@ from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
-from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import commit_policy_capability
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_test_profile
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.runtime_scenarios import runtime_build
-
-if TYPE_CHECKING:
-    from ethos.adapters.repo.hook.observation import CommitPolicyEnforcement
 
 _POLICY = '[commit_policy]\nsubject_pattern = "fix: .+"\n'
 
@@ -53,19 +47,12 @@ def _fixture(tmp_path: Path, *, policy: str | None = None) -> tuple[Path, Path]:
     return repo, Path(binding["hooks_path"])
 
 
-def _capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEnforcement]:
-    projected = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
-    return projected, cast(
-        "CommitPolicyEnforcement", projected["data"]["commit_policy_enforcement"]
-    )
-
-
 def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path) -> None:
     repo, generation = _fixture(tmp_path)
 
     observed = hook_runtime_binding(repo)
     assert observed["required_gaps"] == []
-    projected, _ = _capability(repo)
+    projected, _ = commit_policy_capability(repo)
     stale = hook_runtime_binding(repo, expected_build=runtime_build("c" * 40, "d" * 40))
 
     assert observed["hooks_path"] == generation.as_posix()
@@ -88,7 +75,7 @@ def test_declared_policy_unarms_transports_when_runtime_is_not_current(
         (generation / condition).unlink()
         gap = f"write_admission_not_armed:{condition}_launcher_missing"
 
-    projected, capability = _capability(repo)
+    projected, capability = commit_policy_capability(repo)
 
     assert capability["state"] == "unarmed"
     assert capability["declaration"]["subject_pattern"] == "fix: .+"
@@ -120,7 +107,7 @@ def test_commit_policy_capability_state_matrix(
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=policy)
 
-    projected, capability = _capability(repo)
+    projected, capability = commit_policy_capability(repo)
 
     assert capability["state"] == state
     assert capability["commit_message_transport"] == transport
@@ -149,7 +136,7 @@ def test_candidate_hook_semantics_remain_pending_until_acceptance(tmp_path: Path
 def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path) -> None:
     repo, _generation = _fixture(tmp_path, policy=_POLICY)
     git_process(repo, "config", "--unset", "gpg.ssh.allowedSignersFile")
-    _report, capability = _capability(repo)
+    _report, capability = commit_policy_capability(repo)
     assert capability["commit_message_transport"] == "armed"
     assert capability["push_range_enforcement"] == "armed"
     assert capability["state"] == "unready"
@@ -198,7 +185,7 @@ def test_status_preserves_runtime_readiness_with_the_paradigm_policy(
 
         monkeypatch.setattr(Path, "read_text", unreadable)
 
-    projected, capability = _capability(repo)
+    projected, capability = commit_policy_capability(repo)
     runtime = projected["data"]["hook_runtime"]
 
     assert capability["declaration"]["signing_format"] == "ssh"
@@ -242,7 +229,7 @@ def test_status_requires_installation_only_for_an_adopted_repository(
     if adopted:
         write_test_profile(repo)
 
-    projected, capability = _capability(repo)
+    projected, capability = commit_policy_capability(repo)
     runtime = projected["data"]["hook_runtime"]
 
     assert capability["state"] == ("unarmed" if adopted else "not_governed")
@@ -263,12 +250,12 @@ def test_adopted_status_moves_from_ready_to_stale_without_policy(
 ) -> None:
     """A fully ready adopter must lose PASS when only its expected runtime advances."""
     repo, _candidate = start_adopted_candidate(tmp_path)
-    before, policy = _capability(repo)
+    before, policy = commit_policy_capability(repo)
     assert (before["verdict"], before["required_gaps"], before["next_action"]) == ("pass", [], "")
     assert policy["state"] == "armed"
     _advance_expected_build(monkeypatch, tmp_path)
 
-    after, _policy = _capability(repo)
+    after, _policy = commit_policy_capability(repo)
 
     assert after["verdict"] == "block"
     assert after["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
@@ -501,19 +488,19 @@ def test_selected_declaration_drift_cannot_borrow_the_invoking_contract(tmp_path
     repo, _generation = _fixture(tmp_path)
     observe = hook_binding.current_runtime
     with patch.object(hook_binding, "current_runtime", wraps=observe) as reader:
-        before = _capability(repo)[0]["data"]["hook_runtime"]
+        before = commit_policy_capability(repo)[0]["data"]["hook_runtime"]
         selected = Path(before["runtime_manifest_path"]).parent
         declaration = next(selected.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
         original = declaration.read_bytes()
         changed = original.replace(b"@HOOK@", b"wrong")
         assert changed != original
         declaration.write_bytes(changed)
-        observed = _capability(repo)[0]["data"]["hook_runtime"]
+        observed = commit_policy_capability(repo)[0]["data"]["hook_runtime"]
         assert observed["current"] is False
         gap = "write_admission_not_armed:runtime_payload_mismatch"
         assert gap in observed["required_gaps"]
         declaration.write_bytes(original)
-        assert _capability(repo)[0]["data"]["hook_runtime"] == before
+        assert commit_policy_capability(repo)[0]["data"]["hook_runtime"] == before
         assert reader.call_count == 3  # Fresh inventory, including corruption.
 
 

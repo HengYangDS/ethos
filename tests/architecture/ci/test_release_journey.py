@@ -4,22 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-import yaml
-
 import tools.ci.ci_projection as owner
 
 ROOT = owner.ROOT
 TAG = "${{ inputs.release_tag || inputs.journey_tag }}"
 
 
-@pytest.fixture(scope="module")
-def workflow() -> dict[str, Any]:
-    return yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
-
-
-def test_the_journey_follows_publication_on_macos_and_linux(workflow: dict[str, Any]) -> None:
-    job = workflow["jobs"]["release-journey"]
+def test_the_journey_follows_publication_on_macos_and_linux(github: dict[str, Any]) -> None:
+    job = github["jobs"]["release-journey"]
     assert job["needs"] == "release-publish"
     assert [leg["os"] for leg in job["strategy"]["matrix"]["include"]] == [
         "ubuntu-latest",
@@ -43,11 +35,11 @@ def test_the_journey_follows_publication_on_macos_and_linux(workflow: dict[str, 
     assert upload["with"]["path"] == "build/evidence/release-journey/"
 
 
-def test_a_journey_dispatch_runs_no_regular_job(workflow: dict[str, Any]) -> None:
-    inputs = workflow["on"]["workflow_dispatch"]["inputs"]
+def test_a_journey_dispatch_runs_no_regular_job(github: dict[str, Any]) -> None:
+    inputs = github["on"]["workflow_dispatch"]["inputs"]
     assert (inputs["journey_tag"]["default"], inputs["journey_previous"]["default"]) == ("", "")
     regular = [
-        name for name, job in workflow["jobs"].items() if "!inputs.release_tag" in job.get("if", "")
+        name for name, job in github["jobs"].items() if "!inputs.release_tag" in job.get("if", "")
     ]
     assert regular
-    assert all("!inputs.journey_tag" in workflow["jobs"][name]["if"] for name in regular)
+    assert all("!inputs.journey_tag" in github["jobs"][name]["if"] for name in regular)

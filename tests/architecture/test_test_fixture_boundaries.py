@@ -15,6 +15,7 @@ import tests.support.governed_repository as fixtures
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.runtime.filesystem import runtime_executable
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import prepared_work_lane
@@ -130,7 +131,7 @@ def test_runtime_mutation_fixture_observes_native_prerequisites_before_return(
 
     monkeypatch.setattr(subprocess, "run", observe)
     _repo, runtime = runtime_scenarios.materialize_runtime_case(tmp_path, monkeypatch)
-    python = runtime_scenarios.runtime_executable(runtime, "python")
+    python = runtime_executable(runtime, "python")
 
     assert any(command[:6] == (str(python), "-B", "-I", "-X", "utf8", "-c") for command in observed)
     assert (str(python), "-B", "-I", "-X", "utf8", "-m", "ethos.cli", "--version") in observed
@@ -170,7 +171,7 @@ def test_isolated_fixture_python_reads_the_test_gate_bytecode_prefix(
 
     completed = subprocess.run(
         (
-            str(runtime_scenarios.runtime_executable(image, "python")),
+            str(runtime_executable(image, "python")),
             "-B",
             "-I",
             "-c",

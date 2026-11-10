@@ -4,24 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-import yaml
-
 import tools.ci.ci_projection as owner
 
 ROOT = owner.ROOT
 
 
-@pytest.fixture(scope="module")
-def pipeline() -> dict[str, Any]:
-    return yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
-
-
-def test_gitlab_jobs_archive_no_build_output(pipeline: dict[str, Any]) -> None:
+def test_gitlab_jobs_archive_no_build_output(gitlab: dict[str, Any]) -> None:
     """Every archived path is evidence; build outputs under build/artifacts/ stay on GitHub."""
     archived = {
         name: list(job["artifacts"].get("paths", ()))
-        for name, job in pipeline.items()
+        for name, job in gitlab.items()
         if isinstance(job, dict) and isinstance(job.get("artifacts"), dict)
     }
     assert archived, "no GitLab job archives anything"

@@ -14,14 +14,10 @@ from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.assistants.skills.portfolio import skill_portfolio_report
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def _skill_text(*, name: str = "sample", description: str = "Use when testing.") -> str:
@@ -53,10 +49,10 @@ Repository source and evidence are truth.
 def _package(root: Path, skill_id: str = "sample") -> tuple[Path, Path]:
     package_dir = root / ".agents/skills" / skill_id
     skill = package_dir / "SKILL.md"
-    _write(skill, _skill_text(name=skill_id))
+    write_file(skill, _skill_text(name=skill_id))
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     manifest = package_dir / "package.toml"
-    _write(
+    write_file(
         manifest,
         f"""schema_version = 2
 id = "{skill_id}"
@@ -82,7 +78,7 @@ def test_capability_policy_rejects_mutation_untrusted_scripts_and_fake_proof(
     tmp_path: Path,
 ) -> None:
     package_dir = tmp_path / "skill"
-    _write(package_dir / "check.py", "print('ok')\n")
+    write_file(package_dir / "check.py", "print('ok')\n")
     capabilities: list[dict[str, Any]] = [
         {"id": "readonly-mutation", "kind": "command_readonly", "command": ["ethos", "land"]},
         {"id": "readonly-unknown", "kind": "command_readonly", "command": ["unknown"]},
@@ -117,7 +113,7 @@ def test_manifest_public_report_blocks_escape_missing_invalid_and_stale_digest(
     escaped = validate_skill_package_manifest(tmp_path, "../outside/package.toml")
     missing = validate_skill_package_manifest(tmp_path, ".agents/skills/missing/package.toml")
     invalid_path = tmp_path / ".agents/skills/invalid/package.toml"
-    _write(invalid_path, "schema_version = [\n")
+    write_file(invalid_path, "schema_version = [\n")
     invalid = validate_skill_package_manifest(
         tmp_path, invalid_path.relative_to(tmp_path).as_posix()
     )
@@ -142,7 +138,7 @@ def test_manifest_and_markdown_reports_preserve_content_quality_failures(tmp_pat
     description = "Not a trigger " + "word " * 65
     workflow = "\n".join(f"{index}. step" for index in range(10))
     padding = "\n".join("content" for _ in range(170))
-    _write(
+    write_file(
         skill,
         f"""---
 name: wrong-name
@@ -177,7 +173,7 @@ coming soon
 
     missing = validate_skill_markdown(tmp_path, "absent.md", "absent")
     malformed = tmp_path / "malformed.md"
-    _write(malformed, "---\nname: malformed\n")
+    write_file(malformed, "---\nname: malformed\n")
     malformed_report = validate_skill_markdown(tmp_path, malformed.name, "malformed")
     assert missing["required_gaps"] == ["skill_missing_file:absent"]
     assert "skill_quality_missing_frontmatter:malformed" in malformed_report["required_gaps"]
@@ -258,7 +254,7 @@ def test_portfolio_reports_duplicate_overloaded_and_unowned_routes(tmp_path: Pat
 
 def test_skills_public_report_rejects_malformed_activation(tmp_path: Path) -> None:
     activation = tmp_path / ".agents/skills/activation.toml"
-    _write(activation, "[meta\n")
+    write_file(activation, "[meta\n")
     report = skill_portfolio_report(tmp_path)
     assert report["verdict"] == "block"
     assert ".agents/skills/activation.toml:invalid_toml" in report["required_gaps"]

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
+    from ethos.contracts.operations.lane import MergeMode
 
 
 def merge_command(

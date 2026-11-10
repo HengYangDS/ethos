@@ -5,10 +5,12 @@ its set fields choose, or returns the refusal every transport reports. `invoke` 
 operation's implementation, the function `IMPLEMENTATIONS` names for it or else for its command,
 so the CLI, the SDK and MCP run one body for one request and a refused request runs nothing. Only
 `invoke` calls an implementation: one imported directly skips the selection and the failure
-normalization.
+normalization. An implementation never reads standard input: the transport reads it and `invoke`
+hands the text on through `standard_input`.
 """
 
 from collections.abc import Mapping
+from contextvars import ContextVar
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
@@ -27,6 +29,8 @@ _PROVE = "ethos.application.proof.operation"
 _ADOPT = "ethos.application.adoption"
 _ATTESTATION = "ethos.application.attestation"
 _HOOK = "ethos.application.hook"
+_LIFECYCLE = "ethos.application.lane.lifecycle"
+_REPAIR = "ethos.application.lane.repair"
 # Each implementation, `(root, request) -> EthosResult`, keyed by an operation ID or by a command
 # whose every operation without a row of its own shares it; a shared body reads only the fields of
 # its own operations.
@@ -62,7 +66,26 @@ IMPLEMENTATIONS = {
     "hook install": f"{_HOOK}.installation:install_hook_runtime",
     "hook retire-supply": f"{_HOOK}.installation:retire_host_supply",
     "hook retire-records": "ethos.application.retention:retire_records",
+    "lane status": f"{_LIFECYCLE}:inspect_lane_status",
+    "lane housekeeping": f"{_LIFECYCLE}:keep_lane_house",
+    "lane candidate": f"{_LIFECYCLE}:bootstrap_lane_candidate",
+    "lane.candidate.refresh.preview": f"{_LIFECYCLE}:refresh_lane_candidate",
+    "lane.candidate.refresh.apply": f"{_LIFECYCLE}:refresh_lane_candidate",
+    "lane.candidate.materialize.preview": f"{_LIFECYCLE}:materialize_lane_candidate",
+    "lane.candidate.materialize.apply": f"{_LIFECYCLE}:materialize_lane_candidate",
+    "lane prewrite": "ethos.application.lane.admission:admit_lane_write",
+    "lane start": f"{_LIFECYCLE}:start_lane",
+    "lane refresh-base": f"{_LIFECYCLE}:refresh_lane_base",
+    "lane archive-change": f"{_LIFECYCLE}:archive_lane_change",
+    "lane project": f"{_REPAIR}:project_lane",
+    "lane format": f"{_REPAIR}:format_lane",
+    "lane repair-paradigm": f"{_REPAIR}:repair_lane_paradigm",
+    "lane trust-commit-signer": f"{_REPAIR}:trust_lane_signer",
+    "lane repair-signature": f"{_REPAIR}:repair_lane_signature",
+    "lane redact private-addresses": f"{_REPAIR}:redact_lane_peers",
 }
+# The text the transport read from standard input for the running invocation, or empty.
+_STANDARD_INPUT: ContextVar[str] = ContextVar("ethos_standard_input", default="")
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,12 +144,20 @@ def select_operation(
     return Selected(selection.operation, request)
 
 
-def invoke(command: str, root: Path, fields: Mapping[str, object] | CommandRequest) -> EthosResult:
+def standard_input() -> str:
+    """Return the text the transport read from standard input for this invocation, or empty."""
+    return _STANDARD_INPUT.get()
+
+
+def invoke(
+    command: str, root: Path, fields: Mapping[str, object] | CommandRequest, *, stdin: str = ""
+) -> EthosResult:
     """Select one request's operation and run its implementation, or return the refusal unchanged.
 
     A mapping's `root` entry is dropped only when it is the `root` argument itself, as an SDK
     function's `locals()` passes it, so a caller's stray `root` key is still refused. Selection is
-    pure and runs outside the failure normalization, which wraps the implementation alone.
+    pure and runs outside the failure normalization, which wraps the implementation alone. The
+    implementation reads `stdin`, the text a transport read for it, through `standard_input`.
     """
     if isinstance(fields, Mapping) and fields.get("root") is root:
         fields = {name: value for name, value in fields.items() if name != "root"}
@@ -136,4 +167,6 @@ def invoke(command: str, root: Path, fields: Mapping[str, object] | CommandReque
     target = IMPLEMENTATIONS.get(chosen.operation.id) or IMPLEMENTATIONS[command]
     module, _separator, name = target.partition(":")
     implementation = getattr(import_module(module), name)
+    # Every invocation sets its own input, so no earlier invocation's text reaches this one.
+    _STANDARD_INPUT.set(stdin)
     return application_result(command)(implementation)(root, chosen.request)

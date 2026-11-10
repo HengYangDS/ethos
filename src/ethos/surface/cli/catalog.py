@@ -2,12 +2,13 @@
 
 A command's parameters are its request's fields, positionals first, spelled as the catalog spells
 them with no negated forms, then `--root` and `--json`. Running one selects its operation through
-the shared selection, binds the root that operation needs and exits as it declares, and
-`--help --json` prints the same declarations as data. Only the commands under the invoked word are
-built.
+the shared selection, binds the root that operation needs, reads standard input when the request
+asks for it, and exits as it declares; `--help --json` prints the same declarations as data. Only
+the commands under the invoked word are built.
 """
 
 import inspect
+import sys
 from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -20,6 +21,7 @@ from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.application.catalog import Refused
+from ethos.application.catalog import Selected
 from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.application.catalog import usage_refusal
@@ -81,6 +83,12 @@ def _signature(command: Command) -> inspect.Signature:
     return inspect.Signature([*named, *_OPTIONS])
 
 
+def _standard_input(command: Command, chosen: Selected) -> str:
+    """Read standard input when the request's `-` value or flag asks for it."""
+    asked = bool(command.stdin) and getattr(chosen.request, command.stdin) in {"-", True}
+    return sys.stdin.read(command.stdin_limit or -1) if asked else ""
+
+
 def run(
     name: str,
     request: Mapping[str, object] | CommandRequest,
@@ -99,7 +107,7 @@ def run(
         emit(refusal, json_output=json_output)
         return
     target = root if operation.creates_root and root is not None else resolve_root(root)
-    result = invoke(name, target, chosen.request)
+    result = invoke(name, target, chosen.request, stdin=_standard_input(COMMANDS[name], chosen))
     status = result.data.get("exit_status") if operation.exit == "process" else None
     if isinstance(status, int):
         raise SystemExit(status)
@@ -148,13 +156,17 @@ def register(word: str = "") -> None:
             )
 
 
-def help_result(words: Sequence[str]) -> EthosResult:
-    """Return the catalog of the command or group the words name, or of every root command."""
-    named = command_path(words)
-    first = words[0] if words else ""
-    group = [item for item in COMMANDS.values() if item.name.split()[0] == first]
+def help_result(words: Sequence[str]) -> EthosResult | None:
+    """Return the catalog of the command or group the words name, or of every root command.
+
+    None means the words name neither; a group's commands that are not yet entries have no catalog.
+    """
+    named, prefix = command_path(words), " ".join(words)
+    if named is None and words and prefix not in GROUPS:
+        return None
+    group = [item for item in COMMANDS.values() if item.name.startswith(f"{prefix} ")]
     roots = [item for item in COMMANDS.values() if " " not in item.name]
-    commands = [named] if named else group or roots
+    commands = [named] if named else group if words else roots
     return EthosResult(
         command="help",
         verdict="pass",

@@ -315,7 +315,6 @@
   "src/ethos/repository/release/configuration.py::version_manifest": 20,
   "src/ethos/repository/release/publication.py::publication_ref_transition": 26,
   "src/ethos/result.py::apply_payload_budget": 21,
-  "src/ethos/surface/cli/lane/lifecycle.py::_public_state": 17,
   "tools/ci/ci_projection.py::_validate_workflows": 26,
   "tools/ci/ci_projection.py::_workflow_runs": 25,
   "tools/ci/ci_projection.py::check_templates": 24,

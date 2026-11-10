@@ -9,7 +9,6 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.actor import process_issuer
-from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.merge import merge_work_lane
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import PendingRefresh
 from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import clear_pending_refresh
@@ -53,6 +52,7 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
+    from ethos.contracts.operations.lane import MergeMode
     from ethos.contracts.semantic import Attestation
 
 

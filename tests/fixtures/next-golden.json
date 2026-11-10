@@ -48,14 +48,16 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--confirm-irreversible"],
       "effects": ["local-evidence-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--materialize"],
@@ -76,14 +78,16 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--apply", "--confirm-irreversible"],
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--apply", "--materialize"],
@@ -104,49 +108,56 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--authorize", "--materialize"],
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--authorize", "--refresh-from-accepted"],
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--confirm-irreversible", "--materialize"],
       "effects": ["local-evidence-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--confirm-irreversible", "--refresh-from-accepted"],
       "effects": ["local-evidence-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--materialize", "--refresh-from-accepted"],
       "effects": ["local-evidence-write"],
       "authorization": "none",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--apply", "--authorize", "--confirm-irreversible"],
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "candidate", "--apply", "--authorize", "--materialize"],
@@ -167,7 +178,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -188,7 +200,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "apply",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -202,7 +215,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": [
@@ -216,7 +230,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": [
@@ -230,7 +245,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": [
@@ -244,7 +260,8 @@
       "effects": ["local-evidence-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": [
@@ -259,7 +276,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -289,7 +307,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -304,7 +323,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -319,7 +339,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "confirm-irreversible",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": [
@@ -335,7 +356,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "confirm-irreversible",
       "destructive": true,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "format"],
@@ -356,7 +378,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "format", "--check"],
@@ -384,7 +407,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "format", "--apply", "--authorize", "--check"],
@@ -412,7 +436,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "housekeeping", "--apply", "--authorize"],
@@ -447,7 +472,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "project", "--check"],
@@ -475,7 +501,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "project", "--apply", "--authorize", "--check"],
@@ -503,7 +530,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "refresh-base", "--apply", "--authorize"],
@@ -545,7 +573,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "repair-signature", "--apply", "--authorize"],
@@ -594,7 +623,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "trust-commit-signer", "--apply", "--authorize"],
@@ -636,7 +666,8 @@
       "effects": ["local-evidence-write", "local-write", "host-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "hook", "install", "--reset-state"],
@@ -685,7 +716,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -733,7 +765,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -769,7 +802,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -817,7 +851,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -1050,7 +1085,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "observe"
+      "exit": "observe",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "redact", "private-addresses", "--verify"],
@@ -1071,14 +1107,16 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "apply",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "redact", "private-addresses", "--authorize", "--verify"],
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": [
@@ -1093,7 +1131,8 @@
       "effects": ["local-evidence-write", "local-write"],
       "authorization": "authorize",
       "destructive": false,
-      "exit": "verdict"
+      "exit": "verdict",
+      "refused": true
     },
     {
       "argv": ["ethos", "lane", "retire", "abandon"],
@@ -2171,7 +2210,8 @@
       "authorization": "apply",
       "destructive": false,
       "exit": "verdict",
-      "source": "audit:attestation query"
+      "source": "audit:attestation query",
+      "refused": true
     },
     {
       "argv": ["ethos", "attestation", "record", "--input", "x", "--authorize"],
@@ -2179,7 +2219,8 @@
       "authorization": "authorize",
       "destructive": false,
       "exit": "verdict",
-      "source": "audit:attestation record"
+      "source": "audit:attestation record",
+      "refused": true
     }
   ]
 }

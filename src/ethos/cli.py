@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ethos.result import EthosResult
 
 # `ethos --help --json` prints the root commands' catalog, `ethos <path> --help --json` the
-# command or the group that the path names.
+# command or the group that the path names; any other help is Cyclopts' own.
 _CATALOG_HELP = frozenset({"ethos", *(name.split()[0] for name in COMMANDS)})
 
 
@@ -44,8 +44,9 @@ def main() -> None:
             described = import_module("ethos.surface.cli.catalog").help_result(
                 ethos_command_path(["ethos", *argv])
             )
-            _emit(described, json_output=True, enforce=False)
-            return
+            if described is not None:
+                _emit(described, json_output=True, enforce=False)
+                return
         with invocation_parameters(command, argv):
             commands.run_application(argv)
 

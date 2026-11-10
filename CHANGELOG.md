@@ -105,6 +105,34 @@ historical bindings are governed by the [distribution specification](openspec/sp
   bind as before.
 - **Breaking:** the hook commands' negated flags `--no-require-editor-root`, `--no-reset-state`,
   `--no-apply`, `--no-authorize` and `--no-json` are no longer parsed.
+- **Breaking:** `ethos lane status`, `housekeeping`, `candidate`, `prewrite`, `start`,
+  `refresh-base`, `archive-change`, `project`, `format`, `repair-paradigm`, `trust-commit-signer`,
+  `repair-signature` and `redact private-addresses` are catalog entries that the generic adapter
+  renders. A usage error names the command's full path (`command_usage_invalid:lane start`, with
+  that path as the result's `command`), `ethos lane --help --json` prints the group's entries, and
+  the structured `next` takes these commands' effects, authority and deletion from their entries,
+  so a candidate refresh apply reads as `confirm-irreversible` and destructive. Their negated
+  flags, such as `--no-apply`, `--no-check` and `--no-json`, are no longer parsed.
+  `lane prewrite --patch -` now reads the patch from standard input as `--patch=-` did,
+  `lane format` also takes its paths by `--paths`, and the CLI, not the operation, reads standard
+  input.
+- **Breaking:** `ethos lane housekeeping`, `refresh-base`, `project`, `format`,
+  `trust-commit-signer`, `repair-signature` and `redact private-addresses` refuse `--authorize`
+  without `--apply`, which their previews ignored, with exit 2 and
+  `command_field_refused:authorize`.
+- **Breaking:** `ethos lane candidate` refuses a field outside the mode it selects, with exit 2 and
+  `command_field_refused:<field>`: `--authorize` or `--confirm-irreversible` on a bootstrap,
+  `--authorize` without `--apply`, `--confirm-irreversible` outside a refresh apply, `--path` on a
+  refresh or a materialization, and the materialization's `--preserved-preimage`,
+  `--retention-ref`, `--reason` and `--expect-state` outside `--materialize`. `--materialize` with
+  `--refresh-from-accepted` exits 2 with `command_operation_unmatched:lane candidate` instead of
+  the `candidate_mode_conflict` gap.
+- **Breaking:** `ethos lane prewrite` takes one path per `--paths`, so several paths after one flag,
+  as in `--paths a b` or `--paths=a b`, exit 2 with `command_usage_invalid:lane prewrite`; paths
+  given as words or by repeating the flag bind as before.
+- **Breaking:** `ethos lane redact private-addresses --apply --verify` exits 2 with
+  `command_operation_unmatched:lane redact private-addresses`; the verify ran and `--apply` was
+  ignored.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

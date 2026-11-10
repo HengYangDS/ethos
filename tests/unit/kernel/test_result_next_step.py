@@ -120,16 +120,13 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
     assert step["why"] == "gate_failed:static"
 
 
-_HOST = [*_EVIDENCE_WRITE, "host-write"]
 _RETIRE = "lane retire absorbed-ref --apply --authorize --confirm-irreversible"
-_REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm-irreversible"
 
 
 @pytest.mark.parametrize(
     ("command", "effects", "authorization", "destructive"),
     [
         ("status --json", ["read"], "none", False),
-        ("lane status --root /lane --json", ["read"], "none", False),
         (
             "prove --full --execute --json",
             ["read", "execute", "local-evidence-write"],
@@ -143,15 +140,12 @@ _REFRESH = "lane candidate --refresh-from-accepted --apply --authorize --confirm
         ("lane handoff transfer --apply", _EVIDENCE_WRITE, "apply", False),
         (_RETIRE, _EVIDENCE_WRITE, "confirm-irreversible", True),
         ("lane lease takeover --authorization /a --apply", _EVIDENCE_WRITE, "attestation", False),
-        (_REFRESH, _HOST, "confirm-irreversible", True),
-        ("lane candidate --refresh-from-accepted --apply --authorize", _HOST, "authorize", False),
         ("land --retag v1 --apply --authorize", ["read", *_EVIDENCE_WRITE], "authorize", True),
         # The closeout preview only reads the refs and worktrees it reports.
         ("land --closeout --json", ["read"], "none", False),
         # A root argv that selects no catalog operation could do anything, so a person decides it.
         ("land --closeout --release --json", ["opaque"], "human", True),
         ("publish --apply --json", ["opaque"], "human", True),
-        ("lane start --apply", _HOST, "apply", False),
     ],
 )
 def test_an_argv_names_its_effects_authority_and_any_deletion(

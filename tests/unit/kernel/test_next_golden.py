@@ -6,7 +6,9 @@ scratch and never committed (`build/runtime/work/catalog-root/catalog-groups/s1-
 the former classifiers over each group leaf with every subset of its mode-bearing flags and over the
 product-rendered group argv, and recorded the exit the former surface chose. Those classifiers
 retire with this Change, so the data cannot be regenerated and a change to it is reviewed. An argv
-whose leaf is not yet a catalog entry keeps the former answer exactly.
+whose leaf is not yet a catalog entry keeps the former answer exactly. A row marked `refused` is an
+argv that its catalog entry refuses, as it sets a field its operation does not take or modes that
+no operation combines; each slice marks the rows it refuses.
 """
 
 import json
@@ -22,17 +24,6 @@ from ethos.contracts.operations.catalog import select_argv
 
 _ROWS = json.loads((Path(__file__).parents[2] / "fixtures/next-golden.json").read_text())["rows"]
 _RANK = get_args(StepAuthorization)
-_PLAN = "--expect-plan " + "p" * 64
-# The golden argv a catalog entry refuses, each setting a field its operation does not take.
-_REFUSED = {
-    "ethos attestation query --apply",
-    "ethos attestation record --input x --authorize",
-    "ethos hook install --authorize",
-    "ethos hook retire-records --authorize",
-    f"ethos hook retire-records --authorize {_PLAN}",
-    "ethos hook retire-supply --authorize",
-    f"ethos hook retire-supply --authorize {_PLAN}",
-}
 
 
 @pytest.mark.parametrize("row", _ROWS, ids=lambda row: shlex.join(row["argv"][1:]))
@@ -41,7 +32,7 @@ def test_each_group_argv_is_classified_at_least_as_strictly_as_before(row) -> No
     text = shlex.join(row["argv"])
     step = derive_next_step(text, continuation="continue", why="golden")
     selected = select_argv(row["argv"])
-    if text in _REFUSED:
+    if row.get("refused"):
         refused = ("", ("opaque",), "human", True)
         assert (step.form, step.effects, step.authorization, step.destructive) == refused
     elif selected is None:

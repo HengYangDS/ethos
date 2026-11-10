@@ -140,6 +140,45 @@ does not validate, every hook command keeps its exit, as each body reports the p
 | `hook retire-supply`, `retire-records` | `--expect-plan` without `--apply`                                                           | ignored by the preview                 | unchanged: a field of both entries                           |
 | `hook retire-supply`, `retire-records` | `--apply` without `--authorize`                                                             | 1 `authorization_required`             | unchanged: a body check                                      |
 
+The S3 rows come from one probe of 139 argv shapes through the old commands and the new adapter,
+recording each exit, the gaps, the standard input read and the arguments each body received, and
+from 13 real previews against a profile that does not validate, which keep their exits, verdicts
+and gaps. Product callers were searched in `src`, `tools`, `.gitlab-ci.yml`, `.github`,
+`.config/ci` and `.agents`: status reads, landing, retirement and admission render
+`lane status --json`; the archive effect and OpenSpec scope render
+`lane prewrite --paths <path> --editor-root <root> --require-editor-root`; landing, proof, status
+bindings and the refresh render `lane refresh-base --apply --authorize --expect-head <head>`, and
+the merge steps `--strategy merge --mode <mode>` with `--expect-state` and `--subject`; the
+candidate renders its bootstrap `--path --expect-head --apply` and its refresh
+`--refresh-from-accepted --apply --authorize`, with `--confirm-irreversible` when it drops commits;
+the other leaves render their own `--apply --authorize` step; and the CI acceptance runs
+`lane format` with `--check` or `--apply --authorize --expect-head`, `lane project --patch` and
+`lane repair-paradigm`. Each selects its entry and none renders a refused shape. The authorized
+leaves are `housekeeping`, `refresh-base`, `project`, `format`, `trust-commit-signer`,
+`repair-signature` and `redact private-addresses`.
+
+| Leaf                       | Flag or shape                                                                                                                | Exit before                                                      | Exit after                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| all thirteen               | a missing or invalid field, or an unknown option                                                                             | 2 `command_usage_invalid:lane`                                   | 2, the full path, such as `command_usage_invalid:lane start`       |
+| all thirteen               | `--no-apply`, `--no-authorize`, `--no-check`, `--no-json` and every other negated flag                                       | accepted                                                         | 2: no negated forms                                                |
+| the authorized leaves      | `--authorize` without `--apply`                                                                                              | ignored by the preview                                           | 2 `command_field_refused:authorize`                                |
+| the authorized leaves      | `--apply` without `--authorize`                                                                                              | 1, the body's authorization gap                                  | unchanged: a body check                                            |
+| `candidate`                | `--authorize` or `--confirm-irreversible` on a bootstrap, with or without `--apply`                                          | ignored by the bootstrap                                         | 2 `command_field_refused:<field>`                                  |
+| `candidate`                | `--authorize` without `--apply`, or `--confirm-irreversible` outside `--refresh-from-accepted --apply`                       | ignored by the body                                              | 2 `command_field_refused:<field>`                                  |
+| `candidate`                | `--path` with `--refresh-from-accepted`; `--preserved-preimage`, `--retention-ref`, `--reason` or `--expect-state` elsewhere | ignored by the body                                              | 2 `command_field_refused:<field>`                                  |
+| `candidate`                | `--materialize` with `--refresh-from-accepted`                                                                               | `candidate_mode_conflict`, 0, or 1 with `--apply`                | 2 `command_operation_unmatched:lane candidate`                     |
+| `candidate`                | `--materialize` with `--path`                                                                                                | `candidate_mode_conflict`, 0, or 1 with `--apply`                | 2 `command_field_refused:path`                                     |
+| `candidate`                | `--refresh-from-accepted --apply` without `--confirm-irreversible`                                                           | runs; the body asks for the confirmation before it drops commits | unchanged; `next` reads it as confirm-irreversible and destructive |
+| `prewrite`                 | several paths after one `--paths`, also `--paths=a b`                                                                        | binds them                                                       | 2 `command_usage_invalid:lane prewrite`                            |
+| `prewrite`                 | the paths as words, or `--paths` or `--paths=` once per path                                                                 | binds                                                            | unchanged                                                          |
+| `prewrite`                 | `--patch -`                                                                                                                  | 2, `-` was not a value (only `--patch=-` read stdin)             | binds; the CLI reads stdin for the operation                       |
+| `format`                   | `--paths <path>` for the words                                                                                               | 2, unknown option                                                | binds, as the words do                                             |
+| `start`                    | `--name` for the word                                                                                                        | binds                                                            | unchanged                                                          |
+| `redact private-addresses` | `--apply --verify`                                                                                                           | the verify ran; `--apply` was ignored                            | 2 `command_operation_unmatched:lane redact private-addresses`      |
+| `redact private-addresses` | `--key-stdin`, `--expect-head`, `--base`, `--head` or `--rotate` in a mode that ignores it                                   | ignored                                                          | unchanged: fields of every entry                                   |
+| `refresh-base`             | `--source-ref` with the rebase strategy                                                                                      | the body's merge path                                            | unchanged: a field of both entries                                 |
+| `repair-signature`         | `--corrections`, `--corrections-sha256`, `--reason`, `--backup`, `--replacement`                                             | the corrections' checks and the extended next action             | unchanged                                                          |
+
 ## Slices
 
 One Change, ordered commits. Each slice records its measured product and test delta in its task and

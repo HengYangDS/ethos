@@ -16,35 +16,29 @@ from ethos.surface.cli.version import version_text
 
 app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
-# The modules that declare the commands outside the operation catalog, by their first word.
+# The modules that declare the commands outside the operation catalog, by the path they serve;
+# `lane` declares the group's App, which the catalog's `lane` commands then join.
 _COMMAND_MODULES = {
     "mcp": "ethos.surface.cli.root.mcp",
     "lane": "ethos.surface.cli.lane.lifecycle",
+    "lane handoff": "ethos.surface.cli.lane.handoff",
+    "lane lease": "ethos.surface.cli.lane.lease",
+    "lane retire": "ethos.surface.cli.lane.retirement",
 }
 
 
 def load_command_groups(argv: list[str]) -> None:
-    """Declare only the commands this invocation names, or every command for none."""
-    selected_name = root_command(argv)
-    if selected_name not in _COMMAND_MODULES:
-        importlib.import_module("ethos.surface.cli.catalog").register(selected_name)
-    if selected_name in _COMMAND_MODULES:
-        selected = (_COMMAND_MODULES[selected_name],)
-    elif selected_name:
-        selected = ()
-    else:
-        selected = tuple(_COMMAND_MODULES.values())
-    for module in selected:
-        importlib.import_module(module)
-        if module == _COMMAND_MODULES["lane"]:
-            importlib.import_module("ethos.surface.cli.lane.formatting")
-            importlib.import_module("ethos.surface.cli.lane.projections")
-            importlib.import_module("ethos.surface.cli.lane.commit_signer")
-            importlib.import_module("ethos.surface.cli.lane.lease")
-            importlib.import_module("ethos.surface.cli.lane.handoff")
-            importlib.import_module("ethos.surface.cli.lane.paradigm_repair")
-            importlib.import_module("ethos.surface.cli.lane.redaction")
-            importlib.import_module("ethos.surface.cli.lane.retirement")
+    """Declare only the commands this invocation names, or every command for none.
+
+    A module serves the invocation that names its path or a prefix of it, so `lane prewrite`
+    builds no `lane retire` command.
+    """
+    words = ethos_command_path(["ethos", *argv])
+    for path, module in _COMMAND_MODULES.items():
+        served = tuple(path.split())
+        if words[: len(served)] == served or served[: len(words)] == words:
+            importlib.import_module(module)
+    importlib.import_module("ethos.surface.cli.catalog").register(words[0] if words else "")
 
 
 def dispatch_arguments(argv: list[str]) -> list[str]:

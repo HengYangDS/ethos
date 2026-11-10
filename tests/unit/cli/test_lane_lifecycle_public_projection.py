@@ -2,49 +2,51 @@
 
 from __future__ import annotations
 
+import io
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
-import ethos.surface.cli.lane.commit_signer as commit_signer
-import ethos.surface.cli.lane.lifecycle as lifecycle
+import ethos.application.lane.admission as admission
+import ethos.application.lane.lifecycle as lifecycle
+import ethos.application.lane.repair as repair
+from ethos.application.catalog import invoke
 from ethos.application.land.closeout import closeout_continuation
 from ethos.application.land.closeout import land_next_action
+from ethos.application.lane.result import lane_result
+from ethos.contracts.operations.catalog import COMMANDS
+from tests.support.ethos_cli_runner import PYTHONPATH
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 ARCHIVE_BRANCH = "work/feature"
 ARCHIVE_HEAD = "old-head"
 ARCHIVE_CHANGE = "fixture-change"
 
 
-def test_lane_start_forwards_exact_immutable_base(monkeypatch, tmp_path):
-    """The public surface forwards the explicit object without selecting another train."""
-    captured = {}
-    base = "b" * 40
-    monkeypatch.setattr(lifecycle, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        lifecycle,
-        "start_work_lane",
-        lambda **kwargs: captured.update(kwargs) or {"verdict": "pass", "state": "planned"},
-    )
-    monkeypatch.setattr(lifecycle, "project_lane_result", lambda *_args, **_kwargs: None)
-    lifecycle.start(
-        "maintenance",
-        SimpleNamespace(
-            root=tmp_path,
-            path=None,
-            base=base,
-            holder_ref="agent:test:maintenance",
-            apply=False,
-            command="lane start",
-            json_output=True,
-        ),
-    )
-    assert captured["base"] == base
-    assert captured["root"] == tmp_path
+def test_lane_halves_forward_their_exact_requests(monkeypatch, tmp_path):
+    """A start keeps its explicit base, and a signer trust its exact authority coordinates."""
+    captured: dict[str, object] = {}
+
+    def capture(*args: object, **kwargs: object) -> dict[str, object]:
+        captured.update(kwargs, args=args)
+        return {"verdict": "pass", "state": "planned"}
+
+    monkeypatch.setattr(lifecycle, "start_work_lane", capture)
+    monkeypatch.setattr(repair, "authorize_configured_commit_signer", capture)
+    invoke("lane start", tmp_path, {"name": "work", "base": "b" * 40, "holder_ref": "agent:t"})
+    assert (captured["root"], captured["base"], captured["path"]) == (tmp_path, "b" * 40, None)
+    request = {"target_commit": "a" * 40, "expected_anchor_sha256": "b" * 64, "apply": True}
+    invoke("lane trust-commit-signer", tmp_path, request | {"authorize": True})
+    assert captured["args"] == (tmp_path, "a" * 40)
+    assert captured["expected_anchor_sha256"] == "b" * 64
+    assert captured["authorized"] is captured["apply"] is True
 
 
 @pytest.mark.parametrize("gap", ["proof_not_proven", "full_proof_required"])
@@ -83,186 +85,95 @@ def test_closeout_bootstraps_when_its_advance_stales_the_hook_runtime(
     assert action == (f"mise --cd {root} run bootstrap" if source and not current else publish)
 
 
-def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
-    results: list[Any] = []
-    monkeypatch.setattr(lifecycle, "emit", lambda result, **_kwargs: results.append(result))
-    return results
+_ACTION = "ethos lane prewrite <path>"
 
 
 @pytest.mark.parametrize(
-    ("command", "report", "state", "action"),
+    ("report", "passed", "state"),
     [
+        ({"verdict": "pass", "next_action": _ACTION}, "ready", "ready"),
+        ({"verdict": "pass", "state": "planned", "role": "work_lane"}, "admitted", "admitted"),
         (
-            "lane status",
-            {"verdict": "pass", "role": "work_lane", "next_action": "ethos lane prewrite <path>"},
-            "ready",
-            "ethos lane prewrite <path>",
-        ),
-        (
-            "lane prewrite",
-            {"verdict": "pass", "path_count": 1, "role": "work_lane"},
+            {"verdict": "unknown", "required_gaps": ["editor_root_unavailable"]},
             "admitted",
-            "",
-        ),
-        (
-            "lane prewrite",
-            {
-                "verdict": "unknown",
-                "path_count": 0,
-                "role": "other",
-                "required_gaps": ["editor_root_unavailable"],
-                "next_action": "ethos lane prewrite <path> --editor-root <root>",
-            },
             "unknown",
-            "ethos lane prewrite <path> --editor-root <root>",
         ),
+        ({"verdict": "block", "required_gaps": ["lane_start_blocked"]}, "", "blocked"),
+        ({"verdict": "pass", "next_action": _ACTION}, "", "ready"),
+        ({"verdict": "pass", "state": "refreshed", "next_action": "ethos land"}, "", "refreshed"),
         (
-            "lane start",
-            {"verdict": "block", "required_gaps": ["lane_start_blocked"]},
-            "blocked",
+            {"verdict": "block", "state": "partial_transition", "required_gaps": ["x"]},
             "",
-        ),
-        (
-            "lane start",
-            {"verdict": "pass", "next_action": "ethos lane prewrite <path>"},
-            "ready",
-            "ethos lane prewrite <path>",
-        ),
-        (
-            "lane refresh-base",
-            {"verdict": "pass", "state": "refreshed", "next_action": "ethos land --json"},
-            "refreshed",
-            "ethos land --json",
-        ),
-        (
-            "lane refresh-base",
-            {
-                "verdict": "block",
-                "required_gaps": ["refresh_conflict"],
-                "next_action": "resolve conflict",
-            },
-            "blocked",
-            "resolve conflict",
-        ),
-        (
-            "lane retire landed",
-            {
-                "verdict": "block",
-                "required_gaps": ["lease_stale"],
-                "next_action": "ethos lane status",
-            },
-            "blocked",
-            "ethos lane status",
+            "partial_transition",
         ),
     ],
 )
 def test_public_projection_is_structured_and_actionable(
-    monkeypatch: pytest.MonkeyPatch,
-    command: str,
-    report: dict[str, object],
-    state: str,
-    action: str,
+    report: dict[str, Any], passed: str, state: str
 ) -> None:
-    results = _capture(monkeypatch)
+    """A report keeps its verdict, gaps and next action; its state is the command's own reading."""
+    result = lane_result("lane x", report, passed=passed)
 
-    lifecycle.project_lane_result(command, report, json_output=True)
-
-    result = results.pop()
-    assert (result.command, result.verdict, result.state) == (command, report["verdict"], state)
-    expected_gaps = report.get("required_gaps", ())
-    assert isinstance(expected_gaps, (list, tuple))
-    assert result.required_gaps == tuple(expected_gaps)
-    assert result.next_action == action
+    assert (result.verdict, result.state) == (report["verdict"], state)
+    assert result.required_gaps == tuple(report.get("required_gaps", ()))
+    assert result.next_action == report.get("next_action", "")
     assert result.to_dict()["data"] == report
 
 
-def test_public_projection_accepts_explicit_and_computed_actions(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    results = _capture(monkeypatch)
-    report: dict[str, object] = {
-        "verdict": "pass",
-        "state": "planned",
-        "next_action": "apply exact owner plan",
-    }
-
-    lifecycle.project_lane_result("lane candidate", report, json_output=True)
-
-    assert results[0].next_action == "apply exact owner plan"
-
-
-def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
+def test_prewrite_binds_each_path_spelling_and_reads_the_patch_on_stdin(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """`--paths X`, `--paths=X` and `--patch -` bind through the CLI, which reads standard input."""
     captured: dict[str, object] = {}
-    monkeypatch.setattr(lifecycle, "resolve_root", lambda _root: tmp_path)
     monkeypatch.setattr(
-        lifecycle,
+        admission,
         "prewrite_guard",
         lambda **kwargs: captured.update(kwargs) or {"verdict": "block", "required_gaps": ["gap"]},
     )
-    monkeypatch.setattr(
-        lifecycle,
-        "project_lane_result",
-        lambda _command, report, **_kwargs: captured.update(report=report),
-    )
-    monkeypatch.setattr(
-        lifecycle.sys, "stdin", SimpleNamespace(read=lambda: "diff --git a/a b/a\n")
-    )
-
-    lifecycle.prewrite(
-        ("README.md", "bad\npath"),
-        root=tmp_path,
-        editor_root=str(tmp_path),
-        require_editor_root=True,
-        patch_path="-",
-        json_output=True,
+    monkeypatch.setattr(sys, "stdin", io.StringIO("diff --git a/a b/a\n"))
+    root = tmp_path.resolve()
+    paths = ("--paths", "README.md", "--paths=bad\npath", "--patch", "-")
+    completed = run_ethos_raw(
+        *("lane", "prewrite", *paths, "--editor-root", str(root), "--require-editor-root"),
+        *("--root", str(root), "--json"),
+        cwd=root,
     )
 
-    assert captured["paths"] == [tmp_path / "README.md", Path("bad\npath")]
-    assert captured["editor_root"] == tmp_path
-    assert captured["patch"] == "diff --git a/a b/a\n"
-    report = captured["report"]
-    assert isinstance(report, dict)
-    assert report["path_count"] == 2
+    assert completed.returncode == 1, completed.stderr
+    assert captured["paths"] == [root / "README.md", Path("bad\npath")]
+    assert (captured["editor_root"], captured["patch"]) == (root, "diff --git a/a b/a\n")
+    assert json.loads(completed.stdout)["data"]["path_count"] == 2
 
 
-def test_commit_signer_command_forwards_exact_authority_coordinates(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    captured: dict[str, object] = {}
-    monkeypatch.setattr(commit_signer, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        commit_signer,
-        "authorize_configured_commit_signer",
-        lambda root, revision, **kwargs: (
-            captured.update(root=root, revision=revision, **kwargs)
-            or {"verdict": "pass", "state": "signer_authorized"}
-        ),
+def test_lane_prewrite_builds_only_its_own_half_and_group(tmp_path: Path) -> None:
+    """A `lane prewrite` run imports no other command's half and builds no other group's App."""
+    program = (
+        "import json, sys\n"
+        f"sys.argv = ['ethos', 'lane', 'prewrite', 'README.md', '--root', {str(tmp_path)!r}]\n"
+        "from ethos import cli\n"
+        "from ethos.application.catalog import IMPLEMENTATIONS\n"
+        "from ethos.surface.cli.application import app\n"
+        "try:\n    cli.main()\nexcept SystemExit:\n    pass\n"
+        "halves = {row.partition(':')[0] for row in IMPLEMENTATIONS.values()} & set(sys.modules)\n"
+        "groups = (app.resolved_commands(), app['lane'].resolved_commands())\n"
+        "print(json.dumps([sorted(halves), *map(sorted, groups)]))\n"
     )
-    monkeypatch.setattr(
-        commit_signer,
-        "project_lane_result",
-        lambda command, report, **kwargs: captured.update(
-            command=command, report=report, projection=kwargs
-        ),
-    )
-    commit_signer.trust_commit_signer(
-        commit_signer.CommitSignerTrustOptions(
-            target_commit="a" * 40,
-            expected_anchor_sha256="b" * 64,
-            authorize=True,
-            apply=True,
-            root=tmp_path,
-            json_output=True,
-        )
+    completed = subprocess.run(
+        [sys.executable, "-B", "-c", program],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": PYTHONPATH},
+        cwd=tmp_path,
+        timeout=120,
     )
 
-    assert captured["root"] == tmp_path
-    assert captured["revision"] == "a" * 40
-    assert captured["expected_anchor_sha256"] == "b" * 64
-    assert captured["authorized"] is captured["apply"] is True
-    assert captured["projection"] == {"enforce": True, "json_output": True}
+    halves, roots, lane = (
+        [name for name in names if not name.startswith("-")]
+        for names in json.loads(completed.stdout.splitlines()[-1])
+    )
+    assert (halves, roots) == (["ethos.application.lane.admission"], ["lane"])
+    assert lane == sorted({name.split()[1] for name in COMMANDS if name.startswith("lane ")})
 
 
 class _WorkLanePolicy:

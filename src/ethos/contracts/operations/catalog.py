@@ -18,14 +18,17 @@ from ethos.contracts.operations.declaration import Operation
 from ethos.contracts.operations.hook import HOOK
 from ethos.contracts.operations.host import HOST_RUN
 from ethos.contracts.operations.land import LAND
+from ethos.contracts.operations.lane import LANE
+from ethos.contracts.operations.lane_repair import LANE_REPAIR
 from ethos.contracts.operations.plan import PLAN
 from ethos.contracts.operations.prove import PROVE
 from ethos.contracts.operations.publish import PUBLISH
 from ethos.contracts.operations.status import STATUS
 
+_ROOTS = (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT)
 COMMANDS: dict[str, Command] = {
     command.name: command
-    for command in (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT, *ATTESTATION, HOST_RUN, *HOOK)
+    for command in (*_ROOTS, *ATTESTATION, HOST_RUN, *HOOK, *LANE, *LANE_REPAIR)
 }
 GROUPS: dict[str, Group] = {
     group.name: group
@@ -33,6 +36,8 @@ GROUPS: dict[str, Group] = {
         Group(name="attestation", help="Record or query the sole Git-native Attestation set."),
         Group(name="host", help="Admit heavy local work through the host's one queue."),
         Group(name="hook", help="Hook admission and guard reports.", hidden=True),
+        Group(name="lane", help="Work Lane lifecycle and write admission.", hidden=True),
+        Group(name="lane redact", help="Redact protected peer identity in a lane's records."),
     )
 }
 # Options every command takes besides its request: the bound root and the JSON frame; after the

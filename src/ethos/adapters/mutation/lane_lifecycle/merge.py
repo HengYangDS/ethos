@@ -5,7 +5,7 @@ from __future__ import annotations
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING
 
 from filelock import FileLock
 from filelock import Timeout
@@ -41,7 +41,8 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 
-MergeMode = Literal["inspect", "start", "continue", "abort"]
+if TYPE_CHECKING:
+    from ethos.contracts.operations.lane import MergeMode
 
 
 def _authority(root: Path, observed: MergeObservation) -> tuple[dict[str, object], str]:

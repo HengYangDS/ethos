@@ -105,7 +105,6 @@ _AUTHORITY_TOKENS: tuple[tuple[str, StepAuthorization], ...] = (
 )
 # The rows below classify the group argv that no catalog command names; a catalog argv takes
 # its operation's declarations.
-_READ_COMMAND_PATHS = frozenset({("lane", "status")})
 _Row = tuple[tuple[str, ...], frozenset[str]]
 
 
@@ -117,7 +116,6 @@ def _rows(*shapes: str) -> tuple[_Row, ...]:
 
 # A command that runs a caller's command cannot see that command's effects.
 _OPAQUE = _rows("mcp")
-_HOST_WRITES = _rows("lane start: --apply", "lane candidate: --apply")
 # Each shape selects the deletion of something it does not recreate. Cleanup that another
 # operation performs under a liveness check is not counted; that operation reports it.
 _DESTRUCTIVE = _rows(
@@ -126,9 +124,7 @@ _DESTRUCTIVE = _rows(
     "lane retire superseded: --apply --authorize",
     "lane retire landed: --apply --authorize",
     "lane retire absorbed-ref: --apply --authorize --confirm-irreversible",
-    "lane housekeeping: --apply --authorize",
     "lane handoff revoke-source: --apply",
-    "lane candidate: --refresh-from-accepted --apply --authorize --confirm-irreversible",
 )
 
 
@@ -166,15 +162,11 @@ def ethos_step_effects(arguments: list[str] | tuple[str, ...]) -> tuple[StepEffe
     """Return what one group ETHOS argv does, from the least to the most consequential effect."""
     if _matched(arguments, _OPAQUE):
         return ("execute", "opaque")
-    path = ethos_command_path(arguments)
     flags = _flags(arguments)
-    if path in _READ_COMMAND_PATHS and not flags & MUTATING_COMMAND_FLAGS:
-        return ("read",)
     present = {
         "execute": "--execute" in flags,
         "local-evidence-write": True,
         "local-write": bool(flags & {"--apply", "--authorize"}),
-        "host-write": _matched(arguments, _HOST_WRITES),
     }
     return tuple(effect for effect in STEP_EFFECTS if present.get(effect))
 

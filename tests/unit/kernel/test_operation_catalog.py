@@ -34,7 +34,14 @@ from ethos.surface.cli.application import load_command_groups
 
 # Assignments of a command's selectors that select no operation, pinned so a change is reviewed;
 # a command not named here has none.
-_UNMATCHED = {"prove": 6, "land": 8, "publish": 9, "adopt": 23}
+_UNMATCHED = {
+    "prove": 6,
+    "land": 8,
+    "publish": 9,
+    "adopt": 23,
+    "lane candidate": 2,
+    "lane redact private-addresses": 1,
+}
 # The one write without an authorization token, a named exemption that A8 retires.
 _TOKENLESS = "hook.install"
 _ROOT = Path(__file__).resolve().parents[3]
@@ -52,7 +59,7 @@ _SDK = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 45
+    assert len(identities) == len(set(identities)) == 74
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields

@@ -49,14 +49,27 @@
 
 ## 3. S3: lane lifecycle and repair
 
-- [ ] 3.1 Add the audit rows for the 13 leaves. Done when each is listed with its callers.
-- [ ] 3.2 Convert `lane` status, housekeeping, candidate, prewrite, start, refresh-base,
+- [x] 3.1 Add the audit rows for the 13 leaves. Done when each is listed with its callers. The
+      design's Audit holds the S3 table from one probe of 139 argv shapes on both trees and 13
+      real previews against an invalid profile, and the CHANGELOG has one Breaking line per
+      refusal.
+- [x] 3.2 Convert `lane` status, housekeeping, candidate, prewrite, start, refresh-base,
       archive-change, project, format, repair-paradigm, trust-commit-signer, repair-signature and
-      redact. Done when `--paths X`, the `=` form and stdin work through the real CLI.
-- [ ] 3.3 Retarget the lane tests, the fence and the import-set test. Done when the 18 rows and 2
+      redact. Done when `--paths X`, the `=` form and stdin work through the real CLI. `K/lane.py`
+      and `K/lane_repair.py` declare 29 operations, run by `A/lane/{lifecycle,admission,repair}.py`
+      through `A/lane/result.py`; the prewrite path-spelling test and the redaction tests pass
+      through the CLI, which reads stdin for the operation.
+- [x] 3.3 Retarget the lane tests, the fence and the import-set test. Done when the 18 rows and 2
       destructive rows leave and `lane prewrite` builds no other group's application half or App.
-- [ ] 3.4 Record S3 deltas and the `lane prewrite` start-time measurement. Done when product (+50)
-      and test (-80) deltas are written.
+      `lint-imports` keeps 4 contracts with 17 surface ignores (35 before), `_DESTRUCTIVE` has 6
+      rows (8 before), the fence holds `A/lane/` and `redaction.py`, and the import-set test passes:
+      a `lane prewrite` process imports only the `A/lane` admission half among the implementations
+      and builds only the `lane` App with its 13 catalog commands (242 ETHOS modules, 345 before).
+- [x] 3.4 Record S3 deltas and the `lane prewrite` start-time measurement. Done when product (+50)
+      and test (-80) deltas are written. Measured against `d3902d1bc`: product +46 LE
+      (`python_product` +86, 77,749), tests -93 LE (`python_tests` -23, 99,888). `lane prewrite`,
+      31 interleaved runs per tree at load 22 to 29: import, registration, parse and half import
+      median 1,374 ms before and 1,153 ms after; the whole command 2,465 ms and 2,211 ms.
 
 ## 4. S4: lane retire, handoff, lease
 

@@ -34,6 +34,18 @@ Apply = Annotated[
 ]
 Authorize = Annotated[bool, Field(kw_only=True, description="Authorize the selected operation.")]
 Reason = Annotated[str, Field(kw_only=True, description="Why the operation is requested.")]
+# A head, Change or subject that a request leaves unset is `None`, so a type admits it everywhere.
+ExpectHead = Annotated[
+    str | None, Field(kw_only=True, description="The head the operation compares before it acts.")
+]
+Change = Annotated[
+    str | None, Field(kw_only=True, description="The OpenSpec Change the operation serves.")
+]
+Subject = Annotated[
+    str | None, Field(kw_only=True, description="The subject of the commit the operation writes.")
+]
+# The fields that an apply's authorization kind adds to its request.
+_TOKENS = {"authorize": "authorize", "confirm-irreversible": "authorize confirm_irreversible"}
 
 
 class CommandRequest(BaseModel):
@@ -117,6 +129,7 @@ def modes(
     apply: str,
     *,
     request: str,
+    select: str = "",
     authorization: StepAuthorization = "apply",
     destructive: bool = False,
     preview_exit: ExitKind = "observe",
@@ -124,14 +137,14 @@ def modes(
 ) -> tuple[Operation, Operation]:
     """Declare a command's preview and its apply, which `apply` selects and adds its writes to.
 
-    Both take the request fields; an apply authorized by `--authorize` also takes `authorize`.
+    Both take the request fields and any further selectors; an apply also takes the tokens its
+    authorization kind names: `authorize`, and `confirm_irreversible` beside it.
     """
-    authorized = f"authorize {request}" if authorization == "authorize" else request
     return (
         operation(
             f"{identity}.preview",
             preview,
-            select="apply=false",
+            select=f"{select} apply=false",
             request=request,
             effects=_PREVIEWED,
             exit_kind=preview_exit,
@@ -139,8 +152,8 @@ def modes(
         operation(
             f"{identity}.apply",
             apply,
-            select="apply=true",
-            request=authorized,
+            select=f"{select} apply=true",
+            request=f"{_TOKENS.get(authorization, '')} {request}",
             effects=f"{_PREVIEWED} {writes}",
             authorization=authorization,
             destructive=destructive,
@@ -183,6 +196,10 @@ class Command:
     positionals: tuple[str, ...] = ()
     # The fields whose values may start with `-`, such as a command passed through.
     hyphen: tuple[str, ...] = ()
+    # The field whose value `-`, or whose flag, has the CLI read standard input for the operation,
+    # which never reads it itself, and the most characters that read takes, 0 for all of them.
+    stdin: str = ""
+    stdin_limit: int = 0
 
     def flag(self, name: str) -> str:
         """Return the command-line flag of one request field."""

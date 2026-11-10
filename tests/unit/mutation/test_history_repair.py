@@ -27,6 +27,7 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.semantic import canonical_utc_time
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import create_change_source_lane
@@ -35,7 +36,6 @@ from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import seed_executed_proof
 from tests.support.semantic import attestation_fixture
-from tests.support.signature import configure_signer
 from tests.support.signature import killed_signature_repair
 from tests.support.signature import repair_fixture_history
 from tests.support.signature import signature_repository
@@ -163,7 +163,7 @@ def test_repair_keeps_the_mirror_where_its_source_commit_declared_it(tmp_path):
 def _archive_verification_lane(tmp_path):
     """Prepare native verification at the trusted base before authoring begins."""
     repo, candidate = start_adopted_candidate(tmp_path)
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     declare_native_proof_checks(
         repo,
         test="from pathlib import Path; "

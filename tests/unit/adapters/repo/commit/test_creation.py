@@ -15,10 +15,10 @@ from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.outcome import OutcomeError
 from ethos.repository.policy.commit import CommitPolicy
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.private_addresses import PRIVATE_FORGE
-from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -162,7 +162,7 @@ def _signature_repository(tmp_path: Path, object_format: str) -> Path:
     git(repo, "add", ".ethos/workspace.toml")
     # Signature-only replacement needs an unsigned source object to replace.
     git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: declare the subject grammar")
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     return repo
 
 

@@ -24,10 +24,10 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.signature import configure_signer
 
 HOLDER = "agent:test:case:lane-start"
 COMMAND = "/runtime/python -B -I -m ethos.cli"
@@ -72,7 +72,7 @@ def test_historical_start_preserves_candidate_and_compensates_only_owned_state(
 ):
     """An exact trusted base is independent of today's candidate and governing runtime."""
     repo, candidate, target, start = start_case
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "test: signed base")
     base = git(repo, "rev-parse", "HEAD")
     git(candidate, "merge", "--ff-only", base)
@@ -118,7 +118,7 @@ def test_explicit_unsigned_base_is_refused_before_lane_effects(start_case):
 def test_historical_base_rechecks_current_trust_before_effects(start_case, tmp_path, monkeypatch):
     """Bootstrap cannot turn a former trusted observation into effect authority."""
     repo, _candidate, target, start = start_case
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "test: signed base")
     base = git(repo, "rev-parse", "HEAD")
     before = _observe(repo, target)
@@ -136,7 +136,7 @@ def test_historical_base_rechecks_current_trust_before_effects(start_case, tmp_p
 def test_historical_base_obeys_current_identity_not_its_old_policy(start_case, tmp_path):
     """A trusted key cannot bypass the current repository's explicit attribution rule."""
     repo, _candidate, target, start = start_case
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "test: signed base")
     base = git(repo, "rev-parse", "HEAD")
     commit_fixture_file(

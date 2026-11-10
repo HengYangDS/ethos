@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from functools import cache
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -36,6 +37,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import same_
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.contracts.digest import file_sha256
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 
@@ -53,14 +55,23 @@ _GOVERNANCE_PYTHON: Path | None = None
 def install_fixture_hook_runtime(
     root: Path, *, native_executables: Mapping[str, Path] | None = None
 ) -> HookRuntimeBinding:
-    """Install a small valid runtime for non-runtime governance fixtures."""
+    """Install a small valid runtime for non-runtime governance fixtures.
+
+    Its build is the one the repository's hooks expect: the invoking build, resolved once per
+    worker and source tree, or what `expected_runtime_build` selects for an `ethos` profile.
+    """
     common = Path(git_common_dir(root))
     runtime_root = common / "ethos/runtime"
     staging = runtime_root / f".fixture-{uuid.uuid4().hex}"
     package = b"ethos fixture wheel\n"
     wheel_sha256 = hashlib.sha256(package).hexdigest()
     wheel = common / "ethos/packages" / wheel_sha256 / "ethos-fixture.whl"
-    build = expected_runtime_build(root).identity
+    profile = load_repository_profile(root).declaration
+    build = (
+        expected_runtime_build(root).identity
+        if profile is not None and profile.profile_id == "ethos"
+        else _invoking_build(Path(ethos.__file__).resolve().parents[2])
+    )
     environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
     try:
         create_fixture_python(
@@ -103,12 +114,18 @@ def install_fixture_hook_runtime(
                 "core.hooksPath": hooks.as_posix(),
             },
         )
-        binding = hook_runtime_binding(root)
+        binding = hook_runtime_binding(root, expected_build=build)
         if not binding["current"]:
             raise AssertionError(binding)
         return binding
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
+
+@cache
+def _invoking_build(source: Path) -> BuildIdentity:
+    """Resolve one source tree's build once per worker, which runs that tree's code throughout."""
+    return runtime_build_identity(source)
 
 
 def create_fixture_python(

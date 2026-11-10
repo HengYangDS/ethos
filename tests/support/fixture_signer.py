@@ -1,8 +1,10 @@
-"""Sign every fixture commit with one SSH signer and its protected trust anchor.
+"""Sign fixture commits with SSH signers whose protected trust anchors this module creates.
 
 The repository paradigm requires an SSH signature on every commit, so each fixture
-repository signs through one signer per test process. The signer and its trust anchor
-live outside every fixture repository, as the anchor must, and go when the process ends.
+repository signs through one signer per test process. A test that changes its signer's trust
+or key owns a signer in a directory it names instead, whose anchor trusts that signer or, for
+an untrusted signer, nobody yet. Every anchor lives outside every fixture repository, as the
+anchor must, and the process signer goes when the process ends.
 """
 
 from __future__ import annotations
@@ -17,30 +19,49 @@ from pathlib import Path
 PRINCIPAL = "fixture@example.invalid"
 
 
-@functools.cache
-def _signer() -> tuple[str, Path, Path]:
-    """Create the process signer once: ssh-keygen, the public key and the trust anchor."""
+def _create_signer(
+    directory: Path, *, trusted: bool = True, key_type: str = "ed25519"
+) -> tuple[str, Path, Path]:
+    """Create ssh-keygen's key `signer` in `directory` and its anchor `trust/allowed-signers`."""
     executable = shutil.which("ssh-keygen")
     assert executable is not None
-    directory = Path(tempfile.mkdtemp(prefix="ethos-fixture-signer-"))
-    atexit.register(shutil.rmtree, directory, ignore_errors=True)
     key = directory / "signer"
     subprocess.run(
-        (executable, "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
+        (executable, "-q", "-t", key_type, "-N", "", "-f", str(key)),
         check=True,
         capture_output=True,
         timeout=15,
     )
     public = key.with_suffix(".pub")
-    anchor = directory / "allowed-signers"
-    anchor.write_text(f'{PRINCIPAL} namespaces="git" {public.read_text()}', encoding="utf-8")
+    trust = directory / "trust"
+    trust.mkdir(mode=0o700)
+    anchor = trust / "allowed-signers"
+    anchor.write_text(
+        f'{PRINCIPAL} namespaces="git" {public.read_text()}' if trusted else "", encoding="utf-8"
+    )
     anchor.chmod(0o600)
     return executable, public, anchor
 
 
-def configure_fixture_signer(repo: Path) -> None:
-    """Make every commit in the repository carry the trusted fixture SSH signature."""
-    executable, public, anchor = _signer()
+@functools.cache
+def _signer() -> tuple[str, Path, Path]:
+    """Create the process signer once, in a directory that goes when the process ends."""
+    directory = Path(tempfile.mkdtemp(prefix="ethos-fixture-signer-"))
+    atexit.register(shutil.rmtree, directory, ignore_errors=True)
+    return _create_signer(directory)
+
+
+def configure_fixture_signer(
+    repo: Path, own: Path | None = None, *, trusted: bool = True, key_type: str = "ed25519"
+) -> Path:
+    """Make every commit in the repository carry a fixture SSH signature; return its anchor.
+
+    Without `own` the repository signs as the process signer. With it, the repository signs with
+    a new `key_type` signer created in `own`, which its anchor trusts unless `trusted` is false.
+    """
+    executable, public, anchor = (
+        _signer() if own is None else _create_signer(own, trusted=trusted, key_type=key_type)
+    )
     for name, value in (
         ("gpg.format", "ssh"),
         ("gpg.ssh.program", executable),
@@ -49,6 +70,7 @@ def configure_fixture_signer(repo: Path) -> None:
         ("commit.gpgsign", "true"),
     ):
         subprocess.run(("git", "config", name, value), cwd=repo, check=True, capture_output=True)
+    return anchor
 
 
 def fixture_signer_inputs() -> dict[str, str]:

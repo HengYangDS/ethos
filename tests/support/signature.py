@@ -1,14 +1,13 @@
-"""Configure native test signing and materialize signature-repair failure boundaries."""
+"""Materialize signature-repair repositories and their failure boundaries."""
 
 from __future__ import annotations
 
 import hashlib
-import shutil
-import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.accepted.signature as repair
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_paradigm_toolchain
@@ -22,59 +21,16 @@ if TYPE_CHECKING:
     import pytest
 
 
-def configure_signer(repo: Path, tmp_path: Path) -> None:
-    """Create one owned native SSH signer and its explicit repository trust anchor."""
-    executable = shutil.which("ssh-keygen")
-    assert executable is not None
-    key = tmp_path / "signer"
-    subprocess.run(
-        (executable, "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        timeout=15,
-    )
-    trust = tmp_path / "trust"
-    trust.mkdir(mode=0o700)
-    anchor = trust / "allowed-signers"
-    public = key.with_suffix(".pub").read_text()
-    anchor.write_text(f'test@example.invalid namespaces="git" {public}')
-    anchor.chmod(0o600)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("gpg.ssh.program", executable),
-        ("user.signingkey", str(key.with_suffix(".pub"))),
-        ("gpg.ssh.allowedSignersFile", str(anchor)),
-    ):
-        git(repo, "config", name, value)
-
-
 def untrusted_signer_repository(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, signed: bool, key_type: str = "ed25519"
 ) -> tuple[Path, Path, str, str]:
     """Configure one local signer that the repository's empty trust anchor does not trust yet."""
-    key = tmp_path / "signer"
-    subprocess.run(
-        ("/usr/bin/ssh-keygen", "-q", "-t", key_type, "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        text=True,
-    )
     for role in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{role}_NAME", "Test User")
         monkeypatch.setenv(f"GIT_{role}_EMAIL", "owner@example.com")
     repo = init_git_repo(tmp_path / "repo")
-    trust = tmp_path / "trust"
-    trust.mkdir(mode=0o700)
-    anchor = trust / "allowed-signers"
-    anchor.write_bytes(b"")
-    anchor.chmod(0o600)
-    for name, value in (
-        ("gpg.format", "ssh"),
-        ("user.signingkey", key.with_suffix(".pub").as_posix()),
-        ("user.email", "owner@example.com"),
-        ("gpg.ssh.allowedSignersFile", anchor.as_posix()),
-    ):
-        git(repo, "config", name, value)
+    anchor = configure_fixture_signer(repo, own=tmp_path, trusted=False, key_type=key_type)
+    git(repo, "config", "user.email", "owner@example.com")
     if signed:
         git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed target")
     target = git(repo, "rev-parse", "HEAD")
@@ -126,7 +82,7 @@ def signature_repository(
     git(repo, "branch", "main", old)
     candidate = tmp_path / "candidate"
     git(repo, "worktree", "add", str(candidate), "candidate/dev")
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     return repo, old, candidate
 
 

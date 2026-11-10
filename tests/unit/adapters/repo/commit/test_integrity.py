@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.commit import commit_policy_from_text
 from tests.support.architecture import architecture_projection_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -26,7 +27,6 @@ from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_publication_topology
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-from tests.support.signature import configure_signer
 
 _POLICY = '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
 _IDENTITY = (
@@ -37,7 +37,7 @@ _IDENTITY = (
 
 def _repository(tmp_path: Path) -> tuple[Path, str, str]:
     repo = init_git_repo(tmp_path / "repo")
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     (repo / ".ethos").mkdir()
     (repo / ".ethos/workspace.toml").write_text(_POLICY)
     git(repo, "add", ".ethos/workspace.toml")
@@ -148,7 +148,7 @@ def test_signed_pathspec_commit_reads_only_the_selected_policy(
     policy = root / ".ethos/workspace.toml"
     policy.write_text(_POLICY)
     commit_fixture(root, "fix: declare commit policy")
-    configure_signer(root, tmp_path)
+    configure_fixture_signer(root, own=tmp_path)
     note = root / "notes/selected.md"
     note.parent.mkdir()
     note.write_text("Selected authored note.\n")
@@ -425,7 +425,7 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
             invalid, gap = "AUTHORIZATION_123456789\n", "staged_secret_scan_failed"
     before = output.read_text()
     commit_fixture(root, "declare exact checks")
-    configure_signer(root, tmp_path)
+    configure_fixture_signer(root, own=tmp_path)
     note = root / ("src/selected.py" if checked_owner == "formatter" else "notes/selected.md")
     note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("VALUE = 1\n")
@@ -494,7 +494,7 @@ def test_signed_commit_preserves_incumbent_native_policy(
         ignore.write_text("unrelated.txt:test-selection:1\n")
         weakened = "selected.txt:test-selection:1\n"
     commit_fixture(root, "declare incumbent native configuration")
-    configure_signer(root, tmp_path)
+    configure_fixture_signer(root, own=tmp_path)
     output.write_text(invalid)
     git(root, "add", output.name)
     head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")

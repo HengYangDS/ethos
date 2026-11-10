@@ -17,6 +17,8 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import PRINCIPAL
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
@@ -30,7 +32,6 @@ from tests.support.governed_repository import write_publication_topology
 from tests.support.paradigm import LINKED_README
 from tests.support.paradigm import MIT_GRANT
 from tests.support.proof import seed_executed_proof
-from tests.support.signature import configure_signer
 
 PROPOSAL = "terminal-convergence"
 PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
@@ -92,8 +93,7 @@ def branch_publication_fixture(
         release = repo / ".ethos/release.toml"
         release.write_text(release.read_text().rsplit("[[publication.peers]]", 1)[0])
     baseline = commit_fixture(repo, "declare publication topology")
-    configure_signer(repo, tmp_path)
-    git(repo, "config", "commit.gpgsign", "true")
+    configure_fixture_signer(repo, own=tmp_path)
     if accepted:
         git(repo, "checkout", "-b", "candidate/dev")
     (repo / "notes").mkdir(exist_ok=True)
@@ -185,8 +185,7 @@ def accepted_release_fixture(
     git(repo, "checkout", "-b", "candidate/dev")
     # Keep an unsigned ancestor inside the old-release-to-accepted range.
     git(repo, "commit", "--allow-empty", "-m", "legacy accepted source")
-    configure_signer(repo, tmp_path)
-    git(repo, "config", "commit.gpgsign", "true")
+    configure_fixture_signer(repo, own=tmp_path)
     release = repo / ".ethos/release.toml"
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
@@ -302,7 +301,7 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
         "tree_oid": tree,
         "signature": {
             "verdict": "pass",
-            "principal": "test@example.invalid",
+            "principal": PRINCIPAL,
             "fingerprint": configured_signer_fingerprint(repo),
             "trust_anchor_sha256": hashlib.sha256(anchor.read_bytes()).hexdigest(),
             "verifier": "git verify-tag",

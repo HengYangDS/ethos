@@ -24,6 +24,7 @@ from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Facts
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import prepared_work_lane
@@ -31,7 +32,6 @@ from tests.support.paradigm import LINKED_README
 from tests.support.paradigm import MIT_GRANT
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import seed_executed_proof
-from tests.support.signature import configure_signer
 from tests.support.signature import repair_fixture_history
 
 if TYPE_CHECKING:
@@ -68,8 +68,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
     fixture = prepared_work_lane(tmp_path, release_mirror=mode)
     work, repo = fixture.worktree, fixture.repository
     historical_head = git(work, "rev-parse", "HEAD")
-    configure_signer(work, tmp_path)
-    git(work, "config", "commit.gpgsign", "true")
+    configure_fixture_signer(work, own=tmp_path)
     old = git(repo, "rev-parse", "HEAD")
     assert git(fixture.candidate, "rev-parse", "HEAD") == old
     git(repo, "-c", f"core.hooksPath={tmp_path / 'fixture-hooks'}", "branch", "main", old)

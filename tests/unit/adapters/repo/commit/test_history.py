@@ -21,15 +21,15 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import unsigned_commit_payload
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.signature import configure_signer
 from tests.support.signature import signature_repository
 
 
 def _history(tmp_path):
     repo = init_git_repo(tmp_path / "repo")
-    configure_signer(repo, tmp_path)
+    configure_fixture_signer(repo, own=tmp_path)
     before = git(repo, "rev-parse", "HEAD")
     (repo / "value").write_text("preserved\n")
     git(repo, "add", "value")

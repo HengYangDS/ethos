@@ -19,13 +19,13 @@ from ethos.adapters.repo.worktree_effects import hold_worktree_refs
 from ethos.application.inspection import inspect_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,8 +47,7 @@ def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
 def _retained_candidate(tmp_path: Path) -> tuple[Path, Path, str, str]:
     """Retain a signed ancestor while its candidate ref advances without materialization."""
     repo, candidate = init_repo_with_candidate(tmp_path)
-    configure_signer(repo, tmp_path)
-    git(repo, "config", "commit.gpgsign", "true")
+    configure_fixture_signer(repo, own=tmp_path)
     previous = commit_fixture_file(candidate, "payload.md", "Retained input\n", "fix: retain input")
     git(repo, "branch", "work/retained", previous)
     head = commit_fixture_file(candidate, "payload.md", "Current input\n", "fix: current input")

@@ -46,6 +46,7 @@ def carrier_report():
     )
 
 
+@pytest.mark.gate("format-selection", "conforming")
 def test_format_selection_receipt_exposes_owner_for_every_tracked_file(carrier_report) -> None:
     payload = carrier_report
     assert payload["verdict"] == "pass"
@@ -223,6 +224,7 @@ def test_native_javascript_transport_uses_its_semantic_adapter_home(
     )
 
 
+@pytest.mark.gate("format-selection", "fail_closed")
 @pytest.mark.parametrize(
     ("declaration", "error"),
     [
@@ -318,6 +320,7 @@ def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     assert audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"
 
 
+@pytest.mark.gate("format-selection", "refusing")
 def test_a_policy_root_that_holds_no_tracked_file_is_a_failure(
     tmp_path, monkeypatch, capsys
 ) -> None:

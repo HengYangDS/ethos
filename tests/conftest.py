@@ -28,6 +28,7 @@ from hypothesis import settings
 from hypothesis.configuration import set_hypothesis_home_dir
 
 import ethos.adapters.gates.host_admission as host_admission
+import tests.support.gate_marks as gate_marks
 import tests.support.runtime_scenarios as runtime_scenarios
 import tests.support.tier_guard as tier_guard
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
@@ -84,6 +85,7 @@ def pytest_configure(config: pytest.Config) -> None:
     when it configures, so the attempt's root is chosen first and only when none is given.
     """
     config.pluginmanager.register(tier_guard, "ethos-tier-guard")
+    config.pluginmanager.register(gate_marks, "ethos-gate-marks")
     if (root := os.environ.get("ETHOS_NATIVE_OUTPUT_DIR")) and not config.option.allure_report_dir:
         config.option.allure_report_dir = str(Path(root) / "allure/results")
 

@@ -41,6 +41,7 @@ def test_peers_that_share_a_tip_share_one_judged_range(tmp_path: Path) -> None:
     assert target["checked_commit_count"] == 2
 
 
+@pytest.mark.gate("commit-ranges", "conforming")
 def test_an_empty_range_passes(tmp_path: Path) -> None:
     """A head that every peer already holds leaves nothing to judge."""
     repo, head = _fixture(tmp_path, main=True)
@@ -49,6 +50,7 @@ def test_an_empty_range_passes(tmp_path: Path) -> None:
     assert [target["checked_commit_count"] for target in report["targets"]] == [0]
 
 
+@pytest.mark.gate("commit-ranges", "refusing")
 def test_a_commit_the_heads_policy_refuses_blocks(tmp_path: Path) -> None:
     """An unsigned commit in the next range refuses with the head's own commit policy."""
     repo, _ = _fixture(tmp_path, main=True)
@@ -60,6 +62,7 @@ def test_a_commit_the_heads_policy_refuses_blocks(tmp_path: Path) -> None:
     assert any(gap.startswith("commit_signature_missing:") for gap in report["required_gaps"])
 
 
+@pytest.mark.gate("commit-ranges", "fail_closed")
 @pytest.mark.parametrize(
     ("case", "verdict", "gaps", "notes"),
     [

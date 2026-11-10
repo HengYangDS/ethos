@@ -19,8 +19,10 @@ reaches one copy only, so each copy is a parallel implementation.
 - `ethos.adapters.repo.runtime.filesystem.runtime_executable` becomes the one owner of a virtual
   environment's executable path, used by `tools/ci/delivery/acceptance/effect.py` and the test
   support.
-- `python_tests` falls by 139 effective lines at `c89ac1884` (99,933 to 99,794); product grows by
-  6 and tools fall by 5.
+- In the source budget's enforced line-equivalents at `c89ac1884`, `python_tests` falls by 139
+  (99,933 to 99,794), product grows by 6 and tools fall by 5.
+- `custody_path`, the store's own layout, becomes public, and the test support's copy of that
+  layout goes.
 
 ## Capabilities
 

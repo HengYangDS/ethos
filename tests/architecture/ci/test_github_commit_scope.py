@@ -6,9 +6,6 @@ from typing import Any
 
 import pytest
 
-import tools.ci.ci_projection as owner
-
-ROOT = owner.ROOT
 COMMIT_SCOPED_JOBS = ("host-conformance", "quality", "external-links", "verify", "package")
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
 

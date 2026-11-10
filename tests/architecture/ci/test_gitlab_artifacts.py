@@ -4,10 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import tools.ci.ci_projection as owner
-
-ROOT = owner.ROOT
-
 
 def test_gitlab_jobs_archive_no_build_output(gitlab: dict[str, Any]) -> None:
     """Every archived path is evidence; build outputs under build/artifacts/ stay on GitHub."""

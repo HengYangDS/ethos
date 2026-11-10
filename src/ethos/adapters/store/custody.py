@@ -42,7 +42,8 @@ def custody_digests(attestation: Attestation) -> tuple[str, ...]:
     return digests
 
 
-def _custody_path(repo: Path, digest: str) -> Path:
+def custody_path(repo: Path, digest: str) -> Path:
+    """Return where the Git-common custody store keeps the evidence bytes of one digest."""
     return local_state_root(repo) / "custody" / "sha256" / digest
 
 
@@ -58,7 +59,7 @@ def store_custody(repo: Path, payload: bytes) -> str:
     """Keep exact evidence bytes under their SHA-256 digest and return the digest."""
     digest = hashlib.sha256(payload).hexdigest()
     write_content_addressed(
-        _custody_path(repo, digest), payload, collision="custody_identity_collision"
+        custody_path(repo, digest), payload, collision="custody_identity_collision"
     )
     return digest
 
@@ -67,7 +68,7 @@ def require_custody(repo: Path, digests: Iterable[str]) -> None:
     """Fail closed unless every digest still has exactly its stored bytes."""
     for digest in digests:
         try:
-            stored = _custody_path(repo, digest).read_bytes()
+            stored = custody_path(repo, digest).read_bytes()
         except OSError:
             stored = None
         if stored is None or hashlib.sha256(stored).hexdigest() != digest:
@@ -80,7 +81,7 @@ def release_custody(repo: Path, digests: Iterable[str]) -> tuple[str, ...]:
     released: list[str] = []
     for digest in dict.fromkeys(digests):
         try:
-            _custody_path(repo, digest).unlink()
+            custody_path(repo, digest).unlink()
         except FileNotFoundError:
             continue
         released.append(digest)

@@ -6,9 +6,6 @@ from typing import Any
 
 import pytest
 
-import tools.ci.ci_projection as owner
-
-ROOT = owner.ROOT
 COMMIT_SCOPED_JOBS = ("ethos:host-conformance", "ethos:verify", "ethos:external-links", "ethos:npm")
 REF_SCOPED_JOBS = ("ethos:commit-policy",)
 MAIN = '$CI_COMMIT_BRANCH == "main"'

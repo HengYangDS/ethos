@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import tools.ci.ci_projection as owner
-
-ROOT = owner.ROOT
 TAG = "${{ inputs.release_tag || inputs.journey_tag }}"
 
 

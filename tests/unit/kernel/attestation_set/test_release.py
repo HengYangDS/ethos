@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
+from ethos.adapters.store.custody import custody_path
 from ethos.adapters.store.custody import store_custody
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
-from tests.support.semantic import custody_path
 
 if TYPE_CHECKING:
     from pathlib import Path

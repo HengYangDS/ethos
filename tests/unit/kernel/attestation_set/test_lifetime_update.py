@@ -12,12 +12,12 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.repo.attestation_set as attestation_set
+from ethos.adapters.store.custody import custody_path
 from ethos.adapters.store.custody import store_custody
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
-from tests.support.semantic import custody_path
 from tests.support.semantic import occurrence_attestation
 
 if TYPE_CHECKING:

@@ -4,20 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.git import git_common_dir
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:
     from typing import Any
-
-
-def custody_path(repo: Path, digest: str) -> Path:
-    """Return where the Git-common custody store keeps the evidence bytes of one digest."""
-    return Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
 
 
 def occurrence_attestation(ordinal: int, *, payload_bytes: int = 0) -> Attestation:

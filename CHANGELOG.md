@@ -159,12 +159,23 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - **Breaking:** `ethos lane handoff export` no longer takes `--ttl-seconds`, which no export read;
   it exits 2 with `command_usage_invalid:lane handoff export`.
 - **Breaking:** the `docs-registry` gate's provider is
-  `ethos.application.docs_registry:docs_registry_report`; a gate registry that names the former
-  `ethos.surface.cli.root.reference:docs_registry_report` no longer resolves it. The provider checks
+  `ethos.application.docs_registry:docs_registry_report`; a gate registry that still names the
+  former provider in the root CLI's reference module no longer resolves it. The provider checks
   each documented command example against the catalog's command and group paths and the `mcp`
   launcher instead of building the command line, and an unknown example's
   `unknown_ethos_command_example` gap names every word before its first option, or `ethos` when it
   starts with an option.
+- **Breaking:** the structured `next` reads every ETHOS argv through the catalog alone: an argv that
+  selects no catalog operation, including one whose words name no catalog command, such as
+  `ethos mcp` or a retired command, reports the `opaque` effect, `destructive` and `human` with an
+  empty `form`. Before, `ethos mcp` read `execute` and `opaque`, and another argv that names no
+  catalog command read `local-evidence-write`, with `execute` or `local-write` by its flags, not
+  destructive, and the authority of its strongest flag.
+- **Breaking:** a group's `--help --json` lists its own commands in full and its nested groups by
+  name and help in `data.groups`, so `ethos lane --help --json` lists the twelve `lane` commands and
+  the `lane redact`, `retire`, `lease` and `handoff` groups within the 48 KiB help budget instead of
+  moving every `lane` command to the bound detail; bare `ethos --help --json` adds the shown groups
+  `attestation` and `host`.
 - A gate registry whose `default` proof set is narrower than `full` now refuses to load when
   the dependency closure of `default` holds a gate that is not offline or that is a package
   gate: `default proof gate is not an offline source check`. A registry whose `default` equals

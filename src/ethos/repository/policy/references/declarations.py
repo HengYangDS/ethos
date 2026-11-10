@@ -157,11 +157,7 @@ def command_owner_sources_from_files(
     parsed_files: Mapping[str, AST | None] | None = None,
     context_files: dict[str, str] | None = None,
 ) -> dict[str, frozenset[str]]:
-    """Return each command identity with every exact defining symbol.
-
-    A Cyclopts App whose path a catalog group declares only hosts the group's commands that are
-    not yet catalog entries, so the group alone owns that path.
-    """
+    """Return each command identity with every exact defining symbol."""
     sources = _command_declarations(files)
     context = _command_declarations((context_files or {}) | files)
     if parsed_files is None:
@@ -170,20 +166,17 @@ def command_owner_sources_from_files(
         }
     prefixes = python_references.cyclopts_prefixes(context, parsed_files=parsed_files)
     owners: dict[str, set[str]] = {}
-    catalog: set[str] = set()
-    for path in sources:
-        if (tree := parsed_files.get(path)) is not None:
-            declared = python_references.catalog_command_owners(path, tree)
-            catalog.update(declared)
-            for command, symbols in (
-                *python_references.cyclopts_command_owners(path, tree, prefixes).items(),
-                *declared.items(),
-            ):
-                owners.setdefault(command, set()).update(symbols)
     module_paths = {python_references.module_name(path): path for path in sources}
     for (module, variable), command in prefixes.items():
-        if (path := module_paths.get(module)) and command not in catalog:
+        if path := module_paths.get(module):
             owners.setdefault(command, set()).add(f"{path}:{variable}")
+    for path in sources:
+        if (tree := parsed_files.get(path)) is not None:
+            for command, symbols in (
+                *python_references.cyclopts_command_owners(path, tree, prefixes).items(),
+                *python_references.catalog_command_owners(path, tree).items(),
+            ):
+                owners.setdefault(command, set()).update(symbols)
     return {command: frozenset(symbols) for command, symbols in owners.items()}
 
 

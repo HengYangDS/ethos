@@ -16,7 +16,7 @@ import tests.support.ethos_cli_runner as cli_runner
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.application.inspection import inspect_repository
 from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.catalog import register
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
@@ -61,7 +61,7 @@ def test_inprocess_command_restores_environment_on_every_exit(tmp_path, monkeypa
 
 
 def test_registered_command_roots_are_exactly_the_terminal_surface() -> None:
-    load_command_groups([])
+    register()
     registered = {command for command in app.resolved_commands() if not command.startswith("-")}
 
     assert registered == {*PUBLIC_ROOT_COMMANDS, "lane", "hook", "attestation", "host"}
@@ -77,7 +77,7 @@ def test_bare_help_loads_the_terminal_root_surface() -> None:
 
 def test_every_registered_command_has_help_text() -> None:
     """Cyclopts takes a command's help from its docstring, so an undocumented command has none."""
-    load_command_groups([])
+    register()
     pending = [("ethos", app)]
     undocumented = []
     while pending:

@@ -100,10 +100,7 @@ def test_literal_names_keep_exact_cyclopts_identities() -> None:
 
 
 def test_catalog_declarations_own_the_ethos_commands_they_name() -> None:
-    """A catalog `Command` or `Group` with a literal name owns that `ethos` path; others do not.
-
-    An App of a group's path that hosts the group's other commands does not own the path again.
-    """
+    """A catalog `Command` or `Group` with a literal name owns that `ethos` path; others do not."""
     source = (
         "from ethos.contracts.operations.declaration import Command\n"
         "from ethos.contracts.operations.declaration import Group\n"
@@ -113,16 +110,12 @@ def test_catalog_declarations_own_the_ethos_commands_they_name() -> None:
     )
     files = {
         "src/ethos/tool.py": source,
-        "src/ethos/cli.py": "from cyclopts import App\napp = App(name='ethos')\n"
-        "tool = App(name='tool')\napp.command(tool)\n@tool.command\ndef stop(): pass\n",
         "src/other.py": "from x import Command\nCommand(name='a')\n",
     }
 
     assert command_owner_sources_from_files(files) == {
-        "ethos": frozenset({"src/ethos/cli.py:app"}),
         "ethos tool": frozenset({"src/ethos/tool.py:tool"}),
         "ethos tool run": frozenset({"src/ethos/tool.py:tool run"}),
-        "ethos tool stop": frozenset({"src/ethos/cli.py:stop"}),
     }
 
 

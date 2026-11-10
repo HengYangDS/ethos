@@ -43,7 +43,7 @@ and reducers are deterministic transformations over supplied values.
 | Transient values    | tuples, mappings, enums, and small frozen stdlib values        | immutable facts and decisions                         |
 | Predicates          | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts      |
 | Dependency order    | `TransitionPlan` and direct `graphlib.TopologicalSorter`       | deterministic `Check`, `Decision`, and `Effect` order |
-| CLI                 | Cyclopts declarations at the composition root                  | one human and machine command surface                 |
+| CLI                 | the operation catalog, rendered by Cyclopts                    | one human and machine command surface                 |
 | Projections         | pure reducers and native serializers                           | bounded status, protocol, and external carrier views  |
 
 The [Declarative Lifecycle Rules](../../rules/declarative-lifecycle.md) own the duty to use this

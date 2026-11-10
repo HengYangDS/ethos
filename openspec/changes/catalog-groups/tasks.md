@@ -91,13 +91,18 @@
 - [x] 4.4 Record S4 deltas. Done when product (+20) and test (-80) deltas are written, and the test
       total is on course for the gate or the work is returned to the committee. Measured against
       `0ab830dfa`: product +17 LE (`python_product` -2, 77,747), tests -153 LE (`python_tests`
-      -73, 99,854); the Change stands at +189 product and -227 test LE before S5.
+      -73, 99,854). Measuring the slice commits directly puts the Change at +206 product LE
+      before S5 (S2 measures +21 against its report's +4).
 
 ## 5. S5: removal, provider and documents
 
-- [ ] 5.1 Delete the old command modules, `_COMMAND_MODULES`, `load_command_groups`, the admission
+- [x] 5.1 Delete the old command modules, `_COMMAND_MODULES`, `load_command_groups`, the admission
       tables and the classifier fallback. Done when no `lane`, `hook` or `attestation` module
-      remains under `surface/cli/` and `ethos_step_*` are gone.
+      remains under `surface/cli/` and `ethos_step_*` are gone. `surface/cli/` holds the adapter,
+      its output and the `mcp` launcher, which the adapter loads for its own word or none;
+      `run_application` builds the invoked word's commands; `next` reads every argv through the
+      catalog alone, an unselected one `opaque`, destructive and `human`; and the S3 analyzer rule
+      and its fixture leave, semantic closure and product boundaries passing without them.
 - [x] 5.2 Move the docs-registry provider as its own commit. Done when the docs-registry gate passes
       and the five importing tests use the exported constant. `A/docs_registry.py` checks each
       example against the catalog's command and group paths and the `mcp` launcher, and
@@ -105,13 +110,24 @@
       surface ignores remain), and the docs-registry, markdown-links and prose gates pass on this
       commit's tree. The five tests take the provider from `A/docs_registry.py`;
       `test_host_gate_proof.py` patches it through the exported `DOCS_REGISTRY_PROVIDER`.
-- [ ] 5.3 Update the command-plane spec, `rules/module-layout.md`, `docs/reference/command-plane.md`
+- [x] 5.3 Update the command-plane spec, `rules/module-layout.md`, `docs/reference/command-plane.md`
       and `CHANGELOG.md`. Done when the docs gates pass and the CHANGELOG names every refusal.
-- [ ] 5.4 Record S5 deltas. Done when product (-50) and test (-30) deltas are written.
+      Each MODIFIED requirement keeps every base scenario; a group's `--help --json` lists its own
+      commands and its nested groups by name, so `lane` prints 43,021 bytes within the unchanged
+      help budget (Decision 2); the CHANGELOG adds the provider, `next` and help lines; and the
+      docs-registry, markdown-links and prose gates pass.
+- [x] 5.4 Record S5 deltas. Done when product (-50) and test (-30) deltas are written. Measured
+      against `a8f8c3b65`: product -44 LE (`python_product` -68, 77,679), tests -12 LE
+      (`python_tests` -3, 99,851), the provider commit +3 and -1 LE of them; short of both figures,
+      as S2 to S4 already retired the tests of the old modules.
 
 ## 6. Acceptance
 
 - [ ] 6.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head and `lint-imports` shows the 52 rows gone.
 - [ ] 6.2 Check the budget. Done when the Change totals at most +200 product and at most -100 test
-      effective lines, and 12 destructive rows are gone.
+      effective lines, and 12 destructive rows are gone. Measured against `2b113c640` on the S5
+      tree: product +162 LE (`python_product` +197, 77,482 to 77,679), tests -239 LE
+      (`python_tests` -30, 99,881 to 99,851), 52 of 54 surface ignore rows and the 12 destructive
+      rows gone. The figures are effective lines, the unit the design states; the enforced token
+      measure is product +197 and tests -30.

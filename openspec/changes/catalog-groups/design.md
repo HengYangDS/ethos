@@ -43,8 +43,11 @@ Non-Goals:
    positionals and `--`, and returns `(command, None)` for a prefix without a matching entry.
 2. **Groups.** One `GROUPS` constant beside `COMMANDS` maps a path prefix to its help and hidden
    flag (`lane` and `hook` hidden). Bare help lists non-hidden groups; `<group> --help --json`
-   prints that group's part. Kernel modules under 500 LE each: `attestation`, `hook`, `lane`,
-   `lane_repair`, `retire`, `handoff`, `lease`, `host`.
+   prints that group's part: its own commands in full and its non-hidden nested groups by name and
+   help, as bare `--help --json` prints the root commands and the shown groups. So `lane`, whose 26
+   entries took 98,582 bytes and moved to the bound detail, prints its 12 commands and four groups
+   in 43,021 bytes, within the unchanged 48 KiB help budget (S5). Kernel modules under 500 LE each:
+   `attestation`, `hook`, `lane`, `lane_repair`, `retire`, `handoff`, `lease`, `host`.
 3. **`modes()` and reusable field types, delivered first.** `modes()` returns the preview and
    apply pair (selectors `apply=false|true`; the apply entry adds `authorize` where its kind needs
    it, the write effects and a `verdict` exit). Recurring fields are composed, not inherited: one

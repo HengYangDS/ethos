@@ -239,7 +239,6 @@ def test_each_command_but_the_mcp_server_is_one_invocation(
             invocation_facts.invocation_fact(("cli-entry",), lambda: observed.append(1))
 
     monkeypatch.setattr(console, "command_scope", lambda **_: nullcontext())
-    monkeypatch.setattr(application, "load_command_groups", lambda _argv: None)
     monkeypatch.setattr(application, "run_application", dispatch)
     monkeypatch.setattr(sys, "argv", ["ethos", *command, "--root", str(tmp_path)])
 

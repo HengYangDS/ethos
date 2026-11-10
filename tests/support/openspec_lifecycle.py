@@ -172,13 +172,12 @@ import json, sys
 from pathlib import Path
 from tests.support.subprocesses import pause_after_effect
 import ethos.adapters.repo.merge.effect as effect
-from ethos.surface.cli.application import app, load_command_groups
+from ethos.surface.cli.application import run_application
 marker, command = Path(sys.argv[1]), json.loads(sys.argv[2])
 continuing = command[command.index('--mode')+1] == 'continue'
 pause_after_effect(effect, 'execute_git_effect' if continuing else 'run_git', marker,
                    matches=lambda *args: continuing or args[1:3] == ('merge', '--abort'))
-load_command_groups(command)
-app(command)
+run_application(command)
 """
     kill_after_marker(work, script, (str(marker), json.dumps(command)), marker)
 

@@ -80,12 +80,14 @@ Use this order for a package that appears physically redundant:
 Directory and file counts are evidence for review, never the decision rule.
 An `__init__.py` is not a marker and a README is not a directory marker.
 
-Command ownership follows the same rule. The root operation catalog
-(`ethos.contracts.operations`) owns the root commands' names, parameters, help
-and selection, which one generic adapter renders; concrete Cyclopts declarations
-own the group commands'. `system/gates.toml` owns only proof-gate adapters. A
-`surface/cli/**/core.py` command owner, or one module that owns more than one
-Cyclopts application, is a hard layout defect.
+Command ownership follows the same rule. The operation catalog
+(`ethos.contracts.operations`) owns the name, parameters, help and selection of
+every command, root and group alike, and one generic adapter
+(`surface/cli/catalog.py`) renders them; only the `mcp` transport launcher
+(`surface/cli/root/mcp.py`) is declared directly in Cyclopts.
+`system/gates.toml` owns only proof-gate adapters. A `surface/cli/**/core.py`
+command owner, a command module beside the adapter and the launcher, or one
+module that owns more than one Cyclopts application, is a hard layout defect.
 
 ## 2. Logical organization — public vs private
 
@@ -200,11 +202,12 @@ architecture; these rules make the claim honest and checkable.
 6. **Deferred/typing imports:** type-only imports belong under `if TYPE_CHECKING:`
    (ruff TC). Runtime-evaluated framework annotations are declared once in Ruff's
    native configuration rather than suppressed at individual imports.
-7. **Lazy heavy imports at the surface:** a command-group module
-   (`surface/cli/<group>.py`) imports only the domain/adapter deps ITS commands
-   need, so a group's heavy dependencies load only when that group is imported —
-   keeping common commands fast. This is why command bodies live in group modules,
-   not one monolith.
+7. **Lazy heavy imports at the surface:** the generic adapter builds only the
+   invoked word's commands, and `invoke` imports only the application half
+   (`ethos.application`) that `IMPLEMENTATIONS` names for the selected
+   operation, so a group's heavy dependencies load only when one of its
+   operations runs — keeping common commands fast. This is why command bodies
+   live in the application halves, split by group, not in the surface.
 8. **No import-only compatibility modules:** do not preserve old import paths by
    turning `core.py`, `foo.py`, or any ordinary module into a re-export shell.
    Concrete defining modules are the migration target.

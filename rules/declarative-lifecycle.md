@@ -28,9 +28,10 @@ on adopter business code; common effect and projection obligations still apply.
 - Plans use `TransitionPlan`. Dependency order and cycle detection call
   `graphlib.TopologicalSorter` directly; do not introduce a graph wrapper,
   framework, or second dependency walker.
-- Cyclopts declarations own CLI names, parameters, and help. Machine metadata,
-  docs, schemas, tests, MCP, and SDK views derive from that owner rather than a
-  parallel command registry.
+- The operation catalog (`ethos.contracts.operations`) owns CLI names,
+  parameters, and help; Cyclopts renders it. Machine metadata, docs, schemas,
+  tests, MCP, and SDK views derive from that owner rather than a parallel
+  command registry.
 - Effects are explicit, permission-bounded adapter calls with current-state and
   compare-and-swap preconditions. They return attestations; they do not publish
   hidden in-process events.

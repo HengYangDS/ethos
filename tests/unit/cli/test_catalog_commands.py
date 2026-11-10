@@ -80,7 +80,10 @@ def test_a_missing_required_field_names_the_full_command_path(tmp_path, name: st
 def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Help lists each operation with its flags; `--json` prints the catalog within its budget."""
+    """Help lists each operation with its flags; `--json` prints the catalog within its budget.
+
+    A group's help lists its own commands in full and its shown nested groups by name.
+    """
     text = run_ethos_process("land", "--help")
     assert text.returncode == 0
     assert "land.closeout.apply" in text.stdout
@@ -106,10 +109,14 @@ def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
         item["id"] for entry in payload["data"]["commands"] for item in entry["operations"]
     ]
     assert len(operations) == 29
+    assert [item["name"] for item in payload["data"]["groups"]] == ["attestation", "host"]
     assert [entry["name"] for entry in json.loads(one.stdout)["data"]["commands"]] == ["land"]
     for argv, names in (("attestation",), _GROUP), (("attestation", "query"), _GROUP[1:2]):
         described = json.loads(run_ethos_process(*argv, "--help", "--json").stdout)
         assert [entry["name"] for entry in described["data"]["commands"]] == list(names)
+    lane = json.loads(run_ethos_process("lane", "--help", "--json").stdout)
+    nested = [item["name"].removeprefix("lane ") for item in lane["data"]["groups"]]
+    assert ("bound" in lane, nested) == (False, ["redact", "retire", "lease", "handoff"])
 
 
 def test_every_transport_refuses_the_same_request_alike(tmp_path) -> None:

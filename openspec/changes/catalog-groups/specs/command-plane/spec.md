@@ -2,11 +2,11 @@
 
 ### Requirement: Cyclopts And API Own Interface Semantics
 
-The operation catalog SHALL declare every command's name, parameters, help and selection once, for
-the root commands and the group commands alike; Cyclopts SHALL render them through one generic
-adapter, and the in-process operation API SHALL select through the same catalog. ETHOS SHALL NOT
-maintain a parallel command registry, lazy report-handler DSL, re-export facade, or command-shaped
-quality plane.
+The operation catalog SHALL declare the name, parameters, help and selection of every command but
+the `mcp` transport launcher once, for the root commands and the group commands alike; Cyclopts
+SHALL render them through one generic adapter, and the in-process operation API SHALL select
+through the same catalog. ETHOS SHALL NOT maintain a parallel command registry, lazy report-handler
+DSL, re-export facade, or command-shaped quality plane.
 
 #### Scenario: A command signature changes
 
@@ -32,16 +32,18 @@ the operation catalog.
 #### Scenario: CLI package is scanned
 
 - **WHEN** architecture tests inspect imports
-- **THEN** command modules call concrete operation and adapter owners
-- **AND** no command registry besides the operation catalog, no generic report compiler and no CLI
-  subprocess loopback exists
+- **THEN** the generic adapter and the `mcp` launcher, the only command modules, call concrete
+  operation and adapter owners
+- **AND** no command registry or routing table besides the operation catalog, no generic report
+  compiler and no CLI subprocess loopback exists
 
 ### Requirement: The structured next step derives from the exact rendered argv
 
 ETHOS SHALL derive `next` only from the exact ETHOS argv that `next_action` renders, by a lossless
-split and join, and SHALL take its effects, authorization and destructiveness from the catalog
-operation any such argv selects, root or group. Prose or a template SHALL stay an instruction
-without an argv. Every reader SHALL re-derive `next` and check a carried one only for shape.
+split and join, and SHALL take its effects, authorization and destructiveness only from the catalog
+operation that argv selects; an argv that selects none SHALL be `opaque` and destructive and need a
+person. Prose or a template SHALL stay an instruction without an argv. Every reader SHALL re-derive
+`next` and check a carried one only for shape.
 
 #### Scenario: A rendered command becomes a structured step
 
@@ -78,10 +80,11 @@ without an argv. Every reader SHALL re-derive `next` and check a carried one onl
 - **THEN** `next` reports the `opaque` effect, `destructive` true, authorization `human` and an
   empty `form`
 
-#### Scenario: A group argv selects no operation
+#### Scenario: Any other argv selects no operation
 
 - **WHEN** `next_action` is a `lane`, `hook`, `attestation` or `host` argv whose path or flags
-  select no catalog operation
+  select no catalog operation, or an ETHOS argv whose words name no catalog command, such as a
+  retired command
 - **THEN** `next` reports the `opaque` effect, `destructive` true, authorization `human` and an
   empty `form`
 
@@ -116,8 +119,8 @@ launcher outside the catalog.
 #### Scenario: Help lists the catalog
 
 - **WHEN** `ethos <path> --help` or `ethos <group> --help --json` is rendered
-- **THEN** it prints that command's or group's part of the catalog within the declared help payload
-  budget
+- **THEN** it prints that command's part of the catalog, or the group's own commands in full and
+  its nested groups by name and help, within the declared help payload budget
 - **AND** bare `ethos --help` lists no hidden group
 
 #### Scenario: Host run exits with its child

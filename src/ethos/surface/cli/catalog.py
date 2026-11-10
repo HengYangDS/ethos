@@ -12,6 +12,7 @@ import sys
 from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
+from importlib import import_module
 from pathlib import Path
 from typing import Annotated
 from typing import Any
@@ -31,6 +32,7 @@ from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import command_path
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
+from ethos.contracts.operations.declaration import Group
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -144,7 +146,13 @@ def _group(words: Sequence[str]) -> App:
 
 
 def register(word: str = "") -> None:
-    """Declare the catalog commands whose path starts with one word, or every one for none."""
+    """Declare the catalog commands whose path starts with one word, or every one for none.
+
+    The MCP launcher, the one command outside the catalog, declares itself as its module loads, so
+    it is loaded for its own word or for none.
+    """
+    if word in {"", "mcp"}:
+        import_module("ethos.surface.cli.root.mcp")
     for name, command in COMMANDS.items():
         *prefix, leaf = name.split()
         if word in {"", name.split()[0]} and leaf not in (group := _group(prefix)):
@@ -156,17 +164,24 @@ def register(word: str = "") -> None:
             )
 
 
-def help_result(words: Sequence[str]) -> EthosResult | None:
-    """Return the catalog of the command or group the words name, or of every root command.
+def _entries(prefix: str) -> tuple[list[Command], list[Group]]:
+    """Return the commands and the shown groups one word below a prefix, the root's for none."""
+    commands = [item for item in COMMANDS.values() if item.name.rpartition(" ")[0] == prefix]
+    groups = [item for item in GROUPS.values() if item.name.rpartition(" ")[0] == prefix]
+    return commands, [group for group in groups if not group.hidden]
 
-    None means the words name neither.
+
+def help_result(words: Sequence[str]) -> EthosResult | None:
+    """Return the part of the catalog that the words name: one command, or a group's own entries.
+
+    A group, or the root for no words, lists each command one word below it in full and each shown
+    group one word below it by its name and help, so that a group whose commands lie in nested
+    groups stays within the help budget. None means the words name neither.
     """
     named, prefix = command_path(words), " ".join(words)
     if named is None and words and prefix not in GROUPS:
         return None
-    group = [item for item in COMMANDS.values() if item.name.startswith(f"{prefix} ")]
-    roots = [item for item in COMMANDS.values() if " " not in item.name]
-    commands = [named] if named else group if words else roots
+    commands, groups = ([named], []) if named else _entries(prefix)
     return EthosResult(
         command="help",
         verdict="pass",
@@ -195,6 +210,7 @@ def help_result(words: Sequence[str]) -> EthosResult | None:
                     ],
                 }
                 for command in commands
-            ]
+            ],
+            "groups": [{"name": group.name, "help": group.help} for group in groups],
         },
     )

@@ -39,7 +39,7 @@ workspace-status payload and report a `schema_validation` diagnostic. Only
 `data.closeout_support` directly; `ethos status --json` emits a compact summary.
 
 Reference admission has no universal schema or coupling registry. Dependencies
-are owned by package manifests, commands by the Cyclopts command tree, tools by
+are owned by package manifests, commands by the operation catalog, tools by
 the tool and gate declarations, runtime inputs by the surface contract, and
 forge coordinates by release and provider projection configuration. Prewrite
 compiles that positive closure from the baseline tree and compares it with the

@@ -1,1 +1,1 @@
-"""CLI command-group modules (bind-args -> domain call -> emit)."""
+"""The CLI: one generic adapter renders every catalog command, beside the MCP launcher."""

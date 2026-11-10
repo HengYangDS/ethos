@@ -26,8 +26,8 @@ from ethos.application.catalog import select_operation
 from ethos.contracts.operations.catalog import select_argv
 from ethos.result import expand_result
 from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.application import run_application
+from ethos.surface.cli.catalog import register
 from tests.support.git_isolation import GIT_ISOLATION
 
 if TYPE_CHECKING:
@@ -160,7 +160,6 @@ def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedPr
 
 
 def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    load_command_groups(list(args))
     stdout, stderr, returncode = StringIO(), StringIO(), 0
     with (
         chdir(cwd or ROOT),
@@ -195,7 +194,7 @@ def _require_live_next(stdout: str) -> None:
     if not step["argv"]:
         return
     tokens = list(step["argv"][1:])
-    load_command_groups(tokens)
+    register()
     try:
         bound = app.parse_args(tokens, exit_on_error=False, print_error=False)[1]
     except CycloptsError as error:

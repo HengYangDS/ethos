@@ -20,7 +20,7 @@ from ethos.repository.registry.docs.decisions import decision_record_gaps
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
 from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.catalog import register
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN_DOCUMENTS = (
@@ -205,7 +205,7 @@ def test_decision_records_preserve_complete_cross_change_rationale() -> None:
 
 def test_command_plane_documentation_names_every_registered_root() -> None:
     """A compressed command reference cannot call an incomplete list complete."""
-    load_command_groups([])
+    register()
     roots = {command for command in app.resolved_commands() if not command.startswith("-")}
     reference = (ROOT / "docs/reference/command-plane.md").read_text(encoding="utf-8")
 

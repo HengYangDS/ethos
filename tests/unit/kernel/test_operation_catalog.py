@@ -22,7 +22,7 @@ from ethos.application.land.operation import land_repository
 from ethos.application.plan import plan_repository
 from ethos.application.proof.operation import prove_repository
 from ethos.application.publication.operation import publish_repository
-from ethos.contracts.admission import STEP_EFFECTS
+from ethos.contracts.admission import StepEffect
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import select_argv
@@ -30,7 +30,7 @@ from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Operation
 from ethos.surface.cli.application import app
-from ethos.surface.cli.application import load_command_groups
+from ethos.surface.cli.catalog import register
 
 # Assignments of a command's selectors that select no operation, pinned so a change is reviewed;
 # a command not named here has none.
@@ -76,7 +76,7 @@ def test_each_operation_is_declared_once_with_its_effects_and_authority() -> Non
                 want in ({"set", "unset"} if command.valued(name) else {"true", "false"})
                 for name, want in item.selectors
             )
-            assert item.effects == tuple(e for e in STEP_EFFECTS if e in item.effects)
+            assert item.effects == tuple(e for e in get_args(StepEffect) if e in item.effects)
             writes = _WRITES & set(item.effects)
             assert item.authorization != "none" or not writes or item.id == _TOKENLESS
             # A read authorizes nothing, unless its argv carries the Attestation that authorizes it.
@@ -136,7 +136,7 @@ def _parsed(command: Command, argv: list[str]) -> CommandRequest:
 
 def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
     """The kernel's argv reading, Cyclopts' parse and the application selection agree."""
-    load_command_groups([])
+    register()
     for command in COMMANDS.values():
         required = command.present(_parsed(command, _required(command)))
         for name in command.request.model_fields.keys() - required:

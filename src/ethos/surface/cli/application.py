@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
+from importlib import import_module
 
 from cyclopts import App
 from cyclopts.exceptions import CycloptsError
@@ -17,23 +17,6 @@ from ethos.surface.cli.version import version_text
 
 app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
-# The module that declares the one command outside the operation catalog, by the path it serves.
-_COMMAND_MODULES = {"mcp": "ethos.surface.cli.root.mcp"}
-
-
-def load_command_groups(argv: list[str]) -> None:
-    """Declare only the commands this invocation names, or every command for none.
-
-    A module serves the invocation that names its path or a prefix of it, and the catalog builds
-    only the commands under the invocation's first word.
-    """
-    words = ethos_command_path(["ethos", *argv])
-    for path, module in _COMMAND_MODULES.items():
-        served = tuple(path.split())
-        if words[: len(served)] == served or served[: len(words)] == words:
-            importlib.import_module(module)
-    importlib.import_module("ethos.surface.cli.catalog").register(words[0] if words else "")
-
 
 def dispatch_arguments(argv: list[str]) -> list[str]:
     """Preserve help only when Cyclopts resolved a real command target."""
@@ -46,15 +29,18 @@ def dispatch_arguments(argv: list[str]) -> list[str]:
 
 
 def run_application(argv: list[str]) -> None:
-    """Run one command; a usage error is a structured result that exits 2, like a refusal.
+    """Declare the commands under the argv's first word, and run the argv.
 
-    The error names the longest catalog command or group the argv starts with, else its command
-    word if one is declared, else `ethos`.
+    A usage error is a structured result that exits 2, like a refusal. It names the longest catalog
+    command or group the argv starts with, else the MCP launcher when the argv names it, else
+    `ethos`.
     """
+    words = ethos_command_path(["ethos", *argv])
+    import_module("ethos.surface.cli.catalog").register(words[0] if words else "")
     try:
         app(dispatch_arguments(argv), exit_on_error=False, print_error=False)
     except CycloptsError as error:
-        words, name = ethos_command_path(["ethos", *argv]), root_command(argv)
+        name = root_command(argv)
         paths = (" ".join(words[:count]) for count in (3, 2, 1))
         declared = name if name in app.resolved_commands() else "ethos"
         command = next((path for path in paths if path in COMMANDS or path in GROUPS), declared)

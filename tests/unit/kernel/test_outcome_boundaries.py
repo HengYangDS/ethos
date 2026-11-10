@@ -46,7 +46,7 @@ def test_public_contract_failures_keep_every_gap_and_the_declared_verdict(
     def refuse(*_args, **_kwargs):
         raise refused
 
-    monkeypatch.setattr(application, "load_command_groups", refuse)
+    monkeypatch.setattr(application, "run_application", refuse)
     monkeypatch.setattr(sys, "argv", ["ethos", "status", "--root", str(tmp_path), "--json"])
     with pytest.raises(SystemExit, match=r"^1$"):
         main()

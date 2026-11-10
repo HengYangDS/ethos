@@ -2,8 +2,7 @@
 
 A step is derived from the same facts that render a result's `next_action`, so the text and the
 data can never disagree, and it is re-derived on every read rather than stored or replayed. An
-argv that names a catalog command takes its form, effects and authority from the operation it
-selects.
+argv takes its form, effects and authority from the catalog operation it selects.
 """
 
 from __future__ import annotations
@@ -17,8 +16,6 @@ from pydantic import Field
 
 from ethos.contracts.admission import StepAuthorization
 from ethos.contracts.admission import StepEffect
-from ethos.contracts.admission import ethos_step_authorization
-from ethos.contracts.admission import ethos_step_effects
 from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.value import JsonObject
 
@@ -77,17 +74,14 @@ def derive_next_step(text: str, *, continuation: str, why: str) -> NextStep:
 def _classified(
     argv: tuple[str, ...],
 ) -> tuple[str, tuple[StepEffect, ...], bool, StepAuthorization]:
-    """Classify a catalog argv by the operation it selects and any other argv by its rows.
+    """Classify an argv by the catalog operation it selects.
 
-    Every deletion is a catalog operation's, so another argv deletes nothing unless it is opaque.
+    An argv that selects none, as it names no catalog command, such as `ethos mcp`, or its flags
+    choose no operation, could do anything, so it is opaque and destructive and a person decides it.
     """
     command = select_argv(argv)
-    if command is None:
-        effects = ethos_step_effects(argv)
-        return "", effects, "opaque" in effects, ethos_step_authorization(argv, effects)
-    selected = command[1]
+    selected = command[1] if command else None
     if selected is None:
-        # A catalog argv that selects no operation could do anything, so a person decides it.
         return "", ("opaque",), True, "human"
     return selected.id, selected.effects, selected.destructive, selected.authorization
 

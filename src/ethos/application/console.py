@@ -125,7 +125,8 @@ def command_boundary(command: str, argv: list[str], emit: Emit) -> Generator[Non
             )
         except ValueError as exc:
             if str(exc) == INVALID_PROFILE_ERROR:
-                # An unselected root argv exits as a refusal would, and a group command keeps 0.
+                # An argv that selects no operation exits as a refusal would; one that names no
+                # catalog command, the MCP launcher, keeps 0.
                 selected = select_argv(["ethos", *argv])
                 emit(
                     profile_failure_result(command, _argument_root(argv)),

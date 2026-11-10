@@ -13,7 +13,6 @@ import pytest
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
 import ethos.application.result_projection as result_projection
-import ethos.surface.cli.application as application
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
@@ -208,7 +207,7 @@ def test_native_execution_failures_preserve_evidence_and_transport(
     if entrypoint is console_main:
         monkeypatch.setattr("ethos.application.console.git_common_dir", fail)
     else:
-        monkeypatch.setattr(application, "load_command_groups", fail)
+        monkeypatch.setattr("ethos.surface.cli.catalog.register", fail)
     payload = _invoke(
         monkeypatch, capsys, *arguments, "--root", str(tmp_path), "--json", entrypoint=entrypoint
     )
@@ -290,11 +289,8 @@ def test_public_boundary_normalizes_contract_failures_without_traceback(
     def fail(*_args: object, **_kwargs: object) -> None:
         raise error
 
-    monkeypatch.setattr(
-        application,
-        "load_command_groups" if phase == "registration" else "dispatch_arguments",
-        fail,
-    )
+    target = {"registration": "catalog.register", "dispatch": "application.dispatch_arguments"}
+    monkeypatch.setattr(f"ethos.surface.cli.{target[phase]}", fail)
     payload = _invoke(monkeypatch, capsys, "status", "--json")
     assert (payload["verdict"], payload["state"], payload["continuation"]) == (
         "block",

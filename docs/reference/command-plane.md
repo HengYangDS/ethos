@@ -54,10 +54,11 @@ record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
 
-Each workflow root runs the one catalog operation (`ethos.contracts.operations`) that its flags
-select, listed by `ethos --help --json`. A request that selects none, or sets a flag its operation
-does not take, runs nothing and exits 2, as a usage error does; a preview exits 0 on any verdict, an
-apply, a proof and a publication probe exit 1 unless they pass, and an undelivered result exits 3.
+Every command but `mcp` runs the one catalog operation (`ethos.contracts.operations`) that its path
+and flags select, listed by `ethos [<path>] --help --json` with a group's nested groups by name.
+A request that selects none, or sets a flag its operation does not take, runs nothing and exits 2,
+as a usage error does; a preview exits 0 on any verdict, an apply, a proof and a publication probe
+exit 1 unless they pass, and an undelivered result exits 3.
 
 `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
 admits it, and exits with the command's own status.
@@ -405,17 +406,16 @@ of the committed build that produced the result.
   ETHOS invocation to run. A `decision` whose text is one exact ETHOS argv carries it too, as the
   invocation a person approves; no reader runs it without that approval.
 - `effects` lists what the argv does, ordered `read`, `remote-read`, `execute`,
-  `local-evidence-write`, `local-write`, `host-write`, `remote-write` and `opaque`. `host run` and
-  `mcp` are `opaque`: their argv cannot bound what they run. A root argv takes its effects,
-  authority and destructiveness from its catalog operation, and one that selects none is `opaque`.
-- `authorization` is the strongest authority token in the argv: `attestation`
-  (`--authorization <file>`), `confirm-irreversible`, `authorize` or `apply`. It is `none` without
-  one, and `human` for a decision or an opaque step.
+  `local-evidence-write`, `local-write`, `host-write`, `remote-write` and `opaque`. An argv takes
+  its effects, authority and destructiveness from the catalog operation it selects; `host run`,
+  whose argv cannot bound what it runs, and an argv that selects none are `opaque` and destructive.
+- `authorization` is the selected operation's authority: `attestation`, `confirm-irreversible`,
+  `authorize`, `apply` or `none`, and `human` for a decision or an opaque step.
 - `destructive` says whether the argv selects the deletion of something it does not recreate.
   Cleanup that another operation performs under a liveness check is not counted, and that operation
   reports it in its result. A retirement receipt applies only with `--retire`, and a candidate
   refresh that would drop commits accepted lacks needs `--confirm-irreversible`.
-- `form` names the catalog operation a root argv selects; it is empty for any other step.
+- `form` names the catalog operation the argv selects; it is empty for any other step.
 - `binding` names the values the argv binds: `root`, `head`, `candidate_head`, `receipt`,
   `plan_digest` and `lease_expires_at`.
 - `why` is the first required gap, or else the state.

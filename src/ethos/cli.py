@@ -11,15 +11,10 @@ from ethos.application.console import invocation_parameters
 from ethos.application.console import run_console
 from ethos.contracts.admission import ethos_command_path
 from ethos.contracts.admission import root_command
-from ethos.contracts.operations.catalog import COMMANDS
 from ethos.surface.cli.version import version_text
 
 if TYPE_CHECKING:
     from ethos.result import EthosResult
-
-# `ethos --help --json` prints the root commands' catalog, `ethos <path> --help --json` the
-# command or the group that the path names; any other help is Cyclopts' own.
-_CATALOG_HELP = frozenset({"ethos", *(name.split()[0] for name in COMMANDS)})
 
 
 def console_main() -> None:
@@ -39,8 +34,9 @@ def main() -> None:
             sys.stdout.write(f"{version_text()}\n")
             return
         commands = import_module("ethos.surface.cli.application")
-        commands.load_command_groups(argv)
-        if "--json" in argv and {"--help", "-h"} & set(argv) and command in _CATALOG_HELP:
+        if "--json" in argv and {"--help", "-h"} & set(argv):
+            # `ethos --help --json` prints the root's part of the catalog, `ethos <path> --help
+            # --json` the command's or the group's; the MCP launcher's help is Cyclopts' own.
             described = import_module("ethos.surface.cli.catalog").help_result(
                 ethos_command_path(["ethos", *argv])
             )

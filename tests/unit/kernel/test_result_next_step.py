@@ -130,7 +130,8 @@ def test_prose_and_templates_stay_instructions(text: str) -> None:
             "none",
             False,
         ),
-        ("mcp --root /repo", ["execute", "opaque"], "human", True),
+        # An argv that names no catalog command, such as the MCP launcher, could do anything.
+        ("mcp --root /repo", ["opaque"], "human", True),
         ("publish --ref refs/heads/dev --json", _REMOTE[:3], "none", False),
         ("publish --retire --receipt /r --apply --authorize", _REMOTE, "authorize", True),
         ("land --retag v1 --apply --authorize", ["read", *_EVIDENCE_WRITE], "authorize", True),

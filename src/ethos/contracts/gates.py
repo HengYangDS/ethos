@@ -2,6 +2,7 @@
 
 import re
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Literal
@@ -27,6 +28,7 @@ _UNAVAILABLE_GATE_DEPENDENCY = "unavailable gate dependency"
 _FULL_MISSING_DEFAULT = "full proof set missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
+_DEFAULT_PROOF_GATE_NOT_SOURCE = "default proof gate is not an offline source check"
 _GATE_RESOURCES_INVALID = "gate resources invalid"
 _GATE_TOOLS_INVALID = "gate tools invalid"
 _GATE_TIMEOUT_ABOVE_BOUND = "gate timeout above the timeout.gate_seconds bound"
@@ -307,8 +309,8 @@ class GateRegistryDeclaration(BaseModel):
         commands = [gate.command for gate in self.gates if gate.command]
         if len(commands) != len(set(commands)):
             raise ValueError(_DUPLICATE_GATE_COMMAND)
-        gate_ids = _validate_gate_graph(self.gates)
-        _validate_proof_sets(self.proof_sets, gate_ids)
+        _validate_gate_graph(self.gates)
+        _validate_proof_sets(self.proof_sets, {gate.id: gate for gate in self.gates})
         return self
 
     def registry(
@@ -367,12 +369,25 @@ def _validate_gate_graph(gates: tuple[Gate, ...]) -> set[str]:
     return emitted
 
 
-def _validate_proof_sets(proof_sets: GateProofSets, runtime_ids: set[str]) -> None:
-    """Validate proof floors against the runtime gate registry."""
-    _validate_proof_floor(proof_sets.default, runtime_ids)
-    _validate_proof_floor(proof_sets.full, runtime_ids)
+def _validate_proof_sets(proof_sets: GateProofSets, gates: Mapping[str, Gate]) -> None:
+    """Validate proof floors; a default narrower than full holds only offline source checks."""
+    _validate_proof_floor(proof_sets.default, set(gates))
+    _validate_proof_floor(proof_sets.full, set(gates))
     if not set(proof_sets.default) <= set(proof_sets.full):
         raise ValueError(_FULL_MISSING_DEFAULT)
+    if set(proof_sets.default) == set(proof_sets.full):
+        return
+    closure, pending = set(), list(proof_sets.default)
+    while pending:
+        gate_id = pending.pop()
+        if gate_id not in closure:
+            closure.add(gate_id)
+            pending.extend(gates[gate_id].depends_on)
+    if any(
+        gates[gate_id].network_policy != "offline" or gates[gate_id].kind == "package"
+        for gate_id in closure
+    ):
+        raise ValueError(_DEFAULT_PROOF_GATE_NOT_SOURCE)
 
 
 def _validate_proof_floor(gate_ids: tuple[str, ...], runtime_ids: set[str]) -> None:

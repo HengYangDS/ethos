@@ -79,6 +79,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- A gate registry whose `default` proof set is narrower than `full` now refuses to load when
+  the dependency closure of `default` holds a gate that is not offline or that is a package
+  gate: `default proof gate is not an offline source check`. A registry whose `default` equals
+  `full`, as every governed repository's undeclared sets do, is unaffected.
 - A failure inside one gate no longer crashes or empties the proof. Any exception that one
   provider or one gate raises becomes that gate's own outcome, and every other gate keeps running
   and keeps its evidence. A timeout stays `unknown` with `gate_timeout:<gate>`; a failure that

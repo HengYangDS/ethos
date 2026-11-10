@@ -191,6 +191,18 @@ def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid
             ("second",),
             "full proof set missing default",
         ),
+        (
+            (_gate("first", depends_on=("online",)), _gate("online", network_policy="required")),
+            ("first",),
+            ("first", "online"),
+            "default proof gate is not an offline source check",
+        ),
+        (
+            (_gate("first"), _gate("wheel", kind="package"), _gate("later")),
+            ("first", "wheel"),
+            ("first", "wheel", "later"),
+            "default proof gate is not an offline source check",
+        ),
     ],
 )
 def test_gate_registry_malformed_references_fail_closed(
@@ -198,6 +210,18 @@ def test_gate_registry_malformed_references_fail_closed(
 ) -> None:
     with pytest.raises(ValidationError, match=message):
         _declaration(*gates, default=default, full=full)
+
+
+def test_a_default_equal_to_full_may_hold_a_networked_gate() -> None:
+    """A registry that declares no narrower proof keeps any gate, as governed repositories do."""
+    declaration = _declaration(
+        _gate("first"),
+        _gate("online", network_policy="required"),
+        default=("first", "online"),
+        full=("first", "online"),
+    )
+
+    assert [gate.id for gate in declaration.proof_gates()] == ["first", "online"]
 
 
 def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) -> None:

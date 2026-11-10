@@ -11,7 +11,8 @@ temporary test repositories never inherit developer-global hooks such as
 pre-commit. Repository-local config remains authoritative so hook tests exercise
 the same `core.hooksPath` semantics as production. The fixture also disables
 fsmonitor so temporary test repositories never depend on a host-local filesystem
-monitor. Native OpenSpec telemetry and update checks are disabled for raw process
+monitor, and background maintenance so a commit never repacks a test repository's
+objects. Native OpenSpec telemetry and update checks are disabled for raw process
 probes as well as the public adapter, so background requests cannot delay exit.
 """
 
@@ -34,11 +35,12 @@ import tests.support.tier_guard as tier_guard
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from tests.support.git_isolation import GIT_ISOLATION
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 # What every case and its children inherit, set once before xdist starts its workers: hidden Git
-# configuration with one overlay entry, no prompt, bytecode only under a named prefix, absolute tool
-# supplies and no inherited actor.
+# configuration with the isolation entries, no prompt, bytecode only under a named prefix,
+# absolute tool supplies and no inherited actor.
 for _name in [
     key for key in os.environ if key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
 ]:
@@ -47,9 +49,9 @@ os.environ.update(
     {
         "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "core.fsmonitor",
-        "GIT_CONFIG_VALUE_0": "false",
+        "GIT_CONFIG_COUNT": str(len(GIT_ISOLATION)),
+        **{f"GIT_CONFIG_KEY_{index}": key for index, (key, _value) in enumerate(GIT_ISOLATION)},
+        **{f"GIT_CONFIG_VALUE_{index}": value for index, (_key, value) in enumerate(GIT_ISOLATION)},
         "GIT_TERMINAL_PROMPT": "0",
     }
 )
@@ -131,10 +133,7 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     declared = {key for key, _value in entries}
     entries.extend(
         (key, value)
-        for key, value in (
-            ("init.templateDir", git_template.as_posix()),
-            ("core.fsmonitor", "false"),
-        )
+        for key, value in (("init.templateDir", git_template.as_posix()), *GIT_ISOLATION)
         if key not in declared
     )
     monkeypatch.setenv("GIT_CONFIG_COUNT", str(len(entries)))

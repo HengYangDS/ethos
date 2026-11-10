@@ -27,6 +27,7 @@ from ethos.result import expand_result
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 from ethos.surface.cli.application import run_application
+from tests.support.git_isolation import GIT_ISOLATION
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -72,7 +73,7 @@ def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str,
     retained = tuple(
         (key, value)
         for key, value in _test_git_config_overlay_items(env)
-        if (key == "core.fsmonitor" and value == "false") or key == "safe.directory"
+        if (key, value) in GIT_ISOLATION or key == "safe.directory"
     )
     if retained:
         clean["GIT_CONFIG_COUNT"] = str(len(retained))

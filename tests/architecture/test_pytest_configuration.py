@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tomllib
@@ -14,6 +15,8 @@ from hypothesis import settings
 from hypothesis.configuration import storage_directory
 
 from ethos.adapters.process import run_command
+from tests.support.git_isolation import GIT_ISOLATION
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     import subprocess
@@ -82,8 +85,8 @@ def test_each_case_inherits_the_suite_environment(pytestconfig: pytest.Config) -
         os.environ[f"GIT_CONFIG_KEY_{index}"]: os.environ[f"GIT_CONFIG_VALUE_{index}"]
         for index in range(int(os.environ["GIT_CONFIG_COUNT"]))
     }
-    assert overlay.keys() == {"core.fsmonitor", "init.templateDir"}
-    assert overlay["core.fsmonitor"] == "false"
+    assert overlay.keys() == {"init.templateDir", *dict(GIT_ISOLATION)}
+    assert set(GIT_ISOLATION) <= set(overlay.items())
     # Bytecode is shared under a named prefix, the probe's scratch, never beside the sources.
     if os.environ.get("PYTHONPYCACHEPREFIX"):
         assert "PYTHONDONTWRITEBYTECODE" not in os.environ
@@ -96,6 +99,26 @@ def test_each_case_inherits_the_suite_environment(pytestconfig: pytest.Config) -
     assert "ETHOS_NATIVE_OUTPUT_DIR" not in os.environ
     results = pytestconfig.option.allure_report_dir
     assert results is None or Path(results).parts[-2:] == ("allure", "results")
+
+
+def test_a_test_repository_commits_without_background_maintenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fixture commit starts no detached maintenance, so objects stay as the test wrote them."""
+    traces = tmp_path / "trace2"
+    traces.mkdir()
+    monkeypatch.setenv("GIT_TRACE2_EVENT", traces.as_posix())
+
+    init_git_repo(tmp_path / "repo")
+
+    started = [
+        event["argv"]
+        for trace in traces.iterdir()
+        for line in trace.read_text(encoding="utf-8").splitlines()
+        if (event := json.loads(line))["event"] == "start"
+    ]
+    assert started
+    assert [argv for argv in started if "maintenance" in argv] == []
 
 
 def test_hypothesis_runs_the_reproducible_proof_profile(pytestconfig: pytest.Config) -> None:

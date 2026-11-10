@@ -34,7 +34,9 @@ Non-Goals:
 - complexipy 8.3.0 skips decisions inside keyword arguments, lambdas, f-strings, subscripts and
   `yield`: at `c89ac1884`, 541 of 6,847 conditional expressions and Boolean operations in `src/`
   and `tools/`, in 248 functions, sit there. A planted case pins that a keyword-argument decision
-  scores 0, so an upgrade that counts them fails it and must re-pin the baseline; the gap goes to
-  complexipy upstream. PLR0916 covers long `if` conditions.
+  scores 0, so the upgrade that counts them fails it and must re-pin the baseline. complexipy's
+  main fixed the gap after 8.3.0
+  ([rohaquinlop/complexipy#335](https://github.com/rohaquinlop/complexipy/pull/335), merged on
+  2026-11-05); no release ships it yet. PLR0916 covers long `if` conditions.
 - The baseline is large; its size falls only through real refactors, which the stale-entry rule
   forces to be recorded.

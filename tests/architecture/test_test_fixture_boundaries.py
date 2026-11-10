@@ -187,7 +187,7 @@ def test_isolated_fixture_python_reads_the_test_gate_bytecode_prefix(
     assert (completed.stdout.strip(), completed.stderr) == (str(prefix), "")
 
 
-def test_a_temporary_root_inside_a_repository_is_refused(tmp_path):
+def test_a_temporary_root_inside_a_repository_is_refused(tmp_path, monkeypatch):
     """Product code finds a repository by walking up, so no session runs its fixtures inside one."""
     repo = tmp_path / "checkout"
     (repo / "build" / "basetemp").mkdir(parents=True)
@@ -197,3 +197,5 @@ def test_a_temporary_root_inside_a_repository_is_refused(tmp_path):
     assert work_tree_refusal(tmp_path / "outside") is None
     for inside in (repo / "build" / "basetemp", repo / ".git"):
         assert "is inside a Git repository" in str(work_tree_refusal(inside))
+    monkeypatch.setenv("PATH", str(tmp_path / "no-git"))
+    assert "cannot tell whether" in str(work_tree_refusal(tmp_path / "outside"))

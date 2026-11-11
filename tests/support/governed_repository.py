@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import subprocess
 import tomllib
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import NamedTuple
 
 from ethos.adapters.gates.formatting import prepare_source_format
@@ -37,16 +39,25 @@ ROOT_DOCUMENTS = load_repository_paradigm().root.required_documents
 RELEASE = load_repository_paradigm().release
 # The Markdown documents every fixture repository starts with.
 BASE_MARKDOWN = (*ROOT_DOCUMENTS, RELEASE.changelog)
-PARADIGM_EDITORCONFIG = (
-    "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
-)
-PARADIGM_FORMATTERS = {
-    relative: canonical_resource(relative).read_text(encoding="utf-8")
-    for relative in (
-        ".config/checks/prettier/prettier.toml",
-        ".config/checks/taplo/taplo.toml",
-        ".config/checks/ruff/ruff.toml",
-    )
+# What every fixture repository's first commit holds: the paradigm's root documents and version
+# identity, its line-ending rule, an EditorConfig and the canonical formatter carriers.
+BASE_FILES = {
+    ".gitignore": "",
+    **{document: f"# {Path(document).stem.title()}\n" for document in ROOT_DOCUMENTS},
+    RELEASE.version_file: "0.1.0\n",
+    RELEASE.changelog: "# Changelog\n\n## [Unreleased]\n",
+    ".gitattributes": "* text=auto eol=lf\n",
+    ".editorconfig": (
+        "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
+    ),
+    **{
+        relative: canonical_resource(relative).read_text(encoding="utf-8")
+        for relative in (
+            ".config/checks/prettier/prettier.toml",
+            ".config/checks/taplo/taplo.toml",
+            ".config/checks/ruff/ruff.toml",
+        )
+    },
 }
 # A task-only mise owner exposes the common verbs and selects no native tools.
 PARADIGM_TOOLCHAIN = {
@@ -59,52 +70,93 @@ PARADIGM_TOOLCHAIN = {
 
 
 class WorkLaneFixture(NamedTuple):
-    """A generic adopted repository with its candidate and owned Work Lane."""
+    """A repository and the sibling paths of its candidate and owned Work Lane."""
 
     repository: Path
     candidate: Path
     worktree: Path
 
 
-def start_adopted_candidate(
-    tmp_path: Path, *, release_mirror: str = "independent", docs_only: bool = False
-) -> tuple[Path, Path]:
-    """Create an adopted accepted root and its candidate worktree.
+@dataclass(frozen=True)
+class RepositorySpec:
+    """What one fixture repository holds; `build` creates its stages in field order.
 
-    The generic fixture owns Git, profile, and OpenSpec facts. Package-runtime
-    acceptance is orthogonal and must be requested explicitly by the tests that
-    consume it; otherwise every semantic fixture would copy and hash a complete
-    runtime image.
+    Every build commits `BASE_FILES` on `dev` in its `object_format`, signed by the process
+    signer. `files` follow in one more commit, signed unless `signed` is false. `adoption` then
+    commits the governance `carriers` and seeds the OpenSpec baseline in a commit of its own, or
+    commits the documentation-proof `governance` with its `release_mirror` and, unless
+    `docs_only`, its publication peers. `candidate` checks out `candidate/dev` at the head beside
+    the repository, `runtime` installs the fixture hook runtime, and `lane` adds the Work Lane
+    `work/<lane>` beside it from the candidate, with the active Change `fixture-change` and a lease
+    held by `holder_ref`.
     """
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo, release_mirror=release_mirror, docs_only=docs_only)
-    commit_openspec_baseline(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    install_fixture_hook_runtime(repo)
-    return repo, candidate
+
+    object_format: str = "sha1"
+    files: Mapping[str, str] | None = None
+    signed: bool = True
+    adoption: Literal["", "carriers", "governance"] = ""
+    release_mirror: str = "independent"
+    docs_only: bool = False
+    candidate: bool = False
+    runtime: bool = False
+    lane: str = ""
+    holder_ref: str = "agent:test:case:agent-test"
 
 
-def prepared_work_lane(
-    tmp_path: Path,
-    *,
-    name: str = "feature",
-    holder_ref: str = "agent:test:case:agent-test",
-    release_mirror: str = "independent",
-    docs_only: bool = False,
-) -> WorkLaneFixture:
-    """Prepare isolated native state; public start is exercised by its own acceptance."""
-    repo, candidate = start_adopted_candidate(
-        tmp_path, release_mirror=release_mirror, docs_only=docs_only
-    )
-    worktree = create_change_source_lane(
-        repo,
-        tmp_path / f"repo-work-{name}",
-        branch=f"work/{name}",
-        holder_ref=holder_ref,
-        base_ref="candidate/dev",
-    )
+def build(spec: RepositorySpec, repo: Path) -> WorkLaneFixture:
+    """Create `repo` as `spec` declares and name where its candidate and lane sit beside it."""
+    repo.mkdir(parents=True)
+    git(repo, "init", "--object-format=" + spec.object_format, "-b", "dev")
+    configure_fixture_signer(repo)
+    git(repo, "config", "core.hooksPath", ".git/test-hooks")
+    write_tree(repo, BASE_FILES)
+    commit_fixture(repo, "chore: initialize the fixture repository")
+    if spec.files:
+        write_tree(repo, spec.files)
+        commit_fixture(repo, "chore: record native source", signed=spec.signed)
+    if spec.adoption == "carriers":
+        initialize_adopted_fixture(repo)
+        commit_fixture(repo, "chore: adopt ethos governance")
+        commit_openspec_baseline(repo)
+    elif spec.adoption:
+        adopt_and_commit(repo, release_mirror=spec.release_mirror, docs_only=spec.docs_only)
+    candidate, worktree = Path(f"{repo}-candidate-dev"), Path(f"{repo}-work-{spec.lane}")
+    if spec.candidate:
+        git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    if spec.runtime:
+        install_fixture_hook_runtime(repo)
+    if spec.lane:
+        create_change_source_lane(
+            repo,
+            worktree,
+            branch=f"work/{spec.lane}",
+            holder_ref=spec.holder_ref,
+            base_ref="candidate/dev",
+        )
     return WorkLaneFixture(repo, candidate, worktree)
+
+
+def start_adopted_candidate(tmp_path: Path, **fields: Any) -> tuple[Path, Path]:
+    """Create an adopted accepted root and its candidate worktree with the fixture hook runtime.
+
+    `fields` set the adoption's `release_mirror` and `docs_only`. The runtime is the small valid
+    one that `install_fixture_hook_runtime` creates, never a complete package runtime image.
+    """
+    return build(
+        RepositorySpec(adoption="governance", candidate=True, runtime=True, **fields),
+        tmp_path / "repo",
+    )[:2]
+
+
+def prepared_work_lane(tmp_path: Path, name: str = "feature", **fields: Any) -> WorkLaneFixture:
+    """Prepare isolated native state; public start is exercised by its own acceptance.
+
+    `fields` set the lane's `holder_ref` and the adoption's `release_mirror` and `docs_only`.
+    """
+    return build(
+        RepositorySpec(adoption="governance", candidate=True, runtime=True, lane=name, **fields),
+        tmp_path / "repo",
+    )
 
 
 def lane_start_arguments(
@@ -190,35 +242,13 @@ def write_test_profile(root: Path, **updates: object) -> Path:
 
 
 def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "--object-format=" + object_format, "-b", "dev")
-    configure_fixture_signer(path)
-    git(path, "config", "core.hooksPath", ".git/test-hooks")
-    (path / ".gitignore").write_text("", encoding="utf-8")
-    for document in ROOT_DOCUMENTS:
-        (path / document).write_text(f"# {Path(document).stem.title()}\n", encoding="utf-8")
-    # Every governed repository carries its version identity.
-    (path / RELEASE.version_file).write_text("0.1.0\n", encoding="utf-8")
-    (path / RELEASE.changelog).write_text("# Changelog\n\n## [Unreleased]\n", encoding="utf-8")
-    (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
-    (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
-    for relative, content in PARADIGM_FORMATTERS.items():
-        carrier = path / relative
-        carrier.parent.mkdir(parents=True, exist_ok=True)
-        carrier.write_text(content, encoding="utf-8")
-    commit_fixture(path, "chore: initialize the fixture repository")
-    return path
+    """Create a governed repository at `path` that holds only the base commit."""
+    return build(RepositorySpec(object_format=object_format), path).repository
 
 
 def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create a minimal accepted root and its linked candidate checkout."""
-    repo = init_git_repo(tmp_path / "repo")
-    initialize_adopted_fixture(repo)
-    commit_fixture(repo, "chore: adopt ethos governance")
-    commit_openspec_baseline(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    return repo, candidate
+    return build(RepositorySpec(adoption="carriers", candidate=True), tmp_path / "repo")[:2]
 
 
 def create_change_source_lane(
@@ -487,13 +517,7 @@ def commit_fixture(
 
 def committed_source_repo(tmp_path: Path, files: dict[str, str]) -> Path:
     """Commit a native-source fixture for public quality-gate tests."""
-    repo = init_git_repo(tmp_path / "repo")
-    for path, content in files.items():
-        target = repo / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
-    commit_fixture(repo, "chore: record native source")
-    return repo
+    return build(RepositorySpec(files=files), tmp_path / "repo").repository
 
 
 def _commit_fixture(

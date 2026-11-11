@@ -23,10 +23,10 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import adopt_and_commit
-from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import RepositorySpec
+from tests.support.governed_repository import build
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_test_profile
 
@@ -121,10 +121,9 @@ def conformant_proof_checks(plan: TransitionPlan) -> tuple[dict[str, object], ..
 
 
 def proof_repository(path: Path) -> tuple[Path, str]:
-    repo = init_git_repo(path)
-    adopt_and_commit(repo)
-    write_active_commitment(repo, change_id="proof-binding")
-    return repo, commit_fixture(repo, "bind proof")
+    """Adopt the documentation-proof governance and commit the active Change `proof-binding`."""
+    repo = build(RepositorySpec(adoption="governance"), path).repository
+    return repo, commit_active_change(repo, change_id="proof-binding")
 
 
 def store_proof(root: Path, record: Attestation, *, selected: bool = True) -> None:

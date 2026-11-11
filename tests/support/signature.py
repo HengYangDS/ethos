@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING
 import ethos.adapters.mutation.accepted.signature as repair
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.governed_repository import PARADIGM_TOOLCHAIN
+from tests.support.governed_repository import RepositorySpec
+from tests.support.governed_repository import build
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_paradigm_toolchain
-from tests.support.governed_repository import write_release_mirror
+from tests.support.governed_repository import render_release_mirror
 from tests.support.subprocesses import kill_after_marker
 
 if TYPE_CHECKING:
@@ -64,26 +66,23 @@ def repair_fixture_history(
 def signature_repository(
     tmp_path: Path, *, coupled: bool = False, legacy_mirror: bool = False
 ) -> tuple[Path, str, Path]:
-    """Commit an unsigned accepted head; `legacy_mirror` couples main the pre-2026-10-16 way."""
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir()
-    (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
+    """Commit an unsigned accepted head; `legacy_mirror` couples main the pre-2026-10-16 way.
+
+    `candidate/dev` and `main` start at that head; the repository then signs as its own signer.
+    """
+    files = {".ethos/profile.toml": 'profile_id = "signature-fixture"\n', **PARADIGM_TOOLCHAIN}
     if legacy_mirror:
-        (repo / ".ethos/workspace.toml").write_text(
-            '[branch_roles]\nrelease_mirror = "accepted_ff"\n'
-        )
+        files[".ethos/workspace.toml"] = '[branch_roles]\nrelease_mirror = "accepted_ff"\n'
     else:
-        write_release_mirror(repo, "accepted_ff" if coupled else "independent")
-    write_paradigm_toolchain(repo)
-    git(repo, "add", ".ethos", ".config/mise")
-    git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: accept an unsigned head")
-    old = git(repo, "rev-parse", "HEAD")
-    git(repo, "branch", "candidate/dev", old)
-    git(repo, "branch", "main", old)
-    candidate = tmp_path / "candidate"
-    git(repo, "worktree", "add", str(candidate), "candidate/dev")
+        files[".ethos/release.toml"] = render_release_mirror(
+            "accepted_ff" if coupled else "independent"
+        )
+    repo, candidate, _lane = build(
+        RepositorySpec(files=files, signed=False, candidate=True), tmp_path / "repo"
+    )
+    git(repo, "branch", "main")
     configure_fixture_signer(repo, own=tmp_path)
-    return repo, old, candidate
+    return repo, git(repo, "rev-parse", "HEAD"), candidate
 
 
 def interrupted_signature(repo, old, monkeypatch):

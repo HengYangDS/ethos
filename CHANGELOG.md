@@ -12,6 +12,42 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.8] - 2026-11-11
+
+### Changed
+
+- 0.2.0-beta.8 upgrades directly from 0.2.0-beta.7, 0.2.0-beta.6, 0.2.0-beta.5, 0.2.0-beta.2 and
+  0.2.0-alpha.29, the releases that governed adopters select. Its hosted journey upgrades from each
+  of them on macOS arm64 and Linux x64. It keeps result schema 3.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as `not_qualified`;
+  - the adopter journey on Linux arm64, which 0.2.0 declares but no hosted job runs yet; the Linux
+    arm64 runtime is qualified by its release leg's install smoke and inventories;
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+  - In a lane whose selected runtime is an older release, a newer runtime's `ethos` console
+    re-executes in the selected runtime, so a preview such as `ethos lane repair-paradigm` answers
+    with the older build's result, which can read as nothing to do. To preview with the newer
+    build, run its interpreter directly, as in
+    `<runtime>/python/bin/python -B -I -m ethos.cli lane repair-paradigm --root <lane> --json`, or
+    select it first. A result from 0.2.0-beta.6 or later names the build that answered in
+    `summary.runtime`.
+  - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
+    store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
+    such consumers under `absent`.
+  - `ethos lane repair-paradigm --apply` writes TOML arrays with a four-space indent, while the
+    shipped Taplo policy indents by two spaces. A repository whose Taplo settings equal the shipped
+    ones re-indents them on format; one whose Taplo file declares other settings refuses
+    `native_formatter_policy_conflict` until it takes the shipped `[formatting]` settings.
+
 ### Fixed
 
 - The protected-peer feed reads the host, port and namespace path of a remote's

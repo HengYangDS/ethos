@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.7] - 2026-11-11
+
 ### Added
 
 - The ETHOS repository's full proof runs `commit-ranges`, which judges with the candidate's own
@@ -79,6 +81,27 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- **Breaking:** the root commands `status`, `plan`, `prove`, `land`, `publish` and `adopt` select
+  one declared catalog operation (`ethos.contracts.operations`) for every transport, so the CLI, the
+  SDK functions and the MCP tools refuse the same requests alike. A request whose flags select no
+  operation, or that sets a flag its operation does not take, exits 2 with
+  `command_operation_unmatched:<command>` or `command_field_refused:<field>` (JSON under `--json`)
+  instead of proceeding, ignoring the flag or blocking with an operation code. A preview refuses
+  `--authorize` and `--expect-plan-digest`. Retired: `release_options_conflict`,
+  `proof_readiness_options_invalid`, `remote_publication_receipt_apply_required`,
+  `publication_peer_selection_receipt_conflict`, `adoption_exit_combined_with_adoption`,
+  `adoption_runtime_selection_requires_existing_repository`, `starter_evolution_requires_work_lane`,
+  `starter_evolution_request_invalid`, `formation_expect_head_not_applicable`, and
+  `local_source_acceptance_effect_forbidden` and `local_source_proof_requires_full_repository` where
+  `--acceptance-purpose` is refused. Drop the flag, or choose an operation from
+  `ethos <command> --help`. `ProofRequest` is now a frozen Pydantic model; import it from
+  `ethos.contracts.operations.prove`.
+- **Breaking (exit status):** a usage error exits 2 with a `usage_refused` result for every command,
+  as JSON on stdout under `--json` and with the parser's message on stderr, and the root commands no
+  longer parse negated flags such as `--no-apply`; a result that cannot be delivered exits 3 (was
+  1); `ethos publish --ref … --probe-remote` exits 1 when its verdict is `unknown` (was 0);
+  `ethos adopt --apply` blocked by an invalid profile exits 1 (was 0); `ethos adopt --create`
+  without `--root` refuses with `formation_root_required` and exits 2 (was 1).
 - **Breaking:** `ethos attestation record`, `query` and `release` and `ethos host run` are
   catalog entries (`ethos.contracts.operations`) that the one generic adapter renders, as the root
   commands are. A usage error names the command's full path
@@ -196,27 +219,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   docstrings are unchanged.
 - The CI model that adopters render their workflows from pins `jdx/mise-action` v5.2.7, whose
   download failures log the HTTP status and host and whose retries back off longer.
-- **Breaking:** the root commands `status`, `plan`, `prove`, `land`, `publish` and `adopt` select
-  one declared catalog operation (`ethos.contracts.operations`) for every transport, so the CLI, the
-  SDK functions and the MCP tools refuse the same requests alike. A request whose flags select no
-  operation, or that sets a flag its operation does not take, exits 2 with
-  `command_operation_unmatched:<command>` or `command_field_refused:<field>` (JSON under `--json`)
-  instead of proceeding, ignoring the flag or blocking with an operation code. A preview refuses
-  `--authorize` and `--expect-plan-digest`. Retired: `release_options_conflict`,
-  `proof_readiness_options_invalid`, `remote_publication_receipt_apply_required`,
-  `publication_peer_selection_receipt_conflict`, `adoption_exit_combined_with_adoption`,
-  `adoption_runtime_selection_requires_existing_repository`, `starter_evolution_requires_work_lane`,
-  `starter_evolution_request_invalid`, `formation_expect_head_not_applicable`, and
-  `local_source_acceptance_effect_forbidden` and `local_source_proof_requires_full_repository` where
-  `--acceptance-purpose` is refused. Drop the flag, or choose an operation from
-  `ethos <command> --help`. `ProofRequest` is now a frozen Pydantic model; import it from
-  `ethos.contracts.operations.prove`.
-- **Breaking (exit status):** a usage error exits 2 with a `usage_refused` result for every command,
-  as JSON on stdout under `--json` and with the parser's message on stderr, and the root commands no
-  longer parse negated flags such as `--no-apply`; a result that cannot be delivered exits 3 (was
-  1); `ethos publish --ref … --probe-remote` exits 1 when its verdict is `unknown` (was 0);
-  `ethos adopt --apply` blocked by an invalid profile exits 1 (was 0); `ethos adopt --create`
-  without `--root` refuses with `formation_root_required` and exits 2 (was 1).
 - `next.form` names a root command's catalog operation, whose effects, destructiveness and
   authorization `next` carries: `ethos prove --json` and `ethos land --closeout --json` read, and
   `ethos publish` reads and remote-reads. A root argv that selects no operation is `opaque` and
@@ -262,6 +264,41 @@ historical bindings are governed by the [distribution specification](openspec/sp
   changelog, and `ethos form` writes `VERSION` `0.1.0-alpha.0` and the changelog. A literal
   `pyproject.toml` `project.version` equal to `VERSION` now counts as its projection, as a
   `package.json` version does.
+- The locks take the newest stable releases at least 24 hours old, among them Cyclopts 5.4.0,
+  Pydantic 2.14.3, Ruff 0.17.4 and OpenSpec 1.16.1, with the glob 14.0.4 and minimatch 11.0.5
+  overrides. The declared floors of cel-expr-python, Cyclopts, Pydantic and Ruff rise to their
+  locked versions.
+- 0.2.0-beta.7 upgrades directly from 0.2.0-beta.6, 0.2.0-beta.5, 0.2.0-beta.2 and 0.2.0-alpha.29,
+  the releases that governed adopters select. Its hosted journey upgrades from each of them on macOS
+  arm64 and Linux x64. It keeps result
+  schema 3.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as
+    `not_qualified`;
+  - the adopter journey on Linux arm64, which 0.2.0 declares but no hosted job runs yet; the Linux
+    arm64 runtime is qualified by its release leg's install smoke and
+    inventories;
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not
+    block.
+  - In a lane whose selected runtime is an older release, a newer runtime's `ethos` console
+    re-executes in the selected runtime, so a preview such as `ethos lane repair-paradigm` answers
+    with the older build's result, which can read as nothing to do. To preview with the newer build,
+    run its interpreter directly, as in
+    `<runtime>/python/bin/python -B -I -m ethos.cli lane repair-paradigm --root <lane> --json`, or
+    select it first. A result from 0.2.0-beta.6 or later names the build that answered in
+    `summary.runtime`.
+  - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
+    store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
+    such consumers under `absent`.
 
 ### Fixed
 
@@ -284,6 +321,30 @@ historical bindings are governed by the [distribution specification](openspec/sp
   gates failed with a compiler version mismatch; a `GOROOT` that the locked tools set still applies.
 - `ethos lane handoff revoke-source` with a package whose manifest is missing or unsafe blocks with
   the manifest's own gap, such as `handoff_manifest_missing`, instead of a validation message.
+- The Python behavior probe syncs its temporary test environment offline and then renews the access
+  time of every file and directory in it before it runs the tests, keeping each modification time
+  and never following a symlink. On macOS, that environment's sources had kept the uv cache's old
+  access times, so a full proof that ran over 03:35 local time could lose them when macOS removed
+  per-user temporary files not accessed for three days.
+- `ethos lane housekeeping --apply --authorize` keeps a detached worktree whose `HEAD` no retaining
+  ref reaches, reporting `worktree_head_unreachable`, or `worktree_reachability_unavailable` when
+  Git cannot answer, and one that holds ignored files outside the regenerable roots, a root `.venv`
+  or `node_modules` and a `__pycache__` whose bytecode sits beside its sources, reporting
+  `worktree_ignored_content`. Retaining refs are heads, tags, remote-tracking refs and
+  `refs/keep/*`.
+- `hook install`'s shared-store cleanup treats a consumer whose path no longer exists as unknown
+  liveness: it keeps that consumer's record and every installation the consumer recorded, and its
+  cleanup report lists the consumer under `absent`, so a moved or unmounted repository keeps its
+  pinned runtime.
+- Gate verification reads another ETHOS process's bounded result in full too: a gate whose command
+  prints an ETHOS result reports the complete gaps of its bound detail, and a detail that cannot be
+  read leaves the gate `unknown` with the expansion's own gap.
+- The semantic closure no longer counts a bare word in prose or code, such as
+  `importlib.metadata.distributions`, as a consumer of a retired directory of the same name: a bare
+  word names a directory only in a Markdown link, and a path literal such as `legacy/` still names
+  one.
+- The MCP server and lane merges strip surrounding whitespace from `ETHOS_ACTOR`, as every other
+  reader of the variable already did.
 
 ### Removed
 

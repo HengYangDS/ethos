@@ -37,6 +37,13 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
     assert report["next_action"] == ""
 
 
+def test_community_health_documents_are_admitted_at_the_root(tmp_path: Path) -> None:
+    """GitHub reads these files at the root, so the root catalog admits each of them."""
+    documents = ("ACCESSIBILITY.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "SUPPORT.md")
+    report = paradigm_report(tmp_path, {**CONFORMING, **dict.fromkeys(documents, "# Policy\n")})
+    assert report["verdict"] == "pass", report["required_gaps"]
+
+
 _CARRIER_GAPS = {
     "misplaced-config": (
         {"pytest.ini": "[pytest]\n"},

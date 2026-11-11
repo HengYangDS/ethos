@@ -14,6 +14,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [0.2.0-beta.8] - 2026-11-12
 
+### Added
+
+- A governed repository may keep at its root the Markdown community health files that GitHub
+  reads there, beside `CONTRIBUTING.md`: `ACCESSIBILITY.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`
+  and `SUPPORT.md`.
+
 ### Changed
 
 - 0.2.0-beta.8 upgrades directly from 0.2.0-beta.7, 0.2.0-beta.6, 0.2.0-beta.5, 0.2.0-beta.2 and

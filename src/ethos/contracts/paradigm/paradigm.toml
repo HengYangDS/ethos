@@ -14,12 +14,16 @@ private_address = '''(?i)(?:^|[^0-9a-z._])((?:10(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-
 
 [root]
 entry_documents = [
+  "ACCESSIBILITY.md",
   "AGENTS.md",
   "CHANGELOG.md",
+  "CODE_OF_CONDUCT.md",
   "CONTRIBUTING.md",
   "LICENSE",
   "NOTICE",
   "README.md",
+  "SECURITY.md",
+  "SUPPORT.md",
   "VERSION",
 ]
 required_documents = ["AGENTS.md", "CONTRIBUTING.md", "README.md"]

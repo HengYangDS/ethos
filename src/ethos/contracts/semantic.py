@@ -172,7 +172,7 @@ class _CanonicalSemanticModel(_SemanticModel):
                 extra="forbid",
                 context=context,
             )
-            canonical = value.canonical_json().encode()  # ty: ignore[unresolved-attribute]
+            canonical = value.canonical_json().encode()  # ty: ignore[missing-attribute]
         except TypeError as error:
             raise ValueError(str(error)) from error
         raw = json_data.encode() if isinstance(json_data, str) else bytes(json_data)

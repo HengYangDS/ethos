@@ -15,7 +15,10 @@ tools, three npm pins, the npm lock and the Python lock have newer stable releas
 - npm: `@fission-ai/openspec` moves to 1.17.0, the `minimatch` override to 11.0.6 and `re2js` to
   2.10.0, and the lock-only update moves the transitive packages to their newest releases before
   the cutoff.
-- The Python lock moves to the newest releases before the cutoff.
+- The Python lock moves to the newest releases before the cutoff, and the floors of the moved
+  direct dependencies rise to their locked versions. `ty` 0.0.100 renames the rule
+  `unresolved-attribute` to `missing-attribute`, so the one ignore comment that names it moves
+  to the new name.
 - The CI supply image is rebuilt from the moved locks and bound in `.config/ci/pipeline.cue`.
 - The Unreleased entry names the moves.
 
@@ -35,5 +38,6 @@ None. Locked versions change; no requirement changes.
 
 ## Impact
 
-`.config/mise/config.toml`, `.config/mise/mise.lock`, `package.json`, `package-lock.json`, `uv.lock`, `.config/ci/pipeline.cue` with its generated
-projections, and `CHANGELOG.md`.
+`.config/mise/config.toml`, `.config/mise/mise.lock`, `package.json`, `package-lock.json`,
+`uv.lock`, `pyproject.toml`, `.config/ci/pipeline.cue` with its generated projection,
+`src/ethos/contracts/semantic.py` and `CHANGELOG.md`.

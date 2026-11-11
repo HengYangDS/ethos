@@ -32,5 +32,5 @@ Non-Goals:
 
 ## Risks / Trade-offs
 
-- A new release can change tool behaviour. The full proof and hosted CI on both peers are the acceptance, and a regression
-  is fixed or pinned in this Change with its reason.
+- A new release can change tool behaviour. The full proof and hosted CI on both peers are the
+  acceptance, and a regression is fixed or pinned in this Change with its reason.

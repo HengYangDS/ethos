@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from tests.support.ethos_cli_runner import full_result
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -34,7 +35,7 @@ def document_repository(tmp_path: Path) -> Path:
             {
                 "id": "docs-registry",
                 "kind": "docs",
-                "providers": ["ethos.application.docs_registry:docs_registry_report"],
+                "providers": [DOCS_REGISTRY_PROVIDER],
             },
             {
                 "id": "markdown-links",

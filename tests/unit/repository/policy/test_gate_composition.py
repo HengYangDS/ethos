@@ -9,6 +9,7 @@ import pytest
 import tomli_w
 from pydantic import ValidationError
 
+from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -341,7 +342,7 @@ def test_focused_obligations_preserve_source_integrity_for_selected_code(
                     Gate(
                         id="native-docs",
                         kind="docs",
-                        providers=("ethos.application.docs_registry:docs_registry_report",),
+                        providers=(DOCS_REGISTRY_PROVIDER,),
                     ),
                     Gate(id="script-docs", kind="docs", command=("tools/docs.py",)),
                 ),

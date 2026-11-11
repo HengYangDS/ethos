@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
@@ -201,7 +202,7 @@ def test_profile_native_document_roots_do_not_require_code_axes() -> None:
                     {
                         "id": "docs-registry",
                         "kind": "docs",
-                        "providers": ["ethos.application.docs_registry:docs_registry_report"],
+                        "providers": [DOCS_REGISTRY_PROVIDER],
                     },
                     {
                         "id": "markdown-links",

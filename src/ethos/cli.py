@@ -10,6 +10,7 @@ from ethos.application.console import command_boundary
 from ethos.application.console import invocation_parameters
 from ethos.application.console import run_console
 from ethos.contracts.admission import ethos_command_path
+from ethos.contracts.admission import ethos_options
 from ethos.contracts.admission import root_command
 from ethos.surface.cli.version import version_text
 
@@ -22,19 +23,20 @@ def console_main() -> None:
     argv = sys.argv[1:]
     failure = run_console(argv, main)
     if failure is not None:
-        _emit(failure, json_output="--json" in argv, enforce=True)
+        _emit(failure, json_output="--json" in ethos_options(argv), enforce=True)
 
 
 def main() -> None:
     """Run the ETHOS CLI."""
     argv = sys.argv[1:]
-    command = "version" if "--version" in argv else root_command(argv) or "ethos"
+    options = ethos_options(argv)
+    command = "version" if "--version" in options else root_command(argv) or "ethos"
     with command_boundary(command, argv, _emit):
-        if "--version" in argv:
+        if "--version" in options:
             sys.stdout.write(f"{version_text()}\n")
             return
         commands = import_module("ethos.surface.cli.application")
-        if "--json" in argv and {"--help", "-h"} & set(argv):
+        if "--json" in options and {"--help", "-h"} & set(options):
             # `ethos --help --json` prints the root's part of the catalog, `ethos <path> --help
             # --json` the command's or the group's; the MCP launcher's help is Cyclopts' own.
             described = import_module("ethos.surface.cli.catalog").help_result(

@@ -9,6 +9,7 @@ from cyclopts.exceptions import CycloptsError
 
 from ethos.application.catalog import usage_refusal
 from ethos.contracts.admission import ethos_command_path
+from ethos.contracts.admission import ethos_options
 from ethos.contracts.admission import root_command
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.catalog import GROUPS
@@ -20,7 +21,7 @@ app = App(name="ethos", help="ETHOS command plane.", version=version_text)
 
 def dispatch_arguments(argv: list[str]) -> list[str]:
     """Preserve help only when Cyclopts resolved a real command target."""
-    if not any(argument in app.help_flags for argument in argv):
+    if not any(argument in app.help_flags for argument in ethos_options(argv)):
         return argv
     _, applications, remaining = app.parse_commands(argv)
     if remaining and applications[-1].default_command is None:
@@ -46,4 +47,4 @@ def run_application(argv: list[str]) -> None:
         command = next((path for path in paths if path in COMMANDS or path in GROUPS), declared)
         gap = f"command_usage_invalid:{command}"
         refusal = usage_refusal(command, (gap,), {"usage": str(error)}, message=str(error))
-        emit(refusal, json_output="--json" in argv)
+        emit(refusal, json_output="--json" in ethos_options(argv))

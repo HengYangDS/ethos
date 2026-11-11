@@ -21,12 +21,15 @@
       leave.
 - [x] 1.7 Fence part 1 and its test. Done when the listed S1 prefixes are in
       `src/ethos/adapters/admission/control/replacement.py` and the prefix test passes.
-- [ ] 1.8 Record S1 deltas. Done when the measured kernel import cost, product delta (at most +110)
-      and test delta (at most +100) are written in this task and the owner's fence acknowledgement
-      is named. Measured on `ff8de8f41`: product +122 LE (`python_product` +142, 77,618), tests
-      +102 LE (`python_tests` +142, 100,075, over the 100,000 terminal ceiling); kernel import
-      +1.7 ms of about 215 ms; fence widening acknowledged by 97f828 on 2026-11-09. Open: both
-      figures; the unplanned reference-closure owners cost +15 product LE.
+- [x] 1.8 Record S1 deltas. Done when the measured kernel import cost, the product and test deltas
+      with any excess over the slice caps (+110 and +100) carried to 6.2's Change totals, and the
+      owner's fence acknowledgement are written in this task. Measured on `ff8de8f41`: product +122
+      LE (`python_product` +142, 77,618), tests +102 LE (`python_tests` +142, 100,075, over the
+      100,000 terminal ceiling). Kernel import grows by 1.67 ms of self time (attestation 0.94 ms,
+      host 0.42 ms, catalog 0.31 ms), within the noise of the catalog's cumulative median, 219.9 ms
+      before and 214.6 ms after over 21 runs each. Fence widening acknowledged by 97f828 on
+      2026-11-09. S1 missed both caps, by 12 product and 2 test LE, which 6.2's totals absorb; the
+      unplanned reference-closure owners cost +15 product LE of the slice.
 
 ## 2. S2: hook
 
@@ -109,8 +112,9 @@
       example against the catalog's command and group paths and the `mcp` launcher, and
       `system/gates.toml` and the fence name it; the 3 `surface.cli.root.reference` rows leave (2
       surface ignores remain), and the docs-registry, markdown-links and prose gates pass on this
-      commit's tree. The five tests take the provider from `A/docs_registry.py`;
-      `test_host_gate_proof.py` patches it through the exported `DOCS_REGISTRY_PROVIDER`.
+      commit's tree. The five tests import the exported `DOCS_REGISTRY_PROVIDER`, the four that
+      spelled the reference since the second review; `test_host_gate_proof.py` patches the provider
+      through it.
 - [x] 5.3 Update the command-plane spec, `rules/module-layout.md`, `docs/reference/command-plane.md`
       and `CHANGELOG.md`. Done when the docs gates pass and the CHANGELOG names every refusal.
       Each MODIFIED requirement keeps every base scenario; a group's `--help --json` lists its own
@@ -121,6 +125,9 @@
       against `a8f8c3b65`: product -44 LE (`python_product` -68, 77,679), tests -12 LE
       (`python_tests` -3, 99,851), the provider commit +3 and -1 LE of them; short of both figures,
       as S2 to S4 already retired the tests of the old modules.
+- [ ] 5.5 Read ETHOS's own options before `--` only. Done when `ethos host run -- <command...>`
+      passes `--help`, `-h`, `--json`, `--version` and `--root` to the command, and the console, the
+      CLI entry, the adapter and the version surface read them through one owner.
 
 ## 6. Acceptance
 

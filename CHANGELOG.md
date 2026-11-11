@@ -275,6 +275,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   document: its front-matter, decision-record-name, authored-name and formatter checks skip it, and
   `ethos lane repair-paradigm` plans no edit of it. A changed, mode-mismatched, unobserved or
   malformed original keeps every check.
+- ETHOS reads its own options only before `--`, so `ethos host run -- <command...>` passes every
+  later token to the command. After `--`, `--version` printed ETHOS's version instead of running
+  the command, `--json` turned ETHOS's own failure into a JSON frame, and `--root` bound the
+  repository when no `--root` came before `--`.
 
 ### Removed
 

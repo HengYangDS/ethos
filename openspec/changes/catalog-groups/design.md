@@ -82,7 +82,7 @@ Non-Goals:
    above the old, exit kind equal; a `refused` class asserts `("", opaque, human, true)`.
 10. **Docs-registry provider** moves to `A/docs_registry.py` in S5 as its own commit, checking
     examples against the `COMMANDS` and `GROUPS` paths and the `mcp` launcher. `system/gates.toml`
-    keeps its literal; an exported constant serves the five importing tests.
+    spells the new reference literally; an exported constant serves the five tests that name it.
 11. **Fence** (`src/ethos/adapters/admission/control/replacement.py`), widened by the owner's
     acknowledgement on 2026-11-09: S1 adds the catalog, invocation, console, attestation, host
     modules, `S/catalog.py`, `S/output.py`, `S/application.py`, `S/root_binding.py` and

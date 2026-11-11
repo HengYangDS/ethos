@@ -64,3 +64,13 @@ def test_an_admitted_command_exits_with_its_status_and_prints_no_frame(tmp_path:
     argv = ("host", "run", "--json", "--", sys.executable, "-c", "pass")
     completed = run_ethos_raw(*argv, cwd=tmp_path)
     assert (completed.returncode, completed.stdout) == (0, "")
+
+
+def test_every_token_after_the_end_marker_reaches_the_command(tmp_path: Path) -> None:
+    """ETHOS reads its own options before `--` only; the command receives the rest unchanged."""
+    tokens = ["--help", "-h", "--json", "--version", "--root", "elsewhere"]
+    child = "import json, sys; print(json.dumps(sys.argv[1:]))"
+    argv = ("host", "run", "--", sys.executable, "-c", child, *tokens)
+    completed = run_ethos_raw(*argv, cwd=tmp_path)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert json.loads(completed.stdout.strip().splitlines()[-1]) == tokens

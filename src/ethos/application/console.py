@@ -32,6 +32,7 @@ from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.application.invocation import process_failure_result
 from ethos.application.invocation import profile_failure_result
+from ethos.contracts.admission import ethos_options
 from ethos.contracts.admission import root_command
 from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.outcome import outcome_of
@@ -73,12 +74,12 @@ def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None
 
     Returns the failure to emit when selecting that runtime fails; `main` emits its own results.
     """
-    command = "version" if "--version" in argv else root_command(argv) or "ethos"
+    command = "version" if "--version" in ethos_options(argv) else root_command(argv) or "ethos"
     try:
         target = _argument_root(argv)
         if (
             _creates_root(argv)
-            or (command == "mcp" and "--create-target" in argv)
+            or (command == "mcp" and "--create-target" in ethos_options(argv))
             or not target.exists()
         ):
             main()
@@ -113,7 +114,7 @@ def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None
 @contextmanager
 def command_boundary(command: str, argv: list[str], emit: Emit) -> Generator[None]:
     """Run one command in its process scope and close each of its failures as a result."""
-    json_output = "--json" in argv
+    json_output = "--json" in ethos_options(argv)
     with command_scope(handle_termination=True):
         try:
             yield
@@ -180,11 +181,12 @@ def _contract_failure(command: str, argv: list[str], error: Exception) -> EthosR
 
 
 def _argument_root(argv: list[str]) -> Path:
-    if "--root" in argv:
-        index = argv.index("--root")
-        if index + 1 < len(argv):
-            return Path(argv[index + 1]).resolve()
-    value = next((item.partition("=")[2] for item in argv if item.startswith("--root=")), "")
+    options = ethos_options(argv)
+    if "--root" in options:
+        index = options.index("--root")
+        if index + 1 < len(options):
+            return Path(options[index + 1]).resolve()
+    value = next((item.partition("=")[2] for item in options if item.startswith("--root=")), "")
     return Path(value).resolve() if value else Path.cwd().resolve()
 
 

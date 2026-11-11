@@ -5,6 +5,7 @@ identity directory, capability grant, or reusable authorization token.
 """
 
 import os
+from itertools import takewhile
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -54,6 +55,14 @@ def root_command(arguments: list[str] | tuple[str, ...]) -> str:
         elif not argument.startswith("-"):
             return argument
     return ""
+
+
+def ethos_options(arguments: list[str] | tuple[str, ...]) -> list[str]:
+    """Return the tokens ETHOS reads its own options from: every token before `--`.
+
+    The tokens after `--` belong to a positional field, such as the command `ethos host run` runs.
+    """
+    return list(takewhile(lambda argument: argument != "--", arguments))
 
 
 def ethos_command_is_readonly(command: list[str] | tuple[str, ...]) -> bool:

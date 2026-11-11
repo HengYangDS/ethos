@@ -14,6 +14,7 @@ import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
+from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
@@ -49,7 +50,7 @@ def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: 
                 Gate(
                     id="docs-registry",
                     kind="docs",
-                    providers=("ethos.application.docs_registry:docs_registry_report",),
+                    providers=(DOCS_REGISTRY_PROVIDER,),
                 ),
                 Gate(
                     id="markdown-links",

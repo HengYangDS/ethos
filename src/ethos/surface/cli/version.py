@@ -8,6 +8,7 @@ from collections.abc import Mapping
 
 from ethos.application.result_projection import version_result
 from ethos.application.result_projection import with_runtime
+from ethos.contracts.admission import ethos_options
 
 
 def version_text() -> str:
@@ -16,7 +17,7 @@ def version_text() -> str:
     The human line reads only the identity result, so it never reads the committed build.
     """
     result = version_result()
-    if "--json" in sys.argv[1:]:
+    if "--json" in ethos_options(sys.argv[1:]):
         payload = with_runtime(result).to_dict()
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     identity = result.data["identity"]

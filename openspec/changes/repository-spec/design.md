@@ -27,5 +27,5 @@ of later steps (publication, lifecycle, proof and gates, budget).
 
 ## Risks / Trade-offs
 
-The step saves no budget (effective lines -2, tokens +0); its value is the single authority that
-the later steps extend.
+The step saves no budget (effective lines -2, tokens +0); DR-0023 counts it among the removals
+measured before the test step. Its value is the single authority that the later steps extend.

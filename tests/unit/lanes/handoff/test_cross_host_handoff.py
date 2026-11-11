@@ -349,6 +349,9 @@ def test_handoff_source_revoke_rejects_live_generation_drift(
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["lease_generation_stale"]
     assert observe_lease(database, "work/handoff").state == "valid"
+    absent = tmp_path / "absent"
+    request = _revoke_request(source.worktree, absent, acknowledgement, source_holder, lease)
+    assert "handoff_manifest_missing" in revoke_cross_host_source(request)["required_gaps"]
 
 
 def test_handoff_import_rejects_tampered_source_tree(

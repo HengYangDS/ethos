@@ -282,6 +282,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The Go gates run the `go` that ETHOS resolved with that executable's own root. An ambient
   `GOROOT` that the repository's locked tools did not set selected another Go's tools, and the
   gates failed with a compiler version mismatch; a `GOROOT` that the locked tools set still applies.
+- `ethos lane handoff revoke-source` with a package whose manifest is missing or unsafe blocks with
+  the manifest's own gap, such as `handoff_manifest_missing`, instead of a validation message.
 
 ### Removed
 

@@ -296,7 +296,11 @@ def revoke_cross_host_source(
         )
     return _finish_report(
         report,
-        ("lane-handoff-revoke-source", "lane.handoff.revoke_source", branch),
+        (
+            "lane-handoff-revoke-source",
+            "lane.handoff.revoke_source",
+            branch or package.resolve().as_posix(),
+        ),
         expected_state,
         apply=request.apply,
     )

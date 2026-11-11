@@ -162,7 +162,7 @@ def import_cross_host_handoff(request: CrossHostHandoffImportRequest) -> dict[st
         )
     return _finish_report(
         report,
-        ("lane-handoff-import", "lane.handoff.import", branch or package.resolve().as_posix()),
+        ("lane-handoff-import", "lane.handoff.import", _package_subject(branch, package)),
         expected_state,
         apply=request.apply,
     )
@@ -299,7 +299,7 @@ def revoke_cross_host_source(
         (
             "lane-handoff-revoke-source",
             "lane.handoff.revoke_source",
-            branch or package.resolve().as_posix(),
+            _package_subject(branch, package),
         ),
         expected_state,
         apply=request.apply,
@@ -380,6 +380,11 @@ def _apply_report(
             "state": "blocked",
             "required_gaps": [failure],
         }
+
+
+def _package_subject(branch: str, package: Path) -> str:
+    """Name the manifest's lane, or the package itself when the manifest names none."""
+    return branch or package.resolve().as_posix()
 
 
 def _finish_report(

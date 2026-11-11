@@ -12,7 +12,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
-## [0.2.0-beta.8] - 2026-11-11
+## [0.2.0-beta.8] - 2026-11-12
 
 ### Changed
 
@@ -33,6 +33,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
     GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
     reports them and does not block.
+  - Go's GO-2026-6859 (CVE-2026-97054), published on 2026-11-11, lets an HTTP/1 server in
+    `net/http` crash; Go 1.26.11 and 1.27.4 fix it. The bundled `cue` (built with go1.26.5),
+    `vale` (go1.25.7) and `shfmt` (go1.27.1) contain the affected code, and `govulncheck` finds a
+    call path to it in `cue` and `vale`. ETHOS runs them only as local commands over repository
+    files and starts no HTTP server through them. No release of CUE, Vale or shfmt is built with a
+    fixed Go yet; a later supply move takes one.
   - In a lane whose selected runtime is an older release, a newer runtime's `ethos` console
     re-executes in the selected runtime, so a preview such as `ethos lane repair-paradigm` answers
     with the older build's result, which can read as nothing to do. To preview with the newer

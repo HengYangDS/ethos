@@ -12,5 +12,5 @@
 
 - [x] 2.1 Pass the precheck, the impacted sweep and readiness at the lane head. Done when each
       passes on the committed head. At `c234e3c1a`: the three impacted test files the go-own-root
-      sweep did not cover ran 24 tests, all passing, the static precheck passed, and readiness passed
-      28 of 28 gates.
+      sweep did not cover ran 24 tests, all passing, the static precheck passed, and readiness
+      passed 28 of 28 gates.

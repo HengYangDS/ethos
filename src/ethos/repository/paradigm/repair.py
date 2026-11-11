@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
-import tomli_w
-
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import RELEASE_MIRROR_FIELD
 from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
@@ -26,6 +24,7 @@ from ethos.repository.paradigm.openspec import schema_repair
 from ethos.repository.paradigm.records import ROOTS
 from ethos.repository.paradigm.records import TABLE
 from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
+from ethos.repository.toml_layout import render_toml
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -201,7 +200,7 @@ def _set_toml_value(text: str, key: str, value: object) -> str | None:
     """Set one dotted TOML key in place, keeping comments and every other line."""
     *tables, leaf = key.split(".")
     table = ".".join(tables)
-    line = tomli_w.dumps({leaf: value}).rstrip("\n")
+    line = render_toml({leaf: value}).rstrip("\n")
     lines = text.rstrip("\n").split("\n")
     headers = [index for index, current in enumerate(lines) if current.lstrip().startswith("[")]
     start = 0
@@ -278,7 +277,7 @@ def _peer_remote(
             return None
         if peer.get("id") != identity:
             continue
-        line = tomli_w.dumps({"git_remote": identity}).rstrip("\n")
+        line = render_toml({"git_remote": identity}).rstrip("\n")
         keys = {_key(lines[index]): index for index in range(start + 1, end)}
         if "git_remote" in keys:
             lines[keys["git_remote"]] = line
@@ -457,7 +456,7 @@ def _release_mirror(
 ) -> Repair | None:
     """Declare the accepted fast-forward mirror in the release binding's `[release]` table."""
     if text is None or not text.strip():
-        return tomli_w.dumps({"release": {"mirror": RELEASE_MIRROR_ACCEPTED_FF}}), ""
+        return render_toml({"release": {"mirror": RELEASE_MIRROR_ACCEPTED_FF}}), ""
     repaired = _set_toml_value(text, "release.mirror", RELEASE_MIRROR_ACCEPTED_FF)
     return None if repaired is None else (repaired, "")
 

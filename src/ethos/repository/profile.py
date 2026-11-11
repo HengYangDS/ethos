@@ -11,7 +11,6 @@ from types import MappingProxyType
 from typing import Annotated
 from typing import Literal
 
-import tomli_w
 from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import BeforeValidator
@@ -27,6 +26,7 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.toml_layout import render_toml
 
 DEFAULT_ROOTS = {
     "rules": "rules",
@@ -273,8 +273,8 @@ class RepositoryProfile(_ProfileModel):
 
 
 def render_repository_profile(declaration: RepositoryProfileDeclaration) -> str:
-    """Serialize the minimal bootstrap through the canonical TOML writer."""
-    return tomli_w.dumps(declaration.model_dump(mode="json", exclude_defaults=True))
+    """Serialize the minimal bootstrap in the shipped TOML layout."""
+    return render_toml(declaration.model_dump(mode="json", exclude_defaults=True))
 
 
 def repository_profile_from_text(root: Path, *, exists: bool, text: str) -> RepositoryProfile:

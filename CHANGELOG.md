@@ -49,10 +49,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
     store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
     such consumers under `absent`.
-  - `ethos lane repair-paradigm --apply` writes TOML arrays with a four-space indent, while the
-    shipped Taplo policy indents by two spaces. A repository whose Taplo settings equal the shipped
-    ones re-indents them on format; one whose Taplo file declares other settings refuses
-    `native_formatter_policy_conflict` until it takes the shipped `[formatting]` settings.
 
 ### Fixed
 
@@ -60,6 +56,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `forgeRepository`, as its documentation states, instead of only its whole value as a path. A
   forge web address on its own port in a redaction root now classifies as a span that
   `ethos lane redact private-addresses` replaces, instead of refusing as unclassified.
+- `ethos lane repair-paradigm --apply` and the profile that `ethos adopt` writes indent TOML by the
+  shipped Taplo policy's `indent_string`, two spaces, instead of four, so a repaired `record_roots`
+  array passes the format check of a repository whose Taplo settings equal the shipped ones. A
+  repository whose Taplo file declares other `[formatting]` settings still refuses
+  `native_formatter_policy_conflict` until it takes the shipped settings.
 
 ## [0.2.0-beta.7] - 2026-11-11
 

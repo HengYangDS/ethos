@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -40,7 +39,11 @@ def _plan(repo: Path) -> RepairPlan:
 
 
 def test_the_roots_move_to_the_profile_before_the_table_retires(tmp_path: Path) -> None:
-    """One repair declares the folded roots, the next retires the table, and a third is empty."""
+    """One repair declares the folded roots, the next retires the table, and a third is empty.
+
+    The roots are written as the shipped Taplo policy lays out an array: two spaces deep, one
+    element per line and a trailing comma.
+    """
     repo = _repository(tmp_path, '["evidence", "evidence/claims"]')
     rounds = []
     for _round in range(3):
@@ -53,8 +56,9 @@ def test_the_roots_move_to_the_profile_before_the_table_retires(tmp_path: Path) 
                 (repo / edit.path).write_text(edit.after, encoding="utf-8")
 
     assert rounds == [[(PROFILE, False)], [(RULES, True)], []]
-    profile = tomllib.loads((repo / PROFILE).read_text(encoding="utf-8"))
-    assert profile == {"profile_id": "records", "record_roots": ["evidence/"]}
+    assert (repo / PROFILE).read_text(encoding="utf-8") == (
+        'profile_id = "records"\nrecord_roots = [\n  "evidence/",\n]\n'
+    )
 
 
 @pytest.mark.parametrize("roots", ['["/abs"]', '["a/../b"]', '["a//b"]', "[1]", '"evidence"'])

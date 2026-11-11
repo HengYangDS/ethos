@@ -1,4 +1,4 @@
-min_version = "2026.11.6"
+min_version = "2026.10.25"
 [settings]
 locked = true
 not_found_system_fallback = false

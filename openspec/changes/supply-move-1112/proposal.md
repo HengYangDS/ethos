@@ -3,13 +3,14 @@
 ## Why
 
 The owner asked for every supply chain to move to its newest stable release. ETHOS last moved its
-supply on 2026-11-10 (`supply-move-1110`). Against a cutoff of 2026-11-10T18:00:00Z, Mise, three
-Mise tools, three npm pins, the npm lock and the Python lock have newer stable releases.
+supply on 2026-11-10 (`supply-move-1110`). Against a cutoff of 2026-11-10T18:00:00Z, three Mise
+tools, three npm pins, the npm lock and the Python lock have newer stable releases, and so has Mise.
 
 ## What Changes
 
-- Mise moves from 2026.10.25 to 2026.11.6: the floor in `.config/mise/config.toml`, and the CI
-  bootstrap version with its six executable digests.
+- Mise stays at 2026.10.25. Under Mise 2026.11.6, the CI supply image build's
+  `mise install --locked` refused the locked Python 3.14.10 archive for Linux arm64 on its
+  checksum, so the move to it waits for its own Change.
 - Go moves to 1.27.4, Syft to 1.57.1 and Grype to 0.121.3, in the Mise configuration and its lock.
 - npm: `@fission-ai/openspec` moves to 1.17.0, the `minimatch` override to 11.0.6 and `re2js` to
   2.10.0, and the lock-only update moves the transitive packages to their newest releases before
@@ -34,6 +35,5 @@ None. Locked versions change; no requirement changes.
 
 ## Impact
 
-`.config/mise/config.toml`, `.config/mise/mise.lock`, `.config/checks/ci-projection/policy.toml`,
-`package.json`, `package-lock.json`, `uv.lock`, `.config/ci/pipeline.cue` with its generated
+`.config/mise/config.toml`, `.config/mise/mise.lock`, `package.json`, `package-lock.json`, `uv.lock`, `.config/ci/pipeline.cue` with its generated
 projections, and `CHANGELOG.md`.

@@ -14,9 +14,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
-- The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Mise
-  2026.11.6, Syft 1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of
-  `fastmcp`, `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions.
+- The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft
+  1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of `fastmcp`,
+  `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions. Mise stays at
+  2026.10.25: while the CI supply image was built, `mise install --locked` under Mise 2026.11.6
+  refused the locked Python 3.14.10 archive for Linux arm64 on its checksum.
 
 ## [0.2.0-beta.8] - 2026-11-12
 

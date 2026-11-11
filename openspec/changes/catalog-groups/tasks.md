@@ -125,17 +125,23 @@
       against `a8f8c3b65`: product -44 LE (`python_product` -68, 77,679), tests -12 LE
       (`python_tests` -3, 99,851), the provider commit +3 and -1 LE of them; short of both figures,
       as S2 to S4 already retired the tests of the old modules.
-- [ ] 5.5 Read ETHOS's own options before `--` only. Done when `ethos host run -- <command...>`
+- [x] 5.5 Read ETHOS's own options before `--` only. Done when `ethos host run -- <command...>`
       passes `--help`, `-h`, `--json`, `--version` and `--root` to the command, and the console, the
-      CLI entry, the adapter and the version surface read them through one owner.
+      CLI entry, the adapter and the version surface read them through one owner. `ethos_options`
+      in `K/admission.py` is that owner (`9be5fba88`); `test_host_run.py` failed before it and
+      passes after, its child receiving all six tokens, and the impacted sweep at that content
+      passed 1,775 tests.
 
 ## 6. Acceptance
 
-- [ ] 6.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head and `lint-imports` shows the 52 rows gone.
-- [ ] 6.2 Check the budget. Done when the Change totals at most +200 product and at most -100 test
-      effective lines, and 12 destructive rows are gone. Measured against `2b113c640` on the S5
-      tree: product +162 LE (`python_product` +197, 77,482 to 77,679), tests -239 LE
-      (`python_tests` -30, 99,881 to 99,851), 52 of 54 surface ignore rows and the 12 destructive
-      rows gone. The figures are effective lines, the unit the design states; the enforced token
-      measure is product +197 and tests -30.
+- [x] 6.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head and `lint-imports` shows the 52 rows gone. At `9be5fba88`: the precheck passed with no
+      finding over 88 changed paths, readiness passed 28 of 28 gates with 6 not run, and the
+      import-linter configuration's 4 contracts hold 2 ignore rows sourced in `ethos.surface`, 54
+      at `35369c35d`.
+- [x] 6.2 Check the budget. Done when the Change totals at most +200 product and at most -100 test
+      effective lines, and 12 destructive rows are gone. Measured at `9be5fba88` against its base
+      `35369c35d`: product +173 LE and tests -227 LE, in effective lines, the unit the design
+      states; in the enforced token measure `python_product` 77,508 to 77,723 (+215) and
+      `python_tests` 99,904 to 99,892 (-12), under the 80,000 and 100,000 terminal ceilings. 52 of
+      54 surface ignore rows and the 12 destructive rows are gone.

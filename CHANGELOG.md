@@ -279,6 +279,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   later token to the command. After `--`, `--version` printed ETHOS's version instead of running
   the command, `--json` turned ETHOS's own failure into a JSON frame, and `--root` bound the
   repository when no `--root` came before `--`.
+- The Go gates run the `go` that ETHOS resolved with that executable's own root. An ambient
+  `GOROOT` that the repository's locked tools did not set selected another Go's tools, and the
+  gates failed with a compiler version mismatch; a `GOROOT` that the locked tools set still applies.
 
 ### Removed
 

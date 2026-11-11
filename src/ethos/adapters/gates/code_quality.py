@@ -66,14 +66,26 @@ def _go_environment(native: dict[str, str]) -> dict[str, str]:
     }
 
 
-def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
-    """Decode Go's concatenated package observations without a parallel parser."""
-    result = run_command(
+def _run_go(
+    root: Path, arguments: tuple[str, ...], native: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    """Run the resolved `go` offline with its own root.
+
+    An ambient `GOROOT` that the locked graph did not set would select another Go's tools; removal
+    precedes the environment update, so a locked `GOROOT` stays.
+    """
+    return run_command(
         root,
-        (_executable(root, "go"), "list", "-json", "./..."),
+        (_executable(root, "go"), *arguments),
         env=_go_environment(native),
+        remove_env=("GOROOT",),
         remove_env_prefixes=("MISE_",),
     )
+
+
+def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
+    """Decode Go's concatenated package observations without a parallel parser."""
+    result = _run_go(root, ("list", "-json", "./..."), native)
     if result.returncode:
         refuse("go_package_scope_unavailable")
     decoder = json.JSONDecoder()
@@ -151,21 +163,8 @@ def _go_package_sources(
 
 def _go_zero_statement_source(root: Path, path: str, output: Path, native: dict[str, str]) -> bool:
     """Ask Go's coverage instrumenter whether an omitted selected file has blocks."""
-    result = run_command(
-        root,
-        (
-            _executable(root, "go"),
-            "tool",
-            "cover",
-            "-mode=set",
-            "-var=EthosCoverageProbe",
-            "-o",
-            str(output),
-            path,
-        ),
-        env=_go_environment(native),
-        remove_env_prefixes=("MISE_",),
-    )
+    probe = ("tool", "cover", "-mode=set", "-var=EthosCoverageProbe", "-o", str(output), path)
+    result = _run_go(root, probe, native)
     if result.returncode or not output.is_file():
         refuse("go_coverage_applicability_unknown")
     marker = "var EthosCoverageProbe = struct {"
@@ -192,27 +191,14 @@ def _go_behavior(
     source_paths = _go_package_sources(root, production, native)
     with TemporaryDirectory(prefix="ethos-go-coverage-") as directory:
         coverage = Path(directory) / "coverage.out"
-        command = (
-            _executable(root, "go"),
-            "test",
-            "-json",
-            "-coverpkg=./...",
-            f"-coverprofile={coverage}",
-            "-count=1",
-            "./...",
-        )
-        result = run_command(
-            root,
-            command,
-            env=_go_environment(native),
-            remove_env_prefixes=("MISE_",),
-        )
+        arguments = ("test", "-json", "-coverpkg=./...", f"-coverprofile={coverage}", "-count=1")
+        result = _run_go(root, (*arguments, "./..."), native)
         if result.returncode:
             message = "go_tests_failed"
             raise ProcessExecutionError(
                 message,
                 reason="native_test_failed",
-                command=command,
+                command=tuple(result.args),
                 cwd=root.as_posix(),
                 cause=result.stderr[-4096:],
                 observation={
@@ -264,12 +250,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     )
     if formatted.returncode or formatted.stdout.strip():
         refuse("go_format_diagnostics")
-    vetted = run_command(
-        root,
-        (_executable(root, "go"), "vet", "./..."),
-        env=_go_environment(native),
-        remove_env_prefixes=("MISE_",),
-    )
+    vetted = _run_go(root, ("vet", "./..."), native)
     if vetted.returncode:
         refuse("go_vet_diagnostics")
     return {"language": "go", "checked_paths": len(paths)}

@@ -166,8 +166,15 @@ def test_go_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     assert _behavior_gaps(repo) == ["quality_behavior_go_tests_unexecuted"]
 
 
-def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(tmp_path: Path) -> None:
-    """Only Go-selected statements require hits, including calls into untested packages."""
+def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only Go-selected statements require hits, including calls into untested packages.
+
+    An ambient `GOROOT` that the locked graph did not set selects no Go: the resolved `go` runs with
+    its own root.
+    """
+    monkeypatch.setenv("GOROOT", str(tmp_path / "foreign-goroot"))
     repo = committed_source_repo(
         tmp_path,
         {

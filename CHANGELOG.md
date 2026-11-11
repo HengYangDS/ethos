@@ -12,6 +12,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Mise
+  2026.11.6, Syft 1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of
+  `fastmcp`, `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions.
+
 ## [0.2.0-beta.8] - 2026-11-12
 
 ### Added

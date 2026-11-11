@@ -85,12 +85,11 @@ def feed_from_config(remotes: Mapping[str, Mapping[str, Iterable[str]]]) -> Feed
     paths: set[str] = set()
     ids: set[int] = set()
     for config in remotes.values():
-        for url in config.get("url", ()):
+        for url in (*config.get("url", ()), *config.get("forgerepository", ())):
             host, port, path = remote_parts(url)
             hosts.update((host,) if host else ())
             ports.update((int(port),) if port else ())
             paths.update((path,) if path else ())
-        paths.update(normalized_path(value) for value in config.get("forgerepository", ()))
         ids.update(int(value) for value in config.get("forgeprojectid", ()) if value.isdigit())
         for value in config.get("forgeformer", ()):
             field, _sep, item = value.partition("=")

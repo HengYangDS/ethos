@@ -33,6 +33,7 @@ def test_the_feed_reads_protected_peers_and_their_former_values(tmp_path: Path) 
         ("forgeFormer", "host=old." + "internal"),
         ("forgeFormer", "port=9443"),
         ("forgeFormer", "path=old/team/x"),
+        ("forgeRepository", f"http://{H1}:8929/{F1}"),
     ):
         git(repo, "config", "--add", f"remote.gitlab.{key}", value)
     git(repo, "remote", "add", "github", "https://github.com/HengYangDS/ethos.git")
@@ -40,7 +41,7 @@ def test_the_feed_reads_protected_peers_and_their_former_values(tmp_path: Path) 
     feed = local_feed(repo).feed
 
     assert feed.hosts == {H1, "old." + "internal"}
-    assert feed.ports == {2222, 8443, 9443}
+    assert feed.ports == {2222, 8443, 8929, 9443}
     assert set(feed.paths) == {F1, "old/team/x"}
     assert feed.ids == {123456789}
     git(repo, "config", "remote.github.forgePrivate", "true")

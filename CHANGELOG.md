@@ -12,6 +12,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- The protected-peer feed reads the host, port and namespace path of a remote's
+  `forgeRepository`, as its documentation states, instead of only its whole value as a path. A
+  forge web address on its own port in a redaction root now classifies as a span that
+  `ethos lane redact private-addresses` replaces, instead of refusing as unclassified.
+
 ## [0.2.0-beta.7] - 2026-11-11
 
 ### Added

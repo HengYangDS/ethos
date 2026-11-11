@@ -111,7 +111,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   registered language. It measures the index blob with the paradigm report's measure and resolved
   ceiling, and refuses with `pre_commit_code_size_exceeded:<path>:<lines>><ceiling>`, so an
   oversized module fails at its commit instead of at readiness or the proof.
-
 - `ethos hook retire-records` previews store retention: run by the selected runtime, it classifies
   the store's proof-check documents, merge preimages, gate attempt archives and terminal lane
   retirement units, keeps every record that a live Attestation member, a kept store file or the

@@ -5,6 +5,7 @@ and projects that owner's report through `lease_result`, which summarizes the Le
 left and, once it passes, points at the lane's status.
 """
 
+import shlex
 from pathlib import Path
 
 from ethos.adapters.mutation.lane_lifecycle.handoff.transfer import export_cross_host_handoff
@@ -95,10 +96,11 @@ def _current_lease(command: str, root: Path, request: RenewRequest | ResumeReque
     report = execute_lease_operation(root=root, request=operation)
     if request.apply or report["verdict"] != "pass":
         return lease_result(command, report)
-    flags = " ".join(f"--{name.replace('_', '-')} {given[name]}" for name in _COORDINATES)
-    return lease_result(
-        command, report, next_action=f"ethos {command} {flags} --root {root.as_posix()} --apply"
-    )
+    flags = [
+        part for name in _COORDINATES for part in (f"--{name.replace('_', '-')}", str(given[name]))
+    ]
+    argv = ["ethos", *command.split(), *flags, "--root", root.as_posix(), "--apply"]
+    return lease_result(command, report, next_action=shlex.join(argv))
 
 
 def renew_lease(root: Path, request: RenewRequest) -> EthosResult:

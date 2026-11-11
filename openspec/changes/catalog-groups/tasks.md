@@ -98,8 +98,9 @@
 
 - [x] 5.1 Delete the old command modules, `_COMMAND_MODULES`, `load_command_groups`, the admission
       tables and the classifier fallback. Done when no `lane`, `hook` or `attestation` module
-      remains under `surface/cli/` and `ethos_step_*` are gone. `surface/cli/` holds the adapter,
-      its output and the `mcp` launcher, which the adapter loads for its own word or none;
+      remains under `surface/cli/` and `ethos_step_*` are gone. `surface/cli/` holds the adapter
+      (`catalog.py`, `application.py`, `root_binding.py`, `version.py`), its output and the `mcp`
+      launcher (`root/mcp.py`), which the adapter loads for its own word or none;
       `run_application` builds the invoked word's commands; `next` reads every argv through the
       catalog alone, an unselected one `opaque`, destructive and `human`; and the S3 analyzer rule
       and its fixture leave, semantic closure and product boundaries passing without them.

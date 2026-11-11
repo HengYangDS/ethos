@@ -168,6 +168,7 @@ def test_lane_prewrite_builds_only_its_own_half_and_group(tmp_path: Path) -> Non
         timeout=120,
     )
 
+    assert completed.stdout.strip(), completed.stderr
     halves, roots, lane = (
         [name for name in names if not name.startswith("-")]
         for names in json.loads(completed.stdout.splitlines()[-1])

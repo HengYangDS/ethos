@@ -47,7 +47,8 @@ None.
 - `src/ethos/contracts/operations/` (new group modules, `declaration.py`, `catalog.py`),
   `src/ethos/contracts/admission.py`, `src/ethos/contracts/next_step.py`.
 - `src/ethos/application/` (`catalog.py`, new `lane/`, `hook/`, `attestation.py`, `host.py`,
-  `docs_registry.py`; `peer_identity.py`, `redaction.py` and `retention.py` gain entries).
+  `docs_registry.py`; `retention.py` gains the `hook retire-records` entry, and `peer_identity.py`
+  and `redaction.py` join the fence).
 - `src/ethos/surface/cli/`: new `catalog.py`; `application.py`, `output.py`; the `lane/`, `hook/`
   and `root/{attestation,host,reference}.py` modules retire.
 - `.config/checks/import-linter/import-linter.toml`,

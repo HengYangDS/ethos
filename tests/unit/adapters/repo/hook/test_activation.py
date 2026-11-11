@@ -157,7 +157,7 @@ def test_hook_install_restores_state_and_activation_after_failure(
 
 
 @pytest.mark.parametrize("before_state", ["legacy", "absent"])
-def test_hook_install_unreadable_declaration_preserves_rollback_and_public_json(
+def test_hook_install_unreadable_declaration_preserves_rollback_and_reports_its_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before_state: str
 ) -> None:
     """A selected data-read failure cannot leave partial activation behind."""

@@ -141,9 +141,9 @@ def test_the_shipped_node_is_read_from_the_runtime_inside_the_archive(tmp_path):
 
 
 def test_the_declaration_is_rechecked_when_syft_changes():
-    """Syft 1.57.0 matches Node only in a file named `node`, so a new Syft must be checked again.
+    """Syft 1.57.1 matches Node only in a file named `node`, so a new Syft must be checked again.
 
     When the locked Syft classifies `node.exe`, `complete_inventory` never declares, and its
     declaration path is removed in that supply move; otherwise this version moves with it.
     """
-    assert NativeSupply.read(release_supply_chain.ROOT, "syft").version == "1.57.0"
+    assert NativeSupply.read(release_supply_chain.ROOT, "syft").version == "1.57.1"

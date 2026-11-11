@@ -46,3 +46,4 @@ five-section form; this entrance does not maintain another template or rule set.
 - [DR-0020: The product ceiling moves to 80,000 for the RC work](dr-0020-product-budget-step.md): the necessity review that took one 5,000 step after the proved duplication was removed.
 - [DR-0021: Release 0.2.0 declares three journeys and narrows DR-0015's hosts](dr-0021-release-scope-0-2-0.md): why 0.2.0 drops Windows x64, conditions Homebrew and leaves the GitLab CI component unqualified, and which of DR-0015 stays in force.
 - [DR-0022: From 0.3.0, builds are immutable and stages are evidence-gated channels](dr-0022-release-channels-0-3-0.md): why build identity and qualification separate, and why a declared hermetic local venue counts.
+- [DR-0023: The test ceiling moves to 105,000 for the beta.8 work](dr-0023-test-budget-step.md): the necessity review that took one 5,000 test step after the proved duplication was removed.

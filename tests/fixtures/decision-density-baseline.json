@@ -162,7 +162,7 @@
   "src/ethos/adapters/repo/hook/observation.py::commit_policy_enforcement": 24,
   "src/ethos/adapters/repo/hook/observation.py::hook_runtime_binding": 57,
   "src/ethos/adapters/repo/merge/effect.py::recognized_merge": 19,
-  "src/ethos/adapters/repo/peer_feed.py::feed_from_config": 27,
+  "src/ethos/adapters/repo/peer_feed.py::feed_from_config": 25,
   "src/ethos/adapters/repo/profile.py::repository_identities": 30,
   "src/ethos/adapters/repo/release.py::accepted_release_source": 24,
   "src/ethos/adapters/repo/release_publication.py::publication_source_baseline": 32,

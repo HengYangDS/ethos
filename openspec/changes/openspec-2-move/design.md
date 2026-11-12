@@ -4,13 +4,14 @@
 
 - The owner's decision of 2026-11-12: OpenSpec 2.0 in ETHOS and every governed repository, before
   the 24-hour age, with breaking changes allowed. OpenSpec 2.0.0 was published at
-  2026-11-11T22:41:44Z (GitHub releases API); its npm integrity is
-  `sha512-TsGwEAWogMOhuI8npa3o8Y3popwqBIHLdbn80KGUv6rSExvlmY1kYNALMfSZG+qbliH9gffc+CWC4JPlkoFshw==`.
+  2026-11-11T22:41:44Z (GitHub releases API), and the lock records the integrity that the npm
+  registry publishes for it.
 - ETHOS embeds OpenSpec as an npm dependency and loads nine of its internal modules through two
   Node bridges (`adapters/openspec/batch.mjs:21-23`, `adapters/openspec/configuration.mjs:13-22`).
-  Comparing the 1.17.0 and 2.0.0 packages byte for byte, eight are identical; `utils/task-progress.js`
-  now joins a wrapped task's continuation lines into its description. ETHOS parses task lines one at
-  a time (`adapters/openspec/relocation.mjs:136-137`) and counts them, so neither result changes.
+  Comparing the 1.17.0 and 2.0.0 packages byte for byte, eight are identical;
+  `utils/task-progress.js` now joins a wrapped task's continuation lines into its description.
+  ETHOS parses task lines one at a time (`adapters/openspec/relocation.mjs:136-137`) and counts
+  them, so neither result changes.
 - 2.0.0's dependency ranges equal 1.17.0's.
 - OpenSpec 2.0 records the tools it set up, and the `openspec-*` skills it must keep as the user's,
   in `.agents/skills/.openspec-target`, and decides ownership only from that record
@@ -41,12 +42,14 @@ Non-Goals:
    other package held to the 24-hour cutoff, and every resolved URL is checked to be the public
    registry. The bridge's existing check, that the loaded package's name and version and
    `program.version()` equal the locked version, stays the guard.
-2. **Ownership comes from OpenSpec's record, read by OpenSpec.** The configuration bridge, which
-   already loads OpenSpec's modules after that version check, also reports OpenSpec's skill
-   ownership through `core/shared-skill-target.js`: whether the record names a tool, and which
-   `openspec-*` skills it keeps as the user's. The portfolio then counts an `openspec-*` package as
-   routed when the record names a tool and does not keep that package. ETHOS parses no record of
-   its own and guesses from no skill text.
+2. **Ownership comes from OpenSpec's record, read by OpenSpec, as an observation.** The
+   configuration bridge, which already loads OpenSpec's modules after that version check, also
+   reports OpenSpec's skill ownership through `core/shared-skill-target.js`: whether the record
+   names a tool, and which `openspec-*` skills it keeps as the user's. The portfolio stays pure,
+   since the repository layer that reaches it imports no adapter: it takes the owned names as a
+   parameter, and the gate runner supplies them by parameter name, as it supplies retained
+   origins, while the status audit and the plan pass them too. OpenSpec is asked only when its
+   record exists. ETHOS parses no record of its own and guesses from no skill text.
 3. **Everything else is unchanged.** A kept package, a package in a repository without the record
    and any non-OpenSpec package still need an activation record or report
    `skill_package_unregistered`.
@@ -59,8 +62,8 @@ Non-Goals:
   full proof are the mitigation, and the exception lapses within hours.
 - If a later OpenSpec release changes the record's meaning, the version check refuses the
   mismatched package before any ownership is read.
-- **Unproven:** that OpenSpec's `shared-skill-target.js` exports behave as their declarations say
-  under ETHOS's bridge; the task's test proves it.
+- The status edge to the configuration adapter joins the domain contract's declared exceptions,
+  which the typed Facts of 0.3.0 retire with the others.
 
 ## Migration Plan
 

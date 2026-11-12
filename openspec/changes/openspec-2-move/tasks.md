@@ -14,10 +14,11 @@
       that the record keeps still reports `skill_package_unregistered`, the same package without the
       record reports it too, and the test fails before the change.
       `test_openspecs_record_routes_the_shared_skills_it_owns` failed first on its `claude` case
-      with `skill_package_unregistered:openspec-propose`. With `f0505e280` its three cases pass; the
-      skills, OpenSpec adapter, version and OpenSpec lifecycle modules passed 396 tests with
-      OpenSpec 2.0.0 installed, and the skills and configuration modules passed 52 again on the
-      committed head.
+      with `skill_package_unregistered:openspec-propose`. With `f0505e280` its three cases passed,
+      and the skills, OpenSpec adapter, version and OpenSpec lifecycle modules passed 396 tests with
+      OpenSpec 2.0.0 installed. `115be540c` then moved the observation out of the portfolio, which
+      the import contracts required: the test now runs the skills gate's provider through the gate
+      runner, and the 22 impacted targets passed 1,131 tests.
 - [x] 1.3 Rebuild the CI supply image from the moved lock and bind it. Done when the image run
       succeeds and `.config/ci/pipeline.cue` names its digest. Run 43174327163 built the image from
       `f0505e280` and published

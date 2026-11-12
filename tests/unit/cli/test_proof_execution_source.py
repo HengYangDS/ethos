@@ -281,9 +281,8 @@ def test_public_proof_preserves_native_failure_and_skipped_dependants(
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\nbuild/\n")
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)
-    source.write_text(
-        ("import math\n\n\n" if failure else "") + "def answer() -> int:\n    return 42\n"
-    )
+    head = '"""Sample package."""\n\n' + ("import math\n\n\n" if failure else "\n")
+    source.write_text(head + "def answer() -> int:\n    return 42\n")
     test = repo / "tests/test_sample.py"
     test.parent.mkdir()
     test.write_text(

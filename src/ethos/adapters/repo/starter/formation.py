@@ -22,7 +22,9 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
-from ethos.adapters.repo.starter.generation import compose_starter
+from ethos.adapters.repo.starter.conformance import compose_conforming_starter
+from ethos.adapters.repo.starter.conformance import git_init_arguments
+from ethos.adapters.repo.starter.conformance import write_paradigm_carriers
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import OutcomeError
@@ -123,7 +125,8 @@ def formation_plan(
                 )
                 (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8", newline="\n")
                 _write_version_identity(candidate)
-                outputs, starter_outputs, starter_gap, detail = compose_starter(
+                write_paradigm_carriers(candidate)
+                outputs, starter_outputs, gaps, starter_gap, detail = compose_conforming_starter(
                     candidate, starter, purpose.strip()
                 )
                 if starter_gap:
@@ -174,6 +177,7 @@ def formation_plan(
                     ],
                     "source_inputs": sources,
                     "starter_outputs": starter_outputs,
+                    "paradigm_gaps": gaps,
                     "plan_digest": digest,
                     "applied": False,
                 }
@@ -283,7 +287,7 @@ def _prepare_history(
     tree = ""
     for args, gap in (
         (
-            ("init", "-q", "--template=", "-b", load_repository_paradigm().branch.accepted),
+            git_init_arguments(),
             "formation_git_init_failed",
         ),
         *(

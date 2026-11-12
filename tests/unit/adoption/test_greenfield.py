@@ -4,15 +4,20 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.adapters.repo.starter.conformance as conformance
 import ethos.application.console as console
 import ethos.cli as product_cli
+from ethos.adapters.repo.git_attributes import checkout_line_endings
 from ethos.application.adoption import adopt_repository
+from ethos.repository.paradigm.gap import ParadigmGap
+from ethos.repository.paradigm.repair import RepairPlan
 from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
@@ -78,13 +83,18 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     assert result.verdict == "pass"
     assert result.state == "planned"
     assert result.data["planned_files"] == (
+        ".config/mise/config.toml",
+        ".editorconfig",
         ".ethos/profile.toml",
+        ".gitattributes",
         "AGENTS.md",
         "CHANGELOG.md",
+        "CONTRIBUTING.md",
         "README.md",
         "VERSION",
         "openspec/config.yaml",
     )
+    assert result.data["paradigm_gaps"] == ()
     assert not target.exists()
     assert not list(tmp_path.glob(".ethos-preview-*"))
 
@@ -143,14 +153,7 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
     assert completed.returncode == 0, completed.stderr
     result = json.loads(completed.stdout)
     assert result["verdict"] == "pass"
-    assert result["data"]["planned_files"] == [
-        ".ethos/profile.toml",
-        "AGENTS.md",
-        "CHANGELOG.md",
-        "README.md",
-        "VERSION",
-        "openspec/config.yaml",
-    ]
+    assert result["data"]["planned_files"] == list(direct.data["planned_files"])
     assert result["data"]["plan_digest"] == direct.data["plan_digest"]
     assert result["data"]["write_plan"] == direct.to_dict()["data"]["write_plan"]
     assert not target.exists()
@@ -252,14 +255,14 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         assert sha256(path.read_bytes()).hexdigest() == row["content_sha256"]
     guidance = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos status --root . --json" in guidance
-    # A formed repository starts with its version identity, and no paradigm gap names it.
+    # A formed repository starts with its version identity and passes its own paradigm.
     assert (target / "VERSION").read_text(encoding="utf-8") == "0.1.0-alpha.0\n"
     changelog = (target / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog == "# Changelog\n\n## [Unreleased]\n"
     tracked = tuple(git(target, "ls-files").splitlines())
-    report = repository_paradigm_report(target, tracked_paths=tracked, line_endings=None)
-    identity = ("repository_paradigm_version_source", "repository_paradigm_changelog")
-    assert not [gap for gap in report["required_gaps"] if gap.startswith(identity)]
+    endings = checkout_line_endings(target, tracked)
+    report = repository_paradigm_report(target, tracked_paths=tracked, line_endings=endings)
+    assert report["required_gaps"] == [], "\n".join(report["required_gaps"])
     assert str(ROOT) not in guidance
     assert not list(tmp_path.glob(".ethos-preview-*"))
 
@@ -394,6 +397,26 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
     assert result.required_gaps == ("formation_plan_digest_mismatch",)
     assert not (actual / "new-project").exists()
     assert not (replacement / "new-project").exists()
+
+
+def test_greenfield_refuses_a_composition_with_a_paradigm_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A foundation that fails its own paradigm is refused before any target exists."""
+    monkeypatch.setattr(conformance, "paradigm_repair_plan", lambda _root, gaps: _no_repair(gaps))
+    target = tmp_path / "new-project"
+
+    result = adopt_repository(target, **_request())
+
+    assert result.verdict == "block"
+    assert result.required_gaps == ("formation_starter_paradigm_gap",)
+    assert not target.exists()
+    assert not list(tmp_path.glob(".ethos-preview-*"))
+
+
+def _no_repair(gaps: Iterable[ParadigmGap]) -> RepairPlan:
+    """A repair owner that repairs nothing."""
+    return RepairPlan((), (), (), tuple(gaps))
 
 
 def test_greenfield_plan_names_the_destination_not_its_spelling(tmp_path: Path) -> None:

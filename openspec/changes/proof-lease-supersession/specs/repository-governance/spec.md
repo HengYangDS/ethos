@@ -2,10 +2,10 @@
 
 ### Requirement: A later Lease generation supersedes a lane's earlier proofs
 
-Among current proofs of one HEAD that record a Work Lane's Lease generation, a proof whose generation
-for that lane is lower than another valid proof's SHALL be superseded and SHALL NOT take part in the
-binding or contradiction comparison. Proofs of one generation that differ in verifier or claim SHALL
-remain contradictory.
+Among current proofs of one HEAD that record a Work Lane's Lease generation, a proof whose
+generation for that lane is lower than another valid proof's SHALL be superseded and SHALL NOT take
+part in the binding or contradiction comparison. Proofs of one generation that differ in verifier or
+claim SHALL remain contradictory.
 
 #### Scenario: A handed-off lane lands on its new holder's proof
 

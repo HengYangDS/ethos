@@ -348,7 +348,7 @@ DR-0023's 105,000; landing 1 takes them to 79,737 and 101,764 at `f420780e8`.
   the bounds of size-refusal classification.
 - Measured in landing 1's lane, each with its commit: the lane base `d72001921`, with 77,745 product
   and 99,942 test line-equivalents; landing 1 at `f420780e8`, with 79,737 and 101,764, of which the
-  batch's two small Changes, `docs-tutorial-role` and `proof-lease-supersession`, add 30 and 43.
+  batch's two small Changes, the tutorial role and the Lease supersession fix, add 30 and 43.
   DR-0020's revisit: the product passed its 78,000 trigger, so a product step, removals first and
   then one 5,000 step to 85,000 under its own decision record, lands before landing 2. DR-0023 took
   the test step, and DR-0010's Evidence names landing 2's test removals. ETHOS's keyless counts and

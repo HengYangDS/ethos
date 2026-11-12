@@ -314,6 +314,7 @@ def _admitted_proofs(
     valid, set_gaps = _floor_candidates(
         evaluated, full_required=canonical_policies[0][1].digest != canonical_policies[1][1].digest
     )
+    valid = _latest_lease_generations(valid)
     if len({_bindings(item, repository_transition=repository_transition) for item in valid}) > 1:
         set_gaps = ["stale_binding"]
     elif len({_assertion_digest(item) for item in valid}) > 1:
@@ -404,6 +405,29 @@ def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -
             and gap not in ignored
         )
     )
+
+
+def _latest_lease_generations(valid: tuple[Attestation, ...]) -> tuple[Attestation, ...]:
+    """Keep, per Work Lane, only its proofs of the latest recorded Lease generation.
+
+    A handoff supersedes the earlier holder's proofs of the same HEAD; proofs of one generation
+    that differ in verifier or claim still reach the contradiction test.
+    """
+    recorded = {item.id: _recorded_generation(item) for item in valid}
+    latest: dict[str, int] = {}
+    for lane, number in recorded.values():
+        latest[lane] = max(latest.get(lane, number), number)
+    return tuple(item for item in valid if recorded[item.id][1] == latest[recorded[item.id][0]])
+
+
+def _recorded_generation(attestation: Attestation) -> tuple[str, int]:
+    """Return the lane and Lease generation a proof's facts record, or no lane."""
+    values = plan_from_statement(attestation).facts.get("values")
+    generation = values.get("lease_generation") if isinstance(values, Mapping) else None
+    if not isinstance(generation, Mapping) or not generation.get("lane_ref"):
+        return "", 0
+    number = generation.get("generation")
+    return str(generation["lane_ref"]), number if isinstance(number, int) else 0
 
 
 def _bindings(attestation: Attestation, *, repository_transition: bool) -> tuple[str, ...]:

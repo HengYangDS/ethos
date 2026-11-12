@@ -516,3 +516,41 @@ def test_proof_gaps_preserves_nonrepository_and_store_failure_distinction(
         monkeypatch.setattr(proof_module, "local_state_root", Mock(side_effect=ValueError(gap)))
         with pytest.raises(ValueError, match=gap):
             proof_gaps(tmp_path, "a" * 40)
+
+
+@pytest.mark.parametrize("generations", [(1, 2), (2, 2)])
+def test_a_later_lease_generation_supersedes_a_lanes_earlier_proof(
+    tmp_path: Path, generations: tuple[int, int]
+) -> None:
+    """A handed-off lane lands on its new holder's proof; one generation's verifiers contradict."""
+    repo, head = proof_repository(tmp_path / "repo")
+    current = _issue(repo, head)
+    plan = current_proof_plan(repo, expected_head=head)
+
+    def proved(generation: int, verifier: str) -> Attestation:
+        lease = {"lane_ref": "work/handoff", "generation": generation, "holder_ref": verifier}
+        values = dict(plan.facts.get("values") or {}) | {"lease_generation": lease}
+        facts = plan.facts | {"values": values, "observed_at": datetime.now(UTC)}
+        moved = compile_plan(
+            Commitment.model_validate(dict(plan.commitment)),
+            Facts.model_validate(facts),
+            plan.nodes,
+            policy=dict(plan.policy),
+            prior_attestations=dict(plan.prior_attestations),
+        )
+        return reissue_attestation(
+            current,
+            verifier=verifier,
+            facts_digest=moved.inputs.facts,
+            plan_digest=moved.digest,
+            effect_digest=moved.inputs.effect,
+            body=current.payload.body | {"plan": moved.model_dump(mode="json")},
+        )
+
+    first, second = (
+        proved(number, f"agent:test:case:holder-{i}") for i, number in enumerate(generations)
+    )
+    persist_proof_attestation(repo, first)
+    persist_proof_attestation(repo, second)
+    expected = (second, []) if generations[0] < generations[1] else (None, ["contradiction"])
+    assert proof_module.proof_for_repository_transition(repo, head) == expected

@@ -25,6 +25,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   2026.10.25: while the CI supply image was built, `mise install --locked` under Mise 2026.11.6
   refused the locked Python 3.14.10 archive for Linux arm64 on its checksum.
 
+### Fixed
+
+- A handed-off Work Lane lands on its new holder's proof. Among current proofs of one HEAD, a
+  proof whose recorded Lease generation for a lane is lower than another valid proof's for the
+  same lane no longer takes part in the binding and contradiction comparisons, so a repository
+  transition after `lane handoff transfer` stops refusing `contradiction`. Proofs of one
+  generation by different verifiers still contradict.
+
 ## [0.2.0-beta.8] - 2026-11-12
 
 ### Added

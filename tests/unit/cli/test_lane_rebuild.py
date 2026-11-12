@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.application.catalog import Refused
+from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.catalog import select_argv
@@ -93,14 +94,20 @@ def _run(repo: Path, monkeypatch: pytest.MonkeyPatch, *argv: str) -> dict[str, o
     return json.loads(completed.stdout)
 
 
-def test_readiness_and_the_census_run_without_a_head_and_signature_modes_need_one(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Readiness reads the key from standard input; today's repair still refuses a missing head."""
+def _ready(tmp_path: Path) -> Path:
+    """A repository whose rebuild readiness passes with the fixture key."""
     repo, base = peer_history(tmp_path, bare=True)
     old = land_record(repo, record(base, dev='{ gitlab = "old", github = "absent" }', refs=MAIN))
     git(repo, "branch", "-f", "main", old)
     git(repo, "push", "-q", "--no-verify", "gitlab", "dev", "main")
+    return repo
+
+
+def test_readiness_and_the_census_run_without_a_head_and_signature_modes_need_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Readiness reads the key from standard input; today's repair still refuses a missing head."""
+    repo = _ready(tmp_path)
 
     ready = _run(repo, monkeypatch, "--rebuild", RECORD, "--key-stdin")
     counted = _run(repo, monkeypatch, "--census")
@@ -109,3 +116,18 @@ def test_readiness_and_the_census_run_without_a_head_and_signature_modes_need_on
     assert (ready["state"], ready["required_gaps"]) == ("ready_to_rebuild", []), ready
     assert counted["state"] == "counted"
     assert unbound["required_gaps"] == ["expect_head_required"]
+
+
+def test_readiness_without_the_key_flag_reads_no_key_and_refuses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without `--key-stdin` no standard input is read or taken as the key, so readiness refuses."""
+    repo = _ready(tmp_path)
+
+    unflagged = _run(repo, monkeypatch, "--rebuild", RECORD)
+    offered = invoke(COMMAND, repo, {"rebuild": RECORD}, stdin=KEY_TEXT)
+
+    gaps = ["redaction_key_invalid"]
+    assert sys.stdin.tell() == 0
+    assert (unflagged["state"], unflagged["required_gaps"]) == ("blocked", gaps)
+    assert list(offered.required_gaps) == gaps

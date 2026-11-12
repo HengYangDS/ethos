@@ -135,9 +135,9 @@ def _case(repo: Path, base: str, case: str) -> dict[str, str]:
         )
     if case in {"ref", "keep-unpublishable"}:
         git(repo, "branch", "topic", root)
-    if case in {"keep-affected", "retag-unreleased", "private"}:
-        message = f"release {ipv4(10, 0, 0, 1)}" if case == "private" else "release"
-        git(repo, "tag", "-a", "v0", "-m", message, base)
+    if case in {"keep-affected", "retag-unreleased", "private", "untransformable"}:
+        message = {"private": f"release {ipv4(10, 0, 0, 1)}", "untransformable": note["after-host"]}
+        git(repo, "tag", "-a", "v0", "-m", message.get(case, "release"), base)
     if case in {"keep-own-message", "retag-target"}:
         git(repo, "tag", "-a", "v0", "-m", f"release {F1}", root)
     if case == "retag-of-tag":
@@ -153,6 +153,7 @@ def _case(repo: Path, base: str, case: str) -> dict[str, str]:
         "retag-target": ("refs/tags/v0", "retag"),
         "retag-unreleased": ("refs/tags/v0", "retag"),
         "private": ("refs/tags/v0", "retag"),
+        "untransformable": ("refs/tags/v0", "retag"),
         "retag-of-tag": ("refs/tags/v0", "retag"),
         "notes": ("refs/notes/commits", "keep"),
         "lightweight": ("refs/tags/v0", "retag"),
@@ -190,6 +191,7 @@ def _case(repo: Path, base: str, case: str) -> dict[str, str]:
         ("lightweight", "rebuild_disposition_refused:refs/tags/v0"),
         ("retag-unreleased", "rebuild_retag_unreleased:refs/tags/v0"),
         ("private", "rebuild_tag_message_private:refs/tags/v0"),
+        ("untransformable", "rebuild_tag_message_untransformable:refs/tags/v0"),
     ],
 )
 def test_readiness_refuses_what_an_apply_could_not_carry(
@@ -253,10 +255,15 @@ def test_readiness_refuses_history_and_peers_it_cannot_see_whole(tmp_path: Path,
         ("unmapped", ["rebuild_retag_base_unmapped:refs/tags/v0"]),
     ],
 )
-def test_a_retag_publishes_only_on_its_verified_original_qualification(
+def test_a_retag_maps_its_original_release_record_to_its_qualification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str, gaps: list[str]
 ) -> None:
-    """The release record of the original tag qualifies it; today's CHANGELOG is never read."""
+    """Readiness reads the head, proof and base of the record that `release_provenance` returns.
+
+    The record here is a stand-in, not validated: `release_provenance` validates a real one, and the
+    release tests cover it. It admits a record without a maintenance base only on its tag's commit,
+    so a moved head is a defensive branch that a stand-in alone reaches.
+    """
     repo, base = peer_history(tmp_path, extra=RETAINED, bare=True)
     git(repo, "tag", "-a", "v0", "-m", "release", base)
     _land(repo, base, refs=_declared("refs/tags/v0", "retag", git(repo, "rev-parse", "v0")))

@@ -222,14 +222,23 @@ def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
 
 
 def test_only_repair_lineage_ends_by_observation() -> None:
-    """Repair lineage ends once its pre-repair objects are gone; the other lineages never do."""
+    """Repair lineage ends once its pre-repair objects are gone; the other lineages never do.
+
+    A rebuild's repair records under its `rebuild:<id>` key are the rebuilt history's provenance.
+    """
     release = _ref_update("release.promote", {"refs/tags/v1": (_C0, _C1)})
     repair = _member("effect:commit-signature", body={"coordinates": {"old": _C0}})
+    rebuilt = _member(
+        "observation:signature-repair-attempt",
+        subject="rebuild:fixture",
+        body={"coordinates": {"old": _C0}},
+    )
     runtime = _member("release:accepted-identity", body={"identity": {"wheel_sha256": "f" * 64}})
     starter = _member("effect:starter-formation")
-    members = (release, repair, runtime, starter)
+    members = (release, repair, rebuilt, runtime, starter)
     present = _facts({"refs/heads/dev": _C2, "refs/tags/v1": _C1})
 
+    assert lifetime(rebuilt) == ("lineage", "rebuild:fixture")
     assert ended(members, present) == frozenset()
     assert ended(members, _facts(absent=(_C0,))) == {repair.id}
 

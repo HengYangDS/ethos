@@ -102,3 +102,14 @@ def test_each_object_is_read_once_and_each_entry_numbered_within_it() -> None:
         rebuild_image("port", "8443"): 1,
         marker_image("host", H1, "2222"): 1,
     }
+
+
+@pytest.mark.parametrize("kind", ["trailer", "paragraph"])
+def test_a_feed_of_message_items_alone_is_a_feed_and_is_scanned(kind: str) -> None:
+    """A rebuild feed that declares only trailers or a closing paragraph is no empty feed."""
+    trailer, closing = "Co-authored-by: Bot <bot@example.invalid>", "Generated with a tool"
+    feed = Feed.of(trailers=[trailer]) if kind == "trailer" else Feed.of(paragraphs=[closing])
+    message = Sighting("c1", "c1", "", f"subject\n\n{closing}\n\n{trailer}\n", (trailer,), closing)
+
+    assert feed
+    assert [item.kind for item in occurrences([message], feed)] == [kind]

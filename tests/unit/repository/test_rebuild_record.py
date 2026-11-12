@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
+
 import pytest
 
 from ethos.contracts.outcome import OutcomeError
+from ethos.repository.rebuild_record import ENTRY_KINDS
 from ethos.repository.rebuild_record import Keyed
 from ethos.repository.rebuild_record import parse_record
+from tests.support.rebuild import H1
 
 D, E = "a" * 64, "b" * 64
 OID = "c" * 40
@@ -65,6 +69,7 @@ def test_a_complete_record_parses_with_its_names_and_entries() -> None:
     assert record.transform.hosts[0].witness.object == Keyed(digest=D)
     assert record.transform.ids[0].contexts == ("id.api-projects", "id.ci-project-id")
     assert record.transform.retain == ("api/v4/projects",)
+    assert not isinstance(ENTRY_KINDS, MutableMapping)
 
 
 @pytest.mark.parametrize(
@@ -102,14 +107,21 @@ def test_a_complete_record_parses_with_its_names_and_entries() -> None:
         ),
         ("count = 3", "count = 0", ["rebuild_record_invalid:transform"]),
         ("version = 1", "version = 1\nversion = 1", ["rebuild_record_unreadable"]),
+        ("version = 1", f'version = 1\n"{H1}" = 1', ["rebuild_record_invalid:record"]),
+        ("00:00:00Z", "00:00:00", ["rebuild_record_invalid:expires"]),
     ],
 )
 def test_a_record_that_cannot_bind_refuses_by_a_fixed_gap(
     before: str, after: str, gaps: list[str]
 ) -> None:
-    """A free string, an unknown or repeated context, or an invalid field names its gap."""
+    """A free string, an unknown key or context, or an invalid field names its gap, no value.
+
+    An unknown top-level key is the author's text, so even one spelled like a host names no field,
+    and an expiry without its offset is no instant.
+    """
     assert before in RECORD
     with pytest.raises(OutcomeError) as refused:
         parse_record(RECORD.replace(before, after, 1))
 
     assert list(refused.value.outcome.gaps) == gaps
+    assert H1 not in f"{refused.value} {refused.value.outcome}"

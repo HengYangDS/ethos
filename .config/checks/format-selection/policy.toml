@@ -47,12 +47,14 @@ semantic_companions = ["markdownlint-cli2", "repository-hygiene"]
 mutation_policy = "official-owner-only"
 
 # The one Change-local record that the paradigm declares beside a Change's official artifacts
-# (`rebuild.toml`) is hand-authored TOML: Taplo formats it in an active Change, and it is immutable
-# once its Change archives.
+# (`rebuild.toml`) is hand-authored TOML: Taplo formats it at an active Change's root. A `*` here
+# also matches `/`, so the exclusion leaves a deeper `rebuild.toml` to the Change's owner, and an
+# archived record is immutable like every archived file.
 [[ownership]]
 id = "rebuild-record"
 priority = 110
-paths = ["openspec/changes/*/rebuild.toml", "openspec/changes/archive/*/rebuild.toml"]
+paths = ["openspec/changes/*/rebuild.toml"]
+exclude_paths = ["openspec/changes/*/*/rebuild.toml"]
 format_owner = "taplo"
 format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
 format_check = "ethos lane format --check"

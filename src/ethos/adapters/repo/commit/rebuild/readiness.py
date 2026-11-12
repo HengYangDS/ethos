@@ -241,7 +241,8 @@ def _retagged(
 def _retag_gaps(root: Path, bound: Binding, key: bytes, walked: set[str]) -> Iterator[str]:
     """A re-tag publishes on its original release record and qualification, never re-judged.
 
-    The message the rebuild prepares for it may name no private address.
+    The message the rebuild prepares for it may name no private address, and a message that the
+    transform refuses is never judged, so it refuses too.
     """
     paradigm = load_repository_paradigm()
     messages = {sighting.oid: sighting for sighting in bound.history.sightings if not sighting.path}
@@ -255,7 +256,9 @@ def _retag_gaps(root: Path, bound: Binding, key: bytes, walked: set[str]) -> Ite
             target = bound.history.links[target][0]
         yield from _released(root, ref, oid, target, walked)
         text = transformed(messages[oid], bound.feed, key)
-        if text is not None and paradigm.names_private_address(text):
+        if text is None:
+            yield f"rebuild_tag_message_untransformable:{ref}"
+        elif paradigm.names_private_address(text):
             yield f"rebuild_tag_message_private:{ref}"
 
 

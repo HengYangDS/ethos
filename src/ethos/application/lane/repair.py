@@ -132,9 +132,13 @@ def count_lane_identity(root: Path, _request: RepairSignatureRequest) -> EthosRe
 
 
 def judge_lane_rebuild(root: Path, request: RepairSignatureRequest) -> EthosResult:
-    """Report a history rebuild's readiness from its record and the key on standard input."""
+    """Report a history rebuild's readiness from its record and the key on standard input.
+
+    Standard input is the key only with `--key-stdin`; without it readiness refuses the empty key.
+    """
     record = str(request.rebuild or "")
-    report = rebuild_readiness(root, record=record, key=standard_input())
+    key = standard_input() if request.key_stdin else ""
+    report = rebuild_readiness(root, record=record, key=key)
     return lane_result("lane repair-signature", report, fields=("head", "counts", "retained"))
 
 

@@ -142,7 +142,10 @@ class Feed:
         )
 
     def __bool__(self) -> bool:
-        return bool(self.hosts or self.ports or self.paths or self.ids)
+        """Whether the scan matches anything: an identity, a trailer or a closing paragraph."""
+        return bool(
+            self.hosts or self.ports or self.paths or self.ids or self.trailers or self.paragraphs
+        )
 
     def fed_number(self, role: str, value: int) -> bool:
         """Return whether a closed-context number is a fed project ID or a fed, uncommon port."""

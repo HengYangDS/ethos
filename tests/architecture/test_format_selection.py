@@ -150,6 +150,44 @@ def test_native_carriers_separate_canonicalization_from_validation(
         audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
 
 
+@pytest.mark.parametrize(
+    ("path", "owners"),
+    [
+        ("openspec/changes/x/rebuild.toml", ("taplo", "native-formatter", "taplo")),
+        (
+            "openspec/changes/archive/2026-11-12-x/rebuild.toml",
+            ("immutable-carrier", "forbidden", "taplo"),
+        ),
+        (
+            "openspec/changes/x/specs/cap/rebuild.toml",
+            ("official-openspec", "official-owner-only", "official-openspec"),
+        ),
+        (
+            "openspec/changes/x/notes/rebuild.toml",
+            ("official-openspec", "official-owner-only", "official-openspec"),
+        ),
+        (
+            "openspec/changes/x/.openspec.yaml",
+            ("official-openspec", "official-owner-only", "official-openspec"),
+        ),
+        (
+            "openspec/changes/archive/2026-11-12-x/.openspec.yaml",
+            ("immutable-carrier", "forbidden", "repository-hygiene"),
+        ),
+        ("pyproject.toml", ("taplo", "native-formatter", "taplo")),
+    ],
+)
+def test_taplo_owns_a_rebuild_record_only_at_an_active_change_root(
+    tmp_path: Path, path: str, owners: tuple[str, str, str]
+) -> None:
+    """An archived record is immutable like every archived file; a nested one stays OpenSpec's."""
+    report = audit(tmp_path, paths=(path,), configuration=format_selection.CONFIG_PATH)
+
+    assert report["verdict"] == "pass", report
+    (entry,) = report["assignments"]
+    assert (entry["format_owner"], entry["mutation_policy"], entry["validation_owner"]) == owners
+
+
 def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
     """One native formatter respects producers and official artifact ownership."""
     tracked = tuple(filter(None, git(ROOT, "ls-files", "-z").split("\0")))

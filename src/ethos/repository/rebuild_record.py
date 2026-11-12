@@ -11,10 +11,10 @@ names a field or an index, never a value.
 from __future__ import annotations
 
 import tomllib
-from datetime import datetime
 from typing import Annotated
 from typing import Literal
 
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from ethos.contracts.outcome import refuse
 from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
+from ethos.contracts.value import frozen_mapping
 from ethos.repository.paradigm.peer_identity import CONTEXTS
 
 _DIGEST = r"^[0-9a-f]{64}$"
@@ -31,15 +32,17 @@ ObjectId = Annotated[str, Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")]
 # A digest stands where a value could; any other string there is free text, which no entry holds.
 _FREE = frozenset({"extra_forbidden", "string_pattern_mismatch", "string_type", "model_type"})
 # Each transform list and the entry kind that the occurrence model attributes its results to.
-ENTRY_KINDS = {
-    "trailers": "trailer",
-    "paragraphs": "paragraph",
-    "spans": "span",
-    "hosts": "host",
-    "paths": "path",
-    "ports": "port",
-    "ids": "id",
-}
+ENTRY_KINDS = frozen_mapping(
+    {
+        "trailers": "trailer",
+        "paragraphs": "paragraph",
+        "spans": "span",
+        "hosts": "host",
+        "paths": "path",
+        "ports": "port",
+        "ids": "id",
+    }
+)
 
 
 class _Strict(BaseModel):
@@ -112,7 +115,7 @@ class RebuildRecord(_Strict):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")
     owner: str = Field(min_length=1)
     reason: str = Field(min_length=1)
-    expires: datetime
+    expires: AwareDatetime
     base: Original
     key: KeyName
     refs: FrozenMapping[RefDeclaration] = Field(min_length=1)
@@ -136,14 +139,22 @@ def parse_record(text: str) -> RebuildRecord:
 
 
 def _validation_gaps(error: ValidationError) -> list[str]:
-    """Name each refusal by its top-level field; a string where no value belongs is free."""
+    """Name each refusal by its top-level field; a string where no value belongs is free.
+
+    Any other top-level key is the author's text, so it names only the record.
+    """
     gaps = (
         "rebuild_record_free_string"
         if item["type"] in _FREE and item["loc"][:1] == ("transform",)
-        else f"rebuild_record_invalid:{item['loc'][0] if item['loc'] else 'record'}"
+        else f"rebuild_record_invalid:{_field(item['loc'])}"
         for item in error.errors()
     )
     return list(dict.fromkeys(gaps))
+
+
+def _field(loc: tuple[int | str, ...]) -> str:
+    head = str(loc[0]) if loc else ""
+    return head if head in RebuildRecord.model_fields else "record"
 
 
 def _id_gaps(index: int, entry: IdEntry) -> list[str]:

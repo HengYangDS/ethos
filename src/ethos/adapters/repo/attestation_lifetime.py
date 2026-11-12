@@ -51,6 +51,8 @@ _LANE_EFFECTS = frozenset(
     }
 )
 _REPAIR_RECORDS = frozenset({"effect:commit-signature", "observation:signature-repair-attempt"})
+# A history rebuild keeps its repair records under this key, the rebuilt history's provenance.
+REBUILD_KEY = "rebuild:"
 _WINDOW_PREDICATES = frozenset({"lane-resolution:takeover"})
 
 
@@ -139,7 +141,9 @@ def _prefixed(prefix: str, value: str) -> str:
     return f"{prefix}{value}" if value else ""
 
 
-def _repair_old(attestation: Attestation) -> str:
+def _repair_lineage(attestation: Attestation) -> str:
+    if attestation.subject.startswith(REBUILD_KEY):
+        return attestation.subject
     return _prefixed("repair:", _text(attestation.payload.body, "coordinates", "old"))
 
 
@@ -157,7 +161,7 @@ _RECORD_HOLDERS: Mapping[str, tuple[Lifetime, Callable[[Attestation], str]]] = {
     "release:accepted-identity": ("lineage", _runtime_wheel),
     "release:mapped-retag": ("lineage", _retagged_ref),
     "effect:starter-formation": ("lineage", lambda _item: "repository"),
-    **dict.fromkeys(_REPAIR_RECORDS, ("lineage", _repair_old)),
+    **dict.fromkeys(_REPAIR_RECORDS, ("lineage", _repair_lineage)),
     **dict.fromkeys(_LANE_EFFECTS, ("operation", _lane_branch)),
 }
 
@@ -204,7 +208,8 @@ def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
     """Only repair lineage ends, once its pre-repair objects are gone.
 
     Historical accepted bases remain valid maintenance-release inputs, tags may still exist on
-    a peer, version admission refuses rollback, and starter formation describes the repository.
+    a peer, version admission refuses rollback, starter formation describes the repository, and a
+    rebuild's records are permanent provenance of the history it rewrote.
     """
     if key.startswith("repair:"):
         return all(old in facts.absent_objects for old in key.removeprefix("repair:").split())

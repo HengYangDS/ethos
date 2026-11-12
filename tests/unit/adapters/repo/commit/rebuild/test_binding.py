@@ -173,8 +173,12 @@ def test_a_former_go_module_host_is_admitted_only_where_an_import_path_ties_it()
     }
 
 
-def _ids(base: str, contexts: tuple[str, ...], count: int) -> str:
-    digests = [_digest(rebuild_image("id", name, "123456789")) for name in contexts]
+API, CI = "id.api-projects", "id.ci-project-id"
+
+
+def _ids(base: str, contexts: tuple[str, ...], keyed: tuple[str, ...], count: int) -> str:
+    """An ID entry over its contexts whose digests key the `keyed` contexts, in that order."""
+    digests = [_digest(rebuild_image("id", name, "123456789")) for name in keyed]
     return (
         f"{{ contexts = {list(contexts)!r}, digests = {digests!r}, count = {count}, ".replace(
             "'", '"'
@@ -184,23 +188,23 @@ def _ids(base: str, contexts: tuple[str, ...], count: int) -> str:
 
 
 @pytest.mark.parametrize(
-    ("line", "contexts", "gaps"),
+    ("line", "contexts", "keyed", "gaps"),
     [
-        ("CI_PROJECT_ID=123456789", ("id.api-projects", "id.ci-project-id"), []),
-        ("nothing else", ("id.api-projects",), ["rebuild_id_untied:0"]),
-        ("CI_PROJECT_ID=123456789", ("id.ci-project-id", "id.api-projects"), []),
+        ("CI_PROJECT_ID=123456789", (API, CI), (API, CI), []),
+        ("nothing else", (API,), (API,), ["rebuild_id_untied:0"]),
+        ("CI_PROJECT_ID=123456789", (API, CI), (CI, API), ["rebuild_id_digest_mismatch:0"]),
     ],
 )
 def test_an_id_binds_in_its_named_contexts_once_the_ci_project_id_ties_it(
-    tmp_path: Path, line: str, contexts: tuple[str, ...], gaps: list[str]
+    tmp_path: Path,
+    line: str,
+    contexts: tuple[str, ...],
+    keyed: tuple[str, ...],
+    gaps: list[str],
 ) -> None:
     """Its digests key its contexts in order, and one `CI_PROJECT_ID=<ID>` ties the digits."""
     repo, base = _history(tmp_path, extra=f"jobs api/v4/projects/123456789/x and {line}\n")
-    entry = _ids(base, contexts, len(contexts))
-    if contexts[0] == "id.ci-project-id":
-        entry = entry.replace(contexts[0], "swap").replace(contexts[1], contexts[0])
-        entry = entry.replace("swap", contexts[1])
-        gaps = ["rebuild_id_digest_mismatch:0"]
+    entry = _ids(base, contexts, keyed, len(contexts))
 
     if not gaps:
         assert getattr(_bind(repo, _record(base, ids=entry)), "id", "") == "fixture-rebuild"

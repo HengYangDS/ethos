@@ -197,7 +197,6 @@
   "src/ethos/adapters/store/retention/roots.py::_archive_members": 29,
   "src/ethos/adapters/store/retention/roots.py::carrier_tokens": 17,
   "src/ethos/adapters/store/retention/writers.py::writer_roots": 24,
-  "src/ethos/adapters/toolchain/mise.py::repository_mise_files": 16,
   "src/ethos/adapters/toolchain/mise.py::run_mise": 17,
   "src/ethos/adapters/toolchain/mise_lock.py::lock_sidecars": 16,
   "src/ethos/application/adoption.py::form_repository": 21,

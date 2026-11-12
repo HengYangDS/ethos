@@ -35,16 +35,7 @@ def toolchain_gaps(
         if declared is None:
             yield ParadigmGap("toolchain-owner", config, f"make {config} readable TOML")
             return
-        settings = declared.get("settings")
-        if not isinstance(settings, dict) or settings.get("locked") is not True:
-            yield ParadigmGap(
-                "toolchain-lock",
-                f"{config}:settings.locked",
-                f"set locked = true under [settings] in {config}",
-            )
-        tool_versions = ".tool-versions" in tracked
-        if lock not in tracked and selects_tools(declared, tool_versions=tool_versions):
-            yield ParadigmGap("toolchain-lock", lock, f"track {lock}, written by mise lock")
+        yield from _lock_gaps(config, lock, declared, tracked)
         yield from _verb_gaps(paradigm, config, "tasks", declared.get("tasks"))
     elif manifest in tracked:
         declared = _declared(tracked_text(root, manifest, tracked), json.loads)
@@ -59,6 +50,21 @@ def toolchain_gaps(
             f"add {config} with locked resolution and {_listed(paradigm.toolchain.verbs)} "
             "tasks; only mise and npm run tasks",
         )
+
+
+def _lock_gaps(
+    config: str, lock: str, declared: Mapping[str, object], tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """A locked mise owner sets `locked = true` and tracks its lock once it selects a tool."""
+    settings = declared.get("settings")
+    if not isinstance(settings, dict) or settings.get("locked") is not True:
+        yield ParadigmGap(
+            "toolchain-lock",
+            f"{config}:settings.locked",
+            f"set locked = true under [settings] in {config}",
+        )
+    if lock not in tracked and selects_tools(declared, tool_versions=".tool-versions" in tracked):
+        yield ParadigmGap("toolchain-lock", lock, f"track {lock}, written by mise lock")
 
 
 def selects_tools(declared: Mapping[str, object], *, tool_versions: bool) -> bool:

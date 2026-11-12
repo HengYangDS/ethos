@@ -39,6 +39,8 @@ None. Only the terminal plan and this design change, so `skip_specs: true` appli
 
 ## Impact
 
-- `docs/plans/terminal-governance-product-design.md`: one new section of about 20 lines.
+- `docs/plans/terminal-governance-product-design.md`: one new section of six lines. The plan was at
+  its 500-line ceiling, so its `Immediate Dependencies` list is rewrapped at 100 columns with the
+  same words.
 - No code, test, specification, schema or budget change.
 - The scratch design and its committee reports retire after archive, their content carried here.

@@ -61,59 +61,44 @@ sizes and prerequisites.
 
 ### Product Form And First Hour
 
-On 2026-11-12 five reviewers converged on ETHOS's product form and the owner decided its open
-questions; the archived `product-form-plan` Change's design holds both. It adds to the order above
-without a new family:
-
-- A17's acceptance gains the gating agent budgets: calls from the install line to the `adopt`
-  preview and for one Change to a retired lane, no loop or blocked step, continuations that run
-  verbatim from a fresh shell, declared exit kinds, the declared payload budgets with no dropped
-  gap, no operator script, one `next` per result, and recovery after a kill once A10 implements it.
-- The adopter bump is its own RC Change after C3.
-- The first-hour Changes need only what is on `dev`, with A7, which ships the `inputs` reader,
-  before N1.
-- The landing-attestation export is a 0.3.0 direction that starts with a contract amendment, after
-  C1 and DR-0022's build identity.
+The archived `product-form-plan` Change's design adds to the order above without a new family:
+A17's acceptance gains the gating agent budgets; the adopter bump is its own RC Change after C3;
+the first-hour Changes need only `dev`, with A7 before N1; and the landing-attestation export is a
+0.3.0 direction after C1 and DR-0022's build identity.
 
 ### Immediate Dependencies
 
-1. **Unify quality meaning before extending policy.** Compose versioned
-   obligations, irreducible profile deltas, carrier applicability, evidence
-   contracts and bounded waivers through one resolver. Branch protection follows
-   configured roles. Preserve provenance integrity and generated build inputs;
-   names and suffixes alone cannot exempt implementation. Cross-language
-   adopters share obligations, not ETHOS-specific tools or thresholds.
-2. **Deliver the independent product alongside CI qualification.** CLI, SDK and
-   MCP share application operations with explicit repository, actor, input,
-   cancellation and result boundaries. Test an installed client round trip;
-   importability and wheel creation are insufficient. Local stdio needs no
-   daemon. Separate shared immutable host supply from exact repository selection,
-   local state and toolchains; prove retained-state upgrade, rollback and
+1. **Unify quality meaning before extending policy.** Compose versioned obligations, irreducible
+   profile deltas, carrier applicability, evidence contracts and bounded waivers through one
+   resolver. Branch protection follows configured roles. Preserve provenance integrity and generated
+   build inputs; names and suffixes alone cannot exempt implementation. Cross-language adopters
+   share obligations, not ETHOS-specific tools or thresholds.
+2. **Deliver the independent product alongside CI qualification.** CLI, SDK and MCP share
+   application operations with explicit repository, actor, input, cancellation and result
+   boundaries. Test an installed client round trip; importability and wheel creation are
+   insufficient. Local stdio needs no daemon. Separate shared immutable host supply from exact
+   repository selection, local state and toolchains; prove retained-state upgrade, rollback and
    live-consumer-safe migration before retiring locators or generations.
-3. **Complete supply and hosted admission without circular prerequisites.**
-   Install a successor's compiler capability before activating declarations its
-   predecessor cannot interpret. Candidate checks use the locked source CLI;
-   an unavailable successor cannot be its own installation prerequisite.
-   mise owns native tool selection and platform locks; uv/npm own language
-   dependency locks. CUE projects shared CI declarations and CEL validates typed
-   predicates; neither owns intent or reusable authorization. Retire replaced
-   installers, templates and parsers after consumer qualification. Resolve
-   dependency conflicts through supported supply or an obligation-preserving
-   replacement before release, not an override or indefinite waiting.
-4. **Close the remaining assurance and recovery boundaries.** Cover product,
-   tests and tooling types, semantic CI partitions, native warnings, complete
-   reports and mandatory Forge admission. Source-only green is not whole-repo
-   assurance. Retain current proof selection for prepared requests, authoring
-   retirement, postarchive links/deletions, replay, compensation and native tag
-   identity. Fix new adopter counterexamples at their owner without rewriting
-   archived intent, copying adopter implementations or reopening foreign lanes.
-5. **Continue feedback and the complete product route.** Apply the
-   [recursive feedback contract](../governance/product-design-contract.md#recursive-domain-feedback)
-   to use, methods, governing models, purpose and the feedback mechanism itself.
-   Qualify self-hosting and adopted business domains separately; rules or Skills
-   do not prove native enforcement. Keep the complete
-   [P0–P7 dependency route](#remaining-dependencies-and-delivery-order), including
-   actual-use outcomes and ecosystem conformance.
+3. **Complete supply and hosted admission without circular prerequisites.** Install a successor's
+   compiler capability before activating declarations its predecessor cannot interpret. Candidate
+   checks use the locked source CLI; an unavailable successor cannot be its own installation
+   prerequisite. mise owns native tool selection and platform locks; uv/npm own language dependency
+   locks. CUE projects shared CI declarations and CEL validates typed predicates; neither owns
+   intent or reusable authorization. Retire replaced installers, templates and parsers after
+   consumer qualification. Resolve dependency conflicts through supported supply or an
+   obligation-preserving replacement before release, not an override or indefinite waiting.
+4. **Close the remaining assurance and recovery boundaries.** Cover product, tests and tooling
+   types, semantic CI partitions, native warnings, complete reports and mandatory Forge admission.
+   Source-only green is not whole-repo assurance. Retain current proof selection for prepared
+   requests, authoring retirement, postarchive links/deletions, replay, compensation and native tag
+   identity. Fix new adopter counterexamples at their owner without rewriting archived intent,
+   copying adopter implementations or reopening foreign lanes.
+5. **Continue feedback and the complete product route.** Apply the [recursive feedback
+   contract](../governance/product-design-contract.md#recursive-domain-feedback) to use, methods,
+   governing models, purpose and the feedback mechanism itself. Qualify self-hosting and adopted
+   business domains separately; rules or Skills do not prove native enforcement. Keep the complete
+   [P0–P7 dependency route](#remaining-dependencies-and-delivery-order), including actual-use
+   outcomes and ecosystem conformance.
 
 ### Verification And Iteration Cost
 

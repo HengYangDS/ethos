@@ -577,7 +577,8 @@ Non-Goals:
       is recorded in DR-0024's Evidence.
     - The test step is already taken: DR-0023 (`test-budget-step`) moved `python_tests` to 105,000
       for this Change and `source-budget-roles` together. DR-0010's Evidence holds DR-0019's
-      revisit outcome and names landing 2's test removals with their expected sizes:
+      revisit outcome and names landing 2's test removals, each with an expected size where
+      landing 1 can measure one:
       - the bundle-based retag tests (`tests/unit/cli/land/publication/test_mapped_retag.py:61-97`);
       - fixtures repeated across the history-repair test modules.
     - Every figure names its commit and is measured at landing 1, after `go-own-root` and

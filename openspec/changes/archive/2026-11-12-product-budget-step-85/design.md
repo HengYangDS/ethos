@@ -3,7 +3,7 @@
 ## Context
 
 See the [proposal](proposal.md) and
-[DR-0025](../../../docs/decisions/dr-0025-product-budget-step-85.md).
+[DR-0025](../../../../docs/decisions/dr-0025-product-budget-step-85.md).
 
 ## Goals / Non-Goals
 

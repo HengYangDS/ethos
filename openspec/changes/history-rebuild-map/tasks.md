@@ -2,10 +2,15 @@
 
 ## 1. Landing 1, in beta.9: record, grammar, readiness
 
-- [ ] 1.1 Write the spec deltas (`repository-governance`, `repository-paradigm`, `command-plane`,
+- [x] 1.1 Write the spec deltas (`repository-governance`, `repository-paradigm`, `command-plane`,
       `assistant-projections`) and DR-0024. Done when `openspec validate --strict` passes, a
       simulated archive leaves every main spec valid under `--specs --strict`, and DR-0024 passes
-      ETHOS's own decision-record check, before any code lands.
+      ETHOS's own decision-record check, before any code lands. At `47b200b9d`
+      `openspec validate --strict` passes, a simulated archive of this Change after
+      `docs-tutorial-role` and `proof-lease-supersession` leaves all 12 main specs valid under
+      `--specs --strict`, and readiness passes the docs-registry gate, which holds the
+      decision-record check, with all 28 gates; the deltas and DR-0024 land before this Change's
+      code reaches dev.
 - [x] 1.2 Re-estimate landing 1 and perform DR-0020's product revisit. Done when each figure is
       measured at landing 1 and names its commit, DR-0024's Evidence records the revisit outcome and
       cites DR-0023 for the test step, and DR-0010's Evidence lists landing 2's test removals, each
@@ -145,6 +150,11 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck, the impacted sweep and readiness at this landing's head, and run
+- [x] 2.1 Pass the precheck, the impacted sweep and readiness at this landing's head, and run
       `ethos lane repair-signature --census` on ETHOS's own head. Done when each passes on the
-      committed head and the census reports its counts without a gap.
+      committed head and the census reports its counts without a gap. The impacted sweep passed
+      1,722 tests at `f420780e8` and the three modules that `ed3c367e2` touched passed 50; the
+      static precheck at `47b200b9d` reports only its own 100-column heuristic on the decision index
+      line, whose entries are one line each; readiness passed 28 of 28 gates at `47b200b9d`; and the
+      census at `d72001921`, ETHOS's own head then, reported its counts with no ref unwalked and no
+      gap.

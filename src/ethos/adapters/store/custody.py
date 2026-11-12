@@ -23,11 +23,6 @@ CUSTODY_PREFIX: Final = "custody:sha256:"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 
 
-def binds_custody(attestation: Attestation) -> bool:
-    """Return whether an Attestation names any custody binding, valid or not."""
-    return any(reference.startswith(CUSTODY_PREFIX) for reference in attestation.evidence_refs)
-
-
 def custody_digests(attestation: Attestation) -> tuple[str, ...]:
     """Return the digests whose stored bytes an Attestation binds as evidence."""
     digests = tuple(

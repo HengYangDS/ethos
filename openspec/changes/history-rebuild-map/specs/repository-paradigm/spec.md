@@ -115,8 +115,8 @@ every rebuild SHALL use its one left-to-right scan, which a rebuild record exten
 Commit validation SHALL judge, without a key, each changed line under an effective record root that
 introduces a peer marker: the line SHALL pair one to one with a removed line of the same hunk whose
 literal pieces it keeps in order, each marker over one admitted span and each closed-context number
-over a digit run that differs only by a number in its range. A marker line without a pair outside a
-verified rebuilt blob, a malformed marker and an unkeyed marker SHALL refuse.
+over a digit run that differs only by a number in its range. A marker line without a pair, a
+malformed marker and a marker equal to the plain or empty-key digest of its pre-image SHALL refuse.
 
 #### Scenario: A redaction pairs
 
@@ -125,8 +125,7 @@ verified rebuilt blob, a malformed marker and an unkeyed marker SHALL refuse.
 
 #### Scenario: A marker line has nothing to pair
 
-- **WHEN** a commit adds a marker line in a new file that is no verified rebuilt blob, or changes
-  the words around a marker
+- **WHEN** a commit adds a marker line in a new file, or changes the words around a marker
 - **THEN** commit validation refuses with `record_marker_unpaired`
 
 #### Scenario: A marker is not keyed or not well formed
@@ -144,16 +143,6 @@ verified rebuilt blob, a malformed marker and an unkeyed marker SHALL refuse.
 
 - **WHEN** a record names the marker's form by placeholder labels, or names its suffix alone
 - **THEN** commit validation admits the line
-
-#### Scenario: A rebuilt blob passes on its original
-
-- **WHEN** a judged commit carries a rebuilt blob under an effective record root while the originals
-  are present
-- **THEN** that blob passes only when, read through the rebuild's bijection, it equals its original
-  with exactly the record's declared items replaced: spans by their markers, IDs in a declared
-  context by their keyed numbers, followed digests and mapped IDs
-- **AND** any other difference, a changed word around a marker included, is judged as before, and
-  without the originals the check answers `unknown`
 
 #### Scenario: A marker over an encoded path or a citation pairs
 

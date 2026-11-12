@@ -27,9 +27,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 ### Changed
 
 - **Breaking:** the redaction, the push check and the keyless marker verifier share one scan,
-  which also reads percent-encoded paths, citations and Git trailers. Re-verifying an earlier
-  redaction whose base held a crossing entry or a percent-encoded fed path now reports
-  `redaction_unverified`; a second redaction repairs it.
+  which now also reads percent-encoded paths. Re-verifying an earlier redaction whose base held a
+  crossing entry or a percent-encoded fed path now reports `redaction_unverified`; recorded
+  attestations stay valid.
 - The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft
   1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of `fastmcp`,
   `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions. Mise stays at

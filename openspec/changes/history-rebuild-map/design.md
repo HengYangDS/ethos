@@ -2,7 +2,9 @@
 
 See the [proposal](proposal.md). Five reviews and the author's decisions shaped this text before
 the Change opened; marks such as R12, B2 or decision 17 name their items. Paths without a root
-are under `src/ethos/`. Figures name their commit. The base is dev = main `d72001921`.
+are under `src/ethos/`. Figures name their commit. The base is dev = main `d72001921`. This
+Change is landing 1; decisions 7 to 16, landing 2's, keep their numbers in landing 2's own Change
+(decision 17).
 
 ## Context
 
@@ -17,8 +19,8 @@ are under `src/ethos/`. Figures name their commit. The base is dev = main `d7200
     that head.
   - It rewrites no blob, tree or message span (`adapters/repo/commit/history.py:117-137`).
 - **Publishing a normally accepted head into a ref-less peer works:** absent refs are created under
-  a zero-value lease (`tests/unit/cli/land/test_release.py:281-320`; R12). The rebuilt case is task
-  3.4's to prove (A17), on decision 13's baselines.
+  a zero-value lease (`tests/unit/cli/land/test_release.py:281-320`; R12). Landing 2 proves the
+  rebuilt case (A17) on its decision 13's baselines.
 - **Budgets.** At `d8474ec31`, lane 1's batch-25 head, which landed on 2026-11-10 and is an ancestor
   of dev: product 77,482 of 80,000, tests 99,842 of 100,000. Estimates for G: product +1,288 to
   +2,015, tests +938 to +1,390. Landing 1 follows `go-own-root` and `beta-7-release` (decision 17),
@@ -30,17 +32,18 @@ are under `src/ethos/`. Figures name their commit. The base is dev = main `d7200
 
 Goals:
 
-- One apply removes every declared trailer and identity span from the history of every declared ref.
-  Nothing reachable from a rebuilt branch, a `rebuilt/` ref, a re-created tag or a kept ref holds a
-  declared item, a discovered span that no entry declares or retains, or a private-address match
-  (G.5 (5); A24; R6).
-- Every rebuilt branch, re-created tag and kept ref that the record says a peer held and ETHOS
-  publishes (not `candidate/dev`) publishes into an empty peer on its original qualification,
-  including tags off dev, tags on older commits and maintenance releases, and that publication
-  re-judges nothing the rebuild produced (decision 13).
-- Every reader verifies the rebuild without the key, from its record, its signed records and the
-  side store, and the records are permanent provenance that outlives the owner's reflog expiry and
-  `gc --prune=now` (decisions 10 and 15).
+- A Change-local record, version 1 of `rebuild.toml`, binds to its Change, its key and the originals
+  of every declared ref, or refuses by a fixed gap that names no value (decisions 1 and 3).
+- One left-to-right scan serves the redaction verb, F's push check, the keyless verifier and the
+  rebuild's counts and witnesses, through one occurrence model (decision 2).
+- Readiness proves discovered completeness by count and fixed gap and writes nothing, and the
+  keyless census counts identity by form and ref class for ETHOS's own R8 (e) run (decisions 4
+  and 5).
+- Every peer read goes through one bounded namespace listing that records nothing and carries no
+  remote stderr (decision 6).
+- Landing 2's goals are its own Change's (decision 17): one apply that removes every declared item
+  from the history of every declared ref, publication of the rebuilt refs into empty peers on their
+  original qualification, and keyless verification by every reader.
 
 Non-Goals:
 
@@ -72,11 +75,14 @@ Non-Goals:
    version-1 record by those rules, so the record is not re-landed after landing 2, and a change to
    them takes a new record version (A7 of review 5; draft 9). It holds:
    - `version`, `id`, `owner`, `reason`, `expires`, `base`, and `key = { generation = "<16 hex>" }`.
-   - `[refs]`: every local ref outside decision 7's allowlist (A26), each with its disposition, its
-     local old value, and per peer its expected state. That state is the local old value, a declared
-     peer value, or `absent`; the declared peer value is how aigw's 11 GitLab rc tags are stated (B6
-     a). dev, main and candidate/dev are declared `at old` rather than by value, since the record
-     lands in `old` itself (draft 8's rule; AIGW question 4).
+   - `[refs]`: every local ref outside the allowlist (A26), each with its disposition, its local old
+     value, and per peer its expected state. That state is the local old value, a declared peer
+     value, or `absent`; the declared peer value is how aigw's 11 GitLab rc tags are stated (B6 a).
+     dev, main and candidate/dev are declared `at old` rather than by value, since the record lands
+     in `old` itself (draft 8's rule; AIGW question 4). The allowlist holds
+     `refs/ethos/attestations-set`, the declared refs' remote-tracking refs, a declared peer value's
+     remote-tracking ref, `refs/remotes/<peer>/HEAD` resolving to one of them (B6 c) and the
+     record's `rebuilt/` refs.
    - The dispositions:
      - `rebuild` (branches);
      - `retag` (annotated tags);
@@ -224,8 +230,10 @@ Non-Goals:
      record's declared items replaced: spans by their markers, IDs in a declared context by F's
      numbers, followed digests (R8) and mapped IDs (draft 10). The check runs through the bijection
      while the originals are present. Any other difference, a changed word around a marker included,
-     is judged as before. With the originals absent, this reader answers `unknown` (decision 12).
-     `repository-paradigm`: MODIFIED "Marker edits in record roots reproduce what they replace".
+     is judged as before. With the originals absent, this reader answers `unknown` (landing 2's
+     decision 12). Landing 2 implements this reading; here `repository-paradigm` MODIFIED "Marker
+     edits in record roots reproduce what they replace" only so that encoded paths and citations
+     pair.
    - The `[openspec]` declaration of `rebuild.toml` modifies "OpenSpec carries the common rules",
      whose text is the paradigm contract's OpenSpec table (A22, verified in specs draft 1). Prewrite
      admission of the record modifies `assistant-projections` "Agent projections preserve native
@@ -277,12 +285,12 @@ Non-Goals:
    - a `retag` without a valid `release.promote` record or a mapped maintenance base;
    - a transformed tag message that names a private address;
    - a `retag` whose original qualification cannot be verified: its tag policy is judged as the
-     verified image of that qualification (decision 13), never re-judged under today's CHANGELOG
-     grammar, which 9 of aigw's 33 release tags predate (R30; AIGW blocker 1).
+     verified image of that qualification (landing 2's decision 13), never re-judged under today's
+     CHANGELOG grammar, which 9 of aigw's 33 release tags predate (R30; AIGW blocker 1).
 
    It counts the peer's review refs, named as `_REVIEW_LISTINGS` names them (decision 6), that reach
    affected commits and are present locally, and reports the rest as unknown (A12, A20). It records
-   nothing, not even an observed absence (decision 14).
+   nothing, not even an observed absence (landing 2's decision 14).
 
 5. **ETHOS's own R8 (e) run is keyless readiness (R27).**
    - It is the operation `lane.repair-signature.census` (decision 18), one read-only mode that takes
@@ -292,7 +300,7 @@ Non-Goals:
    - Output: counts by form and ref class.
    - The counts and the disposition go in DR-0024, not in `tasks.md`.
 
-### Apply
+### Peers
 
 6. **Peer observation has one owner (B1 of review 1, R31 of review 2; R3).**
    - `observe_remote_refs` (`adapters/mutation/publication/observation.py:22-75`) extends its
@@ -312,265 +320,57 @@ Non-Goals:
      its exact command, cwd and exit status without the remote's stderr, which can echo a private
      host or path (draft 9).
    - It returns states and records nothing; the commands with write authority record what it
-     observes (decision 14).
-7. **The apply** is
-   `--rebuild <record> --apply --authorize --expect-head <old> --backup <bundle> --key-stdin` (A23),
-   the operation `lane.repair-signature.rebuild.apply` (decision 18), and it is local. It is
-   destructive with authorization `authorize` and needs no `confirm-irreversible`, since the point
-   of no return is the owner's deletion of the old forge projects, outside ETHOS. Its order is G.5's
-   (R19):
-   1. **Preconditions.**
-      - Per-peer states through decision 6.
-      - Only declared refs, `refs/ethos/attestations-set`, the declared refs' remote-tracking refs,
-        `refs/remotes/<peer>/HEAD` resolving to one of them (B6 c), and the record's `rebuilt/` refs
-        exist locally. A declared peer value that differs from the local one is held under
-        `refs/remotes/<peer>/tags/<name>` (or `refs/remotes/<peer>/<branch>`), fetched natively with
-        an exact refspec before the bundle is cut, so gc cannot drop it and the bundle and side
-        store carry it; that remote-tracking ref is admitted exactly when the record declares that
-        peer value (AIGW Q6: aigw's 11 GitLab rc tags).
-      - No `work/` or `proposal/` ref; a clean declared worktree; main equals dev.
-      - The bundle lists every declared old value and every release-named commit, and the restore
-        `fsck`s each (R21).
-   2. The key checked before any record or store exists (G.5's order; R33): its generation against
-      the record's and the recorded one (decision 1), then against every witness. Every keyed-named
-      original is resolved and every entry's count checked at the same point.
-   3. **The side store** `<common>/ethos/rebuild/<id>/originals.git`:
-      - owner-only, with `gc.auto=0`, no hooks, no remote and no alternates either way;
-      - each declared old value under its own ref there, so a manual `gc` cannot drop it (A15);
-      - built from the bundle's restore. Today `_verify_backup_recovery`
-        (`adapters/repo/commit/history.py:342-355`) restores into a temporary directory that it
-        removes on return and `fsck`s only `old`, so that function changes to keep the restore and
-        `fsck` every declared old value and release-named commit (R12, R21);
-      - its exit condition: a recorded `--release` plus the owner's decision to delete it, after
-        which a reader that asks for a rebuild edge answers `unknown` and the rebuilt commits are
-        ordinary signed history for every other reader (R36).
-   4. The affected set computed: every object that holds a declared item or trailer, every commit
-      that reaches one, and every ref that reaches one (R6).
-   5. Rebuilt objects written and signed in topological order, reusing signed payloads on recovery,
-      digests followed (R8), quoted IDs mapped to their images, and each `retag` target's tag
-      message transformed (decision 8). A quote of an object that the topological order has not
-      rewritten yet refuses (draft 10).
-   6. **G.5 (5) proved before any ref moves:**
-      - nothing reachable from a rebuilt branch, a tag-only target or a kept ref, and no transformed
-        tag message, holds a declared digest, a discovered span that no entry declares or retains,
-        or a private-address match (R6);
-      - every rebuilt ref is connected in the main object store alone
-        (`rev-list --objects --missing=error`).
-   7. One `GitEffect` transaction moves every `rebuild` and `retire` ref and holds each `retag`
-      target under `refs/ethos/rebuild/<id>/rebuilt/`. The signed result record under `rebuild:<id>`
-      carries each `retag` target's transformed message, and the signed local attempt record carries
-      the key's generation and the clear IDs of keyed-named originals (R4; B2).
+     observes (landing 2's decision 14).
 
-   Failure reports drop stdout and stderr, and no Git argument carries a literal (R31).
+### Apply, verification, readers, release and rollback
 
-8. **Tag messages: the transform owns their content, and `land --retag` owns tag creation and
-   policy.**
-   - The apply transforms each `retag` target's original message by the record's entries, with the
-     key, and checks it by G.5 (5) with the other rebuilt objects before any ref moves (decision 7,
-     steps 5 and 6). The prepared message drops every signature armor that
-     `adapters/repo/git_object.py:23-28` knows: SSH, OpenPGP and X.509 (B2). Today
-     `retag._tag_parts` strips only the SSH one (`adapters/mutation/accepted/retag.py:43, 234-241`).
-     The signed result record carries the message, and readiness checks the same transformed message
-     in advance (decision 4).
-   - `land --retag` reads that message through the record-resolution owner (decision 9), never the
-     key. It creates the tag, keeps the tagger byte for byte (`retag.py:158, 239`; a declared item
-     in a tagger refuses readiness, R6), checks the tag against G.5 (5) when it creates it (R19) and
-     applies its release-tag policy (decision 13).
-
-### Verification and readers
-
-9. **Record resolution** stays called from `completed_signature_repair`
-   (`adapters/repo/commit/signature.py:292`). Review 1 measured that module at 455 of 500 effective
-   lines at `c89ac1884`, and it is unchanged since (R12). The extension lives in
-   `adapters/repo/commit/rebuild/resolution.py` (A13). It holds:
-   - per-ref results;
-   - the union mapping over every declared pair;
-   - an inverse lookup by mapped image for `accepted_provenance` and the publication fallback;
-   - each `retag` target's prepared message, read from the signed result record;
-   - each keyed-named original's clear ID, read from the signed local attempt record (B2).
-
-   `archive_provenance._repair_edges` is routed through it (R2 of review 1).
-
-10. **Verification** lives in `adapters/repo/commit/rebuild/verification.py` (A13). Readers are
-    keyless. Verification checks:
-    - the record blob binding (decision 3);
-    - the signed attempt and result records, whose witness check bound the key (decision 7, step 2),
-      and which name every keyed-named original in clear (B2);
-    - the structural bijection: parents, dates, authors and committers are byte-equal, and only the
-      objects that the result names differ;
-    - F's keyless private-address scan.
-
-    Recomputing the transform needs the key and is readiness's job, not a reader's. The verdict
-    cache sits under `<common>/ethos/rebuild/<id>/`, keyed by:
-    - the record blob;
-    - the sorted declared ref pairs;
-    - the trust-anchor digest;
-    - the runtime identity;
-    - the bundle digest;
-    - the object format.
-
-    It is memoized per invocation scope with `invocation_fact`, which observes afresh outside a
-    scope (`adapters/repo/invocation_facts.py:69-79`; R12). A cache hit never skips the presence of
-    originals and skips only signature verification, and cache files hold no value (A1).
-
-11. **The side store is attached per read-only Git process (A14).**
-    - The attach is a new parameter of the function `git_environment`
-      (`adapters/repo/git.py:186-217`), since an `env` under `observation=True` raises
-      `git_observation_environment_override_forbidden` (`:190-192`; R12).
-    - A process that attaches it writes nothing.
-    - Hooks attach it in their own processes.
-    - `land --retag` reads the original through an attached process and writes the replacement in an
-      unattached one.
-    - `retag._restore_original` and `_bound_backup` retire (R4 of review 1).
-12. **Readers** each read through decisions 9 to 11:
-    - the hook;
-    - historical source (`commit/signature.py:365-390`; R31);
-    - retag;
-    - release, through `release_tag_policy` (`adapters/repo/release.py:149-159`) and
-      `release_ref_subject` (`:318-345`, its call at `:333`), which the hook's release moves reach
-      (`adapters/admission/git_admission.py:374-396`; R12);
-    - publication;
-    - conservation;
-    - archive provenance;
-    - `attested_archive_transition` (`adapters/openspec/lifecycle/archive_transition.py:53-89`),
-      whose helper `_attested_archive` (from `:92`) swallows the failure at `:135-152` (R12);
-    - marker pairing (`adapters/repo/commit/record_markers.py`), for a rebuilt blob under a record
-      root (decision 2).
-
-    When originals are absent, a reader that asks for a rebuild edge, `attested_archive_transition`
-    and marker pairing included, answers `unknown` by a fixed gap rather than `None` (R25). After
-    the side store's exit the rebuilt commits remain ordinary signed history for every other reader.
-
-13. **Maintenance releases and push baselines (B2 of review 1, corrected by R22).**
-    - Release provenance admits the mapped range (B', X'] as the verified image of the range (B, X]
-      that the original release admitted. Verification proves the bijection between the two ranges.
-    - It does not re-judge the rebuilt commits under today's commit policy or F's keyless verifier,
-      as DR-0018 provides for historical artifacts.
-    - Push admission of a maintenance closeout reads the same verified image.
-    - The same holds for every re-created tag's `release_tag_policy`, in readiness and at
-      publication (`adapters/repo/release.py:149-159`, `release_publication.py:86`): the original
-      tag's qualification, verified through the bijection, qualifies its image (AIGW blocker 1).
-    - **A rebuilt branch's push baseline.** The introduced range's baseline is the verified image of
-      the branch's local old value, whatever the per-peer state. Commits at or below it are the
-      verified image of accepted history and are not re-judged (DR-0018); commits beyond it are
-      judged as any push. `repository-governance`: MODIFIED "Commit policy applies to exact
-      introduced commit ranges".
-    - **A re-created tag pushed before any branch that reaches it.** The baseline is the verified
-      image of the original tag's target, nothing at or below it is re-judged, and the tag publishes
-      on its original qualification.
-    - **Order and pack steps (R10; draft 9; landing 2).** Publication sends branches before tags,
-      and the re-created tags that no published branch reaches oldest first. ETHOS declares no pack
-      limit, so none can drift from a forge's. When a peer refuses a branch's push for its size, the
-      plan's recorded next step sends that branch's reachable re-created tags oldest first, each
-      admitted by the tag baseline, then the branch. The rehearsal records each step's pack size, so
-      a step that a peer refuses is named by that size, and raising a forge's limit is the owner's,
-      outside ETHOS. Rebuild readiness measures no pack.
-    - **Classifying a refused push (draft 10).** The publication owner reads a peer's push stderr
-      only to classify a size refusal, against a fixed set of forge patterns that it holds as data.
-      A match emits `publication_pack_refused:<peer>` with the plan's recorded step sizes, and an
-      unmatched failure keeps today's fixed failure gap; neither echoes a byte of the stderr.
-    - **A `retag` ref waits for its re-created tag (A12 of review 5; draft 10; landing 2).** Between
-      the apply and `land --retag`, a declared `retag` ref still names its original tag object. The
-      rebuild's publication admission refuses a declared `retag` ref whose current value equals its
-      recorded old value, by a fixed gap that names the ref, whatever F's push-check mode is.
-      `land --retag` records the re-created tag, and publication admits the ref after that record.
-
-### Release and rollback
-
-14. **Observed absence (B4, R23).**
-    - The peer-observation owner (decision 6) returns the states. The commands with write authority
-      record the first observed absence of a declared retired tag, at once and as its own predicate
-      under `rebuild:<id>`: `ethos publish` (apply) to that peer, and `--release` as a fallback
-      before it requires the absences. Readiness is read-only and records nothing (A27).
-    - `published_refs` folds it by issue time as that peer's latest state for that ref (lifetime
-      store under `adapters/repo/`; A13).
-    - The window: between the owner's gc and that first observation, lifetime observation of those
-      refs stays unknown. The migration plan therefore publishes before the owner's gc.
-15. **`--release`.**
-    - Its preview, `lane.repair-signature.release.preview`, runs without `--apply`; its apply,
-      `lane.repair-signature.release.apply`, runs with
-      `--apply --authorize --expect-head <rebuilt dev>` (decision 18). The apply is destructive with
-      `authorize` and needs no `confirm-irreversible`.
-    - It requires a receipt for each ref on each peer where the record says that peer held it and
-      ETHOS can publish it, so no receipt is due for `candidate/dev` (B8), and the recorded
-      absences; it first records any absence it observes that publication did not.
-    - It then deletes only `rebuilt/` refs in one recorded plan under its own lock, and a second run
-      is `already_applied`.
-    - The `rebuild:<id>` lifetime key covers attempt, result, applied-update, absence and
-      `--release` records (R31; A7: produced in landing 2). They are permanent provenance of the
-      rebuilt history, like DR-0018's historical artifact attestations: no end condition, and
-      `hook retire-records` admits no rebuild kind. This replaces G.2 (1)'s "end only on a recorded
-      owner purge".
-    - An SSH remote with a locked key can reach the terminal until the 30-second deadline (A9).
-16. **Rollback (R8 of review 1, R24)** is `lane repair-signature --rebuild <record> --rollback` with
-    `--apply --authorize --expect-head <rebuilt old>`: the operation
-    `lane.repair-signature.rollback.apply` (decision 18).
-    1. It fetches the declared old values from the side store into the main store, as a separate
-       write step, never through the read-only attach.
-    2. It reverses each recorded `land --retag` plan.
-    3. It restores every ref inside one recorded `commit.identity-replace` intent, which the hook
-       admits (`adapters/admission/ref_move_policy.py:37-55`).
-
-    The apply is destructive with `authorize` and needs no `confirm-irreversible`. Its preview,
-    `lane.repair-signature.rollback.preview`, compares each old peer with the record's expected
-    states (R35). It refuses by a fixed gap when a declared ref is away from its recorded rebuilt
-    value, and a peer whose state differs from the record's declared state for a ref blocks it by a
-    fixed gap that names the ref and the peer. The point of no return is the owner's deletion of the
-    old forge projects.
+Decisions 7 to 16 are landing 2's: the apply, tag messages, record resolution, verification, the
+side store's attachment, the readers, maintenance releases and push baselines, observed absence,
+`--release` and rollback. Their reviewed text, preserved at `ed3c367e2`, moves into landing 2's
+Change (decision 17).
 
 ### Sequence and budget
 
-17. **Two landings (R6 of review 1).**
-    - Landing 1: record, grammar with the one scan for every reader (R7) and the named contexts
-      (R9), binding, the transform engine without writes, the read-only peer listing through
-      `observe_remote_refs` (R2, R3), the generation owner's read (R4), readiness with its
-      publishability checks, and keyless readiness (`--census`). It is effect-free and releasable.
-      It ships in beta.9.
-    - Landing 2: the apply (`adapters/mutation/accepted/rebuild.py`; R36) with the generation in its
-      attempt record (R4), verification, readers, the push-admission baselines and the strict marker
-      pairing, `--release`, rollback and the pack steps (R10), as one candidate with two review and
-      proof slices.
+17. **Two landings, two Changes (R6 of review 1).**
+    - Landing 1 is this Change: record, grammar with the one scan for every reader (R7) and the
+      named contexts (R9), binding, the transform engine without writes, the read-only peer listing
+      through `observe_remote_refs` (R2, R3), the generation owner's read (R4), readiness with its
+      publishability checks, and keyless readiness (`--census`). It is effect-free and releasable,
+      and it ships in beta.9.
+    - Landing 2 opens its own Change when its lane starts: the apply
+      (`adapters/mutation/accepted/rebuild.py`; R36) with the generation in its attempt record (R4),
+      verification, readers, the push-admission baselines and the strict marker pairing,
+      `--release`, rollback and the pack steps (R10), as one candidate with two review and proof
+      slices. It carries decisions 7 to 16, the former tasks 2.1 to 3.7 and the requirements of
+      those parts from this Change's text at `ed3c367e2`.
+    - One Change per landing keeps each Change's artifacts within the 500-line document ceiling, and
+      this Change's archive adds exactly the requirements that landing 1 implements; each landing
+      is a useful outcome on its own (PDC, Bounded Change Granularity).
     - Landing 1 is larger than the sizing's batch 1, because readiness needs the mapping and the
-      release-policy reads, so it is re-estimated before its lane opens (R30).
+      release-policy reads, so it was re-estimated before its lane opened (R30).
 18. **The `lane repair-signature` catalog entry (R1).** catalog-groups converted the command, and it
     is archived on dev at `fdb81a373`. Today its request requires `expect_head`
     (`contracts/operations/lane_repair.py:64-74`), and selection takes the first operation whose
-    selectors match (`contracts/operations/declaration.py:223-256`). G's fields join that request,
-    with their body in `ethos.application` (R16): the path `rebuild` and the switches `key_stdin`,
-    `rollback`, `release` and `census`. `expect_head` becomes optional on the request, and each
-    operation that takes it requires it. The entry gains `stdin="key_stdin"` and the redaction
-    entry's limit, `stdin_limit=_KEY_CHARACTERS + 1` (`lane_repair.py:156-157`). Its operations, in
+    selectors match (`contracts/operations/declaration.py:223-256`). Landing 1's fields join that
+    request, with their body in `ethos.application` (R16): the path `rebuild` and the switches
+    `key_stdin` and `census`. `expect_head` becomes optional on the request, and each operation
+    that takes it requires it. The entry gains `stdin="key_stdin"` and the redaction entry's
+    limit, `stdin_limit=_KEY_CHARACTERS + 1` (`lane_repair.py:156-157`). Its operations, in
     selection order, with disjoint selectors before today's signature modes:
     - `lane.repair-signature.census`: selects `census=true`; takes nothing else; effects `read`;
       authorization none; not destructive.
-    - `lane.repair-signature.rebuild.preview`: selects
-      `rebuild=set rollback=false release=false apply=false`; takes `key_stdin`; effects
-      `read remote-read`; none; not destructive.
-    - `lane.repair-signature.rebuild.apply`: selects
-      `rebuild=set rollback=false release=false apply=true`; takes
-      `authorize expect_head backup key_stdin`; effects
-      `read remote-read local-evidence-write local-write`; `authorize`; destructive.
-    - `lane.repair-signature.rollback.preview`: selects
-      `rebuild=set rollback=true release=false apply=false`; takes nothing else; effects
-      `read remote-read`; none; not destructive.
-    - `lane.repair-signature.rollback.apply`: selects
-      `rebuild=set rollback=true release=false apply=true`; takes `authorize expect_head`; effects
-      `read local-evidence-write local-write`; `authorize`; destructive.
-    - `lane.repair-signature.release.preview`: selects
-      `rebuild=set release=true rollback=false apply=false`; takes nothing else; effects
-      `read remote-read`; none; not destructive.
-    - `lane.repair-signature.release.apply`: selects
-      `rebuild=set release=true rollback=false apply=true`; takes `authorize expect_head`; effects
-      `read remote-read local-evidence-write local-write`; `authorize`; destructive.
-    - today's `lane.repair-signature.preview` and `lane.repair-signature.apply`, which keep their
-      fields, `expect_head replacement corrections corrections_sha256 reason backup`, and require
+    - `lane.repair-signature.rebuild.preview`: selects `census=false rebuild=set apply=false`;
+      takes `key_stdin`; effects `read remote-read`; none; not destructive.
+    - today's `lane.repair-signature.preview` and `lane.repair-signature.apply`, which select
+      `census=false rebuild=unset`, keep their fields,
+      `expect_head replacement corrections corrections_sha256 reason backup`, and require
       `expect_head`.
 
     A field outside the selected operation refuses `command_field_refused:<field>`, so `key_stdin`
-    beside a rollback, a release or the census refuses, and so does any other field beside the
-    census. The effects are confirmed (draft 9): readiness, the rebuild apply, both previews and the
-    release apply read peers and declare `remote-read`; the census, the rollback apply and today's
-    signature modes read none and declare none.
+    or any other field beside the census refuses. Readiness reads peers and declares `remote-read`;
+    the census and today's signature modes read none and declare none. Landing 2 adds the
+    switches `rollback` and `release` and the operations `rebuild.apply`, `rollback.preview`,
+    `rollback.apply`, `release.preview` and `release.apply`, each before today's signature modes.
 
 19. **Budget, in landing 1's lane (R26).**
     - DR-0020's product revisit happens there, since landing 1 alone may cross 78,000; its outcome
@@ -585,11 +385,11 @@ Non-Goals:
       `beta-7-release` land; DR-0024's Evidence records them.
 20. **DR-0024** records:
     - the side store's lifetime, including "originals held locally", never "purged" (A21), and the
-      records' permanence (decision 15);
+      records' permanence (landing 2's decision 15);
     - the per-ref values and dispositions;
     - the record as the only authority, its key named only by F's generation, and its originals
       named in clear only when signed (B2);
-    - the key's use, by readiness and the apply only (decisions 8 and 10);
+    - the key's use, by readiness and the apply only (landing 2's decisions 8 and 10);
     - the two-landing sequence and landing 1's release, beta.9;
     - ETHOS's keyless R8 (e) counts;
     - DR-0020's revisit outcome (decision 19);
@@ -612,7 +412,7 @@ Non-Goals:
 - **The one scan changes a shared owner** that the redaction verb, F's push check and the keyless
   verifier call, in landing 1 (R7); task 1.5 holds their regressions.
 - **Permanent records:** every rebuild's `rebuild:<id>` records stay in the attestation store for
-  good (decision 15).
+  good (landing 2's decision 15).
 - **The record stays in the rebuilt history** (decision 3), with its digests, counts, context names,
   witnesses, clear `retain` prefixes, and clear IDs of signed originals only (B2).
 - **One key per repository:** the rebuild uses the repository's recorded key generation (R4).
@@ -624,30 +424,11 @@ Non-Goals:
 1. Landing 1 releases in beta.9.
 2. Before `base`, the adopter lands every change the rebuilt history needs: its rehearsal peer
    declaration (R34), the fold of retired tags' CHANGELOG sections and any tool-source move off a
-   retired Release (aigw: the rc-section fold and task 3.2), and any last release that the rebuild
-   should include (aigw: 0.7.0, its 34th retag). Then it lands `rebuild.toml`, with each entry's
-   count as readiness reports it, and runs readiness until it passes.
-3. After landing 2 releases:
-   1. Apply.
-   2. `land --retag` for every `retag` ref, from the messages the result record prepared.
-   3. Prove the rebuilt head with `ethos prove`, the repair's own next action
-      (`adapters/mutation/accepted/signature.py:160-163`; A18).
-   4. **Rehearse (R29, R10):** ETHOS publishes every rebuilt branch, re-created tag and kept ref
-      into the declared rehearsal peer, branches first, and records each step's pack size.
-   5. Re-observe both old peers against the record with a `--rollback` preview (no `--apply`), which
-      blocks when a peer's state differs from the record's (R35).
-   6. The adopter checks that the projects have no forks and copies the bundle to a second device;
-      then the owner deletes and re-creates both projects with CI off.
-   7. ETHOS publishes into them, branches first. If a peer refuses a branch's push for its size, the
-      plan's next step sends that branch's reachable re-created tags oldest first, then the branch.
-      `ethos publish` records each retired tag's first absence.
-   8. Only then may the owner run gc.
-   9. Releases are restored outside ETHOS.
-   10. `--release` runs, first as a preview and then with
-       `--apply --authorize --expect-head <rebuilt dev>`, recording any absence that publication
-       missed; the rehearsal peer's declaration is removed in the adopter's next landing.
-   11. CI is turned on.
-4. Rollback exists until step 6.
+   retired Release (aigw: the rc-section fold and landing 2's observed absence), and any last
+   release that the rebuild should include (aigw: 0.7.0, its 34th retag). Then it lands
+   `rebuild.toml`, with each entry's count as readiness reports it, and runs readiness until it
+   passes.
+3. The steps after landing 2 releases, from the apply to turning CI on, are landing 2's Change's.
 
 ## Open Questions
 

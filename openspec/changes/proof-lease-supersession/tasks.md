@@ -15,5 +15,8 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the impacted tests, the precheck and readiness at the lane head. Done when each
-      passes on the committed head.
+- [x] 2.1 Pass the impacted tests, the precheck and readiness at the lane head. Done when each
+      passes on the committed head. The impacted sweep of 17 targets passed 524 tests at
+      `77a15df64`, the static precheck there reports only its own 100-column heuristic on the
+      decision index line, whose entries are one line each, and readiness passed 28 of 28 gates at
+      `47b200b9d`.

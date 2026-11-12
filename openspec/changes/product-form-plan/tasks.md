@@ -9,7 +9,9 @@
       Change's design by name, and Prettier and Vale pass on the plan. `f5bedcebd` inserts the
       section after `0.2.0 Release Candidate Order`, with D2's budgets in A17's acceptance, D7's
       bump after C3, the first-hour prerequisites with A7 before N1 and the export's direction,
-      citing `product-form-plan`; Prettier and Vale passed in the commit's checks.
+      citing `product-form-plan`; Prettier and Vale passed in the commit's checks. `10f841148`
+      condenses the section to one paragraph and rewraps `Immediate Dependencies` at 100 columns
+      with the same words, which leaves the plan at 499 nonblank lines, under its 500-line ceiling.
 
 ## 2. Acceptance
 

@@ -59,6 +59,22 @@ environment and host; lane operations and authorization; supply security and fle
 path; golden path, soak and promotion. The archived `rc-plan` Change's design lists their Changes,
 sizes and prerequisites.
 
+### Product Form And First Hour
+
+On 2026-11-12 five reviewers converged on ETHOS's product form and the owner decided its open
+questions; the archived `product-form-plan` Change's design holds both. It adds to the order above
+without a new family:
+
+- A17's acceptance gains the gating agent budgets: calls from the install line to the `adopt`
+  preview and for one Change to a retired lane, no loop or blocked step, continuations that run
+  verbatim from a fresh shell, declared exit kinds, the declared payload budgets with no dropped gap,
+  no operator script, one `next` per result, and recovery after a kill once A10 implements it.
+- The adopter bump is its own RC Change after C3.
+- The first-hour Changes need only what is on `dev`, with A7, which ships the `inputs` reader, before
+  N1.
+- The landing-attestation export is a 0.3.0 direction that starts with a contract amendment, after
+  C1 and DR-0022's build identity.
+
 ### Immediate Dependencies
 
 1. **Unify quality meaning before extending policy.** Compose versioned

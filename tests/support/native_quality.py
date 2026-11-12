@@ -57,6 +57,12 @@ def runtime(session):
 @nox.session(python=VERSION, venv_backend="none")
 def behavior(session):
     output = Path(os.environ["ETHOS_NATIVE_OUTPUT_DIR"])
+    if OUTCOME == "timeout":
+        # Only Nox's startup precedes the sentinel, so a loaded runner cannot spend the budget.
+        (output / "behavior.xml").write_text("<testsuites/>")
+        session.run(EXECUTABLE, "-c",
+            "import time; print('timeout-sentinel', flush=True); time.sleep(60)",
+            external=True)
     if OUTCOME == "runtime-detached":
         runtime(session)
     with (output / "behavior-count.txt").open("a") as stream:
@@ -94,10 +100,6 @@ def static(session):
         session.run(EXECUTABLE, "-B", "-I", "-m", "ethos.domain.quality.nox", "run",
             "--runtime-output", str(record), "--session", session.name + "-" + VERSION,
             "--configuration", config, "--", *ruff, external=True)
-    if OUTCOME == "timeout":
-        session.run(EXECUTABLE, "-c",
-            "import time; print('timeout-sentinel', flush=True); time.sleep(60)",
-            external=True)
     if OUTCOME == "missing":
         (output / "coverage.xml").unlink()
     if OUTCOME == "unsafe-output":

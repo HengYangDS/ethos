@@ -22,7 +22,9 @@ are under `src/ethos/`. Figures name their commit. The base is dev = main `d7200
 - **Budgets.** At `d8474ec31`, lane 1's batch-25 head, which landed on 2026-11-10 and is an ancestor
   of dev: product 77,482 of 80,000, tests 99,842 of 100,000. Estimates for G: product +1,288 to
   +2,015, tests +938 to +1,390. Landing 1 follows `go-own-root` and `beta-7-release` (decision 17),
-  so its own figures are measured in its lane: [TBD at landing 1].
+  so its own figures are measured in its lane: at the lane base `d72001921` the product measures
+  77,745 and the tests 99,942; landing 1 at `f420780e8` measures 79,737 and 101,764, including the
+  batch's two small Changes (30 and 43).
 
 ## Goals / Non-Goals
 
@@ -579,7 +581,7 @@ Non-Goals:
       - the bundle-based retag tests (`tests/unit/cli/land/publication/test_mapped_retag.py:61-97`);
       - fixtures repeated across the history-repair test modules.
     - Every figure names its commit and is measured at landing 1, after `go-own-root` and
-      `beta-7-release` land: [TBD at landing 1].
+      `beta-7-release` land; DR-0024's Evidence records them.
 20. **DR-0024** records:
     - the side store's lifetime, including "originals held locally", never "purged" (A21), and the
       records' permanence (decision 15);

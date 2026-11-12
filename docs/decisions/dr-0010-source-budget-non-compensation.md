@@ -132,6 +132,12 @@ coverage and all other quality obligations remain unchanged.
   `e5f2f1942` (69,913 and 89,928, `source_budget_report`). The figures above, 70,079 and 90,055,
   were taken before the lane's proof-deviation test (`a5b316f36`, 14 test ELOC) and its lock-path
   commit (`bb411345d`, minus 4 product ELOC); both landed totals stay within the stepped bounds.
+- `history-rebuild-map` (DR-0024) met DR-0019's revisit when the tests passed 100,000, and DR-0023
+  answered it with one test step to 105,000. Its landing 2 is expected to remove the bundle-based
+  re-tag test (`tests/unit/cli/land/publication/test_mapped_retag.py:61-97`, 33 test
+  line-equivalents at `f420780e8`) and the fixtures repeated across
+  `tests/unit/mutation/test_history_repair.py` and
+  `tests/unit/adapters/repo/commit/test_repair_chain.py`, measured when landing 2 removes them.
 - [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 

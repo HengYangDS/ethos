@@ -14,11 +14,22 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Added
 
+- `ethos lane repair-signature --census` counts, with no key and no write, each form of a private
+  peer identity and each attribution trailer that a repository's local refs reach, by ref class.
+  With `--rebuild <record> --key-stdin`, readiness checks a Change-local `rebuild.toml` record
+  against the repository and refuses each unsafe state by a fixed gap; the rebuild apply follows
+  in a later release.
+- An OpenSpec Change may hold one `rebuild.toml` record beside its official artifacts; prewrite
+  admits it for the selected Change only.
 - The documentation registry admits `role: tutorial`, the learning-oriented page that Diátaxis
   places beside how-to, reference and explanation.
 
 ### Changed
 
+- **Breaking:** the redaction, the push check and the keyless marker verifier share one scan,
+  which also reads percent-encoded paths, citations and Git trailers. Re-verifying an earlier
+  redaction whose base held a crossing entry or a percent-encoded fed path now reports
+  `redaction_unverified`; a second redaction repairs it.
 - The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft
   1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of `fastmcp`,
   `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions. Mise stays at

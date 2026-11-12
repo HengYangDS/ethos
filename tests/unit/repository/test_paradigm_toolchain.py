@@ -19,6 +19,7 @@ _LOCKED_TASKS = (
     '[settings]\nlocked = true\n\n[tasks.bootstrap]\nrun = "uv sync --locked"\n\n'
     '[tasks]\ncheck = "uv run nox -s check"\nfix = ["uv run nox -s fix"]\n'
 )
+_TOOL = '\n[tools]\nnode = "26"\n'
 
 
 def _gaps(root: Path, files: dict[str, str]) -> list[tuple[str, str]]:
@@ -31,6 +32,11 @@ def test_a_tracked_owner_missing_from_the_tree_is_unreadable(tmp_path: Path) -> 
     """A tracked configuration that cannot be read is named, not taken as absent."""
     gaps = toolchain_gaps(load_repository_paradigm(), tmp_path, frozenset({_MISE, _LOCK}))
     assert [gap.required_gap for gap in gaps] == [f"repository_paradigm_toolchain_owner:{_MISE}"]
+
+
+def test_a_task_only_mise_owner_needs_no_lock(tmp_path: Path) -> None:
+    """A configuration that selects no tool gets no lock from mise, so none is required."""
+    assert _gaps(tmp_path, {_MISE: _LOCKED_TASKS}) == []
 
 
 def test_a_locked_mise_owner_with_every_verb_conforms(tmp_path: Path) -> None:
@@ -52,7 +58,7 @@ def test_a_locked_mise_owner_with_every_verb_conforms(tmp_path: Path) -> None:
             ],
         ),
         (
-            {_MISE: _LOCKED_TASKS.replace("locked = true", "locked = false")},
+            {_MISE: _LOCKED_TASKS.replace("locked = true", "locked = false") + _TOOL},
             [
                 (
                     f"repository_paradigm_toolchain_lock:{_MISE}:settings.locked",

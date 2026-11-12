@@ -17,6 +17,7 @@ from ethos.repository.paradigm.gap import tracked_text
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Iterator
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
@@ -41,7 +42,8 @@ def toolchain_gaps(
                 f"{config}:settings.locked",
                 f"set locked = true under [settings] in {config}",
             )
-        if lock not in tracked:
+        tool_versions = ".tool-versions" in tracked
+        if lock not in tracked and selects_tools(declared, tool_versions=tool_versions):
             yield ParadigmGap("toolchain-lock", lock, f"track {lock}, written by mise lock")
         yield from _verb_gaps(paradigm, config, "tasks", declared.get("tasks"))
     elif manifest in tracked:
@@ -57,6 +59,17 @@ def toolchain_gaps(
             f"add {config} with locked resolution and {_listed(paradigm.toolchain.verbs)} "
             "tasks; only mise and npm run tasks",
         )
+
+
+def selects_tools(declared: Mapping[str, object], *, tool_versions: bool) -> bool:
+    """Whether a mise declaration resolves tools; mise writes no lock for one that does not."""
+    settings = declared.get("settings", {})
+    return (
+        bool(declared.get("tools"))
+        or not isinstance(settings, dict)
+        or bool(settings.get("idiomatic_version_file_enable_tools"))
+        or tool_versions
+    )
 
 
 def _declared(text: str | None, parse: Callable[[str], object]) -> dict[str, object] | None:

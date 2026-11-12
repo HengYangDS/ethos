@@ -23,6 +23,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The four maintainer Skills and the packaged `ethos-repository-work` Skill carry
   `metadata.internal: "true"`, so `npx skills add HengYangDS/ethos` offers none of them; agents
   read the Skill version that their installed ETHOS reports.
+- The repository paradigm requires `.config/mise/mise.lock` only when `.config/mise/config.toml`
+  selects a tool; mise writes no lock for a configuration that only declares tasks. The paradigm
+  and the gates share this rule.
 
 ### Fixed
 

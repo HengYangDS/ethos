@@ -19,6 +19,7 @@ from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.toolchain.mise_lock import graph_locked
 from ethos.adapters.toolchain.mise_lock import lock_sidecars
 from ethos.repository.paradigm.parameters import seconds
+from ethos.repository.paradigm.toolchain import selects_tools
 
 if TYPE_CHECKING:
     import subprocess
@@ -101,18 +102,13 @@ def _mise_environment(
     return environment
 
 
-def _task_only_configuration(config_text: str) -> bool:
-    """Only a readable native declaration with no tool selection is task-only."""
+def _task_only_configuration(config_text: str, *, tool_versions: bool) -> bool:
+    """Only a readable native declaration that selects no tool is task-only."""
     try:
         declared = tomllib.loads(config_text)
     except tomllib.TOMLDecodeError:
         return False
-    settings = declared.get("settings", {})
-    return (
-        not declared.get("tools")
-        and isinstance(settings, dict)
-        and not settings.get("idiomatic_version_file_enable_tools")
-    )
+    return not selects_tools(declared, tool_versions=tool_versions)
 
 
 def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict[str, str] | None:
@@ -125,9 +121,8 @@ def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict
         message = "mise_config_ambiguous"
         raise ValueError(message)
     config, lock = selected[0]
-    if (
-        _task_only_configuration(_mise_input(canonical, config))
-        and not (canonical / ".tool-versions").is_file()
+    if _task_only_configuration(
+        _mise_input(canonical, config), tool_versions=(canonical / ".tool-versions").is_file()
     ):
         return None
     if not (canonical / lock).is_file():

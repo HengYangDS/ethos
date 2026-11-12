@@ -13,6 +13,7 @@ import pytest
 
 import ethos.application.redaction as redaction
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.key_generation import REDACTION
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -100,7 +101,7 @@ def test_a_redaction_is_previewed_applied_and_verified(
     assert (code, verified["state"]) == (0, "verified"), verified["required_gaps"]
     assert verified["data"]["count"] == 3
     _set_root, members = read_attestation_set(worktree)
-    [record] = [member for member in members if member.predicate == redaction.PREDICATE]
+    [record] = [member for member in members if member.predicate == REDACTION]
     fields = ("base", "head", "roots", "count", "generation")
     body = json.loads(json.dumps(dict(record.payload.body)))
     assert body == {name: verified["data"][name] for name in fields}
@@ -240,4 +241,4 @@ def test_every_mode_answers_unknown_without_a_known_feed(
     code, verified = _command(worktree, monkeypatch, *verify, key=KEY)
     assert (code, verified["verdict"], verified["required_gaps"]) == (1, "unknown", unread)
     _set_root, members = read_attestation_set(worktree)
-    assert not [member for member in members if member.predicate == redaction.PREDICATE]
+    assert not [member for member in members if member.predicate == REDACTION]

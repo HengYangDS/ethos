@@ -19,7 +19,7 @@ from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
-from ethos.adapters.repo.key_generation import REDACTION as PREDICATE
+from ethos.adapters.repo.key_generation import REDACTION
 from ethos.adapters.repo.key_generation import require_generation
 from ethos.adapters.repo.peer_feed import local_feed
 from ethos.contracts.outcome import refusal
@@ -289,14 +289,14 @@ def _attestation(head: str, body: Mapping[str, object]) -> Attestation:
     return Attestation.issue(
         {
             "schema_version": 2,
-            "predicate": PREDICATE,
+            "predicate": REDACTION,
             "verifier": "ethos",
-            "subject": f"{PREDICATE}:{head}",
+            "subject": f"{REDACTION}:{head}",
             "issued_at": issued,
             "valid_from": issued,
             "valid_until": None,
             "verdict": "pass",
-            "payload": {"kind": PREDICATE, "body": dict(body)},
+            "payload": {"kind": REDACTION, "body": dict(body)},
             "relations": (),
             "advisories": (),
             "evidence_refs": (),

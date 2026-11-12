@@ -8,7 +8,6 @@ from stat import S_ISDIR
 from typing import Any
 from typing import cast
 
-from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.assistants.skills.capabilities import capability_command_strings
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skills.packages import validate_skill_package_manifest
@@ -23,7 +22,6 @@ from ethos.repository.profile import profile_required_gaps
 SKILL_PACKAGE_FILE_LIMIT = 6
 # OpenSpec installs its skills in this shared folder and records there which are its own.
 _OPENSPEC_SHARED_SKILLS = Path(".agents/skills")
-_OPENSPEC_RECORD = ".openspec-target"
 INTENT_TOKEN_OWNER_LIMIT = 2
 
 
@@ -58,8 +56,14 @@ def _portfolio_absent(root: Path, relative_path: str) -> bool:
     return False
 
 
-def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, object]:
-    """Validate the native portfolio and project its sole current interpretation."""
+def skill_portfolio_report(
+    root: Path, *, required: bool = True, openspec_skills: frozenset[str] = frozenset()
+) -> dict[str, object]:
+    """Validate the native portfolio and project its sole current interpretation.
+
+    `openspec_skills` names the shared skills that OpenSpec's own record owns, as the caller
+    observed them through OpenSpec; they need no activation record.
+    """
     profile = load_repository_profile(root)
     skills_root_relative = (
         profile.declaration.roots.agent_skills
@@ -101,7 +105,9 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
         except OSError:
             registry_gaps.append(".agents/skills:unreadable")
         if not missing:
-            registry_gaps.extend(_unregistered_package_gaps(profile.root, skills_root, registry))
+            registry_gaps.extend(
+                _unregistered_package_gaps(profile.root, skills_root, registry, openspec_skills)
+            )
     required_gaps = [*registry_gaps, *dict.fromkeys(record_gaps)]
     package_quality_gaps = list(
         dict.fromkeys(
@@ -134,13 +140,13 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
 
 
 def _unregistered_package_gaps(
-    root: Path, skills_root: Path, registry: dict[str, Any]
+    root: Path, skills_root: Path, registry: dict[str, Any], openspec_skills: frozenset[str]
 ) -> list[str]:
     """Name each package directory that neither an active record nor a retirement routes.
 
     A registry that lists only some packages would otherwise pass while the rest stay routed by
     another owner. In OpenSpec's shared folder, the packages that OpenSpec's own record owns are
-    routed to OpenSpec; OpenSpec is asked only when its record exists and a package is unrouted.
+    routed to OpenSpec.
     """
     try:
         packages = sorted(path.parent.name for path in skills_root.glob("*/SKILL.md"))
@@ -154,13 +160,8 @@ def _unregistered_package_gaps(
     }
     retired = {str(skill_id) for skill_id in registry.get("retired") or {}}
     unrouted = [name for name in packages if name not in routed | retired]
-    if (
-        unrouted
-        and skills_root == root / _OPENSPEC_SHARED_SKILLS
-        and (skills_root / _OPENSPEC_RECORD).is_file()
-    ):
-        owned = openspec_owned_skills(root)
-        unrouted = [name for name in unrouted if name not in owned]
+    if skills_root == root / _OPENSPEC_SHARED_SKILLS:
+        unrouted = [name for name in unrouted if name not in openspec_skills]
     return [f"skill_package_unregistered:{name}" for name in unrouted]
 
 

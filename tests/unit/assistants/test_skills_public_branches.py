@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
+from ethos.adapters.gates.verification import provider_reports
+from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import skill_portfolio_report
@@ -257,7 +260,8 @@ def test_openspecs_record_routes_the_shared_skills_it_owns(
 ) -> None:
     """OpenSpec's own record, read by OpenSpec, routes its skills; a kept one still needs a record.
 
-    Without the record nothing says the folder is OpenSpec's, so its packages stay unrouted.
+    The skills gate's provider receives OpenSpec's ownership from the runner; without the record
+    nothing says the folder is OpenSpec's, so its packages stay unrouted.
     """
     skills = tmp_path / ".agents/skills"
     write_file(skills / "README.md", "# Skills\n")
@@ -272,6 +276,10 @@ def test_openspecs_record_routes_the_shared_skills_it_owns(
     if record is not None:
         write_file(skills / ".openspec-target", record)
 
-    gaps = skill_portfolio_report(tmp_path)["required_gaps"]
+    reports, _verdict, _diagnostics = provider_reports(
+        "skills", ("ethos.assistants.skills.portfolio:skill_portfolio_report",), tmp_path
+    )
+    gaps = cast("dict[str, list[str]]", reports[0]["report"])["required_gaps"]
 
     assert [gap for gap in gaps if gap.startswith("skill_package_unregistered")] == expected
+    assert ("openspec-propose" in openspec_owned_skills(tmp_path)) is (not expected)

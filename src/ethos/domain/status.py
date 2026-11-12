@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
 from ethos.adapters.repo.commit.admission import commit_policy_report
@@ -57,4 +58,5 @@ def product_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, obje
         openspec_shape=openspec_shape_report(root),
         commit_policy_observer=commit_policy_report,
         retained_origins=observed_document_origins(root),
+        openspec_skills=openspec_owned_skills(root),
     )

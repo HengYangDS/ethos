@@ -16,6 +16,7 @@ from typing import Any
 from typing import cast
 
 import ethos
+from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_outcome
 from ethos.adapters.process import command_scope
@@ -312,6 +313,8 @@ def _provider_report(
         kwargs["current_head"] = current_head(root)
     if "retained_origins" in parameters:
         kwargs["retained_origins"] = observed_document_origins(root)
+    if "openspec_skills" in parameters:
+        kwargs["openspec_skills"] = openspec_owned_skills(root)
     if execution is not None and "execution" in parameters:
         kwargs["execution"] = execution
     if timeout_seconds is not None and "timeout_seconds" in parameters:

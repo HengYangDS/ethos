@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.repo.coordination import collaboration_competition_projection
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -176,6 +177,7 @@ def compile_transition_plan(root: Path, request: PlanRequest) -> EthosResult:
                 portfolio_provider in (*gate.providers, *gate.verification_providers)
                 for gate in policy.gates
             ),
+            openspec_skills=openspec_owned_skills(repo),
         )
         skill_activation = compile_skill_activation(
             cast("dict[str, object]", portfolio.get("registry") or {}),

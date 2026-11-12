@@ -207,6 +207,7 @@ def repository_audit(
     openspec_shape: dict[str, object] | None = None,
     commit_policy_observer: CommitPolicyObserver | None = None,
     retained_origins: DocumentOrigins | None = None,
+    openspec_skills: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -253,7 +254,7 @@ def repository_audit(
         str(gap) for gap in cast("list[str]", semantic_closure["required_gaps"])
     ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
-    portfolio_report = skill_portfolio_report(root)
+    portfolio_report = skill_portfolio_report(root, openspec_skills=openspec_skills)
     skill_gaps = [str(gap) for gap in cast("list[str]", portfolio_report["required_gaps"])]
     system_contract_gaps = [
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])

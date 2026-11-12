@@ -16,6 +16,9 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.audit import configuration_policy_gaps
 from ethos.repository.paradigm.parameters import seconds
 
+# Where OpenSpec 2 records which shared skills are its own.
+_OPENSPEC_SKILL_RECORD = Path(".agents/skills/.openspec-target")
+
 
 def official_config_report(root: Path, *, initialize: bool = False) -> dict[str, object]:
     """Resolve the selected native config, schema and templates before claiming readiness."""
@@ -94,6 +97,9 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
 def openspec_owned_skills(root: Path) -> frozenset[str]:
     """Name the shared skills that OpenSpec's own record owns, as OpenSpec reads that record.
 
-    An unavailable or refused observation names none, so every such package stays unrouted.
+    Without the record OpenSpec owns none, and OpenSpec is not asked. An unavailable or refused
+    observation names none, so every such package stays unrouted.
     """
+    if not (root / _OPENSPEC_SKILL_RECORD).is_file():
+        return frozenset()
     return frozenset(string_sequence(official_config_report(root).get("openspec_skills")))

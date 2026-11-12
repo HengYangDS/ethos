@@ -50,6 +50,7 @@ ignore_imports = [
   "ethos.domain.source_budget.measurement -> ethos.adapters.repo.git",
   "ethos.domain.status -> ethos.adapters.gates.native.inputs",
   "ethos.domain.status -> ethos.adapters.openspec.commitment",
+  "ethos.domain.status -> ethos.adapters.openspec.configuration",
   "ethos.domain.status -> ethos.adapters.openspec.governance",
   "ethos.domain.status -> ethos.adapters.openspec.observation",
   "ethos.domain.status -> ethos.adapters.repo.commit.admission",

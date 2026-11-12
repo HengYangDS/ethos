@@ -30,5 +30,5 @@ None. No requirement names a discovery flag, so `skip_specs: true` applies.
 
 ## Impact
 
-Five `SKILL.md` files, four `package.toml` manifests, `.agents/skills/README.md`, one test module and
-`CHANGELOG.md`. No product code changes.
+Five `SKILL.md` files, four `package.toml` manifests, `.agents/skills/README.md`, one test module
+and `CHANGELOG.md`. No product code changes.

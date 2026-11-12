@@ -163,7 +163,11 @@ The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml
 
 ### Requirement: OpenSpec carries the common rules
 
-Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-driven` schema in `openspec/config.yaml`, and each artifact's rules SHALL begin with the common rules that the paradigm contract holds. Repository-specific rules SHALL only follow those common rules.
+Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-driven` schema in
+`openspec/config.yaml`, and each artifact's rules SHALL begin with the common rules that the
+paradigm contract holds. Repository-specific rules SHALL only follow those common rules. The
+paradigm contract's OpenSpec table SHALL also declare `rebuild.toml` as the one Change-local record
+that ETHOS reads in a Change's directory beside its official artifacts.
 
 #### Scenario: The common task rule is missing
 
@@ -173,7 +177,8 @@ Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-
 #### Scenario: Repository rules come before the common rules
 
 - **WHEN** a configuration lists only its own proposal rule, in a flow sequence
-- **THEN** the repair rewrites the proposal rules as a block sequence that begins with the common rules and keeps the repository's rule after them, leaving every other key and comment unchanged.
+- **THEN** the repair rewrites the proposal rules as a block sequence that begins with the common
+  rules and keeps the repository's rule after them, leaving every other key and comment unchanged.
 
 #### Scenario: A repository selects its own schema
 
@@ -184,6 +189,12 @@ Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-
 
 - **WHEN** a repository tracks no path under `openspec/`
 - **THEN** the paradigm reports no OpenSpec gap.
+
+#### Scenario: A Change carries a rebuild record
+
+- **WHEN** a Change's directory holds `rebuild.toml`, whose entries are digests and no markers
+- **THEN** ETHOS reads it as that Change's declared record
+- **AND** the Change lands and archives without `record_marker_unpaired`
 
 ### Requirement: Commits follow one grammar and carry an SSH signature
 
@@ -995,8 +1006,8 @@ when its blob cannot be measured. The paradigm report SHALL keep its whole-tree 
 ETHOS SHALL define one grammar for protected peer identity: the occurrence kinds `url`, `scp`,
 `authority` and bare `host`; the marker `<hex32>.<hex32>.private-peer.invalid`, one HMAC-SHA-256 of
 a NUL-joined pre-image of version, kind, host, port and path that never hashes scheme or userinfo;
-and keyed replacement of project IDs and ports in closed contexts. Every reader of markers SHALL use
-this grammar.
+and keyed replacement of project IDs and ports in named closed contexts. Every reader of markers and
+every rebuild SHALL use its one left-to-right scan, which a rebuild record extends only as data.
 
 #### Scenario: A URL becomes one marker
 
@@ -1022,6 +1033,48 @@ this grammar.
 - **THEN** it is replaced by a keyed number in its range that differs from the original, every other
   replacement and every fed value and is absent from the domain
 - **AND** more than 4,096 probes refuses with `numeric_replacement_exhausted`
+
+#### Scenario: A rebuild record adds data, not grammar
+
+- **WHEN** a rebuild record declares typed spans and merge-request citations, and IDs whose contexts
+  it names from the named context set
+- **THEN** the shared grammar matches them as data
+- **AND** the rebuild matches no occurrence through a grammar of its own, and the record declares no
+  context frame
+
+#### Scenario: Every reader uses the one scan
+
+- **WHEN** the redaction verb, the push check, the keyless verifier or a rebuild reads a line
+- **THEN** each uses the one left-to-right scan, which takes the longest declared entry of the
+  applicable form at each position and never rescans its output
+- **AND** each named context pattern matches what it matched before it was named
+
+#### Scenario: A context an adopter needs joins the named set
+
+- **WHEN** an adopter's ID occurs in a context that no named pattern matches
+- **THEN** that context joins the named set as data with its own test, so every keyless reader and
+  the push check match it
+
+#### Scenario: An occurrence gives one result
+
+- **WHEN** an occurrence matches one declared entry, or declared entries cross inside it
+- **THEN** the occurrence gives exactly one result
+
+#### Scenario: An encoded path is replaced
+
+- **WHEN** a path that the record declares occurs percent-encoded
+- **THEN** that occurrence is replaced as the declared path
+
+#### Scenario: A merge-request citation is one span
+
+- **WHEN** a commit message cites `<path>!<n>` and the record declares that citation
+- **THEN** the citation, its `!<n>` included, is replaced as one span
+
+#### Scenario: Digits inside a digest stay
+
+- **WHEN** a declared ID's digits occur inside a hexadecimal digest, or outside every context that
+  the record names for that ID
+- **THEN** those digits stay unchanged
 
 ### Requirement: Marker edits in record roots reproduce what they replace
 
@@ -1056,6 +1109,12 @@ malformed marker and a marker equal to the plain or empty-key digest of its pre-
 
 - **WHEN** a record names the marker's form by placeholder labels, or names its suffix alone
 - **THEN** commit validation admits the line
+
+#### Scenario: A marker over an encoded path or a citation pairs
+
+- **WHEN** a commit replaces a percent-encoded path, or a `<path>!<n>` citation, in a record line
+  with a marker
+- **THEN** commit validation pairs that marker with the removed line and admits the line
 
 ### Requirement: The rules binding declares only the tables its readers consult
 

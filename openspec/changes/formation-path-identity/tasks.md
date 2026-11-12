@@ -2,12 +2,17 @@
 
 ## 1. One plan for one destination
 
-- [ ] 1.1 Drop the caller's spelling of the root from the formation plan. Done when the test that
+- [x] 1.1 Drop the caller's spelling of the root from the formation plan. Done when the test that
       previews through a linked parent and through the reported canonical path fails before the
       change and passes after it, the retarget test still refuses, and the greenfield and Python
-      starter tests pass.
-- [ ] 1.2 Add the Fixed line to the Unreleased section of `CHANGELOG.md`. Done when Prettier and
-      Vale accept it.
+      starter tests pass. Evidence: 616b909f3 drops `requested_root` from `source_inputs`.
+      `test_greenfield_plan_names_the_destination_not_its_spelling` failed before the change with
+      two digests (18:06:48 to 18:06:57) and passed after it with the retarget test (18:07:08 to
+      18:07:17); the 16 targets that exercise formation and adoption passed (378 passed, 18:07:49 to
+      18:10:36).
+- [x] 1.2 Add the Fixed line to the Unreleased section of `CHANGELOG.md`. Done when Prettier and
+      Vale accept it. Evidence: 616b909f3 adds the Fixed line; Prettier and Vale accepted it in the
+      commit's checks.
 
 ## 2. Acceptance
 

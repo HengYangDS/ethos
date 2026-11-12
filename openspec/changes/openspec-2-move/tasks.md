@@ -32,5 +32,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the impacted tests, the precheck and readiness at the lane head. Done when each
-      passes on the committed head.
+- [x] 2.1 Pass the impacted tests, the precheck and readiness at the lane head. Done when each
+      passes on the committed head. The impacted targets passed 1,131 tests at `a435dc408` with the
+      layered change, the static precheck passed with no finding at `115be540c`, and readiness
+      passed 28 of 28 gates at `39d7c1a61`.

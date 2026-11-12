@@ -1,7 +1,8 @@
-"""The canonical text layout that `pre-commit` admits on staged index blobs.
+"""The layout rules that `pre-commit` admits on staged index blobs.
 
-The format policy's `canonical-text` rows select the files, and the layout is the one that
-`ethos lane format` writes, so a commit is refused for the bytes the source-format gate refuses.
+Each staged authored file meets the rule its owner applies later: a Markdown file the list rule, a
+`canonical-text` file of the format policy the canonical layout, and a package marker an opening
+docstring. A commit is refused for the bytes that the gates and the paradigm would refuse.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_attributes import received_paths
 from ethos.adapters.repo.hook.staged_size import staged_regular_files
+from ethos.repository.paradigm.markdown_spacing import spacing_violations
 from ethos.repository.paradigm.packages import PACKAGE_MARKER
 from ethos.repository.paradigm.packages import opens_with_docstring
 from ethos.repository.paradigm.parameters import seconds
@@ -25,7 +27,7 @@ if TYPE_CHECKING:
 
 
 def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None) -> None:
-    """Refuse a staged canonical-text file whose index blob leaves the canonical layout."""
+    """Refuse the first staged authored file whose index blob breaks its layout rule."""
     staged = tuple(
         path
         for path in staged_regular_files(root, index_env)
@@ -33,42 +35,33 @@ def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None)
     )
     if not staged:
         return
-    ownership = format_ownership(root, staged)
-    owned = {
+    canonical = {
         str(item["path"])
-        for item in ownership["assignments"]
+        for item in format_ownership(root, staged)["assignments"]
         if item["mutation_policy"] == "canonical-text"
     }
-    for path in sorted(owned - received_paths(root, tuple(owned))):
+    for path in sorted(set(staged) - received_paths(root, staged)):
+        markdown, marker = path.endswith(".md"), path.rpartition("/")[2] == PACKAGE_MARKER
+        if not (markdown or marker or path in canonical):
+            continue
         try:
             blob = run_git(
                 root, "show", f":{path}", text=False, timeout=seconds("git"), env=index_env
             )
-            line = text_layout_violation(blob.stdout.decode("utf-8"))
+            text = blob.stdout.decode("utf-8")
         except (subprocess.CalledProcessError, UnicodeError) as error:
             message = f"pre_commit_text_unreadable:{path}"
             raise RuntimeError(message) from error
-        if line is not None:
-            message = f"pre_commit_text_layout:{path}:{line + 1}"
-            raise RuntimeError(message)
+        if gap := _layout_gap(path, text, markdown=markdown, marker=marker):
+            raise RuntimeError(gap)
 
 
-def check_staged_packages(root: Path, *, index_env: Mapping[str, str] | None = None) -> None:
-    """Refuse a staged package marker whose index blob opens with no docstring."""
-    markers = tuple(
-        path
-        for path in staged_regular_files(root, index_env)
-        if path.rpartition("/")[2] == PACKAGE_MARKER and not path.startswith(RECORD_PREFIXES)
-    )
-    for path in sorted(set(markers) - received_paths(root, markers)):
-        try:
-            blob = run_git(
-                root, "show", f":{path}", text=False, timeout=seconds("git"), env=index_env
-            )
-            source = blob.stdout.decode("utf-8")
-        except (subprocess.CalledProcessError, UnicodeError) as error:
-            message = f"pre_commit_text_unreadable:{path}"
-            raise RuntimeError(message) from error
-        if not opens_with_docstring(source):
-            message = f"pre_commit_package_docstring:{path}"
-            raise RuntimeError(message)
+def _layout_gap(path: str, text: str, *, markdown: bool, marker: bool) -> str:
+    """Name the first layout violation of one staged text, or return an empty string."""
+    if markdown:
+        violations = spacing_violations(text)
+        return f"pre_commit_markdown_spacing:{path}:{min(violations) + 1}" if violations else ""
+    if marker:
+        return "" if opens_with_docstring(text) else f"pre_commit_package_docstring:{path}"
+    line = text_layout_violation(text)
+    return "" if line is None else f"pre_commit_text_layout:{path}:{line + 1}"

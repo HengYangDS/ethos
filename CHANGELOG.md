@@ -18,6 +18,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   report, lists the documented limits that are not vulnerabilities, and says that only a new
   release carries a fix.
 
+### Fixed
+
+- `ethos adopt --create` applies the plan that its preview showed when the preview and the apply
+  spell one destination differently, such as `/tmp` and `/private/tmp` on macOS; the plan digest
+  no longer binds the caller's spelling of the root.
+
 ## [0.2.0-beta.9] - 2026-11-12
 
 ### Added

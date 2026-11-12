@@ -147,7 +147,6 @@ def formation_plan(
                     "committer_name": committer,
                     "committer_email": committer_email,
                     **signer,
-                    "requested_root": str(requested),
                     "parent_device": str(parent_info.st_dev),
                     "parent_inode": str(parent_info.st_ino),
                 }

@@ -396,6 +396,25 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
     assert not (replacement / "new-project").exists()
 
 
+def test_greenfield_plan_names_the_destination_not_its_spelling(tmp_path: Path) -> None:
+    """The continuation's canonical root applies the plan that an aliased preview showed."""
+    actual = tmp_path / "actual"
+    actual.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(actual, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks unavailable")
+    request = _request()
+
+    aliased = adopt_repository(linked / "new-project", **request)
+    canonical = adopt_repository(Path(str(aliased.data["root"])), **request)
+
+    assert aliased.verdict == canonical.verdict == "pass"
+    assert canonical.data["root"] == str(actual / "new-project")
+    assert canonical.data["plan_digest"] == aliased.data["plan_digest"]
+
+
 @pytest.mark.parametrize(
     ("starter", "purpose", "parent_kind", "gap", "hint"),
     [

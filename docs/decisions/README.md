@@ -48,4 +48,6 @@ five-section form; this entrance does not maintain another template or rule set.
 - [DR-0022: From 0.3.0, builds are immutable and stages are evidence-gated channels](dr-0022-release-channels-0-3-0.md): why build identity and qualification separate, and why a declared hermetic local venue counts.
 - [DR-0023: The test ceiling moves to 105,000 for the beta.8 work](dr-0023-test-budget-step.md): the necessity review that took one 5,000 test step after the proved duplication was removed.
 - [DR-0024: History is rebuilt once, under one Change-local record, with originals held locally](dr-0024-history-rebuild-map.md): why one landed record authorizes a history rebuild, why the originals stay in a local side repository and only readiness and the apply read the key, and why the work lands in two landings.
-- [DR-0025: The product ceiling moves to 85,000 for the common rules](dr-0025-product-budget-step-85.md): the necessity review that took one more 5,000 step after the staged checks merged and the dead definition went.
+- [DR-0025: The product ceiling moves to 85,000 for the common rules](dr-0025-product-budget-step-85.md):
+  the necessity review that took one more 5,000 step after the staged checks merged and the dead
+  definition went.

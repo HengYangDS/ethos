@@ -58,6 +58,7 @@ DEFAULT_ROLE_VALUES = (
     "findings",
     "progress",
     "how-to",
+    "tutorial",
 )
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")

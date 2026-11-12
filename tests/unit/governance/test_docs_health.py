@@ -484,7 +484,7 @@ def test_metadata_retains_structures_and_excludes_literal_guidance(tmp_path: Pat
     ]
 
 
-@pytest.mark.parametrize("role", ["reference", "evidence", "history", "ledger"])
+@pytest.mark.parametrize("role", ["reference", "tutorial", "evidence", "history", "ledger"])
 def test_native_document_roles_keep_observations_and_rationale_non_authorizing(tmp_path, role):
     """Reader roles do not invent another decision grammar or progress ledger."""
     path = tmp_path / "docs/native/topic.md"

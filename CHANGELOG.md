@@ -12,6 +12,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- The documentation registry admits `role: tutorial`, the learning-oriented page that Diátaxis
+  places beside how-to, reference and explanation.
+
 ### Changed
 
 - The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft

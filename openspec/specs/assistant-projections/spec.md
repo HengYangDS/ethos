@@ -154,6 +154,16 @@ verdicts and gaps. Skills remain below repository truth.
 
 #### Scenario: A package that no record routes is reported
 
-- **WHEN** a package directory under the Skills root holds `SKILL.md` and neither an active record nor a retirement routes it
+- **WHEN** a package directory under the Skills root holds `SKILL.md` and neither an active record
+  nor a retirement routes it
 - **THEN** the report names it with `skill_package_unregistered`
 - **AND** a partial registry no longer passes while other packages stay routed elsewhere
+
+#### Scenario: A package that OpenSpec's record owns is OpenSpec's
+
+- **WHEN** `.agents/skills/.openspec-target` names a tool, and an `openspec-*` package under the
+  Skills root holds `SKILL.md` that the record does not keep as the user's
+- **THEN** the portfolio counts that package as routed to OpenSpec, as OpenSpec's own module reads
+  the record, and needs no activation record for it
+- **AND** a package that the record keeps, and any package in a repository without the record,
+  still report `skill_package_unregistered` unless a record routes them

@@ -12,6 +12,7 @@ import pytest
 import ethos.application.result_projection as result_projection
 import ethos.surface.cli.output as output
 from ethos.adapters.process import ProcessExecutionError
+from ethos.repository.paradigm.parameters import seconds
 from ethos.result import EthosResult
 
 
@@ -202,7 +203,7 @@ def test_real_full_nonblocking_pipe_preserves_one_failed_exit() -> None:
         )
         os.close(write_fd)
         write_fd = -1
-        _, stderr = process.communicate(timeout=5)
+        _, stderr = process.communicate(timeout=seconds("tool"))
         assert process.returncode == 3
         assert b"output_backpressure" in stderr
         assert b"Exception ignored while flushing" not in stderr

@@ -353,7 +353,7 @@ def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     assignment = report["assignments"][0]
     assert assignment["validation_owner"] == "vale"
     assert assignment["validation_command"].endswith("-s config_quality")
-    assert assignment["format_check"].endswith("-s repository_hygiene")
+    assert assignment["format_check"] == "ethos lane format --check"
     assert assignment["mutation_policy"] == "canonical-text"
     assert audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"
 

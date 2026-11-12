@@ -29,6 +29,9 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.paradigm.markdown_spacing import canonical_spacing
 from ethos.repository.paradigm.parameters import seconds
+from ethos.repository.paradigm.text_layout import canonical_text
+from ethos.repository.policy.quality.format_selection import POLICY_PATH
+from ethos.repository.policy.quality.format_selection import canonical_text_paths
 from ethos.repository.release.resources import canonical_resource
 
 _SUFFIXES = frozenset(
@@ -49,6 +52,9 @@ _SUFFIXES = frozenset(
     }
 )
 _NODE_FORMATTERS = frozenset({"prettier", "taplo", "svgo"})
+# The repository owns the layout of text that no native formatter owns.
+CANONICAL_TEXT = "repository-canonical-text"
+_FORMATTED = frozenset({"native-formatter", "canonical-text"})
 # A named path that a formatter could read as a pattern is rendered alone.
 _PATTERN_CHARACTERS = frozenset("*?[]{}")
 _PRETTIER_SKIPPED_DIRECTORIES = frozenset({".git", ".hg", ".jj", ".sl", ".svn", "node_modules"})
@@ -73,11 +79,18 @@ def _selected_files(
     root: Path, requested: tuple[str, ...], authored: list[str]
 ) -> tuple[tuple[str, str], ...]:
     selected_paths = set(authored)
+    canonical = canonical_text_paths(
+        tuple(requested or authored), canonical_resource(POLICY_PATH.as_posix())
+    )
     files = [
         relative
         for relative in requested or authored
         if _candidate_path(
-            root, relative, excluded=relative not in selected_paths, explicit=bool(requested)
+            root,
+            relative,
+            excluded=relative not in selected_paths,
+            explicit=bool(requested),
+            canonical=relative in canonical,
         )
     ]
     ownership = format_ownership(root, tuple(dict.fromkeys(files)))
@@ -85,7 +98,7 @@ def _selected_files(
         raise ValueError(str(ownership["failures"]))
     selected = []
     for item in ownership["assignments"]:
-        if item["mutation_policy"] != "native-formatter":
+        if item["mutation_policy"] not in _FORMATTED:
             if requested:
                 message = f"source_format_other_owner:{item['path']}"
                 raise ValueError(message)
@@ -94,7 +107,9 @@ def _selected_files(
     return tuple(selected)
 
 
-def _candidate_path(root: Path, relative: str, *, excluded: bool, explicit: bool) -> bool:
+def _candidate_path(
+    root: Path, relative: str, *, excluded: bool, explicit: bool, canonical: bool = False
+) -> bool:
     raw, path = Path(relative), root / relative
     if (
         raw.is_absolute()
@@ -104,7 +119,7 @@ def _candidate_path(root: Path, relative: str, *, excluded: bool, explicit: bool
     ):
         message = f"source_format_path_invalid:{relative}"
         raise ValueError(message)
-    if excluded or raw.suffix.lower() not in _SUFFIXES:
+    if excluded or (raw.suffix.lower() not in _SUFFIXES and not canonical):
         if explicit:
             message = f"source_format_other_owner:{relative}"
             raise ValueError(message)
@@ -318,11 +333,14 @@ def _postimages(root: Path, selected: tuple[tuple[str, str], ...]) -> tuple[Form
     for relative, owner in selected:
         path = root / relative
         before, mode = path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
-        after, ignored = (
-            (list_spacing(relative, before) if owner == "prettier" else before, False)
-            if relative in clean
-            else render_source_content(root, relative, owner, before, node=node)
-        )
+        if owner == CANONICAL_TEXT:
+            after, ignored = canonical_text(before.decode("utf-8")).encode("utf-8"), False
+        else:
+            after, ignored = (
+                (list_spacing(relative, before) if owner == "prettier" else before, False)
+                if relative in clean
+                else render_source_content(root, relative, owner, before, node=node)
+            )
         prepared.append(FormattedFile(relative, before, after, mode, ignored))
     return tuple(prepared)
 

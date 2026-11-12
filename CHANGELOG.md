@@ -33,6 +33,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   Prettier alone kept a stray blank line, which made the whole list loose. A repository whose lists
   break the rule fails `markdown_list_spacing:<path>:<line>` until `ethos lane format --apply`
   repairs it in a Work Lane.
+- **Breaking:** the files that the format policy gives to `repository-canonical-text` (INI and
+  `.cfg` files, the Vale vocabularies, `LICENSE`, `VERSION`, `.editorconfig`, `.gitattributes`,
+  `.gitignore`, `.gitkeep`, `.shellcheckrc` and the CI supply's `Dockerfile` and `.dockerignore`)
+  now have an acting owner: no blank line at the start or the end, at most one in a row, and one
+  final newline. `ethos lane format` checks and repairs them, the source-format gate reports
+  `source_format_drift:<path>`, and `pre-commit` refuses `pre_commit_text_layout:<path>:<line>`. The
+  configuration reference lists the blank-line owner of every format.
 
 ### Fixed
 

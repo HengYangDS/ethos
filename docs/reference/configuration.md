@@ -173,6 +173,24 @@ configuration plane, not a truth center.
   configuration and supply files remain the unique owners of tool-specific
   policy and versions.
 
+## Blank lines by format
+
+One owner decides the blank lines of each authored format; `ethos lane format --check` and the
+formatting gates check them, and `ethos lane format --apply` repairs them in a Work Lane.
+
+| Format                                                                                                    | Owner                                   | Blank lines                                                                                                 |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Markdown                                                                                                  | Prettier, then the paradigm's list rule | One between blocks, never two; in a list, one only around an item's second paragraph and after such an item |
+| YAML, JSON, JavaScript                                                                                    | Prettier                                | At most one in a row; none at the start or the end                                                          |
+| TOML                                                                                                      | Taplo, `allowed_blank_lines = 1`        | At most one in a row; one final newline                                                                     |
+| Python                                                                                                    | Ruff                                    | Two around top-level definitions, one between methods                                                       |
+| CUE                                                                                                       | `cue fmt`                               | At most one in a row; none at the start or the end                                                          |
+| INI, `.cfg`, Vale vocabularies, `LICENSE`, `VERSION`, Git and editor dotfiles, the CI supply `Dockerfile` | The repository's canonical text         | At most one in a row; none at the start or the end; whitespace-only lines are empty                         |
+| Locks, CI projections, OpenSpec specs                                                                     | Their generator or official owner       | As generated                                                                                                |
+
+Every non-empty text file ends with one newline, and `pre-commit` refuses a staged Markdown or
+canonical-text file that breaks its rule.
+
 ## Root discovery and remaining migration boundaries
 
 Placement follows the actual consumer, not a blanket root-file exemption.

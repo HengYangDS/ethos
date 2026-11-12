@@ -203,6 +203,17 @@ def repository_carriers(root: Path, *, gate_ids: frozenset[str]) -> list[OwnerDe
     return [{**declaration, "priority": _CARRIER_PRIORITY} for declaration in declarations]
 
 
+def canonical_text_paths(paths: tuple[str, ...], configuration: Path) -> frozenset[str]:
+    """Name the paths that a `canonical-text` ownership row of the policy owns."""
+    config = tomllib.loads(configuration.read_text(encoding="utf-8"))
+    rows = [
+        item
+        for item in _ownership_declarations(config.get("ownership"))
+        if item.get("mutation_policy") == "canonical-text"
+    ]
+    return frozenset(path for path in paths if any(_owner_matches(path, row) for row in rows))
+
+
 def audit(
     root: Path,
     *,

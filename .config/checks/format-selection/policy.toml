@@ -139,8 +139,8 @@ mutation_policy = "native-formatter"
 id = "structured-ini"
 extensions = [".ini", ".cfg"]
 format_owner = "repository-canonical-text"
-format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
-format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "tool-native-parser"
 validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "canonical-text"
@@ -152,8 +152,8 @@ paths = [
   ".config/checks/vale/styles/config/vocabularies/*/reject.txt",
 ]
 format_owner = "repository-canonical-text"
-format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
-format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "vale"
 validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "canonical-text"
@@ -222,8 +222,8 @@ paths = [
   "**/.shellcheckrc",
 ]
 format_owner = "repository-canonical-text"
-format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
-format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "repository-hygiene"
 validation_command = "uv run --frozen --offline python -m nox -s repository_hygiene"
 mutation_policy = "canonical-text"
@@ -231,12 +231,12 @@ mutation_policy = "canonical-text"
 [[ownership]]
 id = "oci-ci-supply"
 paths = [".config/ci/supply/Dockerfile", ".config/ci/supply/Dockerfile.dockerignore"]
-format_owner = "docker-buildx"
-format_command = "not-applicable:native-containerfile"
-format_check = "docker buildx build --check --file .config/ci/supply/Dockerfile ."
+format_owner = "repository-canonical-text"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "docker-buildx"
 validation_command = "docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile ."
-mutation_policy = "authored-source"
+mutation_policy = "canonical-text"
 
 [[format]]
 extensions = [".py", ".pyi"]

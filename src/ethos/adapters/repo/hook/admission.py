@@ -111,9 +111,9 @@ def _pre_commit(
     import_module("ethos.adapters.repo.hook.staged_markdown").check_staged_markdown(
         root, index_env=index_env
     )
-    import_module("ethos.adapters.repo.hook.staged_text").check_staged_text(
-        root, index_env=index_env
-    )
+    staged_text = import_module("ethos.adapters.repo.hook.staged_text")
+    staged_text.check_staged_text(root, index_env=index_env)
+    staged_text.check_staged_packages(root, index_env=index_env)
     prewrite = import_module("ethos.adapters.admission.prewrite")
     paths = tuple(
         (root / path).as_posix()

@@ -40,6 +40,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   final newline. `ethos lane format` checks and repairs them, the source-format gate reports
   `source_format_drift:<path>`, and `pre-commit` refuses `pre_commit_text_layout:<path>:<line>`. The
   configuration reference lists the blank-line owner of every format.
+- **Breaking:** every tracked `__init__.py` that a repository authors opens with a docstring that
+  names its package's purpose. An empty marker, or one without a docstring, is the paradigm gap
+  `repository_paradigm_package_docstring:<path>`, and `pre-commit` refuses a staged one with
+  `pre_commit_package_docstring:<path>`. ETHOS has none.
 
 ### Fixed
 

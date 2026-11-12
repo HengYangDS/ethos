@@ -14,6 +14,8 @@ from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_attributes import received_paths
 from ethos.adapters.repo.hook.staged_size import staged_regular_files
+from ethos.repository.paradigm.packages import PACKAGE_MARKER
+from ethos.repository.paradigm.packages import opens_with_docstring
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.paradigm.text_layout import text_layout_violation
 
@@ -48,4 +50,25 @@ def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None)
             raise RuntimeError(message) from error
         if line is not None:
             message = f"pre_commit_text_layout:{path}:{line + 1}"
+            raise RuntimeError(message)
+
+
+def check_staged_packages(root: Path, *, index_env: Mapping[str, str] | None = None) -> None:
+    """Refuse a staged package marker whose index blob opens with no docstring."""
+    markers = tuple(
+        path
+        for path in staged_regular_files(root, index_env)
+        if path.rpartition("/")[2] == PACKAGE_MARKER and not path.startswith(RECORD_PREFIXES)
+    )
+    for path in sorted(set(markers) - received_paths(root, markers)):
+        try:
+            blob = run_git(
+                root, "show", f":{path}", text=False, timeout=seconds("git"), env=index_env
+            )
+            source = blob.stdout.decode("utf-8")
+        except (subprocess.CalledProcessError, UnicodeError) as error:
+            message = f"pre_commit_text_unreadable:{path}"
+            raise RuntimeError(message) from error
+        if not opens_with_docstring(source):
+            message = f"pre_commit_package_docstring:{path}"
             raise RuntimeError(message)

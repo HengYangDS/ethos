@@ -22,6 +22,7 @@ from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
 from ethos.repository.paradigm.orchestration import orchestration_gaps
+from ethos.repository.paradigm.packages import package_docstring_gaps
 from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.records import record_binding_gaps
@@ -87,6 +88,7 @@ def repository_paradigm_report(
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
+        *package_docstring_gaps(root, tracked - received),
         *parameters.gaps,
         *code_size_gaps(
             paradigm, root, tracked - received, parameters.values["size"]["code_effective_lines"]

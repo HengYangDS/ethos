@@ -40,3 +40,20 @@ def test_pre_commit_admits_the_canonical_text_layout(
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(bool(gap))
     error = capsys.readouterr().err
     assert (f"pre_commit_text_layout:{gap}" in error) if gap else not error
+
+
+@pytest.mark.parametrize(
+    ("source", "refused"),
+    [("", True), ("VALUE = 1\n", True), ('"""Application commands."""\n', False)],
+    ids=["empty", "code-first", "docstring"],
+)
+def test_pre_commit_admits_a_package_marker_only_with_a_docstring(
+    repo: Path, capsys: pytest.CaptureFixture[str], *, source: str, refused: bool
+) -> None:
+    """A staged `__init__.py` states its package's purpose before it is committed."""
+    (repo / "app").mkdir()
+    (repo / "app/__init__.py").write_text(source, encoding="utf-8")
+    assert git_process(repo, "add", "app/__init__.py").returncode == 0
+    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(refused)
+    error = capsys.readouterr().err
+    assert ("pre_commit_package_docstring:app/__init__.py" in error) == refused

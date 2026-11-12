@@ -14,6 +14,10 @@ do not create task state or replace repository authority.
 - Each governed skill has `SKILL.md`, `package.toml`, and an activation route.
 - `activation.toml` is routing metadata, not authority over source, tests, docs,
   OpenSpec, or evidence.
+- Each Skill here, and the packaged `ethos-repository-work` Skill, carries
+  `metadata.internal: "true"`, so skills.sh discovery (`npx skills add`) offers none of them.
+  The Skills here guide work on ETHOS itself; an adopter's agent reads the packaged Skill of the
+  ETHOS version it runs, at the path that `ethos status` reports.
 
 ## First-Glance Skill Routing
 

@@ -1,6 +1,8 @@
 ---
 name: ethos-repository-work
 description: Use installed ETHOS for repository formation or adoption, governed changes, quality, delivery, recovery and feedback; not ETHOS product implementation.
+metadata:
+  internal: "true"
 ---
 
 # ETHOS Repository Work

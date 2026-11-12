@@ -18,6 +18,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   report, lists the documented limits that are not vulnerabilities, and says that only a new
   release carries a fix.
 
+### Changed
+
+- The four maintainer Skills and the packaged `ethos-repository-work` Skill carry
+  `metadata.internal: "true"`, so `npx skills add HengYangDS/ethos` offers none of them; agents
+  read the Skill version that their installed ETHOS reports.
+
 ### Fixed
 
 - `ethos adopt --create` applies the plan that its preview showed when the preview and the apply

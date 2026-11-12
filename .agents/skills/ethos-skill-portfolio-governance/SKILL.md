@@ -1,6 +1,8 @@
 ---
 name: ethos-skill-portfolio-governance
 description: Use when creating, updating, routing, validating, projecting, or retiring ETHOS repo-local skills.
+metadata:
+  internal: "true"
 ---
 
 # ETHOS Skill Portfolio Governance

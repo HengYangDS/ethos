@@ -1,6 +1,8 @@
 ---
 name: ethos-adoption-profile-governance
 description: Use when applying ETHOS to another repository, changing its binding, capability projections, adapter boundaries, or cross-repository governance.
+metadata:
+  internal: "true"
 ---
 
 # ETHOS Adoption Binding Governance

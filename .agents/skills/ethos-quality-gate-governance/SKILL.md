@@ -1,6 +1,8 @@
 ---
 name: ethos-quality-gate-governance
 description: Use when changing ETHOS quality gates, CI, pre-commit hooks, lint, format, type checks, docstrings, coverage, config lint, or proof gate registry policy.
+metadata:
+  internal: "true"
 ---
 
 # ETHOS Quality Gate Governance

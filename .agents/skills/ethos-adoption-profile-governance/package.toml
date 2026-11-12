@@ -6,7 +6,7 @@ truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
 include = ["SKILL.md"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:3ffb30d987dd4a820852e9e37b29f481bd1c8636c05547c78350e44c6d4f9452"
+expected_digest = "sha256:2f35538957e6da2b89f553d01058bf1d5a37ef9f7c51df7812176f43aa9f66cb"
 
 [quality]
 placeholder_allowed = false

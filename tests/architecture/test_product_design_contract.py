@@ -304,3 +304,18 @@ def test_canonical_specs_have_no_native_validation_issues() -> None:
     assert all(item.get("valid") is True for item in items), items
     findings = [(item["id"], issue) for item in items for issue in item["issues"]]
     assert findings == [], findings
+
+
+def test_every_tracked_skill_is_internal_to_skills_sh_discovery() -> None:
+    """skills.sh offers no ETHOS Skill, so no host install fixes a version agents did not run."""
+    tracked = subprocess.run(
+        ("git", "ls-files", "--", "*SKILL.md"),
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert tracked
+    for relative in tracked:
+        metadata = front_matter(ROOT / relative).get("metadata") or {}
+        assert metadata.get("internal") == "true", relative

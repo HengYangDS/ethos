@@ -1,6 +1,8 @@
 ---
 name: ethos-repository-governance
 description: Use when governing repository truth, Work Lanes, proof, adoption, or closing accepted feedback and recurring failures.
+metadata:
+  internal: "true"
 ---
 
 # ETHOS Repository Governance

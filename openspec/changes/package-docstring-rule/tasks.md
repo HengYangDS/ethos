@@ -2,9 +2,14 @@
 
 ## 1. Package docstrings
 
-- [ ] 1.1 Report a package marker without a docstring in the paradigm and refuse it in
-      `pre-commit`, with the Breaking line. Done when an empty or docstring-less marker is reported
-      and refused, a marker with a docstring passes, and ETHOS has no gap.
+- [x] 1.1 Report a package marker without a docstring in the paradigm and refuse it in `pre-commit`,
+      with the Breaking line. Done when an empty or docstring-less marker is reported and refused, a
+      marker with a docstring passes, and ETHOS has no gap. Evidence: 29d1901fd adds
+      `repository/paradigm/packages.py`, joins it to the paradigm report and `pre-commit`, and adds
+      the Breaking line. The unit test could not import the module before the change (23:24:16 to
+      23:24:22) and its six markers passed after it (23:25:13 to 23:25:21 with the report, hook and
+      density tests, 90 passed; again 23:26:16 to 23:26:26); the in-lane function found no gap in
+      ETHOS's 97 markers.
 
 ## 2. Acceptance
 

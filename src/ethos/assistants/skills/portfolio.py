@@ -8,6 +8,7 @@ from stat import S_ISDIR
 from typing import Any
 from typing import cast
 
+from ethos.adapters.openspec.configuration import openspec_owned_skills
 from ethos.assistants.skills.capabilities import capability_command_strings
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skills.packages import validate_skill_package_manifest
@@ -20,6 +21,9 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
 
 SKILL_PACKAGE_FILE_LIMIT = 6
+# OpenSpec installs its skills in this shared folder and records there which are its own.
+_OPENSPEC_SHARED_SKILLS = Path(".agents/skills")
+_OPENSPEC_RECORD = ".openspec-target"
 INTENT_TOKEN_OWNER_LIMIT = 2
 
 
@@ -97,7 +101,7 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
         except OSError:
             registry_gaps.append(".agents/skills:unreadable")
         if not missing:
-            registry_gaps.extend(_unregistered_package_gaps(skills_root, registry))
+            registry_gaps.extend(_unregistered_package_gaps(profile.root, skills_root, registry))
     required_gaps = [*registry_gaps, *dict.fromkeys(record_gaps)]
     package_quality_gaps = list(
         dict.fromkeys(
@@ -129,11 +133,14 @@ def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, ob
     }
 
 
-def _unregistered_package_gaps(skills_root: Path, registry: dict[str, Any]) -> list[str]:
+def _unregistered_package_gaps(
+    root: Path, skills_root: Path, registry: dict[str, Any]
+) -> list[str]:
     """Name each package directory that neither an active record nor a retirement routes.
 
     A registry that lists only some packages would otherwise pass while the rest stay routed by
-    another owner.
+    another owner. In OpenSpec's shared folder, the packages that OpenSpec's own record owns are
+    routed to OpenSpec; OpenSpec is asked only when its record exists and a package is unrouted.
     """
     try:
         packages = sorted(path.parent.name for path in skills_root.glob("*/SKILL.md"))
@@ -146,9 +153,15 @@ def _unregistered_package_gaps(skills_root: Path, registry: dict[str, Any]) -> l
         if isinstance(record, dict)
     }
     retired = {str(skill_id) for skill_id in registry.get("retired") or {}}
-    return [
-        f"skill_package_unregistered:{name}" for name in packages if name not in routed | retired
-    ]
+    unrouted = [name for name in packages if name not in routed | retired]
+    if (
+        unrouted
+        and skills_root == root / _OPENSPEC_SHARED_SKILLS
+        and (skills_root / _OPENSPEC_RECORD).is_file()
+    ):
+        owned = openspec_owned_skills(root)
+        unrouted = [name for name in unrouted if name not in owned]
+    return [f"skill_package_unregistered:{name}" for name in unrouted]
 
 
 def _collect_skill_records(

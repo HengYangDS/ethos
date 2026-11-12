@@ -78,6 +78,8 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
             or not isinstance(payload.get("exists"), bool)
             or not isinstance(payload.get("safe"), bool)
             or not isinstance(payload.get("inputs"), list)
+            or not isinstance(payload.get("openspec_skills"), list)
+            or not all(isinstance(name, str) for name in payload["openspec_skills"])
             or not Path(payload["path"]).is_relative_to(target)
         ):
             return fallback | {"detail": completed.stderr or completed.stdout}
@@ -87,3 +89,11 @@ def official_config_report(root: Path, *, initialize: bool = False) -> dict[str,
     if payload["required_gaps"] and payload["verdict"] == "pass":
         payload["verdict"] = "block"
     return payload
+
+
+def openspec_owned_skills(root: Path) -> frozenset[str]:
+    """Name the shared skills that OpenSpec's own record owns, as OpenSpec reads that record.
+
+    An unavailable or refused observation names none, so every such package stays unrouted.
+    """
+    return frozenset(string_sequence(official_config_report(root).get("openspec_skills")))

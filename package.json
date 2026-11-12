@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "npm@12.2.2",
   "dependencies": {
-    "@fission-ai/openspec": "1.17.0",
+    "@fission-ai/openspec": "2.0.0",
     "c8": "12.0.0",
     "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1",

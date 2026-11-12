@@ -30,11 +30,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   which now also reads percent-encoded paths. Re-verifying an earlier redaction whose base held a
   crossing entry or a percent-encoded fed path now reports `redaction_unverified`; recorded
   attestations stay valid.
-- The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft
-  1.57.1, Grype 0.121.3 and the OpenSpec CLI 1.17.0. The declared floors of `fastmcp`,
-  `filelock`, `markdown-it-py`, `semver` and `ty` rise to their locked versions. Mise stays at
-  2026.10.25: while the CI supply image was built, `mise install --locked` under Mise 2026.11.6
-  refused the locked Python 3.14.10 archive for Linux arm64 on its checksum.
+- **Breaking:** the embedded OpenSpec CLI moves to 2.0.0. The owner took it before ETHOS's 24-hour
+  release age; that exception covers this package alone and lapses at 2026-11-12T22:41:44Z.
+  OpenSpec 2.0 installs its skills in `.agents/skills/` and records which are its own in
+  `.agents/skills/.openspec-target`, and the skill portfolio now routes those packages to
+  OpenSpec, as OpenSpec reads that record. A repository that keeps skill or command copies from
+  an older OpenSpec release runs `openspec update` once.
+- The locks take the newest stable releases at least 24 hours old, among them Go 1.27.4, Syft 1.57.1
+  and Grype 0.121.3. The declared floors of `fastmcp`, `filelock`, `markdown-it-py`, `semver` and
+  `ty` rise to their locked versions. Mise stays at 2026.10.25: while the CI supply image was built,
+  `mise install --locked` under Mise 2026.11.6 refused the locked Python 3.14.10 archive for Linux
+  arm64 on its checksum.
 
 ### Fixed
 

@@ -242,3 +242,36 @@ def test_a_package_that_no_record_routes_is_reported(tmp_path: Path) -> None:
 
     assert "skill_package_unregistered:unrouted" in gaps
     assert "skill_package_unregistered:routed" not in gaps
+
+
+@pytest.mark.parametrize(
+    ("record", "expected"),
+    [
+        ("claude\n", []),
+        ("claude\nkeep openspec-propose\n", ["skill_package_unregistered:openspec-propose"]),
+        (None, ["skill_package_unregistered:openspec-propose"]),
+    ],
+)
+def test_openspecs_record_routes_the_shared_skills_it_owns(
+    tmp_path: Path, record: str | None, expected: list[str]
+) -> None:
+    """OpenSpec's own record, read by OpenSpec, routes its skills; a kept one still needs a record.
+
+    Without the record nothing says the folder is OpenSpec's, so its packages stay unrouted.
+    """
+    skills = tmp_path / ".agents/skills"
+    write_file(skills / "README.md", "# Skills\n")
+    _package(tmp_path, "routed")
+    write_file(skills / "openspec-propose/SKILL.md", "---\nname: openspec-propose\n---\n")
+    write_file(
+        skills / "activation.toml",
+        '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
+        "[coverage]\nrequired_primary_subjects = []\nsingle_owner_subjects = []\n\n"
+        + _record("routed", package_manifest=".agents/skills/routed/package.toml"),
+    )
+    if record is not None:
+        write_file(skills / ".openspec-target", record)
+
+    gaps = skill_portfolio_report(tmp_path)["required_gaps"]
+
+    assert [gap for gap in gaps if gap.startswith("skill_package_unregistered")] == expected

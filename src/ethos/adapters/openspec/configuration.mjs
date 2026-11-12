@@ -20,6 +20,8 @@ const { resolveSchema, getSchemaDir, listSchemas, listSchemasWithInfo } = await 
   "core/artifact-graph/resolver.js",
 );
 const { loadTemplate } = await load("core/artifact-graph/instruction-loader.js");
+const { OPENSPEC_SKILL_NAMES } = await load("core/config.js");
+const { hasSkillToolList, readKeptSharedSkills } = await load("core/shared-skill-target.js");
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const inputs = new Map();
 const warnings = [];
@@ -38,6 +40,7 @@ const result = {
   context: "",
   rules: {},
   inputs: [],
+  openspec_skills: [],
 };
 
 function nativeBinding(relative) {
@@ -97,6 +100,24 @@ try {
   }
   nativeBinding(OPENSPEC_CONFIG_YAML);
   nativeBinding(OPENSPEC_CONFIG_YML);
+  // OpenSpec decides which shared skills are its own, from its record, read as an input.
+  const view = {
+    exists: (file) => {
+      try {
+        lstatSync(file);
+        return true;
+      } catch (error) {
+        if (error.code === "ENOENT") return false;
+        throw error;
+      }
+    },
+    read: (file) => new TextDecoder("utf-8", { fatal: true }).decode(material(file)),
+    isDirectory: (file) => lstatSync(file).isDirectory(),
+  };
+  const kept = readKeptSharedSkills(root, view);
+  result.openspec_skills = hasSkillToolList(root, view)
+    ? OPENSPEC_SKILL_NAMES.filter((name) => !kept.has(name))
+    : [];
   const selected = resolveConfigFilePath(root);
   result.exists = selected !== null;
   if (selected) {

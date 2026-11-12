@@ -37,6 +37,10 @@ if TYPE_CHECKING:
     from ethos.repository.policy.quality.format_selection import OwnerDeclaration
 
 
+# Retained records keep their bytes: no formatter or spacing rule reads them as authored input.
+RECORD_PREFIXES = ("evidence/", "docs/archive/", "openspec/changes/archive/")
+
+
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
     """Read current authored input through native Git without swallowing inventory failure.
 
@@ -75,7 +79,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
         for relative in paths or quality_source_files(root, *patterns)
         if relative not in foreign
         and relative not in generated
-        and not relative.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
+        and not relative.startswith(RECORD_PREFIXES)
         and not path_matches(relative, dependencies)
     ]
     if any(relative.endswith(".md") for relative in selected):

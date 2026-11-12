@@ -38,6 +38,7 @@ from ethos.adapters.repo.runtime.materialization.native_supply import resolve_na
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.markdown_spacing import spacing_violations
 from ethos.repository.policy.layout.report import module_layout_report
 from ethos.repository.release.resources import canonical_resource
 
@@ -504,8 +505,26 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
             quality_tool_report(root=root, gate_id=gate_id, tool=node, command=command, files=files)
             for gate_id, command in commands
         ],
+        _list_spacing_report(root, files),
     ]
     return _native_report("markdown-lint", files, native)
+
+
+def _list_spacing_report(root: Path, files: list[str]) -> dict[str, object]:
+    """Check every authored Markdown file, OpenSpec artifacts included, against the list rule."""
+    gaps = [
+        f"markdown_list_spacing:{relative}:{min(violations) + 1}"
+        for relative in files
+        if (violations := spacing_violations((root / relative).read_text(encoding="utf-8")))
+    ]
+    return {
+        "id": "markdown-list-spacing",
+        "verdict": "block" if gaps else "pass",
+        "state": "failed" if gaps else "passed",
+        "required_gaps": gaps,
+        "files": files,
+        "file_count": len(files),
+    }
 
 
 def _native_formatter_owners(root: Path, files: list[str]) -> tuple[tuple[str, str], ...]:

@@ -26,6 +26,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The repository paradigm requires `.config/mise/mise.lock` only when `.config/mise/config.toml`
   selects a tool; mise writes no lock for a configuration that only declares tasks. The paradigm
   and the gates share this rule.
+- **Breaking:** Markdown lists follow one blank-line rule, which the Markdown format, its check, the
+  Markdown gate and `pre-commit` share for every authored Markdown file: a list item with one
+  paragraph is followed directly by the next item, and a block follows the paragraph that
+  introduces it directly; only an item with two or more paragraphs is followed by a blank line.
+  Prettier alone kept a stray blank line, which made the whole list loose. A repository whose lists
+  break the rule fails `markdown_list_spacing:<path>:<line>` until `ethos lane format --apply`
+  repairs it in a Work Lane.
 
 ### Fixed
 

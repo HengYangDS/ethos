@@ -76,7 +76,8 @@ configuration plane, not a truth center.
   `.config/checks/shellcheck/.shellcheckrc` stays as the paradigm's declared ShellCheck carrier,
   the place an adopter's ShellCheck policy belongs.
 - `.config/checks/prettier/prettier.toml` owns Markdown spacing, container layout
-  and formatting style; `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns
+  and formatting style, except the blank lines in lists, which the paradigm's one list rule
+  decides after Prettier runs; `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns
   non-formatting document and link semantics, plus the spacing and style rules of
   official OpenSpec Markdown, which has no formatter. The `markdown_lint` Nox session
   projects the shared product gate and its shipped, lock-bound native tools.
@@ -117,13 +118,11 @@ configuration plane, not a truth center.
   their required sections; `tools/ci/ci_projection.py` checks them. CUE compiler inputs keep
   their native carriers: a string reference stays TOML, and a typed reference names an exact
   `path` and `format`:
-
   ```toml
   [compiler.inputs]
   policy = "policy.toml"
   package = { path = "package.json", format = "json" }
   ```
-
 - `python -m tools.ci.ci_projection` validates GitHub workflows through locked
   Actionlint and finite-input ShellCheck, without a shell launcher. Native policy
   and supply remain under `.config/mise/config.toml`, `.config/mise/mise.lock`

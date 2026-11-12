@@ -27,6 +27,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.repository.paradigm.markdown_spacing import canonical_spacing
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import canonical_resource
 
@@ -190,7 +191,14 @@ def _prettier(
     if any(value != rendered[0] for value in rendered[1:]):
         message = f"native_formatter_policy_conflict:{relative}"
         raise ValueError(message)
-    return rendered[0], False
+    return list_spacing(relative, rendered[0]), False
+
+
+def list_spacing(relative: str, content: bytes) -> bytes:
+    """Apply the paradigm's Markdown list rule to a Markdown postimage; other text is kept."""
+    if not relative.endswith(".md"):
+        return content
+    return canonical_spacing(content.decode("utf-8")).encode("utf-8")
 
 
 def render_source_content(
@@ -311,7 +319,7 @@ def _postimages(root: Path, selected: tuple[tuple[str, str], ...]) -> tuple[Form
         path = root / relative
         before, mode = path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
         after, ignored = (
-            (before, False)
+            (list_spacing(relative, before) if owner == "prettier" else before, False)
             if relative in clean
             else render_source_content(root, relative, owner, before, node=node)
         )

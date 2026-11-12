@@ -37,7 +37,8 @@ def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_conf
     report = gate_tool.markdown_lint_report(tmp_path)
     assert report["verdict"] == "block"
     native = report["native"]
-    assert len(native) == 3
+    assert len(native) == 4
+    assert native[3]["id"] == "markdown-list-spacing"
     assert native[2]["command"][3] == str(config)
     assert all(item["file_count"] == 1 for item in native)
     assert "MD042" in native[1]["stderr"]
@@ -99,23 +100,24 @@ def test_common_markdown_policy_accepts_native_formatter_container_layout(
     assert "MD042" in semantic["native"][1]["stderr"]
 
 
-def test_the_shared_formatter_keeps_a_loose_list_and_its_rendered_meaning(
+def test_the_markdown_format_tightens_a_list_of_one_paragraph_items(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Prettier alone lays Markdown out: two passes reach a fixed point that renders as authored."""
+    """Prettier keeps a stray blank line between one-paragraph items; the list rule removes it."""
     document = tmp_path / "README.md"
     authored = b"# Steps\n- First.\n\n\n- Second.\n\n- Third.\n"
     document.write_bytes(authored)
     _quality_files(monkeypatch, "README.md")
-    assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "block"
+    refused = gate_tool.markdown_lint_report(tmp_path)
+    assert refused["verdict"] == "block"
+    assert "markdown_list_spacing:README.md:5" in refused["required_gaps"]
     assert document.read_bytes() == authored
 
     first, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", authored)
     second, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", first)
 
-    assert first == second == b"# Steps\n\n- First.\n\n- Second.\n\n- Third.\n"
+    assert first == second == b"# Steps\n\n- First.\n- Second.\n- Third.\n"
     render = MarkdownIt("commonmark").render
-    assert render(first.decode()) == render(authored.decode())
-    assert render(first.decode()) != render("# Steps\n\n- First.\n- Second.\n- Third.\n")
+    assert "<p>" not in render(first.decode()).split("</h1>", 1)[1]
     document.write_bytes(first)
     assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "pass"

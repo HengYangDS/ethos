@@ -29,7 +29,7 @@ def check_staged_sizes(root: Path, *, index_env: Mapping[str, str] | None = None
     paradigm = load_repository_paradigm()
     languages = {
         path: language
-        for path in _staged_files(root, index_env)
+        for path in staged_regular_files(root, index_env)
         if (language := paradigm.language_of(path)) is not None
     }
     ceiling = parameter("size", "code_effective_lines")
@@ -47,7 +47,7 @@ def check_staged_sizes(root: Path, *, index_env: Mapping[str, str] | None = None
             raise RuntimeError(message)
 
 
-def _staged_files(root: Path, index_env: Mapping[str, str] | None) -> tuple[str, ...]:
+def staged_regular_files(root: Path, index_env: Mapping[str, str] | None) -> tuple[str, ...]:
     """Return the regular files that the index adds, copies, modifies, renames or retypes."""
     completed = run_git(
         root,

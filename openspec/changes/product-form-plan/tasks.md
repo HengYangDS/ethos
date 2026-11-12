@@ -2,11 +2,14 @@
 
 ## 1. Plan
 
-- [ ] 1.1 Insert the section `Product Form And First Hour` into
+- [x] 1.1 Insert the section `Product Form And First Hour` into
       `docs/plans/terminal-governance-product-design.md`, after `0.2.0 Release Candidate Order` and
       before `Immediate Dependencies`. Done when it adds D2's budgets to A17's acceptance, D7's bump
       after C3, the first-hour Changes' prerequisites and the export's direction, cites this
-      Change's design by name, and Prettier and Vale pass on the plan.
+      Change's design by name, and Prettier and Vale pass on the plan. `f5bedcebd` inserts the
+      section after `0.2.0 Release Candidate Order`, with D2's budgets in A17's acceptance, D7's
+      bump after C3, the first-hour prerequisites with A7 before N1 and the export's direction,
+      citing `product-form-plan`; Prettier and Vale passed in the commit's checks.
 
 ## 2. Acceptance
 

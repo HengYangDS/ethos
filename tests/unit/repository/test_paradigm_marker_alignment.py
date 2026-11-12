@@ -77,3 +77,15 @@ def test_a_marker_without_a_key_is_unkeyed_and_a_broken_one_is_malformed() -> No
 def test_only_a_run_of_hexadecimal_labels_can_be_a_malformed_marker(line: str, count: int) -> None:
     """A placeholder or a bare suffix describes a marker; an uppercase or long label breaks one."""
     assert malformed_markers(line) == count
+
+
+@pytest.mark.parametrize("span", ["team%2Finfra%2Ftools", "team%2finfra%2ftools.git", f"{F1}!42"])
+def test_a_marker_pairs_over_an_encoded_path_or_a_citation(span: str) -> None:
+    """A marker may stand over a percent-encoded path or a merge-request citation, keyed or not."""
+    path = span.replace("%2F", "/").replace("%2f", "/")
+    keyed = marker(KEY, "path", path=path)
+    assert alignment(f"see {span} here", f"see {keyed} here") == (span,)
+    image = "\0".join((VERSION, "path", "", "", path.removesuffix(".git").lower())).encode()
+    digest = hashlib.sha256(image).hexdigest()
+    assert unkeyed(f"{digest[:32]}.{digest[32:]}.private-peer.invalid", span)
+    assert not unkeyed(keyed, span)

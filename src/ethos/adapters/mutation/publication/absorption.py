@@ -6,14 +6,13 @@ deletion, so this listing grants nothing.
 
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
+from ethos.adapters.mutation.publication.observation import observe_remote_namespaces
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -27,7 +26,8 @@ def absorbed_proposals(
     """Return each moved peer's proposals that the published head preserves, and unlisted peers.
 
     A peer counts as moved when the effect set its accepted branch; preservation is judged by the
-    contribution observer that proposal retirement admits, so patch equivalence never counts.
+    contribution observer that proposal retirement admits, so patch equivalence never counts. The
+    peer's proposal namespace is listed through the one bounded peer observer.
     """
     policy = load_branch_role_policy(root)
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
@@ -45,20 +45,14 @@ def absorbed_proposals(
         )
         if not head:
             continue
-        try:
-            listing = git.run_network_git(
-                root, "ls-remote", target.remote, f"{namespace}*", timeout=seconds("git")
-            )
-        except (subprocess.TimeoutExpired, git.GitExecutionError, OSError):
-            listing = None
-        if listing is None or listing.returncode:
+        listing = observe_remote_namespaces(root, target.remote, (f"{namespace}*",))
+        if listing.failure is not None:
             unobserved.append(target.id)
             continue
-        rows = (line.split() for line in listing.stdout.splitlines())
         refs = sorted(
-            row[1]
-            for row in rows
-            if len(row) == 2 and row[1].startswith(namespace) and _preserved(root, row[0], head)
+            ref
+            for ref, tip in listing.refs.items()
+            if ref.startswith(namespace) and _preserved(root, tip, head)
         )
         if refs:
             absorbed[target.id] = refs

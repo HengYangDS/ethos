@@ -12,6 +12,8 @@ from ethos.adapters.mutation.accepted.signature import repair_signature
 from ethos.adapters.mutation.paradigm_repair import repair_paradigm
 from ethos.adapters.mutation.projection import project_repository
 from ethos.adapters.mutation.source_format import format_source
+from ethos.adapters.repo.commit.rebuild.census import rebuild_census
+from ethos.adapters.repo.commit.rebuild.readiness import rebuild_readiness
 from ethos.adapters.repo.trust_anchor.authorization import authorize_configured_commit_signer
 from ethos.application.catalog import standard_input
 from ethos.application.lane.result import lane_result
@@ -22,6 +24,7 @@ from ethos.contracts.operations.lane_repair import RedactRequest
 from ethos.contracts.operations.lane_repair import RepairParadigmRequest
 from ethos.contracts.operations.lane_repair import RepairSignatureRequest
 from ethos.contracts.operations.lane_repair import TrustCommitSignerRequest
+from ethos.contracts.outcome import require
 from ethos.contracts.semantic import parse_semantic_json
 from ethos.result import EthosResult
 
@@ -94,6 +97,7 @@ def repair_lane_signature(root: Path, request: RepairSignatureRequest) -> EthosR
     digest = ""
     report: dict[str, object]
     try:
+        require(request.expect_head is not None, "expect_head_required")
         corrections, digest = _corrections(request)
         report = repair_signature(
             root=root,
@@ -120,6 +124,18 @@ def repair_lane_signature(root: Path, request: RepairSignatureRequest) -> EthosR
             given = (digest, "--reason", request.reason, "--backup", str(request.backup.absolute()))
             report["next_action"] = f"{report['next_action']} {shlex.join((*bound, *given))}"
     return lane_result("lane repair-signature", report)
+
+
+def count_lane_identity(root: Path, _request: RepairSignatureRequest) -> EthosResult:
+    """Count trailers and peer identity forms by ref class, with no record and no key."""
+    return lane_result("lane repair-signature", rebuild_census(root))
+
+
+def judge_lane_rebuild(root: Path, request: RepairSignatureRequest) -> EthosResult:
+    """Report a history rebuild's readiness from its record and the key on standard input."""
+    record = str(request.rebuild or "")
+    report = rebuild_readiness(root, record=record, key=standard_input())
+    return lane_result("lane repair-signature", report, fields=("head", "counts", "retained"))
 
 
 def redact_lane_peers(root: Path, request: RedactRequest) -> EthosResult:

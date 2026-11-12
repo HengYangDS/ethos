@@ -84,6 +84,8 @@ IMPLEMENTATIONS = {
     "lane repair-paradigm": f"{_REPAIR}:repair_lane_paradigm",
     "lane trust-commit-signer": f"{_REPAIR}:trust_lane_signer",
     "lane repair-signature": f"{_REPAIR}:repair_lane_signature",
+    "lane.repair-signature.census": f"{_REPAIR}:count_lane_identity",
+    "lane.repair-signature.rebuild.preview": f"{_REPAIR}:judge_lane_rebuild",
     "lane redact private-addresses": f"{_REPAIR}:redact_lane_peers",
     "lane retire abandon": f"{_RETIRE}:derive_abandonment",
     "lane.retire.abandon.receipt.preview": f"{_RETIRE}:abandon_by_receipt",

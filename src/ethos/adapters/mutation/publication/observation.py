@@ -1,17 +1,36 @@
-"""Observe exact remote publication refs without inventing missing facts."""
+"""Observe a peer's exact publication refs, or every ref under its namespaces, inventing no fact.
+
+One bounded `ls-remote` answers each request. A failure keeps its exact command, cwd and exit or
+timeout state, and never the peer's stderr, which can echo a private host or path. An observation
+returns states and records nothing; the commands with write authority record what they observe.
+"""
 
 from __future__ import annotations
 
 import subprocess
+from dataclasses import dataclass
+from dataclasses import field
+from fnmatch import fnmatchcase
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.process import stream_text
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class RemoteListing:
+    """A peer's refs under the requested patterns, or the failure that left them unknown.
+
+    A tag's peeled commit is listed as `<ref>^{}`.
+    """
+
+    refs: Mapping[str, str] = field(default_factory=dict)
+    failure: Mapping[str, object] | None = None
 
 
 def observe_remote_ref(root: Path, remote: str, ref: str) -> dict[str, object]:
@@ -26,38 +45,10 @@ def observe_remote_refs(
     refs = tuple(dict.fromkeys(refs))
     if not refs:
         return {}
-    zero = zero_oid(root)
     patterns = (*refs, *(f"{ref}^{{}}" for ref in refs if ref.startswith("refs/tags/")))
-    args = ("ls-remote", remote, *patterns)
-    failure: dict[str, object]
-    bound = seconds("git")
-    try:
-        completed = git.run_network_git(root, *args, timeout=bound)
-    except subprocess.TimeoutExpired as error:
-        failure = {
-            "reason": "timeout",
-            "command": list(error.cmd),
-            "stderr": stream_text(error.stderr).strip(),
-        }
-    except git.GitExecutionError as error:
-        failure = {"reason": error.code, "command": ["git", *args], "stderr": error.reason}
-    else:
-        rows = tuple(line.split() for line in completed.stdout.splitlines() if line.strip())
-        values = {row[1]: row[0] for row in rows if len(row) == 2}
-        ambiguous = (
-            len(values) != len(rows)
-            or bool(set(values) - set(patterns))
-            or any(ref.endswith("^{}") and ref[:-3] not in values for ref in values)
-        )
-        if completed.returncode == 0 and not ambiguous:
-            return _present_refs(root, remote, refs, values, zero)
-        reason = "ls_remote_failed" if completed.returncode else "remote_ref_observation_ambiguous"
-        failure = {
-            "reason": reason,
-            "exit_code": completed.returncode or 1,
-            "command": list(completed.args),
-            "stderr": completed.stderr.strip() if completed.returncode else reason,
-        }
+    listed = _advertisement(root, remote, patterns, exact=True)
+    if listed.failure is None:
+        return _present_refs(root, remote, refs, listed.refs, zero_oid(root))
     return {
         ref: {
             "kind": "git_remote_ref_observation",
@@ -67,16 +58,62 @@ def observe_remote_refs(
             "object_oid": "",
             "peeled_commit": "",
             "tree_oid": "",
-            "cwd": root.resolve().as_posix(),
-            "timeout_seconds": bound,
-            **failure,
+            **listed.failure,
         }
         for ref in refs
     }
 
 
+def observe_remote_namespaces(root: Path, remote: str, patterns: tuple[str, ...]) -> RemoteListing:
+    """List every ref one peer advertises that a glob pattern matches whole; none lists all."""
+    return _advertisement(root, remote, patterns, exact=False)
+
+
+def _advertisement(
+    root: Path, remote: str, patterns: tuple[str, ...], *, exact: bool
+) -> RemoteListing:
+    """Run one bounded `ls-remote` and parse it; an exact request admits no other ref."""
+    args = ("ls-remote", remote, *patterns)
+    bound = seconds("git")
+    boundary: dict[str, object] = {"cwd": root.resolve().as_posix(), "timeout_seconds": bound}
+    try:
+        completed = git.run_network_git(root, *args, timeout=bound)
+    except subprocess.TimeoutExpired as error:
+        return RemoteListing(failure={"reason": "timeout", "command": list(error.cmd), **boundary})
+    except git.GitExecutionError as error:
+        return RemoteListing(failure={"reason": error.code, "command": ["git", *args], **boundary})
+    values = _rows(completed, patterns, exact=exact)
+    if values is not None:
+        return RemoteListing(refs=values)
+    reason = "ls_remote_failed" if completed.returncode else "remote_ref_observation_ambiguous"
+    exit_code = completed.returncode or 1
+    command = list(completed.args)
+    return RemoteListing(
+        failure={"reason": reason, "exit_code": exit_code, "command": command, **boundary}
+    )
+
+
+def _rows(
+    completed: subprocess.CompletedProcess[str], patterns: tuple[str, ...], *, exact: bool
+) -> dict[str, str] | None:
+    """Parse an advertisement; a failed run, a repeated or malformed row or a stray ref is None.
+
+    An exact request admits no other ref; a namespace listing keeps the refs a pattern matches
+    whole, since `ls-remote` also matches a pattern against the tail of a longer ref.
+    """
+    rows = tuple(line.split() for line in completed.stdout.splitlines() if line.strip())
+    values = {row[1]: row[0] for row in rows if len(row) == 2}
+    stray = exact and bool(set(values) - set(patterns))
+    unpeeled = any(ref.endswith("^{}") and ref[:-3] not in values for ref in values)
+    if completed.returncode or len(values) != len(rows) or stray or unpeeled:
+        return None
+    if exact or not patterns:
+        return values
+    return {ref: oid for ref, oid in values.items() if any(fnmatchcase(ref, p) for p in patterns)}
+
+
 def _present_refs(
-    root: Path, remote: str, refs: tuple[str, ...], values: dict[str, str], zero: str
+    root: Path, remote: str, refs: tuple[str, ...], values: Mapping[str, str], zero: str
 ) -> dict[str, dict[str, object]]:
     """Project present and absent refs, resolving each advertised commit tree once."""
     trees = {zero: zero}
@@ -95,6 +132,5 @@ def _present_refs(
             "peeled_commit": peeled,
             "tree_oid": trees[peeled],
             "exit_code": 0,
-            "stderr": "",
         }
     return observations

@@ -15,11 +15,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
+from ethos.adapters.repo.key_generation import REDACTION as PREDICATE
+from ethos.adapters.repo.key_generation import require_generation
 from ethos.adapters.repo.peer_feed import local_feed
 from ethos.contracts.outcome import refusal
 from ethos.contracts.outcome import refuse
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
-PREDICATE = "redaction:private-peer"
 _BLOBS = frozenset({b"100644", b"100755"})
 
 
@@ -108,7 +108,7 @@ def _apply(
     head = current_tracked_head(root)
     if expect_head != head:
         refuse("expect_head_mismatch")
-    _require_generation(root, secret, rotate=rotate)
+    require_generation(root, secret, rotate=rotate)
     roots = effective_record_roots(load_repository_profile(root))
     texts = _texts(root, head)
     manual = [
@@ -171,7 +171,7 @@ def _verify(
             "state": "unknown",
             "required_gaps": ["redaction_base_missing"],
         }
-    _require_generation(root, secret, rotate=rotate)
+    require_generation(root, secret, rotate=rotate)
     base_commit, head_commit = commits
     roots = effective_record_roots(load_repository_profile(root))
     before, after = _texts(root, base_commit), _texts(root, head_commit)
@@ -282,18 +282,6 @@ def _commit(root: Path, revision: str) -> str:
 
 def _digest(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
-
-
-def _require_generation(root: Path, key: bytes, *, rotate: bool) -> None:
-    """Refuse a key of another generation than the last recorded one, unless rotating."""
-    _set_root, members = read_attestation_set(root)
-    recorded = sorted(
-        (member for member in members if member.predicate == PREDICATE),
-        key=lambda member: member.issued_at,
-    )
-    last = recorded[-1].payload.body.get("generation") if recorded else None
-    if last is not None and last != generation(key) and not rotate:
-        refuse("redaction_key_generation_changed")
 
 
 def _attestation(head: str, body: Mapping[str, object]) -> Attestation:

@@ -46,6 +46,20 @@ validation_command = "ethos prove --gate openspec --json"
 semantic_companions = ["markdownlint-cli2", "repository-hygiene"]
 mutation_policy = "official-owner-only"
 
+# The one Change-local record that the paradigm declares beside a Change's official artifacts
+# (`rebuild.toml`) is hand-authored TOML: Taplo formats it in an active Change, and it is immutable
+# once its Change archives.
+[[ownership]]
+id = "rebuild-record"
+priority = 110
+paths = ["openspec/changes/*/rebuild.toml", "openspec/changes/archive/*/rebuild.toml"]
+format_owner = "taplo"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
+validation_owner = "taplo"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "native-formatter"
+
 [[ownership]]
 id = "archived-openspec-yaml"
 priority = 100

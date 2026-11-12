@@ -289,10 +289,8 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
             if reason == "timeout":
                 assert observed["command"] == list(command)
                 assert observed["cwd"] == repo.resolve().as_posix()
-                assert (observed["timeout_seconds"], observed["stderr"]) == (
-                    30,
-                    "transport stalled",
-                )
+                assert observed["timeout_seconds"] == 30
+                assert "stderr" not in observed
                 assert (observed["peeled_commit"], observed["tree_oid"]) == ("", "")
     store = local_state_root(repo) / "requests/publication"
     store.mkdir(parents=True)

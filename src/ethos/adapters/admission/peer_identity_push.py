@@ -13,13 +13,12 @@ import re
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from ethos.adapters.mutation.publication.observation import observe_remote_namespaces
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git import run_network_git
 from ethos.adapters.repo.invocation_facts import invocation_fact
 from ethos.adapters.repo.peer_feed import local_feed
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.paradigm.peer_identity import replacement_spans
 
 if TYPE_CHECKING:
@@ -82,13 +81,10 @@ def _advertised(repo: Path, remote: str) -> tuple[str, ...] | None:
 
 
 def _ls_remote(repo: Path, remote: str) -> tuple[str, ...] | None:
-    listed = run_network_git(repo, "ls-remote", remote, timeout=seconds("git"))
-    if listed.returncode:
-        return None
+    """Read the whole advertisement through the one bounded peer observer."""
+    listed = observe_remote_namespaces(repo, remote, ())
     # A peeled `^{}` row names the commit an annotated tag points at, which is excluded as well.
-    return tuple(
-        dict.fromkeys(line.split("\t", 1)[0] for line in listed.stdout.splitlines() if line)
-    )
+    return None if listed.failure is not None else tuple(dict.fromkeys(listed.refs.values()))
 
 
 def _tracking(repo: Path, remote: str) -> tuple[str, ...]:

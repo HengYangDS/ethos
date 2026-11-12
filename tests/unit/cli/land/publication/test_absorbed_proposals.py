@@ -7,7 +7,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos.adapters.mutation.publication.absorption as absorption
+import ethos.adapters.mutation.publication.observation as observation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
@@ -71,14 +71,14 @@ def test_an_unreadable_proposal_listing_is_reported_not_read_as_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, head = accepted_with_proposals(tmp_path)
-    network = absorption.git.run_network_git
+    network = observation.git.run_network_git
 
     def unavailable_listing(root, *args, **kwargs):
         if args[:2] == ("ls-remote", "github") and args[-1].endswith("*"):
             raise subprocess.TimeoutExpired(("git", *args), 30)
         return network(root, *args, **kwargs)
 
-    monkeypatch.setattr(absorption.git, "run_network_git", unavailable_listing)
+    monkeypatch.setattr(observation.git, "run_network_git", unavailable_listing)
 
     applied = publish_dev(repo, head)
 

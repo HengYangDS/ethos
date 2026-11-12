@@ -74,6 +74,8 @@ _LISTING_OPTIONS = {
     "github": ("--limit", "20", "--json", "number,state,headRefName,headRefOid"),
     "gitlab": ("--per-page", "20", "--output", "json"),
 }
+# The refs each provider's peer keeps for its reviews' heads, as glob patterns a listing reads.
+REVIEW_HEADS = tuple(keys[-1].format("*") for _listing, keys in _REVIEW_LISTINGS.values())
 
 
 def observe_proposal_review(

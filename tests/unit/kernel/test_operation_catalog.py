@@ -41,6 +41,7 @@ _UNMATCHED = {
     "adopt": 23,
     "lane candidate": 2,
     "lane redact private-addresses": 1,
+    "lane repair-signature": 1,
 }
 # The one write without an authorization token, a named exemption that A8 retires.
 _TOKENLESS = "hook.install"
@@ -59,7 +60,7 @@ _SDK = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 102
+    assert len(identities) == len(set(identities)) == 104
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields

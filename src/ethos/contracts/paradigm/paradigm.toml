@@ -379,6 +379,9 @@ signature = "ssh"
 # follow them.
 [openspec]
 artifact_schema = "spec-driven"
+# The one Change-local record that ETHOS reads in a Change's directory beside the official
+# artifacts: a history rebuild's `rebuild.toml`, which moves with its Change when it archives.
+change_record = "rebuild.toml"
 
 [openspec.rules]
 proposal = [

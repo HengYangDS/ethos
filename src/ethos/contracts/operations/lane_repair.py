@@ -3,7 +3,10 @@
 `project` and `format` regenerate declared native output and source formatting, `repair-paradigm`
 repairs repository paradigm gaps, `trust-commit-signer` and `repair-signature` correct signing
 authority and accepted history, and `redact private-addresses` redacts protected peer identity in
-a lane's records. Each apply writes only what its preview reported.
+a lane's records. Each apply writes only what its preview reported. `repair-signature` also counts
+identity without a record or a key (`--census`) and reports a history rebuild's readiness from its
+record and the key on standard input (`--rebuild`), each read-only and selected before its
+signature modes, which alone take a head.
 """
 
 from pathlib import Path
@@ -62,14 +65,17 @@ class TrustCommitSignerRequest(CommandRequest):
 
 
 class RepairSignatureRequest(CommandRequest):
-    """Repair accepted signatures, or selected historical identities, keeping verified originals."""
+    """Repair accepted signatures or historical identities, or judge a history rebuild."""
 
-    expect_head: ExpectHead
+    expect_head: ExpectHead = None
     replacement: str = described("", "The re-signed commit that replaces the accepted tip.")
     corrections: Path | None = described(None, "A JSON file of the identity corrections to make.")
     corrections_sha256: str = described("", "The SHA-256 of the corrections the preview read.")
     reason: Reason = ""
     backup: Path | None = described(None, "Where the verified originals are kept.")
+    rebuild: Path | None = described(None, "The `rebuild.toml` of the Change that authorizes it.")
+    key_stdin: bool = switch("Read the rebuild key from standard input.")
+    census: bool = switch("Count trailers and identity forms by ref class, with no record or key.")
     apply: Apply = False
     authorize: Authorize = False
 
@@ -141,12 +147,30 @@ REPAIR_SIGNATURE = Command(
     name="lane repair-signature",
     summary="Repair accepted signatures or selected historical identities with verified originals.",
     request=RepairSignatureRequest,
-    operations=modes(
-        "lane.repair-signature",
-        "Observe the repair, or recover a partial one, and name the request that applies it.",
-        "Rewrite the accepted history as previewed, keeping the verified originals.",
-        request="expect_head replacement corrections corrections_sha256 reason backup",
-        authorization="authorize",
+    stdin_limit=_KEY_CHARACTERS + 1,
+    stdin="key_stdin",
+    operations=(
+        operation(
+            "lane.repair-signature.census",
+            "Count trailers and peer identity forms by ref class, with no record and no key.",
+            select="census=true",
+            effects="read",
+        ),
+        operation(
+            "lane.repair-signature.rebuild.preview",
+            "Report a history rebuild's readiness by count and fixed gap, writing nothing.",
+            select="census=false rebuild=set apply=false",
+            request="key_stdin",
+            effects="read remote-read",
+        ),
+        *modes(
+            "lane.repair-signature",
+            "Observe the repair, or recover a partial one, and name the request that applies it.",
+            "Rewrite the accepted history as previewed, keeping the verified originals.",
+            select="census=false rebuild=unset",
+            request="expect_head replacement corrections corrections_sha256 reason backup",
+            authorization="authorize",
+        ),
     ),
 )
 REDACT = Command(

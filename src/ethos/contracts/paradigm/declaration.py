@@ -280,11 +280,15 @@ class OpenSpecRules(BaseModel):
 
 
 class OpenSpecConventions(BaseModel):
-    """The artifact schema every governed repository selects and its common artifact rules."""
+    """The selected artifact schema, the common artifact rules and the one Change-local record.
+
+    The record is the file that ETHOS reads in a Change's directory beside its official artifacts.
+    """
 
     model_config = _DECLARATION
 
     artifact_schema: Literal["spec-driven"]
+    change_record: str = Field(pattern=r"^[a-z0-9-]+\.toml$")
     rules: OpenSpecRules
 
 

@@ -1,9 +1,14 @@
-"""Select exact official Change bootstrap artifacts without claiming existing intent."""
+"""Select exact official Change bootstrap artifacts without claiming existing intent.
+
+While its planning is partial, a Change may also write the one Change-local record that the
+paradigm declares beside its official artifacts.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
@@ -60,7 +65,8 @@ def _active_bootstrap_artifacts(
     if f"openspec_status_incomplete:{change}" not in string_sequence(official.get("required_gaps")):
         return _tracked_task_repair(root, official, change, paths)
     change_root = active_change_root(change)
-    outputs = [f"{change_root}/.openspec.yaml"]
+    record = load_repository_paradigm().openspec.change_record
+    outputs = [f"{change_root}/.openspec.yaml", f"{change_root}/{record}"]
     ready = ""
     for artifact in artifacts:
         if not isinstance(artifact, dict):

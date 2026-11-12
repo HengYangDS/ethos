@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 
 GitObjectKind = Literal["commit", "annotated-tag"]
+ObjectType = Literal["blob", "commit", "tag", "tree"]
 
 _SIGNATURE_HEADERS = (b"gpgsig ", b"gpgsig-sha256 ")
 _SIGNATURE_ARMOR_FORMATS = {
@@ -250,7 +251,7 @@ def read_objects(
     repo: Path,
     object_ids: tuple[str, ...],
     *,
-    kind: Literal["blob", "commit"] | tuple[Literal["blob", "commit"], ...] = "blob",
+    kind: ObjectType | tuple[ObjectType, ...] = "blob",
     gap: str = "git_object_batch_invalid",
     environment: Mapping[str, str] | None = None,
 ) -> tuple[bytes, ...]:
@@ -316,6 +317,29 @@ def resolve_revisions(
             repo, revisions, environment=environment
         ).items()
     }
+
+
+def object_types(repo: Path, objects: tuple[str, ...]) -> dict[str, str]:
+    """Return each present object's native type from one batch; a missing object refuses."""
+    resolved = _resolve_objects(repo, objects)
+    if not all(kind for _oid, kind in resolved.values()):
+        message = "git_revision_batch_invalid"
+        raise ValueError(message)
+    return {revision: kind for revision, (_oid, kind) in resolved.items()}
+
+
+def tag_message(payload: bytes) -> bytes:
+    """Return an annotated tag's message without the signature appended to it.
+
+    As in Git, the signature begins at the last line that opens an armor known here.
+    """
+    message = payload.partition(b"\n\n")[2]
+    cut, offset = len(message), 0
+    for line in message.split(b"\n"):
+        if line.startswith(tuple(_SIGNATURE_ARMOR_FORMATS)):
+            cut = offset
+        offset += len(line) + 1
+    return message[:cut]
 
 
 def _object_identity(root: Path, revision: str) -> tuple[str, str]:

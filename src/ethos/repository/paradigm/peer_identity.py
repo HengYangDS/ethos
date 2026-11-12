@@ -1,9 +1,12 @@
-"""Name private peer identity once: its occurrence forms, keyed markers and numbers.
+"""Name private peer identity once: its occurrence forms, keyed markers, numbers and occurrences.
 
 The redaction verb, the push-time check, the keyless verifier and the history rebuild read peer
-identity through these definitions alone. A marker is one HMAC-SHA-256 of a canonical pre-image,
-written as a valid host under `.invalid`; a number in a closed context takes a keyed replacement in
-its range. Nothing here returns a value for printing: callers report forms and positions.
+identity through these definitions alone, with one left-to-right scan: at each position it takes
+the longest declared entry and resumes after it, never reading inside what it took. A marker is one
+HMAC-SHA-256 of a canonical pre-image, written as a valid host under `.invalid`; a number in a named
+closed context takes a keyed replacement in its range. A rebuild counts the scan's results as
+occurrences of its entries, each entry keyed by its own pre-image. Nothing here returns a value for
+printing: callers report forms and positions.
 """
 
 from __future__ import annotations
@@ -11,7 +14,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import re
+from collections import Counter
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ethos.contracts.outcome import refusal
@@ -21,9 +26,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Collection
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from collections.abc import Mapping
 
 VERSION = "ethos.private-peer.v1"
+REBUILD = "ethos.rebuild.v1"
 MARKER = re.compile(r"[0-9a-f]{32}\.[0-9a-f]{32}\.private-peer\.invalid")
 _KEY = re.compile(r"[0-9a-f]{64}")
 _RANGES = {"id": (100_000_000, 999_999_999), "port": (1024, 65535)}
@@ -38,36 +45,41 @@ _HOST_BEFORE = re.compile(r"[0-9a-z._]", re.IGNORECASE)
 _HOST_AFTER = re.compile(r"[0-9a-z.]", re.IGNORECASE)
 _PORT = re.compile(r":(\d+)")
 _DIGEST = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
-# Closed contexts: a digit run counts only where one of these forms frames it.
-_CONTEXTS = {
-    "id": tuple(
-        re.compile(pattern)
-        for pattern in (
-            r"projects/(\d+)",
-            r"projects%2F(\d+)",
-            r"CI_PROJECT_ID[=:] ?(\d+)",
-            r"\bproject (\d+)",
-            r"\bID (\d+)",
-            r"--project-id[= \n]+(\d+)",
-            r"\bIDs \d+ and (\d+)",
-            r"project-(\d+)",
-            r"-mise-mirror-(\d+)",
-            r'projectID = "(\d+)"',
-            r"project_id\"?[=:] ?(\d+)",
-        )
-    ),
-    "port": tuple(
-        re.compile(pattern)
-        for pattern in (
-            r"\bport (\d+)",
-            r"\bport=(\d+)",
-            r"\bport: (\d+)",
-            r'"port": (\d+)',
-            r"\w_port[=:] ?(\d+)",
-            r"--port[= ](\d+)",
-            r"(?<![\w-])-p (\d+)",
-        )
-    ),
+_HEX = re.compile(r"[0-9a-f]")
+_SEPARATOR = re.compile(r"%2f", re.IGNORECASE)
+_CITATION = re.compile(r"!(\d+)")
+_CITED = re.compile(r"[^!]+/[^!]+!\d+")
+# Candidates for discovery: host-like tokens, the segments after them, path-like tokens written
+# or encoded, and bounded digit runs.
+_HOSTLIKE = re.compile(
+    r"(?<![A-Za-z0-9._-])(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|\[[0-9A-Fa-f:]+\])"
+)
+_SEGMENTS = re.compile(r"(?:/[A-Za-z0-9._~%-]+)+")
+_PATHLIKE = re.compile(r"(?<![A-Za-z0-9._~%-])[A-Za-z0-9._~-]+(?:(?:/|%2[Ff])[A-Za-z0-9._~-]+)+")
+_DIGITS = re.compile(r"(?<![0-9])[0-9]{1,9}(?![0-9])")
+# Closed contexts, by stable name: a digit run counts only where one of these forms frames it and
+# no hexadecimal digit follows it, so digits inside a digest stay. A rebuild record names its ID
+# contexts from this set, and a context an adopter needs joins it here, with its own test.
+CONTEXTS = {
+    "id.api-projects": re.compile(r"projects/(\d+)"),
+    "id.api-projects-encoded": re.compile(r"projects%2F(\d+)"),
+    "id.ci-project-id": re.compile(r"CI_PROJECT_ID[=:] ?(\d+)"),
+    "id.project-word": re.compile(r"\bproject (\d+)"),
+    "id.id-word": re.compile(r"\bID (\d+)"),
+    "id.project-id-option": re.compile(r"--project-id[= \n]+(\d+)"),
+    "id.ids-pair": re.compile(r"\bIDs \d+ and (\d+)"),
+    "id.project-dash": re.compile(r"project-(\d+)"),
+    "id.mise-mirror": re.compile(r"-mise-mirror-(\d+)"),
+    "id.go-project-id": re.compile(r'projectID = "(\d+)"'),
+    "id.project-id-key": re.compile(r"project_id\"?[=:] ?(\d+)"),
+    "id.aigw-ci-cache": re.compile(r"\.aigw-ci-cache/(\d+)"),
+    "port.word": re.compile(r"\bport (\d+)"),
+    "port.equals": re.compile(r"\bport=(\d+)"),
+    "port.colon": re.compile(r"\bport: (\d+)"),
+    "port.json": re.compile(r'"port": (\d+)'),
+    "port.key": re.compile(r"\w_port[=:] ?(\d+)"),
+    "port.option": re.compile(r"--port[= ](\d+)"),
+    "port.short-option": re.compile(r"(?<![\w-])-p (\d+)"),
 }
 
 
@@ -78,12 +90,20 @@ def normalized_path(path: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Feed:
-    """The identity that one repository's protected peers declare, current and former."""
+    """The identity that the scan matches.
+
+    What one repository's protected peers declare, current and former, and, from a rebuild
+    record, the merge-request citations that are spans of their own.
+    """
 
     hosts: frozenset[str]
     ports: frozenset[int]
     paths: tuple[str, ...]
     ids: frozenset[int]
+    citations: frozenset[str] = frozenset()
+    retain: tuple[str, ...] = ()
+    trailers: frozenset[str] = frozenset()
+    paragraphs: frozenset[str] = frozenset()
 
     @classmethod
     def of(
@@ -93,14 +113,32 @@ class Feed:
         ports: Iterable[int] = (),
         paths: Iterable[str] = (),
         ids: Iterable[int] = (),
+        citations: Iterable[str] = (),
+        retain: Iterable[str] = (),
+        trailers: Iterable[str] = (),
+        paragraphs: Iterable[str] = (),
     ) -> Feed:
-        """Normalize declared values; a path of one segment never counts alone."""
-        whole = {path for path in map(normalized_path, paths) if "/" in path}
+        """Normalize declared values; a path of one segment never counts alone.
+
+        A citation is `<path>!<n>`, and its path is declared with it. A retained prefix is public
+        text that stays after a declared host; trailers and closing paragraphs are exact text.
+        """
+        cited = frozenset(
+            item for item in map(normalized_path, citations) if _CITED.fullmatch(item)
+        )
+        named = (*paths, *(item.partition("!")[0] for item in cited))
+        whole = {path for path in map(normalized_path, named) if "/" in path}
         return cls(
             hosts=frozenset(host.lower().strip("[]") for host in hosts if host),
             ports=frozenset(ports),
             paths=tuple(sorted(whole, key=len, reverse=True)),
             ids=frozenset(ids),
+            citations=cited,
+            retain=tuple(
+                sorted({item.strip("/").lower() for item in retain} - {""}, key=len, reverse=True)
+            ),
+            trailers=frozenset(trailers),
+            paragraphs=frozenset(paragraphs),
         )
 
     def __bool__(self) -> bool:
@@ -115,7 +153,7 @@ class Feed:
 
 @dataclass(frozen=True, slots=True)
 class Span:
-    """One occurrence: where it lies, its form and the parts that its marker or number keys."""
+    """One scan result: where it lies, its form and the parts that its marker or number keys."""
 
     start: int
     end: int
@@ -124,6 +162,7 @@ class Span:
     host: str = ""
     port: str = ""
     path: str = ""
+    context: str = ""
 
 
 def read_key(data: bytes | str) -> bytes:
@@ -140,11 +179,35 @@ def generation(key: bytes) -> str:
     return hmac.new(key, b"ethos.redaction.generation.v1", hashlib.sha256).hexdigest()[:16]
 
 
+def marker_image(kind: str, host: str = "", port: str = "", path: str = "") -> bytes:
+    """Return the canonical pre-image that a marker keys; scheme and userinfo are never in it."""
+    return "\0".join(
+        (VERSION, kind, host.lower().strip("[]"), port, normalized_path(path))
+    ).encode()
+
+
+def rebuild_image(kind: str, *fields: str | bytes) -> bytes:
+    """Return the domain-separated pre-image of a rebuild entry that no marker keys.
+
+    `port` takes its digits; `id` its context name and digits; `trailer` its `<canonical key>:
+    <value>`; `paragraph` its exact bytes; and an original's name its `oid`. Text keeps its exact
+    bytes through `surrogateescape`.
+    """
+    parts = (REBUILD, kind, *fields)
+    return b"\0".join(
+        part if isinstance(part, bytes) else part.encode("utf-8", "surrogateescape")
+        for part in parts
+    )
+
+
+def entry_digest(key: bytes, image: bytes) -> str:
+    """Return an entry's keyed 64-hex digest: the HMAC-SHA-256 of its pre-image."""
+    return hmac.new(key, image, hashlib.sha256).hexdigest()
+
+
 def marker(key: bytes, kind: str, host: str = "", port: str = "", path: str = "") -> str:
-    """Return the marker of one canonical pre-image; scheme and userinfo are never hashed."""
-    image = "\0".join((VERSION, kind, host.lower().strip("[]"), port, normalized_path(path)))
-    digest = hmac.new(key, image.encode(), hashlib.sha256).hexdigest()
-    return f"{digest[:32]}.{digest[32:]}.private-peer.invalid"
+    """Return the marker of one canonical pre-image, written from that image's entry digest."""
+    return _marked(entry_digest(key, marker_image(kind, host, port, path)))
 
 
 def number(key: bytes, role: str, value: int, *, taken: Collection[int], domain: str) -> int:
@@ -176,27 +239,12 @@ def numbering(key: bytes, feed: Feed, domain: str) -> dict[tuple[str, int], int]
 
 
 def replacement_spans(line: str, feed: Feed) -> list[Span]:
-    """Return every occurrence of fed identity in one line, in order; `manual` blocks an apply."""
-    found: list[Span] = []
-    lowered = line.lower()
-    for host in feed.hosts:
-        for match in re.finditer(re.escape(host), lowered):
-            start, end = match.span()
-            if _host_bounded(line, start, end):
-                found.extend(_host_spans(line, start, end, host, feed))
-    taken = [(span.start, span.end) for span in found]
-    for path in feed.paths:
-        for match in re.finditer(re.escape(path), lowered):
-            start = match.start()
-            if any(low <= start < high for low, high in taken) or (
-                start and _PATH_BEFORE.match(line[start - 1])
-            ):
-                continue
-            fed = _fed_path(line, start, feed)
-            if fed is not None and fed[1] == path:
-                found.append(Span(start, fed[0], "path", "path", path=path))
-    found.extend(_numbers(line, feed.fed_number))
-    return sorted(found, key=lambda span: span.start)
+    """Return the one scan's results over one line, in order; `manual` blocks an apply.
+
+    At each position the longest declared entry wins and the scan resumes after it, so crossing
+    entries give one result and a span wins over its own host, port, path and numbers.
+    """
+    return _scan([*_hosts(line, feed), *_paths(line, feed), *_numbers(line, feed.fed_number)])
 
 
 def redact_line(
@@ -231,6 +279,63 @@ def follow_digests(text: str, renamed: Mapping[str, str]) -> str:
     return _DIGEST.sub(lambda match: renamed.get(match.group(0), match.group(0)), text)
 
 
+def _scan(candidates: Iterable[tuple[Span, ...]]) -> list[Span]:
+    """Take, from the left, the longest candidate at each position; never read inside it again.
+
+    Candidates of one extent keep their given order: hosts, paths, then the named contexts.
+    """
+    found: list[Span] = []
+    for group in sorted(candidates, key=lambda group: (group[0].start, -group[-1].end)):
+        if not found or group[0].start >= found[-1].end:
+            found.extend(group)
+    return found
+
+
+def _hosts(line: str, feed: Feed) -> list[tuple[Span, ...]]:
+    """Return each bounded fed host occurrence, classified with what follows it."""
+    lowered = line.lower()
+    return [
+        _host_spans(line, match.start(), match.end(), host, feed)
+        for host in feed.hosts
+        for match in re.finditer(re.escape(host), lowered)
+        if _host_bounded(line, match.start(), match.end())
+    ]
+
+
+def _paths(line: str, feed: Feed) -> list[tuple[Span, ...]]:
+    """Return the longest fed path at each segment-bounded start, written or percent-encoded."""
+    lowered = line.lower()
+    starts = {
+        match.start()
+        for path in feed.paths
+        for spelled in (path, path.replace("/", "%2f"))
+        for match in re.finditer(re.escape(spelled), lowered)
+    }
+    found: list[tuple[Span, ...]] = []
+    for start in sorted(starts):
+        fed = _fed_path(line, start, feed)
+        if fed is not None and _path_starts(line, start, encoded="/" not in line[start : fed[0]]):
+            found.append((_path_span(line, start, *fed, feed),))
+    return found
+
+
+def _path_starts(line: str, start: int, *, encoded: bool) -> bool:
+    """Return whether a path may start here: after no path byte, or encoded after a `%2F`."""
+    if not start or not _PATH_BEFORE.match(line[start - 1]):
+        return True
+    return encoded and start >= len("%2F") and bool(_SEPARATOR.match(line, start - len("%2F")))
+
+
+def _path_span(line: str, start: int, end: int, path: str, feed: Feed) -> Span:
+    """Name a lone path's form; a declared citation's `!<n>` belongs to its span."""
+    if "/" not in line[start:end]:
+        return Span(start, end, "encoded", "path", path=path)
+    cited = _CITATION.match(line, end)
+    if cited and f"{path}!{cited.group(1)}" in feed.citations:
+        return Span(start, cited.end(), "citation", "path", path=f"{path}!{cited.group(1)}")
+    return Span(start, end, "path", "path", path=path)
+
+
 def _host_bounded(line: str, start: int, end: int) -> bool:
     before = line[start - 1] if start else ""
     after = line[end : end + 2]
@@ -244,64 +349,261 @@ def _host_bounded(line: str, start: int, end: int) -> bool:
 
 
 def _fed_path(line: str, start: int, feed: Feed) -> tuple[int, str] | None:
-    """Return the end and value of the longest fed path whose whole segments start at `start`."""
+    """Return the end and value of the longest fed path whose whole segments start at `start`.
+
+    The path may be written or percent-encoded; its value is the decoded, normalized path.
+    """
     lowered = line.lower()
     for path in feed.paths:
-        if not lowered.startswith(path, start):
-            continue
-        end = start + len(path)
-        if lowered.startswith(".git", end) and not _PATH_AFTER.match(line[end + 4 : end + 5]):
-            return end + 4, path
-        following = line[end : end + 1]
-        if _PATH_AFTER.match(following) or (
-            following == "." and _PATH_AFTER.match(line[end + 1 : end + 2])
-        ):
-            continue
-        return end, path
+        for spelled in (path, path.replace("/", "%2f")):
+            if lowered.startswith(spelled, start) and (
+                (end := _path_end(line, start + len(spelled), encoded=spelled != path)) is not None
+            ):
+                return end, path
     return None
 
 
-def _host_spans(line: str, start: int, end: int, host: str, feed: Feed) -> list[Span]:
+def _path_end(line: str, end: int, *, encoded: bool) -> int | None:
+    """Return where a path ending at `end` stops: past a `.git`, or at a segment boundary."""
+    if line[end : end + 4].lower() == ".git" and not _PATH_AFTER.match(line[end + 4 : end + 5]):
+        return end + 4
+    following = line[end : end + 1]
+    if encoded and _SEPARATOR.match(line, end):
+        return end
+    if _PATH_AFTER.match(following) or (
+        following == "." and _PATH_AFTER.match(line[end + 1 : end + 2])
+    ):
+        return None
+    return end
+
+
+def _host_spans(line: str, start: int, end: int, host: str, feed: Feed) -> tuple[Span, ...]:
     """Classify one bounded host occurrence by its neighbours and the declared ports."""
     token = start
     while token and not _TOKEN_END.match(line[token - 1]):
         token -= 1
     before = line[token:start]
     url = before.endswith("//") or bool(re.search(r"//[^/@]*@$", before))
-    rest = line[end:]
-    port, after = "", end
-    colon = _PORT.match(rest)
+    colon = _PORT.match(line, end)
     if colon and (url or int(colon.group(1)) in feed.ports):
-        port, after = colon.group(1), end + colon.end()
         form = "url" if url else "authority"
-    elif rest.startswith(":") and not url:
-        # `scp`: the host alone, then a standalone path after the colon; a bare colon is manual.
-        path = _fed_path(line, end + 1, feed)
-        if path is None:
-            return [Span(start, end + 1, "manual")]
-        return [
-            Span(start, end, "scp", "host", host=host),
-            Span(end + 1, path[0], "path", "path", path=path[1]),
-        ]
-    else:
-        form = "url" if url else "host"
-    if line[after : after + 1] == "/" and _SEGMENT.match(line, after + 1):
-        path = _fed_path(line, after + 1, feed)
-        if path is None:
-            return [Span(start, after, "manual")]
-        return [Span(start, path[0], form, "prefix", host=host, port=port, path=path[1])]
-    return [Span(start, after, form, "host", host=host, port=port)]
+        bare = Span(start, colon.end(), form, "host", host=host, port=colon.group(1))
+        return _spanned(line, bare, feed)
+    if line[end : end + 1] == ":" and not url:
+        return _scp(line, Span(start, end, "scp", "host", host=host), feed)
+    return _spanned(line, Span(start, end, "url" if url else "host", "host", host=host), feed)
 
 
-def _numbers(line: str, counts: Callable[[str, int], bool]) -> list[Span]:
-    """Return each closed-context digit run of one line that `counts` admits for its role."""
+def _scp(line: str, host: Span, feed: Feed) -> tuple[Span, ...]:
+    """`scp`: the host alone, then a standalone path after the colon; a bare colon is manual.
+
+    A retained prefix after the colon stays, so only the host is replaced.
+    """
+    path = _fed_path(line, host.end + 1, feed)
+    if path is not None:
+        return (host, Span(host.end + 1, path[0], "path", "path", path=path[1]))
+    if _retained(line, host.end + 1, feed):
+        return (host,)
+    return (Span(host.start, host.end + 1, "manual"),)
+
+
+def _spanned(line: str, bare: Span, feed: Feed) -> tuple[Span, ...]:
+    """Extend a host, with its port, over the fed path after it; an unfed path is manual.
+
+    A retained prefix after the host stays, so only the host and its port are replaced.
+    """
+    after = bare.end
+    if line[after : after + 1] != "/" or not _SEGMENT.match(line, after + 1):
+        return (bare,)
+    path = _fed_path(line, after + 1, feed)
+    if path is not None:
+        return (replace(bare, end=path[0], kind="prefix", path=path[1]),)
+    if _retained(line, after + 1, feed):
+        return (bare,)
+    return (Span(bare.start, after, "manual"),)
+
+
+def _retained(line: str, at: int, feed: Feed) -> bool:
+    """Return whether a declared public prefix of whole segments starts at `at`."""
+    lowered = line.lower()
+    return any(
+        lowered.startswith(prefix, at)
+        and _path_end(line, at + len(prefix), encoded=False) is not None
+        for prefix in feed.retain
+    )
+
+
+def _numbers(line: str, counts: Callable[[str, int], bool]) -> list[tuple[Span, ...]]:
+    """Return each named closed-context digit run of one line that `counts` admits for its role.
+
+    A run that another digit or a hexadecimal digit follows is not bounded, so it stays.
+    """
+    found: list[tuple[Span, ...]] = []
+    for name, pattern in CONTEXTS.items():
+        role = name.partition(".")[0]
+        for match in pattern.finditer(line):
+            digits, end = match.group(1), match.end(1)
+            bounded = not line[end : end + 1].isdigit() and not _HEX.match(line, end)
+            if bounded and counts(role, int(digits)):
+                found.append((Span(match.start(1), end, role, role, port=digits, context=name),))
+    return found
+
+
+# The occurrence model of a rebuild record's version 1: the scanned bytes are commit messages,
+# annotated tag messages and blob contents, each distinct object once; each result is one entry's
+# occurrence, and counts and witnesses both count these results, so they agree by construction.
+@dataclass(frozen=True, slots=True)
+class Sighting:
+    """One object to scan, as a walk meets it: a commit's or a tag's message, or a blob.
+
+    `object` is the commit or tag that a witness names, and `path` the blob's path in that commit's
+    tree, empty for a message. A blob or tree is never named by its own ID. A message also carries
+    the trailers that Git parses from it and its closing paragraph, the last one before them.
+    """
+
+    oid: str
+    object: str
+    path: str
+    text: str
+    trailers: tuple[str, ...] = ()
+    closing: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Witness:
+    """The `n`-th result, from 1, attributed to one entry in a message or in the blob at `path`."""
+
+    object: str
+    path: str
+    n: int
+
+
+@dataclass(frozen=True, slots=True)
+class Occurrence:
+    """One scan result, attributed to exactly one entry by its kind and pre-image, in `oid`."""
+
+    kind: str
+    image: bytes
+    witness: Witness
+    oid: str = ""
+
+
+def attributed(span: Span) -> tuple[str, bytes]:
+    """Attribute one classified scan result to its entry kind and that entry's pre-image.
+
+    A `span` holds a host with a port or a path, or is a citation; a host or a path alone is its own
+    part; a port and an ID key the rebuild's images, an ID with the name of its context.
+    """
+    if span.kind == "port":
+        return "port", rebuild_image("port", span.port)
+    if span.kind == "id":
+        return "id", rebuild_image("id", span.context, span.port)
+    whole = span.kind == "prefix" or bool(span.port) or span.form == "citation"
+    return ("span" if whole else span.kind), marker_image(
+        span.kind, span.host, span.port, span.path
+    )
+
+
+def occurrences(sightings: Iterable[Sighting], feed: Feed) -> list[Occurrence]:
+    """Scan each distinct object once, at its first sighting, numbering each entry within it.
+
+    A declared trailer that Git parsed from a message is one result, and its line is not scanned
+    again; an unclassified (`manual`) result is no entry's occurrence.
+    """
+    seen: set[str] = set()
+    found: list[Occurrence] = []
+    for sighting in sightings:
+        if sighting.oid in seen:
+            continue
+        seen.add(sighting.oid)
+        numbered: Counter[bytes] = Counter()
+        for kind, image in _classified(sighting, feed):
+            numbered[image] += 1
+            witness = Witness(sighting.object, sighting.path, numbered[image])
+            found.append(Occurrence(kind, image, witness, sighting.oid))
+    return found
+
+
+def counts(found: Iterable[Occurrence]) -> dict[bytes, int]:
+    """Count each entry's results over every distinct object: the `count` that its record holds."""
+    return dict(Counter(occurrence.image for occurrence in found))
+
+
+def discovered(text: str) -> list[Span]:
+    """Return every candidate that a record entry could name in one text, declared or not.
+
+    Readiness resolves an entry's digest among them: each host-like token with its port and its
+    leading path segments, every run of path segments, written or encoded, with a citation's
+    number, every digit run as a port, and every named-context digit run as an ID.
+    """
     found: list[Span] = []
-    for role, patterns in _CONTEXTS.items():
-        for pattern in patterns:
-            for match in pattern.finditer(line):
-                digits, end = match.group(1), match.end(1)
-                if counts(role, int(digits)) and not line[end : end + 1].isdigit():
-                    found.append(Span(match.start(1), end, role, role, port=digits))
+    for line in text.splitlines():
+        found += _host_candidates(line)
+        found += _path_candidates(line)
+        found += [Span(0, 0, "port", "port", port=digits) for digits in _DIGITS.findall(line)]
+        found += [span for (span,) in _numbers(line, lambda _role, _value: True)]
+    return found
+
+
+def _classified(sighting: Sighting, feed: Feed) -> Iterator[tuple[str, bytes]]:
+    """Yield a message's declared trailers and closing paragraph, then the scan of the rest."""
+    declared = [trailer for trailer in sighting.trailers if trailer in feed.trailers]
+    yield from (("trailer", rebuild_image("trailer", trailer)) for trailer in declared)
+    if sighting.closing and sighting.closing in feed.paragraphs:
+        yield "paragraph", rebuild_image("paragraph", sighting.closing)
+    for line in scanned_lines(sighting, feed):
+        for span in replacement_spans(line, feed):
+            if span.form != "manual":
+                yield attributed(span)
+
+
+def scanned_lines(sighting: Sighting, feed: Feed) -> list[str]:
+    """Return the lines the scan reads: all but a message's declared trailers and paragraph."""
+    text = sighting.text
+    if sighting.closing and sighting.closing in feed.paragraphs:
+        head, _closing, tail = text.rpartition(sighting.closing)
+        text = head + tail
+    declared = {trailer for trailer in sighting.trailers if trailer in feed.trailers}
+    lines = text.splitlines(keepends=True)
+    return [line for line in lines if line.rstrip("\r\n") not in declared]
+
+
+def _host_candidates(line: str) -> list[Span]:
+    """Each host-like token alone, with its port, and with each count of leading segments."""
+    found: list[Span] = []
+    for match in _HOSTLIKE.finditer(line):
+        host, after = match.group().rstrip("."), match.end()
+        found.append(Span(0, 0, "host", "host", host=host))
+        colon = _PORT.match(line, after)
+        port = colon.group(1) if colon else ""
+        if colon:
+            after = colon.end()
+            found.append(Span(0, 0, "host", "host", host=host, port=port))
+        segments = _SEGMENTS.match(line, after)
+        parts = segments.group().strip("/").split("/") if segments else []
+        found += [
+            Span(0, 0, "url", "prefix", host=host, port=port, path="/".join(parts[:count]))
+            for count in range(1, len(parts) + 1)
+        ]
+    return found
+
+
+def _path_candidates(line: str) -> list[Span]:
+    """Every run of whole segments of a path-like token, and a citation of its tail."""
+    found: list[Span] = []
+    for match in _PATHLIKE.finditer(line):
+        parts = _SEPARATOR.sub("/", match.group()).split("/")
+        found += [
+            Span(0, 0, "path", "path", path="/".join(parts[first:last]))
+            for first in range(len(parts))
+            for last in range(first + 1, len(parts) + 1)
+        ]
+        cited = _CITATION.match(line, match.end())
+        found += [
+            Span(0, 0, "citation", "path", path=f"{'/'.join(parts[first:])}!{cited.group(1)}")
+            for first in range(len(parts) - 1)
+            if cited
+        ]
     return found
 
 
@@ -309,7 +611,8 @@ def _numbers(line: str, counts: Callable[[str, int], bool]) -> list[Span]:
 # markers; a placeholder or the bare suffix only describes one.
 _SPAN = re.compile(
     r"(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+|\[[0-9A-Fa-f:]+\]|[A-Za-z0-9-]+(?=:\d))(?::\d+)?"
-    r"(?:/[A-Za-z0-9._~%-]+)*|[A-Za-z0-9._~%-]+(?:/[A-Za-z0-9._~%-]+)+"
+    r"(?:/[A-Za-z0-9._~%-]+)*|[A-Za-z0-9._~%-]+(?:/[A-Za-z0-9._~%-]+)+(?:!\d+)?"
+    r"|[A-Za-z0-9._~-]+(?:%2[Ff][A-Za-z0-9._~-]+)+"
 )
 _MARKER_LIKE = re.compile(r"[0-9A-Fa-f.]+\.private-peer\.invalid")
 _SPAN_PARTS = re.compile(r"(\[[^\]]+\]|[^:/]+)(?::(\d+))?(/.*)?")
@@ -325,30 +628,28 @@ def alignment(removed: str, added: str) -> tuple[str, ...] | None:
 
     The added line's literal pieces must appear in order in the removed line; each marker stands
     over one run of an admitted span shape, and each closed-context digit run over a digit run,
-    which may differ only by a number in its range. No key and no identity is needed.
+    which may differ only by a number in its range. The one scan finds both, so neither may stand
+    inside the other. No key and no identity is needed.
     """
-    gaps = sorted(
-        [(match.start(), match.end(), "marker") for match in MARKER.finditer(added)]
-        + [(span.start, span.end, span.kind) for span in _numbers(added, _keyless_number)]
-    )
-    if not any(kind == "marker" for _start, _end, kind in gaps):
+    markers = [(Span(match.start(), match.end(), "marker"),) for match in MARKER.finditer(added)]
+    if not markers:
         return None
+    gaps = _scan([*markers, *_numbers(added, _keyless_number)])
     pattern, cursor = ["^"], 0
-    for start, end, kind in gaps:
-        if start < cursor:
-            return None
-        pattern += [re.escape(added[cursor:start]), r"(\S+?)" if kind == "marker" else r"(\d+)"]
-        cursor = end
+    for gap in gaps:
+        shape = r"(\S+?)" if gap.form == "marker" else r"(\d+)"
+        pattern += [re.escape(added[cursor : gap.start]), shape]
+        cursor = gap.end
     match = re.match("".join([*pattern, re.escape(added[cursor:]), "$"]), removed)
     if match is None:
         return None
     spans: list[str] = []
-    for (start, end, kind), original in zip(gaps, match.groups(), strict=True):
-        if kind == "marker":
+    for gap, original in zip(gaps, match.groups(), strict=True):
+        if gap.form == "marker":
             if not _SPAN.fullmatch(original):
                 return None
             spans.append(original)
-        elif original != added[start:end] and not _in_range(kind, int(added[start:end])):
+        elif original != gap.port and not _in_range(gap.kind, int(gap.port)):
             return None
     return tuple(spans)
 
@@ -359,18 +660,23 @@ def unkeyed(token: str, span: str) -> bool:
     host, port, path = (
         (parts.group(1), parts.group(2) or "", parts.group(3) or "") if parts else ("", "", "")
     )
-    images = [("prefix", host, port, path), ("host", host, port, ""), ("path", "", "", span)]
-    for kind, *fields in images:
-        image = "\0".join(
-            (VERSION, kind, fields[0].lower().strip("[]"), fields[1], normalized_path(fields[2]))
-        )
+    images = (
+        marker_image("prefix", host, port, path),
+        marker_image("host", host, port),
+        marker_image("path", path=_SEPARATOR.sub("/", span)),
+    )
+    return any(
+        token == _marked(digest)
+        for image in images
         for digest in (
-            hashlib.sha256(image.encode()).hexdigest(),
-            hmac.new(b"", image.encode(), hashlib.sha256).hexdigest(),
-        ):
-            if token == f"{digest[:32]}.{digest[32:]}.private-peer.invalid":
-                return True
-    return False
+            hashlib.sha256(image).hexdigest(),
+            hmac.new(b"", image, hashlib.sha256).hexdigest(),
+        )
+    )
+
+
+def _marked(digest: str) -> str:
+    return f"{digest[:32]}.{digest[32:]}.private-peer.invalid"
 
 
 def _in_range(role: str, value: int) -> bool:

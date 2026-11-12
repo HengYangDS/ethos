@@ -10,5 +10,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Evidence: the precheck passed against 9ebeae1c8 with 0 findings (23:45:28 to 23:45:48),
+      and readiness passed 28 gates at 9ebeae1c8 with the 6 heavy gates left to the proof (23:45:48
+      to 23:47:58).

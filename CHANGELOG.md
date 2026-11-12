@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.9] - 2026-11-12
+
 ### Added
 
 - `ethos lane repair-signature --census` counts, with no key and no write, each form of a private
@@ -41,6 +43,39 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `ty` rise to their locked versions. Mise stays at 2026.10.25: while the CI supply image was built,
   `mise install --locked` under Mise 2026.11.6 refused the locked Python 3.14.10 archive for Linux
   arm64 on its checksum.
+- 0.2.0-beta.9 upgrades directly from 0.2.0-beta.8, 0.2.0-beta.7, 0.2.0-beta.6, 0.2.0-beta.5,
+  0.2.0-beta.2 and 0.2.0-alpha.29, the releases that governed adopters select. Its hosted journey
+  upgrades from each of them on macOS arm64 and Linux x64. It keeps result schema 3.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as `not_qualified`;
+  - the adopter journey on Linux arm64, which 0.2.0 declares but no hosted job runs yet; the Linux
+    arm64 runtime is qualified by its release leg's install smoke and inventories;
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI, GitLab publication and the Homebrew channel, which are not 0.2.0
+    preconditions.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+  - Go's GO-2026-6859 (CVE-2026-97054), published on 2026-11-11, lets an HTTP/1 server in
+    `net/http` crash; Go 1.26.11 and 1.27.4 fix it. The bundled `cue` (built with go1.26.5),
+    `vale` (go1.25.7) and `shfmt` (go1.27.1) contain the affected code, and `govulncheck` finds a
+    call path to it in `cue` and `vale`. ETHOS runs them only as local commands over repository
+    files and starts no HTTP server through them. No release of CUE, Vale or shfmt is built with a
+    fixed Go yet; a later supply move takes one.
+  - In a lane whose selected runtime is an older release, a newer runtime's `ethos` console
+    re-executes in the selected runtime, so a preview such as `ethos lane repair-paradigm` answers
+    with the older build's result, which can read as nothing to do. To preview with the newer
+    build, run its interpreter directly, as in
+    `<runtime>/python/bin/python -B -I -m ethos.cli lane repair-paradigm --root <lane> --json`, or
+    select it first. A result from 0.2.0-beta.6 or later names the build that answered in
+    `summary.runtime`.
+  - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
+    store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
+    such consumers under `absent`.
 
 ### Fixed
 

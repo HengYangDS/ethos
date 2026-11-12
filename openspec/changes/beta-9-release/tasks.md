@@ -4,8 +4,9 @@
 
 - [x] 1.1 Move the product version to 0.2.0-beta.9. Done when the lane's `ethos --version` reports
       0.2.0-beta.9 and the tests that read the version or the changelog pass. The lane reports
-      `ethos 0.2.0-beta.9`, and at `b454f9db0` the 27 test targets that read `VERSION`, the
-      CHANGELOG or a 0.2.0 beta version, with `tests/architecture`, passed 836 tests with 1 skipped.
+      `ethos 0.2.0-beta.9`, and on the tree that `b454f9db0` commits the 27 test targets that read
+      `VERSION`, the CHANGELOG or a 0.2.0 beta version, with `tests/architecture`, passed 836 tests
+      with 1 skipped.
 - [x] 1.2 Turn `[Unreleased]` into the `0.2.0-beta.9` entry, completed from the landed Changes and
       the release build's audit. Done when `changelog_errors` reports nothing with 0.2.0-beta.9 as
       its release target and the entry names every advisory that the audit reports.

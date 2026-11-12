@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-09-01
-goal: A thin agent entrypoint delegates semantics to current owners and follows
-  machine-derived next action without reviving retired lifecycle models.

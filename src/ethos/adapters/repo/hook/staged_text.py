@@ -11,15 +11,17 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.native.inputs import RECORD_PREFIXES
-from ethos.adapters.gates.native.inputs import format_ownership
+from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_attributes import received_paths
 from ethos.adapters.repo.hook.staged_size import staged_regular_files
 from ethos.repository.paradigm.markdown_spacing import spacing_violations
 from ethos.repository.paradigm.packages import PACKAGE_MARKER
 from ethos.repository.paradigm.packages import opens_with_docstring
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.paradigm.text_layout import text_layout_violation
+from ethos.repository.policy.quality.format_selection import POLICY_PATH
+from ethos.repository.policy.quality.format_selection import canonical_text_paths
+from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -27,7 +29,11 @@ if TYPE_CHECKING:
 
 
 def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None) -> None:
-    """Refuse the first staged authored file whose index blob breaks its layout rule."""
+    """Refuse the first staged authored file whose index blob breaks its layout rule.
+
+    The canonical-text rows come from the shipped policy: under an installed runtime the product's
+    own repository keeps a full policy file that is not a byte-bound carrier increment.
+    """
     staged = tuple(
         path
         for path in staged_regular_files(root, index_env)
@@ -35,12 +41,8 @@ def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None)
     )
     if not staged:
         return
-    canonical = {
-        str(item["path"])
-        for item in format_ownership(root, staged)["assignments"]
-        if item["mutation_policy"] == "canonical-text"
-    }
-    for path in sorted(set(staged) - received_paths(root, staged)):
+    canonical = canonical_text_paths(staged, canonical_resource(POLICY_PATH.as_posix()))
+    for path in sorted(set(staged) - paradigm_received_paths(root, staged)):
         markdown, marker = path.endswith(".md"), path.rpartition("/")[2] == PACKAGE_MARKER
         if not (markdown or marker or path in canonical):
             continue

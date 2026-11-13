@@ -55,6 +55,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `.config/mise/config.toml`, applies the paradigm's own repairs, and refuses
   `formation_starter_paradigm_gap` before any effect if a gap remains. The `python-library` starter
   lists its remaining gaps as `paradigm_gaps`.
+- Under an installed runtime, `pre-commit` in the product's own repository no longer refuses every
+  commit with `format_selection_increment_invalid`: the staged text check reads its canonical-text
+  rows from the shipped format policy.
 
 ## [0.2.0-beta.9] - 2026-11-12
 

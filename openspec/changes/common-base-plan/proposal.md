@@ -2,11 +2,15 @@
 
 ## Why
 
+<!-- vale Vale.Terms = NO -->
+
 The owner asked on 2026-11-12 and 2026-11-13 for three things:
 
-- extract what every governed repository shares into ETHOS (the owner's words: 从所有纳管仓库中抽取共性需要下沉的部分);
+- extract what every governed repository shares into ETHOS: "从所有 ethos 纳管仓库中抽取共性需要下沉的部分";
 - make that base true to its name: "这个共同底座，需要名副其实";
 - fold the CI optimization into the same design: "CI 优化纳入底座设计一起做".
+
+<!-- vale Vale.Terms = YES -->
 
 Three committee rounds reviewed the design from every governed repository, from delivery and hosted
 CI, and from the product contract; all three seats approve it with named residual risks. The owner

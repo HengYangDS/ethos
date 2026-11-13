@@ -34,6 +34,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.adapters.store.state.lease.lifecycle.effects import migrate_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -82,7 +83,7 @@ def pending_role_rebindings(root: Path) -> tuple[PendingRebinding, ...]:
     """List each worktree left on a renamed legacy role ref; detection reads and writes nothing."""
     renames = _declared_renames(root)
     pending: list[PendingRebinding] = []
-    for fields in _worktrees(root):
+    for fields in listed_worktrees(root) or ():
         legacy = fields.get("branch", "")
         successor = renames.get(legacy, "")
         oid = ref_head(root, successor) if successor else ""
@@ -427,7 +428,7 @@ def bind_renamed_worktrees(root: Path, renames: Mapping[str, str]) -> None:
     bind_worktrees(
         tuple(
             PendingRebinding(Path(fields.get("worktree", "")), legacy, renames[legacy], oid)
-            for fields in _worktrees(root)
+            for fields in listed_worktrees(root) or ()
             if (legacy := fields.get("branch", "")) in renames
             and not ref_head(root, legacy)
             and (oid := ref_head(root, renames[legacy]))
@@ -454,13 +455,6 @@ def bind_worktrees(pending: tuple[PendingRebinding, ...]) -> None:
             gap = "refused" if bound.strip() == item.legacy else "stale"
             message = f"branch_role_worktree_binding_{gap}:{item.path.as_posix()}"
             raise ValueError(message)
-
-
-def _worktrees(root: Path) -> list[dict[str, str]]:
-    return [
-        dict(line.partition(" ")[::2] for line in block.splitlines())
-        for block in git_stdout(root, "worktree", "list", "--porcelain").split("\n\n")
-    ]
 
 
 def _declared_renames(root: Path) -> dict[str, str]:

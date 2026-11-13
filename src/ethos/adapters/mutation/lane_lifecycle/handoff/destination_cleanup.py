@@ -20,6 +20,7 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.schema import state_database
@@ -167,13 +168,9 @@ def import_worktree_record(
     destination: Path, target: Path, *, run_git: Callable[..., Any]
 ) -> dict[str, str]:
     """Return the unique Git worktree record for a destination path."""
-    listed = run_git(destination, "worktree", "list", "--porcelain", check=False)
-    require("handoff_import_compensation_failed", holds=not listed.returncode)
-    records = [
-        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
-        for block in listed.stdout.split("\n\n")
-        if block.strip()
-    ]
+    records = raw_worktree_records(
+        destination, runner=run_git, gap="handoff_import_compensation_failed"
+    )
     require(
         "handoff_import_compensation_failed",
         holds=all({"worktree", "HEAD"} <= record.keys() for record in records),

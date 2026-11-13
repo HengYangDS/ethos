@@ -18,6 +18,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -90,10 +91,9 @@ def require_owned_topic(
     if recovering:
         allowed.add(f"refs/heads/{target}")
     linked = [
-        fields
-        for block in git_stdout(root, "worktree", "list", "--porcelain").split("\n\n")
-        if (fields := dict(line.partition(" ")[::2] for line in block.splitlines())).get("branch")
-        in allowed
+        record
+        for record in raw_worktree_records(root, gap="retained_topic_worktree_binding_mismatch")
+        if record.get("branch") in allowed
     ]
     if (
         bound not in allowed

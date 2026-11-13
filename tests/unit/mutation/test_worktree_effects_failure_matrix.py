@@ -107,10 +107,10 @@ def test_worktree_record_fails_closed_on_observation_error(tmp_path) -> None:
 def test_worktree_record_rejects_duplicate_path_records(tmp_path) -> None:
     target = tmp_path / "linked"
     target.mkdir()
-    block = f"worktree {target}\nHEAD {'a' * 40}\ndetached\n"
+    block = f"worktree {target}\0HEAD {'a' * 40}\0detached\0\0"
 
     def runner(*_args, **_kwargs):
-        return SimpleNamespace(returncode=0, stdout=f"{block}\n{block}", stderr="")
+        return SimpleNamespace(returncode=0, stdout=block * 2, stderr="")
 
     with pytest.raises(ValueError, match=r"^worktree_effect_observation_ambiguous$"):
         worktree_record(tmp_path, target, runner=runner)

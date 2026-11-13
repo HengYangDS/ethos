@@ -17,6 +17,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - `SECURITY.md` names the private route for vulnerability reports, gives examples of what to
   report, lists the documented limits that are not vulnerabilities, and says that only a new
   release carries a fix.
+- Each `worktrees` entry of `ethos lane status --json` carries `prunable` and `prune_reason`
+  beside `locked` and `lock_reason`.
 
 ### Changed
 
@@ -65,6 +67,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Under an installed runtime, `pre-commit` in the product's own repository no longer refuses every
   commit with `format_selection_increment_invalid`: the staged text check reads its canonical-text
   rows from the shipped format policy.
+- A worktree whose path holds a newline is no longer misread: every ETHOS reader of
+  `git worktree list` takes its NUL-terminated `--porcelain -z` form through one parser, and
+  `ethos lane status --json` reports a lock reason as Git records it rather than quoted.
 
 ## [0.2.0-beta.9] - 2026-11-12
 

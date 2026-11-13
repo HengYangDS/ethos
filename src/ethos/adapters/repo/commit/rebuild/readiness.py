@@ -30,6 +30,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.peer_feed import local_feed
 from ethos.adapters.repo.release import release_provenance
 from ethos.adapters.repo.release import release_qualification
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -290,14 +291,12 @@ def _hidden_gaps(root: Path) -> Iterator[str]:
     common = run_git(root, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout
     if (Path(common.strip()) / "info" / "grafts").exists():
         yield "rebuild_history_hidden:grafts"
-    listed = run_git(root, "worktree", "list", "--porcelain").stdout.split("\n\n")
-    for block in [item for item in listed if item.strip()][1:]:
-        lines = block.splitlines()
-        tree = Path(lines[0].removeprefix("worktree "))
+    for record in raw_worktree_records(root)[1:]:
+        tree = Path(record["worktree"])
         private = (
             run_git(tree, "for-each-ref", "--format=%(refname)", *_PRIVATE, check=False)
             if tree.is_dir()
             else None
         )
-        if "detached" in lines or private is None or private.returncode or private.stdout.strip():
+        if "detached" in record or private is None or private.returncode or private.stdout.strip():
             yield "rebuild_history_hidden:worktree"

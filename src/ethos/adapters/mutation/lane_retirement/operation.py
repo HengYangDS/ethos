@@ -32,8 +32,8 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.status.bindings import lease_generation
-from ethos.adapters.repo.worktree_effects import raw_worktree_records
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.projection import observe_lease

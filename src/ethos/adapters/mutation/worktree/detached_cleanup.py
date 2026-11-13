@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.contracts.verdict import close_verdict
 
 # Refs that keep their commits by contract; a stash or a foreign tool's ref vouches for nothing.
@@ -92,14 +93,9 @@ def _report(
 
 
 def _inventory(repo: Path, roots: tuple[Path, ...]) -> list[dict[str, object]] | None:
-    listed = run_git(repo, "worktree", "list", "--porcelain", check=False)
-    if listed.returncode:
+    records = listed_worktrees(repo, runner=run_git)
+    if records is None:
         return None
-    records = (
-        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
-        for block in listed.stdout.split("\n\n")
-        if block.strip()
-    )
     entries: list[dict[str, object]] = []
     for record in records:
         if (entry := _entry_from_record(repo, record, roots)) is None:

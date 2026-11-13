@@ -30,6 +30,7 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
@@ -122,13 +123,11 @@ def _interpreter_bindings(worktree: Path) -> tuple[str, ...]:
 
 def _operational_references(root: Path) -> str:
     references = [process_commands(root)]
-    result = run_git(root, "worktree", "list", "--porcelain", "-z", check=False)
-    if result.returncode:
-        refuse("hook_runtime_worktrees_unreadable")
     worktrees = tuple(
-        Path(field[len("worktree ") :])
-        for field in result.stdout.split("\0")
-        if field.startswith("worktree ")
+        Path(record["worktree"])
+        for record in raw_worktree_records(
+            root, runner=run_git, gap="hook_runtime_worktrees_unreadable"
+        )
     )
     if not worktrees or any(not path.is_dir() for path in worktrees):
         refuse("hook_runtime_worktrees_unreadable")

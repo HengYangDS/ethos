@@ -29,7 +29,7 @@ from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
-from ethos.adapters.repo.worktree_effects import raw_worktree_records
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import strict_source_branch_role_policy
 from ethos.contracts.outcome import require

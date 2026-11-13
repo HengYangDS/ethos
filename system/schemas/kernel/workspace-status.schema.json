@@ -392,10 +392,22 @@
         "lock_reason": { "type": "string" },
         "locked": { "enum": ["true", "false"] },
         "path": { "type": "string" },
+        "prunable": { "enum": ["true", "false"] },
+        "prune_reason": { "type": "string" },
         "role": { "$ref": "#/$defs/role" },
         "worktree_binding": { "enum": ["current", "linked", "missing"] }
       },
-      "required": ["path", "head", "branch", "role", "worktree_binding", "locked", "lock_reason"],
+      "required": [
+        "path",
+        "head",
+        "branch",
+        "role",
+        "worktree_binding",
+        "locked",
+        "lock_reason",
+        "prunable",
+        "prune_reason"
+      ],
       "type": "object"
     },
     "worktreeBinding": {

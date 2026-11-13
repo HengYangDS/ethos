@@ -25,7 +25,6 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
@@ -41,6 +40,7 @@ from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import present
@@ -137,13 +137,11 @@ class _Selection:
 
 
 def _release_paths(root: Path, branch: str) -> tuple[Path, ...]:
-    raw = run_git(root, "worktree", "list", "--porcelain", "-z").stdout
-    paths = []
-    for block in raw.split("\0\0"):
-        fields = dict(row.split(" ", 1) for row in block.split("\0") if " " in row)
-        if fields.get("branch") == f"refs/heads/{branch}":
-            paths.append(Path(fields["worktree"]))
-    return tuple(paths)
+    return tuple(
+        Path(record["worktree"])
+        for record in raw_worktree_records(root)
+        if record.get("branch") == f"refs/heads/{branch}"
+    )
 
 
 def _observe(

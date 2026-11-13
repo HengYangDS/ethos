@@ -29,6 +29,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
 from ethos.adapters.repo.status.bindings import worktree_binding
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
@@ -384,18 +385,9 @@ def worktree_records(
     root: Path, *, current_path: Path, policy: BranchRolePolicy
 ) -> list[dict[str, str]]:
     """Return normalized Git worktree records without probing their state."""
-    blocks = (
-        block
-        for block in git_stdout_checked(root, "worktree", "list", "--porcelain").split("\n\n")
-        if block.strip()
-    )
     return [
-        _normalize_worktree(
-            dict(line.partition(" ")[::2] for line in block.splitlines() if line),
-            current_path=current_path,
-            policy=policy,
-        )
-        for block in blocks
+        _normalize_worktree(entry, current_path=current_path, policy=policy)
+        for entry in raw_worktree_records(root)
     ]
 
 
@@ -412,6 +404,8 @@ def _normalize_worktree(
         "worktree_binding": worktree_binding(path, current_path=current_path),
         "locked": "true" if "locked" in entry else "false",
         "lock_reason": entry.get("locked", ""),
+        "prunable": "true" if "prunable" in entry else "false",
+        "prune_reason": entry.get("prunable", ""),
     }
 
 

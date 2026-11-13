@@ -15,6 +15,7 @@ from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
+from ethos.adapters.repo.worktree_list import parse_worktree_list
 from ethos.adapters.store.state.lease.projection import LeaseRow
 from ethos.adapters.store.state.lease.projection import lease_row
 from ethos.adapters.store.state.lease.projection import lease_rows
@@ -199,11 +200,7 @@ def retained_repository(repository: Path) -> RetainedRepository:
     configuration = _retained_configuration(repository, "--local")
     declared_columns = tuple(str(column) for column in columns)
     registration = run_git(repository, "worktree", "list", "--porcelain", "-z").stdout
-    paths = tuple(
-        Path(entry.removeprefix("worktree "))
-        for entry in registration.split("\0")
-        if entry.startswith("worktree ")
-    )
+    paths = tuple(Path(record["worktree"]) for record in parse_worktree_list(registration))
     linked = tuple(
         (str(path), _retained_checkout(path, configuration, declared_columns, rows))
         for path in paths

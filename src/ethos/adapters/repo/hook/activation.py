@@ -15,7 +15,6 @@ from filelock import Timeout
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
@@ -42,6 +41,7 @@ from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.outcome import refuse
@@ -416,13 +416,9 @@ def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
 
 def linked_worktree_paths(root: Path) -> tuple[Path, ...]:
     """Return every readable worktree sharing the repository common directory."""
-    completed = run_git(root, "worktree", "list", "--porcelain", "-z", check=False)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "hook_runtime_worktrees_unreadable")
     paths = tuple(
-        Path(field.removeprefix("worktree ")).resolve()
-        for field in completed.stdout.split("\0")
-        if field.startswith("worktree ")
+        Path(record["worktree"]).resolve()
+        for record in raw_worktree_records(root, gap="hook_runtime_worktrees_unreadable")
     )
     if not paths or any(not path.is_dir() for path in paths):
         refuse("hook_runtime_worktrees_unreadable")

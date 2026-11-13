@@ -28,6 +28,7 @@ from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 
@@ -400,23 +401,6 @@ def worktree_record(
     if len(matches) > 1:
         refuse("worktree_effect_observation_ambiguous")
     return matches[0] if matches else {}
-
-
-def raw_worktree_records(
-    root: Path,
-    *,
-    environment: Mapping[str, str] | None = None,
-    runner: Callable[..., Any] = run_git,
-) -> tuple[dict[str, str], ...]:
-    """Observe native worktree records, preserving flags and observation failures."""
-    completed = runner(root, "worktree", "list", "--porcelain", check=False, env=environment)
-    if completed.returncode:
-        refuse("worktree_effect_observation_failed")
-    return tuple(
-        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
-        for block in completed.stdout.split("\n\n")
-        if block.strip()
-    )
 
 
 def _require_binding(

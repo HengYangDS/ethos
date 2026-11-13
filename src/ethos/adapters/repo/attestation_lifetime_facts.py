@@ -11,6 +11,7 @@ from ethos.adapters.repo.attestation_lifetime import LifetimeFacts
 from ethos.adapters.repo.attestation_lifetime import latest_publications
 from ethos.adapters.repo.attestation_lifetime import lifetime
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,9 +36,8 @@ def observe_lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> Life
             pinned.add(object_id)
         else:
             refs[name] = object_id
-    worktrees = run_git(repo, "worktree", "list", "--porcelain", observation=True).stdout
     pinned.update(
-        line.removeprefix("HEAD ") for line in worktrees.splitlines() if line.startswith("HEAD ")
+        item["HEAD"] for item in raw_worktree_records(repo, gap=REFS_UNAVAILABLE) if "HEAD" in item
     )
     olds = sorted(
         {

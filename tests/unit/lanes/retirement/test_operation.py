@@ -189,11 +189,12 @@ def test_unbound_request_detects_branch_rebound_at_another_path(
             return subprocess.CompletedProcess(
                 [],
                 0,
-                "\n".join(
+                "\0".join(
                     (
                         f"worktree {tmp_path / 'other'}",
                         f"HEAD {request.head}",
                         f"branch refs/heads/{request.branch}",
+                        "",
                         "",
                     )
                 ),

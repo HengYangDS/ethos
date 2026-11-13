@@ -100,13 +100,13 @@ def test_housekeeping_fails_closed_on_inventory_and_recheck_drift(
     original = detached_cleanup.run_git
     inventories = 0
 
-    def fail_second_inventory(root: Path, *args: str, check: bool = True):
+    def fail_second_inventory(root: Path, *args: str, **options):
         nonlocal inventories
-        if args == ("worktree", "list", "--porcelain"):
+        if args == ("worktree", "list", "--porcelain", "-z"):
             inventories += 1
             if inventories == 2:
                 return CompletedProcess(args, 1, stdout="", stderr="unavailable")
-        return original(root, *args, check=check)
+        return original(root, *args, **options)
 
     monkeypatch.setattr(detached_cleanup, "run_git", fail_second_inventory)
     stale = detached_cleanup.housekeeping_worktrees(
@@ -115,10 +115,10 @@ def test_housekeeping_fails_closed_on_inventory_and_recheck_drift(
     monkeypatch.setattr(
         detached_cleanup,
         "run_git",
-        lambda root, *args, check=True: (
+        lambda root, *args, **options: (
             CompletedProcess(args, 1, stdout="", stderr="bad")
             if args[0] == "for-each-ref"
-            else original(root, *args, check=check)
+            else original(root, *args, **options)
         ),
     )
     # A Git that cannot say whether a ref reaches the HEAD protects the worktree.

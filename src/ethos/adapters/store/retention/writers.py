@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.host_store import installation_consumers
+from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.digest import is_sha256_hex
 
 if TYPE_CHECKING:
@@ -101,12 +101,7 @@ def writer_roots(repo: Path, *, selected: Path | None) -> tuple[Path, ...]:
 
 
 def _worktrees(repo: Path) -> tuple[Path, ...]:
-    listed = run_git(repo, "worktree", "list", "--porcelain", "-z", check=False)
-    if listed.returncode:
-        message = "record_retirement_worktrees_unreadable"
-        raise ValueError(message)
     return tuple(
-        Path(field.removeprefix("worktree "))
-        for field in listed.stdout.split("\0")
-        if field.startswith("worktree ")
+        Path(record["worktree"])
+        for record in raw_worktree_records(repo, gap="record_retirement_worktrees_unreadable")
     )

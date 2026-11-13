@@ -8,7 +8,6 @@ from typing import NamedTuple
 
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -16,6 +15,7 @@ from ethos.adapters.repo.invocation_facts import invocation_fact
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.source import source_build_identity
+from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.profile import load_repository_profile
@@ -119,10 +119,7 @@ def _version_file() -> str:
 
 def _accepted_worktree(repo: Path, branch: str) -> Path:
     expected_ref = f"refs/heads/{branch}"
-    records = (
-        dict(line.partition(" ")[::2] for line in block.splitlines() if line)
-        for block in git_stdout(repo, "worktree", "list", "--porcelain").split("\n\n")
-    )
+    records = listed_worktrees(repo) or ()
     return next(
         (Path(record["worktree"]) for record in records if record.get("branch") == expected_ref),
         repo,

@@ -32,6 +32,7 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -164,9 +165,8 @@ def _admit(
     if current_ref and current_ref != head:
         return {}, _blocked(branch, target, "lane_start_target_ref_exists")
     if os.path.lexists(target):
-        listed = run_git(repo, "worktree", "list", "--porcelain", check=False).stdout
-        expected = f"worktree {target}\nHEAD {head}\nbranch refs/heads/{branch}\n"
-        if expected not in f"{listed}\n":
+        expected = {"worktree": str(target), "HEAD": head, "branch": f"refs/heads/{branch}"}
+        if not any(expected.items() <= item.items() for item in listed_worktrees(repo) or ()):
             return {}, _blocked(branch, target, "lane_start_target_path_exists")
     return candidate, None
 

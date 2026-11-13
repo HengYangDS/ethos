@@ -13,8 +13,8 @@ Goals: every locked supply at its newest stable release under one cutoff.
 
 Non-Goals:
 
-- Mise 2026.11.x, until the 2026.11.6 refusal of the locked Linux arm64 Python archive is
-  understood.
+- Mise 2026.11.x and the python-build-standalone 20261110 build of CPython 3.14.10, until the
+  2026.11.6 refusal of the locked Linux arm64 Python archive is understood.
 - Prettier 3.10, whose layout change across the governed repositories needs its own fleet scan.
 - Any prerelease channel, and releases younger than the cutoff.
 

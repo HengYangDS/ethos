@@ -45,8 +45,8 @@ Security
    (GA 2025-10-28).
 8. PyPI Trusted Publishing with PEP 740 attestations on both forges.
    <https://docs.pypi.org/attestations/producing-attestations/> (undated).
-9. OpenSSF Scorecard: read-only top-level token, hash pins, no dangerous triggers; release
-   `.intoto.jsonl` provenance scores 10/10.
+9. OpenSSF Scorecard: read-only top-level token, hash pins, no dangerous triggers; in-toto release
+   provenance files score 10/10.
    <https://github.com/ossf/scorecard/blob/main/docs/checks.md> (main, undated; mostly GitHub-only).
 10. GitLab: protected variables on protected refs only, masked-and-hidden variables;
     pipeline-variable override role `no_one_allowed`; inputs over variables; masking is no

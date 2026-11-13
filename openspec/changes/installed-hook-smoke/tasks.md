@@ -10,11 +10,11 @@
       test's stand-in hooks show that a hook refusing every commit, as the runtime of `21fbc6034`
       did, and one admitting every commit both fail the step.
 - [x] 1.2 Pass `local-install-smoke` on the lane head. Done when its receipt records the admitted
-      and the refused case. Evidence: on 2026-11-13 from 18:44:18 to 18:44:35, the step ran against
-      the installed runtime of `b10254f87` on a product clone at `2ec6feab5` and passed: the
-      conforming edit was admitted with exit 0 and the blank-led `.gitignore` was refused naming
-      `pre_commit_text_layout:.gitignore:1` (implementation report). The full `local-install-smoke`
-      receipt is read in this lane's proof.
+      and the refused case. Evidence: `local-install-smoke` ran on the lane head `83479ede3` as host
+      evidence from 19:15:19 to 19:27:39 and passed; its receipt
+      `build/evidence/local-install/smoke.json` records `qualification.product_hook` as passed, the
+      conforming edit admitted and the blank-led `.gitignore` refused with
+      `pre_commit_text_layout:.gitignore:1`.
 
 ## 2. Acceptance
 

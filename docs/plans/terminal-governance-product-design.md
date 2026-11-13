@@ -59,12 +59,13 @@ environment and host; lane operations and authorization; supply security and fle
 path; golden path, soak and promotion. The archived `rc-plan` Change's design lists their Changes,
 sizes and prerequisites.
 
-### Product Form And First Hour
+### Product Form, First Hour And Shared Obligations
 
 The archived `product-form-plan` Change's design adds to the order above without a new family:
 A17's acceptance gains the gating agent budgets; the adopter bump is its own RC Change after C3;
 the first-hour Changes need only `dev`, with A7 before N1; and the landing-attestation export is a
-0.3.0 direction after C1 and DR-0022's build identity.
+0.3.0 direction after C1 and DR-0022's build identity. The archived `common-base-plan` Change's
+design orders Immediate Dependency 1 and batch 8 in thirteen Changes, three before the freeze.
 
 ### Immediate Dependencies
 

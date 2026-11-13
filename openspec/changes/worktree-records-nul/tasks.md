@@ -29,9 +29,17 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the architecture and static checks at the lane head. Done when
+- [x] 2.1 Pass the architecture and static checks at the lane head. Done when
       `test_no_behavior_is_implemented_twice` and `test_no_function_grows_past_its_allowance` pass
       with the decision-density baseline unchanged, and Ruff, ty, import-linter, the module-layout
-      check, the per-file code ceiling and the source budget pass.
-- [ ] 2.2 Pass readiness and the precheck at the lane head. Done when each passes on the committed
-      head.
+      check, the per-file code ceiling and the source budget pass. Evidence: at `cf71d0742` the
+      delta precheck passed `tests/architecture`, `test_no_behavior_is_implemented_twice` and
+      `test_no_function_grows_past_its_allowance` among it, at 12:39:09, with
+      `tests/fixtures/decision-density-baseline.json` unchanged since `aa9f85d51`; the full precheck
+      at `46417024d` passed Ruff, ty, import-linter and the per-file code ceiling; readiness passed
+      28 gates with none failing, `module-layout` and `source-budget` among them, at 12:36:55.
+- [x] 2.2 Pass readiness and the precheck at the lane head. Done when each passes on the committed
+      head. Evidence: the full precheck at `46417024d` found, at 12:05:27, only the two supply-image
+      binding tests, which pass since the binding in `0ff092e01` (37 of 37 at 12:29:22); the delta
+      precheck from `46417024d` passed at `cf71d0742` with no finding at 12:39:09; readiness at
+      `cf71d0742` passed 28 gates with none failing at 12:36:55.

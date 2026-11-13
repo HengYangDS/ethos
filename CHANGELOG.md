@@ -47,6 +47,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   names its package's purpose. An empty marker, or one without a docstring, is the paradigm gap
   `repository_paradigm_package_docstring:<path>`, and `pre-commit` refuses a staged one with
   `pre_commit_package_docstring:<path>`. ETHOS has none.
+- **Breaking:** every README that the docs registry admits declares `role: index` and holds its
+  directory's purpose, scope and navigation in at most 100 nonblank lines. Docs health reports
+  `docs_readme_not_index:<path>` and `docs_index_too_long:<path>:<lines>>100`; policy,
+  procedure, evidence and history move to named pages. ETHOS's own READMEs conform.
 
 ### Fixed
 

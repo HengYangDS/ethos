@@ -271,8 +271,10 @@ alternatives or parallel directory catalogs. Topic pages may contain contextual
 links without becoming directory indexes. Historical mentions, dependency
 internals and external conventions do not establish current entrypoints.
 
-`README.md` is retained only when it is the actual index, navigation entrypoint,
-or semantic boundary for its directory. A directory with one substantive child
+`README.md` is retained only when it is the actual index and navigation entrypoint
+for its directory: it declares `role: index`, states the directory's purpose and scope, routes to
+its children and holds at most 100 nonblank lines; policy, procedure, evidence and history live
+on named pages. A directory with one substantive child
 does not receive a README merely because the directory exists; an empty
 directory and a marker-only README are removed. A directory with at least two
 immediate navigable children needs a README with a local route into its content;

@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
+# A directory README is navigation; past this many nonblank lines it has become a page.
+_INDEX_NONBLANK_LINES = 100
 
 
 def docs_health_report(
@@ -93,7 +95,7 @@ def docs_health_report(
             registry,
             generated_outputs=generated_outputs,
             tracked_documents=tracked_documents or (),
-        )
+        ) + readme_role_gaps(root, registry, generated_outputs=generated_outputs)
         decision_identity = decision_record_gaps(root, registry)
         length_gaps = current_document_length_gaps(
             root, registry, generated_outputs, tracked_documents or ()
@@ -263,6 +265,29 @@ def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
 
 
 _INERT_CHILDREN = frozenset({"README.md", "__pycache__", ".DS_Store"})
+
+
+def readme_role_gaps(
+    root: Path, registry: list[dict[str, Any]], *, generated_outputs: frozenset[str] = frozenset()
+) -> list[str]:
+    """Hold each authored README to the index role and to a navigation-sized length."""
+    authored = set(authored_document_paths(registry, (), generated_outputs))
+    gaps: list[str] = []
+    for entry in registry:
+        relative = str(entry["path"])
+        if relative not in authored or Path(relative).name != "README.md":
+            continue
+        if entry.get("role", "") != "index":
+            gaps.append(f"docs_readme_not_index:{relative}")
+            continue
+        try:
+            text = (root / relative).read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue  # The length check reports an unreadable source.
+        count = sum(bool(line.strip()) for line in text.splitlines())
+        if count > _INDEX_NONBLANK_LINES:
+            gaps.append(f"docs_index_too_long:{relative}:{count}>{_INDEX_NONBLANK_LINES}")
+    return gaps
 
 
 def readme_disposition_gaps(

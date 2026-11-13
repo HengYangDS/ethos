@@ -25,3 +25,4 @@ See also: [Research Overview](../README.md) and
 | How are intent, adoption, upgrades, and actual benefit preserved?  | [Intent and adoption](adoption.md)                          |
 | Where do SDK/MCP, plugins, and other languages belong?             | [Interfaces and extensions](interfaces.md)                  |
 | How can people and agents navigate one reliable source?            | [Documentation and knowledge interchange](documentation.md) |
+| How should hosted CI be secured, sped up and measured?             | [Hosted CI practice](hosted-ci.md)                          |

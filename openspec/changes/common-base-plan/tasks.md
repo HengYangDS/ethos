@@ -13,8 +13,13 @@
       adds `docs/research/foundations/hosted-ci.md` with its index row and the design cites it as
       packet N; after `e1f9a3004` rephrased one line that codespell misread, readiness passed 28
       gates with none failing, the docs and prose gates among them, at 16:59:56.
-- [ ] 1.3 Hand each governed repository its items through its lane owner. Done when every owner has
-      received its list from the local handoff file and the reply names it.
+- [x] 1.3 Hand each governed repository its items through its lane owner. Done when every owner has
+      received its list from the local handoff file and the reply names it. Evidence: between 15:10
+      and 17:41 on 2026-11-13 each lane owner received its repositories' items from the local
+      handoff file, four sessions for eleven adopters and two threads for the formation-made
+      documentation repository and the two deferred families, the last with the owner's
+      authorization; by 17:54 every owner's reply named where it recorded them, each record local
+      and unpublished.
 
 ## 2. Acceptance
 

@@ -53,6 +53,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   directory's purpose, scope and navigation in at most 100 nonblank lines. Docs health reports
   `docs_readme_not_index:<path>` and `docs_index_too_long:<path>:<lines>>100`; policy,
   procedure, evidence and history move to named pages. ETHOS's own READMEs conform.
+- The Python lock moves to the newest releases that have been public for at least 24 hours:
+  `cyclopts` 5.4.1, `fastmcp` and `fastmcp-slim` 4.1.8, `ty` 0.0.101 and `uncalled-for` 0.6.1,
+  and the floors of the moved direct dependencies rise to their locked versions. The CI supply
+  image builds on the uv 0.13.7 image, which matches the uv pin.
 
 ### Fixed
 
@@ -70,6 +74,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A worktree whose path holds a newline is no longer misread: every ETHOS reader of
   `git worktree list` takes its NUL-terminated `--porcelain -z` form through one parser, and
   `ethos lane status --json` reports a lock reason as Git records it rather than quoted.
+
+### Security
+
+- The Node.js supply moves to 26.13.1, a security release with nine High-severity fixes under
+  seven CVE identifiers, all on the server side, and six Medium and three Low fixes.
 
 ## [0.2.0-beta.9] - 2026-11-12
 

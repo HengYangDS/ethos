@@ -4,7 +4,7 @@ locked = true
 not_found_system_fallback = false
 idiomatic_version_file_enable_tools = []
 [tools]
-node = "26.13.0"
+node = "26.13.1"
 python = "3.14.10"
 uv = "0.13.7"
 cue = "0.17.1"

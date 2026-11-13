@@ -18,5 +18,10 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head, with tools at most 98 and tests at most 80 line-equivalents above the lane base.
+      Evidence: at `fc3066a78` readiness passed 28 gates with none failing at 19:41:08, after
+      `module-layout` refused a private alias that `fc3066a78` removed, and the static precheck from
+      `b10254f87` passed with no finding at 19:41:34. The source budget measured tools 8,475 and
+      tests 102,369 line-equivalents against 8,378 and 102,289 at the lane base `b10254f87`: 97 and
+      80 above it.

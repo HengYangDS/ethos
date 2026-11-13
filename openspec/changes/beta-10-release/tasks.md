@@ -18,5 +18,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Evidence: at `66f54c24a` the static precheck from `82fc6a8b0` passed with no finding at
+      14:38:39, and readiness passed 28 gates with none failing at 14:38:35. The tests that read the
+      version or the changelog passed 1,044 with 1 skipped by design (task 1.1).

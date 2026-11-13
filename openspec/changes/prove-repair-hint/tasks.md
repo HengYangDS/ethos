@@ -13,5 +13,8 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass readiness and the precheck at the lane head. Done when each passes on the committed
-      head.
+- [x] 2.1 Pass readiness and the precheck at the lane head. Done when each passes on the committed
+      head. Evidence: the full precheck at `46417024d` found, at 12:05:27, only the two supply-image
+      binding tests, which pass since the binding in `0ff092e01` (37 of 37 at 12:29:22); the delta
+      precheck from `46417024d` passed at `cf71d0742` with no finding at 12:39:09; readiness at
+      `cf71d0742` passed 28 gates with none failing at 12:36:55.

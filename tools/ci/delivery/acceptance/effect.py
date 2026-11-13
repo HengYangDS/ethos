@@ -39,7 +39,7 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import observe_stage
-from tools.ci.delivery.acceptance.invocation import run_native as _run
+from tools.ci.delivery.acceptance.invocation import run_native
 from tools.ci.delivery.acceptance.product_hook import prove_product_hook
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.acceptance.receipt import package_failure_evidence
@@ -74,7 +74,7 @@ def observe_independent_command_plane(
     if git is None:
         message = "minimal host environment cannot resolve Git"
         raise RuntimeError(message)
-    head = _run(git, "rev-parse", "HEAD", cwd=adopter, env=environment)
+    head = run_native(git, "rev-parse", "HEAD", cwd=adopter, env=environment)
     holder = "agent:test:package-only:independence"
     suffix = ("--root", str(adopter), "--json")
     commands = (
@@ -177,12 +177,12 @@ def observe_installed_package(
     smoke: Path, adopter: Path, *, environment: dict[str, str]
 ) -> tuple[str, str, dict[str, object]]:
     python, ethos = runtime_executable(smoke, "python"), runtime_executable(smoke, "ethos")
-    _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK, env=environment)
-    version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK, env=environment)
-    status_json = _run(
+    run_native(str(ethos), "--help", "--root", str(adopter), cwd=WORK, env=environment)
+    version = run_native(str(ethos), "--version", "--root", str(adopter), cwd=WORK, env=environment)
+    status_json = run_native(
         str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter, env=environment
     )
-    origin = _run(
+    origin = run_native(
         str(python),
         *PYTHON_FLAGS,
         "-c",
@@ -203,7 +203,7 @@ def observe_installed_package(
         message = f"installed package escaped smoke environment: {origin}"
         raise RuntimeError(message)
     cli_invocation.require_installed_guidance(status_json, origin)
-    _run(
+    run_native(
         str(python),
         "-c",
         "from ethos.adapters.openspec.cli import "
@@ -214,7 +214,7 @@ def observe_installed_package(
         env=environment,
     )
     command_plane = json.loads(
-        _run(
+        run_native(
             str(python),
             *PYTHON_FLAGS,
             str(Path(__file__).with_name("mcp.py")),
@@ -241,7 +241,9 @@ def _product_hook(
     tools = os.pathsep.join((str(supply_tool(ROOT, "gitleaks")), environment["PATH"]))
     committing = {**environment, "PATH": tools}
     work = WORK / "product-hook"
-    hook = prove_product_hook(pinned, ROOT, head=head, work=work, environment=committing, run=_run)
+    hook = prove_product_hook(
+        pinned, ROOT, head=head, work=work, environment=committing, run=run_native
+    )
     return {"product_hook": hook}
 
 
@@ -260,7 +262,7 @@ def observe_package(
     package_environment = independent_host_environment()[0]
     package_environment.update(UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data"))
     with observe_stage("locked_package_installation"):
-        _run(
+        run_native(
             uv,
             "venv",
             "--offline",
@@ -281,9 +283,9 @@ def observe_package(
         adopter_fixture.materialize_adopter(
             adopter,
             openspec_config=ROOT / "openspec/config.yaml",
-            run=_run,
+            run=run_native,
         )
-        line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
+        line_endings = adopter_fixture.line_ending_conformance(adopter, run=run_native)
     with observe_stage("installed_command_plane"):
         origin, version, command_plane = observe_installed_package(
             smoke, adopter, environment=package_environment
@@ -305,14 +307,14 @@ def observe_package(
                 build=build,
                 wheel_sha256=wheel_sha256,
                 environment=package_environment,
-                run=_run,
+                run=run_native,
             ),
         )
         with observe_stage("host_independence"):
             independent_host = observe_independent_command_plane(
                 installed_ethos, adopter, environment=package_environment
             )
-            _run(
+            run_native(
                 uv,
                 "pip",
                 "check",
@@ -324,7 +326,7 @@ def observe_package(
             resources = _verify_resources(wheel)
         with observe_stage("brownfield"):
             brownfield = brownfield_acceptance.prove_brownfield(
-                installed_ethos, WORK, environment=package_environment, run=_run
+                installed_ethos, WORK, environment=package_environment, run=run_native
             )
         lifecycle = runtime_acceptance.observe_lifecycle(
             installed_ethos=installed_ethos,
@@ -335,7 +337,7 @@ def observe_package(
             wheel_sha256=wheel_sha256,
             environment=package_environment,
             bootstrap_users=(formation_run,),
-            run=_run,
+            run=run_native,
         )
         formation = formation_run.result()
     if predecessor is not None:
@@ -343,7 +345,7 @@ def observe_package(
         adopter_fixture.materialize_adopter(
             retained_adopter,
             openspec_config=ROOT / "openspec/config.yaml",
-            run=_run,
+            run=run_native,
             retained=True,
         )
         lifecycle["retained_state_upgrade"] = runtime_acceptance.prove_retained_upgrade(

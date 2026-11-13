@@ -72,7 +72,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "selected_wheel": lambda _root, **_kwargs: PackageArtifact(
             wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), build
         ),
-        "_run": lambda *_command, **_kwargs: "",
+        "run_native": lambda *_command, **_kwargs: "",
         "source_build_identity": lambda _root, **_kwargs: build,
         "prepare_locked_requirements": lambda _root, work, _python: (
             work / "locked-requirements.txt"
@@ -178,7 +178,7 @@ def test_console_uses_image_source_without_changing_locked_dependency_owner(
 ):
     command = Mock(return_value="")
     requirements = Mock(return_value=effect.WORK / "locked-requirements.txt")
-    monkeypatch.setattr(effect, "_run", command)
+    monkeypatch.setattr(effect, "run_native", command)
     monkeypatch.setattr(effect, "prepare_locked_requirements", requirements)
     effect.run(SessionDouble())
     assert command.call_args_list[0].args == (

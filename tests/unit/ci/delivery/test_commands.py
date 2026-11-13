@@ -249,7 +249,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
             return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
 
-    monkeypatch.setattr(effect, "_run", run)
+    monkeypatch.setattr(effect, "run_native", run)
     monkeypatch.setattr(
         effect.cli_invocation,
         "run_command",

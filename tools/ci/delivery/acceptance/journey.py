@@ -37,7 +37,7 @@ from tools.ci.delivery.acceptance.invocation import command_label
 from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
-from tools.ci.delivery.acceptance.invocation import run_native as _run
+from tools.ci.delivery.acceptance.invocation import run_native
 from tools.ci.delivery.distribution import install_archive
 from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.toolchain.native import prepare_mise
@@ -213,11 +213,11 @@ def prove_full(
     """
     repo = work / "proof-adopter"
     adopter_fixture.materialize_adopter(
-        repo, openspec_config=ROOT / "openspec/config.yaml", run=_run
+        repo, openspec_config=ROOT / "openspec/config.yaml", run=run_native
     )
-    _run("git", "add", *adopter_fixture.declare_trust_registry(repo), cwd=repo)
-    _run("git", "commit", "--quiet", "-m", "chore: declare the trust floor", cwd=repo)
-    head = _run("git", "rev-parse", "HEAD", cwd=repo)
+    run_native("git", "add", *adopter_fixture.declare_trust_registry(repo), cwd=repo)
+    run_native("git", "commit", "--quiet", "-m", "chore: declare the trust floor", cwd=repo)
+    head = run_native("git", "rev-parse", "HEAD", cwd=repo)
     runtime_acceptance.activate_from_runtime(runtime.python, repo, environment=environment)
     prefix = (str(runtime.python), *PYTHON_FLAGS, "-m", "ethos.cli")
     code, proof, detail = invoke(
@@ -313,7 +313,7 @@ def prove_upgrade(
     """Upgrade a retained adopter from the previous release, roll back and upgrade again."""
     retained = work / "retained-adopter"
     adopter_fixture.materialize_adopter(
-        retained, openspec_config=ROOT / "openspec/config.yaml", run=_run, retained=True
+        retained, openspec_config=ROOT / "openspec/config.yaml", run=run_native, retained=True
     )
     return runtime_acceptance.prove_retained_upgrade(
         successor, retained, predecessor=predecessor, environment=environment

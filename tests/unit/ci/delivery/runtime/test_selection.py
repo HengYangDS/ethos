@@ -210,7 +210,7 @@ def test_package_retained_upgrade_keeps_independent_repository_selection(monkeyp
         return lifecycle
 
     observations = (
-        (effect, "_run", run),
+        (effect, "run_native", run),
         (effect, "require_python_image_source", {"executable": str(tmp_path / "image-python")}),
         (effect, "prepare_locked_requirements", work / "requirements.txt"),
         (effect, "install_locked_runtime", None),

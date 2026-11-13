@@ -23,5 +23,7 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Evidence: at `89ad4ca58` readiness passed 28 gates with none failing at 18:00:38, and
+      the static precheck from `b10254f87` passed with no finding at 18:00:41; the Change touches
+      documentation only.

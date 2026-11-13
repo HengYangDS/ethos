@@ -23,7 +23,6 @@ import tools.ci.delivery.acceptance.invocation as cli_invocation
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import defer_interruptions
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import runtime_executable
@@ -37,8 +36,11 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
     require_python_image_source,
 )
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.source import source_build_identity
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import observe_stage
+from tools.ci.delivery.acceptance.invocation import run_native as _run
+from tools.ci.delivery.acceptance.product_hook import prove_product_hook
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.acceptance.receipt import package_failure_evidence
 from tools.ci.delivery.artifact import require_artifact_current
@@ -47,12 +49,14 @@ from tools.ci.delivery.distribution import package_runtime
 from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.delivery.distribution import retain_qualified_distribution
 from tools.ci.toolchain.environment import ProjectRuntime
+from tools.ci.toolchain.native import supply_tool
 
 if TYPE_CHECKING:
     from concurrent.futures import Future
 
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.adapters.repo.runtime.transition import PackageArtifact
+    from ethos.repository.release.identity import BuildIdentity
     from tools.ci.session import Session
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -60,27 +64,6 @@ ARTIFACTS = ROOT / "build/artifacts/python"
 WORK = ROOT / "build/runtime/work/local-install-smoke"
 EVIDENCE = ROOT / "build/evidence/local-install/smoke.json"
 RUNTIME = ProjectRuntime.discover(ROOT)
-
-
-def _run(
-    *command: str,
-    cwd: Path = ROOT,
-    env: dict[str, str] | None = None,
-) -> str:
-    with observe_stage(cli_invocation.command_label(command), kind="process", target=cwd.name):
-        completed = run_command(
-            cwd,
-            command,
-            env=env,
-            inherit_environment=env is None,
-            remove_env_prefixes=("GIT_",),
-        )
-    if completed.returncode:
-        detail = completed.stderr.strip() or completed.stdout.strip()
-        rendered = " ".join(command)
-        message = f"command failed ({completed.returncode}): {rendered}\n{detail}"
-        raise RuntimeError(message)
-    return completed.stdout.strip()
 
 
 def observe_independent_command_plane(
@@ -244,6 +227,24 @@ def observe_installed_package(
     return origin, version, command_plane
 
 
+def _product_hook(
+    build: BuildIdentity, head: str, digest: str, environment: dict[str, str]
+) -> dict[str, dict[str, object]]:
+    """Judge the product's own hook under the runtime that the archive pinned.
+
+    A product clone selects only its committed head's development build, so a release or dirty
+    smoke leaves the stage unqualified. Its committers carry the locked Gitleaks its policy needs.
+    """
+    if build != source_build_identity(ROOT, include_overlay=False):
+        return {}
+    pinned = WORK / "host-data/ethos/installations" / digest[:16] / "runtime" / digest
+    tools = os.pathsep.join((str(supply_tool(ROOT, "gitleaks")), environment["PATH"]))
+    committing = {**environment, "PATH": tools}
+    work = WORK / "product-hook"
+    hook = prove_product_hook(pinned, ROOT, head=head, work=work, environment=committing, run=_run)
+    return {"product_hook": hook}
+
+
 def observe_package(
     session: Session,
     selected: PackageArtifact,
@@ -360,6 +361,9 @@ def observe_package(
         )
     distribution["shared_supply"] = prove_shared_supply(
         Path(str(distribution["path"])), WORK, environment=package_environment, root=ROOT
+    )
+    lifecycle |= _product_hook(
+        build, head, str(distribution["runtime_digest"]), package_environment
     )
     require_artifact_current(selected, head=head, repo=ROOT)
     if current_tracked_head(ROOT) != head:

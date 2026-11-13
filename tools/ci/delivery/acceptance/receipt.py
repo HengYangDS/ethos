@@ -25,6 +25,8 @@ REQUIRED_LIFECYCLE_STAGES = frozenset(
         "native_merge",
     }
 )
+# A predecessor journey upgrades, and a development build judges the product's own hook.
+OPTIONAL_LIFECYCLE_STAGES = frozenset({"retained_state_upgrade", "product_hook"})
 
 
 def package_acceptance_evidence(
@@ -47,7 +49,7 @@ def package_acceptance_evidence(
     stages = set(runtime_lifecycle)
     passed = all(stage.get("state") == "passed" for stage in runtime_lifecycle.values())
     required = REQUIRED_LIFECYCLE_STAGES
-    if stages not in (required, required | {"retained_state_upgrade"}) or not passed:
+    if not required <= stages <= required | OPTIONAL_LIFECYCLE_STAGES or not passed:
         message = "package_runtime_lifecycle_incomplete"
         raise ValueError(message)
     if command_plane.get("state") != "passed":
@@ -104,9 +106,10 @@ def package_acceptance_evidence(
         "qualification": {
             "fresh_installation": "passed",
             "cross_repository_activation": "passed",
-            "retained_state_upgrade": (
-                "passed" if "retained_state_upgrade" in stages else "not_qualified"
-            ),
+            **{
+                stage: "passed" if stage in stages else "not_qualified"
+                for stage in sorted(OPTIONAL_LIFECYCLE_STAGES)
+            },
             "interruption_recovery": "not_qualified",
             "live_consumer_safe_uninstall": "not_qualified",
         },

@@ -37,6 +37,7 @@ from tools.ci.delivery.acceptance.invocation import command_label
 from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
+from tools.ci.delivery.acceptance.invocation import run_native as _run
 from tools.ci.delivery.distribution import install_archive
 from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.toolchain.native import prepare_mise
@@ -199,18 +200,6 @@ def download_release(tag: str, target: Path, *, platform: str, attested: bool) -
             failure=f"release_journey_attestation_failed:{name}",
         )
     return PublishedRelease(version, text, archive, digest)
-
-
-def _run(*command: str, cwd: Path = ROOT, env: dict[str, str] | None = None) -> str:
-    with observe_stage(command_label(command), kind="process", target=cwd.name):
-        completed = run_command(
-            cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
-        )
-    if completed.returncode:
-        detail = completed.stderr.strip() or completed.stdout.strip()
-        message = f"command failed ({completed.returncode}): {' '.join(command)}\n{detail}"
-        raise RuntimeError(message)
-    return completed.stdout.strip()
 
 
 @observe_stage("published_full_proof")

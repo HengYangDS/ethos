@@ -40,6 +40,7 @@ _OBSERVATION: ContextVar[AcceptanceObservation | None] = ContextVar(
 )
 _PARENT_SPAN: ContextVar[str | None] = ContextVar("acceptance_parent_span", default=None)
 _PREDECESSOR_RESULT_INVALID = "predecessor_result_invalid"
+_ROOT = Path(__file__).resolve().parents[4]
 
 
 @contextmanager
@@ -200,4 +201,16 @@ def continuation(result: Mapping[str, object]) -> tuple[str, ...]:
     kind = step.get("kind") if isinstance(step, dict) else None
     argv = step.get("argv") if isinstance(step, dict) and kind in {"command", "decision"} else ()
     return tuple(argv) if isinstance(argv, list) and all(isinstance(a, str) for a in argv) else ()
-    return tuple(argv) if isinstance(argv, list) and all(isinstance(a, str) for a in argv) else ()
+
+
+def run_native(*command: str, cwd: Path = _ROOT, env: dict[str, str] | None = None) -> str:
+    """Run one native command without ambient Git variables; refuse a failure with its output."""
+    with observe_stage(command_label(command), kind="process", target=cwd.name):
+        completed = run_command(
+            cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
+        )
+    if completed.returncode:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        message = f"command failed ({completed.returncode}): {' '.join(command)}\n{detail}"
+        raise RuntimeError(message)
+    return completed.stdout.strip()

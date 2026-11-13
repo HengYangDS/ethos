@@ -236,6 +236,9 @@ def test_package_retained_upgrade_keeps_independent_repository_selection(monkeyp
         ),
         (runtime_acceptance, "observe_lifecycle", prepare_lifecycle),
         (effect, "prove_shared_supply", {"state": "passed"}),
+        (effect, "supply_tool", tmp_path),
+        (effect, "source_build_identity", successor.build),
+        (effect, "prove_product_hook", {"state": "passed"}),
         (effect, "require_artifact_current", None),
         (effect, "current_tracked_head", successor.build.source_commit),
     )

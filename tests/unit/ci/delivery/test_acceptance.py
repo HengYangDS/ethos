@@ -73,6 +73,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), build
         ),
         "_run": lambda *_command, **_kwargs: "",
+        "source_build_identity": lambda _root, **_kwargs: build,
         "prepare_locked_requirements": lambda _root, work, _python: (
             work / "locked-requirements.txt"
         ),
@@ -138,6 +139,8 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             },
         ),
         (effect, "_verify_resources", ["ethos/resources/system/gates.toml"]),
+        (effect, "supply_tool", tmp_path / "locked-gitleaks"),
+        (effect, "prove_product_hook", {"state": "passed"}),
     ):
         monkeypatch.setattr(owner, method, Mock(return_value=value))
 
@@ -159,6 +162,15 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         selected_runtime=selected_runtime,
         image_source=image_source,
     )
+
+
+@pytest.mark.usefixtures("acceptance_case")
+def test_release_build_leaves_the_product_hook_unqualified(monkeypatch):
+    monkeypatch.setattr(effect, "source_build_identity", lambda _root, **_kwargs: None)
+    effect.run(SessionDouble())
+    cast("Mock", effect.prove_product_hook).assert_not_called()
+    payload = json.loads(effect.EVIDENCE.read_text())
+    assert payload["qualification"]["product_hook"] == "not_qualified"
 
 
 def test_console_uses_image_source_without_changing_locked_dependency_owner(
@@ -416,6 +428,11 @@ def _assert_retained_distribution(case, payload, *, work: Path, root: Path) -> N
     assert distribution["runtime_digest"] == "f" * 64
     assert distribution["shared_supply"] == {"state": "passed"}
     assert distribution["retained"] is True
+    hook = cast("Mock", effect.prove_product_hook).call_args
+    assert hook.args[0] == work / "host-data/ethos/installations" / ("f" * 16) / "runtime" / (
+        "f" * 64
+    )
+    assert hook.kwargs["environment"]["PATH"].startswith(str(root / "locked-gitleaks"))
 
 
 def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, output):
@@ -429,6 +446,7 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, outp
     assert payload["qualification"] == {
         "fresh_installation": "passed",
         "cross_repository_activation": "passed",
+        "product_hook": "passed",
         "retained_state_upgrade": "not_qualified",
         "interruption_recovery": "not_qualified",
         "live_consumer_safe_uninstall": "not_qualified",

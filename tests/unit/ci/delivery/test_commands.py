@@ -251,7 +251,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
 
     monkeypatch.setattr(effect, "_run", run)
     monkeypatch.setattr(
-        effect,
+        effect.cli_invocation,
         "run_command",
         lambda *_args, **_kwargs: pytest.fail("SDK observation must not mutate lifecycle state"),
     )
@@ -439,7 +439,7 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
             }
         return int(payload["verdict"] != "pass"), payload, json.dumps(payload)
 
-    monkeypatch.setattr(effect, "run_command", run_command)
+    monkeypatch.setattr(effect.cli_invocation, "run_command", run_command)
     monkeypatch.setattr(effect.cli_invocation, "invoke", invoke)
 
     observation = effect.observe_independent_command_plane(

@@ -43,7 +43,7 @@ def test_each_publication_peer_names_its_git_remote(
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/release.toml": release})
     assert report["required_gaps"] == gaps
     if gaps:
-        assert "git remote rename origin gitlab" in report["next_action"]
+        assert "git remote rename origin gitlab" in report["gaps"][0]["repair"]
 
 
 _ROLE_GAP = f"repository_paradigm_branch_roles:{_WORKSPACE}:branch_roles."
@@ -100,7 +100,7 @@ def test_every_branch_role_field_is_retired(
     """Every field is reported; an accepted mirror moves and a legacy name waits for closeout."""
     report = paradigm_report(tmp_path, {**CONFORMING, **changes})
     assert report["required_gaps"] == gaps
-    assert report["next_action"] == repair
+    assert (report["gaps"][0]["repair"] if gaps else "") == repair
 
 
 _BINDING_GAP = f"repository_paradigm_workspace_binding:{_WORKSPACE}:"
@@ -126,7 +126,7 @@ def test_a_workspace_binding_declares_only_the_commit_policy(
     report = paradigm_report(tmp_path, {**CONFORMING, _WORKSPACE: workspace})
     assert report["required_gaps"] == gaps
     if gaps:
-        assert report["next_action"].startswith(f"remove {gaps[0].rpartition(':')[2]};")
+        assert report["gaps"][0]["repair"].startswith(f"remove {gaps[0].rpartition(':')[2]};")
 
 
 @pytest.mark.parametrize(
@@ -159,7 +159,7 @@ def test_the_signature_is_not_restated(tmp_path: Path, value: str) -> None:
         f"repository_paradigm_commit_signature:{_WORKSPACE}:commit_policy.{field}"
         for field in ("signing_required", "signing_format")
     ]
-    assert report["next_action"] == (
+    assert report["gaps"][0]["repair"] == (
         "remove signing_required; the repository paradigm requires an SSH signature on every commit"
     )
 
@@ -319,7 +319,7 @@ def test_document_conventions_name_the_carrier_and_repair(
     """Front matter starts each document, and numbered decision records share one grammar."""
     report = paradigm_report(tmp_path, {**CONFORMING, **changes})
     assert report["required_gaps"] == [gap]
-    assert repair in report["next_action"]
+    assert repair in report["gaps"][0]["repair"]
 
 
 def test_front_matter_follows_the_declared_docs_root(tmp_path: Path) -> None:

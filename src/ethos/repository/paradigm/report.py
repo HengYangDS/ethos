@@ -27,6 +27,7 @@ from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.records import record_binding_gaps
 from ethos.repository.paradigm.release import release_binding_gaps
+from ethos.repository.paradigm.repair import paradigm_next_action
 from ethos.repository.paradigm.rules import rules_binding_gaps
 from ethos.repository.paradigm.scripts import tracked_script_gaps
 from ethos.repository.paradigm.size import code_size_gaps
@@ -116,7 +117,7 @@ def repository_paradigm_report(
         "gaps": [gap._asdict() for gap in gaps],
         "required_gaps": required,
         "deviations": list(parameters.deviations),
-        "next_action": gaps[0].repair if gaps else "",
+        "next_action": paradigm_next_action(root, gaps),
     }
 
 

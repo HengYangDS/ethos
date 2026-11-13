@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.repair import REPAIR_PREVIEW
 from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.paradigm import CONFORMING
@@ -191,7 +192,8 @@ def test_paradigm_gap_names_carrier_obligation_and_repair(
     assert report["required_gaps"] == [gap]
     [detail] = report["gaps"]
     assert repair in detail["repair"]
-    assert report["next_action"] == detail["repair"]
+    repairable = gap.startswith("repository_paradigm_text_normalization:")
+    assert report["next_action"] == (REPAIR_PREVIEW if repairable else detail["repair"])
 
 
 _TYPESCRIPT = ".config/checks/typescript/tsconfig.json"

@@ -20,6 +20,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Changed
 
+- When the repository paradigm refuses for gaps that `ethos lane repair-paradigm` can write, a
+  proof, landing or publication names the repair preview `ethos lane repair-paradigm --json` as
+  its next action; a gap that needs judgment still names its own repair.
 - The four maintainer Skills and the packaged `ethos-repository-work` Skill carry
   `metadata.internal: "true"`, so `npx skills add HengYangDS/ethos` offers none of them; agents
   read the Skill version that their installed ETHOS reports.

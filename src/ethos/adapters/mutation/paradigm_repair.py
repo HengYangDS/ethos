@@ -17,6 +17,7 @@ from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.repair import paradigm_repair_plan
+from ethos.repository.paradigm.repair import repair_next_action
 from ethos.repository.paradigm.report import repository_paradigm_report
 
 if TYPE_CHECKING:
@@ -59,7 +60,7 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         "report_only": [gap._asdict() for gap in plan.report_only],
         "actions": list(plan.actions),
         "required_gaps": [],
-        "next_action": _APPLY if plan.edits else _first(plan.actions, plan.report_only),
+        "next_action": _APPLY if plan.edits else repair_next_action(plan),
     }
     effect = apply_carrier_edits(
         root=repo,
@@ -90,7 +91,7 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         "state": "repaired",
         "applied": True,
         "remaining_gaps": remaining["required_gaps"],
-        "next_action": _first(plan.actions, plan.report_only),
+        "next_action": repair_next_action(plan),
     }
 
 
@@ -108,10 +109,3 @@ def _edit_view(edit: CarrierEdit) -> dict[str, object]:
         "removed": edit.after is None,
         "diff": "".join(_WITHHELD.sub(r"\1 <withheld>", line) for line in diff),
     }
-
-
-def _first(actions: tuple[str, ...], report_only: tuple[ParadigmGap, ...]) -> str:
-    """Name the follow-up command first, then the first gap that needs judgment."""
-    if actions:
-        return actions[0]
-    return report_only[0].repair if report_only else ""

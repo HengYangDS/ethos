@@ -110,7 +110,7 @@ def test_a_refused_publish_names_the_declaration_repair(tmp_path: Path) -> None:
     retired = "publication_declaration_field_retired:local_verification_command"
     for result in (readiness, exact):
         assert (result["verdict"], retired in result["required_gaps"]) == ("block", True)
-        assert "ethos lane repair-paradigm --apply" in result["next_action"]
+        assert "ethos lane repair-paradigm --json" in result["next_action"]
 
 
 @pytest.mark.parametrize("probe_remote", [False, True])

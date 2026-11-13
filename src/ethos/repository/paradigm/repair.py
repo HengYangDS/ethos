@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
+    from collections.abc import Sequence
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
@@ -54,6 +55,8 @@ _RETIRED_FIELDS = frozenset(
 
 # The repaired text, or None when the repair removes the carrier, and a follow-up command.
 Repair = tuple[str | None, str]
+# The command that previews every deterministic repair of a repository's paradigm gaps.
+REPAIR_PREVIEW = "ethos lane repair-paradigm --json"
 
 
 class CarrierEdit(NamedTuple):
@@ -108,6 +111,21 @@ def paradigm_repair_plan(root: Path, gaps: Iterable[ParadigmGap]) -> RepairPlan:
         if text != original[path]
     )
     return RepairPlan(edits, tuple(repaired), tuple(actions), tuple(report_only))
+
+
+def repair_next_action(plan: RepairPlan) -> str:
+    """Name the plan's first follow-up command, then the first gap that needs judgment."""
+    if plan.actions:
+        return plan.actions[0]
+    return plan.report_only[0].repair if plan.report_only else ""
+
+
+def paradigm_next_action(root: Path, gaps: Sequence[ParadigmGap]) -> str:
+    """Route to the repair preview when it plans edits, else to its next command or judgment."""
+    if not gaps:
+        return ""
+    plan = paradigm_repair_plan(root, gaps)
+    return REPAIR_PREVIEW if plan.edits else repair_next_action(plan) or gaps[0].repair
 
 
 def _read(root: Path, path: str) -> str | None:

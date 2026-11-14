@@ -115,15 +115,18 @@ def repository_paradigm_report(
         *tracked_script_gaps(paradigm, root, tracked),
         *orchestration_gaps(paradigm, root, tracked),
     ]
-    required = [gap.required_gap for gap in gaps]
+    # A reporting obligation is named and does not block; only an armed one is required.
+    armed = [gap for gap in gaps if paradigm.armed(gap.obligation)]
+    required = [gap.required_gap for gap in armed]
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required)),
         "paradigm": paradigm.id,
         "gaps": [gap._asdict() for gap in gaps],
         "required_gaps": required,
+        "reported_gaps": [gap.required_gap for gap in gaps if not paradigm.armed(gap.obligation)],
         "deviations": list(parameters.deviations),
         "name_admissions": identifiers.admissions,
-        "next_action": paradigm_next_action(root, gaps),
+        "next_action": paradigm_next_action(root, armed),
     }
 
 

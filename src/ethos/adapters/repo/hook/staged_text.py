@@ -2,7 +2,8 @@
 
 Each staged authored file meets the rule its owner applies later: a Markdown file the list rule, a
 `canonical-text` file of the format policy the canonical layout, and a package marker an opening
-docstring. A commit is refused for the bytes that the gates and the paradigm would refuse.
+docstring once that obligation is armed. A commit is refused for the bytes that the gates and the
+paradigm would refuse.
 """
 
 from __future__ import annotations
@@ -14,7 +15,9 @@ from ethos.adapters.gates.native.inputs import RECORD_PREFIXES
 from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.staged_size import staged_regular_files
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.markdown_spacing import spacing_violations
+from ethos.repository.paradigm.packages import PACKAGE_DOCSTRING
 from ethos.repository.paradigm.packages import PACKAGE_MARKER
 from ethos.repository.paradigm.packages import opens_with_docstring
 from ethos.repository.paradigm.parameters import seconds
@@ -42,8 +45,11 @@ def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None)
     if not staged:
         return
     canonical = canonical_text_paths(staged, canonical_resource(POLICY_PATH.as_posix()))
+    # A reporting obligation is the audit's to name; the hook refuses only an armed one.
+    markers = load_repository_paradigm().armed(PACKAGE_DOCSTRING)
     for path in sorted(set(staged) - paradigm_received_paths(root, staged)):
-        markdown, marker = path.endswith(".md"), path.rpartition("/")[2] == PACKAGE_MARKER
+        markdown = path.endswith(".md")
+        marker = markers and path.rpartition("/")[2] == PACKAGE_MARKER
         if not (markdown or marker or path in canonical):
             continue
         try:

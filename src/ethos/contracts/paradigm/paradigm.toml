@@ -4,6 +4,11 @@ source_refs = ["src/ethos/contracts/paradigm/paradigm.toml"]
 # Immutable record roots keep their captured bytes; they are not formatter inputs.
 immutable_roots = ["openspec/changes/archive/"]
 
+# Obligations that report and do not block: the audit names each gap apart from the required
+# ones, and `pre-commit` admits the staged file. A new rule reports before it refuses, so an
+# obligation leaves this list only in a release after one that reported it, with its repair.
+reporting = ["package-docstring"]
+
 # Shared content and commit and tag messages name no private-class network address. The pattern
 # names address classes, never an address: RFC 1918 and RFC 4193 literals, and names under .local,
 # .internal, .lan and .home.arpa in host position, after "//" or "@" or before ":<port>".

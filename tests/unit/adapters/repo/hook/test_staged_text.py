@@ -10,6 +10,7 @@ import pytest
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.repo.hook.staged_text as staged_text
 from ethos.adapters.repo.hook.protocol import execute_hook
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.policy.quality.format_selection import POLICY_PATH
 from ethos.repository.release.resources import canonical_resource
 from tests.support.runtime_scenarios import git_process
@@ -51,13 +52,23 @@ def test_pre_commit_admits_the_canonical_text_layout(
     [("", True), ("VALUE = 1\n", True), ('"""Application commands."""\n', False)],
     ids=["empty", "code-first", "docstring"],
 )
-def test_pre_commit_admits_a_package_marker_only_with_a_docstring(
-    repo: Path, capsys: pytest.CaptureFixture[str], *, source: str, refused: bool
+def test_pre_commit_refuses_a_package_marker_only_once_the_obligation_is_armed(
+    repo: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    source: str,
+    refused: bool,
 ) -> None:
-    """A staged `__init__.py` states its package's purpose before it is committed."""
+    """While the obligation reports, the hook admits every marker; armed, it refuses a bare one."""
     (repo / "app").mkdir()
     (repo / "app/__init__.py").write_text(source, encoding="utf-8")
     assert git_process(repo, "add", "app/__init__.py").returncode == 0
+    assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 0
+    assert not capsys.readouterr().err
+
+    armed = load_repository_paradigm().model_copy(update={"reporting": ()})
+    monkeypatch.setattr(staged_text, "load_repository_paradigm", lambda: armed)
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(refused)
     error = capsys.readouterr().err
     assert ("pre_commit_package_docstring:app/__init__.py" in error) == refused

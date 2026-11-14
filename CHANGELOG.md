@@ -108,6 +108,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   is not shown.
 - The worker cap only lowers a `PYTEST_XDIST_AUTO_NUM_WORKERS` count that the environment already
   declares, so a guest with more CPUs cannot raise a hosted job's worker count.
+- The package-docstring obligation reports and no longer blocks. A tracked `__init__.py` without
+  an opening docstring still appears in the paradigm report with its repair, now under
+  `reported_gaps` and not among the required gaps, so it no longer blocks `ethos prove`,
+  `ethos land` or `ethos publish`, and `pre-commit` admits a staged one. The paradigm declares its
+  reporting obligations in one list; this is the only one. beta.10 introduced the obligation
+  already blocking, with no repair the product can write.
 
 ### Fixed
 

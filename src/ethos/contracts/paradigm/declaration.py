@@ -359,6 +359,7 @@ class RepositoryParadigm(BaseModel):
     license: LicenseConventions
     configuration: ConfigurationPlane
     immutable_roots: FrozenTuple[str]
+    reporting: FrozenTuple[str] = ()
     private_address: str
     formatter: FrozenTuple[FormatterBinding]
     release: ReleaseConventions
@@ -403,6 +404,10 @@ class RepositoryParadigm(BaseModel):
             message = f"private address pattern does not compile: {error}"
             raise ValueError(message) from error
         return self
+
+    def armed(self, obligation: str) -> bool:
+        """Return whether an obligation's gap blocks; a reporting one is named and does not."""
+        return obligation not in self.reporting
 
     def names_private_address(self, text: str) -> bool:
         """Return whether text names a private-class network address."""

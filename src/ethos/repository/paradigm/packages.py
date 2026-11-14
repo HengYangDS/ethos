@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 PACKAGE_MARKER = "__init__.py"
+PACKAGE_DOCSTRING = "package-docstring"
 
 
 def opens_with_docstring(source: str | None) -> bool:
@@ -36,7 +37,7 @@ def package_docstring_gaps(root: Path, tracked: frozenset[str]) -> Iterator[Para
             tracked_text(root, path, tracked)
         ):
             yield ParadigmGap(
-                "package-docstring",
+                PACKAGE_DOCSTRING,
                 path,
                 f"open {path} with a one-line docstring that names the package's purpose",
             )

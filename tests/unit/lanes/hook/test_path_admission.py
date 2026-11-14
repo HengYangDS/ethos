@@ -19,6 +19,7 @@ from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
@@ -237,6 +238,36 @@ def test_ignored_path_matrix(worktree: Path, case: tuple[str, str, str, str, str
     if verdict == "block":
         assert report["decision"] == {"action": "block", "reason": reason}
         assert admission["error"] == reason
+
+
+@pytest.mark.parametrize(
+    ("effect", "reason"),
+    [
+        ("edit", "retired_config_script_home:.config/ci/scripts/run.sh"),
+        ("remove", "allowed"),
+        ("delete", "allowed"),
+        ("create", "retired_config_script_home:.config/ci/scripts/run.sh"),
+    ],
+)
+def test_a_denied_placement_admits_only_its_own_removal(
+    tmp_path: Path, effect: str, reason: str
+) -> None:
+    """A tracked path under a denied prefix can be taken away, and not edited or created."""
+    repo = init_git_repo(tmp_path / "repo")
+    script = Path(repo, ".config/ci/scripts/run.sh")
+    commit_fixture_file(repo, ".config/ci/scripts/run.sh", "#!/bin/sh\n", "test: add a script")
+    if effect == "remove":
+        script.unlink()
+    staged = {"index_tree": "tree", "effects": {".config/ci/scripts/run.sh": effect}}
+
+    checked, _gap = path_admission.check_write_paths(
+        repo,
+        [script],
+        "work_lane",
+        effect_report=staged if effect in {"delete", "create"} else None,
+    )
+
+    assert (checked[0]["reason"], checked[0]["allowed"]) == (reason, reason == "allowed")
 
 
 @pytest.mark.parametrize("mismatch", ["runner", "schema"])

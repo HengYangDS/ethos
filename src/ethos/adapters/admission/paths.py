@@ -139,7 +139,9 @@ def _check_path(
         else not present and not deleted
     )
     decision: dict[str, object] = {}
-    if topology["decision"] == "deny":
+    # A denied placement refuses what would put or keep content there, never the path's removal.
+    removed = deleted or (indexed_effects is not None and indexed_effects.get(relative) == "delete")
+    if topology["decision"] == "deny" and not removed:
         reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
     elif (
         created

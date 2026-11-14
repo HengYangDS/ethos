@@ -140,6 +140,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   evidence, and a declaration without evidence is the gap
   `repository_paradigm_identifier_source`. A release older than this one refuses a profile that
   carries the new key, so add it after binding this release.
+- A tracked file under a placement that the artifact topology denies can be removed.
+  `ethos lane prewrite` and the pre-commit hook refused its deletion with the placement's gap, for
+  example `retired_config_script_home` for a script under `.config/ci/scripts`, so a repository
+  could not take away what the rule says does not belong. A removal is now admitted: for a
+  worktree request the file is already absent, and for an index request the patch deletes it. A
+  creation or an edit there stays refused.
 - A gate's child no longer inherits the state that a shell's `mise activate` exports
   (`__MISE_DIFF` and its siblings). The gates removed only `MISE_` variables, so a test that itself
   ran `mise exec` resolved its tools in the launching shell's order: one head could fail a proof

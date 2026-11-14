@@ -24,6 +24,6 @@
 
 - [x] 3.1 Compare the gate policy that the installed runtime and the lane compile for the lane head.
       Done when both proof floors have equal digests.
-- [ ] 3.2 Pass the static precheck and readiness at the lane head. Done when each passes on the
+- [x] 3.2 Pass the static precheck and readiness at the lane head. Done when each passes on the
       committed head; the Change's own commit measures +67.7 product and +89.9 test line-equivalents
       over the lane base, within its 68 and 90.

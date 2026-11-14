@@ -54,3 +54,7 @@ five-section form; this entrance does not maintain another template or rule set.
 - [DR-0026: The 0.2.0 release candidate gate is recorded with three
   waivers](dr-0026-release-candidate-gate.md): what the gate that DR-0021 applies requires, which
   three requirements the owner waived and what stands in for each, and which work leaves 0.2.0.
+- [DR-0027: Common semantic structure](dr-0027-common-semantic-structure.md): why every governed
+  repository follows one semantic structure from three invariants, why it is reported before it
+  refuses or blocks, and what the owner decided for width and names. It succeeds DR-0012's clause on
+  repository-owned structure and narrows DR-0011 inside documentation homes.

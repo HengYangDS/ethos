@@ -1,3 +1,23 @@
+## ADDED Requirements
+
+### Requirement: A new obligation enters as reporting
+
+An obligation that a release ships for the first time SHALL be declared as reporting in that
+release, and SHALL leave the declaration only in a later release that ships its repair. An
+obligation shipped through 0.2.0-beta.10 and absent from the declaration is armed. The semantic
+closure, which the audit reports beside its verdict, is the one other finding that does not
+block, and it keeps its own carrier until rules have rows.
+
+#### Scenario: A release ships an obligation for the first time
+
+- **WHEN** a release adds an obligation that no earlier release reported
+- **THEN** the paradigm declares it as reporting, and its gaps appear among the reported gaps.
+
+#### Scenario: An obligation shipped earlier is absent from the declaration
+
+- **WHEN** an obligation shipped through 0.2.0-beta.10 is not declared as reporting
+- **THEN** its gaps are required and block.
+
 ## MODIFIED Requirements
 
 ### Requirement: Paradigm conformance is a blocking verdict

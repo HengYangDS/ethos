@@ -5,9 +5,10 @@ source_refs = ["src/ethos/contracts/paradigm/paradigm.toml"]
 immutable_roots = ["openspec/changes/archive/"]
 
 # Obligations that report and do not block: the audit names each gap apart from the required
-# ones, and `pre-commit` admits the staged file. A new rule reports before it refuses, so an
-# obligation leaves this list only in a release after one that reported it, with its repair.
-reporting = ["package-docstring"]
+# ones, and `pre-commit` admits the staged file. A new rule reports before it refuses: an
+# obligation first shipped after beta.10 enters here, and one leaves only in a release after one
+# that reported it, with its repair. An obligation shipped through beta.10 and absent here is armed.
+reporting = ["identifier-source", "package-docstring"]
 
 # Shared content and commit and tag messages name no private-class network address. The pattern
 # names address classes, never an address: RFC 1918 and RFC 4193 literals, and names under .local,

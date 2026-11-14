@@ -10,6 +10,9 @@
       cases.
 - [x] 1.3 Make `pre-commit` admit a staged package marker while the obligation reports. Done when
       `tests/unit/adapters/repo/hook/test_staged_text.py` passes with both states.
+- [x] 1.4 Declare `identifier-source`, which this batch ships for the first time, as reporting.
+      Done when `tests/unit/repository/test_paradigm_names.py` expects a source gap among the
+      reported gaps and the names it excuses nothing for among the required ones.
 
 ## 2. Documents
 

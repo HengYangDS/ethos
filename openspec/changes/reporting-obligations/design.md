@@ -33,10 +33,12 @@ Non-Goals:
 
 ## Decisions
 
-1. **One list in the declaration.** `reporting = ["package-docstring"]` in
-   `src/ethos/contracts/paradigm/paradigm.toml`, a `reporting` field on the model with an empty
-   default. A list is the smallest carrier, and the paradigm has no obligation rows to hold a
-   state field yet.
+1. **One list in the declaration.** `reporting` in `src/ethos/contracts/paradigm/paradigm.toml`, a
+   field on the model with an empty default. A list is the smallest carrier, and the paradigm has
+   no obligation rows to hold a state field yet. It holds `package-docstring`, which the owner
+   ruled on, and `identifier-source`, which this batch ships for the first time: an obligation
+   absent from the list is armed only if it shipped through beta.10. The audit's semantic closure
+   is the one other finding that does not block; it keeps its own path until rules have rows.
 2. **The report keeps every gap and requires only the armed ones.** `gaps` still lists each gap
    with its obligation, carrier and repair; `required_gaps` holds the armed ones; the new
    `reported_gaps` holds the rest by their stable identity. The next action is computed from the

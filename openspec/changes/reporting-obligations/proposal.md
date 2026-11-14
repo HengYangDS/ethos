@@ -20,8 +20,10 @@ defect that blocks governed repositories it does not use the weekly off-gate row
 - The paradigm declares `reporting`, a list of obligation names. A gap of a listed obligation
   appears in the paradigm report with its carrier and repair and under `reported_gaps`; it is not a
   required gap, does not change the verdict and does not select the report's next action.
-- `package-docstring` is the one listed obligation. `pre-commit` no longer refuses a staged
-  package marker while it is listed.
+- Two obligations are listed. `package-docstring` shipped blocking in beta.10, and `pre-commit`
+  no longer refuses a staged package marker while it is listed. `identifier-source` ships for the
+  first time in this batch and enters as reporting: a declared identifier source without evidence
+  is named, and the names it would have excused still block.
 - The Unreleased section of `CHANGELOG.md` gains a Changed line.
 
 Not breaking: nothing that passed before is refused. A repository that kept its markers documented
@@ -37,7 +39,7 @@ None.
 ### Modified Capabilities
 
 - `repository-paradigm`: MODIFIED requirements `Paradigm conformance is a blocking verdict` and
-  `Python packages state their purpose`.
+  `Python packages state their purpose`; ADDED requirement `A new obligation enters as reporting`.
 
 ## Impact
 

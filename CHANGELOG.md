@@ -109,9 +109,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The package-docstring obligation reports and no longer blocks. A tracked `__init__.py` without
   an opening docstring still appears in the paradigm report with its repair, now under
   `reported_gaps` and not among the required gaps, so it no longer blocks `ethos prove`,
-  `ethos land` or `ethos publish`, and `pre-commit` admits a staged one. The paradigm declares its
-  reporting obligations in one list; this is the only one. beta.10 introduced the obligation
-  already blocking, with no repair the product can write.
+  `ethos land` or `ethos publish`, and `pre-commit` admits a staged one. beta.10 introduced the
+  obligation already blocking, with no repair the product can write. The paradigm declares its
+  reporting obligations in one list, which also holds the new `identifier-source`: an obligation
+  enters as reporting in the release that first ships it.
 
 ### Fixed
 

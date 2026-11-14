@@ -247,7 +247,9 @@ def test_an_identifier_source_without_evidence_excuses_nothing(
     A profile with an invalid source row is its owner's gap and admits nothing.
     """
     report = paradigm_report(tmp_path, {**_IDENTIFIED, **files}, untracked=untracked)
-    assert report["required_gaps"] == [*sources, *(_NAME_GAPS[index] for index in names)]
+    # The source gap is new in this release, so it reports; the names it excuses nothing for block.
+    assert report["reported_gaps"] == sources
+    assert report["required_gaps"] == [_NAME_GAPS[index] for index in names]
 
 
 def test_prewrite_admits_a_new_file_stem_a_tracked_manifest_repeats(tmp_path: Path) -> None:

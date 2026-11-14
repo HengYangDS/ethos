@@ -16,7 +16,7 @@
 
 ## 3. Lane
 
-- [ ] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+- [x] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head.
 
 ## Workflow follow-up

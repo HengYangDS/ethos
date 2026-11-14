@@ -25,7 +25,12 @@
 
 ## 3. Lane-only acceptance
 
-- [ ] 3.1 Pass the precheck, readiness and the full proof at the lane head. Done when each passes on
-      the committed head.
-- [ ] 3.2 Pass `local-install-smoke` at the lane head. Done when the installed build's
+- [x] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head.
+- [x] 3.2 Pass `local-install-smoke` at the lane head. Done when the installed build's
       `EthosResult.from_payload` reads the status result in the installed-package check.
+
+## Workflow follow-up
+
+- Landing: the full proof runs on the archived head, where one proof serves every Change of the
+  unit; its receipt is the landing's.

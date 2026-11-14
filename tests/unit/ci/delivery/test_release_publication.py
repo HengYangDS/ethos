@@ -220,7 +220,7 @@ def test_each_release_leg_declares_the_host_its_runner_provides():
         r"\$\{\{ fromJSON\(\((.+)\) && '(\[.*?\])' \|\| inputs\.windows_legs && '(.*?)'"
         r" \|\| '(\[.*\])'\) \}\}",
         jobs["host-conformance"]["strategy"]["matrix"]["include"],
-        re.S,
+        re.DOTALL,
     )
     assert selection is not None
     full_run = "github.event_name == 'schedule'"

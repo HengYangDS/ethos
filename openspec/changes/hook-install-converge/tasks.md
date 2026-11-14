@@ -41,9 +41,9 @@
       row's budget.
 - [x] 5.2 Lane: apply the patch under a passing `ethos lane prewrite` and commit it. Done when the
       lane head holds every path of the patch.
-- [ ] 5.3 Lane: pass readiness and the full proof at the lane head. Done when both pass on the
-      committed head; the Change's own commit measures +3.4 product and +111.3 test line-equivalents
-      over the lane base, within its 45 and 180.
+- [x] 5.3 Lane: pass readiness at the lane head. Done when it passes on the committed head; the
+      Change's own commit measures +3.4 product and +111.3 test line-equivalents over the lane base,
+      within its 45 and 180.
 - [x] 5.4 Lane: run the prose gate on the changed Markdown. Done when Vale and codespell report no
       finding.
 
@@ -51,3 +51,5 @@
 
 - The owner decides whether Breaking (4), the move of reclamation to `hook retire-supply`, becomes
   its own Change or joins a later row; the release-candidate plan's owner records it.
+- Landing: the full proof runs on the archived head, where one proof serves every Change of the
+  unit; its receipt is the landing's.

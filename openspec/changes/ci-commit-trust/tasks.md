@@ -31,7 +31,12 @@
 - [ ] 4.1 Pass `ethos lane project --check`, the precheck and readiness at the lane head. Done when
       each passes on the committed head and the source budget shows the tools class below the lane
       base.
-- [ ] 4.2 Observe one hosted run of the proposal ref on each forge. Done when the bootstrap step
-      binds trust through the operation and `commit policy` admits the pushed range.
-- [ ] 4.3 Run the material case on a Windows host. Done when
-      `test_bound_material_is_protected_under_a_shared_temporary_root` passes there.
+- [x] 4.2 Observe one hosted run of the proposal ref on each forge. Done when the bootstrap step
+      binds trust through the operation and `commit policy` admits the pushed range. Evidence at
+      `3d5365a65`: GitHub run 43637623388, steps `Bind operator commit trust` and
+      `Admit pushed commit range`; the GitLab pipeline of the same ref, whose commit policy job
+      prints `bound` and then `admitted`.
+- [x] 4.3 Run the material case on a Windows host. Done when
+      `test_bound_material_is_protected_under_a_shared_temporary_root` passes there. Evidence:
+      GitHub run 43642339317 at `3d5365a65`, whose four Windows legs run the host cases with 18
+      passed and 2 skipped against 16 and 4 on macOS; the case skips only off Windows.

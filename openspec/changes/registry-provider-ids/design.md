@@ -35,3 +35,13 @@ Non-Goals:
   independent verification that the profile requires must cover that floor.
 - A rollback to a runtime without the catalog refuses these registries. Restore the registries of
   the earlier head before such a rollback.
+
+## Outcome in this lane (2026-11-15)
+
+The rename was committed in the lane that also carries `provider-ids` and then reverted there. A
+lane lands under the installed hook runtime, which re-admits the proof with its own code; that
+runtime was built from the accepted head before the catalog existed and refuses a registry that
+names an ID. A probe compiled both registries with both interpreters at the lane head: the
+installed runtime refused both, and after the revert both interpreters gave equal digests. The
+rename returns in its own lane once the runtime is reinstalled from the landed head, as the
+proposal's first paragraph conditions it.

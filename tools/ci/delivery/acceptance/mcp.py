@@ -231,7 +231,8 @@ async def _adoption(
         )
         assert applied["verdict"] == "pass"
         assert applied["data"]["applied"] is True
-        assert set(applied["data"]["planned_files"]) == {
+        # A release build also plans its own pin; the hashes below cover every planned file.
+        assert set(applied["data"]["planned_files"]) >= {
             ".ethos/profile.toml",
             "openspec/config.yaml",
         }

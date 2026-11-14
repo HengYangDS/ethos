@@ -36,8 +36,9 @@ def prove_brownfield(
     *,
     environment: Mapping[str, str],
     run: Callable[..., str],
+    release: bool = False,
 ) -> dict[str, object]:
-    """Add only two bindings to an authored Git repository."""
+    """Add only two bindings, and a release's own pin, to an authored Git repository."""
     git = shutil.which("git", path=environment.get("PATH"))
     if git is None:
         message = "installed_brownfield_git_unavailable"
@@ -66,6 +67,8 @@ def prove_brownfield(
     code, preview, _detail = invoke(root, (*command, "--json"), environment=environment)
     data = preview.get("data")
     planned = [".ethos/profile.toml", "openspec/config.yaml"]
+    if release:
+        planned.append(".config/mise/config.toml")
     preview_preserved = (
         run(git, "rev-parse", "HEAD", cwd=root, env=env) == head
         and all((root / relative).read_bytes() == content for relative, content in authored.items())
@@ -105,7 +108,7 @@ def prove_brownfield(
     preserved = (
         run(git, "rev-parse", "HEAD", cwd=root, env=env) == head
         and all((root / relative).read_bytes() == content for relative, content in authored.items())
-        and observed_status == [f"?? {relative}" for relative in planned]
+        and observed_status == [f"?? {relative}" for relative in sorted(planned)]
     )
     if not preserved:
         message = "installed_brownfield_authored_content_changed"

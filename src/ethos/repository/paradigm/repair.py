@@ -208,13 +208,13 @@ def _formatter(paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None)
     repaired: str | None = text
     for name, value in settings.items():
         if repaired is not None and (not key or name == key):
-            repaired = _set_toml_value(repaired, name, value)
+            repaired = set_toml_value(repaired, name, value)
     if repaired is None:
         return None
     return repaired, f"git add {path}" if repaired == text else ""
 
 
-def _set_toml_value(text: str, key: str, value: object) -> str | None:
+def set_toml_value(text: str, key: str, value: object) -> str | None:
     """Set one dotted TOML key in place, keeping comments and every other line."""
     *tables, leaf = key.split(".")
     table = ".".join(tables)
@@ -406,7 +406,7 @@ def _restated_field(
         return None
     if (table, name) not in _RETIRED_FIELDS and section[name] != _fixed(paradigm, table, name):
         return None
-    return _without_field(text or "", declared, table, name)
+    return without_field(text or "", declared, table, name)
 
 
 def _unread_field(
@@ -418,10 +418,10 @@ def _unread_field(
     section = declared.get(table) if declared is not None else None
     if declared is None or not isinstance(section, dict) or name not in section:
         return None
-    return _without_field(text or "", declared, table, name)
+    return without_field(text or "", declared, table, name)
 
 
-def _without_field(text: str, declared: Mapping[str, Any], table: str, name: str) -> Repair | None:
+def without_field(text: str, declared: Mapping[str, Any], table: str, name: str) -> Repair | None:
     """Delete one field on a line of its own; a table left empty goes with its comments."""
     section = declared[table]
     lines = text.rstrip("\n").split("\n")
@@ -453,7 +453,7 @@ def _record_binding(
     detail = gap.carrier.partition(":")[2]
     name, _sep, roots = detail.partition("=")
     if name == ROOTS and roots and text is not None:
-        repaired = _set_toml_value(text, ROOTS, roots.split(","))
+        repaired = set_toml_value(text, ROOTS, roots.split(","))
         return None if repaired is None else (repaired, "")
     return _unread_table(paradigm, gap, text) if detail == TABLE else None
 
@@ -475,7 +475,7 @@ def _release_mirror(
     """Declare the accepted fast-forward mirror in the release binding's `[release]` table."""
     if text is None or not text.strip():
         return render_toml({"release": {"mirror": RELEASE_MIRROR_ACCEPTED_FF}}), ""
-    repaired = _set_toml_value(text, "release.mirror", RELEASE_MIRROR_ACCEPTED_FF)
+    repaired = set_toml_value(text, "release.mirror", RELEASE_MIRROR_ACCEPTED_FF)
     return None if repaired is None else (repaired, "")
 
 

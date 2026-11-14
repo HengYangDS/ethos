@@ -7,6 +7,8 @@ import os
 import stat
 import sys
 import tempfile
+import tomllib
+from difflib import unified_diff
 from pathlib import Path
 
 from ethos.adapters.openspec.configuration import official_config_report
@@ -18,18 +20,22 @@ from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.paradigm.repair import set_toml_value
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
+from ethos.repository.release.pin import bare_entry
+from ethos.repository.release.pin import declared_pin
 
 PROFILE_PATH = binding_path("profile")
 APPLY_CRITERIA = (
-    "planned_files contains only the adopter profile and official OpenSpec config",
+    "planned_files contains only the adopter profile, official OpenSpec config and release pin",
     "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
@@ -41,8 +47,13 @@ def adoption_plan(
     apply: bool = False,
     expect_plan_digest: str | None = None,
     select_runtime: bool = False,
+    release: str | None = None,
 ) -> dict[str, object]:
-    """Compose native initialization with one reviewed, source-bound file-effect plan."""
+    """Compose native initialization with one reviewed, source-bound file-effect plan.
+
+    `release` is the invoking release, whose pin the plan adds to the Mise configuration; a
+    development build, and formation, name none and plan no pin.
+    """
     current_profile = _current_binding(root, root / PROFILE_PATH)
     configuration = official_config_report(root, initialize=True)
     config_path = Path(str(configuration["path"])).relative_to(root.resolve()).as_posix()
@@ -74,11 +85,17 @@ def adoption_plan(
         PROFILE_PATH: (*current_profile, contents[PROFILE_PATH]),
         config_path: (*current_openspec, contents[config_path]),
     }
+    current_pin = _current_binding(root, root / MISE_CONFIG)
+    pinned = _pinned(current_pin[0], release) if release else None
+    if release:
+        bindings[MISE_CONFIG] = (*current_pin, pinned or "")
     conflicts = [
         path
         for path, (current, _exists, safe, content) in bindings.items()
         if (not safe or current not in {None, "", content})
         and not (path == config_path and configuration["verdict"] == "unknown")
+        # The pin extends the text of its file; every other binding replaces only an empty one.
+        and not (path == MISE_CONFIG and safe and pinned)
     ]
     config_gaps = list(string_sequence(configuration["required_gaps"]))
     if config_gaps and configuration["verdict"] == "block" and config_path not in conflicts:
@@ -91,15 +108,9 @@ def adoption_plan(
     pending: list[tuple[Path, str, str | None]] = []
     for path, (current, exists, _safe, content) in bindings.items():
         conflict = path in conflicts
-        action = (
-            "skip_existing_nonempty"
-            if conflict
-            else "keep_existing"
-            if current == content
-            else "write_empty"
-            if current == ""
-            else "create"
-        )
+        # A file that holds the planned text is kept; only the pin extends one that holds more.
+        states = {None: "create", "": "write_empty", content: "keep_existing"}
+        action = "skip_existing_nonempty" if conflict else states.get(current, "extend_existing")
         if action != "keep_existing":
             pending.append((root / path, content, current))
         if action in {"create", "write_empty"}:
@@ -112,6 +123,13 @@ def adoption_plan(
                 "existed": exists,
                 "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
                 "preview": content.partition("\n")[0],
+                "diff": []
+                if conflict
+                else list(
+                    unified_diff(
+                        (current or "").splitlines(), content.splitlines(), path, path, lineterm=""
+                    )
+                ),
             }
         )
     runtime = _runtime_plan(root) if select_runtime else {}
@@ -139,9 +157,11 @@ def adoption_plan(
         "root": str(root),
         "repository_id": f"repository:{profile_id}",
         "plan_digest": plan_digest,
-        "planned_files": list(contents),
-        "read_files": list(contents),
+        "planned_files": list(bindings),
+        "read_files": list(bindings),
         "applied": applied,
+        # Mise needs the lock entry of a pin that this apply wrote.
+        "relock": applied and pinned not in {None, current_pin[0]},
         "verdict": reduce_verdicts(
             report_verdict(configuration),
             "block" if conflicts else "pass",
@@ -168,7 +188,7 @@ def adoption_plan(
         **({"runtime_selection": {**runtime, "applied": applied}} if select_runtime else {}),
         "rollback": {
             "mode": "remove_generated_binding_or_restore_git_state",
-            "planned_files": [PROFILE_PATH, config_path],
+            "planned_files": list(bindings),
             "generated_files": generated,
         },
     }
@@ -231,6 +251,30 @@ def _apply_runtime(
         raise
 
 
+def _pinned(current: str | None, release: str) -> str | None:
+    """Merge the release's bare entry into Mise configuration text, keeping every other line.
+
+    None when the text selects another release or form, or cannot take the entry without losing a
+    line: adoption adds the pin and its setting and replaces nothing.
+    """
+    entry = bare_entry(release)
+    if not current:
+        return entry
+    planned: str | None = current
+    try:
+        declared = tomllib.loads(current)
+        for table, values in tomllib.loads(entry).items():
+            for key, value in values.items():
+                held = declared.get(table, {})
+                if key not in held:
+                    planned = planned and set_toml_value(planned, f"{table}.{key}", value)
+                elif held[key] != value:
+                    return None
+        return planned if planned and declared_pin(planned) == declared_pin(entry) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _existing_profile_is_valid(root: Path, binding: tuple[str | None, bool, bool]) -> bool:
     current, _exists, safe = binding
     return bool(current and safe and load_repository_profile(root).state == "valid")
@@ -262,9 +306,8 @@ def _apply_bindings(root: Path, bindings: list[tuple[Path, str, str | None]]) ->
     created: list[Path] = []
     try:
         for target, content, previous in bindings:
-            if not target.parent.exists():
-                target.parent.mkdir()
-                created.append(target.parent)
+            created += [parent for parent in reversed(target.parents) if not parent.exists()]
+            target.parent.mkdir(parents=True, exist_ok=True)
             _write_atomic(root, target, content, expected=previous)
             written.append((target, previous, content))
         if bindings:

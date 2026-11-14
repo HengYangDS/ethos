@@ -37,6 +37,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 )
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.source import source_build_identity
+from ethos.repository.release.identity import is_release_build
 from tools.ci.delivery.acceptance.host_environment import independent_host_environment
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.invocation import run_native
@@ -326,7 +327,11 @@ def observe_package(
             resources = _verify_resources(wheel)
         with observe_stage("brownfield"):
             brownfield = brownfield_acceptance.prove_brownfield(
-                installed_ethos, WORK, environment=package_environment, run=run_native
+                installed_ethos,
+                WORK,
+                environment=package_environment,
+                run=run_native,
+                release=is_release_build(build),
             )
         lifecycle = runtime_acceptance.observe_lifecycle(
             installed_ethos=installed_ethos,

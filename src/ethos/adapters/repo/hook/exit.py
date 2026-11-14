@@ -5,7 +5,8 @@ Lease can start inside it. It recomputes the plan and requires the previewed dig
 durable receipt and removes the record. It then writes each planned key only while the key still
 holds its planned value, verifies that no worktree uses ETHOS's hooks, removes each selector only
 while it holds its planned bytes, and marks the receipt applied. A failure attempts every
-compensation step. Consumer records stay with the host store.
+compensation step. Consumer records stay with the host store. Before the receipt is marked
+applied, the Mise configuration loses the pin that the plan named.
 """
 
 from __future__ import annotations
@@ -209,6 +210,8 @@ def _apply_fenced(repo: Path, common: Path, expect_plan_digest: str) -> EthosRes
     if gaps:
         return _result(plan, gaps, next_action=_PREVIEW)
     paths = _paths(common)
+    if plan["pin"]:
+        paths["pin"] = repo / plan["pin"]["path"]
     prior = {name: file_bytes(path) for name, path in paths.items()}
     written: list[_Write] = []
     try:
@@ -219,6 +222,8 @@ def _apply_fenced(repo: Path, common: Path, expect_plan_digest: str) -> EthosRes
         _require_no_ethos_hooks(common, plan["worktrees"])
         for name in SELECTORS:
             _remove_selector(paths[name], plan["selectors"][name])
+        if plan["pin"]:
+            restore_file(paths["pin"], plan["pin"]["after"].encode())
         _mark_applied(paths["receipt"])
     except (OSError, ValueError) as error:
         return _compensate(plan, prior, paths, written, str(error) or type(error).__name__)

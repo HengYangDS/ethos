@@ -6,7 +6,8 @@ owned key without a record entry is left; both are named. The plan also names th
 it cannot restore, the selectors with their hashes, the Leases, the unlanded topic branches, the
 generations the exit removes and keeps, and what blocks the exit, all under one digest. It reads
 the state database read-only and probes each lock without creating it. An `applying` receipt
-makes the plan resume that exit, and its record stands in for a removed record file.
+makes the plan resume that exit, and its record stands in for a removed record file. The plan
+also names the Mise pin that adoption wrote and the configuration text without it.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +40,10 @@ from ethos.adapters.repo.runtime.retirement import retirement_plan
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import state_database
+from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.repository.paradigm.repair import without_field
+from ethos.repository.release.pin import declared_pin
 
 # ROLLBACK goes first, so an interrupted exit never leaves a rollback without its selection.
 SELECTORS = ("ROLLBACK", "CURRENT")
@@ -242,6 +247,25 @@ def _generation_plan(
         return {"remove": [], "keep": [], "unknown": str(error) or type(error).__name__}
 
 
+def _pin(repo: Path) -> dict[str, str] | None:
+    """Name the bare pin that adoption wrote, with the Mise configuration without its line.
+
+    Only that key goes. The provenance setting stays, because Mise applies it to every tool and
+    no record says who set it, and a pin in any other form is the repository's own.
+    """
+    try:
+        text = (repo / MISE_CONFIG).read_text(encoding="utf-8")
+        pin = declared_pin(text)
+        if not (pin and pin.bare):
+            return None
+        removed = without_field(text, tomllib.loads(text), "tools", pin.key)
+    except (OSError, ValueError):
+        return None
+    if removed is None:
+        return None
+    return {"path": MISE_CONFIG, "key": pin.key, "after": removed[0] or ""}
+
+
 def _record(common: Path, receipt: dict[str, Any] | None) -> dict[str, Any] | None:
     """The recorded configuration; a resumed exit's receipt holds it once the file is removed."""
     record = read_hooks_preimage(common)
@@ -281,6 +305,7 @@ def exit_preview(root: Path) -> dict[str, Any]:
         if adopted
         else {"remove": [], "keep": []},
         "consumer_records": "unchanged",
+        "pin": _pin(repo) if adopted else None,
     }
     canonical = json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
     unrecorded = adopted and any(

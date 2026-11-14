@@ -7,6 +7,7 @@ import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.hook.exit import adopt_exit
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
 from ethos.application.catalog import invoke
@@ -14,6 +15,7 @@ from ethos.contracts.operations.adopt import AdoptRequest
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.identity import is_release_build
 from ethos.result import EthosResult
 
 _FORMATION_REPAIR_ACTIONS = {
@@ -85,11 +87,15 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
     )
     do_apply = request.apply and not gaps
     try:
+        build = invoking_build_identity()
+        # Only a release has a pin: a development build is no version that Mise could install.
+        release = build.product_version if is_release_build(build) else None
         plan_payload = adoption_plan(
             target,
             apply=do_apply,
             expect_plan_digest=request.expect_plan_digest,
             select_runtime=request.select_runtime,
+            release=release,
         )
     except (OSError, ExceptionGroup, ValueError) as error:
         return EthosResult(
@@ -122,7 +128,7 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
                 str(plan_payload["plan_digest"]),
             ]
         )
-    next_action = shlex.join(action)
+    next_action = "mise lock" if plan_payload["relock"] else shlex.join(action)
     if conflicts:
         next_action = f"Resolve {', '.join(conflicts)} in {target}; then {next_action}"
     return EthosResult(
@@ -143,12 +149,13 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
         required_gaps=required_gaps,
         data=plan_payload
         | {
+            "pin": release or "none:development_build",
             "mutation": {
                 "apply": request.apply,
                 "authorized": request.authorize,
                 "expect_head": request.expect_head,
                 "current_head": current_head,
-            }
+            },
         },
     )
 

@@ -62,6 +62,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A local archive installs from a table that strips its top directory, so the install holds the
   console in `bin/` and the runtime in `runtime/`, as a pinned release does. The published
   `http:` declaration and what adopters install do not change.
+- **Breaking:** a release build's `ethos adopt` also plans its own pin in
+  `.config/mise/config.toml`: the release's bare entry under `[tools]` and
+  `locked_verify_provenance = true` under `[settings]`, as one step with its diff. A configuration
+  that holds an `http:ethos` table or another ETHOS version is an `adoption_conflict`; to repair
+  it, replace that entry with the release's bare entry and run `mise lock`. After an apply that
+  wrote the pin the next action is `mise lock`, and `ethos adopt --exit` removes that key alone.
 
 ### Fixed
 

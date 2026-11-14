@@ -51,6 +51,8 @@ def test_independent_host_requires_its_signed_fixture_tools(monkeypatch, missing
     ("phase", "gap"),
     [
         ("clean", ""),
+        ("release", ""),
+        ("unpinned-release", "installed_brownfield_preview_invalid"),
         ("preview", "installed_brownfield_preview_invalid"),
         ("apply", "installed_brownfield_authored_content_changed"),
     ],
@@ -60,6 +62,9 @@ def test_brownfield_conformance_checks_authored_content(
 ) -> None:
     """Check the content guard; the installed wheel is exercised by install smoke."""
     planned = [".ethos/profile.toml", "openspec/config.yaml"]
+    release = "release" in phase
+    if phase == "release":
+        planned.append(".config/mise/config.toml")
     stages: list[str] = []
 
     def invoke(root: Path, command: tuple[str, ...], **_kwargs):
@@ -84,17 +89,18 @@ def test_brownfield_conformance_checks_authored_content(
     monkeypatch.setattr(brownfield_fixture, "invoke", invoke)
     environment, _git = host_environment.independent_host_environment()
     arguments = (tmp_path / "ethos", tmp_path)
+    options = {"environment": environment, "run": _run, "release": release}
     if gap:
         with pytest.raises(RuntimeError, match=gap):
-            brownfield_fixture.prove_brownfield(*arguments, environment=environment, run=_run)
+            brownfield_fixture.prove_brownfield(*arguments, **options)
     else:
-        result = brownfield_fixture.prove_brownfield(*arguments, environment=environment, run=_run)
+        result = brownfield_fixture.prove_brownfield(*arguments, **options)
         assert result == {
             "state": "passed",
             "authored_content_preserved": True,
             "planned_files": planned,
         }
-    assert stages == (["preview"] if phase == "preview" else ["preview", "apply"])
+    assert stages == (["preview"] if "preview_invalid" in gap else ["preview", "apply"])
 
 
 def _run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:

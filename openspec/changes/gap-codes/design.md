@@ -44,8 +44,9 @@ Non-Goals:
    stay out of its reach by construction.
 3. **The static test reads the tree as it finds it.** `tests/architecture/test_gap_registry.py`
    walks `src/ethos` for a literal, or the literal head of an f-string, that reaches a refusal
-   helper or a raised `ValueError`, `TypeError` or `RuntimeError`, directly or through the one
-   local or module constant bound before it, and requires a registered code; a prose literal at
+   helper or a raised `ValueError`, `TypeError` or `RuntimeError`, directly, through the one local
+   or module constant bound before it, or through one more name bound to that constant, and
+   requires a registered code; a prose literal at
    such a position counts under a ceiling of 127 that only falls. The rule is exact for 934 codes
    of the census. It also reads the second member of each pair in a literal table that a loop or a
    comprehension reads under the name `gap`, directly or through the one local bound before it (99

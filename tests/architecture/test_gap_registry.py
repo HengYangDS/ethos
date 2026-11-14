@@ -70,7 +70,7 @@ def _expressions(tree: ast.Module) -> list[tuple[int, ast.expr]]:
         (
             (target.id, node.lineno, node.value)
             for node in ast.walk(tree)
-            if isinstance(node, ast.Assign) and isinstance(node.value, _STRINGS)
+            if isinstance(node, ast.Assign) and isinstance(node.value, (*_STRINGS, ast.Name))
             for target in node.targets
             if isinstance(target, ast.Name)
             and not (isinstance(node.value, ast.Constant) and not isinstance(node.value.value, str))
@@ -79,10 +79,14 @@ def _expressions(tree: ast.Module) -> list[tuple[int, ast.expr]]:
     )
 
     def resolve(node: ast.expr, line: int) -> ast.expr:
-        """The value a name bound before the site holds; the plan's rule stops at one local."""
-        if isinstance(node, ast.Name):
+        """The value a name bound before the site holds, through at most one other name."""
+        for _hop in range(2):
+            if not isinstance(node, ast.Name):
+                break
             earlier = [run for run in runs if run[0] == node.id and run[1] < line]
-            return earlier[-1][2] if earlier else node
+            if not earlier:
+                break
+            line, node = earlier[-1][1] + 1, earlier[-1][2]
         return node
 
     found: list[tuple[int, ast.expr]] = _table_codes(tree)

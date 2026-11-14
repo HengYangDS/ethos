@@ -37,6 +37,9 @@ import "strings"
 	let policy = parameters
 	let sourceHead = "${{ github.event.pull_request.head.sha || github.sha }}"
 	let evidence = [policy.report_path, for path in policy.evidence_paths {path}]
+
+	// Days a generated job's artifact is kept on either provider; no declaration changes it.
+	let artifactRetentionDays = 14
 	let invocation = "mise exec --locked -- ethos prove --host --execute --full --json > \(policy.report_path)"
 	let offlineCandidate = "$\(policy.gitlab.offline_candidate_variable)"
 	let sourceRules = [{if: offlineCandidate, when: "never"}, {
@@ -74,6 +77,7 @@ import "strings"
 					name:                "verification-${{ matrix.os }}"
 					path:                strings.Join(evidence, "\n")
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]
 	}
@@ -133,7 +137,7 @@ import "strings"
 								]
 							}
 							script: [invocation]
-							artifacts: {when: "always", paths: evidence}
+							artifacts: {when: "always", paths: evidence, expire_in: "\(artifactRetentionDays) days"}
 						}
 					}
 				}

@@ -178,6 +178,7 @@ jobs:
             build/evidence/local-install/smoke.json
             build/evidence/local-install/smoke.events.jsonl
           if-no-files-found: error
+          retention-days: 14
   quality:
     name: quality gates
     runs-on: ubuntu-24.04-arm
@@ -222,10 +223,12 @@ jobs:
             build/evidence/quality/tests/coverage/coverage.xml
             build/evidence/quality/tests/allure/
           if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: python-distributions
           if-no-files-found: error
+          retention-days: 14
           path: |
             build/artifacts/python/
             build/evidence/release/
@@ -268,6 +271,7 @@ jobs:
           name: ethos-external-link-health
           path: build/evidence/quality/external-links/report.json
           if-no-files-found: error
+          retention-days: 14
   hosted-checks:
     name: hosted checks
     runs-on: ubuntu-latest
@@ -372,6 +376,7 @@ jobs:
             build/evidence/release/runtime.spdx.json
             build/evidence/release/runtime.syft.json
           if-no-files-found: error
+          retention-days: 14
   release-publish:
     name: release publication
     runs-on: ubuntu-latest
@@ -454,6 +459,7 @@ jobs:
           name: release-binary-scan
           path: build/evidence/release-binary-scan/
           if-no-files-found: error
+          retention-days: 14
   release-journey:
     name: release journey ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
@@ -518,3 +524,4 @@ jobs:
           name: release-journey-${{ matrix.host }}
           path: build/evidence/release-journey/
           if-no-files-found: error
+          retention-days: 14

@@ -103,6 +103,7 @@ ethos:host-conformance:
     - uv run --frozen --offline --no-sync python -m nox -s host_conformance
   artifacts:
     when: always
+    expire_in: 14 days
     paths:
       - build/evidence/local-install/smoke.json
       - build/evidence/local-install/smoke.events.jsonl
@@ -135,6 +136,7 @@ ethos:verify:
     - uv run --frozen --offline --no-sync python -m nox -s hosted_verification
   artifacts:
     when: always
+    expire_in: 14 days
     paths:
       - build/evidence/quality/proof/
       - build/evidence/quality/tests/pytest/junit*.xml
@@ -174,6 +176,7 @@ ethos:external-links:
     - uv run --frozen --offline --no-sync python -m nox -s external_links
   artifacts:
     when: always
+    expire_in: 14 days
     paths:
       - build/evidence/quality/external-links/report.json
 ethos:npm:

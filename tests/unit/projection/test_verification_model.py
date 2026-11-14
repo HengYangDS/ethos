@@ -219,6 +219,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
         parameters["report_path"],
         *parameters["evidence_paths"],
     ]
+    assert cold_steps[-1]["with"]["retention-days"] == 14
     assert {key for key in gitlab if not key.startswith(".") and isinstance(gitlab[key], dict)} >= {
         "verify:linux:review",
         "verify:linux:protected",
@@ -268,6 +269,7 @@ def test_product_common_verification_binds_source_supply_and_trust_partitions(tm
             assert job["artifacts"] == {
                 "when": "always",
                 "paths": [parameters["report_path"], *parameters["evidence_paths"]],
+                "expire_in": "14 days",
             }
             assert job["timeout"] == "20 minutes"
             assert len(job["script"]) == 1

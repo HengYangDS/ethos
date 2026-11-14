@@ -209,6 +209,10 @@ let timeoutMinutes = {
 	publication: 45
 }
 
+// Days a hosted artifact is kept, on every upload step and every GitLab archive. A job reads
+// artifacts of its own run alone, as release publication does; the days serve a later reader.
+let artifactRetentionDays = 14
+
 // The gates whose commands a job class runs; the full set is the registry's own.
 let conformanceGates = ["build", "local-install-smoke", "javascript-tests", "release-sbom"]
 let classGates = {
@@ -492,6 +496,7 @@ github: {
 						build/evidence/local-install/smoke.events.jsonl
 						"""
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]])
 		}
@@ -520,12 +525,14 @@ github: {
 
 						"""
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}, {
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name:                "python-distributions"
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 					path: """
 						build/artifacts/python/
 						build/evidence/release/
@@ -551,6 +558,7 @@ github: {
 					name:                "ethos-external-link-health"
 					path:                "build/evidence/quality/external-links/report.json"
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]])
 		}
@@ -619,6 +627,7 @@ github: {
 
 						"""
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]])
 		}
@@ -689,6 +698,7 @@ github: {
 					name:                "release-binary-scan"
 					path:                "build/evidence/release-binary-scan/"
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]])
 		}
@@ -725,6 +735,7 @@ github: {
 					name:                "release-journey-${{ matrix.host }}"
 					path:                "build/evidence/release-journey/"
 					"if-no-files-found": "error"
+					"retention-days":    artifactRetentionDays
 				}
 			}]])
 		}
@@ -842,7 +853,8 @@ gitlab: {
 		rules:         conformanceRules
 		script: ["\(offlineRun) python -m nox -s host_conformance"]
 		artifacts: {
-			when: "always"
+			when:      "always"
+			expire_in: "\(artifactRetentionDays) days"
 			paths: [
 				"build/evidence/local-install/smoke.json",
 				"build/evidence/local-install/smoke.events.jsonl",
@@ -869,10 +881,11 @@ gitlab: {
 		script: [
 			"\(offlineRun) python -m nox -s hosted_verification",
 		]
-		// GitHub retains raw Allure results and the Python distributions, which its release job
-		// downloads; GitLab's instance artifact limit cannot hold them, so GitLab archives evidence.
+		// GitHub retains raw Allure results and the Python distributions; GitLab's instance artifact
+		// limit cannot hold them, so GitLab archives evidence.
 		artifacts: {
-			when: "always"
+			when:      "always"
+			expire_in: "\(artifactRetentionDays) days"
 			paths: [
 				"build/evidence/quality/proof/",
 				"build/evidence/quality/tests/pytest/junit*.xml",
@@ -899,7 +912,8 @@ gitlab: {
 		before_script: gitlabBootstrap
 		script: ["\(offlineRun) python -m nox -s external_links"]
 		artifacts: {
-			when: "always"
+			when:      "always"
+			expire_in: "\(artifactRetentionDays) days"
 			paths: ["build/evidence/quality/external-links/report.json"]
 		}
 	}

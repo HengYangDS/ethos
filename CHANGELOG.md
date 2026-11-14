@@ -83,6 +83,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   that holds an `http:ethos` table or another ETHOS version is an `adoption_conflict`; to repair
   it, replace that entry with the release's bare entry and run `mise lock`. After an apply that
   wrote the pin the next action is `mise lock`, and `ethos adopt --exit` removes that key alone.
+- Hosted CI artifacts expire after 14 days. Each pipeline model declares the retention once, and
+  its projections carry `retention-days: 14` on every GitHub upload step and `expire_in: 14 days`
+  on every GitLab `artifacts` block; until now each Forge kept an artifact for its own default. The
+  common CI model carries the same retention on the verification jobs it generates, so adopters
+  receive it when they regenerate their CI projections. An artifact uploaded earlier keeps the
+  retention it was uploaded with.
 
 ### Fixed
 

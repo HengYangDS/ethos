@@ -39,7 +39,7 @@
 - [x] 4.2 Register the three new gap codes when the gap registry of this batch lands. Done when its
       static test passes with `accepted_release_checksum_mismatch`,
       `accepted_release_checksums_invalid` and `accepted_release_artifacts_invalid` registered.
-- [ ] 4.3 Pass readiness and the precheck at the lane head. Done when each passes on the committed
+- [x] 4.3 Pass readiness and the precheck at the lane head. Done when each passes on the committed
       head.
 
 ## Workflow follow-up

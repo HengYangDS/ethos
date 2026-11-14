@@ -32,7 +32,7 @@
 
 - [x] 4.1 Regenerate the rows on the lane head after the three Changes beside this one land. Done
       when the static test passes at the lane head and every new or moved code has its row.
-- [ ] 4.2 Pass readiness and the precheck on the committed lane head. Done when each passes with no
+- [x] 4.2 Pass readiness and the precheck on the committed lane head. Done when each passes with no
       finding.
 - [x] 4.3 Carry the registry and the exit table in the batch's release entry. Done when the
       Unreleased section of `CHANGELOG.md` names the registered vocabulary and the exit table.

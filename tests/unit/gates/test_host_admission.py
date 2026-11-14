@@ -177,9 +177,17 @@ def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(
     queue.leave(ticket, lock)
     older, older_lock = queue.enter(tmp_path, "renderer")
 
-    recorded = json.loads((queue.directory / f"{older.name}.json").read_text(encoding="utf-8"))
+    record = queue.directory / f"{older.name}.json"
+    recorded = json.loads(record.read_text(encoding="utf-8"))
     assert set(recorded) >= {"repository", "executable", "since"}
     assert (recorded["operation"], recorded["owner"]) == ("", "")
+    # An older engine wrote the three fields only; its ticket still projects, with both empty.
+    three = {key: recorded[key] for key in ("repository", "executable", "since")}
+    record.write_text(json.dumps(three), encoding="utf-8")
+    projected = queue.project(older, reader=tmp_path)
+    assert projected is not None
+    assert (projected["operation"], projected["owner"]) == ("", "")
+    assert projected["executable"] == "renderer"
     queue.leave(older, older_lock)
 
 

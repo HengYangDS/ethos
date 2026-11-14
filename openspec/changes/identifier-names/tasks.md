@@ -25,7 +25,7 @@
       `repository_paradigm_identifier_source` when `gap-codes` regenerates its rows. Done when the
       gap registry test passes on the lane head; the Change's own commit measures +112.4 product,
       +126.0 tests and 0 tools over the lane base.
-- [ ] 2.2 Pass the precheck and readiness at the lane head. Done when each passes on the
+- [x] 2.2 Pass the precheck and readiness at the lane head. Done when each passes on the
       committed head.
 - [x] 2.3 Record the declaration that the measured repository will carry. Done when the probe's
       declaration of six sources admits every name at the measured tip (133 of 133 at `9efd42c67`)

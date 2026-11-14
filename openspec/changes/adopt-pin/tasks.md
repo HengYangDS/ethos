@@ -39,3 +39,8 @@
       stage records three planned files and the MCP stage passes.
 - [ ] 4.4 Owner: confirm that `mise lock` carries no directory, or choose a directory-bound form.
       Done when the decision is recorded in this Change's design.
+- [x] 4.5 State in the release entry how a repository takes this release with the selector form it
+      holds, and mark the artifact retention entry Breaking with its repair and its order. Done when
+      the Unreleased section says that the `http:ethos` table is refused by `ethos adopt` alone,
+      and names `generated_projection_drift` with the step that repairs it. Found by the pre-tag
+      copies run of 2026-11-15: 12 such gaps in 6 of 13 trees, no other new gap and no new refusal.

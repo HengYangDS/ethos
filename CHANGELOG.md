@@ -91,12 +91,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   that holds an `http:ethos` table or another ETHOS version is an `adoption_conflict`; to repair
   it, replace that entry with the release's bare entry and run `mise lock`. After an apply that
   wrote the pin the next action is `mise lock`, and `ethos adopt --exit` removes that key alone.
-- Hosted CI artifacts expire after 14 days. Each pipeline model declares the retention once, and
-  its projections carry `retention-days: 14` on every GitHub upload step and `expire_in: 14 days`
-  on every GitLab `artifacts` block; until now each Forge kept an artifact for its own default. The
-  common CI model carries the same retention on the verification jobs it generates, so adopters
-  receive it when they regenerate their CI projections. An artifact uploaded earlier keeps the
-  retention it was uploaded with.
+  A repository that holds the `http:ethos` table can keep it: only `ethos adopt` refuses it, and
+  binding this release through that table and `ethos hook install` works as before.
+- **Breaking:** hosted CI artifacts expire after 14 days. Each pipeline model declares the
+  retention once, and its projections carry `retention-days: 14` on every GitHub upload step and
+  `expire_in: 14 days` on every GitLab `artifacts` block; until now each Forge kept an artifact for
+  its own default. The common CI model carries the same retention on the verification jobs it
+  generates. A repository whose CI files are projections therefore reports
+  `generated_projection_drift` for them once it binds this release. To repair it, after the bind
+  and before the proof, apply the patch that `ethos lane project --json` previews. An artifact
+  uploaded earlier keeps the retention it was uploaded with.
 - **Breaking:** the contention gap now reads
   `host_admission_contended:<operation>:<pid>:<since>`; it names the holder's operation, process
   and start time instead of its repository path. The stable code `host_admission_contended` is

@@ -206,7 +206,7 @@
   "src/ethos/application/invocation.py::application_result": 16,
   "src/ethos/application/plan.py::compile_transition_plan": 24,
   "src/ethos/application/plan.py::matching_rule_gates": 18,
-  "src/ethos/application/proof/host.py::observe_gate_execution": 20,
+  "src/ethos/application/proof/host.py::observe_gate_execution": 21,
   "src/ethos/application/proof/host.py::readiness_observation": 22,
   "src/ethos/application/proof/operation.py::_prove": 24,
   "src/ethos/application/proof/operation.py::run_plan_checks": 29,

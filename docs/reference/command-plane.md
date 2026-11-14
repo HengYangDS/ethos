@@ -61,22 +61,23 @@ as a usage error does; a preview exits 0 on any verdict, an apply, a proof and a
 exit 1 unless they pass, and an undelivered result exits 3.
 
 `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
-admits it, and exits with the command's own status.
+admits it, and exits with the command's own status; `ethos host status --json` reads the queue.
 
-- **One queue per host.** It sits under ETHOS's host root. Waiters are admitted in arrival order,
-  at most the number of slots that `host.toml` declares.
-- **Live holders.** A holder that exits frees its place without any cleanup.
-- **Bounded waits.** A wait that reaches its bound ends with `host_admission_contended`, naming
-  the holder's repository, executable and start time. A queue record never holds the command's
-  arguments.
-- **Shared with proofs.** A full proof takes the same host slot after its repository's proof
-  slot.
-- **What the child receives.** The child gets `ETHOS_HOST_ADMISSION`, so work that it starts joins
-  the admission instead of waiting for itself. It also gets `ETHOS_HOST_CPU_CAP` and
-  `PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that `host.toml` does not reserve, at least one.
-- **The declaration.** `host.toml` declares `slots`, default 1, `reserved_cpus`, default 0, and
-  `load_limit`, default half the CPUs. A value out of range is refused with a named gap and never
-  clamped.
+- **One queue per host.** It sits under ETHOS's host root. Waiters are admitted in arrival order, at
+  most the slots that `host.toml` declares, and a holder that exits frees its place with no cleanup.
+  A wait that reaches its bound ends with `host_admission_contended:<operation>:<pid>:<since>` of
+  the earliest holder, never its path; a record of an older engine names its executable instead.
+- **Shared with proofs.** A full proof takes the same host slot after its repository's proof slot;
+  a host proof runs its readiness tier without waiting, then holds the ticket, with no repository
+  slot and no load wait, for its test and package gates.
+- **What the child receives.** `ETHOS_HOST_ADMISSION`, so work that it starts joins the admission;
+  `ETHOS_HOST_CPU_CAP` and `PYTEST_XDIST_AUTO_NUM_WORKERS`, the CPUs not reserved, at least one,
+  and the cap only lowers a count the environment already declares.
+- **The declaration.** `host.toml` declares `slots` (1), `reserved_cpus` (0) and `load_limit` (half
+  the CPUs); an out-of-range value is refused, never clamped.
+- **The read.** `ethos host status [--guest-cpus <n>] --json` returns the declaration with the
+  limit's source, the load and every live ticket, and removes nothing; an owner mark shows only to
+  its own repository, and guests above `reserved_cpus` block.
 
 ## Native CI Projection
 

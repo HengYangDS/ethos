@@ -313,7 +313,7 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
     """Another heavy run that holds the host delays the proof after its repository slot is held."""
     repo = init_git_repo(tmp_path / "repo")
     queue = host_admission.host_queue()[0]
-    render = queue.enter(tmp_path / "film", "renderer")
+    render = queue.enter(tmp_path / "film", "renderer", operation="host.run")
 
     class _RenderEnds(_Host):
         def sleep(self, seconds: float) -> None:
@@ -330,6 +330,9 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
     holder = host.waits()[0]["holder"]
     assert isinstance(holder, dict)
     assert holder["executable"] == "renderer"
+    assert "repository" not in holder
+    assert holder["operation"] == "host.run"
+    assert str(tmp_path) not in json.dumps(host.waits()[0])
     assert admission.load == pytest.approx(4.0)
     assert host_admission.ADMISSION_ENV not in os.environ
     assert not queue.live()

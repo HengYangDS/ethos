@@ -1,4 +1,4 @@
-"""The `ethos host run` request and its one operation."""
+"""The `ethos host` commands: one run the queue admits, and one read of the queue."""
 
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
@@ -11,6 +11,14 @@ class RunRequest(CommandRequest):
 
     command: tuple[str, ...] = described((), "The command to run, after `--`.")
     wait: float | None = described(None, "Seconds to wait for admission.")
+
+
+class StatusRequest(CommandRequest):
+    """Read this host's declaration and queue."""
+
+    guest_cpus: int | None = described(
+        None, "The guests' virtual CPU count to check against the reservation."
+    )
 
 
 HOST_RUN = Command(
@@ -32,3 +40,20 @@ HOST_RUN = Command(
         ),
     ),
 )
+
+HOST_STATUS = Command(
+    name="host status",
+    summary="List this host's declaration, its load and every live ticket in arrival order.",
+    request=StatusRequest,
+    operations=(
+        operation(
+            "host.status",
+            "Read the declaration and the queue, and check the guests' CPUs against it.",
+            select="",
+            request="guest_cpus",
+            effects="read",
+        ),
+    ),
+)
+
+HOST = (HOST_RUN, HOST_STATUS)

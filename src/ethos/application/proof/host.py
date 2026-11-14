@@ -7,6 +7,10 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.actor import process_actor
+from ethos.adapters.gates.host_admission import admitted_host_work
+from ethos.adapters.gates.host_admission import exported
+from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import readiness_tier
 from ethos.adapters.gates.runner import run_gate_graph
@@ -18,11 +22,13 @@ from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.proof.plan import execution_source_gaps
+from ethos.repository.paradigm.parameters import seconds as admission_seconds
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.plan import PlanNode
     from ethos.repository.policy.gates import ResolvedGatePolicy
 
 
@@ -57,6 +63,7 @@ def observe_gate_execution(
     if expect_head is not None and expect_head != head:
         gaps.append("expected_head_mismatch")
     policy = None
+    admission: dict[str, object] | None = None
 
     def resolve() -> ResolvedGatePolicy:
         return resolve_gate_policy(
@@ -77,14 +84,7 @@ def observe_gate_execution(
                 execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
             )
         if not gaps and policy is not None:
-            results = run_gate_graph(
-                LocalGateRunner(candidate=not exact),
-                policy.nodes,
-                policy.registry,
-                root=root,
-                capacity=max(1, os.cpu_count() or 1),
-                parallel=True,
-            )
+            admission, results = _admitted_gates(root, policy, LocalGateRunner(candidate=not exact))
             checks = [asdict(result) for result in results]
             consequences = policy.result_gaps(checks, source_tree=tree)
             after = Outcome.of(gate_outcome(checks).verdict, *consequences)
@@ -106,7 +106,51 @@ def observe_gate_execution(
         "checks": checks,
         "required_gaps": list(observed.gaps),
         "diagnostics": list(observed.causes),
+        **({"admission": admission} if admission is not None else {}),
     }
+
+
+def _admitted_gates(
+    root: Path, policy: ResolvedGatePolicy, runner: LocalGateRunner
+) -> tuple[dict[str, object] | None, tuple[ActionRunResult, ...]]:
+    """Run the readiness tier first, then the rest under one host ticket.
+
+    Readiness gates are static checks of a committed tree, so they run without waiting; the test
+    and package gates that follow hold the host ticket, with its token and worker cap exported,
+    exactly as a caller gets today by wrapping the proof in `ethos host run`. A plan of readiness
+    gates alone never waits, and a live admission is joined rather than taken again.
+    """
+    nodes = policy.nodes
+    tier = set(readiness_tier(nodes, policy.registry))
+    capacity = max(1, os.cpu_count() or 1)
+
+    def graph(
+        run: tuple[PlanNode, ...], settled: dict[str, ActionRunResult] | None = None
+    ) -> tuple[ActionRunResult, ...]:
+        return run_gate_graph(
+            runner,
+            run,
+            policy.registry,
+            root=root,
+            capacity=capacity,
+            parallel=True,
+            settled=settled,
+        )
+
+    readiness = graph(tuple(node for node in nodes if node.id in tier))
+    if all(node.id in tier for node in nodes):
+        return None, readiness
+    with admitted_host_work(
+        root,
+        "ethos prove",
+        operation="proof.host",
+        owner=process_actor(),
+        seconds=admission_seconds("admission"),
+    ) as work:
+        settled = {result.action_id: result for result in readiness}
+        with exported(work.environment):
+            results = graph(nodes, settled)
+    return {"waited_seconds": work.waited_seconds, "joined": work.joined}, results
 
 
 def host_gate_observation(
@@ -135,6 +179,7 @@ def host_gate_observation(
             "boundary": "host",
             "host_probe": host_probe_boundary(host=True, probe=False),
             "checks": checks,
+            **({"admission": observed["admission"]} if "admission" in observed else {}),
             "attestation": {},
             "expected_head": {
                 "expected": expect_head or "",

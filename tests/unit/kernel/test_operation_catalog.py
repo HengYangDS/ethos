@@ -90,7 +90,7 @@ _INSTALLS: dict[str, dict[str, object]] = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 106
+    assert len(identities) == len(set(identities)) == 107
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields
@@ -191,6 +191,7 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         ("land --closeout --release", ""),
         ("land --release --candidate-head c", ""),
         ("host run --wait 5 -- git --root x", "host.run"),
+        ("host status --guest-cpus 8", "host.status"),
         ("host run git -C x status --json", "host.run"),
         ("host run --command x y", ""),
         ("attestation record file.json --apply", "attestation.record.apply"),

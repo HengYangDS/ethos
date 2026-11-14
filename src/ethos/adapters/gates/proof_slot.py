@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import sys
 import time
 from contextlib import contextmanager
 from contextlib import suppress
@@ -30,8 +29,11 @@ from filelock import FileLock
 from filelock import Timeout
 
 import ethos.repository.paradigm.parameters as parameters
+from ethos.adapters.actor import process_actor
 from ethos.adapters.gates.host_admission import HostPlace
+from ethos.adapters.gates.host_admission import exported
 from ethos.adapters.gates.host_admission import read_host_declaration
+from ethos.adapters.gates.host_admission import report_event
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
@@ -111,26 +113,6 @@ def candidate_current(root: Path, *, head: str) -> Callable[[], bool]:
     return current
 
 
-def _report(event: dict[str, object]) -> None:
-    sys.stderr.write(json.dumps(event, sort_keys=True) + "\n")
-    sys.stderr.flush()
-
-
-@contextmanager
-def _exported(values: dict[str, str]) -> Generator[None]:
-    """Give the admitted proof's children its host admission, then restore the environment."""
-    previous = {key: os.environ.get(key) for key in values}
-    os.environ.update(values)
-    try:
-        yield
-    finally:
-        for key, value in previous.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
-
-
 def _holder(path: Path) -> dict[str, object] | None:
     """Read who holds the slot; a missing or half-written record is simply unknown."""
     with suppress(OSError, ValueError):
@@ -150,7 +132,7 @@ def admitted_full_proof(
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     seconds: float | None = None,
-    report: Callable[[dict[str, object]], None] = _report,
+    report: Callable[[dict[str, object]], None] = report_event,
 ) -> Generator[SlotAdmission]:
     """Hold the repository's proof slot once host load allows; release it when the proof ends."""
     admitted_limit, limit_source = limit()
@@ -160,7 +142,7 @@ def admitted_full_proof(
     state.mkdir(parents=True, exist_ok=True)
     slot = FileLock(state / "proof-slot.lock", mode=0o600)
     holder = state / "proof-slot.json"
-    place = HostPlace(root, "ethos prove")
+    place = HostPlace(root, "ethos prove", operation="proof.run", owner=process_actor())
     started = clock()
     acquired = False
     reason = ""
@@ -224,7 +206,7 @@ def admitted_full_proof(
                 **admission.__dict__,
             }
         )
-        with _exported(place.environment()):
+        with exported(place.environment()):
             yield admission
     finally:
         place.leave()

@@ -7,9 +7,13 @@ fewer than the declared slots of live tickets precede its own. Testing another t
 a live holder from a dead one, so a holder that dies frees its place without any cleanup by age;
 the record is written only after its lock is held, so no reader mistakes a new ticket for a dead
 one. A ticket records the repository, the executable's name and the start time, never the
-command's arguments, which can carry secrets. An admitted child receives the ticket's nonce and
-pid, so work that it starts joins its admission instead of waiting for itself; a copied token
-whose holder has exited admits nothing.
+command's arguments, which can carry secrets, and this engine's records also name the operation
+and the owner mark that the holder declared; the three older fields stay so engines of earlier
+releases share the directory. Results print no path: a holder is projected as its operation, its
+executable, its owner mark, its pid and its start time, with only whether it belongs to the
+reading repository. An admitted child receives the ticket's nonce and pid, so work that it starts
+joins its admission instead of waiting for itself; a copied token whose holder has exited admits
+nothing.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ import math
 import os
 import secrets
 import subprocess
+import sys
 import time
 import tomllib
 from contextlib import contextmanager
@@ -32,6 +37,8 @@ from typing import TYPE_CHECKING
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import host_store_root
 
 if TYPE_CHECKING:
@@ -42,7 +49,10 @@ ADMISSION_ENV = "ETHOS_HOST_ADMISSION"
 CPU_CAP = "ETHOS_HOST_CPU_CAP"
 XDIST_WORKERS = "PYTEST_XDIST_AUTO_NUM_WORKERS"
 CONTENDED = "host_admission_contended"
+UNAVAILABLE = "host_admission_unavailable"
+WAITING = "host_admission_waiting"
 _FIELDS = frozenset(("slots", "reserved_cpus", "load_limit"))
+# The fields every released engine wrote; a record without all three is unreadable to them.
 _RECORD = ("repository", "executable", "since")
 _POLL_SECONDS = 5.0
 
@@ -108,7 +118,9 @@ class HostQueue:
         self.directory = directory
         self.slots = slots
 
-    def enter(self, repository: Path, executable: str) -> tuple[Ticket, FileLock]:
+    def enter(
+        self, repository: Path, executable: str, *, operation: str = "", owner: str = ""
+    ) -> tuple[Ticket, FileLock]:
         """Take a place behind every earlier arrival, holding its lock before recording it."""
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
@@ -118,6 +130,8 @@ class HostQueue:
             "repository": str(repository),
             "executable": executable,
             "since": datetime.now(UTC).isoformat(timespec="seconds"),
+            "operation": operation,
+            "owner": owner,
         }
         partial = self.directory / f".{ticket.name}.partial"
         partial.write_text(json.dumps(record), encoding="utf-8")
@@ -152,30 +166,87 @@ class HostQueue:
         """Whether a token names a live ticket of the process that it names."""
         return any(ticket.token == token for ticket in self.live())
 
-    def ahead(self, ticket: Ticket) -> dict[str, str] | None:
-        """The record of the earliest live ticket before this one, when it is readable."""
+    def ahead(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:
+        """The projection of the earliest live ticket before this one, when it is readable."""
         for other in self.live():
             if other.name >= ticket.name:
                 break
-            with suppress(OSError, ValueError):
-                held = json.loads((self.directory / f"{other.name}.json").read_text("utf-8"))
-                if isinstance(held, dict) and all(
-                    isinstance(held.get(key), str) for key in _RECORD
-                ):
-                    return {key: held[key] for key in _RECORD}
+            if (projected := self.project(other, reader=reader)) is not None:
+                return projected
         return None
 
-    def contention(self, ticket: Ticket) -> str:
+    def project(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:
+        """Project one live ticket without its repository path; None when no record is read.
+
+        The owner mark is the identity the holder declared, which only the holder's own
+        repository sees: another repository learns that the holder belongs elsewhere, and
+        nothing more.
+        """
+        with suppress(OSError, ValueError):
+            held = json.loads((self.directory / f"{ticket.name}.json").read_text("utf-8"))
+            if not isinstance(held, dict) or not all(
+                isinstance(held.get(key), str) for key in _RECORD
+            ):
+                return None
+            same = same_repository(str(held["repository"]), reader)
+            return {
+                "operation": held.get("operation", ""),
+                "executable": held["executable"],
+                "owner": held.get("owner", "") if same else "",
+                "pid": int(ticket.name.split("-")[1]),
+                "since": held["since"],
+                "same_repository": same,
+            }
+        return None
+
+    def contention(self, ticket: Ticket, *, reader: Path) -> str:
         """The gap of a wait that reached its bound, naming the earliest live holder."""
-        if (held := self.ahead(ticket)) is None:
+        if (held := self.ahead(ticket, reader=reader)) is None:
             return CONTENDED
-        return f"{CONTENDED}:{held['executable']}:{held['repository']}:{held['since']}"
+        operation = held["operation"] or held["executable"]
+        return f"{CONTENDED}:{operation}:{held['pid']}:{held['since']}"
+
+    def entries(self, *, reader: Path) -> list[dict[str, object]]:
+        """Every live recorded ticket in arrival order, with its state, removing nothing.
+
+        A read must not race an entrant, so unlike `live` this leaves a dead holder's record and
+        lock file for the next waiter, and a ticket whose record is not written yet is skipped.
+        """
+        listed: list[dict[str, object]] = []
+        for path in sorted(self.directory.glob("*.lock")):
+            probe = FileLock(path, mode=0o600)
+            try:
+                probe.acquire(blocking=False)
+            except Timeout:
+                pass
+            else:
+                probe.release()
+                continue
+            if (projected := self.project(Ticket(path.stem), reader=reader)) is not None:
+                state = "holding" if len(listed) < self.slots else "waiting"
+                listed.append({"state": state, **projected})
+        return listed
 
     def leave(self, ticket: Ticket, lock: FileLock) -> None:
         """Give up a place: the record goes first, then the lock and its file."""
         (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
         lock.release()
         (self.directory / f"{ticket.name}.lock").unlink(missing_ok=True)
+
+
+def same_repository(holder: str, reader: Path) -> bool:
+    """Whether a record's repository and the reader share one Git common directory.
+
+    Identity comes from Git's own common directory on both sides, never from a printed path; a
+    repository whose identity cannot be read is simply not the reader's.
+    """
+    if not holder:
+        return False
+    try:
+        own, theirs = git_common_dir(Path(holder)), git_common_dir(reader)
+    except (OSError, ValueError, ProcessExecutionError):
+        return False
+    return bool(own) and own == theirs
 
 
 def host_queue(*, cpus: int | None = None) -> tuple[HostQueue, HostDeclaration, int]:
@@ -192,12 +263,14 @@ def host_queue(*, cpus: int | None = None) -> tuple[HostQueue, HostDeclaration, 
 class HostPlace:
     """One heavy run's place in this host's queue, or the live admission that it joins."""
 
-    def __init__(self, repository: Path, executable: str) -> None:
+    def __init__(self, repository: Path, executable: str, *, operation: str, owner: str) -> None:
         self.queue, self.declaration, self.cpus = host_queue()
         inherited = os.environ.get(ADMISSION_ENV, "")
         self.joined = inherited if inherited and self.queue.holds(inherited) else ""
         self.repository = repository
         self.executable = executable
+        self.operation = operation
+        self.owner = owner
         self.ticket: tuple[Ticket, FileLock] | None = None
 
     def admitted(self) -> bool:
@@ -205,22 +278,32 @@ class HostPlace:
         if self.joined:
             return True
         if self.ticket is None:
-            self.ticket = self.queue.enter(self.repository, self.executable)
+            self.ticket = self.queue.enter(
+                self.repository, self.executable, operation=self.operation, owner=self.owner
+            )
         return self.queue.admitted(self.ticket[0])
 
-    def holder(self) -> dict[str, str] | None:
-        """The record of the earliest live run ahead of this one."""
-        return self.queue.ahead(self.ticket[0]) if self.ticket else None
+    def holder(self) -> dict[str, object] | None:
+        """The projection of the earliest live run ahead of this one."""
+        ticket = self.ticket[0] if self.ticket else None
+        return self.queue.ahead(ticket, reader=self.repository) if ticket else None
 
     def contention(self) -> str:
         """The gap of a wait that reached its bound."""
-        return self.queue.contention(self.ticket[0]) if self.ticket else CONTENDED
+        ticket = self.ticket[0] if self.ticket else None
+        return self.queue.contention(ticket, reader=self.repository) if ticket else CONTENDED
 
     def environment(self) -> dict[str, str]:
-        """What an admitted child receives: the admission's token and the host's worker cap."""
+        """What an admitted child receives: the admission's token and the host's worker cap.
+
+        The cap only lowers a count the caller already declares: a guest with more CPUs must not
+        raise the worker count of the job it hosts.
+        """
         cap = str(self.declaration.worker_cap(self.cpus))
+        declared = os.environ.get(XDIST_WORKERS, "")
+        workers = declared if declared.isdigit() and 0 < int(declared) < int(cap) else cap
         token = self.joined or (self.ticket[0].token if self.ticket else "")
-        return {ADMISSION_ENV: token, CPU_CAP: cap, XDIST_WORKERS: cap}
+        return {ADMISSION_ENV: token, CPU_CAP: cap, XDIST_WORKERS: workers}
 
     def leave(self) -> None:
         """Give up the place, if this run took one."""
@@ -229,30 +312,87 @@ class HostPlace:
             self.ticket = None
 
 
+@dataclass(frozen=True)
+class HostWork:
+    """One heavy run's admission: its child's environment, how long it waited, whether it joined."""
+
+    environment: dict[str, str]
+    waited_seconds: float
+    joined: bool
+
+
+def report_event(event: dict[str, object]) -> None:
+    """Write one admission event as a diagnostic stderr line beside the run's own progress."""
+    sys.stderr.write(json.dumps(event, sort_keys=True) + "\n")
+    sys.stderr.flush()
+
+
+@contextmanager
+def exported(values: dict[str, str]) -> Generator[None]:
+    """Give an admitted run's children its host admission, then restore the environment."""
+    previous = {key: os.environ.get(key) for key in values}
+    os.environ.update(values)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 @contextmanager
 def admitted_host_work(
     repository: Path,
     executable: str,
     *,
+    operation: str,
+    owner: str = "",
     seconds: float,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-) -> Generator[dict[str, str]]:
-    """Hold a host slot for one heavy run, or join the live one; yield its child's environment."""
-    place = HostPlace(repository, executable)
+    report: Callable[[dict[str, object]], None] = report_event,
+) -> Generator[HostWork]:
+    """Hold a host slot for one heavy run, or join the live one, and yield its admission.
+
+    A run that must wait writes one event naming the earliest live holder; a host root that cannot
+    be written is a named gap rather than a traceback.
+    """
+    started = clock()
     try:
-        started = clock()
+        place = HostPlace(repository, executable, operation=operation, owner=owner)
+        announced = False
         while not place.admitted():
+            if not announced:
+                announced = True
+                report(
+                    {
+                        "event": WAITING,
+                        "operation": operation,
+                        "executable": executable,
+                        "holder": place.holder(),
+                    }
+                )
             remaining = started + seconds - clock()
             if remaining <= 0:
                 raise ValueError(place.contention())
             sleep(min(_POLL_SECONDS, remaining))
-        yield place.environment()
+    except OSError as error:
+        message = UNAVAILABLE
+        raise ValueError(message) from error
+    waited = round(clock() - started, 1)
+    try:
+        yield HostWork(place.environment(), waited, bool(place.joined))
     finally:
         place.leave()
 
 
-def run_admitted(command: tuple[str, ...], *, repository: Path, seconds: float) -> int:
+def run_admitted(
+    command: tuple[str, ...], *, repository: Path, operation: str, owner: str, seconds: float
+) -> int:
     """Run one command as the admitted child, inheriting this process's streams."""
-    with admitted_host_work(repository, Path(command[0]).name, seconds=seconds) as environment:
-        return subprocess.run(command, env=os.environ | environment, check=False).returncode
+    with admitted_host_work(
+        repository, Path(command[0]).name, operation=operation, owner=owner, seconds=seconds
+    ) as work:
+        return subprocess.run(command, env=os.environ | work.environment, check=False).returncode

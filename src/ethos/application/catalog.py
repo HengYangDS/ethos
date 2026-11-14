@@ -61,6 +61,7 @@ IMPLEMENTATIONS = {
     "attestation query": f"{_ATTESTATION}:query_attestations",
     "attestation release": f"{_ATTESTATION}:release_attestation_member",
     "host run": "ethos.application.host:run_host_command",
+    "host status": "ethos.application.host:inspect_host_queue",
     "hook admit": f"{_HOOK}.admission:admit_write",
     "hook commit-range": f"{_HOOK}.admission:admit_commit_range",
     "hook ref-update": f"{_HOOK}.admission:admit_ref_update",

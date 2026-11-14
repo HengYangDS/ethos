@@ -38,6 +38,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   protected file named by `--anchor <path>` or `ETHOS_COMMIT_TRUST_ANCHOR`, or the public material
   in `ETHOS_COMMIT_ALLOWED_SIGNERS`; two inputs refuse with `ci_commit_trust_inputs_ambiguous`, and
   without one it binds nothing.
+- `ethos host status --json` reads this host's declaration, its 1-minute load and every live ticket
+  in arrival order with `holding` or `waiting`; `--guest-cpus <n>` checks the guests' virtual CPUs
+  against `reserved_cpus`.
+- A foreground host proof holds the host ticket while its test and package gates run, with the
+  ticket's token and worker cap exported, and its result records the wait in `data.admission`.
+- `docs/guides/ci-guest-host.md` covers a host that also runs CI guests.
 
 ### Changed
 
@@ -89,6 +95,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   common CI model carries the same retention on the verification jobs it generates, so adopters
   receive it when they regenerate their CI projections. An artifact uploaded earlier keeps the
   retention it was uploaded with.
+- **Breaking:** the contention gap now reads
+  `host_admission_contended:<operation>:<pid>:<since>`; it names the holder's operation, process
+  and start time instead of its repository path. The stable code `host_admission_contended` is
+  unchanged, and a record written by an older engine names its executable.
+- A queue ticket records the operation and the owner mark its holder declared, keeps its three
+  older fields, and no result prints a holder's repository path; another repository's owner mark
+  is not shown.
+- The worker cap only lowers a `PYTEST_XDIST_AUTO_NUM_WORKERS` count that the environment already
+  declares, so a guest with more CPUs cannot raise a hosted job's worker count.
 
 ### Fixed
 

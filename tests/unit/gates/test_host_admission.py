@@ -12,6 +12,7 @@ import pytest
 
 import ethos.adapters.gates.host_admission as host_admission
 from tests.support.clock import FakeClock
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,6 +80,11 @@ def _queue(root: Path, slots: int = 1) -> host_admission.HostQueue:
     return host_admission.HostQueue(root / "host-admission/v1", slots)
 
 
+def held_pid(ticket_name: str) -> int:
+    """The pid that a ticket's name records, which every projection shows for display."""
+    return int(ticket_name.split("-")[1])
+
+
 def test_heavy_runs_are_admitted_in_arrival_order(host_root: Path, tmp_path: Path) -> None:
     """With one slot the later run waits for the earlier, and a third follows both."""
     queue = _queue(host_root)
@@ -131,42 +137,209 @@ def test_a_dead_holder_frees_its_place_without_cleanup(host_root: Path, tmp_path
 def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> None:
     """A run that waits for the whole bound ends without running and names who holds the host."""
     queue = _queue(host_root)
-    holder = queue.enter(tmp_path / "busy-repository", "renderer")
+    holder = queue.enter(
+        tmp_path / "busy-repository", "renderer", operation="host.run", owner="agent:test:holder"
+    )
     clock = FakeClock()
 
     with (
         pytest.raises(ValueError, match="host_admission_contended") as refused,
         host_admission.admitted_host_work(
-            tmp_path, "proof", seconds=12, clock=lambda: clock.now, sleep=clock.sleep
+            tmp_path,
+            "proof",
+            operation="proof.host",
+            seconds=12,
+            clock=lambda: clock.now,
+            sleep=clock.sleep,
         ),
     ):
         pytest.fail("a contended run was admitted")
 
     recorded = json.loads((queue.directory / f"{holder[0].name}.json").read_text(encoding="utf-8"))
     assert str(refused.value) == (
-        f"host_admission_contended:{recorded['executable']}:{recorded['repository']}"
-        f":{recorded['since']}"
+        f"host_admission_contended:host.run:{held_pid(holder[0].name)}:{recorded['since']}"
     )
     assert recorded["executable"] == "renderer"
+    assert str(tmp_path / "busy-repository") not in str(refused.value)
     assert sum(clock.sleeps) == 12
-    assert [path.stem for path in queue.directory.glob("*.json")] == [holder[0].name]
+    names = [path.stem for path in queue.directory.glob("*.json")]
+    assert holder[0].name in names
+    assert len(names) == 2
+
+
+def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(
+    host_root: Path, tmp_path: Path
+) -> None:
+    """A new record adds the operation and the owner; readers that predate them still read it."""
+    queue = _queue(host_root)
+
+    ticket, lock = queue.enter(tmp_path, "ethos", operation="proof.run", owner="agent:test:proof")
+    queue.leave(ticket, lock)
+    older, older_lock = queue.enter(tmp_path, "renderer")
+
+    recorded = json.loads((queue.directory / f"{older.name}.json").read_text(encoding="utf-8"))
+    assert set(recorded) >= {"repository", "executable", "since"}
+    assert (recorded["operation"], recorded["owner"]) == ("", "")
+    queue.leave(older, older_lock)
+
+
+def test_the_entries_read_lists_holders_and_waiters_without_removing(
+    host_root: Path, tmp_path: Path
+) -> None:
+    """A holder and a waiter are listed; a dead ticket is left for the next waiter, not removed."""
+    queue = _queue(host_root)
+    busy = init_git_repo(tmp_path / "busy")
+    holder = queue.enter(busy, "renderer", operation="host.run", owner="agent:test:h")
+    script = (
+        "import sys; from pathlib import Path\n"
+        "import ethos.adapters.gates.host_admission as h\n"
+        "h.HostQueue(Path(sys.argv[1]), 1).enter(Path(sys.argv[2]), 'gone')\n"
+    )
+    subprocess.run(
+        [sys.executable, "-c", script, str(queue.directory), str(tmp_path / "dead")],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=os.environ,
+    )
+    waiter = queue.enter(tmp_path / "next", "proof")
+
+    entries = queue.entries(reader=busy)
+
+    assert [(entry["state"], entry["executable"]) for entry in entries] == [
+        ("holding", "renderer"),
+        ("waiting", "proof"),
+    ]
+    assert set(entries[0]) == {
+        "state",
+        "operation",
+        "executable",
+        "owner",
+        "pid",
+        "since",
+        "same_repository",
+    }
+    assert (entries[0]["operation"], entries[0]["owner"]) == ("host.run", "agent:test:h")
+    assert entries[0]["pid"] == held_pid(holder[0].name)
+    assert entries[0]["same_repository"] is True
+    foreign = queue.entries(reader=init_git_repo(tmp_path / "elsewhere"))
+    assert (foreign[0]["owner"], foreign[0]["same_repository"]) == ("", False)
+    assert foreign[0]["operation"] == "host.run"
+    assert str(tmp_path) not in json.dumps(entries) + json.dumps(foreign)
+    assert len(list(queue.directory.glob("*.json"))) == 3
+    queue.leave(*holder)
+    queue.leave(*waiter)
+
+
+def test_an_unwritable_queue_directory_answers_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A host root that cannot be written is a named gap, not a traceback."""
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    (blocked / "host-admission").write_text("a file where the queue belongs", encoding="utf-8")
+    monkeypatch.setattr(host_admission, "host_store_root", lambda: blocked)
+
+    with (
+        pytest.raises(ValueError, match=r"^host_admission_unavailable$"),
+        host_admission.admitted_host_work(
+            tmp_path, "proof", operation="proof.host", seconds=0, clock=lambda: 0.0
+        ),
+    ):
+        pytest.fail("an unwritable queue admitted work")
 
 
 def test_admitted_work_carries_one_token_and_worker_cap(host_root: Path, tmp_path: Path) -> None:
     """Work under a live admission joins it; a copied token whose holder left admits nothing."""
     _declare(host_root, "reserved_cpus = 1\n")
 
-    with host_admission.admitted_host_work(tmp_path, "outer", seconds=0) as outer:
+    with host_admission.admitted_host_work(
+        tmp_path, "outer", operation="host.run", seconds=0
+    ) as outer:
         cap = str(max(1, (os.cpu_count() or 1) - 1))
-        assert outer[host_admission.CPU_CAP] == outer[host_admission.XDIST_WORKERS] == cap
+        assert outer.environment[host_admission.CPU_CAP] == cap
+        assert outer.environment[host_admission.XDIST_WORKERS] == cap
+        assert outer.environment[host_admission.ADMISSION_ENV]
         with pytest.MonkeyPatch.context() as patch:
-            patch.setenv(host_admission.ADMISSION_ENV, outer[host_admission.ADMISSION_ENV])
-            with host_admission.admitted_host_work(tmp_path, "inner", seconds=0) as inner:
-                assert inner[host_admission.ADMISSION_ENV] == outer[host_admission.ADMISSION_ENV]
+            patch.setenv(
+                host_admission.ADMISSION_ENV, outer.environment[host_admission.ADMISSION_ENV]
+            )
+            patch.setenv(host_admission.XDIST_WORKERS, str(int(cap) + 5))
+            with host_admission.admitted_host_work(
+                tmp_path, "inner", operation="host.run", seconds=0
+            ) as inner:
+                assert inner.joined
+                assert (
+                    inner.environment[host_admission.ADMISSION_ENV]
+                    == (outer.environment[host_admission.ADMISSION_ENV])
+                )
     with pytest.MonkeyPatch.context() as patch:
-        patch.setenv(host_admission.ADMISSION_ENV, outer[host_admission.ADMISSION_ENV])
-        with host_admission.admitted_host_work(tmp_path, "later", seconds=0) as later:
-            assert later[host_admission.ADMISSION_ENV] != outer[host_admission.ADMISSION_ENV]
+        patch.setenv(host_admission.ADMISSION_ENV, outer.environment[host_admission.ADMISSION_ENV])
+        patch.delenv(host_admission.XDIST_WORKERS, raising=False)
+        with host_admission.admitted_host_work(
+            tmp_path, "later", operation="host.run", seconds=0
+        ) as later:
+            assert (
+                later.environment[host_admission.ADMISSION_ENV]
+                != (outer.environment[host_admission.ADMISSION_ENV])
+            )
+
+
+@pytest.mark.parametrize(("caller", "expected"), [("3", "3"), ("99", None), ("two", None)])
+def test_a_caller_that_declares_fewer_workers_keeps_its_count(
+    host_root: Path, tmp_path: Path, caller: str, expected: str | None
+) -> None:
+    """The cap only lowers: a smaller count stays; a larger or non-numeric one is ignored."""
+    _declare(host_root, "reserved_cpus = 1\n")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv(host_admission.XDIST_WORKERS, caller)
+        with host_admission.admitted_host_work(
+            tmp_path, "outer", operation="host.run", seconds=0
+        ) as outer:
+            cap = str(max(1, (os.cpu_count() or 1) - 1))
+            assert outer.environment[host_admission.XDIST_WORKERS] == (expected or cap)
+            assert outer.environment[host_admission.CPU_CAP] == cap
+
+
+def test_a_waiting_run_reports_one_event_with_the_holder_projection(
+    host_root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A waiter writes one `host_admission_waiting` event whose holder carries no repository."""
+    queue = _queue(host_root)
+    busy = init_git_repo(tmp_path / "busy")
+    holder = queue.enter(busy, "renderer", operation="host.run", owner="agent:test:h")
+    clock = FakeClock()
+
+    with (
+        pytest.raises(ValueError, match="host_admission_contended"),
+        host_admission.admitted_host_work(
+            busy,
+            "proof",
+            operation="proof.host",
+            seconds=5,
+            clock=lambda: clock.now,
+            sleep=clock.sleep,
+        ),
+    ):
+        pass
+
+    events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    waiting = [event for event in events if event["event"] == "host_admission_waiting"]
+    assert len(waiting) == 1
+    assert waiting[0]["operation"] == "proof.host"
+    assert waiting[0]["holder"] == {
+        "operation": "host.run",
+        "executable": "renderer",
+        "owner": "agent:test:h",
+        "pid": held_pid(holder[0].name),
+        "since": json.loads(
+            (queue.directory / f"{holder[0].name}.json").read_text(encoding="utf-8")
+        )["since"],
+        "same_repository": True,
+    }
+    assert str(busy) not in json.dumps(waiting[0])
+    queue.leave(*holder)
 
 
 def test_the_host_declaration_owns_the_load_limit(host_root: Path) -> None:

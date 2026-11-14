@@ -17,7 +17,7 @@ from ethos.contracts.operations.declaration import Group
 from ethos.contracts.operations.declaration import Operation
 from ethos.contracts.operations.handoff import HANDOFF
 from ethos.contracts.operations.hook import HOOK
-from ethos.contracts.operations.host import HOST_RUN
+from ethos.contracts.operations.host import HOST
 from ethos.contracts.operations.land import LAND
 from ethos.contracts.operations.lane import LANE
 from ethos.contracts.operations.lane_repair import LANE_REPAIR
@@ -29,7 +29,7 @@ from ethos.contracts.operations.retire import RETIRE
 from ethos.contracts.operations.status import STATUS
 
 _ROOTS = (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT)
-_LEAVES = (*ATTESTATION, HOST_RUN, *HOOK, *LANE, *LANE_REPAIR, *RETIRE, *LEASE, *HANDOFF)
+_LEAVES = (*ATTESTATION, *HOST, *HOOK, *LANE, *LANE_REPAIR, *RETIRE, *LEASE, *HANDOFF)
 COMMANDS: dict[str, Command] = {command.name: command for command in (*_ROOTS, *_LEAVES)}
 GROUPS: dict[str, Group] = {
     group.name: group

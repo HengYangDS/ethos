@@ -22,7 +22,7 @@ from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.proof.plan import execution_source_gaps
-from ethos.repository.paradigm import parameters
+import ethos.repository.paradigm.parameters as paradigm_parameters
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
@@ -145,7 +145,7 @@ def _admitted_gates(
         "ethos prove",
         operation="proof.host",
         owner=process_actor(),
-        seconds=parameters.seconds("admission"),
+        seconds=paradigm_parameters.seconds("admission"),
     ) as work:
         settled = {result.action_id: result for result in readiness}
         with exported(work.environment):

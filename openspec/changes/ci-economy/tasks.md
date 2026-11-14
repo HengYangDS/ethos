@@ -2,21 +2,21 @@
 
 ## 1. Model and projections
 
-- [ ] 1.1 Move commit-range admission into `commit-policy` for every push and pull request, and
+- [x] 1.1 Move commit-range admission into `commit-policy` for every push and pull request, and
       replace the two placeholder jobs by `hosted checks`. Done when `lane project --check` passes
       and each push or pull-request event has one admission step.
-- [ ] 1.2 Key host conformance by platform id in three tiers, with the `qualify_head` and
+- [x] 1.2 Key host conformance by platform id in three tiers, with the `qualify_head` and
       `windows_legs` inputs and the drift schedule. Done when a push selects four legs and a
       qualification ten.
-- [ ] 1.3 Give GitLab its roles by event and the batch-head workflow rules. Done when a `dev` or
+- [x] 1.3 Give GitLab its roles by event and the batch-head workflow rules. Done when a `dev` or
       proposal push projects commit policy and conformance only.
-- [ ] 1.4 Bound every job: unpersisted checkout credentials, the timeout table with its compile-time
+- [x] 1.4 Bound every job: unpersisted checkout credentials, the timeout table with its compile-time
       check, and cancellation for pull and merge requests. Done when a gate timeout at or above its
       class's minutes fails compilation.
 
 ## 2. Measurement
 
-- [ ] 2.1 Read at least 100 runs per job class from both Forges, first attempt to final conclusion
+- [x] 2.1 Read at least 100 runs per job class from both Forges, first attempt to final conclusion
       with a capacity cancellation counted as a failure, and replace each provisional value of
       `timeoutMinutes` by its class's p99 with margin. Done when the table's comment cites the
       read's date and n. Depends on forge read authority.
@@ -37,9 +37,9 @@
 - [ ] 4.1 Update the architecture tests that pin the projections and add
       `tests/architecture/ci/test_hosted_economy.py`. Done when they pass and tests grow by at most
       60 line-equivalents.
-- [ ] 4.2 Require both batch-head runs in step 4 of the release guide. Done when the guide names
+- [x] 4.2 Require both batch-head runs in step 4 of the release guide. Done when the guide names
       `qualify_head` and `ETHOS_QUALIFY_HEAD`.
-- [ ] 4.3 Replace the three redirecting URLs in `docs/research/foundations/hosted-ci.md` by their
+- [x] 4.3 Replace the three redirecting URLs in `docs/research/foundations/hosted-ci.md` by their
       targets. Done when the external link gate passes on the tree with no redirect hint.
 
 ## 5. Validation on the pushed proposal ref

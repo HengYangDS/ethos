@@ -7,6 +7,7 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import Any
 
+import ethos.repository.paradigm.parameters as paradigm_parameters
 from ethos.adapters.actor import process_actor
 from ethos.adapters.gates.host_admission import admitted_host_work
 from ethos.adapters.gates.host_admission import exported
@@ -22,7 +23,6 @@ from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.proof.plan import execution_source_gaps
-import ethos.repository.paradigm.parameters as paradigm_parameters
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:

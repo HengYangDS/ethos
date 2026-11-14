@@ -56,7 +56,9 @@
       test passes.
 - [ ] 5.5 Lane: pass the precheck and readiness at the lane head. Done when each passes on the
       committed head.
-- [ ] 5.6 Hosted: run CI on the proposal ref. Done when the install legs pass on Linux and Windows.
+- [x] 5.6 Hosted: run CI on the proposal ref. Done when the install legs pass on Linux and Windows.
+      Evidence: GitHub run 43642339317 at `3d5365a65`, three Linux and four Windows legs, each
+      with the install smoke passed.
 - [ ] 5.7 Hosted: dispatch the journey alone on the proposal ref for the newest release, with the
       previous release, 0.2.0-beta.6 and each release that an adopter selects. Done when both
       receipts read `passed` and name the Mise release, format 3 for the prerelease's lock, each

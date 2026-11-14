@@ -8,8 +8,8 @@ dependencies = [
   "anyio>=4.16.0",
   "cel-expr-python>=0.1.4",
   "codespell>=2.4.3",
-  "cyclopts>=5.4.1",
-  "fastmcp>=4.1.8",
+  "cyclopts>=5.5.0",
+  "fastmcp>=4.2.0",
   "filelock>=4.2.10",
   "jsonschema>=4.26.0",
   "lychee-bin>=0.24.2",
@@ -21,11 +21,11 @@ dependencies = [
   "pygments>=2.21.0",
   "pywin32>=312; sys_platform == 'win32'",
   "pyyaml>=6.0.3",
-  "ruff>=0.17.4",
+  "ruff>=0.17.5",
   "shfmt-py>=4.2.0",
   "semver>=3.1.1",
   "tomli-w>=1.2.0",
-  "uv>=0.13.7",
+  "uv>=0.13.8",
   "yamllint>=1.38.0",
 ]
 
@@ -34,6 +34,10 @@ ethos = "ethos.cli:console_main"
 
 [tool.uv]
 prerelease = "disallow"
+# complexipy 9 scores cognitive complexity differently, and the decision-density baseline is pinned
+# to 8.x scores. The resolution stays below 9 until that baseline is measured again; the direct
+# requirement keeps its one lower bound, which the dependency gate requires.
+constraint-dependencies = ["complexipy<9"]
 
 [dependency-groups]
 dev = [
@@ -54,8 +58,8 @@ dev = [
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
   "shellcheck-py>=0.11.0.1",
-  "ty>=0.0.101",
-  "uv>=0.13.7",
+  "ty>=0.0.104",
+  "uv>=0.13.8",
 ]
 
 [build-system]

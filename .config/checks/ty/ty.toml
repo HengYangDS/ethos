@@ -10,5 +10,5 @@ include = ["src", "tools", "tests/support", "tests/architecture", "noxfile.py"]
 all = "error"
 truthiness-test-of-none-union = "ignore"
 unsound-assignment = "ignore"
-unsound-return-statement = "ignore"
+unsound-return = "ignore"
 unsound-yield = "ignore"

@@ -7,21 +7,21 @@
     "c8": "12.0.0",
     "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "@eslint/js": "10.0.1",
     "globals": "17.14.0",
     "npm": "12.2.2",
     "@taplo/cli": "0.7.0",
-    "markdownlint-cli2": "0.24.0",
-    "prettier": "3.9.10",
+    "markdownlint-cli2": "0.24.1",
+    "prettier": "3.10.1",
     "svgo": "4.1.0"
   },
   "devDependencies": {
     "allure": "3.33.0"
   },
   "overrides": {
-    "glob": "14.0.4",
-    "minimatch": "11.0.6",
+    "glob": "14.0.6",
+    "minimatch": "11.0.8",
     "markdownlint-cli2": {
       "markdown-it": "15.0.3",
       "re2js": "2.10.0",

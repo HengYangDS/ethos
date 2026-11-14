@@ -1,4 +1,4 @@
-min_version = "2026.10.25"
+min_version = "2026.11.8"
 [settings]
 locked = true
 not_found_system_fallback = false
@@ -6,7 +6,7 @@ idiomatic_version_file_enable_tools = []
 [tools]
 node = "26.13.1"
 python = "3.14.10"
-uv = "0.13.7"
+uv = "0.13.8"
 cue = "0.17.1"
 go = "1.27.4"
 "github:rhysd/actionlint" = "1.7.12"
@@ -15,7 +15,7 @@ go = "1.27.4"
 "github:anchore/syft" = "1.57.1"
 # Grype publishes no Windows arm64 build; the release run scans on Linux.
 "github:anchore/grype" = { version = "0.121.3", os = ["linux", "macos"] }
-"github:vale-cli/vale" = "3.26.0"
+"github:vale-cli/vale" = "3.27.0"
 [tasks.bootstrap]
 description = "Synchronize the locked Python environment, native tools, npm packages and test fixtures"
 run = [

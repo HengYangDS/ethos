@@ -12,6 +12,23 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The supply moves to the newest stable releases. Mise moves to 2026.11.8 (the floor and the CI
+  bootstrap with its six executable digests), and its lock takes uv 0.13.8, Vale 3.27.0 and the
+  python-build-standalone 20261110 build of CPython 3.14.10. The npm pins move to Prettier 3.10.1,
+  markdownlint-cli2 0.24.1 and ESLint 10.15.0, the `glob` and `minimatch` overrides to 14.0.6 and
+  11.0.8, and the npm lock's transitive packages follow. The Python lock moves `coverage` 7.17.3,
+  `cyclopts` 5.5.0, `fastmcp` and `fastmcp-slim` 4.2.0, `grimp` 3.20, `humanize` 4.17.0,
+  `pydantic-settings` 2.16.3, `ruff` 0.17.5, `ty` 0.0.104 and `uv` 0.13.8, and the floors of the
+  moved direct dependencies rise to their locked versions. The CI supply image's base moves to the
+  uv 0.13.8 image that matches the uv pin.
+- Prettier 3.10.1 puts a `yield` operand that spans lines in parentheses, which changes one
+  tracked file, the JavaScript test reporter. A repository whose `ethos lane format --check` names
+  files after the move formats them once.
+- `complexipy` stays below 9: version 9.0.0 scores cognitive complexity differently, and the
+  decision-density baseline is pinned to the 8.x scores.
+
 ## [0.2.0-beta.10] - 2026-11-14
 
 ### Added

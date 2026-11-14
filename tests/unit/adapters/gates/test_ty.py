@@ -82,7 +82,7 @@ def test_ty_selection_raises_every_rule_but_the_owned_deferrals() -> None:
         "all": "error",
         "truthiness-test-of-none-union": "ignore",
         "unsound-assignment": "ignore",
-        "unsound-return-statement": "ignore",
+        "unsound-return": "ignore",
         "unsound-yield": "ignore",
     }
 

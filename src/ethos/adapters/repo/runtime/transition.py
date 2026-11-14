@@ -18,6 +18,7 @@ from ethos.repository.release.admission import AcceptedReleaseIdentity
 from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identities
 from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.admission import checksum_bound_release
 from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
@@ -60,14 +61,22 @@ def materialize_explicit_release(
     *,
     expected_build: BuildIdentity,
     collision: str,
+    checksums: Path | None = None,
 ) -> AcceptedReleaseIdentity:
-    """Admit, materialize, observe, and attest one explicit release."""
+    """Admit, materialize, observe, and attest one explicit release.
+
+    With the release's checksum file, the identity binds it and every wheel and archive it lists.
+    """
     payload = wheel.read_bytes()
     sha256 = hashlib.sha256(payload).hexdigest()
     build = wheel_build_identity(wheel)
     if build != expected_build:
         refuse("release_wheel_build_identity_stale")
     release = accepted_release_identity(build, wheel_sha256=sha256)
+    if checksums is not None:
+        release = checksum_bound_release(
+            release, checksums.read_bytes(), published={wheel.name: sha256}
+        )
     _root, attestations = read_attestation_set(repo)
     if gaps := release_identity_admission_gaps(release, accepted_release_identities(attestations)):
         raise ValueError(",".join(gaps))
@@ -76,16 +85,16 @@ def materialize_explicit_release(
     _require_package_store(common, package_store)
     target = package_store / sha256 / wheel.name
     durable = write_content_addressed(target, payload, collision=collision)
-    observed = _observe_release_wheel(durable)
-    if observed != release:
+    # The effect is the stored wheel, so the fresh observation covers the build and that wheel.
+    if _observe_release_wheel(durable)[:2] != release[:2]:
         refuse("identity_transition_post_observation_mismatch")
     recorded = record_attestation_once(
         repo,
-        accepted_release_attestation(observed, issued_at=datetime.now(UTC)),
+        accepted_release_attestation(release, issued_at=datetime.now(UTC)),
     )
-    if accepted_release_identities((recorded,)) != (observed,):
+    if accepted_release_identities((recorded,)) != (release,):
         refuse("identity_transition_attestation_mismatch")
-    return observed
+    return release
 
 
 def _observe_release_wheel(path: Path) -> AcceptedReleaseIdentity:

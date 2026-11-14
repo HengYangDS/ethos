@@ -651,10 +651,11 @@ github: {
 				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} \(releaseHosts)"
 			}, {
 				// Mise's github backend verifies these attestations when it installs a pinned release;
-				// they also bind each runtime archive's two inventories to the release workflow.
+				// they also bind each runtime archive's two inventories to the release workflow, and
+				// the checksum file that the accepted release identity and a channel formula read.
 				name: "Attest the release archives and wheels"
 				uses: "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
-				with: "subject-path": "build/release/out/assets/ethos-*.tar.gz\nbuild/release/out/assets/ethos-*.whl\nbuild/release/out/assets/ethos-*.spdx.json\nbuild/release/out/assets/ethos-*.syft.json"
+				with: "subject-path": "build/release/out/assets/ethos-*.tar.gz\nbuild/release/out/assets/ethos-*.whl\nbuild/release/out/assets/ethos-*.spdx.json\nbuild/release/out/assets/ethos-*.syft.json\nbuild/release/out/assets/SHA256SUMS"
 			}, {
 				name: "Publish the signed pre-release"
 				env: GH_TOKEN: "${{ github.token }}"

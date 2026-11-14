@@ -404,6 +404,7 @@ jobs:
             build/release/out/assets/ethos-*.whl
             build/release/out/assets/ethos-*.spdx.json
             build/release/out/assets/ethos-*.syft.json
+            build/release/out/assets/SHA256SUMS
       - name: Publish the signed pre-release
         env:
           GH_TOKEN: ${{ github.token }}

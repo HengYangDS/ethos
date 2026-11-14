@@ -249,9 +249,9 @@ def test_the_release_attests_its_archives_and_wheels_before_it_exists():
 
     assert len(attests) == 1
     assert attests[0]["with"]["subject-path"].split() == [
-        f"build/release/out/assets/ethos-*{suffix}"
-        for suffix in (".tar.gz", ".whl", ".spdx.json", ".syft.json")
-    ]
+        f"build/release/out/assets/{pattern}"
+        for pattern in ("ethos-*.tar.gz", "ethos-*.whl", "ethos-*.spdx.json", "ethos-*.syft.json")
+    ] + ["build/release/out/assets/SHA256SUMS"]
     assert steps.index(attests[0]["name"]) < steps.index("Publish the signed pre-release")
     assert publish["permissions"] == {
         "contents": "write",

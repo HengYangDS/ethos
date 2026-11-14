@@ -19,6 +19,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `EthosResult.from_payload` keeps a carried `inputs` and re-derives the rest of the step, and the
   result schema admits the member. No command emits it in this release; the commands that do
   follow one release later, so a build one release older still reads their results.
+- A release run attests `SHA256SUMS` with the archives, wheels and inventories it publishes. An
+  accepted release identity can bind that file's digest and the name and digest of every wheel and
+  archive it lists; identities recorded without the binding read as before, and a published file
+  that disagrees with the checksum file refuses with `accepted_release_checksum_mismatch`.
 
 ### Changed
 

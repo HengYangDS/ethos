@@ -14,6 +14,7 @@ import ethos.adapters.repo.runtime.materialization.dependency_supply as dependen
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identity
+from ethos.repository.release.admission import checksum_bound_release
 from ethos.repository.release.identity import BuildIdentity
 
 _BUILD_IDENTITY = BuildIdentity(
@@ -93,7 +94,9 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     volatile_wheel.unlink()
 
 
-@pytest.mark.parametrize("observation", ["match", "mismatch", "attestation", "admission"])
+@pytest.mark.parametrize(
+    "observation", ["match", "mismatch", "attestation", "admission", "bound", "unlisted"]
+)
 def test_release_transition_attests_only_after_matching_post_observation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, observation: str
 ) -> None:
@@ -101,6 +104,13 @@ def test_release_transition_attests_only_after_matching_post_observation(
     release = accepted_release_identity(build, wheel_sha256=hashlib.sha256(b"wheel").hexdigest())
     wheel = tmp_path / "ethos-0.2.0a2-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
+    # Only these two cases pass the release's checksum file, which lists the wheel or does not.
+    checksums = tmp_path / "SHA256SUMS" if observation in {"bound", "unlisted"} else None
+    if checksums:
+        listed = release.wheel_sha256 if observation == "bound" else "0" * 64
+        checksums.write_text(f"{listed}  {wheel.name}\n", encoding="ascii")
+        if observation == "bound":
+            release = checksum_bound_release(release, checksums.read_bytes(), published={})
     common = tmp_path / "repo.git"
     common.mkdir()
     events: list[str] = []
@@ -122,7 +132,7 @@ def test_release_transition_attests_only_after_matching_post_observation(
             events.append("observe")
             or (
                 release
-                if observation in {"match", "attestation"}
+                if observation != "mismatch"
                 else release._replace(build=build._replace(source_commit="e" * 40))
             )
         ),
@@ -149,23 +159,24 @@ def test_release_transition_attests_only_after_matching_post_observation(
         ),
     )
 
-    if observation == "match":
-        identity_transition.materialize_explicit_release(
-            tmp_path, wheel, expected_build=build, collision="wheel_collision"
-        )
+    transition = partial(
+        identity_transition.materialize_explicit_release,
+        tmp_path,
+        wheel,
+        expected_build=build,
+        collision="wheel_collision",
+        checksums=checksums,
+    )
+    if observation in {"match", "bound"}:
+        assert transition() == release
         assert events == ["effect", "observe", "attest"]
     else:
         reason = {
             "attestation": "identity_transition_attestation_mismatch",
             "admission": "accepted_version_source_conflict",
+            "unlisted": "accepted_release_checksum_mismatch:ethos-0",
         }.get(observation, "identity_transition_post_observation_mismatch")
-
-        def transition() -> None:
-            identity_transition.materialize_explicit_release(
-                tmp_path, wheel, expected_build=build, collision="wheel_collision"
-            )
-
         with pytest.raises(ValueError, match=reason):
             transition()
-        expected = {"attestation": ["effect", "observe", "attest"], "admission": []}
+        expected = {"attestation": ["effect", "observe", "attest"], "admission": [], "unlisted": []}
         assert events == expected.get(observation, ["effect", "observe"])

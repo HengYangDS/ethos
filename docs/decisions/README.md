@@ -51,3 +51,6 @@ five-section form; this entrance does not maintain another template or rule set.
 - [DR-0025: The product ceiling moves to 85,000 for the common
   rules](dr-0025-product-budget-step-85.md): the necessity review that took one more 5,000 step
   after the staged checks merged and the dead definition went.
+- [DR-0026: The 0.2.0 release candidate gate is recorded with three
+  waivers](dr-0026-release-candidate-gate.md): what the gate that DR-0021 applies requires, which
+  three requirements the owner waived and what stands in for each, and which work leaves 0.2.0.

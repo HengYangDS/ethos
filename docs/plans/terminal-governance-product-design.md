@@ -53,11 +53,11 @@ cites it. Completed incidents remain regression boundaries, not a queue to repla
 
 ### 0.2.0 Release Candidate Order
 
-The 2026-11-07 committee set the release candidate's gate. Its order is eight families, each waiting
-only for the Changes it names: measure and plan; application package and catalog; retention; proof
-environment and host; lane operations and authorization; supply security and fleet hygiene; release
-path; golden path, soak and promotion. The archived `rc-plan` Change's design lists their Changes,
-sizes and prerequisites.
+[DR-0026](../decisions/dr-0026-release-candidate-gate.md) records the release candidate's gate of
+2026-11-07 and its waivers. Its order is eight families: measure and plan; application package and
+catalog; retention; proof environment and host; lane operations and authorization; supply security
+and fleet hygiene; release path; golden path, soak and promotion. The archived `rc-plan` design
+lists their Changes, and the archived `rc-scope-plan` design their weekly batches.
 
 ### Product Form, First Hour And Shared Obligations
 

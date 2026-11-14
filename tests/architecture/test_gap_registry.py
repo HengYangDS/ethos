@@ -33,6 +33,37 @@ def _head(node: ast.expr) -> str:
     return ""
 
 
+def _table_codes(tree: ast.Module) -> list[tuple[int, ast.expr]]:
+    """Every second member of a literal table of pairs that a loop reads under the name `gap`."""
+    tables = sorted(
+        (
+            (target.id, node.lineno, node.value)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign) and isinstance(node.value, (ast.Tuple, ast.List))
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        ),
+        key=itemgetter(1),
+    )
+    found: list[tuple[int, ast.expr]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.For, ast.comprehension)):
+            continue
+        names = [getattr(item, "id", "") for item in getattr(node.target, "elts", ())]
+        table: ast.expr = node.iter
+        if isinstance(table, ast.Name):
+            line = getattr(node, "lineno", node.iter.lineno)
+            earlier = [run[2] for run in tables if run[0] == table.id and run[1] <= line]
+            table = earlier[-1] if earlier else table
+        if names[1:] == ["gap"] and isinstance(table, (ast.Tuple, ast.List)):
+            found.extend(
+                (pair.lineno, pair.elts[1])
+                for pair in table.elts
+                if isinstance(pair, ast.Tuple) and len(pair.elts) == 2
+            )
+    return found
+
+
 def _expressions(tree: ast.Module) -> list[tuple[int, ast.expr]]:
     """Every expression that reaches a refusal helper's gap argument or a raised error's first."""
     runs = sorted(
@@ -54,7 +85,7 @@ def _expressions(tree: ast.Module) -> list[tuple[int, ast.expr]]:
             return earlier[-1][2] if earlier else node
         return node
 
-    found: list[tuple[int, ast.expr]] = []
+    found: list[tuple[int, ast.expr]] = _table_codes(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             func = node.func

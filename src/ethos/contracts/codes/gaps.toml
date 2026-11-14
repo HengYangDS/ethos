@@ -4,9 +4,18 @@
 # `reserved` marks a declared name that nothing raises yet. A [family] prefix registers
 # every code it begins, for names assembled from parts.
 
+absorbed_by_not_current_authority_head = { owner = "adapters.mutation" }
+absorbed_by_required = { owner = "adapters.mutation" }
 absorbed_ref_conservation_unknown = { owner = "adapters.mutation" }
+absorbed_ref_head_drift = { owner = "adapters.mutation" }
+absorbed_ref_head_mismatch = { owner = "adapters.mutation" }
+absorbed_ref_missing = { owner = "adapters.mutation" }
 absorbed_ref_not_accepted = { owner = "adapters.mutation" }
 absorbed_ref_postcondition_failed = { owner = "adapters.mutation" }
+absorbed_ref_requires_accepted_root = { owner = "adapters.mutation" }
+absorbed_ref_role_invalid = { owner = "adapters.mutation" }
+absorbed_ref_worktree_appeared = { owner = "adapters.mutation" }
+absorbed_ref_worktree_linked = { owner = "adapters.mutation" }
 accepted_advance_not_candidate_validated = { owner = "adapters.admission" }
 accepted_closeout_effect_ambiguous = { owner = "adapters.repo" }
 accepted_closeout_effect_invalid = { owner = "adapters.repo" }
@@ -41,8 +50,11 @@ adoption_exit_observation_failed = { owner = "adapters.repo", detail = "the valu
 adoption_exit_plan_digest_mismatch = { owner = "adapters.repo" }
 adoption_exit_plan_digest_required = { owner = "adapters.repo" }
 adoption_exit_preimage_unrecorded = { owner = "adapters.repo" }
+adoption_exit_proof_running = { owner = "adapters.repo" }
 adoption_exit_resume_conflict = { owner = "adapters.repo" }
 adoption_exit_runtime_in_use = { owner = "adapters.repo" }
+adoption_exit_runtime_use_unknown = { owner = "adapters.repo" }
+adoption_exit_selection_held = { owner = "adapters.repo" }
 adoption_exit_selector_changed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 adoption_input_changed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 adoption_native_postcondition_failed = { owner = "adapters.repo", detail = "the value that follows the colon" }
@@ -50,6 +62,8 @@ adoption_plan_digest_mismatch = { owner = "adapters.repo" }
 adoption_runtime_compensation_incomplete = { owner = "adapters.repo" }
 adoption_runtime_selector_invalid = { owner = "adapters.repo" }
 adoption_runtime_source_changed = { owner = "adapters.repo" }
+advisory_request_failed = { owner = "repository.policy" }
+archive_commit_subject_required = { owner = "adapters.mutation" }
 archive_content_changed = { owner = "adapters.gates" }
 archive_path_link_or_type_forbidden = { owner = "adapters.gates" }
 archive_projection_compensation_conflict = { owner = "adapters.mutation", detail = "the value that follows the colon" }
@@ -106,6 +120,7 @@ authorization_required = { owner = "ethos" }
 block = { owner = "ethos" }
 block_without_reason = { owner = "ethos", meaning = "A block verdict carried no gap and no adverse diagnostic." }
 blocked = { owner = "adapters.repo" }
+branch_required = { owner = "adapters.mutation" }
 branch_role_rebinding_pending = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 branch_role_rename_git_unsupported = { owner = "adapters.mutation" }
 build_source_identity_changed = { owner = "adapters.repo" }
@@ -123,6 +138,9 @@ candidate_head_changed_after_control_replacement_check = { owner = "adapters.mut
 candidate_head_expectation_mismatch = { owner = "application.land" }
 candidate_integrated = { owner = "adapters.repo" }
 candidate_materialization_state_stale = { owner = "adapters.mutation" }
+candidate_preserved_preimage_invalid = { owner = "adapters.mutation" }
+candidate_preserved_preimage_not_ancestor = { owner = "adapters.mutation" }
+candidate_preserved_preimage_not_retained = { owner = "adapters.mutation" }
 candidate_recovery_plan_binding_mismatch = { owner = "adapters.mutation" }
 candidate_recovery_plan_unproven = { owner = "adapters.mutation" }
 candidate_ref_creation_failed = { owner = "adapters.mutation" }
@@ -136,6 +154,8 @@ candidate_update_failed = { owner = "adapters.mutation" }
 candidate_worktree_add_failed = { owner = "adapters.mutation" }
 candidate_worktree_dirty = { owner = "ethos", meaning = "The candidate worktree's tree holds uncommitted change." }
 candidate_worktree_missing = { owner = "ethos" }
+candidate_worktree_parent_unsafe = { owner = "adapters.mutation" }
+candidate_worktree_path_exists = { owner = "adapters.mutation" }
 candidate_worktree_sync_failed = { owner = "adapters.mutation" }
 carrier_edit_authority_changed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 carrier_edit_git_state_changed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
@@ -195,6 +215,7 @@ common_gate_execution_conflict = { owner = "repository.policy", detail = "the va
 compiled_projection_unavailable = { owner = "repository.policy", detail = "the value that follows the colon" }
 contradiction = { owner = "adapters.mutation" }
 control_replacement_candidate_head_required = { owner = "application.land" }
+control_replacement_control_snapshot_unavailable = { owner = "adapters.admission" }
 control_replacement_diff_unavailable = { owner = "adapters.admission" }
 coordination_gap = { owner = "adapters.repo", repair = "move the verified head through the legitimate leased lane <branch>" }
 coverage_below_floor = { owner = "adapters.gates" }
@@ -288,11 +309,21 @@ file_observation_scope_unavailable = { owner = "adapters" }
 foreign_work_lane_present = { owner = "adapters.repo" }
 foreign_work_lane_retire_authority_required = { owner = "adapters.mutation" }
 format_selection_increment_invalid = { owner = "repository.policy", detail = "the value that follows the colon" }
+formation_attestation_failed = { owner = "adapters.repo" }
+formation_commit_signer_missing = { owner = "ethos" }
+formation_git_add_failed = { owner = "adapters.repo" }
+formation_git_commit_failed = { owner = "adapters.repo" }
+formation_git_identity_missing = { owner = "ethos" }
 formation_git_init_failed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 formation_parent_unsafe = { owner = "ethos" }
 formation_plan_digest_mismatch = { owner = "adapters.repo" }
 formation_purpose_missing = { owner = "adapters.repo" }
 formation_root_required = { owner = "surface.cli", meaning = "A command that creates a root was run without one." }
+formation_starter_generation_failed = { owner = "ethos" }
+formation_starter_output_incomplete = { owner = "ethos" }
+formation_starter_output_unsafe = { owner = "ethos" }
+formation_starter_overwrote_foundation = { owner = "ethos" }
+formation_starter_paradigm_gap = { owner = "adapters.repo" }
 formation_starter_unavailable = { owner = "adapters.repo" }
 formation_target_exists = { owner = "ethos" }
 frozen_tuple_invalid = { owner = "contracts" }
@@ -395,6 +426,7 @@ git_object_source_unavailable = { owner = "adapters.repo" }
 git_object_tree_unreadable = { owner = "adapters.repo" }
 git_object_trust_anchor_inside_repository = { owner = "adapters.repo" }
 git_object_trust_anchor_missing = { owner = "adapters.repo" }
+git_object_trust_anchor_not_absolute = { owner = "adapters.repo" }
 git_object_trust_anchor_observation_unavailable = { owner = "adapters.repo", detail = "the value that follows the colon" }
 git_object_trust_anchor_protection_failed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 git_object_trust_anchor_unprotected = { owner = "adapters.repo" }
@@ -472,6 +504,7 @@ history_repair_selection_not_reachable = { owner = "adapters.repo" }
 history_repair_selection_required = { owner = "adapters.repo" }
 history_repair_signature_untrusted = { owner = "adapters.repo" }
 history_repair_unselected_object_changed = { owner = "adapters.repo" }
+holder_ref_invalid = { owner = "adapters.mutation" }
 hook_generation_root_invalid = { owner = "adapters.repo" }
 hook_install_failed = { owner = "application.hook", detail = "the value that follows the colon" }
 hook_launcher_declaration_invalid = { owner = "adapters.repo" }
@@ -546,7 +579,9 @@ housekeeping_candidate_stale = { owner = "adapters.mutation", detail = "the valu
 housekeeping_remove_failed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 identity_transition_attestation_mismatch = { owner = "adapters.repo" }
 identity_transition_post_observation_mismatch = { owner = "adapters.repo" }
+independent_verification_provider_config_invalid = { owner = "adapters.admission" }
 independent_verification_provider_config_missing = { owner = "adapters.admission" }
+independent_verification_provider_config_untrusted = { owner = "adapters.admission" }
 independent_verification_receipt_binding_mismatch = { owner = "adapters.admission" }
 independent_verification_receipt_failed = { owner = "adapters.admission" }
 independent_verification_receipt_invalid = { owner = "adapters.admission" }
@@ -556,6 +591,7 @@ independent_verification_receipt_stale = { owner = "adapters.admission" }
 independent_verification_signature_invalid = { owner = "adapters.admission" }
 instance = { owner = "repository.policy", detail = "the value that follows the colon" }
 invocation_actor_missing = { owner = "adapters.mutation", detail = "the value that follows the colon" }
+irreversible_confirmation_required = { owner = "adapters.mutation" }
 javascript_coverage_count_invalid = { owner = "repository.policy" }
 javascript_coverage_empty = { owner = "repository.policy" }
 javascript_coverage_failed = { owner = "adapters.gates" }
@@ -577,10 +613,13 @@ javascript_native_diagnostics = { owner = "adapters.gates" }
 javascript_native_events_incomplete = { owner = "repository.policy" }
 javascript_native_events_invalid = { owner = "repository.policy" }
 javascript_native_recipe_unsupported = { owner = "adapters.gates" }
+javascript_native_selection_invalid = { owner = "adapters.gates" }
+javascript_native_selection_unknown = { owner = "adapters.gates" }
 javascript_native_source_changed = { owner = "adapters.gates" }
 javascript_native_source_unbound = { owner = "adapters.gates" }
 javascript_native_summary_invalid = { owner = "repository.policy" }
 javascript_native_test_scope_incomplete = { owner = "repository.policy", detail = "the value that follows the colon" }
+javascript_outer_attempt_failed = { owner = "adapters.gates" }
 javascript_package_missing = { owner = "adapters.gates" }
 javascript_package_type_invalid = { owner = "adapters.gates" }
 javascript_source_unexercised = { owner = "adapters.gates" }
@@ -619,7 +658,9 @@ lane_retirement_receipt_required = { owner = "application.lane" }
 lane_retirement_receipt_sha256_mismatch = { owner = "adapters.mutation" }
 lane_start_base_commit_invalid = { owner = "adapters.mutation" }
 lane_start_base_commit_untrusted = { owner = "adapters.mutation" }
+lane_start_lease_cleanup_failed = { owner = "adapters.mutation" }
 lane_start_ref_cleanup_failed = { owner = "adapters.mutation" }
+lane_start_worktree_cleanup_failed = { owner = "adapters.mutation" }
 lcov_count_mismatch = { owner = "repository.policy" }
 lcov_files_missing = { owner = "repository.policy" }
 lcov_invalid = { owner = "repository.policy" }
@@ -629,6 +670,7 @@ lease_actor_mismatch = { owner = "ethos" }
 lease_apply_required = { owner = "adapters.store", detail = "the value that follows the colon" }
 lease_coordinates_required = { owner = "application.lane" }
 lease_expired = { owner = "adapters.store", detail = "the value that follows the colon" }
+lease_generation_missing = { owner = "adapters.admission", detail = "the value that follows the colon" }
 lease_generation_stale = { owner = "ethos", detail = "the value that follows the colon" }
 lease_holder_mismatch = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 lease_not_expired = { owner = "ethos", detail = "the value that follows the colon" }
@@ -645,6 +687,15 @@ lease_reacquire_worktree_locked = { owner = "adapters.mutation" }
 lease_reacquire_worktree_not_linked = { owner = "adapters.mutation" }
 lease_reissue_identity_mismatch = { owner = "adapters.store", detail = "the value that follows the colon" }
 lease_resume_blocked_by_decision = { owner = "adapters.mutation" }
+lease_takeover_actor_mismatch = { owner = "adapters.mutation" }
+lease_takeover_authorization_blocked = { owner = "adapters.mutation" }
+lease_takeover_authorization_drift = { owner = "adapters.mutation" }
+lease_takeover_authorization_kind = { owner = "adapters.mutation" }
+lease_takeover_authorization_stale = { owner = "adapters.mutation" }
+lease_takeover_authorization_subject_drift = { owner = "adapters.mutation" }
+lease_takeover_authorization_unaccepted = { owner = "adapters.mutation" }
+lease_takeover_generation_drift = { owner = "adapters.mutation" }
+lease_takeover_lease_unknown = { owner = "adapters.mutation" }
 lease_unknown = { owner = "adapters.store", detail = "the value that follows the colon" }
 legacy_role_ref_protected = { owner = "adapters.admission" }
 legacy_role_rename_policy_unavailable = { owner = "adapters.admission" }
@@ -663,8 +714,10 @@ markdown_list_spacing = { owner = "adapters.gates", detail = "the value that fol
 mcp_root_unavailable = { owner = "surface.mcp" }
 merge_already_in_progress = { owner = "adapters.mutation" }
 merge_authoring_observation_unavailable = { owner = "adapters.mutation" }
+merge_autostash_recovery_unsupported = { owner = "adapters.mutation" }
 merge_candidate_changed = { owner = "adapters.mutation" }
 merge_commit_creation_failed = { owner = "adapters.repo" }
+merge_competing_native_operation = { owner = "adapters.mutation" }
 merge_exact_request_required = { owner = "adapters.mutation" }
 merge_ignored_content_collision = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 merge_in_progress = { owner = "adapters.repo" }
@@ -707,6 +760,7 @@ mise_executable_outside_tool = { owner = "adapters.toolchain", detail = "the val
 mise_executable_unavailable = { owner = "adapters.toolchain", detail = "the value that follows the colon" }
 mise_idiomatic_settings_invalid = { owner = "adapters.toolchain" }
 mise_lock_sidecar_outside_root = { owner = "adapters.toolchain", detail = "the value that follows the colon" }
+mise_supply_incomplete = { owner = "adapters.toolchain", detail = "the value that follows the colon" }
 mise_supply_invalid = { owner = "adapters.toolchain" }
 mise_supply_unavailable = { owner = "adapters.toolchain", detail = "the value that follows the colon" }
 mise_unavailable = { owner = "adapters.toolchain" }
@@ -918,9 +972,17 @@ predecessor_policy_probe_invalid = { owner = "adapters.mutation" }
 predecessor_policy_probe_timeout = { owner = "adapters.mutation" }
 predecessor_policy_probe_unavailable = { owner = "adapters.mutation" }
 predecessor_runtime_unavailable = { owner = "adapters.mutation" }
+prewrite_index_head_changed_during_admission = { owner = "adapters.admission" }
+prewrite_index_index_changed_during_admission = { owner = "adapters.admission" }
+prewrite_index_locked = { owner = "adapters.admission" }
 prewrite_index_prestate_unavailable = { owner = "adapters.admission" }
+prewrite_index_split_index_unavailable = { owner = "adapters.admission" }
+prewrite_patch_binary_unsupported = { owner = "adapters.repo" }
+prewrite_patch_invalid = { owner = "adapters.repo" }
 prewrite_patch_path_invalid = { owner = "adapters.repo" }
 prewrite_patch_preimage_mismatch = { owner = "adapters.admission" }
+prewrite_path_invalid_control_character = { owner = "adapters.admission" }
+prewrite_path_outside_worktree = { owner = "adapters.admission" }
 process_cancelled = { owner = "adapters" }
 process_creation_failed = { owner = "adapters" }
 product_audit_policy_host_bound = { owner = "repository.policy" }
@@ -966,8 +1028,10 @@ projection_provider_conflict = { owner = "repository.policy", detail = "the valu
 projection_requires_native_compiler = { owner = "repository.policy", detail = "the value that follows the colon" }
 projection_unavailable = { owner = "adapters.mutation" }
 proof_acceptance_purpose_invalid = { owner = "contracts.proof" }
+proof_acceptance_purpose_mismatch = { owner = "adapters" }
 proof_admission_contended = { owner = "adapters.gates" }
 proof_archive_scope_stale = { owner = "contracts.proof" }
+proof_attestation_artifact_binding_mismatch = { owner = "adapters.mutation" }
 proof_attestation_artifact_content_mismatch = { owner = "adapters.mutation" }
 proof_attestation_artifact_digest_mismatch = { owner = "adapters.mutation" }
 proof_attestation_artifact_invalid = { owner = "adapters.mutation" }
@@ -986,6 +1050,8 @@ proof_attestation_checks_invalid = { owner = "adapters.mutation" }
 proof_attestation_checks_required = { owner = "adapters.mutation" }
 proof_attestation_claim_mismatch = { owner = "adapters.mutation" }
 proof_attestation_context_mismatch = { owner = "adapters.mutation" }
+proof_attestation_head_mismatch = { owner = "adapters.mutation" }
+proof_attestation_intent_mismatch = { owner = "adapters.mutation" }
 proof_attestation_issued_at_invalid = { owner = "adapters.mutation" }
 proof_attestation_live_facts_stale = { owner = "adapters.mutation" }
 proof_attestation_live_tree_mismatch = { owner = "adapters.mutation" }
@@ -1000,9 +1066,11 @@ proof_attestation_recorded_policy_inconsistent = { owner = "adapters.mutation" }
 proof_attestation_repository_policy_mismatch = { owner = "adapters.mutation" }
 proof_attestation_required_gaps_invalid = { owner = "adapters.mutation" }
 proof_attestation_scope_mismatch = { owner = "adapters.mutation" }
+proof_attestation_selection_missing = { owner = "adapters.mutation" }
 proof_attestation_verdict_invalid = { owner = "adapters.mutation" }
 proof_attestation_verdict_mismatch = { owner = "adapters.mutation" }
 proof_commitment_missing = { owner = "adapters.mutation" }
+proof_dependency_acceptance = { owner = "adapters.repo", detail = "the value that follows the colon" }
 proof_dependency_acceptance_audit_missing = { owner = "ethos" }
 proof_execution_source_binding_missing = { owner = "contracts.proof" }
 proof_execution_source_changed = { owner = "ethos" }
@@ -1073,6 +1141,7 @@ publication_target_duplicate = { owner = "contracts" }
 publication_target_ref_duplicate = { owner = "contracts" }
 publication_target_ref_invalid = { owner = "ethos", detail = "the value that follows the colon" }
 publication_target_ref_kind_mismatch = { owner = "contracts" }
+publication_target_ref_required = { owner = "application.publication" }
 publication_target_source_kind_mismatch = { owner = "contracts" }
 publication_target_source_mismatch = { owner = "contracts" }
 publication_topology_declaration_invalid = { owner = "repository.release" }
@@ -1165,6 +1234,8 @@ rebuild_retain_segment = { owner = "adapters.repo", detail = "the value that fol
 rebuild_retain_unused = { owner = "adapters.repo", detail = "the value that follows the colon" }
 rebuild_tag_message_private = { owner = "adapters.repo", detail = "the value that follows the colon" }
 rebuild_tag_message_untransformable = { owner = "adapters.repo", detail = "the value that follows the colon" }
+rebuild_undeclared = { owner = "adapters.repo", detail = "the value that follows the colon" }
+rebuild_undeclared_after_host = { owner = "adapters.repo" }
 rebuild_witness_misplaced = { owner = "adapters.repo", detail = "the value that follows the colon" }
 record_marker_malformed = { owner = "adapters.repo" }
 record_marker_unkeyed = { owner = "adapters.repo" }
@@ -1191,9 +1262,14 @@ ref_intent_ambiguous = { owner = "adapters.admission" }
 ref_intent_changed = { owner = "adapters.admission" }
 ref_intent_collision = { owner = "adapters.admission" }
 ref_intent_lock_timeout = { owner = "adapters.admission" }
+ref_intent_mismatch = { owner = "adapters.admission" }
 ref_intent_missing = { owner = "adapters.admission" }
 ref_intent_nonce_invalid = { owner = "adapters.admission" }
+ref_intent_not_prepared = { owner = "adapters.admission" }
+ref_intent_operation_mismatch = { owner = "adapters.admission" }
 ref_intent_payload_invalid = { owner = "adapters.admission" }
+ref_intent_plan_mismatch = { owner = "adapters.admission" }
+ref_intent_reused = { owner = "adapters.admission" }
 ref_intent_stale = { owner = "adapters.admission" }
 ref_move_admitted = { owner = "adapters.admission" }
 ref_move_policy_unavailable = { owner = "ethos" }
@@ -1203,6 +1279,7 @@ refresh_base_pending_record_invalid = { owner = "adapters.mutation" }
 refresh_base_postcondition_failed = { owner = "adapters.mutation" }
 refresh_base_rebase_in_progress = { owner = "adapters.mutation" }
 refresh_base_snapshot_stale = { owner = "adapters.mutation", detail = "the value that follows the colon" }
+refresh_base_worktree_attach_failed = { owner = "adapters.mutation" }
 refresh_base_worktree_restore_failed = { owner = "adapters.mutation" }
 refresh_evidence_ambiguous = { owner = "adapters.mutation" }
 refused = { owner = "adapters.mutation" }
@@ -1311,6 +1388,11 @@ result_detail_mismatch = { owner = "ethos", meaning = "A bounded result's stored
 result_detail_unavailable = { owner = "ethos", meaning = "A bounded result's detail is gone, so the full result cannot be read." }
 result_payload_field_missing = { owner = "ethos", detail = "the value that follows the colon" }
 result_schema_version_unsupported = { owner = "ethos", detail = "the value that follows the colon" }
+retained_ref_does_not_contain_target = { owner = "adapters.mutation" }
+retained_ref_is_target = { owner = "adapters.mutation" }
+retained_ref_missing = { owner = "adapters.mutation" }
+retained_ref_not_topic = { owner = "adapters.mutation" }
+retained_ref_symbolic = { owner = "adapters.mutation" }
 retained_topic_recovery_binding_stale = { owner = "adapters.mutation" }
 retained_topic_recovery_scope_mismatch = { owner = "adapters.mutation" }
 retained_topic_recovery_unproven = { owner = "adapters.mutation" }
@@ -1319,6 +1401,9 @@ retained_topic_target_invalid = { owner = "adapters.admission" }
 retained_topic_target_lease_present = { owner = "ethos", detail = "the value that follows the colon" }
 retained_topic_worktree_binding_mismatch = { owner = "adapters.admission" }
 retained_topic_worktree_projection_incomplete = { owner = "adapters.mutation" }
+retire_branch_not_found = { owner = "adapters.mutation" }
+retire_branch_required = { owner = "adapters.mutation" }
+retire_reason_required = { owner = "adapters.mutation" }
 retirement_accepted_coordinate_drift = { owner = "adapters.mutation" }
 retirement_archive_absorption_stale = { owner = "adapters.mutation" }
 retirement_authority_checkout_stale = { owner = "adapters.mutation" }
@@ -1356,12 +1441,16 @@ retirement_worktree_path_unavailable = { owner = "adapters.mutation" }
 root_binding_mismatch = { owner = "adapters.repo" }
 rule_identity_conflict = { owner = "contracts", detail = "the value that follows the colon" }
 rule_schema_invalid = { owner = "repository.policy", detail = "the value that follows the colon" }
+rules_config_parse_error = { owner = "repository.policy", detail = "the value that follows the colon" }
+rules_profile_ambiguous = { owner = "repository.policy", detail = "the value that follows the colon" }
+rules_profile_invalid = { owner = "repository.policy", detail = "the value that follows the colon" }
 runtime_manifest = { owner = "adapters.repo" }
 runtime_pin_ambiguous = { owner = "repository.release" }
 runtime_pin_invalid = { owner = "repository.release" }
 runtime_pin_lock_invalid = { owner = "repository.release" }
 runtime_rollback_declaration_repaired = { owner = "adapters.repo" }
 runtime_rollback_root_behind_accepted = { owner = "adapters.repo" }
+runtime_selection_receipt_required = { owner = "adapters.repo" }
 sarif_invalid = { owner = "repository.policy" }
 sarif_results_missing = { owner = "repository.policy" }
 schema_retired = { owner = "repository.policy" }
@@ -1445,7 +1534,9 @@ skill_retirement_live_path = { owner = "assistants.skills", detail = "the value 
 source_binding_observation_invalid = { owner = "repository.policy" }
 source_budget_carrier_unreadable = { owner = "domain.source_budget", detail = "the value that follows the colon" }
 source_budget_executable_unclassified = { owner = "domain.source_budget", detail = "the value that follows the colon" }
+source_budget_inventory_unavailable = { owner = "domain.source_budget" }
 source_budget_policy_invalid = { owner = "adapters.gates" }
+source_budget_python_role_ambiguous = { owner = "domain.source_budget", detail = "the value that follows the colon" }
 source_budget_scc_file_missing = { owner = "domain.source_budget", detail = "the value that follows the colon" }
 source_budget_terminal_exceeded = { owner = "domain.source_budget", detail = "the value that follows the colon" }
 source_candidate_membership_changed = { owner = "adapters.repo" }
@@ -1549,12 +1640,14 @@ unknown_rule_gate = { owner = "repository.policy", detail = "the value that foll
 unknown_without_required_gaps = { owner = "ethos" }
 unsupported_access_entry = { owner = "adapters.repo" }
 untracked_content_snapshot_drift = { owner = "adapters.repo" }
+work_lane_already_merged_use_retire_landed = { owner = "adapters.mutation" }
 work_lane_dirty = { owner = "ethos", meaning = "The work lane's tree holds uncommitted change." }
 work_lane_lease_expired = { owner = "ethos", detail = "the value that follows the colon" }
 work_lane_lease_generation_missing = { owner = "adapters.repo", detail = "the value that follows the colon" }
 work_lane_lease_missing = { owner = "application.lane", detail = "the value that follows the colon" }
 work_lane_lease_unknown = { owner = "ethos", detail = "the value that follows the colon" }
 work_lane_missing_lease = { owner = "ethos", detail = "the value that follows the colon" }
+work_lane_not_merged = { owner = "adapters.mutation" }
 work_lane_ref_create_no_ref_intent = { owner = "adapters.admission" }
 work_lane_ref_delete_no_ref_intent = { owner = "adapters.admission" }
 work_lane_ref_oid_invalid = { owner = "adapters.admission" }
@@ -1586,7 +1679,9 @@ worktree_status_unreadable = { owner = "adapters.repo" }
 write_admission_not_armed = { owner = "adapters.repo", detail = "the value that follows the colon" }
 
 [family]
+absorbed_ref_lease_ = "names a code assembled from parts at the site"
 accepted_ = "names a code assembled from parts at the site"
+archive_reference_ = "names a code assembled from parts at the site"
 branch_role_worktree_binding_ = "names a code assembled from parts at the site"
 carrier_edit_git_state_ = "names a code assembled from parts at the site"
 commit_ = "names a code assembled from parts at the site"
@@ -1603,9 +1698,12 @@ generated_artifact_root_cache_drift = "required gap prefix of the artifact topol
 generated_artifact_runtime_flat_drift = "required gap prefix of the artifact topology rules"
 generated_artifact_source_drift = "required gap prefix of the artifact topology rules"
 git_effect_attestation_verdict_ = "names a code assembled from parts at the site"
+git_effect_recovery_ = "names a code assembled from parts at the site"
+git_effect_ref_intent_ = "names a code assembled from parts at the site"
 handoff_ = "names a code assembled from parts at the site"
 handoff_artifact_ = "names a code assembled from parts at the site"
 hook_runtime_installed_supply_ = "names a code assembled from parts at the site"
+independent_verification_provider_config_ = "names a code assembled from parts at the site"
 module_layout_ = "names a code assembled from parts at the site"
 native_tool_archive_ = "names a code assembled from parts at the site"
 openspec_ = "names a code assembled from parts at the site"

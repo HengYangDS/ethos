@@ -47,8 +47,11 @@ Non-Goals:
    helper or a raised `ValueError`, `TypeError` or `RuntimeError`, directly or through the one
    local or module constant bound before it, and requires a registered code; a prose literal at
    such a position counts under a ceiling of 127 that only falls. The rule is exact for 934 codes
-   of the census. The remaining ones reach a gap position through data, where the plan measures no
-   bounded rule; the test does not approximate them.
+   of the census. It also reads the second member of each pair in a literal table that a loop or a
+   comprehension reads under the name `gap`, directly or through the one local bound before it (99
+   sites); at the batch's stacked head that form alone held 47 unregistered codes. The remaining
+   ones reach a gap position through data, where the plan measures no bounded rule; the test does
+   not approximate them.
 4. **The runner guard is the dynamic half.** `tests/support/ethos_cli_runner.py` checks each
    in-process result's `required_gaps` after the run and fails with
    `unregistered_gap:<codes>:<argv>`; it covers exactly the codes a test produces, without a
@@ -70,7 +73,9 @@ run` refusal to 125; it is a Breaking change and needs its own caller repair. `t
   `conformance-fixtures` (beta.13 or A17) needs the installed build and a catalog-driven fixture
   set.
 - The count is not closed: 324 bare and 55 prefixed candidates outside the census positions are
-  untriaged; a row is added when a site or the guard proves it.
+  untriaged; a row is added when a site or the guard proves it. A code that a function returns as
+  a bare string and a caller places among the gaps meets no static rule: 45 such codes are rows
+  from one triage of 81 returned literals, and a later one is found only when a test produces it.
 - The static test is exact for about 60 percent of the codes; a composed name whose prefix ends
   the literal part registers as a fragment family, so a new member passes without a row.
 - Land last in the batch: `provider-ids`, `ci-commit-trust` and `hook-install-converge` add or

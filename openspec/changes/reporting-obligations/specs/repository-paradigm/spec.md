@@ -2,13 +2,11 @@
 
 ### Requirement: Paradigm conformance is a blocking verdict
 
-The repository audit SHALL report every paradigm gap with its carrier, the violated obligation and
-the canonical repair. The paradigm SHALL declare the obligations that report and do not block; a
-gap of such an obligation SHALL be listed apart from the required gaps and SHALL NOT change the
-verdict or select the report's next action. While any other gap remains, prove, land and publish
-SHALL be blocked. Prewrite admission SHALL refuse a write that would create a path the paradigm
-rejects. A path that the index or HEAD tracks is not created by its write, so prewrite SHALL admit
-its deletion.
+The repository audit SHALL report every paradigm gap with its carrier, obligation and repair. The
+paradigm SHALL declare the obligations that report and do not block; their gaps SHALL be listed
+apart from the required gaps and SHALL NOT change the verdict or the next action. While any other
+gap remains, prove, land and publish SHALL be blocked. Prewrite admission SHALL refuse a write that
+would create a path the paradigm rejects, and SHALL admit the deletion of a tracked one.
 
 #### Scenario: A repository conforms
 

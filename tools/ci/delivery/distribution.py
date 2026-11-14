@@ -29,7 +29,6 @@ from ethos.repository.release.identity import is_release_build
 from tools.ci.delivery import mise_tool
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
-from tools.ci.delivery.mise_tool import CONSOLE_DIRECTORY
 from tools.ci.delivery.mise_tool import install_declared
 from tools.ci.toolchain.native import prepare_mise
 
@@ -37,6 +36,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from tools.ci.delivery.mise_tool import InstalledTool
+
+# The only archive directory a package manager puts on PATH; it holds the ETHOS console alone.
+CONSOLE_DIRECTORY = "ethos/bin"
 
 
 def archive_runtime(selected: SelectedRuntime) -> str:
@@ -360,9 +362,8 @@ def install_archive(
     *,
     mise: Path,
     environment: Mapping[str, str],
-    declaration: str | None = None,
 ) -> InstalledTool:
-    """Install the archive as adopters do, from its published declaration when one is given."""
+    """Install a local archive offline as adopters install a release, in the same layout."""
     with tarfile.open(archive) as packed:
         manifests = [
             name
@@ -379,17 +380,18 @@ def install_archive(
     version = manifest.get("product_version", "")
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    # Mise strips the archive's one top directory, as it does for a release pinned on the forge.
     local = (
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'
-        f'checksum = "sha256:{digest}"\nbin_path = "{CONSOLE_DIRECTORY}"\n'
+        f'checksum = "sha256:{digest}"\nstrip_components = 1\n'
     )
     return install_declared(
-        declaration or local,
+        local,
         home,
         mise=mise,
         environment=environment,
         distribution=manifest.get("distribution_version", ""),
-        offline=declaration is None,
+        offline=True,
     )
 
 
@@ -400,23 +402,20 @@ def prove_shared_supply(
     *,
     environment: Mapping[str, str],
     root: Path,
-    declaration: str | None = None,
+) -> dict[str, object]:
+    """Install a local archive, then prove the supply it delivers."""
+    tool = install_archive(
+        archive, work / "package-manager", mise=prepare_mise(root), environment=environment
+    )
+    return prove_installed_supply(tool, work, environment=environment)
+
+
+def prove_installed_supply(
+    tool: InstalledTool, work: Path, *, environment: Mapping[str, str]
 ) -> dict[str, object]:
     """Exercise independent repositories against the same delivered immutable supply."""
-    tool = install_archive(
-        archive,
-        work / "package-manager",
-        mise=prepare_mise(root),
-        environment=environment,
-        declaration=declaration,
-    )
-    installed = tool.installed
-    generations = tuple((installed / "ethos/runtime").iterdir())
-    if len(generations) != 1:
-        message = "shared_supply_generation_ambiguous"
-        raise ValueError(message)
     with observe_stage("shared_source_validation"):
-        selected = require_selected_runtime(generations[0], carrier=True)
+        selected = require_selected_runtime(tool.runtime, carrier=True)
     scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
     pinned_root = (
         work / "host-data/ethos/installations" / selected.digest[:16] / "runtime" / selected.digest
@@ -503,7 +502,7 @@ def _prove_package_carrier_removal(
     environment: Mapping[str, str],
 ) -> None:
     """Run the managed console, uninstall it natively, then run both repositories from pins."""
-    mise, project, installed, managed = manager
+    mise, project, installed, managed, key = manager
     console = (mise, "--cd", project, "exec", "--locked", "--", "ethos", "status")
     code, report, detail = invoke(
         repositories[0],
@@ -515,7 +514,7 @@ def _prove_package_carrier_removal(
     if not isinstance(runtime, dict) or runtime.get("current") is not True:
         message = f"shared_supply_console_failed:{code}:{detail}"
         raise RuntimeError(message)
-    mise_tool.run(mise, project, ("uninstall", "http:ethos"), managed)
+    mise_tool.run(mise, project, ("uninstall", key), managed)
     if installed.exists():
         message = "shared_supply_package_manager_uninstall_incomplete"
         raise RuntimeError(message)

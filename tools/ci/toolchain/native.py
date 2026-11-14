@@ -74,7 +74,7 @@ def mise_executables(root: Path) -> dict[str, str]:
     return {str(target): str(digest) for target, digest in executables.items()}
 
 
-def _mise_target() -> str:
+def mise_target() -> str:
     """Name this host's official executable platform."""
     system = MISE_SYSTEMS.get(platform.system())
     arch = MISE_ARCHITECTURES.get(process_machine().lower())
@@ -86,10 +86,7 @@ def _mise_target() -> str:
 
 def _bound_executable(root: Path, executable: Path) -> None:
     """Accept only the official executable whose digest this repository binds."""
-    if (
-        hashlib.sha256(executable.read_bytes()).hexdigest()
-        != mise_executables(root)[_mise_target()]
-    ):
+    if hashlib.sha256(executable.read_bytes()).hexdigest() != mise_executables(root)[mise_target()]:
         message = f"mise_executable_digest_mismatch:{executable.name}"
         raise ValueError(message)
 
@@ -110,7 +107,7 @@ def _replace_once_released(source: Path, target: Path) -> None:
 
 def _stage_mise(root: Path, version: str, candidate: Path) -> None:
     """Stage the official executable of this platform and verify its bound digest."""
-    name = f"mise-v{version}-{_mise_target()}{'.exe' if _windows_host() else ''}"
+    name = f"mise-v{version}-{mise_target()}{'.exe' if _windows_host() else ''}"
     url = MISE_RELEASE.format(version=version, name=name)
     command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)
     download_tool(command, root=candidate.parent)

@@ -16,6 +16,7 @@ import tools.ci.delivery.distribution as distribution
 import tools.ci.delivery.mise_tool as mise_tool
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.repository.release.pin import bare_entry
 from tests.support.runtime_scenarios import materialize_runtime_case
 
 if TYPE_CHECKING:
@@ -72,6 +73,17 @@ def test_archive_keeps_its_windows_interpreter_path_within_budget(
     assert len(str(interpreter)) <= _WINDOWS_INTERPRETER_BUDGET, interpreter
 
 
+def test_a_local_archive_installs_from_a_table_that_strips_its_top_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mise then installs the same `bin/` and `runtime/` that it gives a pinned release."""
+    _repo, _selected, archive = _package(tmp_path, monkeypatch)
+    seen: list[str] = []
+    monkeypatch.setattr(distribution, "install_declared", lambda text, *_a, **_k: seen.append(text))
+    distribution.install_archive(archive, tmp_path / "home", mise=tmp_path / "mise", environment={})
+    assert ("strip_components = 1\n" in seen[0], "bin_path" in seen[0]) == (True, False)
+
+
 def test_a_failed_mise_call_keeps_both_whole_streams(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -85,35 +97,58 @@ def test_a_failed_mise_call_keeps_both_whole_streams(
     assert (cause.returncode, cause.stdout, cause.stderr) == (23, "o" * 2140, "e" * 2140)
 
 
+@pytest.mark.parametrize(
+    ("declaration", "key", "forge"),
+    [
+        ('[tools."http:ethos"]\nversion = "1.2.3"\n', "http:ethos", []),
+        (bare_entry("1.2.3"), "github:HengYangDS/ethos", ["lock", "install"]),
+    ],
+)
 def test_mise_reads_no_configuration_above_its_isolated_home(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, declaration: str, key: str, forge: list[str]
 ) -> None:
     """A home named through `..` still bounds the search, so an enclosing project's tools stay out.
 
     Mise compares its ceiling with the canonical directories it walks; an unresolved home never
-    matched them and let a checkout's own toolchain join the published tool's installation.
+    matched them and let a checkout's own toolchain join the published tool's installation. The
+    tool is found under the key its declaration names, in the layout Mise strips an archive to.
+    Mise relocks the seed, the caller admits that lock before the install, and only a pin's forge
+    calls carry the job's token.
     """
-    environments: list[object] = []
+    calls: list[tuple[str, dict[str, str]]] = []
+    runtime = tmp_path / "installed/runtime/0123456789abcdef"
 
     def mise(
-        _cwd: Path, command: tuple[str, ...], **options: object
+        _cwd: Path, command: tuple[str, ...], env: dict[str, str] | None = None, **_options: object
     ) -> subprocess.CompletedProcess:
-        environments.append(options.get("env"))
-        if command[-2:] == ("where", "http:ethos"):
-            console = tmp_path / "installed" / mise_tool.CONSOLE_DIRECTORY / "ethos"
-            console.parent.mkdir(parents=True, exist_ok=True)
-            console.touch()
-            return subprocess.CompletedProcess(command, 0, f"{console.parents[2]}\n", "")
-        return subprocess.CompletedProcess(command, 0, "ethos 1.2.3\n", "")
+        calls.append((command[3], env or {}))
+        if command[-2:] == ("where", key):
+            runtime.mkdir(parents=True, exist_ok=True)
+            (tmp_path / "installed/bin").mkdir(exist_ok=True)
+            (tmp_path / "installed/bin/ethos").touch()
+            return subprocess.CompletedProcess(command, 0, f"{tmp_path / 'installed'}\n", "")
+        printed = "true\n" if command[3] == "settings" else "ethos 1.2.3\n"
+        return subprocess.CompletedProcess(command, 0, printed, "")
 
     monkeypatch.setattr(mise_tool, "run_command", mise)
-    home = tmp_path / "work" / ".." / "home"
-    mise_tool.install_declared(
-        "", home, mise=tmp_path / "mise", environment={}, distribution="1.2.3", offline=True
+    monkeypatch.setenv("GH_TOKEN", "token")
+    home, executable = tmp_path / "work" / ".." / "home", tmp_path / "mise"
+    tool = mise_tool.install_declared(
+        declaration,
+        home,
+        mise=executable,
+        environment={},
+        distribution="1.2.3",
+        offline=True,
+        lock=("--platform", "a,b"),
+        seed="seed",
+        admit=lambda lock: calls.append((lock, {})),
     )
-    ceilings = {
-        environment["MISE_CEILING_PATHS"]
-        for environment in environments
-        if isinstance(environment, dict)
-    }
+    assert (tool.key, tool.runtime) == (key, runtime)
+    ceilings = {environment["MISE_CEILING_PATHS"] for _name, environment in calls if environment}
     assert ceilings == {str((tmp_path / "home").resolve())}
+    names = [name for name, _environment in calls]
+    assert names[names.index("lock") :][:3] == ["lock", "seed", "install"]
+    assert ("settings" in names) is bool(forge)
+    assert [name for name, environment in calls if "GITHUB_TOKEN" in environment] == forge
+    assert "GITHUB_TOKEN" not in tool.environment

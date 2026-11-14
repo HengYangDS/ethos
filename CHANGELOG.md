@@ -48,6 +48,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
   registry that names an ID, so declare IDs once the release you would roll back to has the catalog.
 - The shipped gate registries name every provider by its catalog ID, so a proof records a shared
   gate's provider under that ID, such as `provider.docs-registry`.
+- The release journey verifies every archive by its release's class: an `attested-main` release
+  against the release workflow, `refs/heads/main` and the commit that its signed tag names, an
+  `attested` release against its tag ref, and a `checksum` release against its `SHA256SUMS` alone.
+  It no longer accepts an attestation of any workflow or ref of the repository, and it now
+  verifies each predecessor too.
+- The journey installs the prerelease and each predecessor through the exact pin
+  `"github:HengYangDS/ethos" = "<version>"`, admits each locked entry against the release's
+  checksums before the install, and requires Mise to refuse two locks that it rebinds to other
+  bytes. Its receipt gains `mise`, `locks`, `refusals` and each asset's `class`, and keeps them
+  when a leg fails; `--classes-only` stops the journey once the classes are verified and records
+  the state `classes_verified`.
+- A local archive installs from a table that strips its top directory, so the install holds the
+  console in `bin/` and the runtime in `runtime/`, as a pinned release does. The published
+  `http:` declaration and what adopters install do not change.
 
 ### Fixed
 

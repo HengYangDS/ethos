@@ -321,7 +321,7 @@
   "tools/ci/delivery/acceptance/lane.py::prove_signature_repair": 17,
   "tools/ci/delivery/acceptance/mcp.py::_adoption": 16,
   "tools/ci/delivery/distribution.py::package_runtime": 20,
-  "tools/ci/delivery/distribution.py::prove_shared_supply": 20,
+  "tools/ci/delivery/distribution.py::prove_installed_supply": 19,
   "tools/ci/delivery/release_assets.py::_admitted_legs": 16,
   "tools/ci/delivery/release_assets.py::_inventories": 16,
   "tools/ci/delivery/release_assets.py::inventory_gaps": 24,

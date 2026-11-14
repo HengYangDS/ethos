@@ -39,8 +39,9 @@ None.
 
 ## Impact
 
-`src/ethos/contracts/codes/` (new package and its table), `src/ethos/contracts/operations/declaration.py`,
-`src/ethos/surface/cli/output.py`, `src/ethos/surface/cli/catalog.py`,
+`src/ethos/contracts/codes/` (new package and its table),
+`src/ethos/contracts/operations/declaration.py`, `src/ethos/surface/cli/output.py`,
+`src/ethos/surface/cli/catalog.py`,
 `tests/support/ethos_cli_runner.py`, two new test modules, `CHANGELOG.md` and a
 `docs/reference/command-plane.md` line. This Change lands last in its beta.11 batch: every Change
 that adds, renames or moves a code adds its row or the static test fails.

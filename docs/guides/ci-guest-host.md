@@ -58,8 +58,8 @@ ethos host run -- <render command>
 ```
 
 The render takes its place in the queue and receives `ETHOS_HOST_CPU_CAP` and
-`PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that the declaration leaves. A worker count the environment
-already declares smaller than that cap stays; the cap never raises it.
+`PYTEST_XDIST_AUTO_NUM_WORKERS`: the CPUs that the declaration leaves. A worker count the
+environment already declares smaller than that cap stays; the cap never raises it.
 
 ## 5. Keep The Guests
 

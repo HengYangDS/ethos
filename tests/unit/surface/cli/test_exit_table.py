@@ -58,6 +58,9 @@ def test_the_root_help_prints_the_exit_table(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setattr(console_module, "command_scope", lambda **_: nullcontext())
+    # No binding means no selected runtime to re-execute into: the subject is help's copy of the
+    # table, not which interpreter runs it, and an exec here would replace the test process.
+    monkeypatch.setattr(console_module, "git_common_dir", lambda _target: "")
     monkeypatch.setattr(sys, "argv", ["ethos", "--help", "--json"])
     cli.console_main()
     assert json.loads(capsys.readouterr().out)["data"]["exits"] == [

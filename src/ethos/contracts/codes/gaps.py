@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from functools import lru_cache
 from importlib import resources
 from typing import TypedDict
+
+_CODE = re.compile(r"[a-z][a-z0-9_]*\Z")
 
 
 class GapRecord(TypedDict, total=False):
@@ -24,8 +27,12 @@ def gap_code(gap: str) -> str:
 
 
 def code_shaped(code: str) -> bool:
-    """Whether a gap's code is a code rather than prose: lowercase words, no spaces or dots."""
-    return bool(code) and "." not in code and " " not in code and code == code.lower()
+    """Whether a gap's code is a code rather than prose or a printed value.
+
+    A code is a lowercase identifier of letters, digits and underscores. A message, a rendered
+    list or mapping, and a bare word like `gap` that labels a message are none of them codes.
+    """
+    return bool(_CODE.fullmatch(code)) and code != "gap"
 
 
 @lru_cache(maxsize=1)

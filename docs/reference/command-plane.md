@@ -8,8 +8,10 @@ relations:
 
 # Command Plane
 
-This reference projects public commands from the [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
-See [Quickstart](../guides/quickstart.md) for first use. Official OpenSpec owns intent, and the [ETHOS source OpenSpec configuration](../../openspec/config.yaml "source-only") holds its artifact rules.
+This reference projects public commands from the [Product Design
+Contract](../governance/product-design-contract.md#semantic-kernel). See
+[Quickstart](../guides/quickstart.md) for first use. Official OpenSpec owns intent, and the [ETHOS
+source OpenSpec configuration](../../openspec/config.yaml "source-only") holds its artifact rules.
 
 ## Workflow And Transport Roots
 
@@ -30,35 +32,35 @@ The daily workflow and transport operations are:
 | `ethos adopt --exit --apply --authorize --expect-head <head> --expect-plan-digest <digest> --json`         | Apply exactly the previewed exit, or resume an interrupted one: restore the keys ETHOS still owns, then remove the record and the selectors.               | Holds the selection lock and the state transaction, writes a durable receipt first and attempts every compensation step; consumer records stay.                    |
 | `ethos mcp --root <repo>`                                                                                  | Serve MCP over stdio for one exact repository.                                                                                                             | Tool calls retain native admission; launching the transport grants no authority.                                                                                   |
 
-An exact `publish --ref` request selects every declared peer by default.
-Repeat `--peer <declared-id>` to select only named peers. For example:
+An exact `publish --ref` request selects every declared peer by default. Repeat `--peer
+<declared-id>` to select only named peers. For example:
 
 ```text
 ethos publish --ref refs/heads/main --peer github --probe-remote --expect-head <head> --json
 ```
 
-ETHOS validates all declarations but observes and updates only selected peers.
-The receipt fixes that selection; `--receipt` cannot take another `--peer` choice.
-Results distinguish declared, selected and unselected peers without silently skipping
-unavailable peers or claiming delivery to unselected peers.
+ETHOS validates all declarations but observes and updates only selected peers. The receipt fixes
+that selection; `--receipt` cannot take another `--peer` choice. Results distinguish declared,
+selected and unselected peers without silently skipping unavailable peers or claiming delivery to
+unselected peers.
 
 `status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is transport.
-MCP projects status, planning, adoption, integration and publication; proof stays a CLI root.
-Root and actor bind at startup and cannot be replaced by tool inputs.
-Diagnostics use stderr; stdout carries the protocol. Cancellation or expiry is not rollback:
-reobserve before retrying. Synchronous work drains before queued work; filesystem time is not bounded.
+MCP projects status, planning, adoption, integration and publication; proof stays a CLI root. Root
+and actor bind at startup and cannot be replaced by tool inputs. Diagnostics use stderr; stdout
+carries the protocol. Cancellation or expiry is not rollback: reobserve before retrying. Synchronous
+work drains before queued work; filesystem time is not bounded.
 
 `ethos attestation query` reads exact matches from the sole Attestation set.
 `ethos attestation record --input <file>` validates or previews one canonical
-record; `--apply` unions it by exact Git CAS. Neither operation grants effect
-authority. `ethos lane` and `ethos hook` are operational roots described below,
-not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
+record; `--apply` unions it by exact Git CAS. Neither operation grants effect authority. `ethos
+lane` and `ethos hook` are operational roots described below, not extra lifecycles. Native
+`--help` owns exact syntax; this page explains semantics.
 
 Every command but `mcp` runs the one catalog operation (`ethos.contracts.operations`) that its path
-and flags select, listed by `ethos [<path>] --help --json` with a group's nested groups by name.
-A request that selects none, or sets a flag its operation does not take, runs nothing and exits 2,
-as a usage error does; a preview exits 0 on any verdict, an apply, a proof and a publication probe
-exit 1 unless they pass, and an undelivered result exits 3.
+and flags select, listed by `ethos [<path>] --help --json` with a group's nested groups by name. A
+request that selects none, or sets a flag its operation does not take, runs nothing and exits 2, as
+a usage error does; a preview exits 0 on any verdict, an apply, a proof and a publication probe exit
+1 unless they pass, and an undelivered result exits 3.
 
 `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
 admits it, and exits with the command's own status; `ethos host status --json` reads the queue.
@@ -87,20 +89,20 @@ admits it, and exits with the command's own status; `ethos host status --json` r
 
 Declare `schema = "ethos-ci-template-consistency-v1"` in
 `.config/checks/ci-projection/policy.toml`, with a real CUE `compiler.source`,
-typed TOML/JSON `compiler.inputs` and `compiler.common = ".config/ci/verification.cue"`.
-The installed model/compiler are not repository source members. Keep parameters in `.config/ci/`
-and supplied executables/Forge references in `.config/ci/runners.toml`. Each provider workflow
-has SourceContracts binding its declaration, output group and integrity gate; common jobs invoke
+typed TOML/JSON `compiler.inputs` and `compiler.common = ".config/ci/verification.cue"`. The
+installed model/compiler are not repository source members. Keep parameters in `.config/ci/` and
+supplied executables/Forge references in `.config/ci/runners.toml`. Each provider workflow has
+SourceContracts binding its declaration, output group and integrity gate; common jobs invoke
 `mise exec --locked -- ethos`. The repository binds public `http:ethos` supply and platform locks.
 That declaration puts only the `ethos` console on `PATH`.
 
-GitLab `runners.<name>.preparation` precedes locked installation; `supply.checks.github`
-and `supply.checks.gitlab` follow it. `evidence_paths` under `build/evidence/` retain additional
-reports. Common and runner `variables` cannot replace `GIT_DEPTH = "0"`; preparation cannot
-replace shared proof, trust partitions or source timeout. GitLab `offline_candidate_variable`
-defaults to `ETHOS_OFFLINE_CANDIDATE`, accepting an existing repository name. Selected candidates
-admit only protected accepted/release API/web requests and exclude source jobs. Retain additive
-GitLab offline jobs and a separate GitHub offline workflow. Their deadlines, release validation,
+GitLab `runners.<name>.preparation` precedes locked installation; `supply.checks.github` and
+`supply.checks.gitlab` follow it. `evidence_paths` under `build/evidence/` retain additional
+reports. Common and runner `variables` cannot replace `GIT_DEPTH = "0"`; preparation cannot replace
+shared proof, trust partitions or source timeout. GitLab `offline_candidate_variable` defaults to
+`ETHOS_OFFLINE_CANDIDATE`, accepting an existing repository name. Selected candidates admit only
+protected accepted/release API/web requests and exclude source jobs. Retain additive GitLab offline
+jobs and a separate GitHub offline workflow. Their deadlines, release validation,
 acquisition/checksums, cold payload, peer-outage and hosted qualification retain existing owners.
 
 ## Shared SDK Operations
@@ -117,82 +119,81 @@ from pathlib import Path
 
 from ethos.application.plan import plan_repository
 
-result = plan_repository(Path("/path/to/repository"), changed=True)
-print(result.to_json())
+result = plan_repository(Path("/path/to/repository"), changed=True) print(result.to_json())
 ```
 
-Planning reuses current intent resolution, authority, gates and skill activation;
-it does not authorize effects. Known native and profile failures retain their
-structured results across transports. Operation-specific refusals remain distinct:
-an invalid profile blocks observation, while adoption preserves conflicting
-authored content rather than overwriting it. Integration keeps candidate, accepted
-and release transitions distinct, including preview, exact coordinates and fresh
+Planning reuses current intent resolution, authority, gates and skill activation; it does not
+authorize effects. Known native and profile failures retain their structured results across
+transports. Operation-specific refusals remain distinct: an invalid profile blocks observation,
+while adoption preserves conflicting authored content rather than overwriting it. Integration keeps
+candidate, accepted and release transitions distinct, including preview, exact coordinates and fresh
 effect admission. Publication shares one operation across CLI, SDK and MCP. Proof is an application
 operation that the CLI and the SDK reach; MCP gains it only once proof gates run in an allow-listed
 environment.
 
 ## Retained Candidate Materialization
 
-When a candidate ref has advanced but its index and worktree still exactly match
-a trusted, retained ancestor, inspect the existing candidate command:
+When a candidate ref has advanced but its index and worktree still exactly match a trusted, retained
+ancestor, inspect the existing candidate command:
 
 ```bash
-ethos lane candidate --materialize --preserved-preimage <full-commit-oid> --retention-ref <full-ref> --reason "Restore the retained candidate projection" --root <clean-accepted-root> --json
+ethos lane candidate --materialize --preserved-preimage <full-commit-oid> --retention-ref <full-ref>
+--reason "Restore the retained candidate projection" --root <clean-accepted-root>
+--json
 ```
 
-Follow the returned authorized apply command. Its state digest binds the current
-candidate and accepted refs, retention ref, common directory, target and actor;
-the caller does not restate those facts in another plan. The effect holds native
-Git ref assertions, re-observes the exact index and working bytes, and uses the
-existing worktree synchronization owner. It moves no ref and replays no earlier CAS.
+Follow the returned authorized apply command. Its state digest binds the current candidate and
+accepted refs, retention ref, common directory, target and actor; the caller does not restate those
+facts in another plan. The effect holds native Git ref assertions, re-observes the exact index and
+working bytes, and uses the existing worktree synchronization owner. It moves no ref and replays no
+earlier CAS.
 
-Unknown edits, untrusted commits, changed refs and ignored or masked overwrite
-risks refuse materialization. A completed native effect is recognized without
-rewriting its index after a lost acknowledgement. The returned NativeEffect is
-evidence of materialization, not source acceptance or a new authorization.
+Unknown edits, untrusted commits, changed refs and ignored or masked overwrite risks refuse
+materialization. A completed native effect is recognized without rewriting its index after a lost
+acknowledgement. The returned NativeEffect is evidence of materialization, not source acceptance or
+a new authorization.
 
 ## Runtime Selection and Recovery
 
 `status.data.hook_runtime` is the single hook-runtime
-inspection surface. It reports installed and expected source commit/tree,
-currentness, stable gaps, and the complete `ethos hook install` repair command;
-status does not derive a parallel runtime verdict.
+inspection surface. It reports installed and expected source commit/tree, currentness, stable gaps,
+and the complete `ethos hook install` repair command; status does not derive a parallel runtime
+verdict.
 
 `ethos hook install --root <linked-worktree> --json` is one repository-family
-repair operation. It activates one immutable generation in repository-common
-Git config, removes owned worktree-local activation overrides, post-observes
-every linked worktree, and reports exact checked, repaired, retained, and
-removed paths. Unknown consumers block cleanup rather than being guessed away.
-When activation succeeded but reclamation is incomplete, the result is
+repair operation. It activates one immutable generation in repository-common Git config, removes
+owned worktree-local activation overrides, post-observes every linked worktree, and reports exact
+checked, repaired, retained, and removed paths. Unknown consumers block cleanup rather than being
+guessed away. When activation succeeded but reclamation is incomplete, the result is
 `installed_cleanup_deferred`: `data.current` and `summary.wired` retain
-the successful activation observation, while `generation_cleanup` reports the
-completed removals, retained resources, deferred paths and failure. The overall
-verdict remains `block` for incomplete repair. Its continuation is
+the successful activation observation, while `generation_cleanup` reports the completed removals,
+retained resources, deferred paths and failure. The overall verdict remains `block` for incomplete
+repair. Its continuation is
 `ethos status --root <root> --json`, never the installation itself: the
-activation holds, status routes the repository to its own next step, and a later
-installation retries the reclamation. A refused installation continues the same
-way, or to the authorized state reset when only a reset repairs its state. Do not
-undo the successful activation or delete historical receipts to free their old
-runtimes.
+activation holds, status routes the repository to its own next step, and a later installation
+retries the reclamation. A refused installation continues the same way, or to the authorized state
+reset when only a reset repairs its state. Do not undo the successful activation or delete
+historical receipts to free their old runtimes.
 
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
-The selected runtime must match the invoking product and its exact wheel/lock. Without `--runtime`,
-a validated immutable package runtime outside another repository's private Git store is pinned once
-into the host store and reused, whether it binds a new repository, upgrades a selection or replaces
-a removed package. A repository never selects a package manager's installation in place, which that
-manager may leave writable. Source checkouts and foreign private runtimes do not gain this shortcut.
-Multiple repositories can reference those same bytes while retaining independent selectors, hooks
-and mutable state. The command copies external runtime bytes only into the host store and does not
-grant permission to delete the installation. Ordinary repair reuses a build-matching complete
-selection. A complete predecessor remains valid even when accepted source or its lock advances:
-installation validates its bytes, then pins a compatible invoking package or builds a new
-source-bound generation before changing the selector. An explicit `--runtime` must match the
-requested build. Missing or damaged external supply never triggers an implicit rebuild; restore the
-installation or explicitly rebind. A damaged selector also requires explicit selection. Valid
-supplied bytes may repair it without guessing a predecessor location; the result reports unavailable
-rollback selection, and a failed cutover restores the exact damaged selector bytes through
-compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
+The selected runtime must match the invoking product and its exact wheel/lock. Without
+`--runtime`, a validated immutable package runtime outside another repository's private Git store
+is pinned once into the host store and reused, whether it binds a new repository, upgrades a
+selection or replaces a removed package. A repository never selects a package manager's installation
+in place, which that manager may leave writable. Source checkouts and foreign private runtimes do
+not gain this shortcut. Multiple repositories can reference those same bytes while retaining
+independent selectors, hooks and mutable state. The command copies external runtime bytes only into
+the host store and does not grant permission to delete the installation. Ordinary repair reuses a
+build-matching complete selection. A complete predecessor remains valid even when accepted source or
+its lock advances: installation validates its bytes, then pins a compatible invoking package or
+builds a new source-bound generation before changing the selector. An explicit
+`--runtime` must match the requested build. Missing or damaged external supply never triggers an
+implicit rebuild; restore the installation or explicitly rebind. A damaged selector also requires
+explicit selection. Valid supplied bytes may repair it without guessing a predecessor location; the
+result reports unavailable rollback selection, and a failed cutover restores the exact damaged
+selector bytes through compare-and-swap. Package-manager upgrade/uninstall qualification is
+separate.
 
 `ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
 records; only `--expect-plan <digest> --apply --authorize` retires that plan.
@@ -206,141 +207,126 @@ only `--expect-plan <digest> --apply --authorize` deletes what that plan and a f
 For maintenance from a historical accepted base, select
 `ethos land --release --expect-head <source-head> --release-base <accepted-base>
 --release-head <current-main> --tag v<source-version> --json`. The source must
-belong to its native Work Lane, retain the exact accepted-base witness, and have
-current trusted signatures, introduced-range admission and a proof bound to the
-live holder's complete Lease generation. The base alone authorizes no new source.
-Only `--apply --authorize` creates the immutable signed tag; current accepted,
-candidate, release and maintenance branches remain asserted, never updated or
-synchronized. The checkout's branch roles must match current accepted policy.
-Publication uses the original completed tag plan and its exact proof and
-accepted-effect IDs, then obtains fresh admission independently for each peer.
+belong to its native Work Lane, retain the exact accepted-base witness, and have current trusted
+signatures, introduced-range admission and a proof bound to the live holder's complete Lease
+generation. The base alone authorizes no new source. Only `--apply --authorize` creates the
+immutable signed tag; current accepted, candidate, release and maintenance branches remain asserted,
+never updated or synchronized. The checkout's branch roles must match current accepted policy.
+Publication uses the original completed tag plan and its exact proof and accepted-effect IDs, then
+obtains fresh admission independently for each peer.
 
 `ethos land --release --expect-head <accepted-head> --release-head <old-main>
 --json` previews selection of the exact current accepted source for an
-independent release branch. Add `--tag v<version>` for a declared signed
-annotated tag. Only `--apply --authorize` permits the effect. When
+independent release branch. Add `--tag v<version>` for a declared signed annotated tag. Only
+`--apply --authorize` permits the effect. When
 `.ethos/release.toml` declares `[release] mirror = "accepted_ff"`, accepted
-closeout first aligns the protected branches. The same release command then
-uses `<accepted-head>` for both exact coordinates and creates the requested
-tag without advancing either branch. A misaligned mirror directs the caller to
-accepted closeout. A release-tag hook without executor intent directs the
-caller to this exact release preview.
+closeout first aligns the protected branches. The same release command then uses `<accepted-head>`
+for both exact coordinates and creates the requested tag without advancing either branch. A
+misaligned mirror directs the caller to accepted closeout. A release-tag hook without executor
+intent directs the caller to this exact release preview.
 
-Selection requires a clean accepted checkout, accepted-effect evidence, current
-repository proof, trusted source and safe linked release worktrees. Committed
-VERSION, package.json or static pyproject version supplies the native release
-identity; malformed or conflicting values fail closed. No duplicate VERSION
-file is required. One native Git transaction checks accepted and changes the
-release/tag refs together. Already aligned branches are assertions, not updates;
-an aligned request without a tag has no ref effect or new effect Attestation.
-Linked checkout synchronization is a subsequent,
-explicitly observed effect, not part of Git's ref atomicity.
+Selection requires a clean accepted checkout, accepted-effect evidence, current repository proof,
+trusted source and safe linked release worktrees. Committed VERSION, package.json or static
+pyproject version supplies the native release identity; malformed or conflicting values fail closed.
+No duplicate VERSION file is required. One native Git transaction checks accepted and changes the
+release/tag refs together. Already aligned branches are assertions, not updates; an aligned request
+without a tag has no ref effect or new effect Attestation. Linked checkout synchronization is a
+subsequent, explicitly observed effect, not part of Git's ref atomicity.
 
-Interrupted requests retain exact signed objects and the existing TransitionPlan
-in Git-private request storage. Recovery rechecks current source, proof, actor,
-policy and refs. A process lock serializes cooperating release writers, not
-arbitrary same-user processes. Unknown signing outcome never triggers blind
-resigning; the returned inspection command exposes the retained native object
-store. Completed plan persistence makes its staging store disposable. Exact
-inverse ref intents permit compensation; arbitrary rollback does not.
+Interrupted requests retain exact signed objects and the existing TransitionPlan in Git-private
+request storage. Recovery rechecks current source, proof, actor, policy and refs. A process lock
+serializes cooperating release writers, not arbitrary same-user processes. Unknown signing outcome
+never triggers blind resigning; the returned inspection command exposes the retained native object
+store. Completed plan persistence makes its staging store disposable. Exact inverse ref intents
+permit compensation; arbitrary rollback does not.
 
-A signed release tag whose target a completed signature or history repair replaced is re-created
-on the mapped commit with `ethos land --retag <tag> [--original-tag <tag>=<oid>] --json`. The
-original tag object comes from the local ref or `--original-tag`; a pruned original is restored from
-the repair's backup bundle while that bundle still hashes to its recorded digest. The new object
-keeps the original name, tagger, date and message; only its target and signature change. The
-preview names each refused tag with its gaps and reports one plan digest for the batch. Only
+A signed release tag whose target a completed signature or history repair replaced is re-created on
+the mapped commit with `ethos land --retag <tag> [--original-tag <tag>=<oid>] --json`. The original
+tag object comes from the local ref or `--original-tag`; a pruned original is restored from the
+repair's backup bundle while that bundle still hashes to its recorded digest. The new object keeps
+the original name, tagger, date and message; only its target and signature change. The preview names
+each refused tag with its gaps and reports one plan digest for the batch. Only
 `--apply --authorize --expect-plan-digest <digest>` moves the tag refs, by exact compare-and-swap
-from absent or from the original object, and records one `release:mapped-retag` attestation per
-tag. `ethos publish` then qualifies the re-created tag by the proof its original release record
-embeds.
+from absent or from the original object, and records one `release:mapped-retag` attestation per tag.
+`ethos publish` then qualifies the re-created tag by the proof its original release record embeds.
 
-Delivery of verified accepted source is not another contribution integration.
-Publication checks its source, target policy, accepted effect and current proof
-without reclassifying accepted ancestors as new contributions. This does not
-certify historical signatures or pre-adoption compliance. Independent peers
-receive the same selected objects through `ethos publish`; local selection is
-not remote publication, a Forge Release, deployment or actual user benefit.
+Delivery of verified accepted source is not another contribution integration. Publication checks its
+source, target policy, accepted effect and current proof without reclassifying accepted ancestors as
+new contributions. This does not certify historical signatures or pre-adoption compliance.
+Independent peers receive the same selected objects through `ethos publish`; local selection is not
+remote publication, a Forge Release, deployment or actual user benefit.
 
 ## Native Merge Continuation
 
 `ethos lane refresh-base --strategy merge --json` observes one native merge or
-prepares a merge from the configured candidate. The default strategy remains
-rebase for unpublished replay; a pending merge instead routes to its own reader.
+prepares a merge from the configured candidate. The default strategy remains rebase for unpublished
+replay; a pending merge instead routes to its own reader.
 `--mode start|continue|abort` selects one effect. Preview returns an exact apply
-command binding HEAD, parents, index, tracked and untracked content, runtime and
-Lease generation. Apply requires `--authorize`; a preview is not permission.
+command binding HEAD, parents, index, tracked and untracked content, runtime and Lease generation.
+Apply requires `--authorize`; a preview is not permission.
 
-For a coordinated peer contribution, `--source-ref refs/heads/work/<lane>`
-selects an existing Work Lane for merge strategy, not abort. Preview and apply
-bind its full ref and exact commit; missing, non-Work-Lane or changed sources
-are refused. Continuation requires that source to contain the recorded pending
-parent, which remains the commit parent. Default continuation does not assert
-the mutable candidate ref. Neither selection updates candidate or protected
-refs; their integration remains independent.
+For a coordinated peer contribution, `--source-ref refs/heads/work/<lane>` selects an existing Work
+Lane for merge strategy, not abort. Preview and apply bind its full ref and exact commit; missing,
+non-Work-Lane or changed sources are refused. Continuation requires that source to contain the
+recorded pending parent, which remains the commit parent. Default continuation does not assert the
+mutable candidate ref. Neither selection updates candidate or protected refs; their integration
+remains independent.
 
-Resolve reported conflicts, admit their exact paths and stage the accepted
-resolution before requesting `--mode continue`. The shared commit-policy owner
-checks both parents and the proposed tree. A common Git CAS advances only the
-lane; cleanup follows it. Proof, candidate integration and accepted closeout
-remain separate obligations. Coexisting official Changes retain separate task
-states; ambiguous contributions require explicit resolution, not fabricated
-completion of incoming intent. Continue rejects newly authored edits to incoming
-Change artifacts while preserving the original parents' native composition;
-unchanged incoming staged trees authorize no ordinary cross-Change authoring and
-claim no incoming task completion. Archiving the local Change retains its archive attribution instead
-of selecting an unchanged incoming Change merely because it is still active.
+Resolve reported conflicts, admit their exact paths and stage the accepted resolution before
+requesting `--mode continue`. The shared commit-policy owner checks both parents and the proposed
+tree. A common Git CAS advances only the lane; cleanup follows it. Proof, candidate integration and
+accepted closeout remain separate obligations. Coexisting official Changes retain separate task
+states; ambiguous contributions require explicit resolution, not fabricated completion of incoming
+intent. Continue rejects newly authored edits to incoming Change artifacts while preserving the
+original parents' native composition; unchanged incoming staged trees authorize no ordinary
+cross-Change authoring and claim no incoming task completion. Archiving the local Change retains its
+archive attribution instead of selecting an unchanged incoming Change merely because it is still
+active.
 
-If a merge CAS completed but its acknowledgement or metadata cleanup did not,
-inspect returns the original exact request from its prepared Attestation. It
-does not mint a new request from the advanced HEAD or a later selected runtime.
-Recovery verifies that original plan, parents, index and metadata against current
-observations, rechecks the current Lease and runtime, and finishes only the
-already observed effect. A preparation whose CAS is unexecuted, ambiguous or
-unproven remains UNKNOWN; neither preview nor retry replays its prior CAS.
+If a merge CAS completed but its acknowledgement or metadata cleanup did not, inspect returns the
+original exact request from its prepared Attestation. It does not mint a new request from the
+advanced HEAD or a later selected runtime. Recovery verifies that original plan, parents, index and
+metadata against current observations, rechecks the current Lease and runtime, and finishes only the
+already observed effect. A preparation whose CAS is unexecuted, ambiguous or unproven remains
+UNKNOWN; neither preview nor retry replays its prior CAS.
 
 `--mode abort` does not depend on candidate-ref existence or valid Change
-compilation. It first retains affected files, modes, stages and native metadata
-in content-addressed Git-private recovery material, then invokes native abort.
-Native refusal does not justify reset-hard: failure JSON retains before/after
-observations, stderr and recovery coordinates. The material is not an automatic
-in-place restoration command or a reusable authority grant. Retain unique work
-until its recovery or absorption is verified; repeated exact attempts reuse
-the same content-addressed material rather than copying the repository.
+compilation. It first retains affected files, modes, stages and native metadata in content-addressed
+Git-private recovery material, then invokes native abort. Native refusal does not justify
+reset-hard: failure JSON retains before/after observations, stderr and recovery coordinates. The
+material is not an automatic in-place restoration command or a reusable authority grant. Retain
+unique work until its recovery or absorption is verified; repeated exact attempts reuse the same
+content-addressed material rather than copying the repository.
 
-After lost acknowledgement, retry the same exact request: current authority and
-state are checked before recognizing an existing result or finishing its native
-projection. The ref effect does not authorize cleanup: Lease/runtime are checked
-again after CAS. Changed observations reject; unproven effects remain UNKNOWN.
-The worktree lock coordinates cooperating writers; it does not isolate arbitrary
-same-user processes. Autostash, competing native operations and unsupported
-multiple merge parents report a boundary instead of guessing recovery.
+After lost acknowledgement, retry the same exact request: current authority and state are checked
+before recognizing an existing result or finishing its native projection. The ref effect does not
+authorize cleanup: Lease/runtime are checked again after CAS. Changed observations reject; unproven
+effects remain UNKNOWN. The worktree lock coordinates cooperating writers; it does not isolate
+arbitrary same-user processes. Autostash, competing native operations and unsupported multiple merge
+parents report a boundary instead of guessing recovery.
 
 ## Commit Integrity And Accepted History Repair
 
-The repository paradigm owns the commit subject grammar and requires an SSH
-signature on every commit, so a repository that tracks no `[commit_policy]` in
+The repository paradigm owns the commit subject grammar and requires an SSH signature on every
+commit, so a repository that tracks no `[commit_policy]` in
 `.ethos/workspace.toml` gets that policy. A tracked table may restrict `scopes`
-and declare exact `author` and `committer` tables (`name`, `email`); undeclared
-identity constraints impose none on other adopters. The common compiler serves
-commit-msg, generated commits, replay, pre-push and `ethos hook commit-range`;
-there is no separate mutable Git identity policy. The same checks refuse a
-whole message that names a private-class network address by the paradigm's
-`private_address` pattern, and tag admission refuses such a tag message.
+and declare exact `author` and `committer` tables (`name`, `email`); undeclared identity constraints
+impose none on other adopters. The common compiler serves commit-msg, generated commits, replay,
+pre-push and `ethos hook commit-range`; there is no separate mutable Git identity policy. The same
+checks refuse a message that names a private-class network address by the paradigm's
+`private_address` pattern, and tag admission refuses such a tag message;
 `commit-msg` reads the message above Git's scissors line, and no gap repeats the
-address. Prospective checks use the
-index and parent; generated commits use their exact parent and target tree.
-Introduced objects must satisfy trusted-baseline policy as well as candidate
-constraints. Removing policy cannot waive its own admission.
+address. Prospective checks use the index and parent; generated commits use their exact parent and
+target tree. Introduced objects must satisfy trusted-baseline policy as well as candidate
+constraints, and removing policy cannot waive its own admission.
 
-Signature admission invokes native Git verification against a protected,
-repository-external trust anchor. An SSH signature envelope alone is insufficient.
-CI supplies trust through its operator-owned environment, never candidate-authored
-key material. Identity, signature trust and Forge attribution are separate checks.
-Status distinguishes transport arming from signature-trust readiness: missing or
-unsafe anchors produce `unready` even when both launchers are installed. A
-configured anchor is a prerequisite, not a claim that a particular commit passed
-verification or that the Forge recognizes its signer.
+Signature admission invokes native Git verification against a protected, repository-external trust
+anchor; an SSH signature envelope alone is insufficient. CI supplies trust through its
+operator-owned environment, never candidate-authored key material. Identity, signature trust and
+Forge attribution are separate checks. Status distinguishes transport arming from signature-trust
+readiness: missing or unsafe anchors produce `unready` even when both launchers are installed, and a
+configured anchor is a prerequisite, not a claim that a particular commit passed verification or
+that the Forge recognizes its signer.
 
 `ethos hook bind-trust --json` previews the binding of the commit trust that a CI job's operator
 supplies, and `--apply` performs it; a job runs it once before `ethos hook commit-range`. It takes
@@ -357,59 +343,56 @@ verification; the common validator rejects a missing required anchor.
 
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git
-object, moving a ref, changing a worktree or writing an Attestation. Applying
-requires both `--apply` and `--authorize`, plus the current `ETHOS_ACTOR`.
+object, moving a ref, changing a worktree or writing an Attestation. Applying requires both
+`--apply` and `--authorize`, plus the current `ETHOS_ACTOR`.
 
-The signed replacement preserves every non-signature payload byte. Current
-policy determines selected local refs; unrelated candidates, independent release
-refs and remotes remain untouched. CLI recovery and reference-transaction
-admission share trusted-source, signer, plan and linked-worktree validation.
+The signed replacement preserves every non-signature payload byte. Current policy determines
+selected local refs; unrelated candidates, independent release refs and remotes remain untouched.
+CLI recovery and reference-transaction admission share trusted-source, signer, plan and
+linked-worktree validation.
 
-Attestations preserve attempted and observed effects, not permission. An
-interrupted signing attempt without a durable result remains unknown and cannot
-be restarted under another actor. If its exact object has been recovered,
+Attestations preserve attempted and observed effects, not permission. An interrupted signing attempt
+without a durable result remains unknown and cannot be restarted under another actor. If its exact
+object has been recovered,
 `--replacement <oid>` binds that object for fresh validation without signing
-again. Failure JSON retains a known replacement and observes each selected
-ref/worktree outcome; lock contention is waiting, not a claimed partial effect.
+again. Failure JSON retains a known replacement and observes each selected ref/worktree outcome;
+lock contention is waiting, not a claimed partial effect.
 
-A successful result gives the exact replacement-bound `ethos prove` command.
-It does not prove the replacement, activate a runtime or publish anything.
-For historical corrections, supply `--corrections <json> --reason <text>
+A successful result gives the exact replacement-bound `ethos prove` command. It does not prove the
+replacement, activate a runtime or publish anything. For historical corrections, supply
+`--corrections <json> --reason <text>
 --backup <absolute-bundle-path>`. Each exact old OID selects expected and replacement
-author/committer fields, `resign: true`, or `remove_attribution_trailers` containing
-exact owner-confirmed false `Co-authored-by: Name <email>` trailer lines. Native
-Git determines trailer semantics; missing, duplicate or non-attribution selections
-reject, and real contributors remain unchanged. Readiness derives affected descendants;
-apply also requires the returned `--corrections-sha256`. Duplicate request fields,
-symlinked backups and changed requests reject. Recovery validation extracts the
-self-contained bundle into an isolated native repository and checks its complete
-object closure. Header validation alone does not establish recoverability.
+author/committer fields, `resign: true`, or `remove_attribution_trailers` containing exact
+owner-confirmed false `Co-authored-by: Name <email>` trailer lines. Native Git determines trailer
+semantics; missing, duplicate or non-attribution selections reject, and real contributors remain
+unchanged. Readiness derives affected descendants; apply also requires the returned
+`--corrections-sha256`. Duplicate request fields, symlinked backups and changed requests reject.
+Recovery validation extracts the self-contained bundle into an isolated native repository and checks
+its complete object closure. Header validation alone does not establish recoverability.
 
-History replacement preserves trees, all unselected message bytes, times, identities and
-ordered parent relationships. New signatures attest the repair, not original
-authorship. Already-valid same-key re-signing without another change is rejected
-before object creation. Interrupted history signing can re-enter the same request:
-the owner first finds and verifies existing exact signed payloads, then creates
-only missing objects. It does not need another progress database. Ref changes
-still use the existing single Git CAS and require fresh admission.
+History replacement preserves trees, all unselected message bytes, times, identities and ordered
+parent relationships. New signatures attest the repair, not original authorship. Already-valid
+same-key re-signing without another change is rejected before object creation. Interrupted history
+signing can re-enter the same request: the owner first finds and verifies existing exact signed
+payloads, then creates only missing objects, with no second progress database. Ref changes still use
+the existing single Git CAS and require fresh admission.
 
-Archive or publication provenance requires the observed ref effect, reconstructed
-old-policy scope and a validated object mapping. Reissuing internally consistent
-hashes cannot choose a different source policy or arbitrary ref scope. Historical
-evidence does not confer current authorization or replace fresh proof. This is a
-bounded metadata repair, not permission to change product content or bypass
-failed admission. Local records do not establish independence from a writer with
-the same operating-system identity; independent verification requires a separate
-operator-selected trust boundary.
+Archive or publication provenance requires the observed ref effect, reconstructed old-policy scope
+and a validated object mapping. Reissuing internally consistent hashes cannot choose a different
+source policy or arbitrary ref scope, and historical evidence does not confer current authorization
+or replace fresh proof. This is a bounded metadata repair, not permission to change product content
+or bypass failed admission. Local records do not establish independence from a writer with the same
+operating-system identity; independent verification requires a separate operator-selected trust
+boundary.
 
 ## Result Envelope
 
-JSON results use schema version `3`: `verdict` alone decides authorization, `state` projects
-command state, `required_gaps` lists every blocker, and `next_action` is singular. Derived
+JSON results use schema version `3`: `verdict` alone decides authorization, `state` projects command
+state, `required_gaps` lists every blocker, and `next_action` is singular. Derived
 `continuation` is `continue`, `await-user`, `blocked`, or `done`; `missing_facts_or_evidence`
 derives from gaps only for `verdict=unknown`. `user_decision_required` identifies needed user
-judgment, and `summary.runtime` names the product version, distribution version and source commit
-of the committed build that produced the result.
+judgment, and `summary.runtime` names the product version, distribution version and source commit of
+the committed build that produced the result.
 
 `next` is the step that `next_action` renders, as data, so an agent never parses text:
 
@@ -431,9 +414,9 @@ of the committed build that produced the result.
   `plan_digest` and `lease_expires_at`.
 - `why` is the first required gap, or else the state.
 
-A gap's code is the text before its first colon, and every code the product raises is
-registered in one packaged table, with its owning package and, where the name does not say it, its
-meaning and fixed repair. A process exit reads its number from one declared table: `pass` 0,
+A gap's code is the text before its first colon, and every code the product raises is registered in
+one packaged table, with its owning package and, where the name does not say it, its meaning and
+fixed repair. A process exit reads its number from one declared table: `pass` 0,
 `blocked` 1, `usage` 2, `undelivered` 3, `process` the child's own status, and `refused` 125
 reserved. `ethos --help --json` prints the table as `data.exits`.
 
@@ -453,17 +436,24 @@ and never trusts a carried one; it keeps only a carried step's `inputs`, which n
 ## Proof Depth
 
 `ethos prove --execute --gate <id> --expect-head <head> --json` runs one declared gate with its
-dependencies; repeat it for several roots. Without `--execute` it reports that gate's readiness
-and runs nothing. Every packaged gate runs through a product provider, so it
-runs in every repository on the product alone; a repository's own gates come
-from its profile or from the registry file its profile names.
+dependencies; repeat it for several roots. Without `--execute` it reports that gate's readiness and
+runs nothing. Every packaged gate runs through a product provider, so it runs in every repository on
+the product alone; a repository's own gates come from its profile or from the registry file its
+profile names.
 
 `ethos prove --full --json` observes the complete configured plan without
-execution. Add `--execute --expect-head <head>` for frozen-source evidence.
-[Standard verification](#standard-exact-source-proof) owns its acceptance route;
-a focused result never implies the complete native floor.
+execution. Add `--execute --expect-head <head>` for frozen-source evidence. [Standard
+verification](#standard-exact-source-proof) owns its acceptance route; a focused result never
+implies the complete native floor.
 
-Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and the host slot, and waits for two consecutive 1-minute load samples within the limit before its test and package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else `load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, which names the load, the limit and its source, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
+Full proof first runs its readiness gates, every gate that is not a test or package gate and depends
+on none, and ends without waiting when one fails. It then holds the repository's shared slot and the
+host slot, and waits for two consecutive 1-minute load samples within the limit before its test and
+package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else
+`load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour
+with `proof_admission_contended`, which names the load, the limit and its source, before those gates
+run. Results record wait duration and admitted load. At start or while queued, a lane missing
+candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
 
@@ -472,11 +462,11 @@ Full proof first runs its readiness gates, every gate that is not a test or pack
 
 ## OpenSpec Ownership
 
-Official OpenSpec owns intent parsing and archive transformations; ETHOS consumes
-its facts without duplicating intent. Commit source and observed task progress
-before exact proof. Source acceptance does not require future delivery completion:
-the active Change may span integration, accepted closeout, publication and use.
-Check tasks only after observing results; proof authorizes no later effect.
+Official OpenSpec owns intent parsing and archive transformations; ETHOS consumes its facts without
+duplicating intent. Commit source and observed task progress before exact proof. Source acceptance
+does not require future delivery completion: the active Change may span integration, accepted
+closeout, publication and use. Check tasks only after observing results; proof authorizes no later
+effect.
 
 After the Change's obligations are settled, an owned Work Lane invokes
 `ethos lane archive-change --change <id> --expect-head <source-head> --json` to derive the bounded
@@ -487,9 +477,7 @@ archive to its pre-archive head. Ordinary `git commit` does not replace that eff
 source bytes invalidate old proof; copied output or repeated commands do not repair that binding.
 
 ```bash
-openspec list --json
-openspec status --change <id> --json
-openspec validate --all --strict --json
+openspec list --json openspec status --change <id> --json openspec validate --all --strict --json
 ethos lane archive-change --change <id> --expect-head <source-head> --json
 ```
 
@@ -503,61 +491,59 @@ permission; an empty or unknown value fails closed, and no selector is stored.
 ## Exact Ref Observation For CI
 
 ```bash
-ethos hook ref-update --target-ref <full-ref> --proposed-head <object-oid> --remote-head <old-object-oid> --remote <name> --root <repository> --json
+ethos hook ref-update --target-ref <full-ref> --proposed-head <object-oid> --remote-head
+<old-object-oid> --remote <name> --root <repository> --json
 ```
 
-Use the repository-native zero OID for a new ref and `--trusted-baseline <oid>`
-when no declared accepted tracking ref supplies the baseline. Both SHA-1 and
-SHA-256 coordinates are supported. The command observes the exact introduced
-commit range, prior target policy and proposed OpenSpec tree without a host
-Lease, proof issuance, local ref changes or remote effects. Deletion has no
+Use the repository-native zero OID for a new ref and `--trusted-baseline <oid>` when no declared
+accepted tracking ref supplies the baseline. Both SHA-1 and SHA-256 coordinates are supported. The
+command observes the exact introduced commit range, prior target policy and proposed OpenSpec tree
+without a host Lease, proof issuance, local ref changes or remote effects. Deletion has no
 introduced range; observation alone never authorizes deletion.
 
-Review targets may carry unfinished intent. Accepted/release targets cannot
-use detached checkout identity or a changed candidate declaration to evade
-their stronger obligations. Results include `boundary`, `why`, exact coordinates
-and a single diagnostic `next_action`; CI consumes the result rather than
-copying a parser. For publication effects use the guarded `publish` surface.
+Review targets may carry unfinished intent. Accepted/release targets cannot use detached checkout
+identity or a changed candidate declaration to evade their stronger obligations. Results include
+`boundary`, `why`, exact coordinates and a single diagnostic `next_action`; CI consumes the result
+rather than copying a parser. For publication effects use the guarded `publish` surface.
 
 ## Standard And Fast Verification
 
-Affected contracts and consumers determine verification, not edit size.
-The [ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only") is the workflow entry point;
+Affected contracts and consumers determine verification, not edit size. The [ETHOS source
+Contributing guide](../../CONTRIBUTING.md#verification "source-only") is the workflow entry point;
 the installed CLI and current admission select required gates.
 
 ### Standard Exact-Source Proof
 
-In the owned Work Lane, bind its actor and select an active Change when intent
-is ambiguous. Check status, obtain prewrite admission, run focused checks and
-commit every non-ignored source input before exact-source proof:
+In the owned Work Lane, bind its actor and select an active Change when intent is ambiguous. Check
+status, obtain prewrite admission, run focused checks and commit every non-ignored source input
+before exact-source proof:
 
 ```bash
-ethos status --json
-ethos lane prewrite <path> --root <worktree> --editor-root <worktree> --require-editor-root --json
-ethos plan --changed --json
-ethos prove --full --execute --change <change-id> --expect-head <head> --json
-ethos land --json
+ethos status --json ethos lane prewrite <path> --root <worktree> --editor-root <worktree>
+--require-editor-root --json ethos plan --changed --json ethos prove --full --execute --change
+<change-id> --expect-head <head> --json ethos land --json
 ```
 
 ### Exact Index Prewrite
 
 `ethos lane prewrite <paths> --target index --patch <file>` previews disposable native cached checking; bind `--editor-root <worktree> --require-editor-root`. Worktree remains the default. Real Git, worktree and Lease stay unchanged; the expected index tree/digest, HEAD, Lease and patch bind prestate, not the prospective tree.
 
-Scratch objects use the shared store as a read-only alternate and disappear before return. Drift fails closed; split/locked indexes are unknown, and sparse indexes use native cached apply. Preview cannot enforce CAS at later staging; commit admission re-admits actual staged content.
+Scratch objects use the shared store as a read-only alternate and disappear before return. Drift
+fails closed; split/locked indexes are unknown, and sparse indexes use native cached apply. Preview
+cannot enforce CAS at later staging; commit admission re-admits actual staged content.
 
 ### Routine Scoped Execution
 
-Run the repository's original focused tests and formatters first. For a declared
-host gate, use the existing product executor without minting a repository proof:
+Run the repository's original focused tests and formatters first. For a declared host gate, use the
+existing product executor without minting a repository proof:
 
 ```bash
 ethos prove --host --execute --gate <gate-id> --json
 ```
 
-Omit `--expect-head` for working-tree feedback. Supply it when the check must bind
-to a clean frozen source. [Proof selection](#proof-depth) defines native and
-product origins for this surface too. Host execution does not issue a proof
-Attestation or grant tracked-write or landing authority.
+Omit `--expect-head` for working-tree feedback. Supply it when the check must bind to a clean frozen
+source. [Proof selection](#proof-depth) defines native and product origins for this surface too.
+Host execution does not issue a proof Attestation or grant tracked-write or landing authority.
 
 For repository-bound selected proof, use the non-host surface:
 
@@ -565,24 +551,23 @@ For repository-bound selected proof, use the non-host surface:
 ethos prove --execute --gate <gate-id> --change <change-id> --expect-head <head> --json
 ```
 
-The policy resolves prerequisites and validates that selection. Passing selected
-gates does not satisfy an omitted canonical landing floor. Default proof is not
-a universal cheap path: it can still include full unit and coverage obligations.
-When default and full policy differ, current acceptance can require full proof.
-There is no general automatic risk-selected small-change acceptance or `--fast`
-option; use scoped iteration without describing it as completed acceptance.
+The policy resolves prerequisites and validates that selection. Passing selected gates does not
+satisfy an omitted canonical landing floor. Default proof is not a universal cheap path: it can
+still include full unit and coverage obligations. When default and full policy differ, current
+acceptance can require full proof. There is no general automatic risk-selected small-change
+acceptance or `--fast` option; use scoped iteration without describing it as completed acceptance.
 
 `--acceptance-purpose local-source` selects the dependency-audit boundary for
-local development. It does not skip tests, disable hooks, or authorize CI,
-installation, public release or distribution. Runtime reuse avoids redundant
-package preparation; it does not reuse unrelated proof or waive fresh effects.
+local development. It does not skip tests, disable hooks, or authorize CI, installation, public
+release or distribution. Runtime reuse avoids redundant package preparation; it does not reuse
+unrelated proof or waive fresh effects.
 
 ### Authorized Temporary Hook Bypass
 
-Use a temporary bypass only for an explicitly human-authorized operation. Record
-the exact repository, operation, reason, skipped checks, recovery coordinates,
-owner and exit condition in the existing Change and evidence owner. This is an
-emergency path, not the routine fast path or a transferable permission.
+Use a temporary bypass only for an explicitly human-authorized operation. Record the exact
+repository, operation, reason, skipped checks, recovery coordinates, owner and exit condition in the
+existing Change and evidence owner. This is an emergency path, not the routine fast path or a
+transferable permission.
 
 Git provides command-scoped hook configuration:
 
@@ -590,28 +575,27 @@ Git provides command-scoped hook configuration:
 git -c core.hooksPath="<absolute-empty-hooks-directory>" commit -S -m "<type>: <subject>"
 ```
 
-Resolve and inspect an actual empty directory on the target platform first.
-On POSIX hosts, Git also supports `git -c core.hooksPath=/dev/null <command>`;
+Resolve and inspect an actual empty directory on the target platform first. On POSIX hosts, Git also
+supports `git -c core.hooksPath=/dev/null <command>`;
 `/dev/null` is not a Windows path. The override applies only to that command and
-its children; it leaves persistent hook configuration unchanged. Keep the
-repository's required signer and identity. Never treat a skipped hook as pass.
+its children; it leaves persistent hook configuration unchanged. Keep the repository's required
+signer and identity. Never treat a skipped hook as pass.
 
 `git commit --no-verify` skips its applicable commit hooks, not every hook.
 `git push --no-verify` skips local pre-push, not remote protection, status checks
-or authorization. Bypassing a Git hook does not disable ETHOS's direct effect
-admission or authorize a protected ref update by itself.
+or authorization. Bypassing a Git hook does not disable ETHOS's direct effect admission or authorize
+a protected ref update by itself.
 
-After the bounded command, inspect its actual refs, index, worktree and signature
-as applicable, then run `ethos status --json` to verify normal arming. Retain
-failed evidence and state which proof, installation or publication obligations
-remain unproved. A timeout is not rollback: reobserve before retrying. Retire an
-owned temporary directory only after checking it is unused and still empty.
-Do not write a global hook disable, fabricated proof or permanent waiver.
+After the bounded command, inspect its actual refs, index, worktree and signature as applicable,
+then run `ethos status --json` to verify normal arming. Retain failed evidence and state which
+proof, installation or publication obligations remain unproved. A timeout is not rollback: reobserve
+before retrying. Retire an owned temporary directory only after checking it is unused and still
+empty. Do not write a global hook disable, fabricated proof or permanent waiver.
 
 ## Assurance And Evidence Boundary
 
-Readiness, execution, local publication and remote publication remain distinct;
-Work Lane visibility grants no writes. The Product Design Contract owns semantics.
+Readiness, execution, local publication and remote publication remain distinct; Work Lane visibility
+grants no writes. The Product Design Contract owns semantics.
 
 An independent-verification receipt reaches closeout through
 `ethos land --closeout … --independent-verification-receipt <path>` and publication through

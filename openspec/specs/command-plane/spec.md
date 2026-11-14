@@ -1520,7 +1520,7 @@ ETHOS SHALL derive `next` only from the exact ETHOS argv that `next_action` rend
 split and join, and SHALL take its effects, authorization and destructiveness only from the catalog
 operation that argv selects; an argv that selects none SHALL be `opaque` and destructive and need a
 person. Prose or a template SHALL stay an instruction without an argv. Every reader SHALL re-derive
-`next` and check a carried one only for shape.
+`next`, keep only the `inputs` of a carried one and check the rest only for shape.
 
 #### Scenario: A rendered command becomes a structured step
 
@@ -1536,8 +1536,8 @@ person. Prose or a template SHALL stay an instruction without an argv. Every rea
 #### Scenario: A reader never trusts a carried step
 
 - **WHEN** a reader validates a payload whose `next` differs from its own derivation
-- **THEN** it keeps its own derivation, and refuses the payload only when the carried `next` is
-  malformed
+- **THEN** it keeps its own derivation and the carried `inputs`, and refuses the payload only when
+  the carried `next` is malformed
 
 #### Scenario: A deleting argv is destructive
 
@@ -1715,3 +1715,35 @@ launcher outside the catalog.
 - **WHEN** `ethos host run -- <command>` runs a command that the host admits
 - **THEN** the entry's `process` exit makes the CLI exit with the child's status and print no frame
 - **AND** an admission gap is emitted as a result like any other
+
+### Requirement: A next step names the values that only the agent chooses
+
+A result's `next` MAY carry `inputs`: one entry for each value that only the agent can choose, with
+the request field's `name`, its `flag` and its `description`, each a string. `inputs` SHALL be
+absent when it is empty. Every reader SHALL accept it and expose it unchanged, and it SHALL grant
+nothing. The reader of a new `next` member SHALL ship one release before the first producer of that
+member.
+
+#### Scenario: A reader keeps the inputs that a step carries
+
+- **WHEN** a reader validates a result whose `next` carries `inputs`
+- **THEN** the result that it exposes carries the same entries in the same order
+- **AND** the step's kind, argv, effects, destructiveness and authorization are the reader's own
+  derivation, whatever the carried step says
+
+#### Scenario: A step without a value to choose keeps its bytes
+
+- **WHEN** a result's next step has no value for the agent to choose
+- **THEN** `next` has no `inputs` member
+- **AND** the result serializes as it did before readers accepted the member
+
+#### Scenario: A malformed entry refuses the payload
+
+- **WHEN** an entry of a carried `inputs` lacks one of the three members, adds another or holds a
+  value that is not a string
+- **THEN** the reader refuses the payload
+
+#### Scenario: No command emits inputs in the release that first reads them
+
+- **WHEN** any command of the first release whose readers accept `inputs` returns a result
+- **THEN** its `next` carries no `inputs`

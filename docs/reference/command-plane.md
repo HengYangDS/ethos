@@ -166,9 +166,13 @@ When activation succeeded but reclamation is incomplete, the result is
 `installed_cleanup_deferred`: `data.current` and `summary.wired` retain
 the successful activation observation, while `generation_cleanup` reports the
 completed removals, retained resources, deferred paths and failure. The overall
-verdict remains `block` for incomplete repair. Follow the returned public
-`ethos hook install --json` continuation to re-observe and retry; do not undo the
-successful activation or delete historical receipts to free their old runtimes.
+verdict remains `block` for incomplete repair. Its continuation is
+`ethos status --root <root> --json`, never the installation itself: the
+activation holds, status routes the repository to its own next step, and a later
+installation retries the reclamation. A refused installation continues the same
+way, or to the authorized state reset when only a reset repairs its state. Do not
+undo the successful activation or delete historical receipts to free their old
+runtimes.
 
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.

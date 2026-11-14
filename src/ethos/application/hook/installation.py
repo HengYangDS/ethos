@@ -1,6 +1,6 @@
 """Install the hook runtime, and retire the host installations that nothing still needs.
 
-`hook install` converges one Git-common activation and names the command that recovers it;
+`hook install` converges one Git-common activation and never names its own request as next;
 `hook retire-supply` plans, and on an authorized apply retires, the host installations that were
 pinned before their consumers were recorded.
 """
@@ -69,9 +69,7 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
             else:
                 runtime["contract_observation"] = error.observation
             if error.observation:
-                runtime["next_action"] = shlex.join(
-                    ("ethos", "status", "--root", root.as_posix(), "--json")
-                )
+                runtime["next_action"] = _status(root)
         if state_failure:
             try:
                 runtime["state_schema"] = state_schema_report(root)
@@ -125,9 +123,9 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
         required_gaps=gaps,
         user_decision_required=bool(gaps and "hook_runtime_installed_supply_" in gaps[0]),
         next_action=(
-            str(runtime.get("next_action") or _install_recovery(root, gaps[0]))
+            str(runtime.get("next_action") or _install_recovery(root, gaps[0], request))
             if gaps
-            else _install_recovery(root, "")
+            else _status(root)
             if cleanup_state == "deferred" or legacy_state == "retained"
             else ""
         ),
@@ -135,18 +133,26 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
     )
 
 
-def _install_recovery(repo: Path, gap: str) -> str:
-    command = ["ethos", "hook", "install", "--root", repo.resolve().as_posix()]
+def _status(root: Path) -> str:
+    """Name the inspection that routes the repository to its own next step."""
+    return shlex.join(("ethos", "status", "--root", root.resolve().as_posix(), "--json"))
+
+
+def _install_recovery(repo: Path, gap: str, request: InstallRequest) -> str:
+    """Name what recovers an installation, which is never the request that just ran."""
+    location = repo.resolve().as_posix()
     if "hook_runtime_installed_supply_" in gap:
         return (
             "select an existing compatible installed ETHOS runtime, then run "
             "ethos hook install --runtime <runtime-root> "
-            f"--root {shlex.quote(repo.resolve().as_posix())} --json"
+            f"--root {shlex.quote(location)} --json"
         )
-    if gap in {"state_schema_migration_requires_reset", "state_reset_authorization_required"}:
-        command.extend(("--reset-state", "--authorize"))
-    command.append("--json")
-    return shlex.join(command)
+    resets = gap in {"state_schema_migration_requires_reset", "state_reset_authorization_required"}
+    if resets and not (request.reset_state and request.authorize):
+        reset = ("--root", location, "--reset-state", "--authorize", "--json")
+        return shlex.join(("ethos", "hook", "install", *reset))
+    # Any other gap, a deferred reclamation among them, is re-observed: status names the repair.
+    return _status(repo)
 
 
 def retire_host_supply(root: Path, request: RetireSupplyRequest) -> EthosResult:

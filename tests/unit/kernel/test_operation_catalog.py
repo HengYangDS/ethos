@@ -12,10 +12,15 @@ from typing import get_type_hints
 
 import pytest
 
+import ethos.application.hook.installation as installation
 from ethos.adapters.admission.control.replacement import CONTROL_PREFIXES
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.repo.hook.rollback import RESTORE_ACTION
+from ethos.adapters.repo.hook.rollback import RollbackRefusalError
 from ethos.application.adoption import adopt_repository
 from ethos.application.catalog import IMPLEMENTATIONS
 from ethos.application.catalog import Selected
+from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.application.inspection import inspect_repository
 from ethos.application.land.operation import land_repository
@@ -29,6 +34,7 @@ from ethos.contracts.operations.catalog import select_argv
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Operation
+from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.catalog import register
 
@@ -54,6 +60,30 @@ _SDK = {
     "land": land_repository,
     "publish": publish_repository,
     "adopt": adopt_repository,
+}
+# What hook activation hands `hook install`, by class: a binding, or the refusal it raises.
+_BOUND = {"hooks_path": "hooks", "python": "python", "current": True, "required_gaps": []}
+_GAPPED = _BOUND | {"required_gaps": ["hook_runtime_cleanup_deferred"]}
+_ACTIVATIONS: dict[str, dict[str, object] | Exception] = {
+    "current": _BOUND,
+    "deferred": _GAPPED | {"generation_cleanup": {"state": "deferred"}},
+    "deferred-ungapped": _BOUND | {"generation_cleanup": {"state": "deferred"}},
+    "locator-retained": _GAPPED | {"legacy_runtime_locator": {"state": "retained"}},
+    "io": OSError("readonly"),
+    "worktrees": ValueError("hook_runtime_worktrees_unreadable"),
+    "state-busy": ValueError("state_activation_failed:locked"),
+    "reset-needed": ValueError("state_schema_migration_requires_reset"),
+    "reset-unauthorized": ValueError("state_reset_authorization_required"),
+    "supply": ValueError("hook_runtime_installed_supply_unavailable:/missing"),
+    "rollback": RollbackRefusalError("runtime_rollback_declaration_repaired", RESTORE_ACTION),
+    "process": ProcessExecutionError("failed", reason="exit", observation={"state": "unknown"}),
+}
+# Every form of the install request.
+_INSTALLS: dict[str, dict[str, object]] = {
+    "plain": {},
+    "runtime": {"installed_runtime": "/runtime"},
+    "reset": {"reset_state": True},
+    "authorized-reset": {"reset_state": True, "authorize": True},
 }
 
 
@@ -217,3 +247,41 @@ def test_each_operation_maps_to_one_implementation_of_its_command() -> None:
             assert "root" not in command.request.model_fields
             fenced = f"src/{module.replace('.', '/')}.py".startswith(CONTROL_PREFIXES)
             assert fenced or " " not in name or not _WRITES & set(item.effects)
+
+
+def _repeats(name: str, root: Path, fields: dict[str, object], result: EthosResult) -> bool:
+    """Whether a result's next step runs the operation, root and request that produced it."""
+    step, chosen = result.next, select_operation(name, fields)
+    selected = select_argv(step.argv) if step.argv else None
+    if selected is None or not isinstance(chosen, Selected) or selected[1] is not chosen.operation:
+        return False
+    request = _parsed(COMMANDS[name], list(step.argv[1:]))
+    return (request, Path(str(step.binding.get("root", root)))) == (chosen.request, root)
+
+
+@pytest.mark.parametrize("request_form", sorted(_INSTALLS))
+@pytest.mark.parametrize("activation", sorted(_ACTIVATIONS))
+def test_no_install_result_names_the_request_that_produced_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, activation: str, request_form: str
+) -> None:
+    """A `next` that repeats its producer's operation, root and request is a loop.
+
+    The table reaches one builder through its stubbed adapter: each form of the install request
+    against each class of activation outcome. It sees neither a builder that needs a repository,
+    nor a cycle of two steps, nor prose or a non-`ethos` argv that asks for the same run.
+    """
+    outcome, fields = _ACTIVATIONS[activation], _INSTALLS[request_form]
+
+    def activate(*_args: object, **_kwargs: object) -> dict[str, object]:
+        if isinstance(outcome, Exception):
+            raise outcome
+        return dict(outcome)
+
+    monkeypatch.setattr(installation, "install_hook_launchers", activate)
+    monkeypatch.setattr(installation, "state_schema_report", lambda _root: {})
+    register()
+    result = invoke("hook install", tmp_path, fields)
+    assert not _repeats("hook install", tmp_path, fields, result), result.next_action
+    # The reading is not vacuous: the base's continuation for a plain request is seen as a loop.
+    loop = result.model_copy(update={"next_action": f"ethos hook install --root {tmp_path} --json"})
+    assert _repeats("hook install", tmp_path, {}, loop)

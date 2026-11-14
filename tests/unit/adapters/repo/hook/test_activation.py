@@ -356,7 +356,7 @@ def test_hook_install_retires_the_legacy_runtime_python_locator(
         assert legacy.is_dir()
         assert report["legacy_runtime_locator"]["state"] == "retained"
         assert report["required_gaps"] == ["hook_runtime_cleanup_deferred"]
-        assert report["next_action"] == "ethos hook install --json"
+        assert report["next_action"] == ""
         return
     assert not legacy.exists()
     assert not legacy.is_symlink()

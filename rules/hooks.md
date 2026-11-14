@@ -37,7 +37,8 @@ operation records do not lease their former executables. Each deletion rechecks
 current dependencies and exact directory identity under the bounded selector
 fence; unreadable observations defer deletion. Completed activation remains
 observable when reclamation is deferred, with precise partial results and a
-fresh public install continuation rather than an invented rollback.
+continuation to `ethos status`, never to the installation itself or to an
+invented rollback.
 
 The sole executable runtime selection is
 `<git-common-dir>/ethos/runtime/CURRENT`. It names one validated,

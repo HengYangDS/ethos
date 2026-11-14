@@ -149,7 +149,6 @@ def install_hook_launchers(
     )
     if cleanup["state"] == "deferred" or binding["legacy_runtime_locator"]["state"] == "retained":
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
-        binding["next_action"] = "ethos hook install --json"
     binding["generation_cleanup"] = cleanup
     binding["host_store_cleanup"] = _retire_host_store(repo)
     return binding

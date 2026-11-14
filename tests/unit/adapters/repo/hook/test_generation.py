@@ -11,7 +11,9 @@ import ethos.adapters.repo.runtime.retirement as retirement
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.application.catalog import invoke
 from tests.support.runtime_scenarios import fixture_runtime_generation
+from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
 
 
@@ -45,7 +47,7 @@ def test_hook_install_reports_deferred_generation_cleanup_after_successful_activ
     assert installed["state_transition"]["after"] == "current"
     assert installed["current"] is True
     assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
-    assert installed["next_action"] == "ethos hook install --json"
+    assert installed["next_action"] == ""
     assert cleanup["state"] == "deferred"
     assert cleanup["removed"] == ([stale.as_posix()] if failure == "retained" else [])
     assert cleanup["error"] == (
@@ -59,6 +61,30 @@ def test_hook_install_reports_deferred_generation_cleanup_after_successful_activ
         retained.as_posix() if failure == "retained" else stale.as_posix()
     ]
     assert stale.exists() is (failure != "retained")
+
+
+@pytest.mark.parametrize("activated", [True, False])
+def test_an_install_never_names_itself_as_its_next_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, activated: bool
+) -> None:
+    """Residue no retry removes, or a refusal no retry lifts, continues to status instead."""
+    repo, linked, _runtime, hooks = linked_runtime_case(tmp_path, monkeypatch)
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: "")
+    if activated:
+        (hooks.parents[1] / "ethos-runtime-python").mkdir()
+    else:
+        linked.rename(tmp_path / "moved")
+    gap = "hook_runtime_cleanup_deferred" if activated else "hook_runtime_worktrees_unreadable"
+    result = invoke("hook install", repo, {})
+    assert (result.verdict, result.summary["wired"]) == ("block", activated)
+    assert result.state == ("installed_cleanup_deferred" if activated else "blocked")
+    assert result.required_gaps == (gap if activated else f"hook_install_failed:{gap}",)
+    assert result.next.argv == ("ethos", "status", "--root", repo.as_posix(), "--json")
+    if activated:
+        # The status that follows a held activation asks for no installation.
+        inspected = invoke("status", repo, {})
+        assert not inspected.data["hook_runtime"]["required_gaps"]
+        assert "hook install" not in inspected.next_action
 
 
 def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(

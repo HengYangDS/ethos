@@ -85,6 +85,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   license in a vendored tree, and `--apply` rewrote it. The Markdown, prose, link and configuration
   gates leave such a path alone too, and a format request that names one refuses
   `source_format_other_owner`.
+- `ethos hook install` no longer names itself as its next step. When activation holds and
+  reclamation is deferred, or when the installation refuses for a reason other than its state
+  schema, the result continues to `ethos status --root <root> --json`, whose hook-runtime inspection
+  names the repair; the verdict, the gap `hook_runtime_cleanup_deferred` and the exit are unchanged.
+  The deferred result used to name `ethos hook install --json` without a root, and a refusal named
+  the refused request again.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

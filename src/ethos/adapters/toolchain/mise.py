@@ -39,6 +39,10 @@ _GRAPH_SAFE_MODE_FIX = (2026, 11, 2)
 _CALLER_INPUTS = frozenset(
     ("MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR", "MISE_STATE_DIR", "MISE_SAFE")
 )
+# What a child must not inherit to resolve tools by the repository alone: mise's own variables
+# and the state its shell activation exports (`__MISE_DIFF` and its siblings), which makes a
+# nested `mise exec` order its paths by the launching shell.
+MISE_ENVIRONMENT_PREFIXES = ("MISE_", "__MISE_")
 
 
 def native_tool_cache(root: Path) -> Path:
@@ -161,7 +165,7 @@ def _mise_declaration_paths(
         root,
         (str(executable or mise_executable()), "config", "ls", "--json"),
         timeout=seconds("probe"),
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
         env=environment,
     )
     if discovered.returncode or discovered.stderr:
@@ -307,7 +311,7 @@ def run_mise(
             isolated,
             (str(selected), *arguments),
             timeout=seconds("probe", timeout),
-            remove_env_prefixes=("MISE_",),
+            remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
             env=environment,
         )
 
@@ -410,7 +414,7 @@ def mise_version(executable: Path | None = None) -> tuple[int, ...] | None:
             selected.parent,
             (str(selected), "--version"),
             timeout=seconds("probe"),
-            remove_env_prefixes=("MISE_",),
+            remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
             env={"MISE_DISABLE_UPDATE_WARNING": "1"},
         )
         return tuple(int(part) for part in shown.stdout.split()[0].split("."))

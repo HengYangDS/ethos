@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 
 ENVIRONMENT_POLICY = ".config/checks/eslint/policy.toml"
 # Standard global sets a repository may declare for code that runs outside Node, such as
@@ -109,7 +110,7 @@ def static_observation(
         stdin=json.dumps(entries),
         remove_env=("NODE_OPTIONS", "NODE_PATH"),
         env=native,
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
     reports = json.loads(result.stdout)
     if (

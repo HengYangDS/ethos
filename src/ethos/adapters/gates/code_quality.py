@@ -20,6 +20,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
@@ -79,7 +80,7 @@ def _run_go(
         (_executable(root, "go"), *arguments),
         env=_go_environment(native),
         remove_env=("GOROOT",),
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
 
 
@@ -246,7 +247,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
         root,
         (_executable(root, "gofmt"), "-l", *paths),
         env=native,
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
     if formatted.returncode or formatted.stdout.strip():
         refuse("go_format_diagnostics")

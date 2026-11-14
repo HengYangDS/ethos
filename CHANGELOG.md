@@ -131,6 +131,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   evidence, and a declaration without evidence is the gap
   `repository_paradigm_identifier_source`. A release older than this one refuses a profile that
   carries the new key, so add it after binding this release.
+- A gate's child no longer inherits the state that a shell's `mise activate` exports
+  (`__MISE_DIFF` and its siblings). The gates removed only `MISE_` variables, so a test that itself
+  ran `mise exec` resolved its tools in the launching shell's order: one head could fail a proof
+  from an activated shell and pass it from a clean one. The Mise adapter now names both families
+  once, and every child that resolves or runs locked tools starts without them.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

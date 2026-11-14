@@ -26,6 +26,7 @@ from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import carried_trust
 from ethos.adapters.toolchain.mise import mise_executable
@@ -293,7 +294,7 @@ def download_tool(
         root,
         command,
         timeout=seconds("download", timeout),
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
         env={
             "MISE_SAFE": "1",
             "MISE_DISABLE_UPDATE_WARNING": "1",

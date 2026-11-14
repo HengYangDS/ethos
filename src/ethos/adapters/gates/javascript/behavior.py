@@ -22,6 +22,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.process import stream_text
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from ethos.repository.policy.quality_reports import node_event_report
 from ethos.repository.policy.quality_reports import validate_node_precise_coverage
@@ -63,7 +64,7 @@ def _observe_test(
         timeout=timeout,
         env={**environment, **node_test_environment(raw.parent)},
         remove_env=removed,
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
     observed.update(
         test_execution={"argv": command, "exit_code": tested.returncode},
@@ -174,7 +175,7 @@ def _observe_coverage(
         timeout=timeout,
         env=environment,
         remove_env=removed,
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
     if selection.returncode or selection.stderr:
         return ["javascript_native_selection_unknown"]
@@ -226,7 +227,7 @@ def _observe_coverage(
         timeout=timeout,
         env=environment,
         remove_env=removed,
-        remove_env_prefixes=("MISE_",),
+        remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
     )
     preserved = bool(before) and before == _raw_identity(raw)
     observed.update(

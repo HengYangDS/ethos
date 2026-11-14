@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tomllib
 from contextlib import nullcontext
 from pathlib import Path
@@ -191,6 +192,27 @@ def test_locked_tool_requires_an_installed_absolute_executable(
         mise.locked_tool(tmp_path, "node", files=files)
 
 
+def test_a_child_inherits_no_mise_variable_and_no_activation_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A shell that activated mise exports `__MISE_*`; a nested `mise exec` must not read it."""
+    monkeypatch.setenv("MISE_ENV", "caller")
+    monkeypatch.setenv("__MISE_DIFF", "caller-diff")
+    monkeypatch.setenv("__MISE_ZSH_PRECMD_RUN", "1")
+    monkeypatch.setenv("KEPT_FOR_THE_CHILD", "kept")
+    names = "sorted(k for k in os.environ if 'MISE' in k or k.startswith('KEPT'))"
+    script = f"import json, os; print(json.dumps({names}))"
+
+    completed = run_command(
+        tmp_path,
+        (sys.executable, "-I", "-c", script),
+        remove_env_prefixes=mise.MISE_ENVIRONMENT_PREFIXES,
+        env={"MISE_LOCKED": "1"},
+    )
+
+    assert json.loads(completed.stdout) == ["KEPT_FOR_THE_CHILD", "MISE_LOCKED"]
+
+
 def test_mise_executable_does_not_invent_a_host_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unavailable native Mise is an explicit supply gap."""
     monkeypatch.setattr(mise.shutil, "which", lambda _name: None)
@@ -329,7 +351,7 @@ def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_i
         assert root == tmp_path
         assert command == (str(executable), "config", "ls", "--json")
         assert options["timeout"] == 15
-        assert options["remove_env_prefixes"] == ("MISE_",)
+        assert options["remove_env_prefixes"] == ("MISE_", "__MISE_")
         environment = options["env"]
         assert environment["MISE_SAFE"] == environment["MISE_OFFLINE"] == "1"
         state = Path(environment["MISE_STATE_DIR"]).parent

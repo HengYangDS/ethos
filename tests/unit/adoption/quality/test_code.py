@@ -228,7 +228,7 @@ def test_declared_mise_supply_precedes_ambient_path(
         assert alias is not None
         assert Path(alias).read_bytes() == selected_mise.read_bytes()
         assert str(operator) not in entries
-        assert kwargs["remove_env_prefixes"] == ("MISE_",)
+        assert kwargs["remove_env_prefixes"] == ("MISE_", "__MISE_")
         assert shutil.which("cue", path=path) == str(binary / "cue")
         assert shutil.which("rcodesign", path=path) == str(binary / "rcodesign")
         executed.append(command)

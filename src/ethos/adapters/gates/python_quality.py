@@ -32,6 +32,7 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.materialization.native_supply import prepared_tool_directories
+from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
@@ -351,7 +352,7 @@ def _behavior_evidence(
             timeout=seconds("gate", timeout_seconds),
             env=environment,
             remove_env=removed,
-            remove_env_prefixes=("MISE_",),
+            remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
         )
         synced = native(sync)
         if synced.returncode:

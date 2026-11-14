@@ -90,7 +90,7 @@ def _execute(
             root,
             (selected, *arguments),
             timeout=60,
-            remove_env_prefixes=("MISE_",),
+            remove_env_prefixes=mise.MISE_ENVIRONMENT_PREFIXES,
             env=environment,
         )
     return environment, observed

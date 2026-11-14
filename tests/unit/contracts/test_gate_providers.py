@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.contracts.gate_providers import provider_catalog
-from ethos.contracts.gate_providers import provider_id
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import compile_gate_policy
 from ethos.repository.profile import repository_profile_from_text
@@ -91,8 +90,8 @@ def test_shared_gate_composes_under_either_spelling_and_an_unresolved_name_refus
     assert policy.gaps == (gap,)
 
 
-def test_shipped_registries_declare_only_providers_that_the_catalog_resolves() -> None:
+def test_shipped_registries_declare_every_provider_by_its_id() -> None:
     gates = (*load_gate_registry_declaration().gates, *repository_registry().gates)
     declared = {name for gate in gates for name in (*gate.providers, *gate.verification_providers)}
     assert declared
-    assert all(provider_id(name) for name in declared)
+    assert declared <= set(provider_catalog()[0])

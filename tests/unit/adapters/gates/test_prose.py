@@ -227,7 +227,7 @@ def _quality_files(monkeypatch: pytest.MonkeyPatch, files: list[str]) -> None:
 def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
     """The installed owner ignores ambient policy and preserves exact authored bytes."""
     gate = load_gate_registry_declaration().registry()["prose"]
-    assert gate.providers == ("ethos.adapters.gates.tool:prose_report",)
+    assert gate.providers == ("provider.prose",)
     assert not gate.command
     document = tmp_path / "README.md"
     local = tmp_path / ".config/checks/codespell/codespell.toml"

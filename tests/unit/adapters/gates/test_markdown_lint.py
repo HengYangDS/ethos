@@ -33,7 +33,7 @@ def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_conf
     _quality_files(monkeypatch, "README.md", str(config.relative_to(tmp_path)))
     selected = load_gate_registry_declaration().registry()["markdown-lint"]
     assert selected.command == ()
-    assert selected.providers == ("ethos.adapters.gates.tool:markdown_lint_report",)
+    assert selected.providers == ("provider.markdown-lint",)
     report = gate_tool.markdown_lint_report(tmp_path)
     assert report["verdict"] == "block"
     native = report["native"]

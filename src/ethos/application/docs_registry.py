@@ -12,7 +12,7 @@ from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import command_path
 from ethos.repository.registry.docs.health import docs_health_report
 
-# The reference that `system/gates.toml` spells literally, for the tests that name this provider.
+# This provider's legacy name, for the tests that declare it; `system/gates.toml` names its ID.
 DOCS_REGISTRY_PROVIDER = "ethos.application.docs_registry:docs_registry_report"
 # The one command outside the catalog, the MCP transport launcher, and the flags Cyclopts answers
 # before any command.

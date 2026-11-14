@@ -254,7 +254,7 @@ def test_loaded_sessions_keep_markdown_debug_records_out_of_nox_output(
 def test_configuration_gate_has_one_installed_owner() -> None:
     """Native configuration checks cannot require the ETHOS source Nox toolchain."""
     gate = load_gate_registry_declaration().registry()["config-quality"]
-    assert gate.providers == ("ethos.adapters.gates.configuration:configuration_report",)
+    assert gate.providers == ("provider.configuration",)
     assert not gate.command
     assert not (ROOT / "tools/ci/config_quality.py").exists()
 
@@ -278,7 +278,7 @@ def test_source_format_sessions_project_one_native_owner(*, checking: bool) -> N
 def test_source_format_gate_is_supplied_by_the_installed_product() -> None:
     declaration = load_gate_registry_declaration()
     gate = declaration.registry()["source-format"]
-    assert gate.providers == ("ethos.adapters.gates.formatting:source_format_report",)
+    assert gate.providers == ("provider.source-format",)
     assert gate.command == ()
     assert gate.writes_files is False
     assert gate.required_for_paths

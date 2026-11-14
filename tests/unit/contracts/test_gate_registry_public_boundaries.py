@@ -304,9 +304,7 @@ def test_native_gate_loader_rejects_unsupported_format(tmp_path: Path, version: 
 def test_skill_gate_identity_names_its_responsibility() -> None:
     """Gate selection and provider ownership do not expose development generations."""
     registry = repository_registry().registry()
-    assert registry["skills"].providers == (
-        "ethos.assistants.skills.portfolio:skill_portfolio_report",
-    )
+    assert registry["skills"].providers == ("provider.skill-portfolio",)
 
 
 def test_default_gate_declaration_ignores_caller_checkout(tmp_path: Path, monkeypatch) -> None:

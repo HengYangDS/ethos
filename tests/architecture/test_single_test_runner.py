@@ -14,7 +14,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tools.ci import sessions
 
 ROOT = Path(__file__).resolve().parents[2]
-_PROBE = "ethos.adapters.gates.python_quality:behavior_report"
+_PROBE = "provider.python-behavior"
 
 
 def _starts_pytest(values: list[object]) -> bool:

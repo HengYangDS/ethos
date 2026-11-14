@@ -34,6 +34,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   the ID to declare. A name that the catalog does not resolve refuses the proof with
   `gate_provider_unresolved:<gate>:<name>` before any gate runs. An earlier release refuses a
   registry that names an ID, so declare IDs once the release you would roll back to has the catalog.
+- The shipped gate registries name every provider by its catalog ID, so a proof records a shared
+  gate's provider under that ID, such as `provider.docs-registry`.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

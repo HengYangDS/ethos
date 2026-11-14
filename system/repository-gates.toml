@@ -9,7 +9,7 @@ full = ["repository-audit", "repository-hygiene", "skills", "generated-artifacts
 [[gates]]
 id = "repository-audit"
 kind = "governance"
-providers = ["provider.repository-audit", "provider.generated-artifacts"]
+providers = ["ethos.domain.status:audit_for_root", "ethos.adapters.gates.generated_artifacts:generated_artifact_gate_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
@@ -43,7 +43,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "generated-artifacts"
 kind = "governance"
-providers = ["provider.generated-artifacts"]
+providers = ["ethos.adapters.gates.generated_artifacts:generated_artifact_gate_report"]
 depends_on = ["unit-architecture", "ruff"]
 policy = "required"
 profile = "product"
@@ -61,7 +61,7 @@ version_source = "product"
 [[gates]]
 id = "product-boundary"
 kind = "governance"
-providers = ["provider.product-boundary", "provider.product-audit"]
+providers = ["ethos.repository.policy.boundary.product:product_boundary_report", "ethos.domain.status:product_audit"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
@@ -78,7 +78,7 @@ version_source = "product"
 [[gates]]
 id = "skills"
 kind = "governance"
-providers = ["provider.skill-portfolio"]
+providers = ["ethos.assistants.skills.portfolio:skill_portfolio_report"]
 policy = "required"
 profile = "product"
 toolchain = "ethos"
@@ -106,7 +106,7 @@ depends_on = [
   "format-selection",
   "architecture-projection",
 ]
-providers = ["provider.python-behavior"]
+providers = ["ethos.adapters.gates.python_quality:behavior_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -143,7 +143,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "code-static"
 kind = "lint"
-providers = ["provider.code-static"]
+providers = ["ethos.adapters.gates.code_quality:static_report"]
 policy = "required"
 profile = "repository"
 toolchain = "ethos"
@@ -160,7 +160,7 @@ version_source = "product"
 [[gates]]
 id = "module-layout"
 kind = "architecture"
-providers = ["provider.module-layout"]
+providers = ["ethos.adapters.gates.tool:module_layout_gate_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -216,7 +216,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "external-links"
 kind = "docs"
-providers = ["provider.external-links"]
+providers = ["ethos.adapters.gates.tool:external_links_report"]
 tools = ["lychee"]
 policy = "required"
 profile = "hosted"
@@ -251,7 +251,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "source-budget"
 kind = "determinism"
-providers = ["provider.source-budget"]
+providers = ["ethos.domain.source_budget.measurement:source_budget_report"]
 policy = "required"
 profile = "product"
 toolchain = "quality-adapter"
@@ -268,7 +268,7 @@ version_source = "product"
 [[gates]]
 id = "python-types"
 kind = "typing"
-providers = ["provider.python-types"]
+providers = ["ethos.adapters.gates.ty:ty_gate_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -338,7 +338,7 @@ id = "javascript-tests"
 kind = "test"
 depends_on = ["javascript-lint"]
 command = ["{python}", "-m", "nox", "-s", "javascript_tests"]
-verification_providers = ["provider.code-behavior"]
+verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
@@ -489,7 +489,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "commit-ranges"
 kind = "governance"
-providers = ["provider.commit-ranges"]
+providers = ["ethos.adapters.gates.commit_ranges:commit_ranges_report"]
 depends_on = ["repository-audit"]
 policy = "required"
 profile = "product"

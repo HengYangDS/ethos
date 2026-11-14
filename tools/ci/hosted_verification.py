@@ -38,7 +38,7 @@ PROVE = (
 DIAGNOSTIC_LINES = 200
 # The Python test gate's native output root; the shipped probe copies its attempt's reports here.
 REPORTS = Path("build/evidence/quality/tests")
-PROBE = "provider.python-behavior"
+PROBE = "ethos.adapters.gates.python_quality:behavior_report"
 
 
 def run(root: Path, head: str | None = None) -> int:

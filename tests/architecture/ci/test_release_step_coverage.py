@@ -1,4 +1,4 @@
-"""Release steps run on every commit, and tools/ci gets native tools the same way on every host."""
+"""Release steps run before a release, and tools/ci gets native tools the same way on every host."""
 
 from __future__ import annotations
 
@@ -46,16 +46,18 @@ def test_the_staging_command_accepts_every_registered_native_tool():
     assert set(choices[1].split(",")) == {*NATIVE_BACKENDS, "node"}
 
 
-def test_each_release_platform_catalogs_its_kept_archive_on_every_commit():
-    """Host-conformance legs that match a release leg run the release's inventory step."""
+def test_each_release_platform_catalogs_its_kept_archive_in_host_conformance():
+    """A conformance leg on a release leg's platform and Python runs its inventory step."""
     jobs = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
     legs = jobs["release-platforms"]["strategy"]["matrix"]["include"]
-    pairs = {f"{leg['os']} {leg['python']}" for leg in legs}
+    pairs = {f"{leg['host']} {leg['python']}" for leg in legs}
     steps = jobs["host-conformance"]["steps"]
     runs = [str(step.get("run", "")) for step in steps]
     catalog = next(i for i, run in enumerate(runs) if run.endswith("nox -s supply_chain"))
     assert runs.index("uv run --frozen python -m nox -s host_conformance") < catalog
-    pattern = r"contains\(fromJSON\('(.+)'\), format\('\{0\} \{1\}', matrix\.os, matrix\.python\)\)"
+    pattern = (
+        r"contains\(fromJSON\('(.+)'\), format\('\{0\} \{1\}', matrix\.platform, matrix\.python\)\)"
+    )
     selection = re.fullmatch(r"\$\{\{ " + pattern + r" \}\}", steps[catalog]["if"])
     assert selection is not None
     assert set(json.loads(selection[1])) == pairs

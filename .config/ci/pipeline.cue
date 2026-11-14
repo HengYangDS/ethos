@@ -16,7 +16,7 @@ _inputs: {
 	}
 	mise: {tools: {node: string, uv: string, ...}, ...}
 }
-#Gate: {id: string, depends_on: *[] | [...string], ...}
+#Gate: {id: string, depends_on: *[] | [...string], timeout_seconds: *0 | int, ...}
 _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
@@ -49,6 +49,23 @@ let commitScopedRules = [{
 	when: "never"
 }, {
 	when: "on_success"
+}]
+
+// GitLab's role by event. A ref that ETHOS publishes to both Forges gets its full set once, on
+// GitHub, so a dev or proposal push runs admission and conformance here. The full set stays for
+// what GitHub does not verify: a merge request, a main whose tree differs from dev, a batch head
+// that the release lane's owner qualifies before its tag, and the drift schedule.
+let scheduled = "$CI_PIPELINE_SOURCE == \"schedule\""
+let batchHead = "($CI_PIPELINE_SOURCE == \"web\" || $CI_PIPELINE_SOURCE == \"api\") && $CI_COMMIT_BRANCH =~ /^proposal\\/.+$/"
+let conformanceRules = list.Concat([[{if: scheduled}], commitScopedRules])
+let fullSetRules = [{
+	if: scheduled
+}, {
+	if: "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+}, {
+	if: batchHead
+}, commitScopedRules[0], {
+	when: "never"
 }]
 
 // One bootstrap order for every Linux job: build-only dependencies make the editable source
@@ -89,8 +106,9 @@ let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPL
 let githubPythonBootstrap = list.Concat([[{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {
-		"fetch-depth": 0
-		ref:           githubSourceSHA
+		"fetch-depth":         0
+		ref:                   githubSourceSHA
+		"persist-credentials": false
 	}
 }, {
 	uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
@@ -119,19 +137,93 @@ let journeyRun = "github.event_name == 'workflow_dispatch' && inputs.journey_tag
 // A scan run reports one already published release's advisories again from its inventories.
 let scanRun = "github.event_name == 'workflow_dispatch' && inputs.scan_tag != ''"
 
+// A batch-head dispatch names the commit it qualifies on every platform and Python version before
+// the release lane tags it. A run at any other commit qualifies nothing: its commit-scoped jobs
+// are skipped and the aggregate fails.
+let qualifyRun = "github.event_name == 'workflow_dispatch' && inputs.qualify_head != ''"
+let headMatches = "inputs.qualify_head == '' || inputs.qualify_head == github.sha"
+
+// The drift schedule runs every tier on the default branch. Saturday 19:00 UTC is provisional
+// until the owner confirms it.
+let driftSchedule = "0 19 * * 6"
+let fullRun = "(\(qualifyRun)) || github.event_name == 'schedule'"
+
 // A main push moves main to the accepted commit that dev's run of the same commit verifies, so it
 // repeats none of the commit-scoped jobs and only admits its pushed range (decision D11).
 let mainPush = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
-let commitRun = "\(regularRun) && !(\(mainPush))"
+let commitRun = "\(regularRun) && !(\(mainPush)) && (\(headMatches))"
 let pushedRange = "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
+let pullRequestRange = "\(sourceCLI) hook commit-range --target-ref \"refs/heads/${{ github.event.pull_request.base.ref }}\" --proposed-head \"${{ github.event.pull_request.head.sha }}\" --remote-head \"${{ github.event.pull_request.base.sha }}\" --remote origin --root . --json"
 
-// A newer push of a proposal ref replaces the head that its earlier run verifies, so that run is
-// cancelled. Every other run has a group of its own and never waits for or cancels another.
+// The per-push jobs and the condition each runs under. Every push and pull request admits its own
+// range once, in commit-policy. The aggregate requires success of a required job whose condition
+// holds and expects any other to be skipped, so a job that wrongly skips fails it. The external
+// link job observes sites that the repository does not own: it reports and is allowed to fail on
+// both providers, so the aggregate neither needs it nor reads its result.
+let admissionRun = "github.event_name == 'push' || github.event_name == 'pull_request'"
+let requiredJobs = {
+	"commit-policy":    admissionRun
+	"host-conformance": commitRun
+	quality:            commitRun
+}
+let perPushJobs = {
+	requiredJobs
+	"external-links": commitRun
+}
+let expectedResults = strings.Join([for job, condition in requiredJobs {"needs.\(job).result == ((\(condition)) && 'success' || 'skipped')"}], " && ")
+
+// A newer push of a proposal ref, or to a pull request, replaces the head that its earlier run
+// verifies, so that run is cancelled. Every other run has a group of its own and never waits for
+// or cancels another.
 let proposalPush = "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/')"
-let concurrencyGroup = "\(proposalPush) && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id)"
+let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request') && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id)"
+
+// Minutes per job class, the one table of hosted timeouts. Each exceeds the longest timeout of
+// the gates its class runs, which compiled.checks enforces. Provisional: the lane owner replaces
+// each value from the measured p99 of its class; supply, release and publication are unsurveyed.
+let timeoutMinutes = {
+	admission:   20
+	conformance: 40
+	windows:     60
+	emulated:    100
+	fullSet:     130
+	observation: 20
+	aggregate:   5
+	supply:      90
+	release:     120
+	publication: 45
+}
+
+// The gates whose commands a job class runs; the full set is the registry's own.
+let conformanceGates = ["build", "local-install-smoke", "javascript-tests", "release-sbom"]
+let classGates = {
+	admission: ["commit-ranges"]
+	conformance: conformanceGates
+	windows:     conformanceGates
+	emulated:    conformanceGates
+	release:     conformanceGates
+	fullSet:     _inputs.gate_registry.proof_sets.full
+	observation: ["external-links", "javascript-tests"]
+}
 
 // Windows on Arm executes the x64 runtime through its emulation; CEL ships no win_arm64 wheel.
 let windowsArmLeg = {os: "windows-11-arm", python: "cpython-3.14-windows-x86_64-none"}
+
+// Host conformance runs in tiers. A leg is named by its platform id and Python version; the
+// runner label that provides the platform may change without renaming the job. A push or pull
+// request runs the push tier, the lane owner's typed input adds the Windows legs, and a batch-head
+// dispatch or the drift schedule runs every leg.
+let pythons = ["3.12", "3.13", "3.14"]
+let pushLegs = list.Concat([[for version in pythons {
+	{platform: "linux-x64", runner: "ubuntu-latest", python: version, timeout: timeoutMinutes.conformance}
+}], [{platform: "macos-arm64", runner: "macos-latest", python: pythons[0], timeout: timeoutMinutes.conformance}]])
+let windowsLegs = list.Concat([[for version in pythons {
+	{platform: "windows-x64", runner: "windows-latest", python: version, timeout: timeoutMinutes.windows}
+}], [{platform: "windows-arm64", runner: windowsArmLeg.os, python: windowsArmLeg.python, timeout: timeoutMinutes.emulated}]])
+let fullLegs = list.Concat([pushLegs, [for version in pythons if version != pythons[0] {
+	{platform: "macos-arm64", runner: "macos-latest", python: version, timeout: timeoutMinutes.conformance}
+}], windowsLegs])
+let conformanceTier = "${{ fromJSON((\(fullRun)) && '\(json.Marshal(fullLegs))' || inputs.windows_legs && '\(json.Marshal(list.Concat([pushLegs, windowsLegs])))' || '\(json.Marshal(pushLegs))') }}"
 
 // Each release leg qualifies the one host platform it declares, on the runner that provides it.
 // A required platform must publish; an optional one is left out and named when its leg fails.
@@ -143,7 +235,7 @@ let releaseLegs = [
 	{host: "windows-x64", os: "windows-latest", python: "3.14", required: false, emulated: false},
 	windowsArmLeg & {host: "windows-arm64", required: false, emulated: true},
 ]
-let releaseLegRun = "${{ contains(fromJSON('\(json.Marshal([for leg in releaseLegs {"\(leg.os) \(leg.python)"}]))'), format('{0} {1}', matrix.os, matrix.python)) }}"
+let releaseLegRun = "${{ contains(fromJSON('\(json.Marshal([for leg in releaseLegs {"\(leg.host) \(leg.python)"}]))'), format('{0} {1}', matrix.platform, matrix.python)) }}"
 let releaseHosts = "--required \(strings.Join([for leg in releaseLegs if leg.required {leg.host}], ",")) --optional \(strings.Join([for leg in releaseLegs if !leg.required {leg.host}], ","))"
 
 // The adopter journey runs from the published artifacts on the platforms a beta must qualify.
@@ -157,8 +249,9 @@ let githubHostSupplyAt = {
 	out: [{
 		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 		with: {
-			"fetch-depth": 0
-			ref:           checkout
+			"fetch-depth":         0
+			ref:                   checkout
+			"persist-credentials": false
 		}
 	}, {
 		uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
@@ -205,6 +298,16 @@ compiled: {
 				"dependency:\(gate.id):\(dependency)": true & list.Contains(_gateIDs, dependency)
 			}
 		}
+
+		// A job outlives every gate it runs, so a gate's own deadline reports before the job's.
+		for class, ids in classGates {
+			for id in ids {
+				"timeout-gate:\(class):\(id)": true & list.Contains(_gateIDs, id)
+			}
+			for gate in _inputs.gate_registry.gates if list.Contains(ids, gate.id) {
+				"timeout:\(class):\(gate.id)": true & (timeoutMinutes[class]*60 > gate.timeout_seconds)
+			}
+		}
 	}
 	providers: {github: githubView, gitlab: gitlabView}
 }
@@ -218,6 +321,7 @@ github: {
 			"main",
 			"proposal/**",
 		]
+		schedule: [{cron: driftSchedule}]
 		workflow_dispatch: inputs: {
 			supply_image: {
 				description: "Build the locked Linux ARM64 CI supply image"
@@ -255,6 +359,18 @@ github: {
 				type:        "string"
 				default:     ""
 			}
+			qualify_head: {
+				description: "Qualify this exact commit, the head of the dispatching ref, on every platform and Python version"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			windows_legs: {
+				description: "Add the Windows host conformance legs to this run"
+				required:    false
+				type:        "boolean"
+				default:     false
+			}
 		}
 	}
 	permissions: contents: "read"
@@ -271,8 +387,9 @@ github: {
 			name: "locked Linux ARM64 supply"
 			// A lane that changes a hashed supply input builds its image from its proposal ref, so the
 			// binding lands with that input and GitLab never verifies a head without its supply.
-			if:        "${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}"
-			"runs-on": "ubuntu-24.04-arm"
+			if:                "${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}"
+			"runs-on":         "ubuntu-24.04-arm"
+			"timeout-minutes": timeoutMinutes.supply
 			permissions: {
 				contents: "read"
 				packages: "write"
@@ -280,8 +397,9 @@ github: {
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 				with: {
-					"fetch-depth": 0
-					ref:           githubSourceSHA
+					"fetch-depth":         0
+					ref:                   githubSourceSHA
+					"persist-credentials": false
 				}
 			}, {
 				// A build check reads every stage, so the smoke stage's named context must resolve.
@@ -310,29 +428,30 @@ github: {
 			}]
 		}
 		"commit-policy": {
-			name:      "commit policy"
-			"runs-on": "ubuntu-24.04-arm"
-			if:        "${{ \(mainPush) }}"
+			name:              "commit policy"
+			"runs-on":         "ubuntu-24.04-arm"
+			if:                "${{ \(perPushJobs["commit-policy"]) }}"
+			"timeout-minutes": timeoutMinutes.admission
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "Admit pushed commit range"
+				if:   "github.event_name == 'push'"
 				run:  pushedRange
+			}, {
+				name: "Admit pull request commit range"
+				if:   "github.event_name == 'pull_request'"
+				run:  pullRequestRange
 			}]])
 		}
 		"host-conformance": {
-			name:      "${{ matrix.os }} / Python ${{ matrix.python }}"
-			"runs-on": "${{ matrix.os }}"
-			if:        "${{ \(commitRun) }}"
+			name:              "${{ matrix.platform }} / Python ${{ matrix.python }}"
+			"runs-on":         "${{ matrix.runner }}"
+			if:                "${{ \(perPushJobs["host-conformance"]) }}"
+			"timeout-minutes": "${{ matrix.timeout }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
 			strategy: {
 				"fail-fast": false
-				matrix: {
-					os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-					python: ["3.12", "3.13", "3.14"]
-					// A proposal push leaves its slowest pair, Windows on Arm, to dev's run of the
-					// landed commit, which is the proposal's exact commit.
-					include: "${{ fromJSON(\(proposalPush) && '[]' || '\(json.Marshal([windowsArmLeg]))') }}"
-				}
+				matrix: include: conformanceTier
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
 				name: "Execute wheel conformance"
@@ -352,7 +471,7 @@ github: {
 				if:   "always()"
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
-					name: "host-conformance-${{ matrix.os }}-py${{ matrix.python }}"
+					name: "host-conformance-${{ matrix.platform }}-py${{ matrix.python }}"
 					path: """
 						build/evidence/local-install/smoke.json
 						build/evidence/local-install/smoke.events.jsonl
@@ -362,19 +481,12 @@ github: {
 			}]])
 		}
 		quality: {
-			name:      "quality gates"
-			"runs-on": "ubuntu-24.04-arm"
-			if:        "${{ \(commitRun) }}"
+			name:              "quality gates"
+			"runs-on":         "ubuntu-24.04-arm"
+			"timeout-minutes": timeoutMinutes.fullSet
+			if:                "${{ \(perPushJobs.quality) }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: list.Concat([githubPythonBootstrap, [{
-				name: "Admit pushed commit range"
-				if:   "github.event_name == 'push'"
-				run:  pushedRange
-			}, {
-				name: "Admit pull request commit range"
-				if:   "github.event_name == 'pull_request'"
-				run:  "\(sourceCLI) hook commit-range --target-ref \"refs/heads/${{ github.event.pull_request.base.ref }}\" --proposed-head \"${{ github.event.pull_request.head.sha }}\" --remote-head \"${{ github.event.pull_request.base.sha }}\" --remote origin --root . --json"
-			}, {
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
 				name: "HEAD-bound hosted verification receipt"
@@ -410,7 +522,8 @@ github: {
 		"external-links": {
 			name:                "external link health"
 			"runs-on":           "ubuntu-latest"
-			if:                  "${{ \(commitRun) }}"
+			"timeout-minutes":   timeoutMinutes.observation
+			if:                  "${{ \(perPushJobs["external-links"]) }}"
 			"continue-on-error": true
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "External links"
@@ -426,35 +539,32 @@ github: {
 				}
 			}]])
 		}
-		verify: {
-			name:      "repository proof"
+		// One aggregate reports the per-push jobs under a stable name, so a forge requires one
+		// check. Its result is a host observation: a runner holds no repository proof.
+		"hosted-checks": {
+			name:      "hosted checks"
 			"runs-on": "ubuntu-latest"
-			needs:     "quality"
-			if:        "${{ always() && \(commitRun) }}"
+			needs: [for job, _ in requiredJobs {job}]
+			if:                "${{ always() && (github.event_name != 'workflow_dispatch' || (\(regularRun))) }}"
+			"timeout-minutes": timeoutMinutes.aggregate
 			steps: [{
-				name: "Require successful hosted execution and artifact publication"
-				env: QUALITY_RESULT: "${{ needs.quality.result }}"
-				run: "test \"$QUALITY_RESULT\" = success"
-			}]
-		}
-		package: {
-			name:      "package artifacts"
-			"runs-on": "ubuntu-latest"
-			needs:     "quality"
-			if:        "${{ always() && \(commitRun) }}"
-			steps: [{
-				name: "Require successful hosted execution and artifact publication"
-				env: QUALITY_RESULT: "${{ needs.quality.result }}"
-				run: "test \"$QUALITY_RESULT\" = success"
+				name: "Require the expected result of every per-push job"
+				env: EXPECTED: "${{ \(expectedResults) }}"
+				run: "test \"$EXPECTED\" = true"
+			}, {
+				name: "Require the head that the dispatch qualifies"
+				env: QUALIFIED: "${{ \(headMatches) }}"
+				run: "test \"$QUALIFIED\" = true"
 			}]
 		}
 		// The signed tag admits each build: a runner holds no repository proof. The wheel carries
 		// its platform's Node and Vale, so every platform builds and qualifies its own wheel and
 		// retains it beside the archive its release smoke built.
 		"release-platforms": {
-			name:      "release runtime ${{ matrix.host }}"
-			"runs-on": "${{ matrix.os }}"
-			if:        "${{ \(releaseRun) }}"
+			name:              "release runtime ${{ matrix.host }}"
+			"runs-on":         "${{ matrix.os }}"
+			"timeout-minutes": timeoutMinutes.release
+			if:                "${{ \(releaseRun) }}"
 			// Only a leg that the declaration marks optional may fail without failing the run.
 			"continue-on-error": "${{ !matrix.required }}"
 			env: {
@@ -498,10 +608,11 @@ github: {
 			}]])
 		}
 		"release-publish": {
-			name:      "release publication"
-			"runs-on": "ubuntu-latest"
-			needs:     "release-platforms"
-			if:        "${{ !cancelled() && \(releaseRun) }}"
+			name:              "release publication"
+			"runs-on":         "ubuntu-latest"
+			"timeout-minutes": timeoutMinutes.publication
+			needs:             "release-platforms"
+			if:                "${{ !cancelled() && \(releaseRun) }}"
 			permissions: {
 				contents:     "write"
 				"id-token":   "write"
@@ -509,7 +620,10 @@ github: {
 			}
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				with: ref: releaseTagRef
+				with: {
+					ref:                   releaseTagRef
+					"persist-credentials": false
+				}
 			}, {
 				uses: "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 				with: {
@@ -539,6 +653,7 @@ github: {
 		"release-binary-scan": {
 			name:                "release binary scan"
 			"runs-on":           "ubuntu-latest"
+			"timeout-minutes":   timeoutMinutes.publication
 			needs:               "release-publish"
 			if:                  "${{ !cancelled() && ((\(releaseRun) && needs.release-publish.result == 'success') || (\(scanRun))) }}"
 			"continue-on-error": true
@@ -562,10 +677,11 @@ github: {
 			}]])
 		}
 		"release-journey": {
-			name:      "release journey ${{ matrix.host }}"
-			"runs-on": "${{ matrix.os }}"
-			needs:     "release-publish"
-			if:        "${{ !cancelled() && ((\(releaseRun) && needs.release-publish.result == 'success') || (\(journeyRun))) }}"
+			name:              "release journey ${{ matrix.host }}"
+			"runs-on":         "${{ matrix.os }}"
+			"timeout-minutes": timeoutMinutes.release
+			needs:             "release-publish"
+			if:                "${{ !cancelled() && ((\(releaseRun) && needs.release-publish.result == 'success') || (\(journeyRun))) }}"
 			permissions: {
 				contents:     "read"
 				attestations: "read"
@@ -606,11 +722,20 @@ gitlab: {
 	]
 
 	// Candidate integration is local-only. Hosted pipelines run only for remote-eligible
-	// branches, plus merge-request validation. A new commit of a proposal ref cancels the jobs of
-	// the pipeline it supersedes; no new commit cancels a dev, main or merge-request pipeline.
+	// branches, plus merge-request validation. A new commit of a proposal ref or of a merge
+	// request cancels the jobs of the pipeline it supersedes; no new commit cancels a dev, main,
+	// scheduled or batch-head pipeline. A batch-head pipeline declares the head it qualifies in
+	// ETHOS_QUALIFY_HEAD; at any other commit it is not created, so it never passes without the
+	// full set.
 	workflow: {
 		rules: [{
 			if: "$CI_PIPELINE_SOURCE == \"merge_request_event\""
+			auto_cancel: on_new_commit: "interruptible"
+		}, {
+			if:   "\(batchHead) && $ETHOS_QUALIFY_HEAD != $CI_COMMIT_SHA"
+			when: "never"
+		}, {
+			if: batchHead
 			auto_cancel: on_new_commit: "none"
 		}, {
 			if: "$CI_COMMIT_BRANCH == \"dev\" || $CI_COMMIT_BRANCH == \"main\""
@@ -665,6 +790,7 @@ gitlab: {
 		image:         gitlabImage
 		before_script: gitlabBootstrap
 		stage:         "quality"
+		timeout:       "\(timeoutMinutes.admission) minutes"
 		variables: GIT_STRATEGY: "clone"
 		rules: [{
 			if: "$CI_PIPELINE_SOURCE == \"push\""
@@ -696,7 +822,8 @@ gitlab: {
 		image:         gitlabImage
 		before_script: gitlabBootstrap
 		stage:         "verify"
-		rules:         commitScopedRules
+		timeout:       "\(timeoutMinutes.conformance) minutes"
+		rules:         conformanceRules
 		script: ["\(offlineRun) python -m nox -s host_conformance"]
 		artifacts: {
 			when: "always"
@@ -710,7 +837,8 @@ gitlab: {
 		image:         gitlabImage
 		before_script: gitlabBootstrap
 		stage:         "verify"
-		rules:         commitScopedRules
+		timeout:       "\(timeoutMinutes.fullSet) minutes"
+		rules:         fullSetRules
 		variables: {
 			// GIT_DEPTH=0 does not repair a runner checkout that was previously
 			// shallow. Reclone this history-sensitive execution owner so replay can
@@ -749,7 +877,8 @@ gitlab: {
 	"ethos:external-links": {
 		image:         gitlabImage
 		stage:         "verify"
-		rules:         commitScopedRules
+		timeout:       "\(timeoutMinutes.observation) minutes"
+		rules:         fullSetRules
 		allow_failure: true
 		before_script: gitlabBootstrap
 		script: ["\(offlineRun) python -m nox -s external_links"]
@@ -759,8 +888,9 @@ gitlab: {
 		}
 	}
 	"ethos:npm": {
-		stage: "verify"
-		rules: commitScopedRules
+		stage:   "verify"
+		timeout: "\(timeoutMinutes.observation) minutes"
+		rules:   conformanceRules
 		variables: NODE_VERSION: _inputs.mise.tools.node
 		// The shared cache preparer owns Node; Nox owns package test execution.
 		image:         gitlabImage

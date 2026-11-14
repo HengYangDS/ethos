@@ -49,10 +49,8 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert not set(gitlab["variables"]) & {"UV_OFFLINE", "NPM_CONFIG_OFFLINE"}
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
-    jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
+    jobs = {"quality": github["jobs"]["quality"]}
     assert jobs["quality"]["runs-on"] == "ubuntu-24.04-arm"
-    platforms = github["jobs"]["host-conformance"]["strategy"]["matrix"]["os"]
-    assert set(platforms) == {"ubuntu-latest", "windows-latest", "macos-latest"}
     assert {
         github["jobs"][name]["steps"][0]["with"].get("ref")
         for name in ("quality", "host-conformance", "supply-image", "external-links")
@@ -247,29 +245,41 @@ def test_hosted_pipeline_does_not_launch_nonexecuted_provider_observation(github
     assert "ETHOS_HOSTED_OBSERVATION_EXECUTE" not in gitlab["ethos:verify"].get("variables", {})
 
 
-@pytest.mark.parametrize(
-    ("job", "name"), [("verify", "repository proof"), ("package", "package artifacts")]
-)
-def test_required_github_checks_project_only_successful_execution(github, job, name) -> None:
-    projected = github["jobs"][job]
-    assert projected["name"] == name
-    assert projected["needs"] == "quality"
-    assert projected["if"] == github["jobs"]["quality"]["if"].replace("${{ ", "${{ always() && ")
-    (step,) = projected["steps"]
-    assert step["env"] == {"QUALITY_RESULT": "${{ needs.quality.result }}"}
-    for result in ("success", "failure", "cancelled", "skipped", ""):
-        observed = run_command(
-            ROOT,
-            ("bash", "-c", step["run"]),
-            env=os.environ | {"QUALITY_RESULT": result},
-            timeout=seconds("tool"),
-        )
-        assert (observed.returncode == 0) == (result == "success")
+def test_one_aggregate_check_expects_each_per_push_job_to_end_as_its_condition_says(github) -> None:
+    jobs = github["jobs"]
+    # The external link job observes sites the repository does not own: it reports, is allowed to
+    # fail on both providers, and the aggregate neither needs it nor reads its result.
+    needed = ("commit-policy", "host-conformance", "quality")
+    assert jobs["external-links"]["continue-on-error"] is True
+    aggregate = jobs["hosted-checks"]
+    assert (aggregate["name"], aggregate["needs"]) == ("hosted checks", list(needed))
+    assert aggregate["if"].startswith("${{ always() && ")
+    assert not {"verify", "package"} & set(jobs)
+    assert not any("needs" in jobs[name] for name in needed)
+    # A job whose condition holds must succeed; elsewhere it must have been skipped.
+    expected = " && ".join(
+        f"needs.{name}.result == (({jobs[name]['if'][4:-3]}) && 'success' || 'skipped')"
+        for name in needed
+    )
+    head = "inputs.qualify_head == '' || inputs.qualify_head == github.sha"
+    results, qualified = aggregate["steps"]
+    assert results["env"] == {"EXPECTED": f"${{{{ {expected} }}}}"}
+    assert qualified["env"] == {"QUALIFIED": f"${{{{ {head} }}}}"}
+    for step in (results, qualified):
+        (variable,) = step["env"]
+        for value in ("true", "false", ""):
+            observed = run_command(
+                ROOT,
+                ("bash", "-c", step["run"]),
+                env=os.environ | {variable: value},
+                timeout=seconds("tool"),
+            )
+            assert (observed.returncode == 0) == (value == "true")
 
 
 def test_integration_events_transport_exact_commit_range_coordinates(github, gitlab) -> None:
     github_steps = {
-        step["name"]: step for step in github["jobs"]["quality"]["steps"] if "name" in step
+        step["name"]: step for step in github["jobs"]["commit-policy"]["steps"] if "name" in step
     }
     for event, name, fields in (
         ("push", "Admit pushed commit range", ("ref", "sha", "event.before")),

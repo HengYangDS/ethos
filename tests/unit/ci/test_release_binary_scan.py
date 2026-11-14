@@ -136,7 +136,7 @@ def test_the_scan_job_reads_only_and_never_blocks_the_release():
     jobs = workflow["jobs"]
     dispatch = (workflow.get("on") or workflow[True])["workflow_dispatch"]["inputs"]
     assert dispatch["scan_tag"]["default"] == ""
-    regular = ("host-conformance", "quality", "external-links", "verify", "package")
+    regular = ("host-conformance", "quality", "external-links", "hosted-checks")
     assert all("!inputs.scan_tag" in jobs[name]["if"] for name in regular)
     scan = jobs["release-binary-scan"]
     assert "inputs.scan_tag != ''" in scan["if"]

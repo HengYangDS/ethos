@@ -196,8 +196,7 @@ def test_an_emulating_host_publishes_the_archive_itqualified_leg(tmp_path):
 def test_each_release_leg_declares_the_host_its_runner_provides():
     """A leg's host is declared, since Windows reports its CPU to an emulated interpreter.
 
-    Host conformance runs the emulated pair for every event but a proposal push, whose landed
-    commit `dev`'s run verifies on it.
+    Host conformance's tiers and their legs are declared, and every leg names its platform.
     """
     jobs = yaml.safe_load((_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))["jobs"]
     release = jobs["release-platforms"]
@@ -214,14 +213,29 @@ def test_each_release_leg_declares_the_host_its_runner_provides():
     steps = release["steps"]
     uploads = [step["with"]["name"] for step in steps if "upload-artifact" in step.get("uses", "")]
     assert uploads == ["release-runtime-${{ matrix.host }}"]
+    # Host conformance runs in three tiers: every leg for a batch-head dispatch or the drift
+    # schedule, the push legs with the Windows legs when the lane owner asks, and the push legs
+    # for every other event, a proposal push included.
     selection = re.fullmatch(
-        r"\$\{\{ fromJSON\((.+) && '\[\]' \|\| '(.+)'\) \}\}",
+        r"\$\{\{ fromJSON\(\((.+)\) && '(\[.*?\])' \|\| inputs\.windows_legs && '(.*?)'"
+        r" \|\| '(\[.*\])'\) \}\}",
         jobs["host-conformance"]["strategy"]["matrix"]["include"],
+        re.S,
     )
     assert selection is not None
-    proposal_push = "github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/')"
-    assert selection[1] == proposal_push
-    assert json.loads(selection[2]) == [dict(zip(("os", "python"), emulated, strict=True))]
+    full_run = "github.event_name == 'schedule'"
+    assert full_run in selection[1]
+    push_legs = json.loads(selection[4])
+    assert [leg["platform"] for leg in push_legs] == ["linux-x64"] * 3 + ["macos-arm64"]
+    assert [leg["python"] for leg in push_legs] == ["3.12", "3.13", "3.14", "3.12"]
+    windows = {"platform": "windows-arm64", "runner": emulated[0], "python": emulated[1]}
+    assert len(json.loads(selection[2])) > len(push_legs)
+    with_windows = json.loads(selection[3])
+    assert with_windows[: len(push_legs)] == push_legs
+    assert any(
+        {key: leg[key] for key in ("platform", "runner", "python")} == windows
+        for leg in with_windows
+    )
 
 
 def test_the_release_attests_its_archives_and_wheels_before_it_exists():

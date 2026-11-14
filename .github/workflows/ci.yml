@@ -6,6 +6,8 @@ name: ETHOS CI
       - dev
       - main
       - proposal/**
+  schedule:
+    - cron: 0 19 * * 6
   workflow_dispatch:
     inputs:
       supply_image:
@@ -38,10 +40,20 @@ name: ETHOS CI
         required: false
         type: string
         default: ""
+      qualify_head:
+        description: Qualify this exact commit, the head of the dispatching ref, on every platform and Python version
+        required: false
+        type: string
+        default: ""
+      windows_legs:
+        description: Add the Windows host conformance legs to this run
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/') && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id) }}
+  group: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/') || github.event_name == 'pull_request') && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id) }}
   cancel-in-progress: true
 env:
   PYTHONWARNINGS: error
@@ -53,6 +65,7 @@ jobs:
     name: locked Linux ARM64 supply
     if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -61,6 +74,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Check the supply definition
         run: docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile --build-context workspace=. .
       - name: Accept the supply offline against this checkout
@@ -79,7 +93,8 @@ jobs:
   commit-policy:
     name: commit policy
     runs-on: ubuntu-24.04-arm
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    timeout-minutes: 20
     env:
       ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
     steps:
@@ -87,94 +102,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
-        with:
-          version: 0.13.7
-          python-version: "3.14"
-      - name: Provision native Python image supply
-        run: uv python install --no-bin 3.14
-      - name: Synchronize build-only Python dependencies
-        run: uv sync --locked --no-install-project --group dev
-      - name: Synchronize locked Python environment
-        run: uv sync --locked --group dev
-      - name: Prepare locked native tool supply
-        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
-      - name: Install locked npm packages
-        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
-      - name: Provision test fixture supply
-        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
-      - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
-      - name: Admit pushed commit range
-        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
-  host-conformance:
-    name: ${{ matrix.os }} / Python ${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-    env:
-      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-        python:
-          - "3.12"
-          - "3.13"
-          - "3.14"
-        include: ${{ fromJSON(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/proposal/') && '[]' || '[{"os":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none"}]') }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
-        with:
-          version: 0.13.7
-          python-version: ${{ matrix.python }}
-      - name: Provision native Python image supply
-        run: uv python install --no-bin ${{ matrix.python }}
-      - name: Synchronize build-only Python dependencies
-        run: uv sync --locked --no-install-project --group dev
-      - name: Prepare locked native build supply
-        env:
-          PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
-      - name: Install locked npm packages
-        env:
-          PYTHONPATH: src
-        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
-      - name: Synchronize locked Python environment
-        run: uv sync --locked --group dev
-      - name: Execute wheel conformance
-        run: uv run --frozen python -m nox -s host_conformance
-      - name: Declare the components of the kept runtime archive
-        if: ${{ contains(fromJSON('["ubuntu-latest 3.14","ubuntu-24.04-arm 3.14","macos-latest 3.14","windows-latest 3.14","windows-11-arm cpython-3.14-windows-x86_64-none"]'), format('{0} {1}', matrix.os, matrix.python)) }}
-        run: uv run --frozen python -m nox -s supply_chain
-      - name: Execute native npm package tests
-        run: uv run --frozen python -m nox -s javascript_tests
-      - name: Upload host conformance receipt
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: host-conformance-${{ matrix.os }}-py${{ matrix.python }}
-          path: |-
-            build/evidence/local-install/smoke.json
-            build/evidence/local-install/smoke.events.jsonl
-          if-no-files-found: error
-  quality:
-    name: quality gates
-    runs-on: ubuntu-24.04-arm
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-    env:
-      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7
@@ -199,6 +127,88 @@ jobs:
       - name: Admit pull request commit range
         if: github.event_name == 'pull_request'
         run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
+  host-conformance:
+    name: ${{ matrix.platform }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.runner }}
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
+    timeout-minutes: ${{ matrix.timeout }}
+    env:
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":40},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":40},{"platform":"macos-arm64","runner":"macos-latest","python":"3.13","timeout":40},{"platform":"macos-arm64","runner":"macos-latest","python":"3.14","timeout":40},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":60},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":60},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":60},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":100}]' || inputs.windows_legs && '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":40},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":40},{"platform":"windows-x64","runner":"windows-latest","python":"3.12","timeout":60},{"platform":"windows-x64","runner":"windows-latest","python":"3.13","timeout":60},{"platform":"windows-x64","runner":"windows-latest","python":"3.14","timeout":60},{"platform":"windows-arm64","runner":"windows-11-arm","python":"cpython-3.14-windows-x86_64-none","timeout":100}]' || '[{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.12","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.13","timeout":40},{"platform":"linux-x64","runner":"ubuntu-latest","python":"3.14","timeout":40},{"platform":"macos-arm64","runner":"macos-latest","python":"3.12","timeout":40}]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.7
+          python-version: ${{ matrix.python }}
+      - name: Provision native Python image supply
+        run: uv python install --no-bin ${{ matrix.python }}
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Execute wheel conformance
+        run: uv run --frozen python -m nox -s host_conformance
+      - name: Declare the components of the kept runtime archive
+        if: ${{ contains(fromJSON('["linux-x64 3.14","linux-arm64 3.14","macos-arm64 3.14","windows-x64 3.14","windows-arm64 cpython-3.14-windows-x86_64-none"]'), format('{0} {1}', matrix.platform, matrix.python)) }}
+        run: uv run --frozen python -m nox -s supply_chain
+      - name: Execute native npm package tests
+        run: uv run --frozen python -m nox -s javascript_tests
+      - name: Upload host conformance receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: host-conformance-${{ matrix.platform }}-py${{ matrix.python }}
+          path: |-
+            build/evidence/local-install/smoke.json
+            build/evidence/local-install/smoke.events.jsonl
+          if-no-files-found: error
+  quality:
+    name: quality gates
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 130
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.7
+          python-version: "3.14"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.14
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare locked native tool supply
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
+      - name: Install locked npm packages
+        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
       - name: HEAD-bound hosted verification receipt
         run: uv run --frozen --offline --no-sync python -m nox -s hosted_verification
       - name: Upload proof receipt
@@ -222,13 +232,15 @@ jobs:
   external-links:
     name: external link health
     runs-on: ubuntu-latest
-    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    timeout-minutes: 20
+    if: ${{ !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha) }}
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7
@@ -256,29 +268,28 @@ jobs:
           name: ethos-external-link-health
           path: build/evidence/quality/external-links/report.json
           if-no-files-found: error
-  verify:
-    name: repository proof
+  hosted-checks:
+    name: hosted checks
     runs-on: ubuntu-latest
-    needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    needs:
+      - commit-policy
+      - host-conformance
+      - quality
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag)) }}
+    timeout-minutes: 5
     steps:
-      - name: Require successful hosted execution and artifact publication
+      - name: Require the expected result of every per-push job
         env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-        run: test "$QUALITY_RESULT" = success
-  package:
-    name: package artifacts
-    runs-on: ubuntu-latest
-    needs: quality
-    if: ${{ always() && !inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-    steps:
-      - name: Require successful hosted execution and artifact publication
+          EXPECTED: ${{ needs.commit-policy.result == ((github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped') && needs.host-conformance.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.quality.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') }}
+        run: test "$EXPECTED" = true
+      - name: Require the head that the dispatch qualifies
         env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-        run: test "$QUALITY_RESULT" = success
+          QUALIFIED: ${{ inputs.qualify_head == '' || inputs.qualify_head == github.sha }}
+        run: test "$QUALIFIED" = true
   release-platforms:
     name: release runtime ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
     continue-on-error: ${{ !matrix.required }}
     env:
@@ -324,6 +335,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: refs/tags/${{ inputs.release_tag }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7
@@ -363,6 +375,7 @@ jobs:
   release-publish:
     name: release publication
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: release-platforms
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' }}
     permissions:
@@ -373,6 +386,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: refs/tags/${{ inputs.release_tag }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7
@@ -397,6 +411,7 @@ jobs:
   release-binary-scan:
     name: release binary scan
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: release-publish
     if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' && needs.release-publish.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.scan_tag != '')) }}
     continue-on-error: true
@@ -410,6 +425,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7
@@ -440,6 +456,7 @@ jobs:
   release-journey:
     name: release journey ${{ matrix.host }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     needs: release-publish
     if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != '' && needs.release-publish.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.journey_tag != '')) }}
     permissions:
@@ -470,6 +487,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: 0.13.7

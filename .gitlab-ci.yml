@@ -5,6 +5,11 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       auto_cancel:
+        on_new_commit: interruptible
+    - if: ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && $CI_COMMIT_BRANCH =~ /^proposal\/.+$/ && $ETHOS_QUALIFY_HEAD != $CI_COMMIT_SHA
+      when: never
+    - if: ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && $CI_COMMIT_BRANCH =~ /^proposal\/.+$/
+      auto_cancel:
         on_new_commit: none
     - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"
       auto_cancel:
@@ -49,6 +54,7 @@ ethos:commit-policy:
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: quality
+  timeout: 20 minutes
   variables:
     GIT_STRATEGY: clone
   rules:
@@ -82,7 +88,9 @@ ethos:host-conformance:
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: verify
+  timeout: 40 minutes
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
@@ -109,15 +117,17 @@ ethos:verify:
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: verify
+  timeout: 130 minutes
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && $CI_COMMIT_BRANCH =~ /^proposal\/.+$/
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
           - '**/*'
         compare_to: refs/heads/dev
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: never
-    - when: on_success
+    - when: never
   variables:
     GIT_STRATEGY: clone
     PYTEST_XDIST_AUTO_NUM_WORKERS: "4"
@@ -140,15 +150,17 @@ ethos:verify:
 ethos:external-links:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4e6f6c132fd0045562a7b22c4c7632f435b71d672b67c662b3360407de17eb8b
   stage: verify
+  timeout: 20 minutes
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: ($CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api") && $CI_COMMIT_BRANCH =~ /^proposal\/.+$/
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
           - '**/*'
         compare_to: refs/heads/dev
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: never
-    - when: on_success
+    - when: never
   allow_failure: true
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
@@ -166,7 +178,9 @@ ethos:external-links:
       - build/evidence/quality/external-links/report.json
 ethos:npm:
   stage: verify
+  timeout: 20 minutes
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:

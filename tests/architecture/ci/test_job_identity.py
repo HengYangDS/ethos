@@ -37,8 +37,15 @@ def test_each_projected_job_is_named_by_its_matrix_coordinates(tmp_path, ci_mate
         expressions = re.findall(r"\$\{\{\s*matrix\.(\w+)\s*\}\}", name)
         assert sorted(expressions) == sorted(axes), (provider, job, name)
     assert names[0]["github", "host-conformance"][0] == (
-        "${{ matrix.os }} / Python ${{ matrix.python }}"
+        "${{ matrix.platform }} / Python ${{ matrix.python }}"
     )
+
+
+def _coordinates(matrix: dict[str, object]) -> tuple[str, ...]:
+    """A tiered leg is named by its platform id and Python version, never by its runner label."""
+    if isinstance(matrix.get("include"), str):
+        return ("platform", "python")
+    return tuple(axis for axis in matrix if axis != "include")
 
 
 def _projected_job_names(
@@ -51,7 +58,7 @@ def _projected_job_names(
     names = {
         ("github", job): (
             spec.get("name", job),
-            tuple(axis for axis in spec.get("strategy", {}).get("matrix", {}) if axis != "include"),
+            _coordinates(spec.get("strategy", {}).get("matrix", {})),
         )
         for job, spec in github["jobs"].items()
     }

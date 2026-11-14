@@ -25,7 +25,7 @@
       measure the three source budgets. Done when the projection check passes and the measured
       deltas are within +25 tests, 0 product and 0 tools, or the difference is recorded with its
       reason.
-- [ ] 3.2 Pass readiness and the precheck at the lane head. Done when each passes on the committed
+- [x] 3.2 Pass readiness and the precheck at the lane head. Done when each passes on the committed
       head.
 
 ## 4. Hosted tasks

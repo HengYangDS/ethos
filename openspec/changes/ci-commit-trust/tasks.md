@@ -2,24 +2,24 @@
 
 ## 1. The operation
 
-- [ ] 1.1 Add the catalog entries `hook.bind-trust.preview` and `hook.bind-trust.apply` and their
+- [x] 1.1 Add the catalog entries `hook.bind-trust.preview` and `hook.bind-trust.apply` and their
       implementation row. Done when the catalog's static-rule test counts both and passes.
-- [ ] 1.2 Add `src/ethos/application/hook/commit_trust.py` and its test module. Done when the test
+- [x] 1.2 Add `src/ethos/application/hook/commit_trust.py` and its test module. Done when the test
       module fails before the implementation exists and passes after it: each of the three inputs
       previews without a write and binds with `--apply`, no input reports `unbound`, and every
       refusal names its gap and leaves the configuration and the temporary root unchanged.
 
 ## 2. The pipeline and the private path
 
-- [ ] 2.1 Call the operation from `.config/ci/pipeline.cue` and regenerate both projections. Done
+- [x] 2.1 Call the operation from `.config/ci/pipeline.cue` and regenerate both projections. Done
       when the projection tests pass and no projection names `tools.ci.toolchain.commit_trust`.
-- [ ] 2.2 Remove `tools/ci/toolchain/commit_trust.py`, the two helpers in
+- [x] 2.2 Remove `tools/ci/toolchain/commit_trust.py`, the two helpers in
       `tools/ci/toolchain/environment.py` and their three tests. Done when no tracked file outside
       the archive names them and `tests/unit/ci/test_ci_bootstrap.py` passes.
 
 ## 3. Documents
 
-- [ ] 3.1 Describe the operation in `docs/reference/command-plane.md` and add the Added line to the
+- [x] 3.1 Describe the operation in `docs/reference/command-plane.md` and add the Added line to the
       Unreleased section of `CHANGELOG.md`. Done when Prettier, Vale and codespell accept both.
 
 ## 4. Lane, hosted and owner tasks

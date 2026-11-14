@@ -1448,6 +1448,8 @@ runtime_manifest = { owner = "adapters.repo" }
 runtime_pin_ambiguous = { owner = "repository.release" }
 runtime_pin_invalid = { owner = "repository.release" }
 runtime_pin_lock_invalid = { owner = "repository.release" }
+runtime_pin_not_installed = { owner = "adapters.repo" }
+runtime_pin_unattested = { owner = "adapters.repo" }
 runtime_rollback_declaration_repaired = { owner = "adapters.repo" }
 runtime_rollback_root_behind_accepted = { owner = "adapters.repo" }
 runtime_selection_receipt_required = { owner = "adapters.repo" }

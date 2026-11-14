@@ -6,6 +6,7 @@ pinned before their consumers were recorded.
 """
 
 import shlex
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -133,7 +134,7 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
     )
 
 
-def _pin_action(runtime: dict[str, Any]) -> str:
+def _pin_action(runtime: Mapping[str, object]) -> str:
     """Name what settles an accepted pin that the installation left unselected, if anything."""
     pinned = runtime.get("runtime_pin")
     return str(pinned.get("next_action") or "") if isinstance(pinned, dict) else ""

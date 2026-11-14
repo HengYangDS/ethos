@@ -32,7 +32,7 @@ Security
    <https://docs.astral.sh/uv/guides/integration/github/> (2026-11-03).
 4. Avoid `pull_request_target`; never check out fork code. Blocked by default in public repositories
    from 2026-12-02; checkout v7 refuses fork checkouts.
-   <https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2>
+   <https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2/>
    (2026-11-02).
 5. Release environment: required reviewers, prevent self-review, tag-only refs, no admin bypass.
    <https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments>
@@ -76,7 +76,7 @@ Speed
     most 200, `needs` at most 50. <https://docs.github.com/en/actions/reference/limits> (undated).
 18. Path-filtered workflows leave required checks pending: use one always-run gate job (`needs`,
     `if: always()`); GitLab's Pipelines-must-succeed blocks merge requests with no pipeline.
-    <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks>
+    <https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks>
     (undated).
 19. A merge queue needs a `merge_group` trigger; GitLab merge trains are Premium+, 20 parallel by
     default. <https://docs.gitlab.com/ci/pipelines/merge_trains/> (enforcement GA 19.3).
@@ -107,7 +107,7 @@ Measurement
 26. Track queue time, p50 and p95, failure and re-run rates, minutes and DORA lead time: GitHub
     Performance Metrics plus REST jobs (`started_at` minus `created_at`, `run_attempt`); GitLab
     analytics plus the Jobs API `queued_duration`.
-    <https://github.blog/changelog/2025-03-14-actions-performance-metrics-are-generally-available-and-enterprise-level-metrics-are-in-public-preview>
+    <https://github.blog/changelog/2025-03-14-actions-performance-metrics-are-generally-available-and-enterprise-level-metrics-are-in-public-preview/>
     (2025-03-14); <https://dora.dev/guides/dora-metrics/> (2026-01-05).
 
 Local-first parity

@@ -155,7 +155,6 @@
   "src/ethos/adapters/repo/git_patch.py::unified_patch_changes": 17,
   "src/ethos/adapters/repo/git_ref_worktrees.py::sync_ref_worktrees": 19,
   "src/ethos/adapters/repo/git_ref_worktrees.py::worktree_sync_gap": 21,
-  "src/ethos/adapters/repo/hook/activation.py::install_hook_launchers": 16,
   "src/ethos/adapters/repo/hook/admission.py::_check_staged_python_format": 17,
   "src/ethos/adapters/repo/hook/admission.py::_native_hook_configuration": 23,
   "src/ethos/adapters/repo/hook/observation.py::commit_policy_enforcement": 24,

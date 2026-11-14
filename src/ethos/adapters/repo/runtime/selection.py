@@ -158,6 +158,20 @@ def named_runtime(common: Path, name: str) -> Path | None:
     return candidate
 
 
+def rollback_gap(runtime: Path, required: BuildIdentity | None) -> str:
+    """Name why no install of a root can admit a runtime as its rollback; empty when one may.
+
+    Its bytes are gone or unreadable, or the root's accepted source requires one exact build and
+    the runtime is another. The gap is the one the install would name. Only the manifest is read:
+    a pin into the host store has validated the payload and the wheel.
+    """
+    try:
+        held = load_runtime_manifest_bytes((runtime / "manifest.json").read_bytes())
+    except (OSError, ValueError):
+        return _MANIFEST_INVALID if runtime.is_dir() else _CURRENT_TARGET_INVALID
+    return _MANIFEST_INVALID if required is not None and held.build != required else ""
+
+
 def runtime_selection_bytes(common: Path, runtime: Path) -> bytes:
     """Encode one exact local or externally installed runtime without granting authority."""
     _require_runtime_location(runtime)

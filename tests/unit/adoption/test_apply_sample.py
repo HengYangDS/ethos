@@ -59,6 +59,7 @@ def test_adoption_selects_runtime_without_replacing_incumbent_hooks(
 
     assert result.verdict == "pass", result.to_dict()
     assert result.data["runtime_selection"]["applied"] is apply
+    assert result.data["runtime_selection"]["runtime_pin"]["state"] == "runtime_pin_absent"
     assert bool(calls) is apply
     assert (selector.read_bytes() if selector.exists() else None) == (
         original if apply or selector_present else None
@@ -94,8 +95,8 @@ def test_adoption_runtime_refusal_preserves_exact_selection_and_bindings(
         native = adoption_effect.expected_runtime_build
         observations = []
 
-        def changed_source(root):
-            observed = native(root)
+        def changed_source(root, **selected):
+            observed = native(root, **selected)
             observations.append(observed)
             return (
                 observed

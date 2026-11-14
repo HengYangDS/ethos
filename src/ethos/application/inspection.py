@@ -78,7 +78,7 @@ def inspect_status(root: Path, request: StatusRequest) -> EthosResult:
     """Inspect one validated `status.inspect` request; only `invoke` calls it."""
     with selected_change(request.change):
         repo = root.resolve()
-        runtime = hook_runtime_binding(repo)
+        runtime = hook_runtime_binding(repo, prove_rollback=True)
         observed, authority = workspace_status_observation(
             repo, include_foreign_path_scope=False, hook_binding=runtime
         )

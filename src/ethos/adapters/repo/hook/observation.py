@@ -27,6 +27,7 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import inspection_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import named_runtime
+from ethos.adapters.repo.runtime.selection import rollback_gap
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
@@ -70,6 +71,9 @@ class HookRuntimeBinding(TypedDict):
     state_transition: NotRequired[dict[str, object]]
     rollback_supply: NotRequired[dict[str, str]]
     rollback: NotRequired[dict[str, str]]
+    rollback_released: NotRequired[dict[str, str]]
+    runtime_pin: NotRequired[dict[str, str]]
+    selection_receipt: NotRequired[dict[str, str]]
     host_store_cleanup: NotRequired[dict[str, object]]
     contract_observation: NotRequired[dict[str, object]]
     exit: NotRequired[dict[str, str]]
@@ -89,12 +93,19 @@ class CommitPolicyEnforcement(TypedDict):
 
 
 def _rollback_guidance(
-    repo: Path, common: Path, selected: SelectedRuntime | None
+    repo: Path,
+    common: Path,
+    selected: SelectedRuntime | None,
+    expected: runtime_authority.RuntimeBuild | None,
+    *,
+    prove: bool,
 ) -> dict[str, str]:
     """Name the one supported rollback: the CURRENT runtime activating the ROLLBACK selection.
 
     Only the CURRENT console reaches activation's declaration preflight; a predecessor's own
-    console skips it.
+    console skips it. An inspection also proves the held rollback and reports one that no install
+    can admit as unrunnable, with the one repair: the CURRENT console's install, which stops
+    holding it. Where the accepted source names the build, `expected` is that one required build.
     """
     try:
         rollback = named_runtime(common, "ROLLBACK")
@@ -103,7 +114,13 @@ def _rollback_guidance(
     if selected is None or rollback is None:
         return {}
     command = (selected.python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli", "hook", "install")
-    arguments = ("--root", repo.as_posix(), "--runtime", rollback.as_posix(), "--json")
+    root = ("--root", repo.as_posix())
+    required = expected.identity if expected is not None and not expected.invoking else None
+    if prove and (gap := rollback_gap(rollback, required)):
+        repair = shlex.join((*command, *root, "--json"))
+        held = {"state": "unrunnable", "reason": gap, "next_action": repair}
+        return {"runtime": rollback.as_posix(), **held}
+    arguments = (*root, "--runtime", rollback.as_posix(), "--json")
     return {"runtime": rollback.as_posix(), "command": shlex.join((*command, *arguments))}
 
 
@@ -112,8 +129,13 @@ def hook_runtime_binding(
     *,
     expected_build: BuildIdentity | None = None,
     selected_runtime: SelectedRuntime | None = None,
+    prove_rollback: bool = False,
 ) -> HookRuntimeBinding:
-    """Project one binding, reusing a fresh transaction-local runtime observation."""
+    """Project one binding, reusing a fresh transaction-local runtime observation.
+
+    Only an inspection asks for `prove_rollback`, which reads the held rollback's manifest against
+    the build this root's accepted source requires; it supplies no `expected_build`.
+    """
     repo = root.resolve()
     common = Path(git_common_dir(repo))
     runtime_root = common / "ethos" / "runtime"
@@ -184,7 +206,7 @@ def hook_runtime_binding(
         and hooks.name != contract["generation_digest"]
     ):
         gaps.append("write_admission_not_armed:hook_generation_digest")
-    rollback = _rollback_guidance(repo, common, selected)
+    rollback = _rollback_guidance(repo, common, selected, expected, prove=prove_rollback)
     # A repository that exited keeps no hooks unless its profile still declares governance.
     exit_record = exit_fact(common)
     exited = exit_record is not None and exit_record["state"] == "exited"

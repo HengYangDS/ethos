@@ -77,6 +77,7 @@ class InstallRequest(CommandRequest):
     """Activate one hook runtime for the repository family, resetting its state if asked."""
 
     installed_runtime: str | None = described(None, "An installed ETHOS runtime to activate.")
+    reason: str = described("", "Why a lane selects a release other than the accepted pin.")
     reset_state: bool = switch("Reset local state whose schema cannot migrate; needs authorizing.")
     authorize: Authorize = False
 
@@ -151,7 +152,7 @@ INSTALL = Command(
             "hook.install",
             "Install and activate the hook runtime.",
             select="reset_state=false",
-            request="installed_runtime",
+            request="installed_runtime reason",
             effects=_INSTALL,
             exit_kind="verdict",
         ),
@@ -159,7 +160,7 @@ INSTALL = Command(
             "hook.install.reset-state",
             "Reset the local state whose schema cannot migrate, then install the hook runtime.",
             select="reset_state=true",
-            request="installed_runtime authorize",
+            request="installed_runtime reason authorize",
             effects=_INSTALL,
             authorization="authorize",
             destructive=True,

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import ethos
 import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
+import ethos.adapters.repo.runtime.pin_selection as pin_selection
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.activation import materialize_hook_launchers
@@ -35,11 +36,18 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 )
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_identity
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
+from ethos.adapters.repo.runtime.pin_selection import mise_platform
 from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.contracts.digest import file_sha256
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
+from ethos.repository.release.pin import ATTESTED_PROVENANCE
+from ethos.repository.release.pin import PIN_KEY
+from ethos.repository.release.pin import bare_entry
+from ethos.repository.release.pin import pin_line
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -201,6 +209,39 @@ def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIden
     return build_identity(
         product="0.2.0-alpha.2", source_commit=commit, source_tree=tree, release=release
     )
+
+
+def pinned_release_files(
+    version: str, *, attested: bool = True, platform: str = ""
+) -> dict[str, str]:
+    """Render the Mise configuration and lock that pin one release for a fixture adopter.
+
+    An attested pin is the bare entry with its setting and a lock entry that names the host's
+    platform with provenance; any other is the pin line alone and an entry without provenance.
+    """
+    table = f'tools."{PIN_KEY}"'
+    recorded = f'provenance = "{ATTESTED_PROVENANCE}"\n' if attested else ""
+    return {
+        MISE_CONFIG: bare_entry(version) if attested else f"[tools]\n{pin_line(version)}\n",
+        MISE_LOCK: f'[[{table}]]\nversion = "{version}"\n\n'
+        f'[{table}."platforms.{platform or mise_platform()}"]\n'
+        f'checksum = "sha256:{"0" * 64}"\nurl = "https://example.invalid/ethos.tar.gz"\n{recorded}',
+    }
+
+
+def mise_installs(monkeypatch: pytest.MonkeyPatch, installs: Mapping[str, Path]) -> list[str]:
+    """Answer `mise where` from the given installs by version, and record each tool asked for."""
+    asked: list[str] = []
+
+    def where(
+        _root: Path, arguments: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        asked.append(arguments[1])
+        install = installs.get(arguments[1].rpartition("@")[2])
+        return subprocess.CompletedProcess(arguments, install is None, f"{install or ''}\n", "")
+
+    monkeypatch.setattr(pin_selection, "run_mise", where)
+    return asked
 
 
 def fixture_runtime_generation(

@@ -51,6 +51,7 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
         runtime = install_hook_launchers(
             root,
             installed_runtime=Path(runtime_root) if runtime_root is not None else None,
+            reason=request.reason,
             reset_state=request.reset_state,
             authorized=request.authorize,
         )

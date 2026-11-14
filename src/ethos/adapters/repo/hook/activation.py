@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import uuid
 from contextlib import closing
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,12 +33,17 @@ from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
+from ethos.adapters.repo.runtime.pin_selection import PinSelection
+from ethos.adapters.repo.runtime.pin_selection import follow_accepted_pin
+from ethos.adapters.repo.runtime.pin_selection import receipt_departure
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
 from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import named_runtime
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
+from ethos.adapters.repo.runtime.selection import rollback_gap
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
@@ -47,6 +53,7 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.outcome import refuse
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.authority import RuntimeBuild
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
@@ -66,33 +73,41 @@ def install_hook_launchers(
     installed_runtime: Path | None = None,
     reset_state: bool = False,
     authorized: bool = False,
+    reason: str = "",
 ) -> HookRuntimeBinding:
-    """Install and activate one common-dir hook/runtime generation."""
+    """Install and activate one common-dir hook/runtime generation.
+
+    Without a named runtime the accepted pin decides what is selected. A named runtime other than
+    that pin is a departure, which needs `reason` and a lane and leaves a receipt.
+    """
     if reset_state and not authorized:
         refuse("state_reset_authorization_required")
     repo = root.resolve()
     source_python = python or Path(sys.executable)
     if not source_python.is_absolute() or not source_python.is_file():
         refuse("hook_runtime_python_invalid")
-    expected = expected_runtime_build(repo, installed_runtime=installed_runtime)
+    pinned, expected, receipt = _supply_selection(repo, installed_runtime, reason)
+    installed_runtime, kept = pinned.runtime, pinned.kept
     expected_build, build_source = expected.identity, expected.source
-    if installed_runtime is not None:
-        # Before anything is pinned: a named runtime must accept the root's declaration.
-        target = require_installed_runtime(installed_runtime)
-        rollback_preflight(repo, target, invoking=invoking_build_identity())
     common = Path(git_common_dir(repo))
     # Retention reads a held selection lock as a selection in progress, so it is held from the
     # selector read before the pins that record this repository until the selector writes.
     with runtime_selection_lock(common):
         current_before = _runtime_selection_bytes(common)
-        runtime = runtime_materialization.materialize_runtime(
-            repo,
-            source_python,
-            expected_build=expected_build,
-            build_source=build_source,
-            installed_runtime=installed_runtime,
+        # A selection the pin leaves in place is activated as it stands, neither built nor pinned.
+        runtime = (
+            kept / "python"
+            if kept
+            else runtime_materialization.materialize_runtime(
+                repo,
+                source_python,
+                expected_build=expected_build,
+                build_source=build_source,
+                installed_runtime=installed_runtime,
+            )
         )
-        rollback_supply = {} if current_before is None else _rollback_supply(common, runtime.parent)
+        required = _required_build(expected)
+        rollback_supply = _rollback_supply(common, runtime.parent, current_before, required)
         hooks = materialize_hook_launchers(common / "ethos" / "hooks")
         linked = linked_worktree_paths(repo)
         common_before = config_effects.config_values(repo, ACTIVATION_KEYS, scope="local")
@@ -106,13 +121,14 @@ def install_hook_launchers(
             current_before=current_before,
             reset_state=reset_state,
             expected_build=expected_build,
-            installed_runtime=installed_runtime,
+            installed_runtime=installed_runtime or kept,
         )
         binding["state_transition"] = state_transition
-        if rollback_supply:
-            binding["rollback_supply"] = rollback_supply
-        if rollback_supply.get("state") == "preserved":
-            _hold_rollback(common, Path(rollback_supply["runtime"]))
+        _record_rollback(common, binding, rollback_supply, required)
+    if pinned.state:
+        binding["runtime_pin"] = pinned.report()
+    if receipt:
+        binding["selection_receipt"] = receipt
     binding["legacy_runtime_locator"] = _retire_legacy_locator(common)
     binding["linked_worktrees"] = [
         {
@@ -225,6 +241,53 @@ def _hold_rollback(common: Path, runtime: Path) -> None:
     staged = selector.with_name(f".ROLLBACK-{uuid.uuid4().hex}")
     staged.write_bytes(runtime_selection_bytes(common.resolve(), runtime))
     staged.replace(selector)
+
+
+def _supply_selection(
+    repo: Path, named: Path | None, reason: str
+) -> tuple[PinSelection, RuntimeBuild, dict[str, str]]:
+    """Resolve what this activation selects, and receipt a named departure from the accepted pin.
+
+    Without a named runtime the accepted pin decides. Before anything is pinned, a runtime to
+    select must accept the root's declaration.
+    """
+    pinned = PinSelection("", named) if named else follow_accepted_pin(repo, settle=True)
+    expected = expected_runtime_build(repo, installed_runtime=pinned.runtime or pinned.kept)
+    receipt: dict[str, str] = {}
+    if pinned.runtime is not None:
+        target = require_installed_runtime(pinned.runtime)
+        rollback_preflight(repo, target, invoking=invoking_build_identity())
+        if named:
+            receipt = receipt_departure(repo, target, reason)
+    return pinned, expected, receipt
+
+
+def _required_build(expected: RuntimeBuild) -> BuildIdentity | None:
+    """Name the one build an install admits, where the root's accepted source names the build."""
+    return None if expected.invoking else expected.identity
+
+
+def _record_rollback(
+    common: Path,
+    binding: HookRuntimeBinding,
+    supply: dict[str, str],
+    required: BuildIdentity | None,
+) -> None:
+    """Report the predecessor's supply and hold it; else release a held rollback that cannot run.
+
+    Releasing is the one repair that status names for a rollback no install of this root admits.
+    """
+    if supply:
+        binding["rollback_supply"] = supply
+    if supply.get("state") == "preserved":
+        _hold_rollback(common, Path(supply["runtime"]))
+        return
+    with suppress(OSError, UnicodeError, ValueError):
+        held = named_runtime(common, "ROLLBACK")
+        if held is not None and (gap := rollback_gap(held, required)):
+            (common / "ethos/runtime/ROLLBACK").unlink()
+            binding.pop("rollback", None)
+            binding["rollback_released"] = {"runtime": held.as_posix(), "reason": gap}
 
 
 def _retire_host_store(repo: Path) -> dict[str, object]:
@@ -370,8 +433,17 @@ def _restore_failed_activation(
         raise ValueError("hook_runtime_activation_compensation_failed:" + ",".join(errors))
 
 
-def _rollback_supply(common: Path, successor: Path) -> dict[str, str]:
-    """Classify the predecessor; malformed selector bytes name none and stay CAS-protected."""
+def _rollback_supply(
+    common: Path, successor: Path, before: bytes | None, required: BuildIdentity | None
+) -> dict[str, str]:
+    """Classify the predecessor; malformed selector bytes name none and stay CAS-protected.
+
+    A predecessor that no install of this root would admit is no rollback: it is neither pinned
+    nor held, and the report names why. One that is pinned is proved by the pin itself, which
+    validates its payload and its wheel in the host store.
+    """
+    if before is None:
+        return {}
     try:
         previous = current_runtime(common)
     except (OSError, ValueError) as error:
@@ -385,6 +457,8 @@ def _rollback_supply(common: Path, successor: Path) -> dict[str, str]:
         return {"state": "unavailable", **located, "reason": str(error) or type(error).__name__}
     if previous.root == successor:
         return {}
+    if gap := rollback_gap(previous.root, required):
+        return {"state": "unrunnable", "runtime": previous.root.as_posix(), "reason": gap}
     preserved = runtime_materialization.pin_installed_runtime(previous, consumer=common)
     return {
         "state": "preserved",

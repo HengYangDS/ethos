@@ -23,6 +23,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   accepted release identity can bind that file's digest and the name and digest of every wheel and
   archive it lists; identities recorded without the binding read as before, and a published file
   that disagrees with the checksum file refuses with `accepted_release_checksum_mismatch`.
+- Where the accepted branch declares the exact GitHub pin, `ethos hook install`, `ethos lane start`
+  and `ethos adopt --select-runtime` follow it forward only: they select the pinned release's
+  install when it is newer than `CURRENT`, and otherwise keep `CURRENT` and name the state
+  (`runtime_pin_behind_current`, `runtime_pin_unattested`, `runtime_pin_not_installed` or
+  `runtime_selection_open`). `ethos hook install --runtime <R> --reason <text>` from a Work Lane
+  records a `successor` or `rollback` receipt that holds `CURRENT` on R until the accepted pin
+  changes or the lane retires. A cutover holds `ROLLBACK` only for a predecessor that an install of
+  the repository can admit, and `ethos status` reports a held rollback that none can, with its
+  repair. A repository without the pin behaves as before and reports `runtime_pin_absent`.
 
 ### Changed
 

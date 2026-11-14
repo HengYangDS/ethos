@@ -15,6 +15,7 @@ from ethos.adapters.openspec.configuration import official_config_report
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.materialization.effect import materialize_runtime
+from ethos.adapters.repo.runtime.pin_selection import follow_accepted_pin
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -202,10 +203,13 @@ def _runtime_plan(root: Path) -> dict[str, object]:
         return {"required_gaps": ["hook_runtime_current_target_invalid"]}
     try:
         previous = selector.read_bytes() if selector.exists() else None
-        expected = expected_runtime_build(root).identity
+        pinned = follow_accepted_pin(root)
+        selected = pinned.runtime or pinned.kept
+        expected = expected_runtime_build(root, installed_runtime=selected).identity
     except (OSError, ValueError) as error:
-        return {"required_gaps": [str(error)]}
+        return {"required_gaps": [str(error)], "next_action": getattr(error, "next_action", "")}
     return {
+        "runtime_pin": pinned.report(),
         "source_commit": expected.source_commit,
         "source_tree": expected.source_tree,
         "previous_selector": previous.decode("utf-8") if previous is not None else None,
@@ -217,8 +221,13 @@ def _runtime_plan(root: Path) -> dict[str, object]:
 def _apply_runtime(
     root: Path, bindings: list[tuple[Path, str, str | None]], plan: dict[str, object]
 ) -> None:
-    """Select admitted native supply under its existing exact selector transaction."""
-    expected = expected_runtime_build(root)
+    """Select admitted native supply under its existing exact selector transaction.
+
+    The accepted pin decides the supply as it does for hook activation: its install, the current
+    selection left in place, or the invoking build where no pin is declared.
+    """
+    pinned = follow_accepted_pin(root, settle=True)
+    expected = expected_runtime_build(root, installed_runtime=pinned.runtime or pinned.kept)
     if (expected.identity.source_commit, expected.identity.source_tree) != (
         plan["source_commit"],
         plan["source_tree"],
@@ -234,8 +243,16 @@ def _apply_runtime(
     source_python = Path(sys.executable)
     # Retention reads a held selection lock as a selection in progress, from pin to selection.
     with runtime_selection_lock(common):
-        python = materialize_runtime(
-            root, source_python, expected_build=expected.identity, build_source=expected.source
+        python = (
+            pinned.kept / "python"
+            if pinned.kept is not None
+            else materialize_runtime(
+                root,
+                source_python,
+                expected_build=expected.identity,
+                build_source=expected.source,
+                installed_runtime=pinned.runtime,
+            )
         )
         selected = activate_runtime(common, python.parent, expected_current=prior)
     desired = runtime_selection_bytes(common, selected.root)

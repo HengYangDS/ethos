@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 from pathlib import Path
@@ -11,23 +12,42 @@ from unittest.mock import create_autospec
 import pytest
 
 import ethos.adapters.repo.hook.activation as activation
+import ethos.adapters.repo.hook.rollback as rollback_proof
+import ethos.adapters.repo.runtime.authority as runtime_authority
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.interpreter import PYTHON_FLAGS
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.repository.release.identity import build_identity
+from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
+from tests.support.runtime_scenarios import mise_installs
+from tests.support.runtime_scenarios import pinned_release_files
 from tests.support.runtime_scenarios import runtime_build
 
 if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
+    from ethos.repository.release.identity import BuildIdentity
+
+_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "user.name=test", "-c", "user.email=t@example.com")
 
 
-def _upgrade_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
+def _adopter_build(selected: SelectedRuntime) -> RuntimeBuild:
+    """What an adopter expects of a named runtime: that runtime's own build."""
+    return RuntimeBuild(selected.build, None, invoking=True)
+
+
+def _upgrade_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    successor_build: BuildIdentity | None = None,
+) -> tuple[Path, Path, Path]:
     """Keep native activation and supply effects, replacing only image construction."""
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     original, successor = tmp_path / "original", tmp_path / "successor"
@@ -36,7 +56,9 @@ def _upgrade_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     repo, previous_python = materialize_runtime_case(original, monkeypatch)
     activation.install_hook_launchers(repo)
     successor_repo, successor_python = materialize_runtime_case(
-        successor, monkeypatch, package_identity=runtime_build("c" * 40, "d" * 40)
+        successor,
+        monkeypatch,
+        package_identity=successor_build or runtime_build("c" * 40, "d" * 40),
     )
     package = tmp_path / "package"
     shutil.copytree(Path(git_common_dir(successor_repo)) / "ethos", package / "ethos")
@@ -45,7 +67,7 @@ def _upgrade_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
     monkeypatch.setattr(
         activation,
         "expected_runtime_build",
-        create_autospec(expected_runtime_build, return_value=RuntimeBuild(selected.build, None)),
+        create_autospec(expected_runtime_build, return_value=_adopter_build(selected)),
     )
     return repo, previous_python.parent, supplied
 
@@ -266,7 +288,7 @@ def test_a_superseded_rollback_installation_is_retired_by_the_next_cutover(
     monkeypatch.setattr(
         activation,
         "expected_runtime_build",
-        create_autospec(expected_runtime_build, return_value=RuntimeBuild(selected.build, None)),
+        create_autospec(expected_runtime_build, return_value=_adopter_build(selected)),
     )
 
     result = activation.install_hook_launchers(repo, installed_runtime=third)
@@ -277,3 +299,123 @@ def test_a_superseded_rollback_installation_is_retired_by_the_next_cutover(
     assert (common / "ethos/runtime/ROLLBACK").read_bytes() == runtime_selection_bytes(common, held)
     assert not first.exists()
     assert result["host_store_cleanup"]["retired"] == [first.as_posix()]
+
+
+def test_a_predecessor_that_no_install_would_admit_is_neither_pinned_nor_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Where the accepted source names the one expected build, no predecessor is a rollback."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    accepted = RuntimeBuild(require_selected_runtime(supplied).build, None)
+    monkeypatch.setattr(activation, "expected_runtime_build", lambda *_a, **_k: accepted)
+    refused = "hook_runtime_manifest_invalid"
+    with pytest.raises(ValueError, match=refused):
+        activation.install_hook_launchers(repo, installed_runtime=previous)
+
+    result = activation.install_hook_launchers(repo, installed_runtime=supplied)
+
+    assert (result["required_gaps"], result["rollback_supply"]) == (
+        [],
+        {"state": "unrunnable", "runtime": str(previous), "reason": refused},
+    )
+    assert not (Path(git_common_dir(repo)) / "ethos/runtime/ROLLBACK").exists()
+    assert not (tmp_path / "user-data/ethos/installations" / previous.name[:16]).exists()
+    assert "rollback" not in hook_runtime_binding(repo, prove_rollback=True)
+
+
+@pytest.mark.parametrize("cause", ["lost", "another-build"])
+def test_status_reports_a_rollback_that_cannot_run_and_the_next_install_releases_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cause: str
+) -> None:
+    """A held rollback that no install can admit has one repair: the current console's install."""
+    repo, _previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    cutover = activation.install_hook_launchers(repo, installed_runtime=supplied)
+    held = Path(cutover["rollback_supply"]["runtime"])
+    common = Path(git_common_dir(repo))
+    console = (current_runtime(common).python.as_posix(), *PYTHON_FLAGS, "-m", "ethos.cli")
+    assert "command" in hook_runtime_binding(repo, prove_rollback=True)["rollback"]
+    if cause == "lost":
+        materialization.remove_generated_tree(held.parents[1])
+    else:
+        # The accepted source now names the one build an install admits, as a product's own does.
+        accepted = RuntimeBuild(require_selected_runtime(supplied).build, None)
+        for owner in (activation, runtime_authority):
+            monkeypatch.setattr(owner, "expected_runtime_build", lambda *_a, **_k: accepted)
+    gap = (
+        "hook_runtime_current_target_invalid"
+        if cause == "lost"
+        else "hook_runtime_manifest_invalid"
+    )
+    lost = {"runtime": str(held), "reason": gap}
+
+    assert hook_runtime_binding(repo, prove_rollback=True)["rollback"] == lost | {
+        "state": "unrunnable",
+        "next_action": shlex.join((*console, "hook", "install", "--root", str(repo), "--json")),
+    }
+    # Only an inspection proves the rollback; any other reader names the command as before.
+    assert "command" in hook_runtime_binding(repo)["rollback"]
+    released = activation.install_hook_launchers(repo, installed_runtime=supplied)
+    assert (released["rollback_released"], (common / "ethos/runtime/ROLLBACK").exists()) == (
+        lost,
+        False,
+    )
+    assert "rollback" not in released
+    assert "rollback" not in hook_runtime_binding(repo, prove_rollback=True)
+
+
+def test_activation_selects_the_pinned_install_and_a_lane_rolls_back_with_a_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fixture adopter moves forward to its accepted pin, then holds a receipted rollback."""
+    source = {"source_commit": "c" * 40, "source_tree": "d" * 40}
+    pinned = build_identity(product="9.3.0", release=True, **source)
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch, pinned)
+    monkeypatch.setattr(activation, "expected_runtime_build", expected_runtime_build)
+    probed: list[Path] = []
+    monkeypatch.setattr(
+        activation, "rollback_preflight", lambda _root, target, **_k: probed.append(target.root)
+    )
+    for path, content in pinned_release_files("9.3.0").items():
+        (repo / path).parent.mkdir(parents=True, exist_ok=True)
+        (repo / path).write_text(content, encoding="utf-8")
+    assert git_process(repo, "add", ".config").returncode == 0
+    assert git_process(repo, *_GIT, "commit", "-m", "chore: pin").returncode == 0
+    mise_installs(monkeypatch, {"9.3.0": supplied.parents[1]})
+    common, lane = Path(git_common_dir(repo)).resolve(), tmp_path / "lane"
+    selector, receipt = (
+        common / "ethos/runtime/CURRENT",
+        common / "ethos/receipts/runtime-selection",
+    )
+
+    forward = activation.install_hook_launchers(repo)
+
+    assert forward["runtime_pin"] == {"state": "followed", "next_action": ""}
+    assert (current_runtime(common).digest, probed) == (supplied.name, [supplied])
+    rollback = Path(forward["rollback_supply"]["runtime"])
+    assert git_process(repo, *_GIT, "worktree", "add", "-qb", "work/back", lane).returncode == 0
+    with pytest.raises(rollback_proof.RollbackRefusalError, match="receipt_required"):
+        activation.install_hook_launchers(lane, installed_runtime=rollback)
+    assert current_runtime(common).digest == supplied.name
+    native, kinds = materialization.materialize_runtime, []
+
+    def materialize(*arguments: object, **named: object) -> Path:
+        """Read the receipt at the first effect: it is written before anything is pinned."""
+        kinds.append(json.loads((receipt / "9.3.0.json").read_bytes())["kind"])
+        return native(*arguments, **named)
+
+    monkeypatch.setattr(materialization, "materialize_runtime", materialize)
+    back = activation.install_hook_launchers(lane, installed_runtime=rollback, reason="a defect")
+
+    assert (kinds, back["selection_receipt"]["kind"]) == (["rollback"], "rollback")
+    assert current_runtime(common).digest == previous.name
+    before = selector.read_bytes()
+    held = activation.install_hook_launchers(repo)
+    assert held["runtime_pin"] == {"state": "runtime_selection_open", "next_action": ""}
+    assert (selector.read_bytes(), kinds) == (before, ["rollback"])
+    # The lane's ref closes the receipt: the next transition deletes it and follows the pin.
+    assert git_process(repo, *_GIT, "worktree", "remove", "--force", lane).returncode == 0
+    assert git_process(repo, *_GIT, "branch", "-D", "work/back").returncode == 0
+    monkeypatch.setattr(materialization, "materialize_runtime", native)
+    again = activation.install_hook_launchers(repo)
+    assert (again["runtime_pin"]["state"], list(receipt.glob("*"))) == ("followed", [])
+    assert current_runtime(common).digest == supplied.name

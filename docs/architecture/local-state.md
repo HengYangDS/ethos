@@ -66,6 +66,32 @@ read, that a running process uses, or that changed within `--grace-days`
 plan's digest; only `--expect-plan <digest> --apply --authorize`, a user
 decision, records the naming repositories and retires exactly that plan.
 
+A cutover names its predecessor in `ROLLBACK` only when an install of the root can admit it. Where
+the accepted source names the one expected build, as in the product's own repository, a predecessor
+of another build is reported under `rollback_supply` as `unrunnable` and is neither pinned nor held.
+`status.data.hook_runtime.rollback` reports a held rollback whose manifest is gone or whose build no
+install admits as `unrunnable`, with the gap the install would name and one `next_action`: the
+selected runtime's `hook install`, which stops holding it and reports `rollback_released`.
+
+Where the accepted branch declares the exact GitHub pin, `CURRENT` follows it forward only.
+`hook install`, `lane start` and `adopt --select-runtime` read the pin and the lock entry of the
+host's platform from the accepted branch, ask Mise where that release is installed and select the
+install only when it is newer than `CURRENT`; a development build precedes the release of its
+version. Otherwise `CURRENT` stays and `data.runtime_pin` names the state:
+`runtime_pin_behind_current` for an older pin, `runtime_pin_unattested` for a lock entry without
+`github-attestations` outside the checksum class, and `runtime_pin_not_installed` with
+`mise install --locked` as the next action. With nothing selected the last two refuse. ETHOS
+installs and fetches nothing, and a repository without the pin selects the invoking build and
+reports `runtime_pin_absent`.
+
+To select another release than the accepted pin, a Work Lane runs
+`ethos hook install --runtime <absolute-runtime-path> --reason <text> --root <lane> --json`. After
+the declaration preflight and before any other effect it writes a `successor` or `rollback` receipt
+to `<git-common-dir>/ethos/receipts/runtime-selection/<pin>.json`; without a reason or a lane it
+refuses with `runtime_selection_receipt_required`. While the accepted pin and the lane's ref last,
+transitions keep `CURRENT` on that release and report `runtime_selection_open`, and the first
+transition after either changes deletes the receipt.
+
 Records in the Git-common store retire only through `ethos hook retire-records`,
 which the selected runtime runs. Its preview reads the age floors
 `retention.grace_seconds` and `retention.record_seconds` from the accepted

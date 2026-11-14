@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.patch_admission import projection_preimages
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ignored_paths
+from ethos.adapters.repo.git import tracked_paths
 from ethos.adapters.repo.git import tracked_subset
 from ethos.adapters.repo.git_attributes import received_paths
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos.repository.paradigm.names import identifier_names
 from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_relations
@@ -139,7 +141,17 @@ def _check_path(
     decision: dict[str, object] = {}
     if topology["decision"] == "deny":
         reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
-    elif created and tracked and (paradigm := paradigm_path_gaps(relative, received=received)):
+    elif (
+        created
+        and tracked
+        and (
+            paradigm := paradigm_path_gaps(
+                relative,
+                received=received,
+                identifiers=lambda: identifier_names(root_path, tracked_paths(root)),
+            )
+        )
+    ):
         reason, decision["repair"] = paradigm[0].required_gap, paradigm[0].repair
     else:
         protected = role in PROTECTED_WRITE_ROLES and tracked

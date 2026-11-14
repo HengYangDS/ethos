@@ -118,6 +118,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   names the repair; the verdict, the gap `hook_runtime_cleanup_deferred` and the exit are unchanged.
   The deferred result used to name `ethos hook install --json` without a root, and a refusal named
   the refused request again.
+- The repository paradigm's authored-name rule admits a name that an upstream data contract fixes
+  and that a tracked manifest repeats. Such a name could be neither renamed nor truthfully marked
+  received, so the audit could not pass and no proof could run. A profile now declares
+  `[[identifier_sources]]`: a glob of manifests, the dotted keys that hold identifiers, and whether
+  a value is read whole, as dotted parts or as a relative path. The paradigm report lists each
+  admission with its manifest under `name_admissions`, prewrite admits a new file by the same
+  evidence, and a declaration without evidence is the gap
+  `repository_paradigm_identifier_source`. A release older than this one refuses a profile that
+  carries the new key, so add it after binding this release.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

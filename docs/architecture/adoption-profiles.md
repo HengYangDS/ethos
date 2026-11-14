@@ -83,6 +83,52 @@ release and documentation carriers; and the Product Design Contract for the qual
 feedback and recovery.
 No Skill or generated entrypoint adds to it.
 
+## Identifier Sources
+
+The repository paradigm holds every authored file and directory name to lowercase kebab-case. A
+repository that must spell an identifier that an upstream data contract fixes, and whose own
+tracked manifest repeats that identifier as a value, declares in its profile where those values
+live:
+
+```toml
+[[identifier_sources]]
+manifests = "resources/**/product.toml"
+keys = ["product.id", "product.raw_name"]
+
+[[identifier_sources]]
+manifests = "resources/**/bundle.toml"
+keys = ["bundle.namespace"]
+values = "dotted"
+
+[[identifier_sources]]
+manifests = "resources/**/product.toml"
+keys = ["input.queries.sql.*"]
+values = "path"
+```
+
+- `manifests` is one glob over tracked paths, matched as `openspec.material_paths` are, so `*`
+  also crosses `/`. A bare basename is written `**/product.toml`. A manifest is TOML, or JSON when
+  its name ends in `.json`.
+- `keys` are dotted paths in the manifest. `*` names every key of one table, and an array is read
+  by element, so an array of strings holds one value per element.
+- `values` says how each value is read. `whole`, the default, takes the value as one identifier.
+  `dotted` takes each dot-separated part. `path` takes each segment of a relative path and the stem
+  of its file name before the first dot.
+
+A name outside kebab-case is admitted when it, or for a file its stem before the first dot, equals
+an identifier that some matched manifest carries; the manifest need not lie near the name. The
+paradigm report lists every admission under `name_admissions` with the name, its path and the
+manifest that evidences it. Every other name is judged as before, and a third-party or generated
+path still takes the `linguist-vendored` or `linguist-generated` mark.
+
+A declaration without evidence admits nothing. A key that no matched, readable manifest carries,
+which includes a glob that matches no tracked file, is the gap
+`repository_paradigm_identifier_source:.ethos/profile.toml:identifier_sources.<glob>:<key>`, and a
+matched manifest that does not parse is `repository_paradigm_identifier_source:<path>`. Prewrite
+admits a new file by the same evidence, read from the manifests that the index tracks, so track a
+manifest before the files it names. A release older than the one that added this key refuses a
+profile that carries it; add the key after binding that release.
+
 ## Formation and Starter Evolution
 
 `ethos adopt --create --root <absent-path>` previews forming a new repository at

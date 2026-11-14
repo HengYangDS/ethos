@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from itertools import starmap
 from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.admission.paths import check_write_paths
+from ethos.repository.paradigm.names import IdentifierNames
 from ethos.repository.paradigm.report import paradigm_path_gaps
+from tests.support.governed_repository import git
 from tests.support.paradigm import CONFORMING
 from tests.support.paradigm import paradigm_report
 
@@ -147,6 +151,120 @@ def test_a_name_another_obligation_owns_is_reported_once(tmp_path: Path) -> None
         "repository_paradigm_root_catalog:CLAUDE.md",
         "repository_paradigm_configuration_owner:.config/checks/Spelling_Rules/policy.toml",
     ]
+
+
+_PROFILE = ".ethos/profile.toml"
+_SOURCE = '\n[[identifier_sources]]\nmanifests = "{}"\nkeys = ["{}"]\nvalues = "{}"\n'
+_SOURCES = [
+    ("**/product.toml", "product.id", "whole"),
+    ("**/product.toml", "queries.sql.*", "path"),
+    ("data/**/catalog.json", "products.*.query_name", "whole"),
+    ("**/bundle.toml", "bundle.namespace", "dotted"),
+]
+_BUNDLE = "data/a_index/bundle.toml"
+_PRODUCT = "data/a_index/Daily_Close/product.toml"
+_QUERY = "data/a_index/Daily_Close/Shared_Sql/pre_start.mssql.sql"
+_CATALOG = "data/sql/catalog.json"
+_IDENTIFIED = {
+    **CONFORMING,
+    _PROFILE: CONFORMING[_PROFILE] + "".join(starmap(_SOURCE.format, _SOURCES)),
+    _BUNDLE: '[bundle]\nnamespace = "core.a_index"\n',
+    _PRODUCT: '[product]\nid = "Daily_Close"\n\n[[queries]]\n'
+    'sql = {mssql = "Shared_Sql/pre_start.mssql.sql"}\n',
+    _QUERY: "",
+    _CATALOG: '{"products": {"one": {"query_name": ["used_sql"]}}}\n',
+    "data/sql/used_sql.sql": "",
+}
+_ADMISSIONS = [
+    {"name": path.rsplit("/", 1)[-1], "carrier": path, "manifest": manifest}
+    for path, manifest in [
+        ("data/a_index", _BUNDLE),
+        (_PRODUCT[:-13], _PRODUCT),
+        (_QUERY[:-20], _PRODUCT),
+        (_QUERY, _PRODUCT),
+        ("data/sql/used_sql.sql", _CATALOG),
+    ]
+]
+_NAME_GAPS = [f"repository_paradigm_authored_name:{row['carrier']}" for row in _ADMISSIONS]
+_SOURCE_GAP = "repository_paradigm_identifier_source:"
+_ALL = [0, 1, 2, 3, 4]
+_KEY_GAPS = [
+    f"{_SOURCE_GAP}{_PROFILE}:identifier_sources.{glob}:{key}" for glob, key, _values in _SOURCES
+]
+
+
+def test_a_name_a_declared_manifest_key_repeats_is_admitted_with_its_evidence(
+    tmp_path: Path,
+) -> None:
+    """A directory, a file stem, a dotted part and a path segment pass, each with its manifest.
+
+    An array of strings holds one identifier per element, as the catalog's query names do.
+    """
+    report = paradigm_report(tmp_path / "declared", _IDENTIFIED)
+    assert (report["verdict"], report["name_admissions"]) == ("pass", _ADMISSIONS), report
+    others = {"data/a_index/Weekly_Close/notes.md": "", "data/sql/unused_sql.sql": ""}
+    report = paradigm_report(tmp_path / "others", {**_IDENTIFIED, **others})
+    assert report["required_gaps"] == [
+        "repository_paradigm_authored_name:data/a_index/Weekly_Close",
+        "repository_paradigm_authored_name:data/sql/unused_sql.sql",
+    ]
+    report = paradigm_report(tmp_path / "plain", {**_IDENTIFIED, _PROFILE: CONFORMING[_PROFILE]})
+    assert (report["required_gaps"], report["name_admissions"]) == (_NAME_GAPS, [])
+
+
+@pytest.mark.parametrize(
+    ("files", "untracked", "sources", "names"),
+    [
+        ({_BUNDLE: '[bundle]\nnamespace = "core"\n'}, (), [], [0]),
+        ({_BUNDLE: ""}, (), _KEY_GAPS[3:], [0]),
+        ({}, (_BUNDLE,), _KEY_GAPS[3:], [0]),
+        ({_CATALOG: "{"}, (), [_SOURCE_GAP + _CATALOG, _KEY_GAPS[2]], [4]),
+        (
+            {_CATALOG: '{"products": {"one": {"query_name": "a/b"}, "two": 2}}'},
+            (),
+            _KEY_GAPS[2:3],
+            [4],
+        ),
+        ({_PRODUCT: '[product]\nid = ""\nqueries = [{sql = 1}]\n'}, (), _KEY_GAPS[:2], [1, 2, 3]),
+        ({"docs/product.toml": "\xff"}, (), [f"{_SOURCE_GAP}docs/product.toml"], []),
+        ({_PROFILE: _IDENTIFIED[_PROFILE] + _SOURCE.format("**", "", "whole")}, (), [], _ALL),
+        ({_PROFILE: _IDENTIFIED[_PROFILE] + _SOURCE.format("**", "id", "stem")}, (), [], _ALL),
+    ],
+    ids=[
+        *("other-value", "no-key", "no-manifest", "unparsable", "slash", "empty"),
+        *("one-unreadable", "empty-key", "unknown-reading"),
+    ],
+)
+def test_an_identifier_source_without_evidence_excuses_nothing(
+    tmp_path: Path,
+    files: dict[str, str],
+    untracked: tuple[str, ...],
+    sources: list[str],
+    names: list[int],
+) -> None:
+    """A source no file matches, a key no manifest carries and an unreadable manifest are gaps.
+
+    A profile with an invalid source row is its owner's gap and admits nothing.
+    """
+    report = paradigm_report(tmp_path, {**_IDENTIFIED, **files}, untracked=untracked)
+    assert report["required_gaps"] == [*sources, *(_NAME_GAPS[index] for index in names)]
+
+
+def test_prewrite_admits_a_new_file_stem_a_tracked_manifest_repeats(tmp_path: Path) -> None:
+    """The single-path judgment reads the same evidence, lazily, from the tracked manifests."""
+    new, other = "data/sql/used_sql.mysql.sql", "data/sql/unused_sql.sql"
+    gap = f"repository_paradigm_authored_name:{new}"
+    assert [item.required_gap for item in paradigm_path_gaps(new)] == [gap]
+    evidence = IdentifierNames({"used_sql": _CATALOG}, [], [])
+    assert paradigm_path_gaps(new, identifiers=lambda: evidence) == ()
+    paradigm_report(tmp_path, _IDENTIFIED)
+    git(tmp_path, "init", "--quiet")
+    paths = [tmp_path / new, tmp_path / other]
+    checked = check_write_paths(tmp_path, paths, "work", effect_report={})[0]
+    assert [item["reason"] for item in checked] == [gap, gap.replace(new, other)]
+    git(tmp_path, "add", _PROFILE, _CATALOG)
+    checked = check_write_paths(tmp_path, paths, "work", effect_report={})[0]
+    assert [item["reason"] for item in checked] == ["allowed", gap.replace(new, other)]
 
 
 def test_two_forges_without_a_model_are_an_unmodeled_pipeline(tmp_path: Path) -> None:

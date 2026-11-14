@@ -19,6 +19,7 @@ from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
 from ethos.repository.paradigm.license import license_gaps
 from ethos.repository.paradigm.names import authored_name_gaps
+from ethos.repository.paradigm.names import identifier_names
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
 from ethos.repository.paradigm.orchestration import orchestration_gaps
@@ -39,6 +40,7 @@ from ethos.repository.release.publication import RETIRED_PEER_FIELDS
 from ethos.repository.release.publication import RETIRED_PUBLICATION_FIELDS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
@@ -47,6 +49,7 @@ if TYPE_CHECKING:
     from ethos.contracts.paradigm.declaration import EcosystemModule
     from ethos.contracts.paradigm.declaration import ReleaseConventions
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
+    from ethos.repository.paradigm.names import IdentifierNames
     from ethos.repository.registry.docs.registry import DocumentOrigins
 
 _KEBAB = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -81,6 +84,7 @@ def repository_paradigm_report(
     rules = tracked_text(root, paradigm.binding.path("rules"), tracked)
     parameters = parameter_resolution(rules, paradigm)
     release = _release_binding(paradigm, root, tracked)
+    identifiers = identifier_names(root, tracked)
     gaps = [
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
@@ -104,7 +108,8 @@ def repository_paradigm_report(
         *rules_binding_gaps(paradigm, rules),
         *_release_gaps(paradigm, root, tracked, release),
         *release_binding_gaps(paradigm, release),
-        *authored_name_gaps(paradigm, authored, received),
+        *dict.fromkeys(identifiers.gaps),
+        *authored_name_gaps(paradigm, authored, received, identifiers),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),
         *tracked_script_gaps(paradigm, root, tracked),
@@ -117,15 +122,19 @@ def repository_paradigm_report(
         "gaps": [gap._asdict() for gap in gaps],
         "required_gaps": required,
         "deviations": list(parameters.deviations),
+        "name_admissions": identifiers.admissions,
         "next_action": paradigm_next_action(root, gaps),
     }
 
 
-def paradigm_path_gaps(path: str, *, received: bool = False) -> tuple[ParadigmGap, ...]:
+def paradigm_path_gaps(
+    path: str, *, received: bool = False, identifiers: Callable[[], IdentifierNames] | None = None
+) -> tuple[ParadigmGap, ...]:
     """Return the paradigm gaps that creating one tracked path would introduce.
 
     Every module's root entries are admitted here: whether a manifest applies is decided
-    over the whole tree by the report. A received path keeps its name.
+    over the whole tree by the report. A received path keeps its name, and so does a file whose
+    name a declared identifier repeats; `identifiers` reads that evidence when a name needs it.
     """
     paradigm = load_repository_paradigm()
     tracked = frozenset({path})
@@ -133,7 +142,7 @@ def paradigm_path_gaps(path: str, *, received: bool = False) -> tuple[ParadigmGa
         *_root_entry_gaps(paradigm, tracked, _admitted_root_entries(paradigm, paradigm.module)),
         *_binding_gaps(paradigm, tracked),
         *_configuration_gaps(paradigm, tracked),
-        *name_path_gaps(paradigm, path, received=received),
+        *name_path_gaps(paradigm, path, received=received, identifiers=identifiers),
     )
 
 

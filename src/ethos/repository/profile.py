@@ -243,6 +243,25 @@ class AdoptionBoundaryPolicy(_ProfileModel):
     forbidden_external_product_roots: RepositoryPathTuple = ()
 
 
+class IdentifierSource(_ProfileModel):
+    """Declare manifest keys whose values repeat identifiers that an upstream contract fixes.
+
+    `manifests` is a glob over tracked paths. A key is a dotted path: `*` is every key of one
+    table, and an array of tables or of strings is read by element. `values` reads a value
+    whole, as dot-separated parts, or as a relative path whose segments and file stem each count.
+    """
+
+    manifests: RepositoryPath
+    keys: NonEmptyTuple = Field(min_length=1)
+    values: Literal["whole", "dotted", "path"] = "whole"
+
+
+IdentifierSources = Annotated[
+    tuple[IdentifierSource, ...],
+    BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
+]
+
+
 class RepositoryProfileDeclaration(_ProfileModel):
     """The one typed repository binding shared by every profile reader."""
 
@@ -250,6 +269,7 @@ class RepositoryProfileDeclaration(_ProfileModel):
     openspec: OpenSpecPolicy | None = None
     normative_sources: RepositoryPathTuple = ()
     record_roots: RecordRoots = ()
+    identifier_sources: IdentifierSources = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     proof: ProofPolicy = Field(default_factory=ProofPolicy)
     independent_verification: IndependentVerificationPolicy = Field(

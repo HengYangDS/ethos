@@ -49,7 +49,7 @@ def dead_declared_paths(files: dict[str, str], tracked: tuple[str, ...]) -> list
             except tomllib.TOMLDecodeError:
                 continue
             for field in fields:
-                for value in _field_values(payload, field.split(".")):
+                for value in field_values(payload, field.split(".")):
                     path = value.removeprefix("./")
                     if not _repository_relative(path):
                         continue
@@ -63,17 +63,17 @@ def dead_declared_paths(files: dict[str, str], tracked: tuple[str, ...]) -> list
     return sorted(dead)
 
 
-def _field_values(node: object, parts: list[str]) -> list[str]:
+def field_values(node: object, parts: list[str]) -> list[str]:
     """Read one dotted field through tables and arrays; `*` selects every key of a table."""
     if isinstance(node, list):
-        return [value for item in node for value in _field_values(item, parts)]
+        return [value for item in node for value in field_values(item, parts)]
     if not parts:
         return [node] if isinstance(node, str) else []
     if not isinstance(node, dict):
         return []
     head, rest = parts[0], parts[1:]
     children = list(node.values()) if head == "*" else [node[head]] if head in node else []
-    return [value for child in children for value in _field_values(child, rest)]
+    return [value for child in children for value in field_values(child, rest)]
 
 
 def _repository_relative(path: str) -> bool:

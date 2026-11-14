@@ -44,9 +44,10 @@
 
 ## 5. Validation on the pushed proposal ref
 
-- [ ] 5.1 Push the lane head. Done when GitHub's run passes with commit policy, four conformance
+- [x] 5.1 Push the lane head. Done when GitHub's run passes with commit policy, four conformance
       legs, quality gates, link health and `hosted checks` and no Windows leg, and GitLab's pipeline
-      passes with commit policy, host conformance and npm only.
+      passes with commit policy, host conformance and npm only. Evidence at `3d5365a65`: GitHub
+      run 43637623388 and the GitLab pipeline of the same ref.
 - [ ] 5.2 Qualify the head. Done when a dispatch with `qualify_head` at the head runs ten legs, a
       dispatch with another head runs no commit-scoped job and fails `hosted checks`, a GitLab `api`
       pipeline with the head runs the full set, and one with another head is not created.

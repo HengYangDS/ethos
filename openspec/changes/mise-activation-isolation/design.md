@@ -40,8 +40,10 @@ Non-Goals:
 
 - The reported failure itself was not reproduced under ETHOS's own tests: it needs an installed
   mise, two tools whose paths collide and an activation diff that lists them. The adoption
-  session's bisect is the evidence; that repository's proof from a clean environment is the
-  acceptance.
+  session's bisect is the evidence, and the acceptance was observed on 2026-11-14 at 23:03: the
+  same archived head of that repository, whose proof failed its JavaScript behavior gate at 20:27
+  from an activated shell, passed 13 of 13 checks when launched with every `__MISE_` variable
+  unset and the repository's test unchanged.
 - A caller that sets a variable under `__MISE_` on purpose loses it in the child. mise documents
   none as an input.
 - Mise could add activation state under another prefix. The rule then has one place to change.

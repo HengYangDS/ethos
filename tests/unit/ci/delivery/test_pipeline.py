@@ -111,3 +111,11 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     with pytest.raises(RuntimeError, match="native preflight failed"):
         delivery.prove_host(session)
     assert calls.mock_calls == [preflight]
+
+
+def test_every_host_case_names_a_test_that_exists() -> None:
+    """A host case is a tracked file, or a function that its file defines."""
+    for case in pipeline.HOST_CASES:
+        path, _separator, name = case.partition("::")
+        text = (ROOT / path).read_text(encoding="utf-8")
+        assert not name or f"\ndef {name}(" in text, case

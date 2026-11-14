@@ -16,6 +16,10 @@
 - [x] 2.2 Remove `tools/ci/toolchain/commit_trust.py`, the two helpers in
       `tools/ci/toolchain/environment.py` and their three tests. Done when no tracked file outside
       the archive names them and `tests/unit/ci/test_ci_bootstrap.py` passes.
+- [x] 2.3 Name the moved material case among the host cases of `tools/ci/delivery/pipeline.py`,
+      and add a test that every host case names a test that exists. Done when that test fails on
+      the removed name and passes on the moved one. Found by the first hosted runs of `cfa46ccec`:
+      `host_conformance` failed on both forges with `not found` for the removed test.
 
 ## 3. Documents
 

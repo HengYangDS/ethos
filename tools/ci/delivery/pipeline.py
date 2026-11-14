@@ -53,8 +53,8 @@ HOST_CASES = (
         "::test_windows_process_observation_lists_this_process"
     ),
     (
-        "tests/unit/ci/test_ci_bootstrap.py"
-        "::test_ci_trust_material_is_protected_under_a_shared_temporary_root"
+        "tests/unit/application/hook/test_commit_trust.py"
+        "::test_bound_material_is_protected_under_a_shared_temporary_root"
     ),
 )
 

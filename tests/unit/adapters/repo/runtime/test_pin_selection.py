@@ -254,4 +254,9 @@ def test_adoption_and_the_install_command_read_the_same_pin(tmp_path, monkeypatc
         installation, "install_hook_launchers", lambda _root, **named: seen.update(named) or binding
     )
     result = invoke("hook install", repo, {"installed_runtime": "/runtime", "reason": "defect"})
-    assert (seen["reason"], result.verdict) == ("defect", "pass")
+    assert (seen["reason"], result.verdict, result.next_action) == ("defect", "pass", "")
+    # An installation that leaves the accepted pin unselected names what settles the pin.
+    binding["runtime_pin"] = {"state": "runtime_pin_unattested", "next_action": _REPAIR}
+    kept = invoke("hook install", repo, {"installed_runtime": "/runtime", "reason": "defect"})
+    assert (kept.verdict, kept.next_action) == ("pass", _REPAIR)
+    assert kept.to_dict()["next"]["kind"] != "done"

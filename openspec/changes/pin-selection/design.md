@@ -36,8 +36,9 @@ Non-Goals:
 - Writing the pin at adoption (C3), the adopter bump, and the restore-then-rollback journey (B8).
 - Installing or fetching a release: Mise owns both.
 - A selector rollback in the product's own repository, where the accepted source names the build.
-- The top-level `next` of the `hook install` and `status` results, which other Changes of this
-  batch route; the pin's next action is reported under `runtime_pin` and the rollback's under
+- The top-level `next` of the `status` result, which other Changes of this batch route. A passing
+  `hook install` that leaves the accepted pin unselected names the pin's own action as its next
+  action; the pin's state stays under `runtime_pin` and the rollback's under
   `hook_runtime.rollback`.
 
 ## Decisions

@@ -127,10 +127,16 @@ def install_hook_runtime(root: Path, request: InstallRequest) -> EthosResult:
             if gaps
             else _status(root)
             if cleanup_state == "deferred" or legacy_state == "retained"
-            else ""
+            else _pin_action(runtime)
         ),
         data=runtime,
     )
+
+
+def _pin_action(runtime: dict[str, Any]) -> str:
+    """Name what settles an accepted pin that the installation left unselected, if anything."""
+    pinned = runtime.get("runtime_pin")
+    return str(pinned.get("next_action") or "") if isinstance(pinned, dict) else ""
 
 
 def _status(root: Path) -> str:

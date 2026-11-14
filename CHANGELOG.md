@@ -37,6 +37,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The shipped gate registries name every provider by its catalog ID, so a proof records a shared
   gate's provider under that ID, such as `provider.docs-registry`.
 
+### Fixed
+
+- `ethos lane format` and the source-format gate no longer select a path that Git attributes mark
+  `linguist-vendored` or `linguist-generated`: they reported `source_format_drift` for an upstream
+  license in a vendored tree, and `--apply` rewrote it. The Markdown, prose, link and configuration
+  gates leave such a path alone too, and a format request that names one refuses
+  `source_format_other_owner`.
+
 ## [0.2.0-beta.10] - 2026-11-14
 
 ### Added

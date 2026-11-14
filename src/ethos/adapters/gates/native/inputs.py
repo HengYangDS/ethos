@@ -54,7 +54,10 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
 
 
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
-    """Join authored inputs once, preserving producer, upstream and archived-record ownership."""
+    """Join authored inputs once, preserving producer, upstream and archived-record ownership.
+
+    A path that Git attributes mark vendored or generated is received, so no consumer selects it.
+    """
     profile = load_repository_profile(root)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
@@ -74,11 +77,12 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
         if item.category == "dependency_resolution"
         for pattern in item.paths
     )
+    listed = tuple(paths or quality_source_files(root, *patterns))
+    outside = {*foreign, *generated, *received_paths(root, listed)}
     selected = [
         relative
-        for relative in paths or quality_source_files(root, *patterns)
-        if relative not in foreign
-        and relative not in generated
+        for relative in listed
+        if relative not in outside
         and not relative.startswith(RECORD_PREFIXES)
         and not path_matches(relative, dependencies)
     ]
@@ -91,11 +95,11 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
 
 
 def authored_text_files(root: Path, files: Sequence[str]) -> tuple[str, ...]:
-    """Select declared text before formatters narrow it, preserving received and binary owners."""
+    """Select declared text of the authored join, preserving binary and byte-bound owners."""
     policy = tomllib.loads(canonical_resource(POLICY_PATH.as_posix()).read_text(encoding="utf-8"))
     extensions = {extension for item in policy["format"] for extension in item["extensions"]}
     ownership = format_ownership(root, tuple(files))
-    preserved = received_paths(root, tuple(files)) | {
+    preserved = {
         item["path"]
         for item in ownership["assignments"]
         if item["format_owner"] in {"source-binary", "immutable-carrier"}

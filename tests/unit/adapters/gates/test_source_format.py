@@ -213,6 +213,32 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
 
 
+def test_received_paths_leave_every_authored_selection(lane: Path) -> None:
+    """No authored check selects vendored bytes or rewrites them; a named one has another owner."""
+    kept = {
+        ".gitattributes": "vendor/** linguist-vendored\n* text=auto eol=lf\n",
+        "vendor/font/LICENSE": "Grant\n\n\nTerms\n",
+        "vendor/font/README.md": "# Font\n\n\nteh   \n",
+        "vendor/font/meta.json": '{"a":[1,2]}\n',
+    }
+    write_tree(lane, {**kept, "docs/new.md": "# New\n\ntext   \n"})
+    head, drift = git(lane, "rev-parse", "HEAD"), ["source_format_drift:docs/new.md"]
+    reports = (
+        formatting_gate.source_format_report,
+        gate_tool.markdown_lint_report,
+        gate_tool.prose_report,
+        configuration_report,
+    )
+
+    assert [report(lane)["required_gaps"] for report in reports] == [drift, drift, [], []]
+    assert _command(lane, "--check")[1]["required_gaps"] == drift
+    named = _command(lane, "vendor/font/LICENSE", "--check")[1]["required_gaps"]
+    assert named == ["source_format_other_owner:vendor/font/LICENSE"]
+    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
+    assert (code, applied["data"]["changed_paths"]) == (0, ["docs/new.md"]), applied
+    assert all((lane / path).read_text() == content for path, content in kept.items())
+
+
 @pytest.mark.parametrize(
     ("policy", "frozen"),
     [(_CARRIER, {"content/data.json"}), (_CARRIER.replace("openspec-baseline", "none"), set())],

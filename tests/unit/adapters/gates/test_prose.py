@@ -219,8 +219,9 @@ def _without_ambient_toolchain(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _quality_files(monkeypatch: pytest.MonkeyPatch, files: list[str]) -> None:
-    """Stand in for Git's inventory of these inputs and its classification of them as text."""
+    """Stand in for Git's inventory of these inputs, none received, all classified as text."""
     monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    monkeypatch.setattr(native_inputs, "received_paths", lambda *_args: frozenset())
     monkeypatch.setattr(native_inputs, "binary_content_paths", lambda *_args: frozenset())
 
 

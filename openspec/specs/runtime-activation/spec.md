@@ -27,13 +27,15 @@ independent completed, retained or deferred effects.
 
 - **WHEN** selector or hook configuration activation fails
 - **THEN** the SQLite transaction rolls back
-- **AND** selector bytes, Git configuration, database bytes and sidecar absence equal their pre-state.
+- **AND** selector bytes, Git configuration, database bytes and sidecar absence equal their
+  pre-state.
 
 #### Scenario: Successful activation has deferred reclamation
 
 - **WHEN** the runtime, hooks and state have activated successfully but reclamation cannot finish
 - **THEN** the result preserves the successful activation observation
-- **AND** it reports the precise reclamation boundary and a fresh public recovery action without undoing completed effects.
+- **AND** it reports the precise reclamation boundary without undoing completed effects
+- **AND** it continues to `ethos status`, never to the installation that produced it.
 
 ### Requirement: Incompatible state has one public recovery
 

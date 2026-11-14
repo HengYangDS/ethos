@@ -22,6 +22,10 @@ waivers and the order there. It is the row "the gate's tracked text" of the firs
   method, the three outcomes the release is judged by, and the budgets.
 - The terminal plan's release candidate section points to DR-0026 and to this design, and the
   decisions README indexes the record.
+- The terminal plan gains the organising principle the owner approved on 2026-11-14: three layers
+  with three clocks, three authorities acting on one law, four roles, and the cap of one off-gate
+  row per weekly batch until 0.2.0. It replaces the former plan's ownership table, whose meaning
+  the history link beside it keeps.
 - This Change implements nothing else; each row opens as its own Change.
 
 ## Capabilities

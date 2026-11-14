@@ -40,7 +40,7 @@ Non-Goals:
 
 ## Decisions
 
-1. **One packaged table, read by the kernel.** `src/ethos/contracts/gate_providers.toml` holds
+1. **One packaged table, read by the kernel.** `src/ethos/contracts/gate-providers.toml` holds
    `[providers]`, each ID with its `module:callable`, and `[legacy]`, each legacy name with its ID.
    `ethos.contracts.gate_providers` reads it beside itself, as the paradigm and the artifact
    topology read their tables; the wheel ships the file under the package rule that ships those, so

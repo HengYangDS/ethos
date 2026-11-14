@@ -19,7 +19,7 @@ application package's stability rule freezes the names that adopters declare
 ## What Changes
 
 - A gate declaration names a provider by a catalog ID of the form `provider.<name>`, such as
-  `provider.docs-registry`. The packaged table `src/ethos/contracts/gate_providers.toml` maps each
+  `provider.docs-registry`. The packaged table `src/ethos/contracts/gate-providers.toml` maps each
   of its 23 IDs to an implementation.
 - The same table maps 23 legacy names to their IDs. A legacy name keeps resolving for one support
   window and gives the same provider report; its gate's result carries the note

@@ -18,7 +18,6 @@ import ethos.application.proof.host as gate_execution
 import ethos.application.proof.operation as proof_operation
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import readiness_tier
-from ethos.adapters.repo.gate_policy import ResolvedGatePolicy
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.contracts.gates import Gate
@@ -211,7 +210,7 @@ def test_an_executing_full_host_proof_exits_one_unless_it_passes(
     assert (completed.returncode, json.loads(completed.stdout)["verdict"]) == (1, verdict)
 
 
-def _policy_with_a_test_gate(repo: Path, head: str) -> ResolvedGatePolicy:
+def _policy_with_a_test_gate(repo: Path, head: str) -> object:
     """Return the default full policy plus one test gate, so a host proof has a tier to admit."""
     resolved = resolve_gate_policy(repo, tree_ref=head, full=True)
     gates = (*resolved.gates, Gate(id="check", kind="test", command=("tools/check.sh",)))

@@ -44,6 +44,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A foreground host proof holds the host ticket while its test and package gates run, with the
   ticket's token and worker cap exported, and its result records the wait in `data.admission`.
 - `docs/guides/ci-guest-host.md` covers a host that also runs CI guests.
+- Every gap code the product raises is registered in one packaged table, with its owning package
+  and, where the name does not say it, its meaning and fixed repair; a static test and the shared
+  CLI test runner refuse an unregistered code. `ethos --help --json` prints one exit table, and
+  every CLI exit reads its number from it by kind.
 
 ### Changed
 

@@ -23,6 +23,7 @@ from cyclopts.exceptions import CycloptsError
 from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.application.catalog import Selected
 from ethos.application.catalog import select_operation
+from ethos.contracts.codes import gaps
 from ethos.contracts.operations.catalog import select_argv
 from ethos.result import expand_result
 from ethos.surface.cli.application import app
@@ -172,10 +173,36 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
             run_application(list(args))
         except SystemExit as exc:
             returncode = exc.code if isinstance(exc.code, int) else 1
+    _require_registered_gaps(stdout.getvalue(), list(args))
     _require_live_next(stdout.getvalue())
     return subprocess.CompletedProcess(
         [sys.executable, "-m", "ethos.cli", *args], returncode, stdout.getvalue(), stderr.getvalue()
     )
+
+
+def _require_registered_gaps(stdout: str, argv: list[str]) -> None:
+    """A result's declared gaps name registered codes or a family prefix, never an unknown one.
+
+    The syntactic check in `tests/architecture/test_gap_registry.py` cannot see a code that a
+    value composes at run time; this one covers exactly the results a test produces. A prose gap,
+    which `outcome_of` makes from another error's message, is reportable and not a code.
+    """
+    try:
+        payload = json.loads(stdout)
+    except ValueError:
+        return
+    if not isinstance(payload, dict):
+        return
+    unregistered = [
+        gap
+        for gap in payload.get("required_gaps") or ()
+        if isinstance(gap, str)
+        and gaps.code_shaped(gaps.gap_code(gap))
+        and not gaps.registered(gaps.gap_code(gap))
+    ]
+    if unregistered:
+        message = f"unregistered_gap:{','.join(unregistered)}:{shlex.join(['ethos', *argv])}"
+        raise AssertionError(message)
 
 
 def _require_live_next(stdout: str) -> None:

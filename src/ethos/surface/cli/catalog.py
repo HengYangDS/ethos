@@ -33,6 +33,7 @@ from ethos.contracts.operations.catalog import command_path
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Group
+from ethos.contracts.operations.declaration import exits
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -212,5 +213,6 @@ def help_result(words: Sequence[str]) -> EthosResult | None:
                 for command in commands
             ],
             "groups": [{"name": group.name, "help": group.help} for group in groups],
+            "exits": [row.to_contract() for row in exits()],
         },
     )

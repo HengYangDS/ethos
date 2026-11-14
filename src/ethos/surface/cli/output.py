@@ -18,6 +18,7 @@ from cyclopts import Parameter
 
 from ethos.application.console import resolved_root
 from ethos.application.result_projection import bounded_result
+from ethos.contracts.operations.declaration import EXIT_CODES
 
 if TYPE_CHECKING:
     from ethos.result import EthosResult
@@ -46,10 +47,10 @@ def emit(
             with suppress(OSError, ValueError):
                 sys.stderr.write(_human_frame(result))
                 sys.stderr.flush()
-        raise SystemExit(2)
+        raise SystemExit(EXIT_CODES["usage"].status)
     native_failure = result.data.get("error_boundary") in {"git_execution", "process_execution"}
     if (enforce or native_failure) and result.verdict != "pass":
-        raise SystemExit(1)
+        raise SystemExit(EXIT_CODES["blocked"].status)
 
 
 def _human_frame(result: EthosResult) -> str:
@@ -90,7 +91,7 @@ def _write_frame(stream: TextIO, frame: str) -> None:
             except (OSError, ValueError):
                 pass
         # An undelivered result is not the command's verdict; it exits apart from every verdict.
-        raise SystemExit(3)
+        raise SystemExit(EXIT_CODES["undelivered"].status)
 
 
 def _human_reasons(result: EthosResult) -> tuple[str, ...]:

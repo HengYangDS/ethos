@@ -431,6 +431,12 @@ of the committed build that produced the result.
   `plan_digest` and `lease_expires_at`.
 - `why` is the first required gap, or else the state.
 
+A gap's code is the text before its first colon, and every code the product raises is
+registered in one packaged table, with its owning package and, where the name does not say it, its
+meaning and fixed repair. A process exit reads its number from one declared table: `pass` 0,
+`blocked` 1, `usage` 2, `undelivered` 3, `process` the child's own status, and `refused` 125
+reserved. `ethos --help --json` prints the table as `data.exits`.
+
 Every JSON result fits its budget: 16 KiB, 32 KiB for `plan` or 48 KiB for `help`. A larger result
 keeps its wire fields, its own `data` entries of at most 1 KiB and the scalar fields of a larger
 mapping, and adds a top-level `bound`. `bound.detail` names the digest-bound artifact of the full

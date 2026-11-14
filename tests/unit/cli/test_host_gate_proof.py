@@ -50,7 +50,7 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
         lambda _root: {
             "verdict": verdict,
             "state": "clean" if verdict == "pass" else "failed",
-            "required_gaps": [] if verdict == "pass" else ["type_error"],
+            "required_gaps": [] if verdict == "pass" else ["quality_gate_failed:docs-registry"],
             "stderr": "exact-provider-error" if verdict == "block" else "",
         },
     )
@@ -198,7 +198,12 @@ def test_an_executing_full_host_proof_exits_one_unless_it_passes(
     """Adopter CI gates on this exit, so a blocked or unknown full host proof never exits 0."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
-    observed = EthosResult(command="prove", verdict=verdict, state="observed", required_gaps=("x",))
+    observed = EthosResult(
+        command="prove",
+        verdict=verdict,
+        state="observed",
+        required_gaps=("gate_failed:docs-registry",),
+    )
     monkeypatch.setattr(proof_operation, "host_gate_observation", lambda **_kwargs: observed)
 
     completed = _host(repo, head, "--full")

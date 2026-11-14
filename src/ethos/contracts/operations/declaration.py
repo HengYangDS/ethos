@@ -26,6 +26,51 @@ Predicate = Literal["true", "false", "set", "unset"]
 # `observe` exits 0 on every verdict; `verdict` exits 0 only when the verdict passes; `process`
 # exits with the child's status that `data.exit_status` carries, and prints no frame.
 ExitKind = Literal["observe", "verdict", "process"]
+
+
+@dataclass(frozen=True, slots=True)
+class ExitRow:
+    """One row of the process exit table: the kind, its number and what earns it."""
+
+    kind: str
+    # None for `process`, whose number is the child's and travels in `data.exit_status`.
+    status: int | None
+    meaning: str
+    # A declared number that no path exits with yet.
+    reserved: bool = False
+
+    def to_contract(self) -> dict[str, object]:
+        """Return the published shape that help prints."""
+        return {
+            "kind": self.kind,
+            "status": self.status,
+            "meaning": self.meaning,
+            "reserved": self.reserved,
+        }
+
+
+# Every number the CLI exits with, by the kind that earns it. `refused` is reserved for a refusal
+# that is not the child's failure and no path exits with it yet.
+EXIT_CODES: Mapping[str, ExitRow] = {
+    row.kind: row
+    for row in (
+        ExitRow("pass", 0, "The command passed or observed a verdict."),
+        ExitRow("blocked", 1, "An enforced verdict did not pass, or a native failure held."),
+        ExitRow("usage", 2, "The request does not parse or selects no operation."),
+        ExitRow("undelivered", 3, "The result frame could not be written."),
+        ExitRow(
+            "refused", 125, "Reserved: a refusal apart from the child's failure.", reserved=True
+        ),
+        ExitRow("process", None, "The child's own status, from `data.exit_status`."),
+    )
+}
+
+
+def exits() -> tuple[ExitRow, ...]:
+    """Return the exit table in published order."""
+    return tuple(EXIT_CODES.values())
+
+
 _HOLDS = frozenset({"true", "set"})
 _PREVIEWED = "read local-evidence-write"
 # The fields that recur across requests, each one type with its help text.

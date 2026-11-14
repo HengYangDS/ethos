@@ -17,6 +17,7 @@ from pydantic import Field
 from pydantic import computed_field
 from pydantic import model_validator
 
+from ethos.contracts.next_step import NextInput
 from ethos.contracts.next_step import NextStep
 from ethos.contracts.next_step import derive_next_step
 from ethos.contracts.outcome import Outcome
@@ -83,6 +84,8 @@ class EthosResult(BaseModel):
     # Only on a bounded result: where the full result is and what the bound left out.
     bound: JsonObject | None = Field(default=None, exclude_if=lambda value: value is None)
     data: JsonObject = Field(default_factory=dict)
+    # The values only the agent can choose for the next step; the wire carries them in `next`.
+    next_inputs: tuple[NextInput, ...] = Field(default=(), exclude=True)
 
     @model_validator(mode="after")
     def reject_false_pass(self) -> Self:
@@ -118,7 +121,16 @@ class EthosResult(BaseModel):
     def next(self) -> NextStep:
         """The step `next_action` renders, as data an agent acts on without parsing text."""
         why = self.required_gaps[0] if self.required_gaps else self.state
-        return derive_next_step(self.next_action, continuation=self.continuation, why=why)
+        step = derive_next_step(self.next_action, continuation=self.continuation, why=why)
+        return step.model_copy(update={"inputs": self.next_inputs})
+
+    def replace(self, **changes: object) -> Self:
+        """Return this result with some fields replaced, validated as a new result is.
+
+        Every field is kept, also one that a dump leaves out, such as `next_inputs`.
+        """
+        fields = {name: getattr(self, name) for name in type(self).model_fields}
+        return type(self).model_validate(fields | changes)
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", exclude_none=True)
@@ -164,7 +176,10 @@ class EthosResult(BaseModel):
         derived = {name: carried.pop(name) for name in cls._DERIVED_FIELDS}
         # Each reader re-derives the step with its own classification, so an older runtime's
         # payload of the same schema stays readable; the carried step must only be well formed.
-        NextStep.model_validate_json(json.dumps(derived.pop("next")))
+        # No text renders its inputs, so they are the one part of it that a reader keeps, and
+        # only `next` carries them: a top-level `next_inputs` in a payload is never read.
+        step = NextStep.model_validate_json(json.dumps(derived.pop("next")))
+        carried["next_inputs"] = [item.model_dump() for item in step.inputs]
         result = cls.model_validate_json(json.dumps(carried))
         actual = result.to_dict()
         if mismatch := next(
@@ -199,7 +214,6 @@ def apply_payload_budget(result: EthosResult, *, root: Path | Callable[[], Path]
         "partial": [],
         "moved": [],
     }
-    base = result.model_dump(exclude_computed_fields=True)
     # Small entries are how the next call binds (a receipt, a lane path, a plan digest); they stay.
     # A larger mapping keeps its scalar fields, which name its state; the rest moves to detail.
     kept: dict[str, Any] = {}
@@ -213,9 +227,7 @@ def apply_payload_budget(result: EthosResult, *, root: Path | Callable[[], Path]
             bound["moved"].append(key)
 
     def build(gaps: tuple[str, ...]) -> EthosResult:
-        return EthosResult.model_validate(
-            base | {"required_gaps": gaps, "data": kept, "bound": bound}
-        )
+        return result.replace(required_gaps=gaps, data=kept, bound=bound)
 
     bounded = build(result.required_gaps)
     while len(bounded.to_json().encode()) > limit and bound["failing"]:

@@ -431,7 +431,7 @@ it, so ETHOS reads another ETHOS process's result, such as the installed runtime
 full before it reads a moved or shortened field. Detail is a cache, not a receipt: detail older than
 seven days is removed whenever new detail is written, and a store that refuses it leaves the result
 inline with the reason in `bound.detail_unavailable`. A reader re-derives `next` from `next_action`
-and never trusts a carried one.
+and never trusts a carried one; it keeps only a carried step's `inputs`, which no step emits yet.
 
 ## Proof Depth
 

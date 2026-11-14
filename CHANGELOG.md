@@ -12,6 +12,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- Readers accept `next.inputs`: one entry for each value that only the agent can choose for the
+  next step, with the request field's `name`, its `flag` and its `description`.
+  `EthosResult.from_payload` keeps a carried `inputs` and re-derives the rest of the step, and the
+  result schema admits the member. No command emits it in this release; the commands that do
+  follow one release later, so a build one release older still reads their results.
+
 ### Changed
 
 - The supply moves to the newest stable releases. Mise moves to 2026.11.8 (the floor and the CI

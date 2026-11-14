@@ -1,5 +1,17 @@
 {
   "$defs": {
+    "NextInput": {
+      "additionalProperties": false,
+      "description": "One value that only the agent can choose, named as the catalog names a request field.",
+      "properties": {
+        "description": { "title": "Description", "type": "string" },
+        "flag": { "title": "Flag", "type": "string" },
+        "name": { "title": "Name", "type": "string" }
+      },
+      "required": ["name", "flag", "description"],
+      "title": "NextInput",
+      "type": "object"
+    },
     "NextStep": {
       "additionalProperties": false,
       "description": "One next step: a `command` an agent runs, or a `decision` whose argv a person approves.",
@@ -49,6 +61,12 @@
           "type": "array"
         },
         "form": { "default": "", "title": "Form", "type": "string" },
+        "inputs": {
+          "default": [],
+          "items": { "$ref": "#/$defs/NextInput" },
+          "title": "Inputs",
+          "type": "array"
+        },
         "kind": {
           "enum": ["command", "instruction", "decision", "done"],
           "title": "Kind",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shlex
 
 import pytest
@@ -12,6 +13,7 @@ _HEAD = "a" * 40
 _CANDIDATE = "c" * 40
 _EVIDENCE_WRITE = ["local-evidence-write", "local-write"]
 _REMOTE = ["read", "remote-read", "local-evidence-write", "remote-write"]
+_ACTOR = {"name": "actor", "flag": "--actor", "description": "The executor's own identity."}
 
 
 def _next(next_action: str, **fields: object) -> dict[str, object]:
@@ -153,7 +155,7 @@ def test_an_argv_names_its_effects_authority_and_any_deletion(
 
 
 def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
-    """A carried step is only checked for shape; every reader derives its own from the text."""
+    """A carried step is checked for shape and gives only its inputs; the rest is re-derived."""
     result = EthosResult(
         command="status", verdict="pass", state="ready", next_action="ethos status --json"
     )
@@ -161,7 +163,27 @@ def test_a_reader_re_derives_next_and_never_trusts_a_carried_one() -> None:
     payload["next"] = {**payload["next"], "argv": ["ethos", "publish", "--apply"]}
 
     assert EthosResult.from_payload(payload).to_dict()["next"] == result.to_dict()["next"]
-    for field, value in (("kind", "launch"), ("authorization", "embedded")):
+    malformed = (
+        ("kind", "launch"),
+        ("authorization", "embedded"),
+        # An input is exactly a name, a flag and a description, each a string.
+        ("inputs", [{"name": "actor", "flag": "--actor"}]),
+        ("inputs", [_ACTOR | {"default": "agent"}]),
+        ("inputs", [_ACTOR | {"flag": 1}]),
+    )
+    for field, value in malformed:
         payload["next"] = {**result.to_dict()["next"], field: value}
         with pytest.raises(ValueError, match=field):
             EthosResult.from_payload(payload)
+
+
+def test_a_reader_keeps_the_inputs_of_a_carried_step_and_only_them() -> None:
+    """No text renders `inputs`, so they round-trip; a step without any keeps today's bytes."""
+    plain = EthosResult(command="status", verdict="pass", state="ready").to_dict()
+    step = plain["next"] | {"inputs": [_ACTOR]}
+    kept = EthosResult.from_payload(plain | {"next": step | {"kind": "command"}})
+
+    assert kept.to_dict() == plain | {"next": step}
+    assert EthosResult.from_payload(json.loads(kept.to_json())) == kept == kept.replace()
+    # Only `next` carries them: a top-level `next_inputs` in a payload is never read.
+    assert EthosResult.from_payload(plain | {"next_inputs": [_ACTOR]}).to_dict() == plain

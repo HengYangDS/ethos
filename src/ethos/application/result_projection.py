@@ -36,8 +36,7 @@ def with_runtime(result: EthosResult) -> EthosResult:
             "distribution_version": identity.distribution_version,
             "source_commit": identity.source_commit,
         }
-    payload = result.model_dump(exclude_computed_fields=True)
-    return EthosResult.model_validate(payload | {"summary": {**result.summary, "runtime": runtime}})
+    return result.replace(summary={**result.summary, "runtime": runtime})
 
 
 def bounded_result(result: EthosResult, *, anchor: Path | None) -> EthosResult:

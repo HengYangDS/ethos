@@ -2,7 +2,8 @@
 
 A step is derived from the same facts that render a result's `next_action`, so the text and the
 data can never disagree, and it is re-derived on every read rather than stored or replayed. An
-argv takes its form, effects and authority from the catalog operation it selects.
+argv takes its form, effects and authority from the catalog operation it selects. No text renders
+a step's `inputs`, so they alone are carried: they name values and grant nothing.
 """
 
 from __future__ import annotations
@@ -31,6 +32,19 @@ _BINDINGS = {
 }
 
 
+class NextInput(BaseModel):
+    """One value that only the agent can choose, named as the catalog names a request field."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    # The request field the value fills, which a binding and `--help --json` name alike.
+    name: str
+    # The field's command-line spelling, such as `--change`.
+    flag: str
+    # The field's help text; the catalog's request schema owns its type and default.
+    description: str
+
+
 class NextStep(BaseModel):
     """One next step: a `command` an agent runs, or a `decision` whose argv a person approves."""
 
@@ -44,6 +58,8 @@ class NextStep(BaseModel):
     destructive: bool = False
     authorization: StepAuthorization = "none"
     binding: JsonObject = Field(default_factory=dict)
+    # Absent from the wire when empty, so a step without a value to choose keeps its bytes.
+    inputs: tuple[NextInput, ...] = Field(default=(), exclude_if=lambda value: not value)
     why: str
 
 

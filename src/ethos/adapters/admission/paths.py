@@ -122,10 +122,8 @@ def _check_path(
         load_generated_artifact_topology_declaration(),
         origin="projection" if relative in outputs else "unclassified",
     )
-    present = (
-        relative in indexed_effects and indexed_effects[relative] != "delete"
-        if indexed_effects is not None
-        else resolved.exists()
+    present, created, removed = _observed_effect(
+        indexed_effects, relative, resolved, deleted=deleted
     )
     observed = {
         "origin": topology["origin"],
@@ -133,14 +131,8 @@ def _check_path(
         "placement": topology["decision"],
     }
     tracked = not ignored
-    created = (
-        indexed_effects.get(relative) == "create"
-        if indexed_effects is not None
-        else not present and not deleted
-    )
     decision: dict[str, object] = {}
     # A denied placement refuses what would put or keep content there, never the path's removal.
-    removed = deleted or (indexed_effects is not None and indexed_effects.get(relative) == "delete")
     if topology["decision"] == "deny" and not removed:
         reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
     elif (
@@ -168,6 +160,17 @@ def _check_path(
         reason=reason,
         **decision,
     )
+
+
+def _observed_effect(
+    effects: dict[str, object] | None, relative: str, path: Path, *, deleted: bool
+) -> tuple[bool, bool, bool]:
+    """Return whether the request leaves the path present, creates it, or removes it."""
+    if effects is None:
+        present = path.exists()
+        return present, not present and not deleted, deleted
+    effect = effects.get(relative)
+    return effect not in {None, "delete"}, effect == "create", effect == "delete"
 
 
 def _path_report(path: str, *, reason: str, **details: object) -> dict[str, object]:

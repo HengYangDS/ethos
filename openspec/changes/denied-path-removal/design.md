@@ -36,6 +36,10 @@ Non-Goals:
 3. **One rule for every denied placement.** The condition is on the placement's decision and not
    on a prefix, so denied generated homes and denied caches that a repository tracks can be
    removed the same way.
+4. **The effect is observed in one helper.** `_observed_effect` returns whether the request
+   leaves the path present, creates it or removes it, for a worktree request and for an index
+   request. `_check_path` read those facts in three places; with the helper its pinned decision
+   score falls from 19 to 16, where reading the removal in place raised it to 22.
 
 ## Risks / Trade-offs
 

@@ -6,6 +6,8 @@
       two removal cases fail on the unchanged guard and its edit and creation cases pass.
 - [x] 1.2 Read the effect before the denied placement refuses in
       `src/ethos/adapters/admission/paths.py`. Done when the four cases pass and ruff and Ty pass.
+- [x] 1.3 Observe the effect in one helper and lower the guard's pinned decision score. Done when
+      `tests/architecture/test_decision_density.py` passes with `_check_path` pinned at 16.
 
 ## 2. Documents
 

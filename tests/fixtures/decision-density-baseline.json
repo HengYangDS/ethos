@@ -12,7 +12,7 @@
   "src/ethos/adapters/admission/patch_admission.py::patch_admission": 42,
   "src/ethos/adapters/admission/patch_admission.py::profile_repair_scope": 18,
   "src/ethos/adapters/admission/patch_admission.py::staged_artifact_admission": 19,
-  "src/ethos/adapters/admission/paths.py::_check_path": 19,
+  "src/ethos/adapters/admission/paths.py::_check_path": 16,
   "src/ethos/adapters/admission/paths.py::check_write_paths": 37,
   "src/ethos/adapters/admission/prewrite.py::_prewrite_guard": 35,
   "src/ethos/adapters/admission/publication.py::_ref_update_admission": 22,

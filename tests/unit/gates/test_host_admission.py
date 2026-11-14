@@ -249,8 +249,12 @@ def test_an_unwritable_queue_directory_answers_unavailable(
         pytest.fail("an unwritable queue admitted work")
 
 
-def test_admitted_work_carries_one_token_and_worker_cap(host_root: Path, tmp_path: Path) -> None:
+def test_admitted_work_carries_one_token_and_worker_cap(
+    host_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Work under a live admission joins it; a copied token whose holder left admits nothing."""
+    # A suite that runs under a host ticket inherits that ticket's worker count.
+    monkeypatch.delenv(host_admission.XDIST_WORKERS, raising=False)
     _declare(host_root, "reserved_cpus = 1\n")
 
     with host_admission.admitted_host_work(

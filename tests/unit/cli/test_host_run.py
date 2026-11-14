@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _CHILD = """
 import json, os, sys
@@ -74,6 +72,27 @@ def test_a_missing_command_is_refused(tmp_path: Path) -> None:
         "host run",
         ["host_run_command_missing"],
     )
+
+
+@pytest.mark.parametrize(
+    ("argv", "next_action"),
+    [
+        (("run", "--json", "--", "true"), "repair this host's root, or declare more host slots"),
+        (("status", "--json"), "repair this host's root or its host.toml declaration"),
+    ],
+)
+def test_an_invalid_declaration_refuses_the_run_and_the_read(
+    tmp_path: Path, argv: tuple[str, ...], next_action: str
+) -> None:
+    """Neither the run nor the read guesses past a declaration that names an unknown key."""
+    root = Path(os.environ["XDG_DATA_HOME"]) / "ethos"
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "host.toml").write_text("slot = 2\n", encoding="utf-8")
+
+    payload = json.loads(run_ethos_raw("host", *argv, cwd=tmp_path).stdout)
+
+    assert payload["required_gaps"] == ["host_declaration_invalid:slot"]
+    assert payload["next_action"] == next_action
 
 
 def test_an_admitted_command_exits_with_its_status_and_prints_no_frame(tmp_path: Path) -> None:

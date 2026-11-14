@@ -465,19 +465,22 @@ def test_failed_dependency_never_executes_delivery(tmp_path, prerequisite, exit_
     )
 
 
-@pytest.mark.parametrize("local_provider", [False, True])
+@pytest.mark.parametrize("local_provider", [False, True, None])
 @pytest.mark.parametrize("transport", ["owner", "cli"])
 def test_public_execution_rejects_foreign_provider_before_any_gate(
     tmp_path, local_provider, transport
 ):
-    """A bound candidate provider must not execute an ambient package implementation."""
+    """A bound candidate provider must not execute an ambient package implementation.
+
+    Without `local_provider` the gate names a provider that the catalog does not resolve.
+    """
     repo = init_git_repo(tmp_path / "repo")
     profile = repo / ".ethos/profile.toml"
     profile.parent.mkdir()
     profile.write_text('profile_id = "provider-fixture"\n[proof]\ngate_registry = "gates.toml"\n')
     marker = repo / "EXECUTED"
     program = f"from pathlib import Path; Path({str(marker)!r}).touch()"
-    provider = "ethos.contracts.gates:load_gate_registry_declaration"
+    provider = "provider.unknown" if local_provider is None else "provider.schemas"
     (repo / "gates.toml").write_text(
         'id = "provider-fixture"\n[proof_sets]\n'
         'default = ["external", "provider", "quality-behavior", "quality-static"]\n'
@@ -494,11 +497,9 @@ def test_public_execution_rejects_foreign_provider_before_any_gate(
         'providers = ["ethos.adapters.gates.code_quality:static_report"]\n'
     )
     if local_provider:
-        candidate = repo / "src/ethos/contracts/gates.py"
+        candidate = repo / "src/ethos/repository/policy/schema.py"
         candidate.parent.mkdir(parents=True)
-        candidate.write_text(
-            'def load_gate_registry_declaration(root): return {"verdict": "pass"}\n'
-        )
+        candidate.write_text('def schema_validation_report(root): return {"verdict": "pass"}\n')
     head = commit_fixture(repo, "bind provider")
     if transport == "cli":
         result = run_ethos_raw(
@@ -514,9 +515,11 @@ def test_public_execution_rejects_foreign_provider_before_any_gate(
         observed = observe_gate_execution(repo, full=True, expect_head=head)
     assert observed["verdict"] == "block"
     expected = (
-        f"gate_provider_source_mismatch:provider:{provider}"
+        f"gate_provider_unresolved:provider:{provider}"
+        if local_provider is None
+        else f"gate_provider_source_mismatch:provider:{provider}"
         if local_provider
-        else "gate_policy_source_missing:provider:src/ethos/contracts/gates.py"
+        else "gate_policy_source_missing:provider:src/ethos/repository/policy/schema.py"
     )
     assert observed["required_gaps"] == [expected], observed
     assert observed["executed"] is False
@@ -527,9 +530,9 @@ def test_public_execution_rejects_foreign_provider_before_any_gate(
 def test_packaged_provider_requires_exact_candidate_identity(tmp_path, monkeypatch, identity_state):
     """Installed matching builds remain usable; missing or stale identity grants nothing."""
     repo = init_git_repo(tmp_path / "repo")
-    source = repo / "src/ethos/contracts/verdict.py"
+    source = repo / "src/ethos/repository/policy/schema.py"
     source.parent.mkdir(parents=True)
-    source.write_text("def report_verdict(root): return 'pass'\n")
+    source.write_text("def schema_validation_report(root): return 'pass'\n")
     head = commit_fixture(repo, "candidate provider")
     tree = git_adapter.current_tree(repo, head)
 
@@ -542,7 +545,7 @@ def test_packaged_provider_requires_exact_candidate_identity(tmp_path, monkeypat
         )
 
     monkeypatch.setattr(gate_verification, "invoking_build_identity", build)
-    gate = Gate(id="check", kind="test", providers=("ethos.contracts.verdict:report_verdict",))
+    gate = Gate(id="check", kind="test", providers=("provider.schemas",))
     if identity_state == "exact":
         gate_verification.assert_provider_execution_source(repo, (gate,))
     else:

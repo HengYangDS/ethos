@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from ethos.contracts.gate_providers import provider_id
 from ethos.contracts.gates import DECLARATION_PATH
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
@@ -376,6 +377,16 @@ def compile_gate_policy(
         )
         if profile is not None and profile.declaration is not None
         else ((), ())
+    )
+    # A name the catalog does not resolve refuses here, before any gate runs.
+    gaps = (
+        *gaps,
+        *(
+            f"gate_provider_unresolved:{gate.id}:{reference}"
+            for gate in gates
+            for reference in (*gate.providers, *gate.verification_providers)
+            if provider_id(reference) is None
+        ),
     )
     selected_ids = {gate.id for gate in gates}
     if acceptance_purpose == "local-source" and any(

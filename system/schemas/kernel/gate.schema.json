@@ -87,7 +87,10 @@
     "policy": { "minLength": 1, "type": "string" },
     "profile": { "minLength": 1, "type": "string" },
     "providers": {
-      "items": { "pattern": "^ethos\\.[^:]+:[^:]+$", "type": "string" },
+      "items": {
+        "pattern": "^(?:provider\\.[a-z0-9]+(?:-[a-z0-9]+)*|ethos\\.[^:]+:[^:]+)$",
+        "type": "string"
+      },
       "minItems": 1,
       "type": "array",
       "uniqueItems": true

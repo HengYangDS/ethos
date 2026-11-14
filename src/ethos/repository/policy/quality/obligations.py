@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from ethos.contracts.gate_providers import provider_spellings
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.quality_reports import quality_evidence_paths
@@ -17,19 +18,14 @@ if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
     from ethos.repository.profile import SourceContract
 
+# Each axis's verifiers under every spelling a declaration may use: the ID or a legacy name.
 QUALITY_PROVIDERS = {
-    "behavior": (
-        "ethos.adapters.gates.python_quality:behavior_report",
-        "ethos.adapters.gates.code_quality:behavior_report",
-    ),
-    "static-analysis": (
-        "ethos.adapters.gates.python_quality:static_report",
-        "ethos.adapters.gates.code_quality:static_report",
-    ),
+    "behavior": provider_spellings("provider.python-behavior", "provider.code-behavior"),
+    "static-analysis": provider_spellings("provider.python-static", "provider.code-static"),
 }
 
 
-INTEGRITY_PROVIDER = "ethos.adapters.gates.provenance.observation:integrity_report"
+INTEGRITY_PROVIDER = "provider.source-integrity"
 
 
 def quality_obligation_gaps(
@@ -262,7 +258,9 @@ def source_verifier_gaps(owner: Mapping[str, object], gates: tuple[Gate, ...]) -
         if (
             gate is None
             or not gate.trust_bearing
-            or INTEGRITY_PROVIDER not in (*gate.providers, *gate.verification_providers)
+            or not set(provider_spellings(INTEGRITY_PROVIDER)).intersection(
+                (*gate.providers, *gate.verification_providers)
+            )
         ):
             gaps.append(f"source_integrity_gate_unbound:{contract.integrity_gate}")
     return tuple(dict.fromkeys(gaps))
@@ -320,11 +318,12 @@ def source_integrity_gaps(
                     if isinstance(payload, Mapping) and payload.get("gate") == gate_id
                     else None
                 )
-                if INTEGRITY_PROVIDER in providers and isinstance(observations, list):
+                spellings = provider_spellings(INTEGRITY_PROVIDER)
+                if set(spellings).intersection(providers) and isinstance(observations, list):
                     measured = [
                         item.get("report")
                         for item in observations
-                        if isinstance(item, Mapping) and item.get("provider") == INTEGRITY_PROVIDER
+                        if isinstance(item, Mapping) and item.get("provider") in spellings
                     ]
                     if len(measured) == 1:
                         report = measured[0]

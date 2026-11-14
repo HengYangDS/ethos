@@ -28,6 +28,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   files after the move formats them once.
 - `complexipy` stays below 9: version 9.0.0 scores cognitive complexity differently, and the
   decision-density baseline is pinned to the 8.x scores.
+- A gate declaration names a provider by a catalog ID such as `provider.docs-registry`, which a
+  packaged table maps to its implementation. An `ethos.<module>:<callable>` name keeps resolving
+  for one support window, and its gate's result carries the note `gate_provider_legacy_name` with
+  the ID to declare. A name that the catalog does not resolve refuses the proof with
+  `gate_provider_unresolved:<gate>:<name>` before any gate runs. An earlier release refuses a
+  registry that names an ID, so declare IDs once the release you would roll back to has the catalog.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

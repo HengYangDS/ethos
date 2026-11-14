@@ -25,6 +25,8 @@ from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.contracts.gate_providers import provider_catalog
+from ethos.contracts.gate_providers import provider_target
 from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -236,7 +238,21 @@ def provider_reports(
                 }
             )
     verdict = reduce_verdicts(*verdicts) if len(verdicts) == len(references) else "block"
-    return reports, verdict, tuple(diagnostics)
+    return reports, verdict, (*diagnostics, *_legacy_notes(references))
+
+
+def _legacy_notes(references: tuple[str, ...]) -> tuple[dict[str, str], ...]:
+    """Name the catalog ID to declare for each legacy name; a note decides nothing."""
+    legacy = provider_catalog()[1]
+    return tuple(
+        {
+            "severity": "note",
+            "code": "gate_provider_legacy_name",
+            "message": f"gate_provider_legacy_name; next: declare {legacy[name]} for {name}",
+        }
+        for name in references
+        if name in legacy
+    )
 
 
 def failure_part(
@@ -303,7 +319,7 @@ def _provider_report(
     timeout_seconds: float | None = None,
     candidate: bool = False,
 ) -> Mapping[str, object]:
-    module_name, _, attribute = reference.partition(":")
+    module_name, _, attribute = provider_target(reference).partition(":")
     provider = getattr(importlib.import_module(module_name), attribute)
     parameters = inspect.signature(provider).parameters
     kwargs: dict[str, object] = {}

@@ -12,6 +12,9 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
+from ethos.contracts.gate_providers import provider_id
+from ethos.contracts.gate_providers import provider_spellings
+from ethos.contracts.gate_providers import provider_target
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
@@ -148,10 +151,11 @@ def provider_module_sources(gate: Gate) -> tuple[tuple[str, str], ...]:
         (
             reference,
             provider_root
-            + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
+            + provider_target(reference).partition(":")[0].removeprefix("ethos.").replace(".", "/")
             + ".py",
         )
         for reference in (*gate.providers, *gate.verification_providers)
+        if provider_id(reference)
     )
 
 
@@ -165,7 +169,7 @@ def source_paths_for_gate(
     providers = provider_module_sources(gate)
     artifacts: tuple[str, ...] = ()
     for reference, source in providers:
-        if reference == INTEGRITY_PROVIDER:
+        if reference in provider_spellings(INTEGRITY_PROVIDER):
             prefix = source.removesuffix("adapters/gates/provenance/observation.py")
             artifacts = (
                 prefix + "adapters/gates/provenance/archive.mjs",

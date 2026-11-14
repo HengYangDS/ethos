@@ -17,6 +17,7 @@ from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.application.catalog import invoke
 from ethos.application.land.closeout import closeout_command_from_status
 from ethos.assistants.skills.portfolio import skill_portfolio_report
+from ethos.contracts.gate_providers import provider_spellings
 from ethos.contracts.operations.plan import PlanRequest
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -168,13 +169,11 @@ def compile_transition_plan(root: Path, request: PlanRequest) -> EthosResult:
                 dict.fromkeys((*generation_scope.gaps, *rule_validation_gaps, *policy.gaps))
             ),
         )
-        portfolio_provider = (
-            f"{skill_portfolio_report.__module__}:{skill_portfolio_report.__name__}"
-        )
+        portfolio_providers = set(provider_spellings("provider.skill-portfolio"))
         portfolio = skill_portfolio_report(
             repo,
             required=any(
-                portfolio_provider in (*gate.providers, *gate.verification_providers)
+                portfolio_providers.intersection((*gate.providers, *gate.verification_providers))
                 for gate in policy.gates
             ),
             openspec_skills=openspec_owned_skills(repo),

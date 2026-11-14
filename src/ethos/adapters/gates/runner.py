@@ -37,6 +37,7 @@ from ethos.adapters.process import stream_text
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.adapters.repo.dependency_acceptance import decision_gaps
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.contracts.gate_providers import provider_spellings
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
@@ -143,9 +144,9 @@ class LocalGateRunner:
         )
         native_evidence = None
         node_attempt = None
-        if "ethos.adapters.gates.code_quality:behavior_report" in gate.verification_providers and (
-            preparation := prepare_command(root, execution_command)
-        ):
+        if set(provider_spellings("provider.code-behavior")).intersection(
+            gate.verification_providers
+        ) and (preparation := prepare_command(root, execution_command)):
             node_attempt = attempt_scope.enter_context(preparation)
         try:
             completed, native_evidence = gate_attempt(

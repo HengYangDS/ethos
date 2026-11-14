@@ -33,6 +33,8 @@ _GATE_RESOURCES_INVALID = "gate resources invalid"
 _GATE_TOOLS_INVALID = "gate tools invalid"
 _GATE_TIMEOUT_ABOVE_BOUND = "gate timeout above the timeout.gate_seconds bound"
 _RESOURCE_NAME = re.compile(r"^(?:\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$")
+# A catalog ID, or for one support window the `ethos.<module>:<callable>` name it replaces.
+_PROVIDER_REFERENCE = re.compile(r"provider\.[a-z0-9]+(?:-[a-z0-9]+)*|ethos\.[^:]*:[^:]+")
 
 
 def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple[str, ...]:
@@ -176,12 +178,7 @@ class Gate(BaseModel):
             raise ValueError(_GATE_EXECUTOR_INVALID)
         if any(
             len(references) != len(set(references))
-            or any(
-                not reference.startswith("ethos.")
-                or reference.count(":") != 1
-                or not all(reference.partition(":")[::2])
-                for reference in references
-            )
+            or any(_PROVIDER_REFERENCE.fullmatch(reference) is None for reference in references)
             for references in (self.providers, self.verification_providers)
         ):
             raise ValueError(_GATE_EXECUTOR_INVALID)

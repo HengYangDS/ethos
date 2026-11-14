@@ -109,6 +109,7 @@ def test_a_provider_decision_keeps_its_class(
     def report(_root: Path) -> dict[str, object]:
         raise UNKNOWN
 
+    monkeypatch.setattr(gate_verification, "provider_target", str)
     monkeypatch.setattr(
         gate_verification.importlib, "import_module", lambda _: SimpleNamespace(report=report)
     )

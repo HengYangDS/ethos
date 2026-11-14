@@ -141,6 +141,9 @@ configuration plane, not a truth center.
 - `src/ethos/contracts/artifacts/topology.toml` owns generated-state location
   and lifecycle rules, interpreted by its adjacent product module. No parallel
   local-state configuration is maintained under this directory.
+- `src/ethos/contracts/gate-providers.toml` owns the gate provider catalog: the ID that a gate
+  declaration names for each provider, the provider's implementation, and the legacy
+  `ethos.<module>:<callable>` names that still resolve to an ID.
 - `.config/release/release-sbom/policy.toml` selects the runtime archive that the install
   smoke keeps, the SPDX and Syft JSON inventory outputs, Syft's whole configuration and the claim
   boundary. Mise owns the Syft version and artifact checksums. Inventory generation does not

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.contracts.gate_providers import provider_id
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -38,17 +39,8 @@ def select_gate_declaration(
             )
         )
     )
-    execution_fields = {
-        "command",
-        "providers",
-        "verification_providers",
-        "depends_on",
-        "native_outputs",
-    }
     for gate_id in common:
-        if gate_id in owned and owned[gate_id].model_dump(include=execution_fields) != (
-            packaged[gate_id].model_dump(include=execution_fields)
-        ):
+        if gate_id in owned and _execution(owned[gate_id]) != _execution(packaged[gate_id]):
             message = f"common_gate_execution_conflict:{gate_id}"
             raise ValueError(message)
     common_contracts = {gate_id: packaged[gate_id] for gate_id in common}
@@ -82,6 +74,16 @@ def select_gate_declaration(
         proof_sets=proof_sets,
         gates=(*gates, *extra.values()),
     )
+
+
+def _execution(gate: Gate) -> dict[str, object]:
+    """Return a gate's execution fields with each provider under its catalog ID."""
+    fields = gate.model_dump(
+        include={"command", "providers", "verification_providers", "depends_on", "native_outputs"}
+    )
+    for name in ("providers", "verification_providers"):
+        fields[name] = tuple(provider_id(reference) or reference for reference in fields[name])
+    return fields
 
 
 def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:

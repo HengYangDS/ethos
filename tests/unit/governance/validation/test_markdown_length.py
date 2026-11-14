@@ -440,12 +440,7 @@ def test_native_retained_observation_reaches_existing_semantic_consumers(tmp_pat
         result = consumer(root, retained_origins=origins)
         assert not any("retained_origin" in gap for gap in result["required_gaps"]), result
     reports, verdict, diagnostics = provider_reports(
-        "docs-registry",
-        (
-            "ethos.repository.registry.docs.health:docs_health_report",
-            "ethos.repository.policy.schema:schema_validation_report",
-        ),
-        root,
+        "docs-registry", ("provider.docs-registry", "provider.schemas"), root
     )
     assert verdict == "pass", diagnostics
     assert all(entry["report"]["verdict"] == "pass" for entry in reports)

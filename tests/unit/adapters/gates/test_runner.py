@@ -31,6 +31,8 @@ def _node(gate: Gate) -> PlanNode:
 
 
 def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
+    # These fixtures name their own callables, which the provider catalog does not hold.
+    monkeypatch.setattr(gate_verification, "provider_target", str)
     monkeypatch.setattr(
         gate_verification.importlib, "import_module", lambda _: SimpleNamespace(**providers)
     )
@@ -122,6 +124,29 @@ def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, paylo
     )
     if gap:
         assert result.diagnostics[0]["required_gaps"] == [gap]
+
+
+def test_legacy_name_runs_the_provider_of_its_id_and_a_note_names_that_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both spellings give one report; only the legacy one adds a note, which decides nothing."""
+
+    def imported(module: str) -> object:
+        report = {"verdict": "pass", "module": module}
+        return SimpleNamespace(schema_validation_report=lambda _root: report)
+
+    monkeypatch.setattr(gate_verification.importlib, "import_module", imported)
+    legacy = "ethos.repository.policy.schema:schema_validation_report"
+    by_id, by_name = (
+        gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+        for gate in (_gate("provider.schemas"), _gate(legacy))
+    )
+    reports = [json.loads(result.stdout)["providers"][0]["report"] for result in (by_id, by_name)]
+    assert reports == [{"verdict": "pass", "module": "ethos.repository.policy.schema"}] * 2
+    assert (by_id.verdict, by_id.diagnostics, by_name.verdict) == ("pass", (), "pass")
+    (note,) = by_name.diagnostics
+    assert (note["severity"], note["code"]) == ("note", "gate_provider_legacy_name")
+    assert "provider.schemas" in note["message"]
 
 
 @pytest.mark.parametrize(

@@ -2,10 +2,10 @@
 
 ## 1. Record and order
 
-- [ ] 1.1 Add DR-0026 (the release candidate gate, its three waivers and what leaves 0.2.0) and
+- [x] 1.1 Add DR-0026 (the release candidate gate, its three waivers and what leaves 0.2.0) and
       index it in the decisions README. Done when the record and the README pass Prettier, Vale and
       the documentation gates.
-- [ ] 1.2 Point the terminal plan's release candidate section to DR-0026 and to this design. Done
+- [x] 1.2 Point the terminal plan's release candidate section to DR-0026 and to this design. Done
       when the section names both and the plan stays within 500 nonblank lines.
 - [x] 1.3 Place the organising principle that the owner approved on 2026-11-14 (three layers and
       clocks, three authorities and their checks, four roles, the cap) in the terminal plan as one

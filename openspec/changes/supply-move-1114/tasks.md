@@ -21,5 +21,5 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head.

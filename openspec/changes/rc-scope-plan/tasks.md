@@ -8,9 +8,10 @@
 - [ ] 1.2 Point the terminal plan's release candidate section to DR-0026 and to this design. Done
       when the section names both and the plan stays within 500 nonblank lines.
 - [x] 1.3 Place the organising principle that the owner approved on 2026-11-14 (three layers and
-      clocks, three authorities and their checks, four roles, the cap) in the terminal plan as its
-      own section, in place of the former plan's ownership table. Done when the section holds the
-      approved text, the plan stays within 500 nonblank lines, and Prettier and Vale accept it.
+      clocks, three authorities and their checks, four roles, the cap) in the terminal plan as one
+      paragraph, in place of the former plan's ownership table. Done when the paragraph equals the
+      approved thirteen lines byte for byte, the plan stays within 500 nonblank lines, and Prettier
+      and Vale accept it.
 
 ## 2. Acceptance
 

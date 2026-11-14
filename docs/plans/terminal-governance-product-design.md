@@ -178,20 +178,19 @@ formation through actual-use observation bound to deployment, baseline,
 environment and window, then qualify interchangeable capabilities against the
 same case. No individual phase's green result substitutes for this trace.
 
-### Organising Principle
-
-ETHOS is the common base that holds and enforces one law for repository structure and change, and
-builds once what governed repositories share, ideas included. Three layers keep three clocks. The
-law changes by promulgation: a rule reports, then refuses new cases, then arms on stock. The kernel
-that makes an effect wait for a verdict changes least; from the release candidate to the stable
-release it takes defect fixes only. Delivery brings both into force through one tracked pin; its
-operation surface changes only in a named batch. Three authorities act on the one law. Legislation
-is a role's act and is itself a change under the law. Enforcement is the mechanism's act and has no
-holder. Adjudication is a verdict, read as recorded, or a ruling on a rule, which ends in a recorded
-change. Of their eight checks one exists, four are partial and three are absent (read 2026-11-14).
-Legislator, author, verifier and approver are roles a person, an agent or a team may hold; keeping
-author and approver apart is a target. Until 0.2.0 ships this adds no code beyond a ruled defect
-fix, and a weekly batch takes at most one off-gate row; a blocking defect does not count.
+**Organising principle (owner decisions, 2026-11-14).** ETHOS is the common base that holds and
+enforces one law for repository structure and change, and builds once what governed repositories
+share, ideas included. Three layers keep three clocks. The law changes by promulgation: a rule
+reports, then refuses new cases, then arms on stock. The kernel that makes an effect wait for a
+verdict changes least; from the release candidate to the stable release it takes defect fixes
+only. Delivery brings both into force through one tracked pin; its operation surface changes only
+in a named batch. Three authorities act on the one law. Legislation is a role's act and is itself
+a change under the law. Enforcement is the mechanism's act and has no holder. Adjudication is a
+verdict, read as recorded, or a ruling on a rule, which ends in a recorded change. Of their eight
+checks one exists, four are partial and three are absent. Legislator, author, verifier and
+approver are roles a person, an agent or a team may hold; keeping author and approver apart is a
+target. Until 0.2.0 ships this adds no code beyond a ruled defect fix, and each weekly batch takes
+at most one off-gate row; a defect that blocks a governed repository does not count.
 
 ## Architecture
 

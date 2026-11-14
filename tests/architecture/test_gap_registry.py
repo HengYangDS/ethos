@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from ethos.contracts.codes import gaps
+from ethos.contracts.codes.gaps import code_shaped
+from ethos.contracts.codes.gaps import gap_code
+from ethos.contracts.codes.gaps import records
+from ethos.contracts.codes.gaps import registered
+from ethos.contracts.codes.gaps import repair_for
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "src" / "ethos"
@@ -77,10 +81,10 @@ def test_every_site_that_raises_a_code_registers_it_or_speaks_prose() -> None:
     prose: set[str] = set()
     for path in _sources():
         for line, node in _expressions(ast.parse(path.read_text(encoding="utf-8"))):
-            code = gaps.gap_code(_head(node))
-            if not code or gaps.registered(code):
+            code = gap_code(_head(node))
+            if not code or registered(code):
                 continue
-            if gaps.code_shaped(code):
+            if code_shaped(code):
                 unregistered.append(f"{path.relative_to(ROOT).as_posix()}:{line}:{code}")
             else:
                 prose.add(f"{path.relative_to(ROOT).as_posix()}:{line}")
@@ -92,16 +96,16 @@ def test_every_registered_code_occurs_or_is_declared_reserved() -> None:
     """Test (2): a row names a code some source literal carries, or it is reserved on purpose."""
     text = "\n".join(path.read_text(encoding="utf-8") for path in _sources())
     absent = [
-        code for code, row in gaps.records().items() if code not in text and not row.get("reserved")
+        code for code, row in records().items() if code not in text and not row.get("reserved")
     ]
     assert absent == [], absent[:20]
 
 
 def test_every_row_names_a_package_owner_and_the_rows_are_sorted() -> None:
     """Test (3): each owner is an importable package, and the table reads in code order."""
-    codes = list(gaps.records())
+    codes = list(records())
     assert codes == sorted(codes)
-    for code, row in gaps.records().items():
+    for code, row in records().items():
         owner = row["owner"]
         assert owner == "ethos" or (SOURCE.joinpath(*owner.split(".")) / "__init__.py").exists()
         assert code == code.lower()
@@ -119,8 +123,8 @@ def test_every_row_names_a_package_owner_and_the_rows_are_sorted() -> None:
 def test_the_loader_registers_families_and_reports_the_unknown(
     gap: str, repair: str, *, known: bool
 ) -> None:
-    assert gaps.registered(gaps.gap_code(gap)) is known
-    assert gaps.repair_for(gap).startswith(repair)
+    assert registered(gap_code(gap)) is known
+    assert repair_for(gap).startswith(repair)
 
 
 @pytest.mark.parametrize(
@@ -132,4 +136,4 @@ def test_the_loader_registers_families_and_reports_the_unknown(
     ],
 )
 def test_a_gaps_code_is_the_text_before_its_first_colon(gap: str, code: str) -> None:
-    assert gaps.gap_code(gap) == code
+    assert gap_code(gap) == code

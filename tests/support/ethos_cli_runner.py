@@ -23,7 +23,9 @@ from cyclopts.exceptions import CycloptsError
 from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.application.catalog import Selected
 from ethos.application.catalog import select_operation
-from ethos.contracts.codes import gaps
+from ethos.contracts.codes.gaps import code_shaped
+from ethos.contracts.codes.gaps import gap_code
+from ethos.contracts.codes.gaps import registered
 from ethos.contracts.operations.catalog import select_argv
 from ethos.result import expand_result
 from ethos.surface.cli.application import app
@@ -196,9 +198,7 @@ def _require_registered_gaps(stdout: str, argv: list[str]) -> None:
     unregistered = [
         gap
         for gap in payload.get("required_gaps") or ()
-        if isinstance(gap, str)
-        and gaps.code_shaped(gaps.gap_code(gap))
-        and not gaps.registered(gaps.gap_code(gap))
+        if isinstance(gap, str) and code_shaped(gap_code(gap)) and not registered(gap_code(gap))
     ]
     if unregistered:
         message = f"unregistered_gap:{','.join(unregistered)}:{shlex.join(['ethos', *argv])}"

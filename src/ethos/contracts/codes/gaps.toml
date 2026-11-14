@@ -648,6 +648,7 @@ legacy_role_rename_target_exists = { owner = "adapters.mutation", detail = "the 
 legacy_role_rename_topic_refs_present = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 local_publish_readiness_blocked = { owner = "application.publication" }
 local_source_acceptance_effect_forbidden = { owner = "ethos" }
+local_source_proof_requires_full_repository = { owner = "application.proof", repair = "prove --full" }
 locked_toolchain_invalid = { owner = "adapters.toolchain" }
 locked_toolchain_missing = { owner = "ethos" }
 markdown_link_extraction_unproven = { owner = "adapters.gates" }

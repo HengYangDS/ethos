@@ -6,7 +6,8 @@
 and implements decision 11 of the common-base design together with gate item R12. At the base
 commit the host queue has one entrant and no reader: a foreground host proof runs its gates with no
 admission at all (`src/ethos/application/proof/host.py:42-109`), a ticket records its repository's
-absolute path and the contention gap prints it (`src/ethos/adapters/gates/host_admission.py:168-172`),
+absolute path and the contention gap prints it
+(`src/ethos/adapters/gates/host_admission.py:168-172`),
 `ethos host` has one command, and nothing checks the guests' virtual CPUs against the reservation
 that `reserved_cpus` declares.
 

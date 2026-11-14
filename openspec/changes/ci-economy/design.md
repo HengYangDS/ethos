@@ -54,10 +54,13 @@ Non-Goals:
 5. **Timeouts from one table.** `timeoutMinutes` holds the minutes of each job class, and
    `classGates` names the gates a class runs. `compiled.checks` holds one entry per class and gate,
    so a class whose minutes do not exceed a gate's `timeout_seconds` fails compilation and names
-   both. The values are provisional: maxima of four or five observed runs, not a p99, with supply,
-   release and publication unsurveyed and set generously. The full set takes 130 minutes because
-   `unit-architecture` declares 7,200 seconds, although the job takes about 38 minutes on GitHub and
-   up to 56 on GitLab.
+   both. A value is the p99 of its class's slowest leg over successful jobs, times 1.25 and rounded
+   up to 5 minutes, and never below the longest successful job of the class: a timeout bounds a
+   hang and must not stop a job that would have passed. The table's comment cites the read's date
+   and each class's count. Supply, release and publication have under 100 samples on a leg and stay
+   provisional. The full set takes 130 minutes because `unit-architecture` declares 7,200 seconds,
+   although the job's p99 is about 39 minutes on GitHub; on GitLab a 60-minute limit stopped five
+   full-set jobs, so its p99 there is unknown.
 6. **Cancellation.** The by-ref concurrency group covers pull requests as well as proposal pushes,
    and GitLab merge-request pipelines become interruptible on a new commit. Batch-head and scheduled
    runs are never cancelled.

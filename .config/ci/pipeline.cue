@@ -179,15 +179,27 @@ let proposalPush = "github.event_name == 'push' && startsWith(github.ref, 'refs/
 let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request') && format('{0}-{1}', github.workflow, github.ref) || format('{0}-run-{1}', github.workflow, github.run_id)"
 
 // Minutes per job class, the one table of hosted timeouts. Each exceeds the longest timeout of
-// the gates its class runs, which compiled.checks enforces. Provisional: the lane owner replaces
-// each value from the measured p99 of its class; supply, release and publication are unsurveyed.
+// the gates its class runs, which compiled.checks enforces. Read on 2026-11-14 from both Forges'
+// job history, GitHub from 2026-10-25 and GitLab from 2026-09-19. A value is the p99 of its
+// class's slowest leg over successful jobs, times 1.25, rounded up to 5 minutes; it is never below
+// the longest successful job of the class nor at or below the class's longest gate timeout.
+//   admission   n=512   p99 11.7, longest 24.4, both GitLab
+//   conformance n=1917  p99 20.4, macOS arm64; 35 is the step above local-install-smoke
+//   windows     n=745   p99 56.0
+//   emulated    n=154   p99 81.1
+//   fullSet     n=449   p99 38.7 on GitHub; GitLab's 60-minute limit stopped 5 jobs, so its p99
+//                       is unknown; 130 is above unit-architecture's 120 minutes
+//   observation n=926   p99 5.4, longest 21.1, both GitLab npm
+//   aggregate   n=448   p99 0.2, the two jobs it replaces
+// Supply (n=26, longest 4.1), release (n=163, at most 27 on a leg, longest 86.0) and publication
+// (n=33, longest 2.2) have under 100 samples on a leg and stay provisional.
 let timeoutMinutes = {
-	admission:   20
-	conformance: 40
-	windows:     60
-	emulated:    100
+	admission:   25
+	conformance: 35
+	windows:     70
+	emulated:    105
 	fullSet:     130
-	observation: 20
+	observation: 25
 	aggregate:   5
 	supply:      90
 	release:     120

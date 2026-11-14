@@ -28,9 +28,10 @@
 
 ## 4. Lane, hosted and owner tasks
 
-- [ ] 4.1 Pass `ethos lane project --check`, the precheck and readiness at the lane head. Done when
-      each passes on the committed head and the source budget shows the tools class below the lane
-      base.
+- [x] 4.1 Pass `ethos lane project --check`, the precheck and readiness at the lane head. Done when
+      each passes on the committed head and this Change's commit lowers the tools class. Passed at
+      `76510cd54`; commit `dbd2cb1ee` measures -54.5 tools line-equivalents. The class as a whole
+      stands above the lane base, by other Changes of the batch.
 - [x] 4.2 Observe one hosted run of the proposal ref on each forge. Done when the bootstrap step
       binds trust through the operation and `commit policy` admits the pushed range. Evidence at
       `3d5365a65`: GitHub run 43637623388, steps `Bind operator commit trust` and

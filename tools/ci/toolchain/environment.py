@@ -4,52 +4,9 @@ from __future__ import annotations
 
 import os
 import sys
-import tempfile
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-
-from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.filesystem import remove_owned_path
-from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
-from ethos.adapters.repo.trust_anchor.verification import trust_anchor
-from ethos.contracts.outcome import present
-
-
-def bind_commit_trust(root: Path, anchor: Path) -> None:
-    """Project an operator-supplied external trust anchor without inventing signer identity."""
-    resolved, gaps = trust_anchor(root, str(anchor))
-    if gaps:
-        raise ValueError(gaps[0])
-    resolved = present(resolved, "ci_commit_trust_anchor_unresolved")
-    key = "gpg.ssh.allowedSignersFile"
-    current = run_git(root, "config", "--local", "--get", key, check=False)
-    if current.returncode or current.stdout.strip() != str(resolved):
-        run_git(root, "config", "--local", key, str(resolved))
-    observed = run_git(root, "config", "--local", "--get", key).stdout.strip()
-    if observed != str(resolved):
-        message = "ci_commit_trust_projection_failed"
-        raise ValueError(message)
-
-
-def bind_commit_trust_material(root: Path, material: str) -> Path:
-    """Bind operator-supplied public signer bytes from one disposable CI job."""
-    if not material.strip():
-        message = "ci_commit_trust_material_missing"
-        raise ValueError(message)
-    directory = Path(tempfile.mkdtemp(prefix="ethos-ci-trust-"))
-    try:
-        anchor = directory / "allowed-signers"
-        anchor.write_text(material, encoding="utf-8", newline="\n")
-        # File modes do not restrict a Windows ACL, which a hosted temporary root shares with
-        # other users; the host's own protection authority restricts both, as it observes them.
-        protect_for_current_identity(directory)
-        protect_for_current_identity(anchor)
-        bind_commit_trust(root, anchor)
-    except Exception:
-        remove_owned_path(directory)
-        raise
-    return anchor
 
 
 @dataclass(frozen=True, slots=True)

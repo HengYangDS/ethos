@@ -52,7 +52,7 @@ ethos:commit-policy:
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook bind-trust --apply --root . --json
   stage: quality
   timeout: 25 minutes
   variables:
@@ -86,7 +86,7 @@ ethos:host-conformance:
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook bind-trust --apply --root . --json
   stage: verify
   timeout: 35 minutes
   rules:
@@ -115,7 +115,7 @@ ethos:verify:
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook bind-trust --apply --root . --json
   stage: verify
   timeout: 130 minutes
   rules:
@@ -169,7 +169,7 @@ ethos:external-links:
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook bind-trust --apply --root . --json
   script:
     - uv run --frozen --offline --no-sync python -m nox -s external_links
   artifacts:
@@ -199,6 +199,6 @@ ethos:npm:
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook bind-trust --apply --root . --json
   script:
     - uv run --frozen --offline --no-sync python -m nox -s javascript_tests

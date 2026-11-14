@@ -65,6 +65,7 @@ IMPLEMENTATIONS = {
     "hook commit-range": f"{_HOOK}.admission:admit_commit_range",
     "hook ref-update": f"{_HOOK}.admission:admit_ref_update",
     "hook ref-transaction": f"{_HOOK}.admission:admit_ref_transaction",
+    "hook bind-trust": f"{_HOOK}.commit_trust:bind_commit_trust",
     "hook install": f"{_HOOK}.installation:install_hook_runtime",
     "hook retire-supply": f"{_HOOK}.installation:retire_host_supply",
     "hook retire-records": "ethos.application.retention:retire_records",

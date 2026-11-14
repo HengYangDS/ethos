@@ -341,12 +341,18 @@ unsafe anchors produce `unready` even when both launchers are installed. A
 configured anchor is a prerequisite, not a claim that a particular commit passed
 verification or that the Forge recognizes its signer.
 
-Hosted bootstrap accepts `ETHOS_COMMIT_TRUST_ANCHOR` from the operator-managed
-runner environment, not a candidate-controlled YAML value. It validates that existing file's external location and
-protection, then projects only `gpg.ssh.allowedSignersFile` into the checkout's
-local Git config. It never creates keys, changes identities or downloads trust
-from the candidate. Omitting the binding does not disable required verification;
-the common validator rejects a missing required anchor.
+`ethos hook bind-trust --json` previews the binding of the commit trust that a CI job's operator
+supplies, and `--apply` performs it; a job runs it once before `ethos hook commit-range`. It takes
+exactly one input from the operator-managed runner environment, never a candidate-controlled YAML
+value: a protected file outside the checkout, named by `--anchor <path>` or by
+`ETHOS_COMMIT_TRUST_ANCHOR`, or the public material in `ETHOS_COMMIT_ALLOWED_SIGNERS`, which the
+apply writes into a protected temporary file. It validates the file's external location and
+protection, then writes only `gpg.ssh.allowedSignersFile` in the checkout's local Git config and
+reads it back; the preview names the file and writes nothing. More than one input refuses with
+`ci_commit_trust_inputs_ambiguous` and a failed read-back with `ci_commit_trust_projection_failed`;
+without an input it binds nothing and reports the state `unbound`. It never creates keys, changes
+identities or downloads trust from the candidate. Omitting the binding does not disable required
+verification; the common validator rejects a missing required anchor.
 
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git

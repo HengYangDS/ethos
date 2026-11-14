@@ -32,6 +32,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   changes or the lane retires. A cutover holds `ROLLBACK` only for a predecessor that an install of
   the repository can admit, and `ethos status` reports a held rollback that none can, with its
   repair. A repository without the pin behaves as before and reports `runtime_pin_absent`.
+- `ethos hook bind-trust` binds the commit trust that a CI job's operator supplies to the
+  checkout's local `gpg.ssh.allowedSignersFile`, so a job needs no ETHOS source checkout before
+  `ethos hook commit-range`. It previews by default and writes with `--apply`. Its one input is a
+  protected file named by `--anchor <path>` or `ETHOS_COMMIT_TRUST_ANCHOR`, or the public material
+  in `ETHOS_COMMIT_ALLOWED_SIGNERS`; two inputs refuse with `ci_commit_trust_inputs_ambiguous`, and
+  without one it binds nothing.
 
 ### Changed
 

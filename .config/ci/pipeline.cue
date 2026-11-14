@@ -27,6 +27,9 @@ let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let offlineRun = "uv run --frozen --offline --no-sync"
 let sourceCLI = "\(offlineRun) python -B -I -m ethos.cli"
 
+// A job binds the commit trust that its operator supplies before any commit range is admitted.
+let bindTrust = "python -B -I -m ethos.cli hook bind-trust --apply --root . --json"
+
 // npm runs from the locked Node supply: the archive seed installs once, then the lock owns npm.
 let nativeNpm = "python -B -m tools.ci.toolchain.npm"
 let supplyDockerfile = ".config/ci/supply/Dockerfile"
@@ -82,7 +85,7 @@ let bootstrapCommands = {
 		"\(run) python -B -m tools.ci.toolchain.native --root . --mise\(tools)",
 		"\(run) \(nativeNpm) --seed ci --ignore-scripts\(npm)",
 		"\(run) python -B -I tools/ci/toolchain/fixture_supply.py .",
-		"\(run) python -B -m tools.ci.toolchain.commit_trust",
+		"\(run) \(bindTrust)",
 	]
 }
 let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", run: "uv run --frozen", tools: " vale", npm: ""}).out
@@ -592,7 +595,7 @@ github: {
 			}
 			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "${{ matrix.python }}"}).out, [{
 				name: "Bind operator commit trust"
-				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
+				run:  "uv run --frozen \(bindTrust)"
 			}, {
 				name: "Build the release wheel its signed tag admits"
 				run:  "uv run --frozen python -m nox -s build -- \(releaseArguments)"

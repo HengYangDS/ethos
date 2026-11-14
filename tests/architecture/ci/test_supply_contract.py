@@ -17,6 +17,7 @@ from tools.ci.toolchain import fixture_supply
 ROOT = Path(__file__).resolve().parents[3]
 DOCKERFILE = ROOT / ".config/ci/supply/Dockerfile"
 GITLAB = ROOT / ".gitlab-ci.yml"
+BIND_TRUST = "python -B -I -m ethos.cli hook bind-trust --apply --root . --json"
 
 
 def _image_input_paths() -> tuple[str, ...]:
@@ -69,7 +70,7 @@ def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> 
             "--ignore-scripts --offline"
         ),
         "uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .",
-        "uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust",
+        f"uv run --frozen --offline --no-sync {BIND_TRUST}",
     ]
 
 

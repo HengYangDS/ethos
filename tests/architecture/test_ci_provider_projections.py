@@ -62,7 +62,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
         for step in steps
     )
     commands = [step.get("run", "") for step in steps]
-    assert commands.count("uv run --frozen python -B -m tools.ci.toolchain.commit_trust") == 1
+    assert sum(" -m ethos.cli hook bind-trust --apply " in command for command in commands) == 1
     assert (
         commands.count("uv run --frozen --offline --no-sync python -m nox -s hosted_verification")
         == 1

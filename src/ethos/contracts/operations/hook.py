@@ -1,7 +1,8 @@
-"""The `ethos hook` requests and their operations: hook-time reports, installation, retirement.
+"""The `ethos hook` requests and their operations: reports, trust binding, installation, retirement.
 
-A report reads the repository and keeps evidence only. `hook install` writes without a token, a
-named exemption that A8 owns; its `--reset-state` mode is authorized and destructive.
+A report reads the repository and keeps evidence only. `hook bind-trust` writes one local Git
+setting under `--apply`. `hook install` writes without a token, a named exemption that A8 owns; its
+`--reset-state` mode is authorized and destructive.
 """
 
 from typing import Literal
@@ -73,6 +74,13 @@ class RefTransactionRequest(CommandRequest):
     phase: str = described("prepared", "The transaction phase that the hook runs in.")
 
 
+class BindTrustRequest(CommandRequest):
+    """Name the protected anchor to bind as commit trust, or leave the input to the job."""
+
+    anchor: str = described("", "A protected allowed-signers file outside the checkout.")
+    apply: Apply = False
+
+
 class InstallRequest(CommandRequest):
     """Activate one hook runtime for the repository family, resetting its state if asked."""
 
@@ -142,6 +150,18 @@ REF_TRANSACTION = Command(
         "ref_name old_value new_value phase",
     ),
 )
+BIND_TRUST = Command(
+    name="hook bind-trust",
+    summary="Bind the commit trust that an operator supplies to the checkout's local Git config.",
+    request=BindTrustRequest,
+    operations=modes(
+        "hook.bind-trust",
+        "Report the anchor that the one supplied trust input would bind, writing nothing.",
+        "Bind the anchor as the local `gpg.ssh.allowedSignersFile` and read it back.",
+        request="anchor",
+        preview_exit="verdict",
+    ),
+)
 INSTALL = Command(
     name="hook install",
     summary="Converge the repository-family hook runtime through Git-common activation.",
@@ -197,4 +217,13 @@ RETIRE_RECORDS = Command(
         preview_exit="verdict",
     ),
 )
-HOOK = (ADMIT, COMMIT_RANGE, REF_UPDATE, REF_TRANSACTION, INSTALL, RETIRE_SUPPLY, RETIRE_RECORDS)
+HOOK = (
+    ADMIT,
+    COMMIT_RANGE,
+    REF_UPDATE,
+    REF_TRANSACTION,
+    BIND_TRUST,
+    INSTALL,
+    RETIRE_SUPPLY,
+    RETIRE_RECORDS,
+)

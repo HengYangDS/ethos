@@ -120,7 +120,7 @@ jobs:
       - name: Provision test fixture supply
         run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
       - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
       - name: Admit pushed commit range
         if: github.event_name == 'push'
         run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
@@ -208,7 +208,7 @@ jobs:
       - name: Provision test fixture supply
         run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
       - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
       - name: HEAD-bound hosted verification receipt
         run: uv run --frozen --offline --no-sync python -m nox -s hosted_verification
       - name: Upload proof receipt
@@ -258,7 +258,7 @@ jobs:
       - name: Provision test fixture supply
         run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
       - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
       - name: External links
         run: uv run --frozen --offline --no-sync python -m nox -s external_links
       - name: Upload external link observation
@@ -355,7 +355,7 @@ jobs:
       - name: Synchronize locked Python environment
         run: uv sync --locked --group dev
       - name: Bind operator commit trust
-        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
       - name: Build the release wheel its signed tag admits
         run: uv run --frozen python -m nox -s build -- --release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}
       - name: Qualify the release wheel and retain its runtime archive

@@ -119,9 +119,21 @@ names the repository's own subjects. A repository without a role has no director
 | `reference`    | reference                    | `reference`                                   |
 | `history`      | retired rationale            | `history`                                     |
 
-`current` and `future` are states, which DR-0011 already refused as directories. Evidence is a
-record root under DR-0027 and keeps its own home. Generated views and the taxonomy file follow
-DR-0027's design. The table is this revision's proposal; the fleet seat reviews each mapping.
+`current` and `future` are states, which DR-0011 already refused as directories.
+
+The fleet seat read every governed documentation home against this table (the census holds its
+counts), and four rules follow from what it found:
+
+- **A document maps by its kind, never by its directory's name.** One repository's `operations`
+  holds runbooks beside a design of its architecture and its program of work; another's holds
+  runbooks only. The repair preview names each file's target, and a directory of two kinds splits.
+  A directory of retired plans is `history`.
+- **What carries no role is exempt by role or by toolchain.** Evidence under a documentation home
+  is reported as belonging to the record root of DR-0027, with that repair. The taxonomy and
+  generated views follow DR-0027's design. A home that another documentation toolchain builds is
+  exempt until the documentation contract states how such a home declares a role.
+- **A repository without a documentation home is asked for nothing.**
+- **An asset sits beside the document that uses it, or under one asset name of its home.**
 
 ### 4. A price that fits: direction paths
 
@@ -173,10 +185,23 @@ the candidates; no tool is a dependency of this design.
 4. Direction paths in write admission and the documentation tier. This narrows a refusal.
 5. Readers: `status` prints rows left and open items; the weekly page reads them.
 6. The fleet: a report of first-level names outside the role homes, with the preview of its
-   repair. It enters as a reporting obligation and refuses nothing before a later release.
+   repair for each file. It enters as a reporting obligation and refuses nothing before a later
+   release. Repositories move in this order: ETHOS; then those whose documents others cite; then
+   the rest; a repository under repair inside its repair lane; a repository with another
+   maintainer only with that maintainer.
 
 Steps 2 and 3 change no rule for a governed repository. Step 6 is a new rule and waits for the
 rule row after 0.2.0.
+
+### 9. Review record
+
+Revision 1 is commit `ae42de7cb`. Three seats review it; this section holds each verdict and what
+the design took from it.
+
+- **Fleet seat, 2026-11-15: approve with conditions, no blocker.** Its five conditions are in
+  the text above: a mapping by file kind with a preview for each file, exemptions by role and by
+  toolchain, one intake for each repository, the corrected census, and the order of the fleet's
+  moves. The first two hold before the member Change of step 6 is written.
 
 ## Risks / Trade-offs
 
@@ -195,7 +220,9 @@ rule row after 0.2.0.
 ## Open Questions
 
 - Does the intake live in the documentation home on the accepted branch, on a dedicated ref, or in
-  a tool's store? The design above assumes the first; the tool study may change it.
+  a tool's store? The design above assumes the first; the tool study may change it. Either way a
+  repository has one intake: the Change that builds the verb states what becomes of the backlog
+  tool's tree that one governed repository tracks today.
 - Is `contract` the right name for the home that four repositories call `governance`?
 - Do the 248 follow-ups and 96 withdrawn tasks enter the intake one by one, or only those that a
   current reader still needs?

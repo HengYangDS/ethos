@@ -17,12 +17,12 @@ designs and research, and how alike are their documentation homes?
 
 ## Method
 
-Read-only, from Git objects. For ETHOS, the tree of `dev` at `c79f3aaf8`. For the fleet, the tree
-of `dev` in each of the 14 governed checkouts on the releasing host: the first-level directories of
-the documentation home, the documents whose path names a plan-like carrier, the decision and
-research holdings, and whether a document's front matter declares a role. Governed repositories
-appear by shape and count. Three governed repositories exist only on a forge and were not read.
-The content of the plan documents was not read, and no forge issue tracker was read.
+Read-only, from Git objects. For ETHOS, the tree of `dev` at `c79f3aaf8`. For the fleet, the tree of
+`dev` in each of the 14 governed checkouts on the releasing host: the first-level directories of the
+documentation home, the documents whose path names a plan-like carrier, the decision and research
+holdings, and whether a document's front matter declares a role. Governed repositories appear by
+shape and count. Three governed repositories exist only on a forge; a later section holds what was
+read of them. The content of the plan documents was not read, and no forge issue tracker was read.
 
 ## ETHOS
 
@@ -63,24 +63,65 @@ and no product documentation.
 | `concepts`, `research`, `plans`, `_meta`                                                  | 2 each       |
 | `experience`, `current`, `future`, `_generated`, `planning`, `portal`, `studies`, `start` | 1 each       |
 
-| Object                | Forms found | Repositories without one |
-| --------------------- | ----------- | ------------------------ |
-| Roadmap or plan       | 5           | 9                        |
-| Contract or end state | 5           | 8                        |
-| Research              | 2           | 11                       |
+| Object                | Forms found          | Repositories without one |
+| --------------------- | -------------------- | ------------------------ |
+| Roadmap or plan       | 4 live and 1 retired | 10                       |
+| Contract or end state | 4                    | 10                       |
+| Research              | 2                    | 11                       |
 
-- The five plan forms: a `plans` directory with one document (two repositories), a `planning`
-  directory whose 38 documents all lie under `archive`, a `future` directory beside a task ledger
-  kept by a backlog tool in a dot directory, and one roadmap document at the home's root.
-- The five contract forms: a product design contract under `governance`, a product contract and a
-  charter at the home's root, an experience document, and a numbered blueprint under `operations`.
+- The plan forms: a `plans` directory with one document (two repositories), a `future` directory,
+  a task ledger kept by a backlog tool in a dot directory (22 open tasks, 64 completed, with
+  drafts, decisions and milestones), and one roadmap document at the home's root. The retired
+  form is a `planning` directory whose 37 documents lie under `archive` beside one index.
+- The contract forms: a product design contract under `governance`, a product contract and a
+  charter at the home's root, and a numbered blueprint under `operations` that mixes architecture
+  with a program of work. An experience page that an earlier count took for a contract declares
+  the role `explanation`.
 - Research is a `research` directory in two repositories and a `studies` directory in one. That
   repository also keeps a research lifecycle with five states and a dossier template.
 - Role metadata is complete in seven of the nine homes and absent in two, which hold 255 and 247
-  documents.
+  documents. One of the two is a Sphinx home, with its configuration and index at the root and
+  generated reference pages, so Markdown front matter is not its toolchain's form.
+- Directories that carry no role: `evidence` in three homes (7, 3 and 135 files), a taxonomy
+  directory in three, generated views in one, a state named `current` in one (66 files), an asset
+  directory in one and a landing page's directory in one.
+
+## Repositories that only a forge holds
+
+Read on 2026-11-15 by the fleet seat of the design's review, names only. One keeps 16 documents
+flat at the root of its documentation home (a design philosophy, plans, runbooks, a release
+process, task logs), one keeps seven flat documents, and one keeps a single document. None has a
+first-level directory. Two of them have another maintainer.
+
+## Where intent is kept today
+
+- Ignored work directories of the sessions that own each repository: 58 directories with 66
+  Markdown files in one repository, 14 with 69 in another, 10 with 9 in a third, measured two
+  levels deep. ETHOS's own are above.
+- Agent memory, outside every repository.
+- One tracked backlog tool, in one repository.
+- No forge issue: 0 open issues in the four repositories whose issues could be read.
+
+## What a move of a first-level name costs
+
+Counted by the fleet seat on 2026-11-15: mentions of the directory outside archived Changes, and
+relative links from inside the documentation home.
+
+| Shape                                              | Files | Mentions | Of them in code and configuration | Relative links |
+| -------------------------------------------------- | ----- | -------- | --------------------------------- | -------------- |
+| ETHOS, three directories; three packaged documents | 7     | 49       | 22                                | 49             |
+| A guidance repository, one directory               | 4     | 3        | 0                                 | 4              |
+| Three product repositories, three or four each     | 25    | 47       | 13                                | 20             |
+| A repository under repair, seven directories       | 131   | 399      | 270                               | 77             |
+| A repository under repair, three directories       | 216   | 316      | 89                                | 158            |
+
+No governed repository ships a documentation path in a package; ETHOS ships three. Links that pin
+a revision do not break.
 
 ## Limits
 
 - A name was counted by its spelling; two repositories may use one name for different content.
 - The census reads one host. The three repositories that only a forge holds may differ.
 - "No roadmap" means no document whose path says so; a repository may keep one in a forge.
+- The counts of forms were corrected on 2026-11-15 after the fleet seat's review: an earlier
+  reading counted five contract forms and eight repositories without one.

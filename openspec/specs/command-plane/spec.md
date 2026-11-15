@@ -1708,7 +1708,7 @@ SHALL write nothing and record nothing.
 
 ### Requirement: Group commands are catalog operations
 
-Every `lane`, `hook`, `attestation` and `host run` leaf SHALL be a catalog entry selected by its
+Every `lane`, `hook`, `attestation` and `host` leaf SHALL be a catalog entry selected by its
 command path and flags, with a kernel half in `ethos.contracts.operations` and an application half
 in `ethos.application`; the surfaces SHALL hold no leaf body. `ethos mcp` SHALL remain a transport
 launcher outside the catalog.
@@ -1738,6 +1738,12 @@ launcher outside the catalog.
 - **WHEN** `ethos host run -- <command>` runs a command that the host admits
 - **THEN** the entry's `process` exit makes the CLI exit with the child's status and print no frame
 - **AND** an admission gap is emitted as a result like any other
+
+#### Scenario: Host status is a read
+
+- **WHEN** `ethos host status --json` runs
+- **THEN** it selects `host.status`, whose only effect is `read`
+- **AND** it exits 0 on every verdict
 
 ### Requirement: A next step names the values that only the agent chooses
 

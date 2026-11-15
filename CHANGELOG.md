@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.11] - 2026-11-21
+
 ### Added
 
 - Readers accept `next.inputs`: one entry for each value that only the agent can choose for the
@@ -89,10 +91,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `.config/mise/config.toml`: the release's bare entry under `[tools]` and
   `locked_verify_provenance = true` under `[settings]`, as one step with its diff. A configuration
   that holds an `http:ethos` table or another ETHOS version is an `adoption_conflict`; to repair
-  it, replace that entry with the release's bare entry and run `mise lock`. After an apply that
-  wrote the pin the next action is `mise --cd <root> lock`, and `ethos adopt --exit` removes that
-  key alone. A repository that holds the `http:ethos` table can keep it: only `ethos adopt` refuses
-  it, and binding this release through that table and `ethos hook install` works as before.
+  it, replace that entry with the release's bare entry and run `mise --cd <root> lock`. After an
+  apply that wrote the pin the next action is the same command, and `ethos adopt --exit` removes
+  that key alone. A repository that holds the `http:ethos` table can keep it: only `ethos adopt`
+  refuses it, and binding this release through that table and `ethos hook install` works as
+  before.
 - **Breaking:** hosted CI artifacts expire after 14 days. Each pipeline model declares the
   retention once, and its projections carry `retention-days: 14` on every GitHub upload step and
   `expire_in: 14 days` on every GitLab `artifacts` block; until now each Forge kept an artifact for
@@ -105,7 +108,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - **Breaking:** the contention gap now reads
   `host_admission_contended:<operation>:<pid>:<since>`; it names the holder's operation, process
   and start time instead of its repository path. The stable code `host_admission_contended` is
-  unchanged, and a record written by an older engine names its executable.
+  unchanged, and a record written by an older engine names its executable. A reader matches the
+  code before the first colon and does not parse what follows it.
 - A queue ticket records the operation and the owner mark its holder declared, keeps its three
   older fields, and no result prints a holder's repository path; another repository's owner mark
   is not shown.
@@ -118,6 +122,63 @@ historical bindings are governed by the [distribution specification](openspec/sp
   obligation already blocking, with no repair the product can write. The paradigm declares its
   reporting obligations in one list, which also holds the new `identifier-source`: an obligation
   enters as reporting in the release that first ships it.
+- 0.2.0-beta.11 upgrades directly from 0.2.0-beta.10, the release that every governed repository
+  the releasing host reads selects. Its hosted journey upgrades from it on macOS arm64 and Linux
+  x64. It keeps result schema 3.
+- Before the tag, the candidate of this release was read on disposable copies of the 13 governed
+  repositories that the releasing host reads: status, the preview of the paradigm repair, the
+  format and projection checks and the preview of the proof. New required gaps against
+  0.2.0-beta.10: `generated_projection_drift`, 12, in 6 repositories, from the artifact retention
+  of this release; `ethos lane project --json` previews its repair, applied after the bind and
+  before the proof. Every other code: 0. New refusals: 0.
+- The repository paradigm holds 47 obligations: 45 refuse and 2 report, `identifier-source` and
+  `package-docstring`.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as `not_qualified`;
+  - the adopter journey on Linux arm64, which 0.2.0 declares but no hosted job runs yet; the Linux
+    arm64 runtime is qualified by its release leg's install smoke and inventories;
+  - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI and GitLab publication, which are not 0.2.0 preconditions, and the Homebrew
+    channel, which 0.2.0 does not qualify.
+- Known open defects, none in a blocking class:
+  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
+    reports them and does not block.
+  - Go's GO-2026-6859 (CVE-2026-97054) lets an HTTP/1 server in `net/http` crash; Go 1.26.11 and
+    1.27.4 fix it. The bundled `cue` 0.17.1, `vale` 3.27.0 and `shfmt` are built with Go 1.26.5,
+    1.27.3 and 1.27.1 and contain the affected code. ETHOS runs them only as local commands over
+    repository files and starts no HTTP server through them; a later supply move takes releases
+    built with a fixed Go.
+  - In a lane whose selected runtime is an older release, a newer runtime's `ethos` console
+    re-executes in the selected runtime, so a preview such as `ethos lane repair-paradigm` answers
+    with the older build's result. To preview with the newer build, run its interpreter directly:
+    `<runtime>/python/bin/python -B -I -m ethos.cli lane repair-paradigm --root <lane> --json`, or
+    select it first. A result names the build that answered in `summary.runtime`.
+  - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
+    store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
+    such consumers under `absent`.
+  - `ethos lane prewrite --target index --patch` refuses a patch that names exactly the requested
+    paths with `prewrite_patch_paths_mismatch` when a removed line begins with two hyphens and a
+    space, or an added line with two plus signs and a space: it reads such a line as a file
+    header. The commit hooks judge the staged tree and are not affected. Stage such a patch with
+    Git once the worktree admission of its paths has passed.
+  - The decision-record rule reads a spaced hyphen or an arrow in prose as a command option, and a
+    code span of two or more words as a possible invocation, and reports
+    `docs_decision_execution_content`. In a decision record, name a command in words.
+  - A focused proof, `ethos prove --execute --gate <ids>`, whose Commitment requires an axis that
+    the selection does not cover is refused before any gate runs, and its result does not say that
+    no selected gate ran. With `--host` and without `--full` or `--expect-head` it binds no source
+    tree and reports evidence as unproven that it never examined. Pass `--expect-head`, or read
+    the full proof.
+  - A full proof whose host admission is refused does not yet report the readiness gates that
+    ran before the refusal. A host proof does, and it names the gates that did not run in
+    `data.not_run`.
+  - The release journey counts any failed install of a rebound lock as Mise's refusal. It does
+    not yet require the refusal to name its cause, so a failed download would read as a refusal.
+    The journey's receipt records each refusal's text under `refusals`.
 
 ### Fixed
 

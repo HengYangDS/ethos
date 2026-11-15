@@ -37,6 +37,16 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - The shipped format policy drops `immutable_record_roots`, which `record-roots-one-owner` stopped
   reading. It leaves one release after that Change, when the runtime that judges this repository
   is built from a head that accepts the policy without it.
+- A lane path that carries the local day is refused with `work_lane_path_not_canonical`, because
+  a lane's directory carries the UTC day of its start. The expected path is in the result's data
+  and in neither its message nor its next action; the refusal names it. Reported by one governed
+  repository's session on 2026-11-16: on a host east of UTC the two days differ in the first
+  hours of its day.
+- The release build's install smoke takes the one wheel under the release artifacts, which only
+  the release build writes. Run without that build, it read a wheel that an earlier release
+  build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the
+  accepted root on 2026-11-16, on a wheel of an earlier layout). The refusal says that the wheel
+  is not built from the requested head and names the release build as the next step.
 
 ## Capabilities
 

@@ -21,6 +21,10 @@ source on `dev` at `d98081605` and both met by governed repositories' sessions:
 - A refusal before the gates states that nothing was executed and names the selected gates as not
   run, and its next action names the form that runs them.
 - Regressions for both cases.
+- The names of the gates that did not run go in `data.not_run`, the field that
+  `host-ticket-release` gave a host proof whose admission is refused. Two cases that repair
+  left: a full proof whose admission is refused still drops the results of the readiness
+  gates that ran, and a host proof asks for its host ticket after a readiness gate failed.
 - Candidate from the release lane's own tools, where an interrupted test run was recorded as
   passed on 2026-11-15: a gate's result states the wrapped tool's exit status, and "interrupted"
   is a named state that never reads as a pass.

@@ -74,6 +74,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   coordinates, as a decision for a person. Repair: a caller that ran or parsed the `export` line
   passes its own identity with `--actor`, or keeps `ETHOS_ACTOR` set, and takes the handoff to the
   holder. A reader of 0.2.0-beta.11 reads these results.
+- The release journey runs in two stages, and one owner gives the children of each a fresh
+  environment: a new home and temporary directory, Git without system or global configuration,
+  system attributes or templates, and a path of links to the declared executables. Acquisition,
+  the only stage that reaches the network, verifies each release, proves its pin and writes a
+  manifest of the archives it verified. Qualification reads the manifest alone, checks its
+  environment before its first child, hashes each archive again and installs it offline. The
+  forge token reaches the forge's client and Mise's pin calls and no other child, and the journey
+  runs the Mise executable that the repository binds by digest. New refusals are
+  `journey_environment_not_hermetic:<what>`, `release_journey_archive_tampered:<archive>` and
+  `release_journey_manifest_invalid`; the receipt gains `venue`. A host that runs the journey
+  needs `gh` and `curl` on its path.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

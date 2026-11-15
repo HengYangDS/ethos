@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
 from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
@@ -14,6 +17,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.repository.release.pin as pin
+import tools.ci.delivery.acceptance.acquisition as acquisition
 import tools.ci.delivery.acceptance.journey as journey
 import tools.ci.delivery.mise_tool as mise_tool
 from tools.ci import sessions
@@ -57,19 +61,22 @@ TAGGED, UNBOUND = {"MAIN_DISPATCH_UNTIL": "0.2.0-alpha.28"}, {"DIGEST_UNBOUND": 
 def test_the_previous_release_is_the_next_published_changelog_entry() -> None:
     """The forge, not the changelog, says which earlier version was published."""
     every = {"0.2.0-alpha.28", "0.2.0-alpha.27"}.__contains__
-    assert journey.previous_version(CHANGELOG, VERSION, published=every) == ("0.2.0-alpha.28", ())
+    assert acquisition.previous_version(CHANGELOG, VERSION, published=every) == (
+        "0.2.0-alpha.28",
+        (),
+    )
     only_older = {"0.2.0-alpha.27"}.__contains__
-    assert journey.previous_version(CHANGELOG, VERSION, published=only_older) == (
+    assert acquisition.previous_version(CHANGELOG, VERSION, published=only_older) == (
         "0.2.0-alpha.27",
         ("0.2.0-alpha.28",),
     )
     with pytest.raises(ValueError, match=re.escape("release_journey_entry_missing:0.2.0-alpha.30")):
-        journey.previous_version(CHANGELOG, "0.2.0-alpha.30", published=every)
+        acquisition.previous_version(CHANGELOG, "0.2.0-alpha.30", published=every)
     for version, published in (("0.2.0-alpha.27", every), (VERSION, set().__contains__)):
         with pytest.raises(
             ValueError, match=re.escape(f"release_journey_previous_missing:{version}")
         ):
-            journey.previous_version(CHANGELOG, version, published=published)
+            acquisition.previous_version(CHANGELOG, version, published=published)
 
 
 @pytest.mark.parametrize(
@@ -79,19 +86,26 @@ def test_the_previous_release_is_the_next_published_changelog_entry() -> None:
 def test_only_a_missing_release_counts_as_unpublished(
     monkeypatch: pytest.MonkeyPatch, returncode: int, stderr: str, expected: str
 ) -> None:
-    """A forge error other than a missing release refuses instead of skipping the version."""
+    """A forge error other than a missing release refuses instead of skipping the version.
 
-    def gh(_cwd: Path, command: tuple[str, ...], **_options: object) -> subprocess.CompletedProcess:
+    The forge's client is handed the token; without one it gets no token variable at all.
+    """
+    handed: list[object] = []
+
+    def gh(_cwd: Path, command: tuple[str, ...], **options: object) -> subprocess.CompletedProcess:
         assert command[:3] == ("gh", "release", "view")
         assert command[3] == "v0.2.0-alpha.28"
+        handed.append(options["env"])
         return subprocess.CompletedProcess(command, returncode, "", stderr)
 
-    monkeypatch.setattr(journey, "run_command", gh)
+    monkeypatch.setattr(acquisition, "run_command", gh)
     if expected == "refused":
         with pytest.raises(ValueError, match=re.escape("release_journey_release_lookup_failed")):
-            journey.release_published("0.2.0-alpha.28")
+            acquisition.release_published("0.2.0-alpha.28", token="")
     else:
-        assert journey.release_published("0.2.0-alpha.28") is (expected == "published")
+        published = acquisition.release_published("0.2.0-alpha.28", token="fake")
+        assert published is (expected == "published")
+    assert handed == [None if expected == "refused" else {"GH_TOKEN": "fake"}]
 
 
 @pytest.mark.parametrize(
@@ -136,18 +150,18 @@ def test_only_verified_release_bytes_reach_the_installation(
             return subprocess.CompletedProcess(command, 0, "", "")
         return subprocess.CompletedProcess(command, verified, "", "denied" if verified else "")
 
-    monkeypatch.setattr(journey, "run_command", gh)
-    monkeypatch.setattr(journey, "run_native", lambda *command: " ".join(command))
+    monkeypatch.setattr(acquisition, "run_command", gh)
+    monkeypatch.setattr(acquisition, "run_native", lambda *command, env: " ".join((*command, *env)))
     for name, value in data.items():
         monkeypatch.setattr(pin, name, value)
-    target = tmp_path / "assets"
+    target, options = tmp_path / "assets", {"environment": {}, "token": "fake"}
+    download = partial(acquisition.download_release, platform=PLATFORM, **options)
     if gap:
         with pytest.raises(ValueError, match=re.escape(gap)):
-            journey.download_release(f"v{VERSION}", target, platform=PLATFORM)
+            download(f"v{VERSION}", target)
     else:
         expected = (target / ARCHIVE, DIGEST, pin.release_class(VERSION), {PLATFORM: DIGEST})
-        published = journey.download_release(f"v{VERSION}", target, platform=PLATFORM)
-        assert published == journey.PublishedRelease(VERSION, *expected)
+        assert download(f"v{VERSION}", target) == acquisition.PublishedRelease(VERSION, *expected)
     attested = [command[3:] for command in calls if command[1:3] == ("attestation", "verify")]
     identity = (
         str(target / ARCHIVE),
@@ -179,11 +193,12 @@ def test_only_a_lock_that_binds_the_release_is_installed(
     tmp_path, monkeypatch, lock, verified, platforms, gap
 ):
     """Each locked platform names the release's own archive, its listed digest and its class."""
-    monkeypatch.setattr(journey, "install_declared", lambda *_a, admit, **_k: admit(lock))
-    release = journey.PublishedRelease(VERSION, tmp_path, DIGEST, verified, {PLATFORM: DIGEST})
-    locks, options = {}, {"mise": tmp_path, "environment": {}, "platforms": platforms}
+    monkeypatch.setattr(acquisition, "install_declared", lambda *_a, admit, **_k: admit(lock))
+    release = acquisition.PublishedRelease(VERSION, tmp_path, DIGEST, verified, {PLATFORM: DIGEST})
+    locks = {}
+    options = {"mise": tmp_path, "environment": {}, "platforms": platforms, "token": ""}
     with pytest.raises(ValueError, match=gap) if gap else nullcontext():
-        journey.install_pin(release, tmp_path, locks=locks, seed=SEED, **options)
+        acquisition.install_pin(release, tmp_path, locks=locks, seed=SEED, **options)
     assert locks == {VERSION: {"format": int(lock.split()[2]), "platforms": list(platforms)}}
 
 
@@ -211,11 +226,13 @@ def test_a_lock_rebound_to_other_bytes_must_be_refused(tmp_path, monkeypatch, in
 
     monkeypatch.setattr(mise_tool, "run_command", mise)
     (tmp_path / "mise.lock").write_text(LOCK, encoding="utf-8")
-    release = journey.PublishedRelease(VERSION, tmp_path, DIGEST, "attested-main", {})
+    release = acquisition.PublishedRelease(VERSION, tmp_path, DIGEST, "attested-main", {})
     tool, work, refusals = Mock(project=tmp_path, mise=tmp_path), tmp_path / "work", {}
     failed = pytest.raises(RuntimeError, match=f"negative_case_failed:{installed}$")
     with failed if installed else nullcontext():
-        journey.prove_refusals(tool, release, work, refusals, platform=PLATFORM, environment={})
+        acquisition.prove_refusals(
+            tool, release, work, refusals, platform=PLATFORM, environment={}, token=""
+        )
     refused = "shared_supply_package_manager_failed:install --locked:exit=1:denied"
     cases = ("changed_checksum", "foreign_attestation")
     assert refusals == {case: "" if case == installed else refused for case in cases}
@@ -251,6 +268,7 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
 
     monkeypatch.setattr(journey, "qualify", qualify)
     monkeypatch.setattr(journey, "mise_target", lambda: PLATFORM)
+    monkeypatch.setenv("CI", "true" if failure else "")
     session = Mock()
     output = tmp_path / "evidence" / f"journey-{PLATFORM}.json"
     classes = state == "classes_verified"
@@ -260,6 +278,7 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
     receipt = json.loads(output.read_text(encoding="utf-8"))
     assert receipt["tag"] == f"v{VERSION}"
     assert (receipt["platform"], receipt["mise"]) == (PLATFORM, "2026.11.7")
+    assert receipt["venue"] == ("ci" if failure else "local")
     assert receipt["execution_events"] == output.with_suffix(".events.jsonl").as_posix()
     assert output.with_suffix(".events.jsonl").is_file()
     assert not (tmp_path / "work").exists()
@@ -274,46 +293,67 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
 
 def _journey_without_effects(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, published: set[str]
-) -> tuple[list[str], list[tuple[Path, str]], list[tuple[object, ...]]]:
-    """Replace every journey effect; return the downloaded tags, upgrade stores and installs."""
-    downloads: list[str] = []
-    upgrades: list[tuple[Path, str]] = []
-    installs: list[tuple[object, ...]] = []
+) -> dict[str, list]:
+    """Replace every journey effect but its environments and its manifest; return what each saw.
 
-    def download(tag: str, target: Path, **_options: object) -> journey.PublishedRelease:
-        downloads.append(tag)
+    `tokens` holds, for each download, pin and offline install, the forge token this process
+    held, the one in the environment that the step hands its children, and the one it was handed.
+    """
+    names = ("downloads", "upgrades", "pins", "tokens", "mise")
+    seen: dict[str, list] = {name: [] for name in names}
+
+    def held(environment: dict[str, str]) -> tuple[str | None, str | None]:
+        return os.environ.get("GH_TOKEN"), environment.get("GH_TOKEN")
+
+    def download(tag: str, target: Path, *, environment: dict[str, str], token: str, **_k: object):
+        seen["downloads"].append(tag)
+        seen["tokens"].append(("download", *held(environment), token))
+        target.mkdir(parents=True)
+        (target / "a.tar.gz").write_bytes(b"archive")
         version, archives = tag.removeprefix("v"), dict.fromkeys((PLATFORM, "macos-arm64"), "")
-        return journey.PublishedRelease(
-            version, target / "a.tar.gz", "0" * 64, pin.release_class(version), archives
+        return acquisition.PublishedRelease(
+            version, target / "a.tar.gz", DIGEST, pin.release_class(version), archives
         )
 
     def install(declaration: str, _home: Path, **options: object) -> Mock:
-        installs.append((declaration, options["lock"], options["seed"]))
+        seen["pins"].append((declaration, options["lock"], options["seed"]))
+        seen["tokens"].append(("pin", *held(options["environment"]), options["token"]))
+        return Mock()
+
+    def offline(archive: Path, _home: Path, *, mise: Path, environment: dict[str, str]):
+        seen["mise"].append(mise)
+        seen["tokens"].append((archive.parent.name, *held(environment), ""))
         return Mock(runtime=tmp_path / "previous-install/runtime/0123456789abcdef")
 
     def upgrade(
         _successor: object, _predecessor: object, work: Path, *, environment: dict[str, str]
     ) -> dict[str, object]:
-        upgrades.append((work, environment["XDG_DATA_HOME"]))
+        seen["upgrades"].append((work, environment["XDG_DATA_HOME"]))
         return {"state": "passed"}
 
-    passed = {"state": "passed", "runtime_digest": "f" * 64}
-    for name, value in (
-        ("release_published", published.__contains__),
-        ("download_release", download),
-        ("independent_host_environment", lambda: ({}, "git")),
-        ("prove_installed_supply", lambda *_a, **_k: passed),
-        ("prove_refusals", lambda _t, _r, _w, refusals, **_k: refusals.update(case="refused")),
-        ("require_selected_runtime", lambda path: path),
-        ("prove_full", lambda *_a, **_k: passed),
-        ("prepare_mise", lambda _root: Path("mise")),
-        ("mise_version", lambda _mise: (2026, 11, 7)),
-        ("install_declared", install),
-        ("require_installed_runtime", lambda path: path),
-        ("prove_upgrade", upgrade),
+    passed, which = {"state": "passed", "runtime_digest": "f" * 64}, shutil.which
+    # A Mise that the host installed is on the host's path, and on no stage's.
+    (tmp_path / "host").mkdir()
+    (tmp_path / "host/mise").touch(mode=0o755)
+    monkeypatch.setenv("PATH", os.pathsep.join((str(tmp_path / "host"), os.environ["PATH"])))
+    for owner, name, value in (
+        (acquisition, "release_published", lambda version, **_k: version in published),
+        (acquisition, "download_release", download),
+        (acquisition, "prove_refusals", lambda _t, _r, _w, refused, **_k: refused.update(a="no")),
+        (acquisition, "install_declared", install),
+        (journey, "prove_installed_supply", lambda *_a, **_k: passed),
+        (journey, "require_selected_runtime", lambda path: path),
+        (journey, "prove_full", lambda *_a, **_k: passed),
+        (journey, "prepare_mise", lambda _root: Path(shutil.which("mise") or "bound-mise")),
+        (journey, "mise_version", lambda _mise: (2026, 11, 7)),
+        (journey, "install_archive", offline),
+        (journey, "require_installed_runtime", lambda path: path),
+        (journey, "prove_upgrade", upgrade),
+        (shutil, "which", lambda name, **_k: which(name) or (name != "mise" and sys.executable)),
     ):
-        monkeypatch.setattr(journey, name, value)
-    return downloads, upgrades, installs
+        monkeypatch.setattr(owner, name, value)
+    monkeypatch.setenv("GH_TOKEN", "fake-token")
+    return seen
 
 
 def test_the_receipt_names_the_versions_it_skipped(
@@ -325,36 +365,79 @@ def test_the_receipt_names_the_versions_it_skipped(
     a `checksum` predecessor installs its own platform from the pin line alone. A journey for
     the classes alone stops once each release is verified.
     """
-    downloads, upgrades, installs = _journey_without_effects(
-        tmp_path, monkeypatch, {"0.2.0-alpha.27"}
-    )
+    seen = _journey_without_effects(tmp_path, monkeypatch, {"0.2.0-alpha.27"})
     qualify = partial(journey.qualify, f"v{VERSION}", platform=PLATFORM, changelog=CHANGELOG)
-    receipt = qualify(work=tmp_path)
-    assert installs == [
+    receipt = qualify(work=tmp_path / "work")
+    assert seen["pins"] == [
         (pin.bare_entry(VERSION), ("--platform", "linux-x64,macos-arm64"), SEED),
         (f"[tools]\n{pin.pin_line('0.2.0-alpha.27')}\n", ("--platform", PLATFORM), None),
     ]
-    assert (receipt["mise"], receipt["refusals"]) == ("2026.11.7", {"case": "refused"})
+    assert (receipt["mise"], receipt["refusals"]) == ("2026.11.7", {"a": "no"})
     classes = {name: asset["class"] for name, asset in receipt["assets"].items()}
     assert classes == {VERSION: "attested-main", "0.2.0-alpha.27": "checksum"}
     assert receipt["attestation_verified"] == "a.tar.gz"
-    classes = qualify(work=tmp_path, classes_only=True)
-    assert (classes["assets"], "steps" in classes, len(installs)) == (receipt["assets"], False, 2)
-    assert downloads[:2] == [f"v{VERSION}", "v0.2.0-alpha.27"]
+    classes = qualify(work=tmp_path / "classes", classes_only=True)
+    assert (classes["assets"], "steps" in classes) == (receipt["assets"], False)
+    assert (len(seen["pins"]), "mise" in classes) == (2, False)
+    assert seen["downloads"][:2] == [f"v{VERSION}", "v0.2.0-alpha.27"]
     assert (receipt["previous"], receipt["skipped_unpublished"], receipt["previous_named"]) == (
         ["v0.2.0-alpha.27"],
         ["v0.2.0-alpha.28"],
         False,
     )
     assert list(receipt["steps"]["upgrade_and_rollback"]) == ["v0.2.0-alpha.27"]
-    assert len(upgrades) == 1
+    assert len(seen["upgrades"]) == 1
+
+
+def test_only_acquisition_holds_the_forge_token_and_qualification_reads_the_manifest_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The forge token leaves the environment before either stage, and no child inherits it.
+
+    Acquisition hands it to the forge's client and to Mise's pin calls. Qualification then
+    installs, offline and in the manifest's order, the archives that acquisition verified, with
+    the Mise that acquisition resolved where no host Mise was on its path. This process's
+    environment is the host's again afterwards.
+    """
+    seen, host = _journey_without_effects(tmp_path, monkeypatch, {"0.2.0-alpha.27"}), {}
+    host.update(os.environ)
+    journey.qualify(f"v{VERSION}", work=tmp_path / "work", platform=PLATFORM, changelog=CHANGELOG)
+    assert seen["tokens"] == [
+        ("download", None, None, "fake-token"),
+        ("download", None, None, "fake-token"),
+        ("pin", None, None, "fake-token"),
+        ("pin", None, None, "fake-token"),
+        (VERSION, None, None, ""),
+        ("0.2.0-alpha.27", None, None, ""),
+    ]
+    manifest = json.loads((tmp_path / "work/acquisition/manifest.json").read_text())
+    assert [(entry["version"], entry["sha256"]) for entry in manifest["releases"]] == [
+        (VERSION, DIGEST),
+        ("0.2.0-alpha.27", DIGEST),
+    ]
+    assert set(seen["mise"]) == {Path("bound-mise")}
+    assert not (tmp_path / "work/acquisition/pins").exists()
+    assert dict(os.environ) == host
+
+
+def test_qualification_checks_its_environment_before_its_first_child(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An environment that shows a child more than was declared stops the leg, naming what."""
+    seen = _journey_without_effects(tmp_path, monkeypatch, {"0.2.0-alpha.27"})
+    monkeypatch.setattr(journey, "hermetic_gap", lambda _root, _executables: "HOME")
+    with pytest.raises(RuntimeError, match=r"^journey_environment_not_hermetic:HOME$"):
+        journey.qualify(
+            f"v{VERSION}", work=tmp_path / "work", platform=PLATFORM, changelog=CHANGELOG
+        )
+    assert [stage for stage, *_tokens in seen["tokens"]] == ["download", "download", "pin", "pin"]
 
 
 def test_named_predecessors_follow_the_changelog_without_duplicates() -> None:
     """Each named predecessor is an earlier published entry, newest first."""
     every = {"0.2.0-alpha.28", "0.2.0-alpha.27"}.__contains__
     names = ("v0.2.0-alpha.27", "v0.2.0-alpha.28", "v0.2.0-alpha.27")
-    assert journey.named_predecessors(CHANGELOG, VERSION, names, published=every) == (
+    assert acquisition.named_predecessors(CHANGELOG, VERSION, names, published=every) == (
         "0.2.0-alpha.28",
         "0.2.0-alpha.27",
     )
@@ -373,7 +456,7 @@ def test_a_named_predecessor_outside_the_published_history_refuses(name: str, ga
     """A malformed, later, unknown or unpublished predecessor refuses with its tag."""
     only_older = {"0.2.0-alpha.27"}.__contains__
     with pytest.raises(ValueError, match=re.escape(gap)):
-        journey.named_predecessors(CHANGELOG, VERSION, (name,), published=only_older)
+        acquisition.named_predecessors(CHANGELOG, VERSION, (name,), published=only_older)
 
 
 def test_each_named_predecessor_upgrades_in_its_own_store(
@@ -381,15 +464,16 @@ def test_each_named_predecessor_upgrades_in_its_own_store(
 ) -> None:
     """Shared steps run once; each predecessor gets its assets, its upgrade and its own store."""
     published = {"0.2.0-alpha.28", "0.2.0-alpha.27"}
-    downloads, upgrades, _installs = _journey_without_effects(tmp_path, monkeypatch, published)
+    seen = _journey_without_effects(tmp_path, monkeypatch, published)
+    upgrades = seen["upgrades"]
     receipt = journey.qualify(
         f"v{VERSION}",
-        work=tmp_path,
+        work=tmp_path / "work",
         platform=PLATFORM,
         changelog=CHANGELOG,
         previous=("v0.2.0-alpha.27", "v0.2.0-alpha.28"),
     )
-    assert downloads == [f"v{VERSION}", "v0.2.0-alpha.28", "v0.2.0-alpha.27"]
+    assert seen["downloads"] == [f"v{VERSION}", "v0.2.0-alpha.28", "v0.2.0-alpha.27"]
     assert (receipt["previous"], receipt["skipped_unpublished"], receipt["previous_named"]) == (
         ["v0.2.0-alpha.28", "v0.2.0-alpha.27"],
         [],

@@ -76,12 +76,20 @@ def test_archive_keeps_its_windows_interpreter_path_within_budget(
 def test_a_local_archive_installs_from_a_table_that_strips_its_top_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mise then installs the same `bin/` and `runtime/` that it gives a pinned release."""
+    """Mise then installs offline the `bin/` and `runtime/` that it gives a pinned release."""
     _repo, _selected, archive = _package(tmp_path, monkeypatch)
     seen: list[str] = []
-    monkeypatch.setattr(distribution, "install_declared", lambda text, *_a, **_k: seen.append(text))
+    monkeypatch.setattr(
+        distribution,
+        "install_declared",
+        lambda text, *_a, offline, **_k: seen.append(f"{text}offline = {offline}"),
+    )
     distribution.install_archive(archive, tmp_path / "home", mise=tmp_path / "mise", environment={})
     assert ("strip_components = 1\n" in seen[0], "bin_path" in seen[0]) == (True, False)
+    assert (archive.resolve().as_uri() in seen[0], seen[0].endswith("offline = True")) == (
+        True,
+        True,
+    )
 
 
 def test_a_failed_mise_call_keeps_both_whole_streams(
@@ -113,7 +121,7 @@ def test_mise_reads_no_configuration_above_its_isolated_home(
     matched them and let a checkout's own toolchain join the published tool's installation. The
     tool is found under the key its declaration names, in the layout Mise strips an archive to.
     Mise relocks the seed, the caller admits that lock before the install, and only a pin's forge
-    calls carry the job's token.
+    calls carry the token that the caller hands over.
     """
     calls: list[tuple[str, dict[str, str]]] = []
     runtime = tmp_path / "installed/runtime/0123456789abcdef"
@@ -131,7 +139,7 @@ def test_mise_reads_no_configuration_above_its_isolated_home(
         return subprocess.CompletedProcess(command, 0, printed, "")
 
     monkeypatch.setattr(mise_tool, "run_command", mise)
-    monkeypatch.setenv("GH_TOKEN", "token")
+    monkeypatch.setenv("GH_TOKEN", "ambient")
     home, executable = tmp_path / "work" / ".." / "home", tmp_path / "mise"
     tool = mise_tool.install_declared(
         declaration,
@@ -143,6 +151,7 @@ def test_mise_reads_no_configuration_above_its_isolated_home(
         lock=("--platform", "a,b"),
         seed="seed",
         admit=lambda lock: calls.append((lock, {})),
+        token="handed",
     )
     assert (tool.key, tool.runtime) == (key, runtime)
     ceilings = {environment["MISE_CEILING_PATHS"] for _name, environment in calls if environment}
@@ -150,5 +159,6 @@ def test_mise_reads_no_configuration_above_its_isolated_home(
     names = [name for name, _environment in calls]
     assert names[names.index("lock") :][:3] == ["lock", "seed", "install"]
     assert ("settings" in names) is bool(forge)
-    assert [name for name, environment in calls if "GITHUB_TOKEN" in environment] == forge
+    tokens = [(name, environment.get("GITHUB_TOKEN")) for name, environment in calls]
+    assert [pair for pair in tokens if pair[1]] == [(name, "handed") for name in forge]
     assert "GITHUB_TOKEN" not in tool.environment

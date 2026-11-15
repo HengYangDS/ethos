@@ -316,7 +316,6 @@
   "tools/ci/delivery/acceptance/adopter.py::prove_formation": 28,
   "tools/ci/delivery/acceptance/brownfield.py::_prove_retained_change": 18,
   "tools/ci/delivery/acceptance/effect.py::observe_independent_command_plane": 21,
-  "tools/ci/delivery/acceptance/host_environment.py::independent_host_environment": 16,
   "tools/ci/delivery/acceptance/lane.py::prove_signature_repair": 17,
   "tools/ci/delivery/acceptance/mcp.py::_adoption": 16,
   "tools/ci/delivery/distribution.py::package_runtime": 20,

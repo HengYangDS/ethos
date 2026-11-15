@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 from contextlib import suppress
 from pathlib import Path
@@ -65,7 +64,7 @@ def run(
 
 
 def _project(
-    declaration: str, home: Path, *, environment: Mapping[str, str], offline: bool
+    declaration: str, home: Path, *, environment: Mapping[str, str], offline: bool, token: str
 ) -> tuple[Path, dict[str, str], dict[str, str], DeclaredPin]:
     """Write the declaration into a fresh repository under its own isolated Mise home.
 
@@ -75,8 +74,8 @@ def _project(
     otherwise an enclosing checkout's toolchain joins the installation.
 
     Returns the project, Mise's environment there, the environment for the calls that reach the
-    forge, and the declared pin. Only a GitHub pin's forge calls carry the job's token, and only
-    Mise sees it: anonymous calls are capped at 60 an hour for each address.
+    forge, and the declared pin. Only a GitHub pin's forge calls carry the token the caller
+    hands over, and only Mise sees it: anonymous calls are capped at 60 an hour for each address.
     """
     declared = declared_pin(declaration)
     if declared is None:
@@ -99,7 +98,6 @@ def _project(
         **dict.fromkeys(("MISE_DISABLE_UPDATE_WARNING", "MISE_YES"), "1"),
         **({"MISE_OFFLINE": "1"} if offline else {}),
     }
-    token = os.environ.get("GH_TOKEN")
     forge = {**scoped, "GITHUB_TOKEN": token} if token and declared.form == "github" else scoped
     return project, scoped, forge, declared
 
@@ -115,6 +113,7 @@ def install_declared(
     lock: tuple[str, ...] = (),
     seed: str | None = None,
     admit: Callable[[str], None] | None = None,
+    token: str = "",
 ) -> InstalledTool:
     """Lock and install the declared tool in a fresh Mise home and check its console.
 
@@ -123,7 +122,7 @@ def install_declared(
     declaration that turns provenance verification on must also read so to Mise.
     """
     project, scoped, forge, declared = _project(
-        declaration, home, environment=environment, offline=offline
+        declaration, home, environment=environment, offline=offline, token=token
     )
     setting = ("settings", "get", PROVENANCE_SETTING)
     if declared.verify_provenance and run(mise, project, setting, scoped).strip() != "true":
@@ -149,14 +148,20 @@ def install_declared(
 
 
 def refusal(
-    declaration: str, lock: str, home: Path, *, mise: Path, environment: Mapping[str, str]
+    declaration: str,
+    lock: str,
+    home: Path,
+    *,
+    mise: Path,
+    environment: Mapping[str, str],
+    token: str = "",
 ) -> str:
     """Install the declared tool from a given lock in a fresh home; return Mise's refusal.
 
     The result is empty when Mise installed the tool, or failed and still left one installed.
     """
     project, scoped, forge, declared = _project(
-        declaration, home, environment=environment, offline=False
+        declaration, home, environment=environment, offline=False, token=token
     )
     (project / "mise.lock").write_text(lock, encoding="utf-8")
     try:

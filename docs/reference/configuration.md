@@ -264,7 +264,8 @@ Configuration under `.config/checks/` owns policy only. Runtime caches and
 local generated outputs must use semantic ignored homes: `<git-common-dir>/ethos/`,
 outside every checkout, for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
 the project `.venv/` for the one uv-locked Python environment,
-`build/runtime/work/<purpose>/` for bounded execution work,
+`build/runtime/work/<purpose>/` for bounded execution work, where `.ethos-owner.json` names the
+owner of a directory that `ethos host run --work <purpose>` claimed,
 `build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine
 projections, and `build/artifacts/<kind>/` for local package/build outputs.
 Root cache directories such as `.import_linter_cache/`, `.pytest_cache/`,

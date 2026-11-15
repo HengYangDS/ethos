@@ -191,6 +191,7 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         ("land --closeout --release", ""),
         ("land --release --candidate-head c", ""),
         ("host run --wait 5 -- git --root x", "host.run"),
+        ("host run --work render -- git status", "host.run"),
         ("host status --guest-cpus 8", "host.status"),
         ("host run git -C x status --json", "host.run"),
         ("host run --command x y", ""),

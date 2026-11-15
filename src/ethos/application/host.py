@@ -10,32 +10,40 @@ from pathlib import Path
 from ethos.adapters.actor import process_actor
 from ethos.adapters.gates.host_admission import host_queue
 from ethos.adapters.gates.host_admission import run_admitted
+from ethos.adapters.gates.host_work import claim_work_directory
 from ethos.adapters.gates.proof_slot import effective_load_limit
 from ethos.adapters.gates.proof_slot import host_load
+from ethos.contracts.codes.gaps import repair_for
 from ethos.contracts.operations.host import RunRequest
 from ethos.contracts.operations.host import StatusRequest
-from ethos.repository.paradigm.parameters import seconds
 from ethos.result import EthosResult
 
 
 def run_host_command(root: Path, request: RunRequest) -> EthosResult:
-    """Run the command when the host admits it, with its worker cap, and report its status."""
+    """Run the command when the host admits it, with its worker cap, and report its status.
+
+    A run that names its work directory claims it first, so a directory that carries another
+    owner's mark costs no place in the queue.
+    """
     gap, next_action = "host_run_command_missing", "ethos host run -- <command...>"
     if request.command:
+        owner = process_actor()
         try:
+            if request.work is not None:
+                claim_work_directory(root, request.work, owner=owner, operation="host.run")
             status = run_admitted(
                 request.command,
                 repository=root,
                 operation="host.run",
-                owner=process_actor(),
-                seconds=seconds("admission", request.wait),
+                owner=owner,
+                seconds=request.wait,
             )
         except ValueError as error:
             gap = str(error)
             next_action = (
                 "read the queue with `ethos host status --json`, then wait"
                 if gap.startswith("host_admission_contended")
-                else "repair this host's root, or declare more host slots"
+                else repair_for(gap) or "repair this host's root, or declare more host slots"
             )
         else:
             return EthosResult(
@@ -77,7 +85,7 @@ def inspect_host_queue(root: Path, request: StatusRequest) -> EthosResult:
         "load": host_load(),
         "queue": queue.entries(reader=root),
     }
-    gaps, next_action = _reservation(data, request.guest_cpus, declaration.reserved_cpus)
+    gaps, next_action = _reservation(data, request.guest_cpus, declaration.reserved_cpus, cpus)
     return EthosResult(
         command="host status",
         verdict="block" if gaps else "pass",
@@ -89,27 +97,34 @@ def inspect_host_queue(root: Path, request: StatusRequest) -> EthosResult:
 
 
 def _reservation(
-    data: dict[str, object], guest_cpus: int | None, reserved_cpus: int
+    data: dict[str, object], guest_cpus: int | None, reserved_cpus: int, cpus: int
 ) -> tuple[tuple[str, ...], str]:
     """Record whether the guests' count fits the reservation, and name the repair when it does not.
 
     The count is the request's, read by its caller from the guests' own configuration; ETHOS
     reads no hypervisor, and the check runs on this read rather than at admission, which cannot
-    know the guests.
+    know the guests. A declaration reserves fewer CPUs than the host has, so the repair is the
+    value to declare where one holds the guests, and the guests' own sizes where none does.
     """
     if guest_cpus is None:
         return (), ""
     if guest_cpus < 0:
         return ("host_reservation_invalid",), "pass the guests' count as a non-negative number"
-    fits = guest_cpus <= reserved_cpus
+    fits, reservable = guest_cpus <= reserved_cpus, cpus - 1
     data["reservation"] = {
         "guest_cpus": guest_cpus,
         "reserved_cpus": reserved_cpus,
+        "reservable_cpus": reservable,
         "fits": fits,
     }
     if fits:
         return (), ""
-    next_action = "raise reserved_cpus in host.toml above the guests' count"
+    next_action = (
+        f"raise reserved_cpus in host.toml to {guest_cpus}"
+        if guest_cpus <= reservable
+        else f"resize the guests to {reservable} virtual CPUs or fewer in total: "
+        f"no reserved_cpus on {cpus} holds {guest_cpus}"
+    )
     return ("host_reservation_exceeded",), next_action
 
 

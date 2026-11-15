@@ -13,6 +13,7 @@ from filelock import Timeout
 import ethos.adapters.gates.host_admission as host_admission
 import ethos.adapters.gates.proof_slot as proof_slot
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tests.support.clock import FakeClock
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -336,6 +337,54 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
     assert admission.load == pytest.approx(4.0)
     assert host_admission.ADMISSION_ENV not in os.environ
     assert not queue.live()
+
+
+def test_a_full_proof_keeps_its_place_behind_a_live_holder(tmp_path: Path) -> None:
+    """A render that alone outlasts the bound ends no wait, and the load wait has the bound."""
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    renders = [queue.enter(tmp_path / "work", "renderer", operation="host.run")]
+
+    class _RenderEnds(_Host):
+        def sleep(self, seconds: float) -> None:
+            super().sleep(seconds)
+            if self.now >= 6400 and renders:
+                queue.leave(*renders.pop())
+
+    host = _RenderEnds([20.0, 4.0])
+    with host.admit(repo, seconds=3600.0) as admission:
+        pass
+
+    # The proof sees the render gone at 6,405 seconds, then waits two calm samples for the load.
+    assert admission.waited_seconds == pytest.approx(6435.0)
+    assert [event["reason"] for event in host.waits()] == ["host_slot_held", "host_load"]
+    assert not queue.live()
+
+
+def test_a_full_proofs_whole_wait_ends_at_the_declared_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A render that never leaves ends the proof's wait at the ceiling, not at its bound."""
+    monkeypatch.setattr(proof_slot, "_POLL_SECONDS", 600.0)
+    ceiling = load_repository_paradigm().parameter_row("timeout", "admission_seconds").bound
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "work", "renderer", operation="host.run")
+
+    class _Guarded(_Host):
+        def sleep(self, seconds: float) -> None:
+            super().sleep(seconds)
+            assert self.now <= ceiling, "the wait outlasted the ceiling"
+
+    host = _Guarded([1.0])
+    with (
+        pytest.raises(ValueError, match=r"^host_admission_contended:host\.run:"),
+        host.admit(repo, seconds=3600.0),
+    ):
+        pytest.fail("no gate may run behind a holder that never leaves")
+
+    assert (ceiling, host.now) == (36_000, 36_000.0)
+    queue.leave(*render)
 
 
 def test_a_host_without_a_load_average_records_it_unmeasured(tmp_path: Path) -> None:

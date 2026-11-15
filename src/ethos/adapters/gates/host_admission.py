@@ -41,6 +41,7 @@ from filelock import Timeout
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.repository.paradigm.parameters import ceiling_seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -67,8 +68,11 @@ class HostDeclaration:
     load_limit: float | None = None
 
     def worker_cap(self, cpus: int) -> int:
-        """The workers an admitted run may start: the CPUs not reserved, at least one."""
-        return max(1, cpus - self.reserved_cpus)
+        """The workers one admitted run may start: its slot's share of the CPUs not reserved.
+
+        The slots run at once, so they share what the reservation leaves; each gets at least one.
+        """
+        return max(1, (cpus - self.reserved_cpus) // self.slots)
 
 
 def read_host_declaration(root: Path, *, cpus: int) -> HostDeclaration:
@@ -328,6 +332,27 @@ class HostPlace:
             exit_.add_note(f"{UNAVAILABLE}: {type(error).__name__}")
 
 
+class AdmissionBound:
+    """How long one wait may still last: its bound, under the ceiling of every admission wait."""
+
+    def __init__(self, clock: Callable[[], float]) -> None:
+        self.clock = clock
+        self.started = self.since = clock()
+        self.ceiling = ceiling_seconds("admission")
+
+    def remaining(self, seconds: float, *, held: bool) -> float:
+        """The seconds left of a bound that does not run behind a live holder.
+
+        A ticket's lock shows that its holder lives, and a holder that dies frees its place, so a
+        waiter behind a live holder keeps its place however long that holder runs. The ceiling
+        counts the whole wait, so every wait ends.
+        """
+        now = self.clock()
+        if held:
+            self.since = now
+        return min(self.since + seconds, self.started + self.ceiling) - now
+
+
 @dataclass(frozen=True)
 class HostWork:
     """One heavy run's admission: its child's environment, how long it waited, whether it joined."""
@@ -365,7 +390,7 @@ def admitted_host_work(
     *,
     operation: str,
     owner: str = "",
-    seconds: float,
+    seconds: float | None = None,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     report: Callable[[dict[str, object]], None] = report_event,
@@ -373,11 +398,14 @@ def admitted_host_work(
     """Hold a host slot for one heavy run, or join the live one, and yield its admission.
 
     A run that must wait writes one event naming the earliest live holder; a host root that cannot
-    be written is a named gap rather than a traceback. The place is given up on every exit, also
-    one that ends the wait: its bound, an OS error or an interrupt. A place that cannot be given
-    up is the same named gap after a normal end, and never replaces an exit that is in flight.
+    be written is a named gap rather than a traceback. Every ticket ahead is live by its lock, so
+    the run keeps its place behind them until its total: the caller's own `seconds`, and at most
+    the declared ceiling of an admission wait. The place is given up on every exit, also one
+    that ends the wait: its total, an OS error or an interrupt. A place that cannot be given up
+    is the same named gap after a normal end, and never replaces an exit that is in flight.
     """
     started = clock()
+    total = ceiling_seconds("admission", seconds)
     with ExitStack() as held:
         try:
             place = HostPlace(repository, executable, operation=operation, owner=owner)
@@ -394,7 +422,7 @@ def admitted_host_work(
                             "holder": place.holder(),
                         }
                     )
-                remaining = started + seconds - clock()
+                remaining = started + total - clock()
                 if remaining <= 0:
                     raise ValueError(place.contention())
                 sleep(min(_POLL_SECONDS, remaining))
@@ -406,7 +434,12 @@ def admitted_host_work(
 
 
 def run_admitted(
-    command: tuple[str, ...], *, repository: Path, operation: str, owner: str, seconds: float
+    command: tuple[str, ...],
+    *,
+    repository: Path,
+    operation: str,
+    owner: str,
+    seconds: float | None,
 ) -> int:
     """Run one command as the admitted child, inheriting this process's streams."""
     with admitted_host_work(

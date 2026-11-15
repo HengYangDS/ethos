@@ -10,7 +10,8 @@ class RunRequest(CommandRequest):
     """Run one heavy local command once the host's queue admits it."""
 
     command: tuple[str, ...] = described((), "The command to run, after `--`.")
-    wait: float | None = described(None, "Seconds to wait for admission.")
+    wait: float | None = described(None, "Seconds to wait for admission, in total.")
+    work: str | None = described(None, "The directory of build/runtime/work that this run owns.")
 
 
 class StatusRequest(CommandRequest):
@@ -32,7 +33,7 @@ HOST_RUN = Command(
             "host.run",
             "Run the command once the host admits it, then exit with the command's status.",
             select="",
-            request="command wait",
+            request="command wait work",
             effects="execute opaque",
             authorization="human",
             destructive=True,

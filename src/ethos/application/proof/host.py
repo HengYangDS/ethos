@@ -8,7 +8,6 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos.repository.paradigm.parameters as paradigm_parameters
 from ethos.adapters.actor import process_actor
 from ethos.adapters.gates.host_admission import admitted_host_work
 from ethos.adapters.gates.host_admission import exported
@@ -178,7 +177,6 @@ def _admitted_gates(
                     "ethos prove",
                     operation="proof.host",
                     owner=process_actor(),
-                    seconds=paradigm_parameters.seconds("admission"),
                 )
             )
         except ValueError as refused:

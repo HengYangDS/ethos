@@ -23,6 +23,7 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.specifiers import SpecifierSet
 from uv import find_uv_bin
 
+from ethos.adapters.gates.host_work import mark_ticket_scratch
 from ethos.adapters.gates.native.evidence import native_report
 from ethos.adapters.gates.python_target import compatibility_target
 from ethos.adapters.gates.verification import NativeExecution
@@ -443,6 +444,7 @@ def behavior_report(
         bindable = tuple(subject.path for subject in subjects)
         output = Path(mkdtemp(prefix="ethos-python-quality-"))
         try:
+            mark_ticket_scratch(output, operation="provider.python-behavior")
             evidence = _behavior_evidence(
                 root,
                 output=output,

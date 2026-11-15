@@ -174,6 +174,12 @@ def seconds(kind: TimeoutKind, given: float | None = None) -> float:
     return parameter("timeout", f"{kind}_seconds") if given is None else given
 
 
+def ceiling_seconds(kind: TimeoutKind, given: float | None = None) -> float:
+    """Return the most `timeout.<kind>_seconds` may be declared as, or a caller's lower total."""
+    declared = _paradigm().parameter_row("timeout", f"{kind}_seconds").bound
+    return declared if given is None else min(given, declared)
+
+
 def parameter_source(group: str, key: str) -> str:
     """Return `repository` when the invocation's binding set the value, otherwise `default`."""
     declared = parameter(group, key) != _paradigm().parameter_row(group, key).default

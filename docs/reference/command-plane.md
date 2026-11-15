@@ -65,19 +65,21 @@ admits it, and exits with the command's own status; `ethos host status --json` r
 
 - **One queue per host.** It sits under ETHOS's host root. Waiters are admitted in arrival order, at
   most the slots that `host.toml` declares, and a holder that exits frees its place with no cleanup.
-  A wait that reaches its bound ends with `host_admission_contended:<operation>:<pid>:<since>` of
-  the earliest holder, never its path; a record of an older engine names its executable instead.
+  A waiter keeps its place behind live holders until `--wait`, at most the declared maximum of
+  `timeout.admission_seconds`, then ends with `host_admission_contended:<operation>:<pid>:<since>`
+  of the earliest holder, never its path; a record of an older engine names its executable instead.
 - **Shared with proofs.** A full proof takes the same host slot after its repository's proof slot;
   a host proof runs its readiness tier without waiting, then holds the ticket, with no repository
   slot and no load wait, for its test and package gates.
 - **What the child receives.** `ETHOS_HOST_ADMISSION`, so work that it starts joins the admission;
-  `ETHOS_HOST_CPU_CAP` and `PYTEST_XDIST_AUTO_NUM_WORKERS`, the CPUs not reserved, at least one,
-  and the cap only lowers a count the environment already declares.
+  `ETHOS_HOST_CPU_CAP` and `PYTEST_XDIST_AUTO_NUM_WORKERS`, one slot's share of the CPUs not
+  reserved, at least one, and the cap only lowers a count the environment already declares.
 - **The declaration.** `host.toml` declares `slots` (1), `reserved_cpus` (0) and `load_limit` (half
   the CPUs); an out-of-range value is refused, never clamped.
 - **The read.** `ethos host status [--guest-cpus <n>] --json` returns the declaration with the
   limit's source, the load and every live ticket, and removes nothing; an owner mark shows only to
-  its own repository, and guests above `reserved_cpus` block.
+  its own repository, and guests above `reserved_cpus` block with the repair that holds them.
+- **The work directory.** `--work <name>` marks `build/runtime/work/<name>/` with the run's actor.
 
 ## Native CI Projection
 

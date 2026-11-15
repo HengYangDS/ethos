@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -24,6 +25,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.application.docs_registry import DOCS_REGISTRY_PROVIDER
 from ethos.contracts.gates import Gate
 from ethos.result import EthosResult
+from tests.support.clock import ReleasingClock
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -305,6 +307,25 @@ def test_a_host_proof_under_a_live_admission_takes_no_second_ticket(
     assert len(issued) == 1
     assert observed["admission"] == {"waited_seconds": 0.0, "joined": True}
     assert _entries(repo) == []
+
+
+def test_a_host_proof_keeps_its_place_behind_a_live_holder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A holder that outlasts the repository's admission bound ends no host proof's wait."""
+    repo = init_git_repo(tmp_path / "repo")
+    _passing_graph(monkeypatch, _policy_with_a_test_gate(repo, git(repo, "rev-parse", "HEAD")))
+    queue = host_admission.host_queue()[0]
+    held = queue.enter(init_git_repo(tmp_path / "busy"), "renderer", operation="host.run")
+    clock = ReleasingClock(6400, lambda: queue.leave(*held))
+    timed = partial(gate_execution.admitted_host_work, clock=lambda: clock.now, sleep=clock.sleep)
+    monkeypatch.setattr(host_admission, "_POLL_SECONDS", 400.0)
+    monkeypatch.setattr(gate_execution, "admitted_host_work", timed)
+
+    observed = gate_execution.observe_gate_execution(repo, full=True)
+
+    assert (observed["verdict"], observed["required_gaps"]) == ("pass", [])
+    assert observed["admission"] == {"waited_seconds": 6400.0, "joined": False}
 
 
 def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(

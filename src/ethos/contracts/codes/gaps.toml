@@ -579,6 +579,9 @@ host_store_plan_changed = { owner = "adapters.repo" }
 host_store_plan_required = { owner = "application.hook" }
 host_store_scan_root_invalid = { owner = "application.hook" }
 host_surface_missing = { owner = "repository.release", detail = "the value that follows the colon" }
+host_work_invalid = { owner = "adapters.gates", repair = "name one lowercase directory of build/runtime/work, as in `--work render`" }
+host_work_owned = { owner = "adapters.gates", detail = "the work directory's name", repair = "name another work directory, or run as the owner that its mark declares" }
+host_work_unavailable = { owner = "adapters.gates", repair = "make build/runtime/work writable in this repository" }
 housekeeping_candidate_stale = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 housekeeping_remove_failed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 identity_transition_attestation_mismatch = { owner = "adapters.repo" }

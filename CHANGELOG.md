@@ -12,6 +12,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- `ethos host run --work <name>` claims `build/runtime/work/<name>/` for the run: before it queues,
+  it writes `.ethos-owner.json` there with the actor the run declares, its operation and the time.
+  A directory keeps its first mark. Another owner's mark, or one that cannot be read, refuses the
+  run with `host_work_owned:<name>`; a name that is not one lowercase directory refuses with
+  `host_work_invalid`, and a tree that cannot be written with `host_work_unavailable`. A run that
+  declares no actor writes no mark.
+- `ethos host status --guest-cpus <n>` reports `data.reservation.reservable_cpus`, the most this
+  host can reserve.
+- The Python behavior probe writes the same `.ethos-owner.json` into the scratch root of its
+  attempt when its proof holds or has joined a host ticket and declares an actor, so a root that
+  outlives an interrupted proof names its owner. The mark is removed with the scratch.
+
 ### Changed
 
 - The command reference splits by reader question, and five of its sections move with unchanged
@@ -22,6 +36,21 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `#exact-ref-observation-for-ci`. The command reference keeps each heading with a pointer to the
   new place, so an old anchor still resolves, and the wheel and the source archive carry both new
   pages.
+- **Breaking:** a wait for the host queue no longer ends at `timeout.admission_seconds`. A run or
+  a proof keeps its place behind tickets whose holders live, however long they run, and its wait
+  ends at the admission ceiling: the parameter's declared maximum, 36,000 seconds. A run without
+  `--wait`, a host proof and a full proof waited at most the repository's bound before, 3,600
+  seconds by default. `ethos host run --wait <seconds>` stays the caller's own total, now at most
+  the ceiling, and `--wait 0` still asks once. `timeout.admission_seconds` still bounds a full
+  proof's wait for its repository's slot and for calm load, without the time it spent behind a
+  live holder of the host slot. A caller that needs a shorter total for a proof keeps its own
+  deadline, or runs the proof under `ethos host run --wait`.
+- On a host that declares more than one slot, the worker cap is one slot's share of the CPUs that
+  `reserved_cpus` leaves, at least one, so the slots can run at once. A host of one slot keeps its
+  cap.
+- The next action of `host_reservation_exceeded` names the value of `reserved_cpus` to declare. On
+  a host whose guests hold as many virtual CPUs as it has, or more, it names the guests' sizes: no
+  declaration reserves every CPU, and the earlier text asked for a value that none satisfies.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

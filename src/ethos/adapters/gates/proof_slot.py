@@ -7,9 +7,10 @@ waits before the first test or package gate runs: first for the repository's pro
 while holding it, for the host slot that every heavy local run shares, and then for both the 1-
 and 5-minute load averages to fall within the limit, so a short lull between other jobs is not
 mistaken for room. Work that the admitted proof starts joins its host admission. Waiting is
-bounded; contention that outlasts the bound ends the proof with a gap before any test or package
-gate runs. A Work Lane that falls behind its candidate meanwhile could no longer land, so its proof
-also ends there.
+bounded, but the bound does not run while a live holder has the host slot, so the proof keeps its
+place in that queue; contention that outlasts the bound ends the proof with a gap before any test
+or package gate runs. A Work Lane that falls behind its candidate meanwhile could no longer land,
+so its proof also ends there.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from filelock import Timeout
 
 import ethos.repository.paradigm.parameters as parameters
 from ethos.adapters.actor import process_actor
+from ethos.adapters.gates.host_admission import AdmissionBound
 from ethos.adapters.gates.host_admission import HostPlace
 from ethos.adapters.gates.host_admission import exported
 from ethos.adapters.gates.host_admission import read_host_declaration
@@ -144,6 +146,7 @@ def admitted_full_proof(
     holder = state / "proof-slot.json"
     place = HostPlace(root, "ethos prove", operation="proof.run", owner=process_actor())
     started = clock()
+    bound = AdmissionBound(clock)
     acquired = False
     reason = ""
     calm = 0
@@ -186,7 +189,9 @@ def admitted_full_proof(
                         "holder": held if acquired else _holder(holder),
                     }
                 )
-            remaining = started + seconds - clock()
+            # Behind a live holder of the host slot the bound does not run: the proof keeps its
+            # place, and the load wait that follows has the whole bound.
+            remaining = bound.remaining(seconds, held=acquired and not hosted)
             if remaining <= 0:
                 raise ValueError(
                     f"{CONTENDED}:load={observed}:limit={admitted_limit}:source={limit_source}"

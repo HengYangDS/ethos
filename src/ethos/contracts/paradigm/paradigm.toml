@@ -125,8 +125,8 @@ retired = ["markdown_nonblank_lines"]
 # Timeouts. A gate without its own timeout_seconds runs within gate_seconds, and every command
 # inside a gate runs within its gate's deadline. The other rows bound one native wait outside a
 # gate: a tool run, a Git command, a long Git history operation, a version or identity probe, a
-# lock held by another process, a native tool download, one MCP request and a proof's wait for
-# the repository's proof slot.
+# lock held by another process, a native tool download, one MCP request and a full proof's wait
+# for its repository's slot and for calm load; its bound is the ceiling of every admission wait.
 [[parameter]]
 group = "timeout"
 key = "gate_seconds"

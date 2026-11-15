@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.gates.host_admission as host_admission
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tests.support.clock import FakeClock
 from tests.support.governed_repository import init_git_repo
 
@@ -38,14 +39,16 @@ def _declare(root: Path, text: str) -> None:
     ("text", "expected"),
     [
         (None, (1, 0, 8)),
-        ("slots = 2\nreserved_cpus = 6\n", (2, 6, 2)),
+        ("slots = 2\nreserved_cpus = 2\n", (2, 2, 3)),
+        ("slots = 3\n", (3, 0, 2)),
+        ("slots = 2\nreserved_cpus = 6\n", (2, 6, 1)),
         ("reserved_cpus = 7\n", (1, 7, 1)),
     ],
 )
 def test_the_host_declaration_bounds_slots_and_workers(
     host_root: Path, text: str | None, expected: tuple[int, int, int]
 ) -> None:
-    """One slot and no reserved CPUs by default; the worker cap is the CPUs left, at least one."""
+    """One slot and no reserved CPUs by default; the slots share the CPUs left, at least one."""
     if text is not None:
         _declare(host_root, text)
 
@@ -266,6 +269,38 @@ def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
         queue.leave(*holder)
     assert refused.call_count == 1
     assert not any(queue.directory.iterdir())
+
+
+@pytest.mark.parametrize("total", [None, 40_000.0])
+def test_every_wait_ends_at_the_declared_ceiling(
+    host_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, total: float | None
+) -> None:
+    """Behind a holder that never leaves, no total and a total above the ceiling both end there."""
+    monkeypatch.setattr(host_admission, "_POLL_SECONDS", 600.0)
+    ceiling = load_repository_paradigm().parameter_row("timeout", "admission_seconds").bound
+    queue = _queue(host_root)
+    holder = queue.enter(tmp_path, "renderer", operation="host.run")
+    clock = FakeClock()
+
+    def sleep(seconds: float) -> None:
+        clock.sleep(seconds)
+        assert clock.now <= ceiling, "the wait outlasted the ceiling"
+
+    with (
+        pytest.raises(ValueError, match=r"^host_admission_contended:host\.run:"),
+        host_admission.admitted_host_work(
+            tmp_path,
+            "proof",
+            operation="proof.host",
+            seconds=total,
+            clock=lambda: clock.now,
+            sleep=sleep,
+        ),
+    ):
+        pytest.fail("a contended run was admitted")
+
+    assert (ceiling, clock.now) == (36_000, 36_000.0)
+    queue.leave(*holder)
 
 
 def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(

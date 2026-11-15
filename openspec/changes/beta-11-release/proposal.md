@@ -16,6 +16,9 @@ Change keeps the release's own steps, opened now so that none waits in an archiv
 - The batch carried three off-gate rows against the rule of one a week: the supply move, the
   structure design and the artifact retention. They were in the stack before the rule was set. The
   owner accepted the excess once on 2026-11-15; from 0.2.0-beta.12 a batch carries one.
+- Two more items outside the gate's rows land before the tag, each by the owner's word of
+  2026-11-15: the direction design, and DR-0029, which the committee had placed in
+  0.2.0-beta.12. That batch's off-gate slot is free again.
 
 ## What Changes
 
@@ -28,7 +31,7 @@ Change keeps the release's own steps, opened now so that none waits in an archiv
 - The copies run's executed half is complete, or each tree it could not prove is named with its
   reason.
 - The weekly page's first edition is read from `dev` by a session other than the authors'. Its
-  measure of off-gate rows states the three rows of this batch and the owner's acceptance.
+  measure of off-gate rows states the five items of this batch and the owner's word on each.
 
 ## Capabilities
 

@@ -10,8 +10,8 @@ the split and was wrong; the essence seat of the direction review found the reco
 
 The rule's reader counts every nonblank line of a file, front matter included. By that count the
 page read 503 in the commit that raised the bound, 515 at its largest on 2026-11-14, 499 later
-that day, and 497 on `dev` at `d98081605`. No authored document on `dev` exceeds 500: the plan and the
-contract read 500. The raised bound has had no user since 2026-11-14.
+that day, and 497 on `dev` at `d98081605`. No authored document on `dev` exceeds 500: the plan and
+the contract read 500. The raised bound has had no user since 2026-11-14.
 
 ## What Changes
 

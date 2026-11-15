@@ -25,6 +25,8 @@ source on `dev` at `d98081605` and both met by governed repositories' sessions:
   `host-ticket-release` gave a host proof whose admission is refused. Two cases that repair
   left: a full proof whose admission is refused still drops the results of the readiness
   gates that ran, and a host proof asks for its host ticket after a readiness gate failed.
+  A third: when a run's gates have ended and its place in the queue cannot be given up, a
+  host proof reports no check, and `ethos host run` reports no status of its command.
 - Candidate from the release lane's own tools, where an interrupted test run was recorded as
   passed on 2026-11-15: a gate's result states the wrapped tool's exit status, and "interrupted"
   is a named state that never reads as a pass.

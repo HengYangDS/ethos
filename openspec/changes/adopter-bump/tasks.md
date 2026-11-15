@@ -15,6 +15,9 @@
       journey of 1.1 passes: one admission names the configuration and the repaired OpenSpec
       rules, the next action is `mise --cd <root> lock`, the actions then name the projection
       step, and a second preview plans no edit and names no step.
+- [ ] 1.5 Report a Mise configuration that cannot be read as itself, through the plan's own
+      reader. Done when the regression shows a repair that names the file, no edit and no
+      admitted path, where the result named the release's bare entry before.
 
 ## 2. The block and adoption's next step
 
@@ -26,6 +29,9 @@
       `tests/unit/adoption/test_pin.py` passes: the conflict of an `http:ethos` table and of an
       older bare pin names `ethos lane repair-paradigm --pin --root <root> --json` in a Work Lane,
       and the conflict of a newer pin and of a pin with options does not.
+- [ ] 2.3 Continue a retained topic's rename to the pin request. Done when the regression in
+      `tests/unit/lanes/test_legacy_role_rename.py` shows `--pin` in the next action of the
+      rename's preview and the request's preview after the applied rename.
 
 ## 3. Documents and budgets
 

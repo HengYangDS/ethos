@@ -374,6 +374,27 @@ def test_native_paradigm_repair_migrates_only_the_owned_retained_topic(
     assert renamed["generation"] == lease["generation"] + 1
 
 
+def test_a_pin_request_survives_the_retained_topic_rename(tmp_path: Path) -> None:
+    """The rename ends the command before any plan, so it continues to the request that was made."""
+    _repo, lane, _head = _retained_topic(tmp_path)
+    request = ("lane", "repair-paradigm", "--pin", "--json")
+    plain = run_ethos("lane", "repair-paradigm", "--json", cwd=lane)["data"]
+    preview = run_ethos(*request, cwd=lane)["data"]
+    assert (plain["state"], plain["next_action"]) == (
+        "ready_to_rename",
+        "ethos lane repair-paradigm --apply --json",
+    )
+    assert (preview["state"], preview["next_action"]) == (
+        "ready_to_rename",
+        "ethos lane repair-paradigm --pin --apply --json",
+    )
+    migrated = run_ethos(*request, "--apply", cwd=lane)["data"]
+    assert (migrated["state"], migrated["next_action"]) == (
+        "topic_identity_migrated",
+        "ethos lane repair-paradigm --pin --json",
+    )
+
+
 @pytest.mark.parametrize("obstacle", ["foreign-holder", "target-ref"])
 def test_retained_topic_migration_refuses_without_changing_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, obstacle: str

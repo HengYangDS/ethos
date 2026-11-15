@@ -376,3 +376,19 @@ def test_an_upgrade_blocks_on_a_selection_of_a_newer_release(
         "planned",
         [".editorconfig"],
     )
+
+
+def test_an_upgrade_reports_a_configuration_it_cannot_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file that cannot be read is no absent selection: the move stays reported and says why."""
+    repo, calls, arguments = _upgrade(
+        tmp_path, monkeypatch, {MISE_CONFIG: _BARE.format(_OLD)}, release=True
+    )
+    unreadable = b"\xff\xfe no text\n"
+    (repo / MISE_CONFIG).write_bytes(unreadable)
+    for data in (run_ethos(*arguments)["data"], run_ethos(*arguments, "--apply")["data"]):
+        pin = [gap["repair"] for gap in data["report_only"] if gap["obligation"] == "runtime-pin"]
+        assert pin == [f"make {MISE_CONFIG} readable as UTF-8 text, then repeat the request"]
+        assert data["actions"] == []
+    assert (calls, (repo / MISE_CONFIG).read_bytes()) == ([], unreadable)

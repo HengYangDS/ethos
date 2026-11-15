@@ -60,6 +60,19 @@ no selection.
 - **WHEN** the configuration holds both forms or a pin with options
 - **THEN** the result reports `runtime-pin` with its repair and plans no edit of the configuration
 
+#### Scenario: The configuration cannot be read
+
+- **WHEN** the configuration exists and cannot be read as UTF-8 text
+- **THEN** the result reports `runtime-pin` with a repair that names the file, compares no
+  release and plans no edit of the configuration
+
+#### Scenario: A retained topic's rename continues to the request
+
+- **WHEN** the command runs with `--pin` in a lane whose retained topic awaits its rename
+- **THEN** the rename's result names `ethos lane repair-paradigm --pin --apply --json` as its
+  next action until the rename is done
+- **AND** the result of the applied rename names `ethos lane repair-paradigm --pin --json`
+
 #### Scenario: A development build names no target
 
 - **WHEN** a development build runs the command with `--pin` on an older bare pin

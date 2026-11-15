@@ -19,7 +19,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.paradigm.gap import ParadigmGap
-from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.repair import carrier_text
 from ethos.repository.paradigm.repair import paradigm_repair_plan
 from ethos.repository.paradigm.repair import pin_move
 from ethos.repository.paradigm.repair import repair_next_action
@@ -27,6 +27,7 @@ from ethos.repository.paradigm.report import repository_paradigm_report
 from ethos.repository.paradigm.toolchain import PIN_OBLIGATION
 from ethos.repository.paradigm.toolchain import pin_ahead
 from ethos.repository.paradigm.toolchain import pin_gap
+from ethos.repository.paradigm.toolchain import pin_unread
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from ethos.repository.paradigm.repair import RepairPlan
 
 _APPLY = "ethos lane repair-paradigm --apply --json"
+_PIN_APPLY = _APPLY.replace(" --apply", " --pin --apply")
 # A retired peer web repository is identity; no diff line repeats it, context included.
 _WITHHELD = re.compile(r"^([ +-]\s*forge_repository\s*=).*$")
 
@@ -139,8 +141,12 @@ def _upgrade(repo: Path, tracked: tuple[str, ...], release: str | None) -> _Upgr
     """
     if release is None:
         return _Upgrade()
-    # The plan edits the working file whether or not the index tracks it yet, so read that file.
-    selection = tracked_text(repo, MISE_CONFIG, frozenset({MISE_CONFIG}))
+    # The plan edits the working file whether or not the index tracks it yet, so read that file
+    # as the plan does. A file that cannot be read is no absent selection: its move stays reported.
+    try:
+        selection = carrier_text(repo, MISE_CONFIG)
+    except (OSError, UnicodeError):
+        return _Upgrade(gaps=(pin_unread(MISE_CONFIG),), command=_PIN_APPLY)
     if ahead := pin_ahead(selection, release):
         return _Upgrade(_refused(repo, ahead))
     gap = pin_gap(MISE_CONFIG, selection, release)
@@ -153,7 +159,7 @@ def _upgrade(repo: Path, tracked: tuple[str, ...], release: str | None) -> _Upgr
         # A build that is no release names no target, so nothing handles its gap.
         (move,) if release else (),
         (project,) if PROJECTION_DECLARATIONS.keys() & set(tracked) else (),
-        _APPLY.replace(" --apply", " --pin --apply"),
+        _PIN_APPLY,
     )
 
 
@@ -174,8 +180,19 @@ def _refused(repo: Path, ahead: str) -> dict[str, object]:
 
 
 def _before_plan(repo: Path, upgrade: _Upgrade, *, apply: bool) -> dict[str, object] | None:
-    """Return the report that ends the command before a plan: a refused upgrade, else a rename."""
-    return upgrade.refusal or rename_retained_topic(repo, apply=apply)
+    """Return the report that ends the command before a plan: a refused upgrade, else a rename.
+
+    A rename plans nothing else, so an upgrade asked with it continues to the same request: its
+    apply until the rename is done, and its preview after it.
+    """
+    if upgrade.refusal:
+        return upgrade.refusal
+    renamed = rename_retained_topic(repo, apply=apply)
+    if renamed is None or upgrade.command == _APPLY:
+        return renamed
+    done = renamed["verdict"] == "pass" and renamed["applied"] is True
+    request = upgrade.command.replace(" --apply", "") if done else upgrade.command
+    return {**renamed, "next_action": request}
 
 
 def _edit_view(edit: CarrierEdit) -> dict[str, object]:

@@ -178,7 +178,9 @@ Non-Goals:
      include the lock. Accepted: the drift of generated files is named, not shown.
    - **Applies to:** an apply that wrote the selection. A second preview names neither step; a
      pin whose lock lacks the attested entry is then reported by runtime selection as
-     `runtime_pin_unattested`.
+     `runtime_pin_unattested`. A retained topic's rename ends the command before any plan, so
+     under `--pin` its result continues to the same request: the apply with `--pin` until the
+     rename is done, and the preview with `--pin` after it. Its other fields are the rename's.
 7. **No digest and no receipt of this Change's own.**
    - **Rests on:** `apply_carrier_edits`, which derives the patch again at the apply and refuses a
      preimage that changed (`carrier_edit_preimage_changed`); the `successor` receipt of
@@ -213,7 +215,9 @@ Non-Goals:
    - **Applies to:** a configuration with no ETHOS entry and a tree with no Mise configuration,
      which the apply creates. Adoption's own pin step for a repository that is not yet adopted
      does not change. A pin with options is its author's and stays reported, as adoption's exit
-     leaves it.
+     leaves it. A configuration that exists and cannot be read as text is no tree without a
+     selection: the plan's own reader decides what is absent, the move stays reported with the
+     file named, and nothing is compared or planned for it.
 10. **Adoption's conflict names the move.**
     - **Rests on:** `adoption_plan`, which reports `adoption_conflict` for a Mise configuration
       that the merge refuses; `pin_move`, which decides whether the lane repair replaces that

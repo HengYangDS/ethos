@@ -78,6 +78,12 @@ def pin_gap(config: str, text: str | None, release: str) -> ParadigmGap | None:
     return ParadigmGap(PIN_OBLIGATION, config, repair)
 
 
+def pin_unread(config: str) -> ParadigmGap:
+    """Report a selection whose carrier cannot be read: nothing is compared and nothing planned."""
+    repair = f"make {config} readable as UTF-8 text, then repeat the request"
+    return ParadigmGap(PIN_OBLIGATION, config, repair)
+
+
 def pin_ahead(text: str | None, release: str) -> str:
     """Return the version of a selection newer than the release, or nothing when it is none.
 

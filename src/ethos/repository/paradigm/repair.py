@@ -103,7 +103,7 @@ def paradigm_repair_plan(
         path = gap.carrier.partition(":")[0]
         if handler is not None and path not in original and path not in unreadable:
             try:
-                original[path] = working[path] = _read(root, path)
+                original[path] = working[path] = carrier_text(root, path)
             except (OSError, UnicodeError):
                 unreadable.add(path)
         repair = (
@@ -141,8 +141,8 @@ def paradigm_next_action(root: Path, gaps: Sequence[ParadigmGap]) -> str:
     return REPAIR_PREVIEW if plan.edits else repair_next_action(plan) or gaps[0].repair
 
 
-def _read(root: Path, path: str) -> str | None:
-    """Read a carrier as UTF-8 text; only a missing file reads as absent."""
+def carrier_text(root: Path, path: str) -> str | None:
+    """Read a carrier's working text as UTF-8; only a missing file reads as absent."""
     try:
         return (root / path).read_text(encoding="utf-8")
     except FileNotFoundError:

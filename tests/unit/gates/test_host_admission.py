@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -165,20 +166,16 @@ def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> Non
     assert [path.stem for path in queue.directory.glob("*.json")] == [holder[0].name]
 
 
-@pytest.mark.parametrize(
-    ("ending", "raised", "message"),
-    [
-        ("bound", ValueError, "^host_admission_contended"),
-        ("os_error", ValueError, "^host_admission_unavailable$"),
-        ("interrupt", KeyboardInterrupt, "^$"),
-    ],
-)
-def test_a_wait_that_ends_unadmitted_gives_up_its_place(
-    host_root: Path, tmp_path: Path, ending: str, raised: type[BaseException], message: str
-) -> None:
-    """The bound, an OS error while waiting and an interrupt each leave no ticket of the run."""
-    queue = _queue(host_root)
-    holder = queue.enter(tmp_path / "busy", "renderer")
+# How a contended wait ends: the exit it raises, that exit's message and its cause.
+_ENDINGS = [
+    ("bound", ValueError, "^host_admission_contended", type(None)),
+    ("os_error", ValueError, "^host_admission_unavailable$", BrokenPipeError),
+    ("interrupt", KeyboardInterrupt, "^$", type(None)),
+]
+
+
+def _admission(repository: Path, ending: str) -> None:
+    """Ask for one admission; behind a holder, its wait ends the way `ending` names."""
     clock = FakeClock()
 
     def report(_event: dict[str, object]) -> None:
@@ -190,22 +187,37 @@ def test_a_wait_that_ends_unadmitted_gives_up_its_place(
             raise KeyboardInterrupt
         clock.sleep(seconds)
 
-    # The test keeps the raised error, so only the admission itself can give the place up.
-    with (
-        pytest.raises(raised, match=message) as ended,
-        host_admission.admitted_host_work(
-            tmp_path,
-            "proof",
-            operation="proof.host",
-            seconds=5,
-            clock=lambda: clock.now,
-            sleep=sleep,
-            report=report,
-        ),
+    with host_admission.admitted_host_work(
+        repository,
+        "proof",
+        operation="proof.host",
+        seconds=5,
+        clock=lambda: clock.now,
+        sleep=sleep,
+        report=report,
     ):
-        pytest.fail("a contended run was admitted")
+        pass
+
+
+@pytest.mark.parametrize(("ending", "raised", "message", "cause"), _ENDINGS)
+def test_a_wait_that_ends_unadmitted_gives_up_its_place(
+    host_root: Path,
+    tmp_path: Path,
+    ending: str,
+    raised: type[BaseException],
+    message: str,
+    cause: type,
+) -> None:
+    """The bound, an OS error while waiting and an interrupt each leave no ticket of the run."""
+    queue = _queue(host_root)
+    holder = queue.enter(tmp_path / "busy", "renderer")
+
+    # The test keeps the raised error, so only the admission itself can give the place up.
+    with pytest.raises(raised, match=message) as ended:
+        _admission(tmp_path, ending)
 
     assert ended.type is raised
+    assert isinstance(ended.value.__cause__, cause)
     assert [entry["executable"] for entry in queue.entries(reader=tmp_path)] == ["renderer"]
     assert {path.stem for path in queue.directory.iterdir()} == {holder[0].name}
     queue.leave(*holder)
@@ -214,6 +226,33 @@ def test_a_wait_that_ends_unadmitted_gives_up_its_place(
     ) as later:
         assert not later.joined
     assert not any(queue.directory.iterdir())
+
+
+@pytest.mark.parametrize(
+    ("ending", "raised", "message", "cause"),
+    [*_ENDINGS, ("admitted", ValueError, "^host_admission_unavailable$", PermissionError)],
+)
+def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
+    host_root: Path,
+    tmp_path: Path,
+    ending: str,
+    raised: type[BaseException],
+    message: str,
+    cause: type,
+) -> None:
+    """An OS error while leaving keeps the wait's own ending; after a normal end it is the gap."""
+    queue = _queue(host_root)
+    busy = [] if ending == "admitted" else [queue.enter(tmp_path / "busy", "renderer")]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(host_admission.HostQueue, "leave", Mock(side_effect=PermissionError))
+        with pytest.raises(raised, match=message) as ended:
+            _admission(tmp_path, ending)
+
+    assert ended.type is raised
+    assert isinstance(ended.value.__cause__, cause)
+    for holder in busy:
+        queue.leave(*holder)
 
 
 def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(

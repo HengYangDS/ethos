@@ -312,6 +312,18 @@ class HostPlace:
             self.queue.leave(*self.ticket)
             self.ticket = None
 
+    def leave_on_exit(self, in_flight: type[BaseException] | None, *_exit: object) -> None:
+        """Give up the place as an exit callback, never replacing an exit that is in flight.
+
+        An OS error while leaving is the named gap after a normal end; an exit already in flight,
+        such as the wait's own gap or an interrupt, survives it unchanged.
+        """
+        try:
+            self.leave()
+        except OSError as error:
+            if in_flight is None:
+                raise ValueError(UNAVAILABLE) from error
+
 
 @dataclass(frozen=True)
 class HostWork:
@@ -359,13 +371,14 @@ def admitted_host_work(
 
     A run that must wait writes one event naming the earliest live holder; a host root that cannot
     be written is a named gap rather than a traceback. The place is given up on every exit, also
-    one that ends the wait: its bound, an OS error or an interrupt.
+    one that ends the wait: its bound, an OS error or an interrupt. A place that cannot be given
+    up is the same named gap after a normal end, and never replaces an exit that is in flight.
     """
     started = clock()
     with ExitStack() as held:
         try:
             place = HostPlace(repository, executable, operation=operation, owner=owner)
-            held.callback(place.leave)
+            held.push(place.leave_on_exit)
             announced = False
             while not place.admitted():
                 if not announced:

@@ -22,14 +22,19 @@ release does not carry them.
 ## What Changes
 
 - `admitted_host_work` gives its place up on every exit, also one that ends the wait.
+- A place that cannot be given up never replaces the exit in flight: the gap or the interrupt that
+  ended the wait survives. After a normal end it is `host_admission_unavailable`, where the OS
+  error itself was raised.
 - A host proof whose admission is refused keeps the results of the readiness gates that ran and
   names the other gates in `data.not_run`. Its verdict, its gap and its exit are unchanged.
-- One regression for each of the three exits, and one for each of three refusals of a host
-  proof: the bound, an absent host root and an unwritable queue. The test of a bounded wait again
-  requires that only the holder's record remains, as it did in 0.2.0-beta.10.
+- One regression for each of the three exits, four for a place that cannot be given up, and one
+  for each of three refusals of a host proof: the bound, a relative data home and an unwritable
+  queue. The test of a bounded wait again requires that only the holder's record remains, as it
+  did in 0.2.0-beta.10.
 
-Not breaking: neither defect is in a release. For a refused host proof, `data.executed` becomes
-true, and `data.checks` and `summary.gate_count` hold the readiness gates.
+Not breaking: neither defect of the review is in a release. The OS error of a failed release after
+a normal end, which 0.2.0-beta.10 raises too, becomes a named gap. For a refused host proof,
+`data.executed` becomes true, and `data.checks` and `summary.gate_count` hold the readiness gates.
 
 ## Capabilities
 

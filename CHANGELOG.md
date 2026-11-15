@@ -172,6 +172,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   or the bare pin is not a line of its own under `[tools]`, the plan's `pin` names the file and
   the reason under `kept`, and the apply leaves the file as it is. The plan used to read as if the
   repository held no pin.
+- `ethos host run` and a foreground host proof answer `host_admission_unavailable` when the run
+  has ended and its place in the host queue cannot be given up, for example in a queue directory
+  that can no longer be written. `ethos host run` raised the OS error itself, in 0.2.0-beta.10 as
+  well.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

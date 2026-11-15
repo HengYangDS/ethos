@@ -25,6 +25,13 @@ placed in the contended host proof's test ahead of its assertions on the result,
 base. So the live ticket lasts as long as the abandoned wait stays uncollected, not as long as
 the process.
 
+Giving a place up can itself fail with an OS error, for example when the queue's directory can no
+longer be written. The translation of OS errors covers the wait and not the release. Measured
+with `test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight`: a release
+registered as a plain callback let that OS error replace the gap or the interrupt of each of the
+three wait endings, and after a normal end the OS error left the function as itself, at the base
+as well.
+
 The host proof runs its readiness tier before it asks for the ticket. A refused admission leaves
 `_admitted_gates` as a `ValueError`, which `observe_gate_execution` reads into the result's gap.
 The readiness results are local to `_admitted_gates` at that point, so the result holds no check.
@@ -38,6 +45,8 @@ Goals:
 - A wait that ends without admission leaves no ticket, record or lock file of its run.
 - A host proof whose admission is refused reports the readiness results that ran and names the
   gates that did not run.
+- An OS error while a place is given up never replaces the exit that is in flight; after a normal
+  end it is `host_admission_unavailable`.
 
 Non-Goals:
 
@@ -45,6 +54,8 @@ Non-Goals:
   same way, through another function; the draft Change `focused-proof-result` owns that class.
 - Whether a host proof whose readiness gate failed should ask for the ticket at all.
 - A new gap code, a new option or a change to the verdict, the gap or the exit of a refusal.
+- The full proof's release of its host place, which `admitted_full_proof` calls in its own
+  `finally`, and what a run that ended normally reports beside the gap of a failed release.
 
 ## Decisions
 
@@ -75,7 +86,7 @@ Non-Goals:
      and adds the readiness results and the names of the other gates; one helper of density 3
      chooses what a failure keeps.
    - **Applies to:** every refusal of the admission in a host proof: the bound, an unwritable
-     queue, an absent host root and an invalid declaration, which all leave the same statement.
+     queue, an unavailable host root and an invalid declaration, which all leave the same statement.
      Regressions exercise the first three; the invalid declaration takes the same statement
      and is read in the code, not run. Any other failure keeps the checks it had and names no
      gate, because what it ran is not known.
@@ -89,11 +100,31 @@ Non-Goals:
    - **Chosen because:** it is the smallest change of shape and reuses the name a reader knows.
    - **Applies to:** the host proof's `data`. `data.executed` is true and `summary.gate_count`
      counts the readiness gates, because both derive from the checks the result holds.
+4. **A release that fails keeps the exit in flight, and alone is the named gap.**
+   - **Rests on:** the four cases of
+     `test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight`, which failed with
+     the release as a plain callback; and `HostQueue.live` and `HostQueue.entries`, read for what
+     a leftover record means.
+   - **Considered:** moving the release inside the translation of OS errors, which renames a
+     contention gap or an interrupt to `host_admission_unavailable`; suppressing every OS error
+     of the release, which hides a queue that can no longer be written from a run that ended
+     normally; and catching the error in `HostQueue.leave`, which also changes the full proof.
+   - **Chosen because:** an exit callback is told whether an exit is in flight, so it keeps that
+     exit and names the gap only when there is none. The decision sits in one method of the
+     place, of density 3, and `admitted_host_work` stays at 6.
+   - **Applies to:** `admitted_host_work` and both consumers. A record that could not be removed
+     stays beside its lock file; once the holder's lock is free, at the latest when its process
+     ends, the next waiter's read of the live tickets removes both, and the status read does not
+     list it. `admitted_full_proof` calls the plain release and is unchanged.
 
 ## Risks / Trade-offs
 
 - A reader that took `data.executed: true` to mean that every selected gate ran now sees it on a
   refused host proof. The verdict stays `block` with the admission's gap, and `data.not_run`
   names the rest.
-- A release that itself fails, for example on a record it cannot remove, now ends a refused wait
-  with that error in place of the refusal. The admitted body already behaved so.
+- After a normal end, a release that fails turns a run that completed into
+  `host_admission_unavailable`. Measured with a temporary probe of each consumer: `ethos host run`
+  reports the gap and not the command's status, and a host proof reports it with no check,
+  although every gate ran. Both raised the OS error itself before.
+- An OS error of a release is reported nowhere when an exit in flight outlives it; the leftover
+  record waits for the next waiter.

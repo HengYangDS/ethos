@@ -29,9 +29,10 @@ minutes on GitHub and under 15 on GitLab per `dev` push, within 10 percent.
 - Every hosted job declares a timeout from one table, above the longest timeout of the gates it
   runs. No checkout persists its credentials. A newer push to a pull or merge request cancels its
   earlier run.
-- GitHub's verification jobs restore lock-keyed download caches that only the scheduled run of
-  `main` writes, and `actions.lock` records the workflow's action pins.
 - The release guide requires the batch-head qualification on both Forges before `land --release`.
+
+Withdrawn at the close under DR-0016: the lock-keyed download caches and `actions.lock`. The push
+runs met the targets without them; they return as their own Change.
 
 Out of scope: the shipped CI template (the design's Change 7), GitLab `spec:inputs`, the split of
 the test gate (rc's `gate-reuse`), release queueing (`release-provenance`), runner isolation and
@@ -48,12 +49,12 @@ None.
 - `quality`: MODIFIED requirements `Each Forge verifies a published commit once`,
   `Hosted test feedback is visible and source bound`, `Hosted check names are stable identities` and
   `A newer proposal push supersedes its earlier run`; ADDED requirements
-  `Hosted host conformance runs in declared tiers`, `One aggregate check reports the per-push jobs`,
-  `Hosted jobs bound their time and credentials` and `Hosted download caches have one writer`.
+  `Hosted host conformance runs in declared tiers`, `One aggregate check reports the per-push jobs`
+  and `Hosted jobs bound their time and credentials`.
 
 ## Impact
 
-`.config/ci/pipeline.cue` and its two generated Forge files, `actions.lock`, the architecture tests
-of the CI projections, `docs/guides/release-and-publication.md` and `openspec/specs/quality/spec.md`
+`.config/ci/pipeline.cue` and its two generated Forge files, the architecture tests of the CI
+projections, `docs/guides/release-and-publication.md` and `openspec/specs/quality/spec.md`
 through this Change's delta. No product line and no `tools/` line changes. After this Change rc's A9
 item 8 and A11 read admission plus conformance from GitLab.

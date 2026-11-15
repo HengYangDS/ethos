@@ -23,20 +23,23 @@
 
 ## 3. Caches, lockfile and runner tags
 
-- [ ] 3.1 Add lock-keyed restore steps to the verification jobs and save steps to the scheduled run,
-      with `actions/cache` pinned to its latest stable commit and the pinned `setup-uv`'s own cache
-      turned off. Done when no release job has a cache step and only the schedule event saves. Needs
-      network.
-- [ ] 3.2 Generate and commit `actions.lock` and add its offline regression. Done when every `uses`
-      pin has a lock entry and the paradigm admits the file's place. Needs network.
-- [ ] 3.3 Take the runner tag of `dev` and `main` pipelines from a protected variable. Done when a
-      protected ref's jobs name that tag. Depends on the owner's read-back of the variable.
+- 3.1 Withdrawn by DR-0016 (in-repo). Add lock-keyed restore steps to the verification jobs and
+  save steps to the scheduled run, with `actions/cache` pinned to its latest stable commit and the
+  pinned `setup-uv`'s own cache turned off. Done when no release job has a cache step and only the
+  schedule event saves. Needs network.
+- 3.2 Withdrawn by DR-0016 (in-repo). Generate and commit `actions.lock` and add its offline
+  regression. Done when every `uses` pin has a lock entry and the paradigm admits the file's
+  place. Needs network.
+- 3.3 Withdrawn by DR-0016 (environment). Take the runner tag of `dev` and `main` pipelines from a
+  protected variable. Done when a protected ref's jobs name that tag. Depends on the owner's
+  read-back of the variable.
 
 ## 4. Tests and guide
 
-- [ ] 4.1 Update the architecture tests that pin the projections and add
-      `tests/architecture/ci/test_hosted_economy.py`. Done when they pass and tests grow by at most
-      60 line-equivalents.
+- [x] 4.1 Update the architecture tests that pin the projections and add
+      `tests/architecture/ci/test_hosted_economy.py`. Done when they pass and the growth of tests
+      is measured. They pass in the full proof at `c79f3aaf8`; the lane's commit `7ef6f056f`
+      measures +73.9 line-equivalents, above the 60 that the design estimated.
 - [x] 4.2 Require both batch-head runs in step 4 of the release guide. Done when the guide names
       `qualify_head` and `ETHOS_QUALIFY_HEAD`.
 - [x] 4.3 Replace the three redirecting URLs in `docs/research/foundations/hosted-ci.md` by their
@@ -48,16 +51,25 @@
       legs, quality gates, link health and `hosted checks` and no Windows leg, and GitLab's pipeline
       passes with commit policy, host conformance and npm only. Evidence at `3d5365a65`: GitHub
       run 43637623388 and the GitLab pipeline of the same ref.
-- [ ] 5.2 Qualify the head. Done when a dispatch with `qualify_head` at the head runs ten legs, a
+- [x] 5.2 Qualify the head. Done when a dispatch with `qualify_head` at the head runs ten legs, a
       dispatch with another head runs no commit-scoped job and fails `hosted checks`, a GitLab `api`
-      pipeline with the head runs the full set, and one with another head is not created.
-- [ ] 5.3 Read one run whose link observation failed. Done when it reports `hosted checks`
-      successful and the run's conclusion successful.
+      pipeline with the head runs the full set, and one with another head is not created. GitHub
+      runs 43642339317 and 43642356400 at `3d5365a65`. GitLab at `c79f3aaf8`: the `api` pipeline
+      with the head passed its four jobs, and the request with another head was refused by the
+      workflow rules.
+- 5.3 Withdrawn by DR-0016 (environment). Read one run whose link observation failed. Done when it
+  reports `hosted checks` successful and the run's conclusion successful. No such run exists
+  among the eleven that carry `hosted checks`, read on 2026-11-15.
 
 ## 6. Acceptance
 
-- [ ] 6.1 Pass the static precheck and readiness at the lane head. Done when both pass with product
-      and tools unchanged and tests at most 60 line-equivalents above the lane base.
+- [x] 6.1 Pass the static precheck and readiness at the lane head. Done when both pass with product
+      and tools unchanged by this Change's commit. Passed at `76510cd54`; `7ef6f056f` measures
+      +0.0, +73.9 and +0.0.
+- [x] 6.2 Close this Change on its delivered scope: DR-0016 withdraws 3.1 and 3.2 until the work is
+      taken up, and 3.3 and 5.3 until their environment can be observed. Evidence: the push runs
+      of 2026-11-15 took 37.1 and 38.4 minutes on GitHub and 7.1 and 6.3 on GitLab, inside the
+      targets of about 40 and under 15 without a cache.
 
 ## Workflow follow-up
 
@@ -76,3 +88,6 @@
   tag variable (`glab api projects/:id/variables --jq '.[].key'`, keys only).
 - Delivery: ten `dev`-push medians within target, capacity per runner class, and the first cache
   that the schedule writes (`gh cache list --ref refs/heads/main`).
+- The download caches and `actions.lock` return as a new Change when ten `dev`-push medians are
+  read or a push run exceeds its target; the requirement `Hosted download caches have one writer`
+  returns with it.

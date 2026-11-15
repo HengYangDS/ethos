@@ -97,10 +97,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   retention once, and its projections carry `retention-days: 14` on every GitHub upload step and
   `expire_in: 14 days` on every GitLab `artifacts` block; until now each Forge kept an artifact for
   its own default. The common CI model carries the same retention on the verification jobs it
-  generates. A repository whose CI files are projections therefore reports
-  `generated_projection_drift` for them once it binds this release. To repair it, after the bind
-  and before the proof, apply the patch that `ethos lane project --json` previews. An artifact
-  uploaded earlier keeps the retention it was uploaded with.
+  generates. A repository whose CI files are projections keeps its old files until it regenerates
+  them: once it binds this release, `ethos lane project --check` reports
+  `generated_projection_drift` for them, and neither `ethos prove` nor a commit refuses the old
+  files. Apply the patch that `ethos lane project --json` previews in the lane that binds the
+  release. An artifact uploaded earlier keeps the retention it was uploaded with.
 - **Breaking:** the contention gap now reads
   `host_admission_contended:<operation>:<pid>:<since>`; it names the holder's operation, process
   and start time instead of its repository path. The stable code `host_admission_contended` is

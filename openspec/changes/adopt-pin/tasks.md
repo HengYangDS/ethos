@@ -26,21 +26,34 @@
       two bindings. Done when the brownfield unit test passes its release rows.
 - [x] 3.2 Describe the pin step and its exit in `docs/architecture/adoption-profiles.md` and add the
       changelog entry. Done when Prettier and the prose gate accept both files.
-- [ ] 3.3 Measure the source budget. Done when product, tests and tools are at most 82, 175 and 6
-      line-equivalents above the lane base.
+- [x] 3.3 Measure the source budget. Done when product, tests and tools are at most 82, 175 and 6
+      line-equivalents above the lane base. Measured on the lane's commit `44d0a756a`: +81.0,
+      +161.0 and +4.9.
 
 ## 4. Lane, hosted and owner tasks
 
 - [x] 4.1 Apply this Change after `github-pin`. Done when `ethos.repository.release.pin` on the lane
       head exports `bare_entry`, `declared_pin` and `DeclaredPin.key` as this Change calls them.
-- [ ] 4.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
-- [ ] 4.3 Pass the release build's install smoke at the release Change. Done when its brownfield
-      stage records three planned files and the MCP stage passes.
-- [ ] 4.4 Owner: confirm that `mise lock` carries no directory, or choose a directory-bound form.
-      Done when the decision is recorded in this Change's design.
+- [x] 4.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Passed at `76510cd54`; the full proof passed at `c79f3aaf8`.
+- 4.3 Withdrawn by DR-0016 (environment). Pass the release build's install smoke at the release
+  Change. Done when its brownfield stage records three planned files and the MCP stage passes.
+- 4.4 Withdrawn by DR-0016 (environment). Owner: confirm that `mise lock` carries no directory, or
+  choose a directory-bound form. Done when the decision is recorded in this Change's design.
 - [x] 4.5 State in the release entry how a repository takes this release with the selector form it
       holds, and mark the artifact retention entry Breaking with its repair and its order. Done when
       the Unreleased section says that the `http:ethos` table is refused by `ethos adopt` alone,
       and names `generated_projection_drift` with the step that repairs it. Found by the pre-tag
       copies run of 2026-11-15: 12 such gaps in 6 of 13 trees, no other new gap and no new refusal.
+- [x] 4.6 Say in that entry who reports the drift. Done when it states that only
+      `ethos lane project --check` reports it and that neither a proof nor a commit refuses the old
+      files. Found by the executed half of the copies run: a clone with the drift passed its full
+      proof under the candidate.
+
+## Workflow follow-up
+
+- The release Change's install smoke, built as a release, records three planned files in its
+  brownfield stage and passes its MCP stage.
+- Owner: confirm the directory-free `mise lock` that the release-candidate design fixes, or choose
+  `mise --cd <root> lock`, the form of the product's other Mise next actions. Asked on 2026-11-15;
+  the approved text stands until the answer.

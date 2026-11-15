@@ -9,7 +9,7 @@ release of one runtime sat unmoved for three days:
 - At a release age of 0 hours, 10 of the 12 governed repositories that are not frozen were behind
   on at least one pinned source: an exact package pin, a tool that the toolchain locks, or a lock
   that could move.
-- One repository was current and one is frozen.
+- Two repositories were current and one is frozen.
 - Each owner schedules the move by hand after a message.
 
 Each repository declares its own release age, and nothing reads that declaration against its

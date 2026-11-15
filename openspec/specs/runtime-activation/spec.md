@@ -321,7 +321,7 @@ When `ethos hook install` replaces a value that ETHOS does not own, it SHALL rec
 `ethos adopt --exit` SHALL report, without any effect, the configuration after the exit per key, the
 keys it keeps because ETHOS no longer owns them, the keys it leaves unrecorded, the record entries
 it cannot restore, the generations it removes and keeps, the selectors with their hashes, the Leases
-and unlanded branches, the Mise pin it removes, and a digest over them. It SHALL resume an
+and unlanded branches, the Mise pin it removes or keeps, and a digest over them. It SHALL resume an
 interrupted exit from its receipt.
 
 #### Scenario: An exit is inspected
@@ -367,9 +367,18 @@ interrupted exit from its receipt.
 
 #### Scenario: The Mise configuration holds the pin that adoption wrote
 
-- **WHEN** the Mise configuration of an adopted repository holds the bare ETHOS pin
+- **WHEN** the Mise configuration of an adopted repository holds the bare ETHOS pin on a line of
+  its own under `[tools]`
 - **THEN** the preview names that file, the pin's key and the file's text without the pin's line
 - **AND** the provenance setting and a pin in any other form are not part of the plan
+
+#### Scenario: The exit keeps a Mise configuration it cannot change exactly
+
+- **WHEN** the Mise configuration of an adopted repository cannot be read, or holds the bare ETHOS
+  pin other than on a line of its own
+- **THEN** the preview names that file as kept with the reason, and the pin's key where it read one
+- **AND** the apply leaves that file as it is
+- **AND** a repository without that file plans no pin
 
 ### Requirement: A previewed exit is applied in a fenced order
 

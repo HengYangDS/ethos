@@ -15,6 +15,13 @@ of governed repositories sent the same day:
   with the measured alternative that was not taken; limits.
 - A research lifecycle with five states and a dossier template, which one repository keeps in its
   lane's history.
+- A case for what a decision rests on, relayed by one repository's session: a fix that was
+  verified on one repository's case and is used by two cost a needless hold of the shared host
+  for 32 minutes. The cases of every consumer of a shared thing belong in the list before the
+  decision, as the cases of every class do.
+- An instance written before any rule asked for it: one repository committed a study under its
+  research home together with the design that cites it, whose decision states its alternatives
+  with what each did when tried, its price and where it applies.
 
 ## What Changes
 

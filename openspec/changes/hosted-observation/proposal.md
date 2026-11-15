@@ -21,6 +21,10 @@ belong to its acceptance:
 - A named gap for a CI peer that holds no run of the observed head.
 - The landing's preview states, as an observation, whether the proposal head has a hosted run on
   each CI peer and how it concluded. A job that the pipeline lets fail is not a failed run.
+- A failed observation job says what it observed. Read on 2026-11-16: the external link
+  job failed on five hosted runs, its log named no link, and only its uploaded report held
+  the checker's diagnostic, so an allowed failure went unread for two days. The session
+  prints the report's gaps to the job log, and the reader lists them beside the run.
 
 ## Capabilities
 

@@ -1,8 +1,9 @@
-"""Release binding conformance: the `[release]` table declares the release mirror alone.
+"""Release binding conformance: the `[release]` table declares only what its readers consult.
 
-The branch role reader consults `[release]` for its mirror and nothing else: the version comes from
-`VERSION` and the tag rule from `[protected_refs] tags`. Every other key of `[release]` is a
-declaration that no reader consults, whether or not the binding protects release tags.
+The branch role reader consults `[release]` for its mirror, and the release owner for
+`upgrade_from`, the releases that a release upgrades from. The version comes from `VERSION` and
+the tag rule from `[protected_refs] tags`. Every other key of `[release]` is a declaration that no
+reader consults, whether or not the binding protects release tags.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 def release_binding_gaps(
     paradigm: RepositoryParadigm, declared: Mapping[str, object]
 ) -> Iterator[ParadigmGap]:
-    """Report every `[release]` key that the branch role reader does not consult."""
+    """Report every `[release]` key that no reader consults."""
     release = declared.get("release")
     if not isinstance(release, dict):
         return  # The branch role reader refuses a `[release]` that is not a table.

@@ -1355,6 +1355,9 @@ release_tag_signing_failed = { owner = "adapters.repo", detail = "the value that
 release_tag_signing_outcome_unknown = { owner = "adapters.repo" }
 release_tag_source_untrusted = { owner = "adapters.repo" }
 release_tag_version_mismatch = { owner = "adapters.repo" }
+release_upgrade_from_empty = { owner = "adapters.repo", meaning = "The release binding records no release that this release upgrades from." }
+release_upgrade_from_incomplete = { owner = "adapters.repo", detail = "the value that follows the colon", meaning = "The release binding's record lacks a release that a subject pins or has selected." }
+release_upgrade_from_invalid = { owner = "repository.release", meaning = "A recorded entry is no exact release, or its class is not the one that release has." }
 release_version_manifest_invalid = { owner = "repository.release" }
 release_version_source_ambiguous = { owner = "adapters.repo" }
 release_version_source_dynamic = { owner = "adapters.repo" }

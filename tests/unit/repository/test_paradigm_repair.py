@@ -312,6 +312,7 @@ def test_a_field_that_is_its_table_goes_with_the_table(tmp_path: Path, workspace
 
 _RELEASE_BINDING = ".ethos/release.toml"
 _PUBLICATION = '[publication]\ntransport_tags = ["native-inputs-*"]\n'
+_UPGRADE_FROM = '[release.upgrade_from]\n"1.0.0" = "checksum"\n'
 
 
 @pytest.mark.parametrize(
@@ -419,13 +420,14 @@ def test_a_rules_key_that_is_read_moves_or_is_bare_is_never_deleted(
             '[release]\nmirror = "accepted_ff"\n',
         ),
         ('# Unread keys.\n[release]\ntag_pattern = "v*"\n\n' + _PUBLICATION, _PUBLICATION),
+        (f'[release]\ntag_pattern = "v*"\n\n{_UPGRADE_FROM}', f"[release]\n\n{_UPGRADE_FROM}"),
     ],
-    ids=["only-unread", "beside-the-mirror", "with-its-comment"],
+    ids=["only-unread", "beside-the-mirror", "with-its-comment", "beside-the-predecessors"],
 )
 def test_an_unread_release_key_is_deleted(
     tmp_path: Path, release: str, repaired: str | None
 ) -> None:
-    """Every `[release]` key but the mirror goes, without release tags, and an empty table too."""
+    """Every `[release]` key that no reader consults goes, and a table left empty goes too."""
     plan, files = _plan(tmp_path, {_RELEASE_BINDING: release})
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_RELEASE_BINDING, repaired)]
     assert not _apply(tmp_path, plan, files, "repository_paradigm_release")

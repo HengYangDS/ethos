@@ -66,6 +66,11 @@ class AttestationIdentity(NamedTuple):
     source_digest: str
 
 
+def exact(version: object) -> bool:
+    """Whether a value spells one release exactly as `VERSION` spells it."""
+    return isinstance(version, str) and _EXACT.fullmatch(version) is not None
+
+
 def pin_line(version: str) -> str:
     """Render the one `[tools]` line that `mise use` writes for a release."""
     return f'"{PIN_KEY}" = "{version}"'

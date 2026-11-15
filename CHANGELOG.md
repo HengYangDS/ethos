@@ -52,6 +52,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   preview and a release probe now ask the two CLIs, once for each CI peer when the runs passed. No
   refusal is added in this release; a release ref will require a passing observation no earlier
   than the next one.
+- `ethos lane upgrade-from --json` derives, offline, the releases that the committed release
+  upgrades from: the previous release and every release that a subject pins or has selected. A
+  subject is a repository that this host's store records and that has selected a runtime, with or
+  without a tracked pin; one with a pin is inside the window while its last landed bump is at most
+  14 days older than the newest one read. The result counts the subjects by pin form and by
+  selection alone, and names a selected version that the changelog does not list. The release
+  binding records the set under `[release.upgrade_from]`, each release with its class, and the
+  read blocks with `release_upgrade_from_empty` or `release_upgrade_from_incomplete` when the
+  record lacks one. The paradigm no longer reports that key of the release table. No other
+  command reads the record in this release.
 
 ### Changed
 

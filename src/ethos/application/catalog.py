@@ -86,6 +86,7 @@ IMPLEMENTATIONS = {
     "lane project": f"{_REPAIR}:project_lane",
     "lane format": f"{_REPAIR}:format_lane",
     "lane repair-paradigm": f"{_REPAIR}:repair_lane_paradigm",
+    "lane upgrade-from": f"{_REPAIR}:derive_lane_upgrade_from",
     "lane trust-commit-signer": f"{_REPAIR}:trust_lane_signer",
     "lane repair-signature": f"{_REPAIR}:repair_lane_signature",
     "lane.repair-signature.census": f"{_REPAIR}:count_lane_identity",

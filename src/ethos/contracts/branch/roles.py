@@ -38,9 +38,11 @@ LIFECYCLE_COMMIT_ROLES = frozenset({ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE, ROLE_WOR
 RELEASE_MIRROR_INDEPENDENT = "independent"
 RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
 _RELEASE_MIRRORS = frozenset({RELEASE_MIRROR_INDEPENDENT, RELEASE_MIRROR_ACCEPTED_FF})
-# The release binding's `[release]` table declares the release mirror and nothing else.
+# The release binding's `[release]` table declares the release mirror and the releases that a
+# release upgrades from, and nothing else.
 RELEASE_MIRROR_KEY = "mirror"
-RELEASE_KEYS = frozenset({RELEASE_MIRROR_KEY})
+RELEASE_UPGRADE_FROM_KEY = "upgrade_from"
+RELEASE_KEYS = frozenset({RELEASE_MIRROR_KEY, RELEASE_UPGRADE_FROM_KEY})
 _STRICT_RELEASE_TABLE_ERROR = "release must be a table"
 _STRICT_RELEASE_MIRROR_ERROR = "release mirror is invalid"
 _DUPLICATE_RELEASE_MIRROR_ERROR = "release mirror is declared twice"

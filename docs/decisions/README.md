@@ -66,3 +66,8 @@ five-section form; this entrance does not maintain another template or rule set.
   the gate that DR-0026 records: the item it lacked, a declared state for every rule that can
   block; five weekly tags and earliest dates in place of the withdrawn candidate date; the rules a
   batch lands by, the slip rule and the weekly measures. It succeeds DR-0026 and does not edit it.
+- [DR-0030: The candidate's subject set is read from trees, and a frozen repository is a
+  waiver](dr-0030-candidate-subject-set.md): which governed repositories the release candidate's
+  condition counts, why the count is a reading of trees and never a number in a record, and the
+  one waiver, named by a shape and a runtime. It follows DR-0029's rule for a later waiver and
+  does not edit it.

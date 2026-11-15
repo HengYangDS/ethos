@@ -179,6 +179,14 @@ def _history_errors(entries: tuple[_Entry, ...]) -> tuple[str, ...]:
     return tuple(errors)
 
 
+def released_versions(text: str) -> tuple[str, ...]:
+    """Name every released entry in the changelog's own order, which is newest first."""
+    heading = re.compile(load_repository_paradigm().release.changelog_heading)
+    sections = _sections(tuple(MarkdownIt("commonmark").parse(text)), "h2")
+    entries = (_entry(section, heading) for section in sections)
+    return tuple(entry.label for entry in entries if entry.release is not None)
+
+
 def changelog_errors(text: str | None, *, target: str = "") -> tuple[str, ...]:
     """Validate source history and, only at release preparation, its exact target."""
     if text is None:

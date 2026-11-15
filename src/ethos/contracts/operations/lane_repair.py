@@ -56,6 +56,10 @@ class RepairParadigmRequest(CommandRequest):
     apply: Apply = False
 
 
+class UpgradeFromRequest(CommandRequest):
+    """Derive the releases that the release at the lane's head upgrades from."""
+
+
 class TrustCommitSignerRequest(CommandRequest):
     """Authorize Git's configured signer for one exact signed commit."""
 
@@ -200,4 +204,25 @@ REDACT = Command(
         ),
     ),
 )
-LANE_REPAIR = (PROJECT, FORMAT, REPAIR_PARADIGM, TRUST_COMMIT_SIGNER, REPAIR_SIGNATURE, REDACT)
+UPGRADE_FROM = Command(
+    name="lane upgrade-from",
+    summary="Derive the releases that this release upgrades from, from the host's subjects.",
+    request=UpgradeFromRequest,
+    operations=(
+        operation(
+            "lane.upgrade-from",
+            "Read each subject's accepted pin and selection, and compare the binding's record.",
+            select="",
+            effects="read",
+        ),
+    ),
+)
+LANE_REPAIR = (
+    PROJECT,
+    FORMAT,
+    REPAIR_PARADIGM,
+    UPGRADE_FROM,
+    TRUST_COMMIT_SIGNER,
+    REPAIR_SIGNATURE,
+    REDACT,
+)

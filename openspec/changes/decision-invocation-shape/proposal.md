@@ -16,6 +16,11 @@ there with the installed function by a governed repository's session.
   (`product_reference_not_admitted_at_baseline:executable:<word>`). A changelog that names a removed
   command in a code span cannot be formatted with `--apply`. Whether the same function reads it is
   not measured yet.
+- The release lane met the rule's conservative half on 2026-11-15. The reader answers "cannot
+  tell" for a two-word code span, and the decision-record rule refuses every span that is not
+  proven to be no invocation. A record that named a product command as a noun was refused as
+  `inline_invocation`. None of the other 19 records holds such a span, so that record was
+  reworded; the design says whether "cannot tell" refuses.
 
 ## What Changes
 

@@ -146,8 +146,11 @@ decision alone.
 
 ### 6. Research is built as a role
 
-The role and its home exist. A study states its question, the date and URL of each source,
-findings apart from inference, what it could not reach and what it informs. It gains one field, a
+The role and its home exist. A study states its question, each source, findings apart from
+inference, what it could not reach and what it informs. A source is of two kinds: one outside the
+repository, with its URL, date and version, or a measurement of the repository's own, with its
+path, its date, what was measured and a digest of it. A check that counts only outside sources
+would call the weightiest evidence of a product repository no research. It gains one field, a
 review date as data, which the documentation reader reports when it has passed. A study that a
 decision cites is not edited; a newer study supersedes it through the existing state. The
 committee's fact bases, the censuses and the pre-tag readings are research and are written there,
@@ -248,18 +251,20 @@ rules to its own tree first.
 
 The four parts, as this decision shows them:
 
-| Part           | Holds                                                                              | The owner's word   |
-| -------------- | ---------------------------------------------------------------------------------- | ------------------ |
-| Rests on       | the study or measurement the choice depends on, or that it depends on none and why | research, analysis |
-| Considered     | the alternatives compared, each with what it costs                                 | comparison         |
-| Chosen because | the reason, and the trade-off that is accepted with it                             | trade-off, reason  |
-| Applies to     | where the decision holds and where it does not                                     | scope              |
+| Part           | Holds                                                                                      | The owner's word   |
+| -------------- | ------------------------------------------------------------------------------------------ | ------------------ |
+| Rests on       | the study or measurement the choice depends on, or that it depends on none and why         | research, analysis |
+| Considered     | the alternatives compared, each with what it costs                                         | comparison         |
+| Chosen because | the reason, and the trade-off that is accepted with it                                     | trade-off, reason  |
+| Applies to     | where the decision holds, and what it does not cover, named, or that no exception is known | scope              |
 
 A choice that rests on facts outside the repository (a tool, a standard, others' practice) or on
 a measurement names its study under the research home; the study carries the analysis and, where
 the question is a choice, the comparison. A decision record keeps its five sections, which hold
 the same parts for a choice that outlives its Change. A ruling given in a session is written into
-the Change it rules on, with its reason and its scope.
+the Change it rules on, with its reason and its scope. A value that several repositories use, such
+as a threshold, has one study in the repository that produces it, and the others cite that study
+and do not restate it.
 
 Presence is decidable and quality is not: the reader of step 4 lists each decision without a
 part, and the review judges the content. ETHOS writes the form once, in its OpenSpec
@@ -356,7 +361,11 @@ repository with another maintainer moves only with that maintainer.
 - **Owner after revision 3:** the first build cleanup may proceed; ETHOS and the governed
   repositories strengthen research, analysis, comparison, trade-offs, reasons and scope. Decision
   10 answers it.
-- **Revision 4** is this text.
+- **Revision 4**, commit `8b2dec9ed`: the decidability seat's replacements and decision 10.
+- **Input from a governed repository's session on decision 10**, counted on its 40 decisions:
+  most rest on a measurement of their own and not on an outside source; a third name an
+  alternative. Taken: the two kinds of source in decision 6, the named exclusions of
+  `Applies to`, one study for a shared value, and a reader that lists and does not refuse.
 
 ## Risks / Trade-offs
 

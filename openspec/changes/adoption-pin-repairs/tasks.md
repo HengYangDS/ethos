@@ -31,6 +31,9 @@
 - [ ] 2.5 Name a kept configuration and its reason in the applied exit's next action, before the
       status command. Done when the three kept cases of task 1.3 pass and `_apply_fenced` keeps
       its decision density.
+- [ ] 2.6 Give `runtime_rollback_probe_failed` its row in the gap registry, now that adoption can
+      also report it. Done when the rollback preflight tests require a row for every gap that
+      the preflight raises, having failed for this one without the row.
 
 ## 3. Documents
 

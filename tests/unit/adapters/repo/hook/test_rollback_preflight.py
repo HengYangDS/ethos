@@ -14,6 +14,7 @@ import ethos.adapters.repo.hook.activation as activation
 import ethos.adapters.repo.hook.rollback as rollback
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.authority import RuntimeBuild
+from ethos.contracts.codes.gaps import record
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -41,8 +42,10 @@ def _probe(monkeypatch: pytest.MonkeyPatch, outcome: object) -> list[tuple[str, 
 
 
 def _refusal(repo: Path) -> rollback.RollbackRefusalError:
+    """Return the preflight's refusal; each gap it names has its own row in the registry."""
     with pytest.raises(rollback.RollbackRefusalError) as refused:
         rollback.rollback_preflight(repo, _TARGET, invoking="successor")
+    assert record(refused.value.gap) is not None, refused.value.gap
     return refused.value
 
 

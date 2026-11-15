@@ -32,22 +32,23 @@ not used, so ideas moved to carriers that cost nothing and keep nothing.
 ## What Changes
 
 - The design names **direction** as a layer of its own between the contract and the Change, with
-  four objects: the end state, the roadmap, the intake and the proposal. Research stands beside it
-  as the dated evidence that proposals and decisions cite.
-- Each object gets one home under the documentation home, named by its role, with an identity,
-  states and a reader. The first level of a documentation home names roles, which ETHOS fixes for
+  three objects: the end state, the roadmap and the draft. A draft is OpenSpec's own Change without
+  tasks; it carries an idea or a design until it is admitted or declined. There is no backlog.
+  Research stands beside the layer as the dated evidence that drafts and decisions cite.
+- Each object has one carrier with an identity, states and a reader. The first level of a
+  documentation home names roles, which ETHOS fixes for
   every governed repository; below it each repository keeps its own subjects. No role means no
   directory.
 - A roadmap row is a pointer to a Change by name, and its state is derived from the Change's
   directory and never written by hand.
-- A write to a direction path needs no Change and takes the documentation tier of the proof, so
-  the price of recording an idea fits the idea.
-- The law that stands in the way is replaced and not routed around: the two-authority requirement,
-  the plan's sentences on backlogs, DR-0011's choice of structure by each repository, and the
-  matching sentence of DR-0012.
+- A draft or a research study takes the documentation tier of the proof, so the price of
+  recording an idea fits the idea.
+- The law that stands in the way is replaced and not routed around: the two-authority requirement
+  and DR-0011's choice of structure by each repository. The plan's sentences against a backlog
+  stand.
 - ETHOS applies all of it to its own tree first: the terminal plan divides into its end state, its
-  architecture pages and its roadmap; `docs/plans` retires; the gate's rows, the pending notes and
-  the open follow-ups move to their carriers.
+  architecture pages and its roadmap; `docs/plans` retires; the gate's rows become data, and each
+  pending note and open follow-up is disposed once.
 
 This Change carries the design and its review. The specification deltas, the decision record and
 the moves arrive in the member Changes that the design lists, each with its own proof.
@@ -66,7 +67,7 @@ documentation home).
 
 ## Impact
 
-This Change: its own documents and two research pages under `docs/research/direction-carriers/`.
+This Change: its own documents and three research pages under `docs/research/direction-carriers/`.
 The member Changes: `docs/` of ETHOS, the documentation contract, the paradigm declaration, the
 write admission and the status reader, then each governed repository in its own lane. No governed
 repository is refused by a rule of this design before a release has reported it.

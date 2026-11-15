@@ -1,0 +1,34 @@
+# Tasks
+
+## 1. The model and the generated workflow
+
+- [ ] 1.1 Pin the three journey legs, each with its runner, in
+      `tests/architecture/ci/test_release_journey.py`. Done when the test fails on the unchanged
+      workflow, which has two.
+- [ ] 1.2 Name the journey's hosts as a list in `.config/ci/pipeline.cue`. Done when the model
+      compiles and is formatted.
+- [ ] 1.3 Generate `.github/workflows/ci.yml` from the model. Done when the projection check
+      passes, the second forge's pipeline is unchanged, and 1.1 passes.
+
+## 2. Documents and budgets
+
+- [ ] 2.1 Add the changelog entry and the distribution delta. Done when OpenSpec validates the
+      Change strictly and Prettier and the documentation registry accept the documents.
+- [ ] 2.2 Measure the source budget. Done when the report states product, tests and tools.
+
+## 3. Lane, hosted run and owner
+
+- [ ] 3.1 Apply the patch in the Work Lane, after the hermetic journey where the batch lands
+      both, and pass its pre-check, readiness and `ethos lane project --check`. Done when all
+      three pass at the lane head.
+- [ ] 3.2 Dispatch the journey alone on the lane's ref for the newest published prerelease. Done
+      when the job `release journey linux-arm64` succeeds, its artifact
+      `release-journey-linux-arm64` holds a receipt whose platform is `linux-arm64` and whose
+      state is `passed`, and the two other legs pass as before.
+- [ ] 3.3 Tell the release Change of this batch that its entry no longer lists the Linux arm64
+      journey among what the beta does not qualify. Done when that Change's tasks hold the item.
+
+## Workflow follow-up
+
+- Delivery: read the journey of the first release run after this Change. Its three legs pass, or
+  the release entry names the host whose journey failed or was unavailable.

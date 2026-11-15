@@ -58,6 +58,9 @@ five-section form; this entrance does not maintain another template or rule set.
   repository follows one semantic structure from three invariants, why it is reported before it
   refuses or blocks, and what the owner decided for width and names. It succeeds DR-0012's clause on
   repository-owned structure and narrows DR-0011 inside documentation homes.
+- [DR-0028: The test ceiling moves to 110,000 for the beta.12
+  work](dr-0028-test-budget-step-110.md): the review at DR-0023's revisit point, which took one more
+  5,000 test step after four measured removals, and why two prepared removals no longer count.
 - [DR-0029: The release candidate gate gains the law, and its dates become earliest
   dates](dr-0029-release-candidate-gate-successor.md): what the committee of 2026-11-14 changed in
   the gate that DR-0026 records: the item it lacked, a declared state for every rule that can

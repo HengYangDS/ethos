@@ -119,6 +119,24 @@ relative links from inside the documentation home.
 No governed repository ships a documentation path in a package; ETHOS ships three. Links that pin
 a revision do not break.
 
+## How much of the reasoning chain the documents show
+
+Read on 2026-11-15 from the accepted branch of 13 governed repositories on the releasing host, by
+matching words in each document: an alternative, a trade-off or risk, a boundary or scope, and a
+link to a research document or an outside source. Presence of a word shows that the form is
+there; it says nothing about the quality of the reasoning.
+
+| Document kind     | Repositories that hold any | Naming an alternative              | Citing a study or outside source |
+| ----------------- | -------------------------- | ---------------------------------- | -------------------------------- |
+| Change design     | 13                         | from a fifth to all, by repository | 0 to 9 designs in a repository   |
+| Decision record   | 6                          | all records in 3; 4 of 15 in one   | none in 3                        |
+| Research document | 3                          | 13 of 18                           | 15 of 18                         |
+
+In ETHOS: 124 of 359 designs name an alternative and 9 cite a study or an outside source; all 19
+decision records name alternatives and a boundary, as their five sections require, and none
+links a study; 10 research documents, all with sources. One repository holds 102 Changes with a
+proposal and no design. Ten repositories hold no research document.
+
 ## Limits
 
 - A name was counted by its spelling; two repositories may use one name for different content.

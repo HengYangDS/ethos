@@ -42,6 +42,8 @@ carrier refused them, and the owner decided against a backlog. The design that s
   order and gains the gate's rows by name; a row's state is read from the tree.
 - The end state is the contract's invariants, each with the command that reads it.
 - Research is built as a role, with a review date.
+- A decision shows its reasoning in four parts that a reader can list: what it rests on, what
+  was considered, why it was chosen with the trade-off it accepts, and where it applies.
 - The first level of a documentation home names a document role, with names that ETHOS fixes for
   every governed repository; below it each repository keeps its own subjects.
 - One sentence states that a session, an agent's memory and an ignored directory authorize

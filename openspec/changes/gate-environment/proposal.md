@@ -54,6 +54,9 @@ Candidates for this row's design, none decided:
   changes that do not change the subject, such as where it starts, its order, its path and the
   clock. As a product check for governed repositories this is a new rule, and it waits for the
   rule row.
+- An obligation, not a candidate, carried from `environment-entry`: the process's Git
+  configuration overlay reaches local Git only, with the keys and values that this row's design
+  admits and declares, and a result names every key that it dropped.
 
 ## Capabilities
 

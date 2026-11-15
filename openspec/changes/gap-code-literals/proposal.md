@@ -46,6 +46,10 @@ owner package. That is more than a defect repair before a release holds.
 - The static test requires a row for a whole literal and for a complete code at the head of an
   f-string, and accepts a family only for an assembled head. It also reads a helper that takes the
   gap as its first argument, as the handoff package's does.
+- The static test also reads the constructor of an error class that carries a gap. Found on
+  2026-11-16 in the release lane: `runtime_rollback_probe_failed` had been raised through such a
+  class since the previous release, had no row and no family, and neither check read its site.
+  It has its row now; the count of such sites is not measured.
 - The runner's check meets a code at run time, where the text does not show how it was built. This
   Change decides what a family then admits: a closed list of members, or a pattern that states the
   variable part.

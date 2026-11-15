@@ -35,6 +35,13 @@ host. Measured on the releasing host on 2026-11-14 and 2026-11-15:
 - A ticket's release ends its work: the children of an interrupted holder end with it, and its
   scratch is removed or named.
 - A work directory carries its owner's mark, which the direction design's build rules read.
+- Every holder gives its place up the way `host-ticket-release` made the waiting run do: an
+  OS error while leaving never escapes raw and never skips a later release. Read and not
+  run: the full proof leaves its place in a `finally` ahead of the repository's slot, and
+  the queue keeps a ticket's lock when its record cannot be removed.
+- A run that joined an outer ticket states that ticket and the outer run states its wait.
+  Measured on 2026-11-15: a proof that waited about 65 minutes under `ethos host run`
+  reported a wait of 0, so the weekly page's host minutes have no reader for the wait.
 - Candidate, not decided: a ticket is admitted on a readiness receipt that binds declared inputs
   by digest.
 

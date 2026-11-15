@@ -24,8 +24,9 @@
 
 ## 3. Lane
 
-- [ ] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head.
+- [x] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. The static pre-check and readiness passed at `ba9a1046d`, and the hosted runs of that
+      head passed on both forges.
 
 ## 4. Settlement
 

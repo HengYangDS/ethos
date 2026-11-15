@@ -26,6 +26,7 @@ import subprocess
 import sys
 import time
 import tomllib
+from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from dataclasses import dataclass
@@ -357,35 +358,35 @@ def admitted_host_work(
     """Hold a host slot for one heavy run, or join the live one, and yield its admission.
 
     A run that must wait writes one event naming the earliest live holder; a host root that cannot
-    be written is a named gap rather than a traceback.
+    be written is a named gap rather than a traceback. The place is given up on every exit, also
+    one that ends the wait: its bound, an OS error or an interrupt.
     """
     started = clock()
-    try:
-        place = HostPlace(repository, executable, operation=operation, owner=owner)
-        announced = False
-        while not place.admitted():
-            if not announced:
-                announced = True
-                report(
-                    {
-                        "event": WAITING,
-                        "operation": operation,
-                        "executable": executable,
-                        "holder": place.holder(),
-                    }
-                )
-            remaining = started + seconds - clock()
-            if remaining <= 0:
-                raise ValueError(place.contention())
-            sleep(min(_POLL_SECONDS, remaining))
-    except OSError as error:
-        message = UNAVAILABLE
-        raise ValueError(message) from error
-    waited = round(clock() - started, 1)
-    try:
+    with ExitStack() as held:
+        try:
+            place = HostPlace(repository, executable, operation=operation, owner=owner)
+            held.callback(place.leave)
+            announced = False
+            while not place.admitted():
+                if not announced:
+                    announced = True
+                    report(
+                        {
+                            "event": WAITING,
+                            "operation": operation,
+                            "executable": executable,
+                            "holder": place.holder(),
+                        }
+                    )
+                remaining = started + seconds - clock()
+                if remaining <= 0:
+                    raise ValueError(place.contention())
+                sleep(min(_POLL_SECONDS, remaining))
+        except OSError as error:
+            message = UNAVAILABLE
+            raise ValueError(message) from error
+        waited = round(clock() - started, 1)
         yield HostWork(place.environment(), waited, bool(place.joined))
-    finally:
-        place.leave()
 
 
 def run_admitted(

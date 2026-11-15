@@ -329,9 +329,41 @@ def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(
     contended = (
         f"host_admission_contended:host.run:{holder.name.split('-')[1]}:{_since(queue, holder)}"
     )
-    assert contended in payload["required_gaps"]
+    assert payload["required_gaps"] == [contended]
     assert str(tmp_path) not in completed.stdout
+    # The refusal keeps the readiness results that ran and names the gate that did not run.
+    assert tuple(check["action_id"] for check in payload["data"]["checks"]) == seen[0]
+    assert (payload["data"]["executed"], payload["data"]["not_run"]) == (True, ["check"])
+    assert payload["summary"]["gate_count"] == len(seen[0])
     queue.leave(holder, lock)
+
+
+@pytest.mark.parametrize(
+    ("root", "gap"),
+    [(None, "host_root_unavailable"), ("blocked", "host_admission_unavailable")],
+)
+def test_a_host_proof_without_a_usable_host_root_keeps_its_readiness_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, root: str | None, gap: str
+) -> None:
+    """An absent or unwritable host root blocks by name; the readiness results that ran stay."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    policy = _policy_with_a_test_gate(repo, head)
+    if root is not None:
+        # A file where the queue's directory belongs: the ticket cannot be written.
+        (tmp_path / root).mkdir()
+        (tmp_path / root / "host-admission").write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        host_admission, "host_store_root", lambda: tmp_path / root if root else None
+    )
+    seen = _passing_graph(monkeypatch, policy, _identities)
+
+    completed = _host(repo, head, "--full")
+
+    payload = json.loads(completed.stdout)
+    assert (completed.returncode, payload["required_gaps"]) == (1, [gap])
+    assert tuple(check["action_id"] for check in payload["data"]["checks"]) == seen[0]
+    assert (payload["data"]["executed"], payload["data"]["not_run"]) == (True, ["check"])
 
 
 def _bounded(module, seconds: float):

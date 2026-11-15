@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import ExitStack
 from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -20,6 +21,7 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.outcome import Outcome
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.proof.plan import execution_source_gaps
@@ -64,6 +66,7 @@ def observe_gate_execution(
         gaps.append("expected_head_mismatch")
     policy = None
     admission: dict[str, object] | None = None
+    not_run: list[str] = []
 
     def resolve() -> ResolvedGatePolicy:
         return resolve_gate_policy(
@@ -96,6 +99,7 @@ def observe_gate_execution(
                 gaps.append("proof_execution_source_changed")
     except ValueError as error:
         failure = outcome_of(error)
+        checks, not_run = _kept(error, checks)
     observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), after, failure)
     return {
         "verdict": observed.verdict,
@@ -104,10 +108,35 @@ def observe_gate_execution(
         "execution_source": source,
         "executed": bool(checks),
         "checks": checks,
+        "not_run": not_run,
         "required_gaps": list(observed.gaps),
         "diagnostics": list(observed.causes),
         **({"admission": admission} if admission is not None else {}),
     }
+
+
+class _AdmissionRefusedError(OutcomeError):
+    """A refused host admission, with the readiness results that ran and the gates that did not."""
+
+    def __init__(
+        self, refused: ValueError, ran: tuple[ActionRunResult, ...], not_run: tuple[str, ...]
+    ) -> None:
+        super().__init__(outcome_of(refused))
+        self.ran = ran
+        self.not_run = not_run
+
+
+def _kept(
+    error: ValueError, checks: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return the checks a failure keeps and the gates it names as not run.
+
+    A refused admission keeps the readiness results that ran before it and names every other gate.
+    Any other failure keeps the checks it had and names none: what it ran is not known.
+    """
+    if isinstance(error, _AdmissionRefusedError):
+        return [asdict(result) for result in error.ran], list(error.not_run)
+    return checks, []
 
 
 def _admitted_gates(
@@ -118,7 +147,8 @@ def _admitted_gates(
     Readiness gates are static checks of a committed tree, so they run without waiting; the test
     and package gates that follow hold the host ticket, with its token and worker cap exported,
     exactly as a caller gets today by wrapping the proof in `ethos host run`. A plan of readiness
-    gates alone never waits, and a live admission is joined rather than taken again.
+    gates alone never waits, and a live admission is joined rather than taken again. A refused
+    admission raises with the readiness results, so the result keeps them and names the rest.
     """
     nodes = policy.nodes
     tier = set(readiness_tier(nodes, policy.registry))
@@ -140,13 +170,20 @@ def _admitted_gates(
     readiness = graph(tuple(node for node in nodes if node.id in tier))
     if all(node.id in tier for node in nodes):
         return None, readiness
-    with admitted_host_work(
-        root,
-        "ethos prove",
-        operation="proof.host",
-        owner=process_actor(),
-        seconds=paradigm_parameters.seconds("admission"),
-    ) as work:
+    with ExitStack() as held:
+        try:
+            work = held.enter_context(
+                admitted_host_work(
+                    root,
+                    "ethos prove",
+                    operation="proof.host",
+                    owner=process_actor(),
+                    seconds=paradigm_parameters.seconds("admission"),
+                )
+            )
+        except ValueError as refused:
+            not_run = tuple(node.id for node in nodes if node.id not in tier)
+            raise _AdmissionRefusedError(refused, readiness, not_run) from refused
         settled = {result.action_id: result for result in readiness}
         with exported(work.environment):
             results = graph(nodes, settled)
@@ -180,6 +217,7 @@ def host_gate_observation(
             "host_probe": host_probe_boundary(host=True, probe=False),
             "checks": checks,
             **({"admission": observed["admission"]} if "admission" in observed else {}),
+            **({"not_run": observed["not_run"]} if observed["not_run"] else {}),
             "attestation": {},
             "expected_head": {
                 "expected": expect_head or "",

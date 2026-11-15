@@ -152,6 +152,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   ran `mise exec` resolved its tools in the launching shell's order: one head could fail a proof
   from an activated shell and pass it from a clean one. The Mise adapter now names both families
   once, and every child that resolves or runs locked tools starts without them.
+- A run that stops waiting for the host queue gives up its place. When the wait of `ethos host run`
+  or of a foreground host proof reached its bound, met an OS error or was interrupted, the run left
+  its ticket behind: the record and the lock file stayed for the next waiter to remove, and in a
+  process that kept running the ticket stayed live, ahead of later arrivals and listed by
+  `ethos host status`, until the interpreter collected the abandoned wait. A host proof whose
+  admission is refused now keeps the results of the readiness gates that ran and names the gates
+  that did not run in `data.not_run`; it reported `executed: false` and no check. Its verdict, its
+  gap and its exit are unchanged. Neither defect is in a release: both came with the foreground
+  host proof's ticket.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

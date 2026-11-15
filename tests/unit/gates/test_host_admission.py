@@ -162,9 +162,58 @@ def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> Non
     assert recorded["executable"] == "renderer"
     assert str(tmp_path / "busy-repository") not in str(refused.value)
     assert sum(clock.sleeps) == 12
-    names = [path.stem for path in queue.directory.glob("*.json")]
-    assert holder[0].name in names
-    assert len(names) == 2
+    assert [path.stem for path in queue.directory.glob("*.json")] == [holder[0].name]
+
+
+@pytest.mark.parametrize(
+    ("ending", "raised", "message"),
+    [
+        ("bound", ValueError, "^host_admission_contended"),
+        ("os_error", ValueError, "^host_admission_unavailable$"),
+        ("interrupt", KeyboardInterrupt, "^$"),
+    ],
+)
+def test_a_wait_that_ends_unadmitted_gives_up_its_place(
+    host_root: Path, tmp_path: Path, ending: str, raised: type[BaseException], message: str
+) -> None:
+    """The bound, an OS error while waiting and an interrupt each leave no ticket of the run."""
+    queue = _queue(host_root)
+    holder = queue.enter(tmp_path / "busy", "renderer")
+    clock = FakeClock()
+
+    def report(_event: dict[str, object]) -> None:
+        if ending == "os_error":
+            raise BrokenPipeError
+
+    def sleep(seconds: float) -> None:
+        if ending == "interrupt":
+            raise KeyboardInterrupt
+        clock.sleep(seconds)
+
+    # The test keeps the raised error, so only the admission itself can give the place up.
+    with (
+        pytest.raises(raised, match=message) as ended,
+        host_admission.admitted_host_work(
+            tmp_path,
+            "proof",
+            operation="proof.host",
+            seconds=5,
+            clock=lambda: clock.now,
+            sleep=sleep,
+            report=report,
+        ),
+    ):
+        pytest.fail("a contended run was admitted")
+
+    assert ended.type is raised
+    assert [entry["executable"] for entry in queue.entries(reader=tmp_path)] == ["renderer"]
+    assert {path.stem for path in queue.directory.iterdir()} == {holder[0].name}
+    queue.leave(*holder)
+    with host_admission.admitted_host_work(
+        tmp_path, "later", operation="host.run", seconds=0
+    ) as later:
+        assert not later.joined
+    assert not any(queue.directory.iterdir())
 
 
 def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(

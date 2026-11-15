@@ -58,3 +58,8 @@ five-section form; this entrance does not maintain another template or rule set.
   repository follows one semantic structure from three invariants, why it is reported before it
   refuses or blocks, and what the owner decided for width and names. It succeeds DR-0012's clause on
   repository-owned structure and narrows DR-0011 inside documentation homes.
+- [DR-0029: The release candidate gate gains the law, and its dates become earliest
+  dates](dr-0029-release-candidate-gate-successor.md): what the committee of 2026-11-14 changed in
+  the gate that DR-0026 records: the item it lacked, a declared state for every rule that can
+  block; five weekly tags and earliest dates in place of the withdrawn candidate date; the rules a
+  batch lands by, the slip rule and the weekly measures. It succeeds DR-0026 and does not edit it.

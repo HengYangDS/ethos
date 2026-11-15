@@ -11,6 +11,8 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.repository.policy.gates import ResolvedGatePolicy
+
 import dataclasses
 
 import ethos.adapters.gates.host_admission as host_admission
@@ -217,53 +219,64 @@ def _policy_with_a_test_gate(repo: Path, head: str) -> object:
     return dataclasses.replace(resolved, gates=gates)
 
 
-def test_a_host_proof_holds_the_ticket_for_its_test_and_package_gates(tmp_path: Path) -> None:
+def _entries(repo: Path) -> list[dict[str, object]]:
+    """Return the host queue's live entries as a reader in `repo` sees them."""
+    return host_admission.host_queue()[0].entries(reader=repo)
+
+
+def _passing_graph(monkeypatch, policy: ResolvedGatePolicy | None = None, observe=len) -> list:
+    """Pass every node of each graph run under `policy`; return what `observe` saw of each run."""
+    seen: list = []
+
+    def run(_runner, nodes, _registry, **_kwargs):
+        seen.append(observe(nodes))
+        return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in nodes)
+
+    monkeypatch.setattr(gate_execution, "run_gate_graph", run)
+    if policy is not None:
+        monkeypatch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
+    return seen
+
+
+def _identities(nodes) -> tuple[str, ...]:
+    return tuple(node.id for node in nodes)
+
+
+def test_a_host_proof_holds_the_ticket_for_its_test_and_package_gates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The readiness tier runs without waiting; the test and package gates run under one ticket."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     policy = _policy_with_a_test_gate(repo, head)
-    seen: list[list[dict[str, object]]] = []
-    calls: list[tuple[str, ...]] = []
+    seen = _passing_graph(monkeypatch, policy, lambda nodes: (_identities(nodes), _entries(repo)))
 
-    def run(_runner, nodes, _registry, **_kwargs):
-        calls.append(tuple(node.id for node in nodes))
-        seen.append(host_admission.host_queue()[0].entries(reader=repo))
-        return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in nodes)
+    completed = _host(repo, head, "--full")
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
-        patch.setattr(gate_execution, "run_gate_graph", run)
-        completed = _host(repo, head, "--full")
-
-    # The first graph run is the readiness tier, which holds no ticket; the second is the rest.
-    assert seen[0] == []
-    (entry,) = seen[-1]
+    # The first graph run is the readiness tier, which holds no ticket; the second runs every gate
+    # with the tier settled, under the ticket.
+    assert seen[0] == (readiness_tier(policy.nodes, policy.registry), [])
+    assert seen[1][0] == _identities(policy.nodes)
+    (entry,) = seen[1][1]
     assert (entry["state"], entry["operation"]) == ("holding", "proof.host")
     assert entry["owner"] == "agent:test:case:agent-test"
     assert entry["same_repository"] is True
-    # The first graph run is the readiness tier; the second runs every gate with the tier settled.
-    assert calls[0] == readiness_tier(policy.nodes, policy.registry)
-    assert calls[1] == tuple(node.id for node in policy.nodes)
     payload = json.loads(completed.stdout)
     assert payload["data"]["admission"] == {"waited_seconds": 0.0, "joined": False}
     assert not any(gap.startswith("host_admission") for gap in payload["required_gaps"])
-    assert not host_admission.host_queue()[0].entries(reader=repo)
+    assert not _entries(repo)
 
 
-def test_a_readiness_only_host_plan_takes_no_ticket(tmp_path: Path) -> None:
+def test_a_readiness_only_host_plan_takes_no_ticket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A plan of readiness gates alone passes as a short unit, without waiting for the host."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
     # The default full policy is all readiness gates, so this plan never waits.
-    seen: list[list[dict[str, object]]] = []
+    seen = _passing_graph(monkeypatch, observe=lambda _nodes: _entries(repo))
 
-    def run(_runner, nodes, _registry, **_kwargs):
-        seen.append(host_admission.host_queue()[0].entries(reader=repo))
-        return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in nodes)
-
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(gate_execution, "run_gate_graph", run)
-        completed = _host(repo, head, "--full")
+    completed = _host(repo, head, "--full")
 
     assert seen == [[]]
     payload = json.loads(completed.stdout)
@@ -271,33 +284,27 @@ def test_a_readiness_only_host_plan_takes_no_ticket(tmp_path: Path) -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-def test_a_host_proof_under_a_live_admission_takes_no_second_ticket(tmp_path: Path) -> None:
+def test_a_host_proof_under_a_live_admission_takes_no_second_ticket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A host gate inside an admitted full proof joins that admission instead of queueing."""
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
-    policy = _policy_with_a_test_gate(repo, head)
-
-    def run(_runner, nodes, _registry, **_kwargs):
-        return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in nodes)
+    _passing_graph(monkeypatch, _policy_with_a_test_gate(repo, head))
 
     with host_admission.admitted_host_work(
         repo, "ethos prove", operation="proof.run", seconds=0
     ) as live:
-        issued = host_admission.host_queue()[0].entries(reader=repo)
-        with (
-            host_admission.exported(live.environment),
-            pytest.MonkeyPatch.context() as patch,
-        ):
-            patch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
-            patch.setattr(gate_execution, "run_gate_graph", run)
+        issued = _entries(repo)
+        with host_admission.exported(live.environment):
             observed = gate_execution.observe_gate_execution(repo, full=True)
             # The outer admission's own ticket still stands; no second one was taken.
-            (outer_entry,) = host_admission.host_queue()[0].entries(reader=repo)
+            (outer_entry,) = _entries(repo)
 
     assert (outer_entry["state"], outer_entry["operation"]) == ("holding", "proof.run")
     assert len(issued) == 1
     assert observed["admission"] == {"waited_seconds": 0.0, "joined": True}
-    assert host_admission.host_queue()[0].entries(reader=repo) == []
+    assert _entries(repo) == []
 
 
 def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(
@@ -310,18 +317,10 @@ def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(
     busy = init_git_repo(tmp_path / "busy")
     queue = host_admission.host_queue()[0]
     holder, lock = queue.enter(busy, "renderer", operation="host.run", owner="agent:test:h")
-    seen: list[tuple[str, ...]] = []
-
-    def run(_runner, nodes, _registry, **_kwargs):
-        seen.append(tuple(node.id for node in nodes))
-        return tuple(ActionRunResult(node.id, node.command, "pass", 0) for node in nodes)
-
+    seen = _passing_graph(monkeypatch, policy, _identities)
     monkeypatch.setattr(gate_execution, "admitted_host_work", _bounded(gate_execution, 0.0))
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
-        patch.setattr(gate_execution, "run_gate_graph", run)
-        completed = _host(repo, head, "--full")
+    completed = _host(repo, head, "--full")
 
     payload = json.loads(completed.stdout)
     assert (completed.returncode, payload["verdict"]) == (1, "block")

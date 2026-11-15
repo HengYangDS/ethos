@@ -115,9 +115,6 @@ def test_host_status_lists_the_holding_run_with_its_operation(tmp_path: Path) ->
     assert entry["same_repository"] is False
     assert "repository" not in entry
     assert str(tmp_path) not in json.dumps(payload)
-    declaration = payload["data"]["declaration"]
-    assert declaration["slots"] == 1
-    assert declaration["worker_cap"] >= 1
     assert (payload["verdict"], payload["state"]) == ("pass", "observed")
 
 

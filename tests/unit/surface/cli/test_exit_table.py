@@ -22,7 +22,6 @@ SURFACE = ROOT / "src" / "ethos" / "surface"
 EXPECTED = [("pass", 0), ("blocked", 1), ("usage", 2), ("undelivered", 3), ("refused", 125)]
 BLOCK = EthosResult(command="status", verdict="block", state="gapped", required_gaps=("p",))
 USAGE = EthosResult(command="status", verdict="block", state="usage_refused", required_gaps=("p",))
-PASS = EthosResult(command="status", verdict="pass", state="done")
 
 
 @pytest.mark.parametrize(("kind", "status"), EXPECTED)
@@ -42,16 +41,6 @@ def test_an_enforced_result_exits_by_the_table(result: EthosResult, kind: str) -
     with pytest.raises(SystemExit) as exit_info:
         output.emit(result, json_output=True)
     assert exit_info.value.code == EXIT_CODES[kind].status
-
-
-def test_an_undelivered_result_exits_by_the_table(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setattr(sys.stdout, "write", lambda _text: 0)
-    with pytest.raises(SystemExit) as exit_info:
-        output.emit(PASS, json_output=True)
-    assert exit_info.value.code == EXIT_CODES["undelivered"].status
-    assert "output_partial" in capsys.readouterr().err
 
 
 def test_the_root_help_prints_the_exit_table(

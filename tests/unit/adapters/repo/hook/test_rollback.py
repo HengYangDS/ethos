@@ -25,6 +25,8 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.release.identity import build_identity
+from tests.support.governed_repository import git
+from tests.support.governed_repository import write_tree
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import mise_installs
@@ -375,10 +377,8 @@ def test_activation_selects_the_pinned_install_and_a_lane_rolls_back_with_a_rece
     monkeypatch.setattr(
         activation, "rollback_preflight", lambda _root, target, **_k: probed.append(target.root)
     )
-    for path, content in pinned_release_files("9.3.0").items():
-        (repo / path).parent.mkdir(parents=True, exist_ok=True)
-        (repo / path).write_text(content, encoding="utf-8")
-    assert git_process(repo, "add", ".config").returncode == 0
+    write_tree(repo, pinned_release_files("9.3.0"))
+    git(repo, "add", ".config")
     assert git_process(repo, *_GIT, "commit", "-m", "chore: pin").returncode == 0
     mise_installs(monkeypatch, {"9.3.0": supplied.parents[1]})
     common, lane = Path(git_common_dir(repo)).resolve(), tmp_path / "lane"
@@ -392,7 +392,7 @@ def test_activation_selects_the_pinned_install_and_a_lane_rolls_back_with_a_rece
     assert forward["runtime_pin"] == {"state": "followed", "next_action": ""}
     assert (current_runtime(common).digest, probed) == (supplied.name, [supplied])
     rollback = Path(forward["rollback_supply"]["runtime"])
-    assert git_process(repo, *_GIT, "worktree", "add", "-qb", "work/back", lane).returncode == 0
+    git(repo, "worktree", "add", "-qb", "work/back", lane.as_posix())
     with pytest.raises(rollback_proof.RollbackRefusalError, match="receipt_required"):
         activation.install_hook_launchers(lane, installed_runtime=rollback)
     assert current_runtime(common).digest == supplied.name
@@ -413,8 +413,8 @@ def test_activation_selects_the_pinned_install_and_a_lane_rolls_back_with_a_rece
     assert held["runtime_pin"] == {"state": "runtime_selection_open", "next_action": ""}
     assert (selector.read_bytes(), kinds) == (before, ["rollback"])
     # The lane's ref closes the receipt: the next transition deletes it and follows the pin.
-    assert git_process(repo, *_GIT, "worktree", "remove", "--force", lane).returncode == 0
-    assert git_process(repo, *_GIT, "branch", "-D", "work/back").returncode == 0
+    git(repo, "worktree", "remove", "--force", lane.as_posix())
+    git(repo, "branch", "-D", "work/back")
     monkeypatch.setattr(materialization, "materialize_runtime", native)
     again = activation.install_hook_launchers(repo)
     assert (again["runtime_pin"]["state"], list(receipt.glob("*"))) == ("followed", [])

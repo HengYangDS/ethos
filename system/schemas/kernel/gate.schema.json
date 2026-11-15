@@ -130,9 +130,13 @@
     "trust_bearing": { "type": "boolean" },
     "verification_providers": {
       "default": [],
-      "items": { "type": "string" },
+      "items": {
+        "pattern": "^(?:provider\\.[a-z0-9]+(?:-[a-z0-9]+)*|ethos\\.[^:]+:[^:]+)$",
+        "type": "string"
+      },
       "title": "Verification Providers",
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
     },
     "version_source": { "minLength": 1, "type": "string" },
     "writes_files": { "type": "boolean" }

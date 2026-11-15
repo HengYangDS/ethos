@@ -13,6 +13,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.gate_providers import provider_id
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
@@ -176,8 +177,9 @@ class Gate(BaseModel):
             self.verification_providers and not self.command
         ):
             raise ValueError(_GATE_EXECUTOR_INVALID)
+        # An ID and its legacy name are one provider; a name the catalog lacks compares as text.
         if any(
-            len(references) != len(set(references))
+            len(references) != len({provider_id(name) or name for name in references})
             or any(_PROVIDER_REFERENCE.fullmatch(reference) is None for reference in references)
             for references in (self.providers, self.verification_providers)
         ):

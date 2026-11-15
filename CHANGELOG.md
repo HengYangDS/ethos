@@ -177,6 +177,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   has ended and its place in the host queue cannot be given up, for example in a queue directory
   that can no longer be written. `ethos host run` raised the OS error itself, in 0.2.0-beta.10 as
   well.
+- A gate that names one provider twice, by its catalog ID and by the legacy name of that ID, is
+  refused before any gate runs: a registry as `gate_registry_invalid`, a profile's own gates as
+  `repository_profile_invalid`. The gate contract compared the two names as text and accepted
+  them, the provider ran twice, and for the source-integrity provider the proof then refused with
+  `source_integrity_unproven`, which names an artifact and not the declaration. The gate schema
+  now holds a verification provider reference to the form and the uniqueness of a provider
+  reference; it accepted any string, repeated or not. A reader of the gap registry receives a copy
+  of a row, so a change to it stays with that reader.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

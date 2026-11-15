@@ -229,6 +229,33 @@ def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"
 
 
+@pytest.mark.parametrize(
+    ("references", "valid"),
+    [
+        (["provider.code-behavior"], True),
+        (["ethos.adapters.gates.code_quality:behavior_report"], True),
+        (["provider.code-behavior", "ethos.adapters.gates.code_quality:static_report"], True),
+        (["code-behavior"], False),
+        (["provider.code-behavior", "provider.code-behavior"], False),
+    ],
+)
+def test_gate_schema_holds_a_verifier_reference_as_the_model_does(
+    references: list[str], *, valid: bool
+) -> None:
+    """A verifier reference has the form and the uniqueness that a provider reference has."""
+    declared = load_schema("gate.schema.json")["properties"]
+    assert declared["verification_providers"]["items"] == declared["providers"]["items"]
+    payload = Gate(id="verified", kind="test", command=("run",)).to_dict()
+    payload["verification_providers"] = references
+    verdict = validate_schema_instance("gate.schema.json", payload)["verdict"]
+    assert verdict == ("pass" if valid else "block")
+    if valid:
+        assert Gate.model_validate(payload).to_dict() == payload
+    else:
+        with pytest.raises(ValidationError, match="gate executor invalid"):
+            Gate.model_validate(payload)
+
+
 @pytest.mark.parametrize("scope", ["activation", "packages"])
 def test_schema_report_rejects_malformed_live_skill_inputs(tmp_path, scope) -> None:
     """Actual native declarations and package metadata fail at the same report boundary."""

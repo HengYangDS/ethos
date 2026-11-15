@@ -45,8 +45,8 @@ def _registry() -> tuple[dict[str, GapRecord], dict[str, str]]:
 
 
 def records() -> dict[str, GapRecord]:
-    """Return every registered code row by code, families excluded."""
-    return dict(_registry()[0])
+    """Return a copy of every registered code row by code, families excluded."""
+    return {code: row.copy() for code, row in _registry()[0].items()}
 
 
 def families() -> dict[str, str]:
@@ -61,8 +61,9 @@ def registered(code: str) -> bool:
 
 
 def record(code: str) -> GapRecord | None:
-    """Return one code's row, or None for an unregistered code; a family has no single row."""
-    return _registry()[0].get(code)
+    """Return a copy of one code's row, or None if it has none; a family has no single row."""
+    found = _registry()[0].get(code)
+    return found.copy() if found is not None else None
 
 
 def repair_for(gap: str) -> str:

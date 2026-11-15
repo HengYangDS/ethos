@@ -10,6 +10,7 @@ import pytest
 
 from ethos.contracts.codes.gaps import code_shaped
 from ethos.contracts.codes.gaps import gap_code
+from ethos.contracts.codes.gaps import record
 from ethos.contracts.codes.gaps import records
 from ethos.contracts.codes.gaps import registered
 from ethos.contracts.codes.gaps import repair_for
@@ -160,6 +161,15 @@ def test_the_loader_registers_families_and_reports_the_unknown(
 ) -> None:
     assert registered(gap_code(gap)) is known
     assert repair_for(gap).startswith(repair)
+
+
+def test_a_row_handed_to_a_reader_is_its_own_copy() -> None:
+    """A reader that changes a row it was handed changes no later read of the registry."""
+    row = record("candidate_base_stale")
+    assert row is not None
+    row["repair"] = "changed by one reader"
+    records()["candidate_base_stale"]["repair"] = "changed by another"
+    assert repair_for("candidate_base_stale:x").startswith("ethos lane refresh-base")
 
 
 @pytest.mark.parametrize(

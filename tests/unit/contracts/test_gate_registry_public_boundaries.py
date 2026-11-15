@@ -27,6 +27,10 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping
     from pathlib import Path
 
+_INTEGRITY = "provider.source-integrity"
+_INTEGRITY_LEGACY = "ethos.adapters.gates.provenance.observation:integrity_report"
+_BOTH_NAMES = (_INTEGRITY, _INTEGRITY_LEGACY)
+
 
 def _gate(gate_id: str, **attributes: object) -> Gate:
     return Gate.model_validate({"id": gate_id, "kind": "test", "command": (gate_id,), **attributes})
@@ -97,11 +101,30 @@ def test_gate_deadline_is_finite_positive_and_bound_to_policy() -> None:
             command=("run",),
             verification_providers=("invalid",),
         ),
+        Gate.model_construct(id="alias", kind="test", providers=_BOTH_NAMES),
+        Gate.model_construct(
+            id="alias-verifier", kind="test", command=("run",), verification_providers=_BOTH_NAMES
+        ),
     ],
 )
 def test_gate_executor_malformed_shapes_fail_closed(gate: Gate) -> None:
     with pytest.raises(ValidationError, match="gate executor invalid"):
         Gate.model_validate(gate.model_dump())
+
+
+@pytest.mark.parametrize(
+    "references",
+    [
+        (_INTEGRITY, "ethos.adapters.gates.code_quality:static_report"),
+        ("provider.code-static", _INTEGRITY_LEGACY),
+        ("ethos.owner:call", "ethos.owner:check"),
+        ("provider.unknown", "provider.other"),
+    ],
+)
+def test_gate_names_distinct_providers_under_any_spelling(references: tuple[str, ...]) -> None:
+    """Only one provider under two names is a repeat; names the catalog lacks compare as text."""
+    assert _gate("verified", verification_providers=references).verification_providers == references
+    assert Gate(id="direct", kind="test", providers=references).providers == references
 
 
 def test_verified_command_keeps_one_gate_and_binds_product_source() -> None:

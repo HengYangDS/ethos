@@ -36,8 +36,8 @@ Revision 1 of the design proposed new carriers. The review and the contract's ow
 carrier refused them, and the owner decided against a backlog. The design that stands adds none.
 
 - Intent that is not yet admitted is an OpenSpec draft, a Change without tasks. A draft may stay
-  open, is disposed in the contract's four ways, and a design that spans Changes stays an active
-  draft while it is the current design. A deferral creates its draft. There is no backlog.
+  open, is disposed in the contract's four ways, and a design that spans Changes stays active
+  while it is the current design. A deferral creates its draft. There is no backlog.
 - The roadmap is the terminal plan and a derived view. The plan divides by lifetime, keeps the
   order and gains the gate's rows by name; a row's state is read from the tree.
 - The end state is the contract's invariants, each with the command that reads it.
@@ -51,7 +51,7 @@ carrier refused them, and the owner decided against a backlog. The design that s
 - The law that stands in the way is replaced sentence by sentence, each with the step that
   carries its reader; most of the standing law stands.
 
-This Change carries the design and its review and stays an active draft while it is the current
+This Change carries the design and its review and stays active while it is the current
 design. The text, the moves and the readers arrive in the member Changes that the design lists.
 
 ## Capabilities
@@ -63,9 +63,9 @@ None.
 ### Modified Capabilities
 
 None in this Change, so `skip_specs: true` applies. The member Changes modify
-`repository-governance` (the scenarios on product extension roots and on an adopter's roots) and
-`repository-paradigm` (the role-to-name table and the reporting obligations). The requirement
-`Product Design Contract` stands.
+`repository-governance` (the scenarios on product extension roots, on an adopter's roots and on a
+new lane's inherited Change) and `repository-paradigm` (the role-to-name table and the reporting
+obligations). The requirement `Product Design Contract` stands.
 
 ## Impact
 

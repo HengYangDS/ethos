@@ -77,17 +77,17 @@ law that kept them from being used, and the readers that make their content visi
 
 ### 2. Where each thing lives
 
-| What must last                              | Its carrier, which exists                         | What was missing                               |
-| ------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| The end state                               | the contract's numbered invariants                | a reader's command and terminal value for each |
-| The order of unfinished work, and its exits | the terminal plan                                 | room, and the gate's rows by name              |
-| An idea, a defect's repair, a wish          | a draft: an OpenSpec Change without tasks         | the rule that a draft may stay open            |
-| A design that spans Changes                 | a draft with a design, active while it is current | the same rule; it was archived too early       |
-| A deferred task or a follow-up              | the draft that will carry it                      | a draft at the moment of deferral              |
-| A ruling by the owner or the lead           | the Change it rules on, or a decision record      | the habit; rulings sat in chat and notes       |
-| A finding about the world                   | a research study under the documentation home     | a review date, and the habit                   |
-| An observation of a run                     | its Attestation or the forge's record             | nothing                                        |
-| An agent's lesson                           | the rule, tool or test that it corrects           | nothing new; memory is a cache                 |
+| What must last                              | Its carrier, which exists                     | What was missing                               |
+| ------------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| The end state                               | the contract's numbered invariants            | a reader's command and terminal value for each |
+| The order of unfinished work, and its exits | the terminal plan                             | room, and the gate's rows by name              |
+| An idea, a defect's repair, a wish          | a draft: an OpenSpec Change without tasks     | the rule that a draft may stay open            |
+| A design that spans Changes                 | a Change with its design and one open task    | the same rule; it was archived too early       |
+| A deferred task or a follow-up              | the draft that will carry it                  | a draft at the moment of deferral              |
+| A ruling by the owner or the lead           | the Change it rules on, or a decision record  | the habit; rulings sat in chat and notes       |
+| A finding about the world                   | a research study under the documentation home | a review date, and the habit                   |
+| An observation of a run                     | its Attestation or the forge's record         | nothing                                        |
+| An agent's lesson                           | the rule, tool or test that it corrects       | nothing new; memory is a cache                 |
 
 ### 3. Drafts
 
@@ -98,7 +98,9 @@ other; its proposal ref makes the draft durable on both forges. A draft is never
 proof selects: it lands beside a Change in work, under that Change's proof, and is archived only
 once it holds a design and one checked task that records its disposition. Native selection does
 not tell a lane's own Change from an inherited one, so while a branch holds an open Change, every
-lane command names its Change with `--change`. Step 4 ends that price.
+lane command names its Change with `--change`. Step 4 ends that price. In a governed repository
+no draft enters the accepted branch before step 4 has landed, unless every session that writes
+there names its Change in every lane command and commit, with `--change` or `ETHOS_CHANGE`.
 
 - **A draft may stay open.** It is intent, not unfinished work. The readers list drafts apart
   from Changes in work, each with its age in releases.
@@ -197,13 +199,14 @@ narrow.
 - **No governed repository keeps a backlog tool's tree.** In the one that does, the open tasks
   become drafts, its decisions become decision records, its documents move to the documentation
   home, its milestones go to the plan, and completed and archived tasks are removed, since Git
-  keeps them. The session that holds its lane does it, after the repair, and no other repository
+  keeps them. The session that holds its lane does it, after the repair and under decision 3's
+  condition, and no other repository
   adopts a backlog tool.
 
 ### 8. The session rule
 
 One sentence replaces the contract's sentence on transcripts and memory and the plan's matching
-ones, so the contract does not grow:
+ones, and step 2 holds the contract at 500 nonblank lines:
 
 > A session, an agent's memory and an ignored directory authorize nothing. Losing all three loses
 > no obligation, ruling, finding or design: each is in the tracked carrier of its kind, an
@@ -251,7 +254,8 @@ rules to its own tree first.
   rationale, a decision record has its five sections, a study has sources. What is missing is that
   each single decision carries its own parts, so that an absent part is visible. The price is
   form: four labelled parts make a short decision longer.
-- **Applies to** every numbered decision of a Change's design, every decision record and every
+- **Applies to** every decision of a Change's design, which the design numbers so that a reader
+  finds each, every decision record and every
   ruling that a Change records. It does not apply to a Change without a design, such as a defect
   with one sensible repair, which states its cause; nor to a design written before the rule.
 
@@ -272,41 +276,45 @@ the Change it rules on, with its reason and its scope. A value that several repo
 as a threshold, has one study in the repository that produces it, and the others cite that study
 and do not restate it.
 
-The form is a schema that a reader checks, so it answers the contract's three questions. The
-obligation that each single decision carries its alternatives, its reason and its scope is absent
-from OpenSpec's design template and from every other carrier. Without labelled parts no reader
-can show that a decision has them; a free text can only be judged by reading it. The OpenSpec
-configuration's rule for a design owns the form, and the form ends when OpenSpec's own template
-carries such parts.
+The form is a schema that a reader checks, so it answers the contract's three questions. OpenSpec's
+design instruction already asks each decision for its rationale and its alternatives; no carrier
+asks a design's decision what it rests on or where it applies, and none lets a reader list an absent
+part. Without labelled parts no reader can show that a decision has them; a free text can only be
+judged by reading it. The OpenSpec configuration's rule for a design owns the form, and the form
+ends when OpenSpec's own template carries such parts.
 
-Presence is decidable and quality is not: the reader of step 4 lists each decision without a
-part, and the review judges the content. ETHOS writes the form once, in its OpenSpec
-configuration's rule for a design and in the research role's page of the documentation contract,
-and step 5 brings it to every governed repository as a reporting obligation.
+Presence is decidable and quality is not. A decision is each third-level heading, or each top-level
+list item, directly under the design's `Decisions` section. A part is a list item under it whose
+first words, in strong type, are the label. The rule binds a Change created on or after the date it
+states. The reader of step 4 lists each such decision without a part and never refuses, because no
+repair can write a reason; the review judges the content. ETHOS writes the form once, in its
+OpenSpec configuration's rule for a design and in the research role's page of the documentation
+contract, and step 5 brings it to every governed repository as a reporting obligation.
 
 ### 11. The law that changes, sentence by sentence
 
-| Text                                                                                                                                         | What happens                                                                     | Step |
-| -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---- |
-| The contract: OpenSpec is the sole intent, design and dependency carrier                                                                     | stands; the design now obeys it                                                  | none |
-| The contract: no queue, dependency ledger or stored graph                                                                                    | stands; the roadmap view is derived                                              | none |
-| The specification: two design authorities; archives own no queue                                                                             | stands                                                                           | none |
-| The plan: no backlog and no feedback registry                                                                                                | stands                                                                           | none |
-| The contract and the plan: transcripts and memory as context                                                                                 | replaced by the session rule's sentence                                          | 2    |
-| The plan's rules of convergence                                                                                                              | one sentence added: a draft is open by rule                                      | 2    |
-| DR-0016: a withdrawn task returns as a new Change when taken up                                                                              | a successor sentence: its draft exists at the withdrawal                         | 2    |
-| The OpenSpec configuration's rule on follow-ups                                                                                              | a follow-up that is work names its draft                                         | 2    |
-| The plan itself                                                                                                                              | divides; gains the rows by name                                                  | 3    |
-| The plan's completion boundary: no active proposal may remain                                                                                | amended: a draft and a current design are open by rule                           | 3    |
-| The OpenSpec configuration's rule for a design                                                                                               | each decision carries its four parts                                             | 2    |
-| DR-0027's sentence that names and axes stay with each repository                                                                             | a successor for the first level of a documentation home                          | 5    |
-| The specification's scenario on product extension roots                                                                                      | amended with it                                                                  | 5    |
-| The documentation contract's portability boundary                                                                                            | amended with it; ships with the code that reports                                | 5    |
-| The documentation contract's research role                                                                                                   | gains the review date and the study's parts, with reader                         | 4    |
-| The specification's scenario, the documentation contract's sentence and DR-0027's remainder that an adopter need not reproduce an ETHOS root | amended: no role, no directory                                                   | 5    |
-| The artifact topology                                                                                                                        | holds decision 9's rules                                                         | 3    |
-| The agent rules and the OpenSpec configuration's withdrawal rule                                                                             | amended with them                                                                | 2    |
-| The repository paradigm                                                                                                                      | gains the role-to-name table and the reporting obligation for a decision's parts | 5    |
+| Text                                                                                                                                         | What happens                                                                                | Step |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---- |
+| The contract: OpenSpec is the sole intent, design and dependency carrier                                                                     | stands; the design now obeys it                                                             | none |
+| The contract: no queue, dependency ledger or stored graph                                                                                    | stands; the roadmap view is derived                                                         | none |
+| The specification: two design authorities; archives own no queue                                                                             | stands                                                                                      | none |
+| The plan: no backlog and no feedback registry                                                                                                | stands                                                                                      | none |
+| The contract and the plan: transcripts and memory as context                                                                                 | replaced by the session rule's sentence                                                     | 2    |
+| The plan's rules of convergence                                                                                                              | one sentence added: a draft is open by rule                                                 | 2    |
+| DR-0016: a withdrawn task returns as a new Change when taken up                                                                              | a successor sentence: its draft exists at the withdrawal                                    | 2    |
+| The OpenSpec configuration's rule on follow-ups                                                                                              | a follow-up that is work names its draft                                                    | 2    |
+| The plan itself                                                                                                                              | divides; gains the rows by name                                                             | 3    |
+| The plan's completion boundary: no active proposal may remain                                                                                | amended: a draft and a current design are open by rule                                      | 3    |
+| The OpenSpec configuration's rule for a design                                                                                               | each decision carries its four parts                                                        | 2    |
+| DR-0027's sentence that names and axes stay with each repository                                                                             | a successor for the first level of a documentation home                                     | 5    |
+| The specification's scenario on product extension roots                                                                                      | amended with it                                                                             | 5    |
+| The documentation contract's portability boundary                                                                                            | amended with it; ships with the code that reports                                           | 5    |
+| The documentation contract's research role                                                                                                   | gains the review date and the study's parts, with reader                                    | 4    |
+| The specification's scenario, the documentation contract's sentence and DR-0027's remainder that an adopter need not reproduce an ETHOS root | amended: no role, no directory                                                              | 5    |
+| The artifact topology                                                                                                                        | states decision 9's rules in its boundary and cleanup text; no prefix, rule or home changes | 3    |
+| The agent rules and the OpenSpec configuration's withdrawal rule                                                                             | amended with them                                                                           | 2    |
+| The specification's scenario that a new lane selects the active Change it inherits                                                           | amended: selection prefers a Change the lane created to one it inherited                    | 4    |
+| The repository paradigm                                                                                                                      | gains the role-to-name table and the reporting obligation for a decision's parts            | 5    |
 
 DR-0011's remaining sentences were narrowed by DR-0027. No rule binds a governed repository
 before the Change that carries its reader has landed.
@@ -325,20 +333,22 @@ before the Change that carries its reader has landed.
 
 ### 13. Order and cost
 
-| Step | What                                                                                                                                                              | Class                             | Product, tests | When                                                                                   |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
-| 1    | this design, reviewed to one signed text; it stays active                                                                                                         | no rule                           | 0, 0           | now                                                                                    |
-| 2    | the text of decision 11's step 2                                                                                                                                  | ETHOS's own law                   | 0, 0           | one off-gate row, in a weekly batch whose slot is free                                 |
-| 3    | ETHOS's tree: the plan divides; each open note, follow-up and withdrawn task is disposed once; the build tree is sorted                                           | no rule; a few path constants     | about 3, 3     | off-gate rows, one to a free weekly batch, none after the freeze; the rest after 0.2.0 |
-| 4    | native selection passes over a Change the lane did not create; readers: drafts by age, rows by state, research past review, decisions without a part, build homes | a narrowing; new code, no refusal | about 195, 280 | after 0.2.0, the `status` row and the test budget step                                 |
-| 5    | the fleet: role homes, research fields and the parts of a decision as reporting obligations, with previews                                                        | a new rule, reporting             | about 190, 230 | after 0.2.0, with DR-0027's                                                            |
+| Step | What                                                                                                                                                                       | Class                             | Product, tests | When                                                                                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| 1    | this design, reviewed to one signed text; it stays active                                                                                                                  | no rule                           | 0, 0           | now                                                                                    |
+| 2    | the text of decision 11's step 2                                                                                                                                           | ETHOS's own law                   | 0, 0           | one off-gate row, in a weekly batch whose slot is free                                 |
+| 3    | ETHOS's tree: the plan divides; each open note, follow-up and withdrawn task is disposed once; the build tree is sorted                                                    | no rule; a few path constants     | about 3, 3     | off-gate rows, one to a free weekly batch, none after the freeze; the rest after 0.2.0 |
+| 4    | native selection prefers a Change the lane created to one it inherited; readers: drafts by age, rows by state, research past review, decisions without a part, build homes | a narrowing; new code, no refusal | about 275, 400 | after 0.2.0, the `status` row and the test budget step                                 |
+| 5    | the fleet: role homes, research fields and the parts of a decision as reporting obligations, with previews                                                                 | a new rule, reporting             | about 190, 230 | after 0.2.0, with DR-0027's                                                            |
 
 The figures for steps 4 and 5 are the decidability seat's, within 40 percent, from measured commits
-of similar shape; the reader of decision 10 is not sized. Step 4's first part is a narrowing, which
-the law freeze admits: it may take a free off-gate slot once the test budget step has landed, and it
-otherwise lands with the rest of step 4. Steps 4 and 5 do not fit the test ceiling's 247 free lines
-without the prepared budget step. Step 3 moves 23 tracked mentions of the plan's path, five of them
-in documents an installation carries, one constant in the audit and two tests that pin the path.
+of similar shape; the reader of decision 10 adds about 80 and 120, from the decision-record checker
+of similar shape. Step 4's first part is a narrowing, which the law freeze admits: it may take a
+free off-gate slot once the test budget step has landed, and it otherwise lands with the rest of
+step 4. A lane that has created none still attaches to a single inherited Change, as today; ending
+that adds a refusal. Steps 4 and 5 do not fit the test ceiling's 247 free lines without the prepared
+budget step. Step 3 keeps the plan's path, so its 23 tracked mentions stand; only links to anchors
+among the moved lines change.
 
 Step 5 moves repositories in this order: ETHOS; then the producers whose documents others cite;
 then the guidance and benchmark repositories; then the two repositories under repair, inside
@@ -391,7 +401,15 @@ repository with another maintainer moves only with that maintainer.
   later revisions are taken as well: a leftover sentence removed, the three answers for decision
   10's form, the paradigm's row, the proposal's capability list, and the open settlement task.
   All are in this text.
-- **Revision 5** is this text.
+- **Revision 5**, commit `78d74f4c2`, frozen for a confirmation round.
+- **Confirmation round on revision 5.** The fleet seat signed with two replacements: no draft on
+  a governed repository's accepted branch before step 4 unless every session names its Change,
+  and decisions that the design numbers. The essence seat gave four: what OpenSpec's design
+  instruction already asks, the scenario on an inherited Change among the law, this Change as
+  active and not a draft, and the contract held at its bound. The decidability seat gave four:
+  selection prefers a created Change and adds no refusal, what a decision and a part are for the
+  reader, the topology's text only, and the plan keeping its path. All ten are in this text.
+- **Revision 6** is this text.
 
 ## Risks / Trade-offs
 
@@ -402,7 +420,7 @@ repository with another maintainer moves only with that maintainer.
 - **Role homes move files.** The fleet seat counted the mentions: 49 in ETHOS for three
   directories, and 715 in the two repositories under repair. The step reports first and moves a
   repository in its own lane.
-- **The plan's division moves carried paths.** A move of a path that an installation carries is a
+- **Role homes move carried paths.** A move of a path that an installation carries is a
   release entry.
 - **Cost before 0.2.0.** Steps 2 and 3 take off-gate slots that other rows wanted.
 

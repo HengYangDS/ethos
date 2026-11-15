@@ -23,6 +23,9 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - The version-source repair proposes a value that the release accepts.
 - The document ceiling measures the body.
 - The journey's docstring and the design sentence state what the case proves.
+- To read, not measured yet: other denied placements that may refuse their own repair, as the
+  write guard did before `denied-path-removal`: the audit's repair plans for tracked scripts, and
+  denied generated homes.
 
 ## Capabilities
 

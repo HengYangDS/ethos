@@ -11,6 +11,7 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.identity import product_version
+from ethos.repository.release.publication import RELEASE_REF_ROLES
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
@@ -274,6 +275,8 @@ def test_release_topology_admits_only_positive_full_ref_roles(
     assert admission["target_ref"] == target_ref
     assert admission["ref_kind"] == ref_kind
     assert admission["role"] == role
+    # Only the release branch and a release tag are release refs, whose probe reads hosted runs.
+    assert (role in RELEASE_REF_ROLES) == (target_ref in {"refs/heads/main", "refs/tags/v1.2.3"})
     assert admission["proof_selection"] == proof_selection
     assert admission["allowed_effect"] == (
         "git.ref.compare-and-swap" if state == "eligible" else ""

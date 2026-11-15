@@ -25,6 +25,7 @@ The daily workflow and transport operations are:
 | `ethos publish --ref <full-ref> --probe-remote --expect-head <head> --json`                                | Derive an immutable exact-CAS request for one positively admitted branch or annotated release-tag ref from the exact local object and live declared peers. | Read-only; persists only content-addressed request evidence in Git private state.                                                                                  |
 | `ethos publish --receipt <path> --receipt-sha256 <digest> --apply --authorize --expect-head <head> --json` | Apply a previously derived full-ref publication request to its declared peers.                                                                             | Rechecks local trust, target obligations and refs before each peer effect; returns attested partial or unknown outcomes rather than implying cross-peer atomicity. |
 | `ethos publish --retire --ref <full-ref> --probe-remote --expect-head <head> --json`                       | Derive an exact retirement request for one proposal or legacy role ref whose content an accepted peer branch contains.                                     | Read-only; the returned receipt action applies it after each peer is re-observed.                                                                                  |
+| `ethos publish --observe-hosted --expect-head <head> --json`                                               | Read the hosted runs of the worktree's head on every CI peer, with the jobs that kept a run from passing.                                                  | Read-only; asks each provider's signed-in CLI, records nothing and exits 1 unless every CI peer's runs passed.                                                     |
 | `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
 | `ethos adopt --exit --root <repo> --json`                                                                  | Preview one repository's exit: each key after it, the keys it keeps or leaves, the selectors and generations it removes, its blockers and one digest.      | Read-only; its next action is the exact apply request.                                                                                                             |
 | `ethos adopt --exit --apply --authorize --expect-head <head> --expect-plan-digest <digest> --json`         | Apply exactly the previewed exit, or resume an interrupted one: restore the keys ETHOS still owns, then remove the record and the selectors.               | Holds the selection lock and the state transaction, writes a durable receipt first and attempts every compensation step; consumer records stay.                    |
@@ -42,6 +43,18 @@ The receipt fixes that selection; `--receipt` cannot take another `--peer` choic
 Results distinguish declared, selected and unselected peers without silently skipping
 unavailable peers or claiming delivery to unselected peers.
 
+`ethos publish --observe-hosted` reads the runs of the worktree's head from every peer that declares
+`ci_cd`, through that provider's signed-in CLI (`gh` or `glab`), and lists each run with its
+conclusion under `data.hosted_observation`. A run's own conclusion decides it. A run that passed is
+one row; a run that failed or still runs also lists its jobs that did not pass, and a failed job
+that the provider marks as allowed to fail is `allowed_failure`. The result passes when every CI
+peer's runs passed. It blocks with `hosted_run_failed:<peer>` or `hosted_run_missing:<peer>`, and
+it is `unknown` with `hosted_run_running:<peer>` or `hosted_run_unknown:<peer>`: a forge that
+cannot be read is never a pass. The observation is read each time and recorded nowhere.
+`ethos land --json` states the same observation of the lane head under `data.hosted_observation`,
+and so does the probe of the release branch or a release tag for its proof head. Neither refuses
+anything for it; an apply does not read it.
+
 `status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is transport.
 MCP projects status, planning, adoption, integration and publication; proof stays a CLI root.
 Root and actor bind at startup and cannot be replaced by tool inputs.
@@ -57,8 +70,8 @@ not extra lifecycles. Native `--help` owns exact syntax; this page explains sema
 Every command but `mcp` runs the one catalog operation (`ethos.contracts.operations`) that its path
 and flags select, listed by `ethos [<path>] --help --json` with a group's nested groups by name.
 A request that selects none, or sets a flag its operation does not take, runs nothing and exits 2,
-as a usage error does; a preview exits 0 on any verdict, an apply, a proof and a publication probe
-exit 1 unless they pass, and an undelivered result exits 3.
+as a usage error does; a preview exits 0 on any verdict, an apply, a proof, a publication probe
+and a hosted observation exit 1 unless they pass, and an undelivered result exits 3.
 
 `ethos host run [--wait <seconds>] -- <command...>` runs one heavy local command once the host
 admits it, and exits with the command's own status; `ethos host status --json` reads the queue.

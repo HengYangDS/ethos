@@ -31,6 +31,7 @@ from ethos.application.land.closeout import closeout_audit_root
 from ethos.application.land.closeout import closeout_result
 from ethos.application.land.closeout import land_next_action
 from ethos.application.land.closeout import repository_audit_after_admission
+from ethos.application.publication.hosted import hosted_observation
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.operations.land import LandRequest
@@ -355,6 +356,8 @@ def _candidate_land_result(
             "openspec_lifecycle": lifecycle,
             "candidate_update": update,
             "closeout_support": closeout_support,
+            # A preview states what each CI peer ran for this head; it refuses nothing for it.
+            **({} if apply else {"hosted_observation": hosted_observation(repo, current_head)}),
             "mutation": mutation_envelope(
                 command=command,
                 apply=apply,

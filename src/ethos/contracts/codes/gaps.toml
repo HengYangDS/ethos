@@ -582,6 +582,10 @@ host_surface_missing = { owner = "repository.release", detail = "the value that 
 host_work_invalid = { owner = "adapters.gates", repair = "name one lowercase directory of build/runtime/work, as in `--work render`" }
 host_work_owned = { owner = "adapters.gates", detail = "the work directory's name", repair = "name another work directory, or run as the owner that its mark declares" }
 host_work_unavailable = { owner = "adapters.gates", repair = "make build/runtime/work writable in this repository" }
+hosted_run_failed = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head failed on the CI peer.", repair = "read the failed run on the peer, then rerun it or repair the head and observe again" }
+hosted_run_missing = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer holds no run of the observed head that ran.", repair = "publish the observed head to the peer, then observe again" }
+hosted_run_running = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head has not concluded on the CI peer.", repair = "observe again once the run concludes" }
+hosted_run_unknown = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer's forge gave no usable answer about the observed head.", repair = "sign in to the peer's forge CLI or set the remote's forgeRepository key, then observe again" }
 housekeeping_candidate_stale = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 housekeeping_remove_failed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 identity_transition_attestation_mismatch = { owner = "adapters.repo" }

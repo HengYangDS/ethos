@@ -43,7 +43,7 @@ from ethos.surface.cli.catalog import register
 _UNMATCHED = {
     "prove": 6,
     "land": 8,
-    "publish": 9,
+    "publish": 18,
     "adopt": 23,
     "lane candidate": 2,
     "lane redact private-addresses": 1,
@@ -90,7 +90,7 @@ _INSTALLS: dict[str, dict[str, object]] = {
 def test_each_operation_is_declared_once_with_its_effects_and_authority() -> None:
     """IDs are unique; a write needs an authorization kind and a verdict or process exit."""
     identities = [item.id for command in COMMANDS.values() for item in command.operations]
-    assert len(identities) == len(set(identities)) == 107
+    assert len(identities) == len(set(identities)) == 108
     assert {name.rpartition(" ")[0] for name in COMMANDS} - {""} <= set(GROUPS)
     for command in COMMANDS.values():
         fields = command.request.model_fields

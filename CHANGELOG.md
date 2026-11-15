@@ -41,6 +41,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   actor (`invocation_actor_missing`) is the first to emit `next.inputs`: its step is an
   `instruction` whose one input holds the name `actor`, the flag `--actor` and a description. The
   step's prose names the CLI flag; a tool projection reads the input.
+- `ethos publish --observe-hosted --json` reads the hosted runs of the worktree's head on every peer
+  that declares `ci_cd`, through that provider's signed-in CLI. A run's own conclusion decides it: a
+  run that passed is one row, and a run that failed or still runs lists its jobs that did not pass,
+  with a job that the provider marks as allowed to fail listed as `allowed_failure`. It exits 1
+  unless every CI peer's runs passed, naming `hosted_run_failed`, `hosted_run_missing`,
+  `hosted_run_running` or `hosted_run_unknown` with the peer; a forge that cannot be read is
+  `unknown`, never a pass. `ethos land --json`, and the probe of the release branch or a release
+  tag, state the same observation under `data.hosted_observation` and refuse nothing for it, so a
+  preview and a release probe now ask the two CLIs, once for each CI peer when the runs passed. No
+  refusal is added in this release; a release ref will require a passing observation no earlier
+  than the next one.
 
 ### Changed
 

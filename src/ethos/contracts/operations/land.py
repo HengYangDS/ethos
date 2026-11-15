@@ -61,7 +61,7 @@ LAND = Command(
             "Report whether the lane head can land on the candidate branch.",
             select="apply=false closeout=false release=false retag=unset",
             request=_LAND,
-            effects="read",
+            effects="read remote-read",
         ),
         operation(
             "land.apply",

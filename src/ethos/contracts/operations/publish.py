@@ -1,4 +1,4 @@
-"""The `ethos publish` request and the five publication operations its selectors choose between."""
+"""The `ethos publish` request and the six publication operations its selectors choose between."""
 
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
@@ -21,6 +21,7 @@ class PublishRequest(CommandRequest):
     receipt: str | None = described(None, "The derived publication request to apply.")
     receipt_sha256: str | None = described(None, "The SHA-256 of that request.")
     retire: bool = switch("Retire the refs from the peers instead of publishing them.")
+    observe_hosted: bool = switch("Read the hosted runs of the head on every CI peer.")
 
 
 _PROBED = "read remote-read local-evidence-write"
@@ -35,9 +36,17 @@ PUBLISH = Command(
         operation(
             "publish.readiness",
             "Report local publication readiness.",
-            select="target_refs=unset receipt=unset retire=false apply=false",
+            select="target_refs=unset receipt=unset retire=false apply=false observe_hosted=false",
             request="expect_head probe_remote",
             effects="read remote-read",
+        ),
+        operation(
+            "publish.hosted.observe",
+            "Report whether the head's hosted runs passed on every CI peer.",
+            select="observe_hosted=true target_refs=unset receipt=unset retire=false apply=false",
+            request="expect_head",
+            effects="read remote-read",
+            exit_kind="verdict",
         ),
         operation(
             "publish.probe",

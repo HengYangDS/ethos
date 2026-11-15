@@ -3,17 +3,22 @@
 Tracked configuration never carries a peer's coordinates. A local
 `remote.<name>.forgeRepository` key is authoritative when present; otherwise an `http` or
 `https` Git remote without userinfo names the repository. Nothing else is guessed: an SSH or
-scp-like remote stays unresolved, and a refused value is never repeated.
+scp-like remote stays unresolved, and a refused value is never repeated. The provider's own
+authenticated CLI then answers one bounded query about that repository.
 """
 
 from __future__ import annotations
 
+import json
 import shlex
+import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
+import ethos.adapters.process as process
 from ethos.adapters.repo.git import git_stdout
+from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,6 +49,29 @@ def forge_web_repository(root: Path, remote: str) -> ForgeWebRepository:
         return _gap("credentialed", remote)
     candidate = url.removesuffix("/").removesuffix(".git")
     return ForgeWebRepository(url=candidate) if _valid(candidate) else _gap("unresolved", remote)
+
+
+def provider_rows(
+    root: Path, provider: str, command: tuple[str, ...], url: str, *, key: str = ""
+) -> list[dict[str, object]] | None:
+    """Run one bounded provider listing; a refusal or malformed answer observes nothing.
+
+    A key names the member of an answered object that holds the rows.
+    """
+    environment = {"GH_PROMPT_DISABLED": "1", "GLAB_NO_PROMPT": "1"}
+    if provider == "gitlab":
+        parsed = urlsplit(url)
+        environment["GITLAB_HOST"] = f"{parsed.scheme}://{parsed.netloc}"
+    try:
+        run = process.run_command(root, command, stdin="", timeout=seconds("tool"), env=environment)
+        rows = None if run.returncode else json.loads(run.stdout)
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        return None
+    if key:
+        rows = rows.get(key) if isinstance(rows, dict) else None
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        return None
+    return rows
 
 
 def _valid(value: str) -> bool:

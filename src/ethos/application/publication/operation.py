@@ -16,11 +16,16 @@ from ethos.adapters.mutation.publication.request import observe_publication_requ
 from ethos.adapters.mutation.publication.request import observe_remote_publication_effect
 from ethos.adapters.mutation.publication.request import persist_remote_publication_request
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_followup
+from ethos.adapters.repo.git import current_head
+from ethos.application.publication.hosted import OPEN_HOSTED_GAPS
+from ethos.application.publication.hosted import hosted_observation
 from ethos.application.publication.inspection import blocked_publication_action
 from ethos.application.publication.inspection import observe_publication
 from ethos.application.publication.inspection import publication_readiness_result
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.codes.gaps import gap_code
+from ethos.contracts.codes.gaps import repair_for
 from ethos.contracts.operations.publish import PublishRequest
 from ethos.contracts.publication import PublicationEffect
 from ethos.contracts.verdict import Verdict
@@ -28,6 +33,7 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.publication import RELEASE_REF_ROLES
 from ethos.repository.release.publication import select_publication_peers
 from ethos.result import EthosResult
 
@@ -122,6 +128,40 @@ def report_readiness(root: Path, request: PublishRequest) -> EthosResult:
 
 
 @_publishing
+def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
+    """Run `publish.hosted.observe`; only `invoke` calls it.
+
+    The verdict is the observation's own: a peer that failed or holds no run blocks, one that is
+    still running or not readable is unknown, and only a run that may still conclude asks again.
+    """
+    head = current_head(root)
+    if request.expect_head not in {None, head}:
+        return EthosResult(
+            command="publish",
+            verdict="block",
+            state="blocked",
+            required_gaps=("expect_head_mismatch",),
+        )
+    observation = hosted_observation(root, head)
+    gaps = tuple(string_sequence(observation["observation_gaps"]))
+    undecided = all(gap_code(gap) in OPEN_HOSTED_GAPS for gap in gaps)
+    again = ("ethos", "publish", "--observe-hosted", "--expect-head", head)
+    return EthosResult(
+        command="publish",
+        verdict=("unknown" if undecided else "block") if gaps else "pass",
+        state=str(observation["state"]),
+        summary={"mode": "hosted_observation", "source_head": head},
+        required_gaps=gaps,
+        next_action=shlex.join((*again, "--root", root.as_posix(), "--json"))
+        if observation["state"] == "running"
+        else repair_for(gaps[0])
+        if gaps
+        else "",
+        data={"hosted_observation": observation},
+    )
+
+
+@_publishing
 def project_publication(root: Path, request: PublishRequest) -> EthosResult:
     """Run the probe, apply and retirement operations through the sole execution path.
 
@@ -212,7 +252,7 @@ def project_publication(root: Path, request: PublishRequest) -> EthosResult:
         execution = apply_remote_publication_effect(root=root, plan=plan)
         gaps = list(dict.fromkeys((*gaps, *string_sequence(execution.get("required_gaps")))))
         verdict = reduce_verdicts(verdict, report_verdict(execution))
-    return _publication_result(
+    result = _publication_result(
         root,
         context,
         target_refs=target_refs,
@@ -231,6 +271,23 @@ def project_publication(root: Path, request: PublishRequest) -> EthosResult:
         verdict=verdict,
         gaps=gaps,
     )
+    return _release_observation(root, context, request, result, refused=bool(request_gaps))
+
+
+def _release_observation(
+    root: Path,
+    context: "PublicationContext",
+    request: PublishRequest,
+    result: EthosResult,
+    *,
+    refused: bool,
+) -> EthosResult:
+    """State a release ref's hosted runs at its admitted probe, and refuse nothing for them."""
+    roles = {str(admission["role"]) for admission in context.ref_admissions.values()}
+    if not request.probe_remote or request.retire or refused or not RELEASE_REF_ROLES & roles:
+        return result
+    observed = hosted_observation(root, context.proof_head)
+    return result.replace(data={**result.data, "hosted_observation": observed})
 
 
 def _publication_result(
@@ -455,6 +512,7 @@ def publish_repository(
     receipt: str | None = None,
     receipt_sha256: str | None = None,
     retire: bool = False,
+    observe_hosted: bool = False,
 ) -> EthosResult:
     """Observe or apply exact peer publication without owning local-ref retirement effects."""
     return invoke("publish", root, locals())

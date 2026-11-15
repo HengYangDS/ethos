@@ -52,6 +52,7 @@ IMPLEMENTATIONS = {
     "land.retag.apply": f"{_LAND}:move_release_tags",
     "publish": f"{_PUBLISH}:project_publication",
     "publish.readiness": f"{_PUBLISH}:report_readiness",
+    "publish.hosted.observe": f"{_PUBLISH}:observe_hosted",
     "adopt": f"{_ADOPT}:adopt_existing",
     "adopt.create.preview": f"{_ADOPT}:form_repository",
     "adopt.create.apply": f"{_ADOPT}:form_repository",

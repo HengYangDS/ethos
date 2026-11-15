@@ -108,7 +108,7 @@ def test_help_prints_the_catalog_as_text_and_as_one_bounded_result(
     operations = [
         item["id"] for entry in payload["data"]["commands"] for item in entry["operations"]
     ]
-    assert len(operations) == 29
+    assert len(operations) == 30
     assert [item["name"] for item in payload["data"]["groups"]] == ["attestation", "host"]
     assert [entry["name"] for entry in json.loads(one.stdout)["data"]["commands"]] == ["land"]
     for argv, names in (("attestation",), _GROUP), (("attestation", "query"), _GROUP[1:2]):

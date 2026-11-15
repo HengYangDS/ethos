@@ -19,6 +19,7 @@ from ethos.adapters.admission.role_rename import legacy_proposal_prefix
 from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.publication.forge import forge_web_repository
+from ethos.adapters.mutation.publication.forge import provider_rows
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.git import committed_file_text
@@ -208,7 +209,7 @@ def _review_retainers(
         *(part.format(url=url, branch=branch) for part in listing),
         *_LISTING_OPTIONS[provider],
     )
-    rows = _provider_rows(root, provider, command, url)
+    rows = provider_rows(root, provider, command, url)
     retainers = None if rows is None else _retaining_refs(root, remote, rows, (branch, old), keys)
     if retainers is None:
         return {"verdict": "unknown", "state": "unavailable", "command": list(command)}
@@ -217,24 +218,6 @@ def _review_retainers(
         "state": "retained" if retainers else "not_retained",
         "retainers": retainers,
     }
-
-
-def _provider_rows(
-    root: Path, provider: str, command: tuple[str, ...], url: str
-) -> list[dict[str, object]] | None:
-    """Run one bounded provider listing; a refusal or malformed answer observes nothing."""
-    environment = {"GH_PROMPT_DISABLED": "1", "GLAB_NO_PROMPT": "1"}
-    if provider == "gitlab":
-        parsed = urlsplit(url)
-        environment["GITLAB_HOST"] = f"{parsed.scheme}://{parsed.netloc}"
-    try:
-        run = process.run_command(root, command, stdin="", timeout=seconds("tool"), env=environment)
-        rows = None if run.returncode else json.loads(run.stdout)
-    except (ValueError, OSError, subprocess.TimeoutExpired):
-        return None
-    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
-        return None
-    return rows
 
 
 def _retaining_refs(

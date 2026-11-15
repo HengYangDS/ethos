@@ -76,7 +76,10 @@ Non-Goals:
    entry changed, installed with `--locked` in a fresh scoped Mise home. The first changes one
    digit of the checksum. The second replaces the checksum, the URL and the API URL with those of
    an asset that another public repository attested, read from the product's own lock, and keeps
-   the recorded provenance field, so only an attestation check can refuse it. A case counts as
+   the recorded provenance field. Observed on Mise 2026.11.8 in the hosted journey of 2026-11-15:
+   Mise refuses that entry because its URL belongs to another release, before any attestation
+   check, so the case proves that foreign bytes are refused and not which check refuses them. A
+   lock with the release's own URL and another's attestation cannot be built. A case counts as
    refused when the install fails and leaves no installed tool. Both run directly after the
    prerelease's install, from the lock as Mise wrote it, so a refusal that does not hold fails the
    leg before its long steps.

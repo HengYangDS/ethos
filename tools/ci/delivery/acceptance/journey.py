@@ -296,7 +296,7 @@ def prove_refusals(
     Each lock is the one Mise just wrote and installed from, with this platform's entry changed,
     so only the named bytes differ. One changes one digit of the archive's checksum. The other
     names an asset that only another public repository attested, by every coordinate that the
-    product's own lock records for it, so that only an attestation check can refuse it. Both
+    product's own lock records for it; Mise 2026.11.8 refuses it by the URL's release. Both
     results are recorded before a case that was not refused fails the journey.
     """
     lock, table = (tool.project / "mise.lock").read_text(encoding="utf-8"), f"platforms.{platform}"

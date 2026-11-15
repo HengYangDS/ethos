@@ -17,6 +17,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from ethos.adapters.actor import invocation_actor
 from ethos.application.invocation import application_result
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.declaration import CommandRequest
@@ -171,7 +172,12 @@ def standard_input() -> str:
 
 
 def invoke(
-    command: str, root: Path, fields: Mapping[str, object] | CommandRequest, *, stdin: str = ""
+    command: str,
+    root: Path,
+    fields: Mapping[str, object] | CommandRequest,
+    *,
+    stdin: str = "",
+    actor: str | None = None,
 ) -> EthosResult:
     """Select one request's operation and run its implementation, or return the refusal unchanged.
 
@@ -179,6 +185,8 @@ def invoke(
     function's `locals()` passes it, so a caller's stray `root` key is still refused. Selection is
     pure and runs outside the failure normalization, which wraps the implementation alone. The
     implementation reads `stdin`, the text a transport read for it, through `standard_input`.
+    A given `actor` is the executor's identity for this invocation and its children; none leaves
+    the declared fallback in place.
     """
     if isinstance(fields, Mapping) and fields.get("root") is root:
         fields = {name: value for name, value in fields.items() if name != "root"}
@@ -190,4 +198,5 @@ def invoke(
     implementation = getattr(import_module(module), name)
     # Every invocation sets its own input, so no earlier invocation's text reaches this one.
     _STANDARD_INPUT.set(stdin)
-    return application_result(command)(implementation)(root, chosen.request)
+    with invocation_actor(actor):
+        return application_result(command)(implementation)(root, chosen.request)

@@ -129,6 +129,10 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         assert (worktree / "unique.txt").read_text(encoding="utf-8") == "unabsorbed work\n"
     if boundary == "foreign_lease":
         assert observe_lease(state_database(repo), branch).state == "valid"
+        # The holder hands the lane over; nothing tells the executor to take the holder's name.
+        handoff = ("decision", "lane.handoff.transfer.preview", worktree.as_posix())
+        step = blocked["next"]
+        assert (step["kind"], step["form"], step["binding"].get("root")) == handoff
 
 
 def test_landed_topic_retirement_survives_an_accepted_identity_rename(tmp_path: Path) -> None:
@@ -229,6 +233,8 @@ def test_retained_topic_retirement_binds_the_surviving_ref(
     }
     if boundary in expected:
         assert expected[boundary] in planned["required_gaps"]
+        asked = [item["flag"] for item in planned["next"].get("inputs", ())]
+        assert asked == (["--actor"] if boundary == "missing_actor" else [])
         assert (
             worktree.is_dir(),
             git(repo, "rev-parse", branch),

@@ -228,7 +228,7 @@ def test_prove_preserves_nonpassing_current_resolution_without_planning(
         commitment=None,
         scope=CurrentScope(()),
         required_gaps=("invocation_actor_missing:work/feature",),
-        next_action="export ETHOS_ACTOR=agent:test:case:agent-a",
+        next_action="rerun the command with --actor <your own identity>",
         user_decision_required=True,
     )
     monkeypatch.setattr(

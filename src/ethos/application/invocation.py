@@ -1,4 +1,8 @@
-"""Normalize known execution and profile failures across application transports."""
+"""Normalize known execution and profile failures across application transports.
+
+The invocation is also the one producer of a step's `inputs`: a result that continues to the
+actor's instruction names the actor's flag as the value only the agent can choose.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +11,14 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.actor import ACTOR_FLAG
+from ethos.adapters.actor import ACTOR_HELP
+from ethos.adapters.actor import ACTOR_STEP
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.invocation_facts import invocation_scope
+from ethos.contracts.next_step import NextInput
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
@@ -20,6 +28,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
+# The actor as a step's input and as the option a catalog command takes: one flag, one help.
+ACTOR_INPUT = NextInput(name="actor", flag=ACTOR_FLAG, description=ACTOR_HELP)
 # The problems an invalid-profile result names; its count says how many there are in all.
 _PROFILE_PROBLEM_LIMIT = 20
 
@@ -74,6 +84,13 @@ def process_failure_result(
     )
 
 
+def _naming_asked_actor(result: EthosResult) -> EthosResult:
+    """Name the actor as the input of a step that asks for it; any other result is unchanged."""
+    if result.next_action != ACTOR_STEP:
+        return result
+    return result.replace(next_inputs=(ACTOR_INPUT,))
+
+
 def application_result[**P](
     command: str,
 ) -> Callable[[Callable[P, EthosResult]], Callable[P, EthosResult]]:
@@ -86,7 +103,7 @@ def application_result[**P](
         def invoke(*args: P.args, **kwargs: P.kwargs) -> EthosResult:
             try:
                 with invocation_scope():
-                    return operation(*args, **kwargs)
+                    return _naming_asked_actor(operation(*args, **kwargs))
             except ProcessExecutionError as error:
                 root = kwargs.get("root", args[0] if args else None)
                 return process_failure_result(

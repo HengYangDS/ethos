@@ -221,7 +221,7 @@ verification; the common validator rejects a missing required anchor.
 `ethos lane repair-signature --root <accepted-worktree> --expect-head <old-oid>
 --json` observes one exact unsigned accepted commit without creating a Git
 object, moving a ref, changing a worktree or writing an Attestation. Applying requires both
-`--apply` and `--authorize`, plus the current `ETHOS_ACTOR`.
+`--apply` and `--authorize`, plus the current actor.
 
 The signed replacement preserves every non-signature payload byte. Current policy determines
 selected local refs; unrelated candidates, independent release refs and remotes remain untouched.
@@ -307,7 +307,9 @@ it, so ETHOS reads another ETHOS process's result, such as the installed runtime
 full before it reads a moved or shortened field. Detail is a cache, not a receipt: detail older than
 seven days is removed whenever new detail is written, and a store that refuses it leaves the result
 inline with the reason in `bound.detail_unavailable`. A reader re-derives `next` from `next_action`
-and never trusts a carried one; it keeps only a carried step's `inputs`, which no step emits yet.
+and never trusts a carried one; it keeps only a carried step's `inputs`. Each catalog command but
+`host run` takes `--actor`, the executor's identity, over `ETHOS_ACTOR`. Without an actor, a
+result's `instruction` names the flag in its `inputs`; under another holder, the handoff preview.
 
 ## Proof Depth
 

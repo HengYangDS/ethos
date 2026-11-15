@@ -1,10 +1,11 @@
 """Build every catalog command from its declaration, and run the operation a request selects.
 
 A command's parameters are its request's fields, positionals first, spelled as the catalog spells
-them with no negated forms, then `--root` and `--json`. Running one selects its operation through
-the shared selection, binds the root that operation needs, reads standard input when the request
-asks for it, and exits as it declares; `--help --json` prints the same declarations as data. Only
-the commands under the invoked word are built.
+them with no negated forms, then `--root`, `--actor` and `--json`; a command that exits as its
+child does keeps `--actor` among the child's words. Running one selects its operation through the
+shared selection, binds the root that operation needs and the actor that runs it, reads standard
+input when the request asks for it, and exits as it declares; `--help --json` prints the same
+declarations as data. Only the commands under the invoked word are built.
 """
 
 import inspect
@@ -27,6 +28,7 @@ from ethos.application.catalog import invoke
 from ethos.application.catalog import select_operation
 from ethos.application.catalog import usage_refusal
 from ethos.application.console import resolve_root
+from ethos.application.invocation import ACTOR_INPUT
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import command_path
@@ -41,9 +43,12 @@ from ethos.surface.cli.output import emit
 from ethos.surface.cli.root_binding import RootOption
 
 _KEYWORD = inspect.Parameter.KEYWORD_ONLY
-# The options every command takes besides its request: the bound root and the JSON frame.
+_ACTOR = Annotated[str, Parameter(name=ACTOR_INPUT.flag, help=ACTOR_INPUT.description)]
+# The options every command takes besides its request: the bound root, the executor's own
+# identity and the JSON frame.
 _OPTIONS = (
     inspect.Parameter("root", _KEYWORD, default=None, annotation=RootOption | None),
+    inspect.Parameter(ACTOR_INPUT.name, _KEYWORD, default=None, annotation=_ACTOR | None),
     inspect.Parameter("json_output", _KEYWORD, default=False, annotation=JsonFlag),
 )
 
@@ -83,7 +88,10 @@ def _signature(command: Command) -> inspect.Signature:
     """Return the parameters Cyclopts reads: positional fields, keyword-only fields, the options."""
     fields = [name for name in command.request.model_fields if name not in command.positionals]
     named = [_parameter(command, name) for name in (*command.positionals, *fields)]
-    return inspect.Signature([*named, *_OPTIONS])
+    # A command that hands its words to a child takes no actor option, so the child keeps its own.
+    passes = any(item.exit == "process" for item in command.operations)
+    options = [item for item in _OPTIONS if not (passes and item.name == ACTOR_INPUT.name)]
+    return inspect.Signature([*named, *options])
 
 
 def _standard_input(command: Command, chosen: Selected) -> str:
@@ -98,8 +106,9 @@ def run(
     root: Path | None,
     *,
     json_output: bool,
+    actor: str | None = None,
 ) -> None:
-    """Run the operation one request selects, or report why it selects none."""
+    """Run the operation one request selects as the given actor, or report why it selects none."""
     chosen = select_operation(name, request)
     if isinstance(chosen, Refused):
         emit(chosen.result, json_output=json_output)
@@ -110,7 +119,8 @@ def run(
         emit(refusal, json_output=json_output)
         return
     target = root if operation.creates_root and root is not None else resolve_root(root)
-    result = invoke(name, target, chosen.request, stdin=_standard_input(COMMANDS[name], chosen))
+    stdin = _standard_input(COMMANDS[name], chosen)
+    result = invoke(name, target, chosen.request, stdin=stdin, actor=actor)
     status = result.data.get("exit_status") if operation.exit == "process" else None
     if isinstance(status, int):
         raise SystemExit(status)
@@ -129,7 +139,9 @@ def _function(command: Command) -> Callable[..., None]:
     def call(*args: object, **kwargs: object) -> None:
         fields = signature.bind(*args, **kwargs).arguments
         root = cast("Path | None", fields.pop("root", None))
-        run(command.name, fields, root, json_output=bool(fields.pop("json_output", False)))
+        actor = cast("str | None", fields.pop(ACTOR_INPUT.name, None))
+        json_output = bool(fields.pop("json_output", False))
+        run(command.name, fields, root, json_output=json_output, actor=actor)
 
     vars(call)["__signature__"] = signature
     return call

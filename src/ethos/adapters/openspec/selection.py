@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import os
-from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import process_input
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -14,8 +14,8 @@ from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
     from collections.abc import Mapping
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 _SELECTION = "ETHOS_CHANGE"
@@ -26,21 +26,9 @@ def requested_change(explicit: str | None = None) -> str | None:
     return explicit if explicit is not None else os.environ.get(_SELECTION)
 
 
-@contextmanager
-def selected_change(change: str | None) -> Generator[None]:
+def selected_change(change: str | None) -> AbstractContextManager[None]:
     """Let an explicit Change win for one invocation and its children, then restore the input."""
-    if change is None:
-        yield
-        return
-    inherited = os.environ.get(_SELECTION)
-    os.environ[_SELECTION] = change
-    try:
-        yield
-    finally:
-        if inherited is None:
-            os.environ.pop(_SELECTION, None)
-        else:
-            os.environ[_SELECTION] = inherited
+    return process_input(_SELECTION, change)
 
 
 def artifact_path_change(root: Path, paths: tuple[str, ...]) -> str | None:

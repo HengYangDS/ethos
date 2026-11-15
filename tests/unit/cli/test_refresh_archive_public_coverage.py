@@ -114,14 +114,14 @@ def test_archive_public_preserves_current_resolution_recovery_action(monkeypatch
         commitment=None,
         scope=CurrentScope(()),
         required_gaps=(gap,),
-        next_action="export ETHOS_ACTOR=agent:test",
+        next_action="rerun the command with --actor <your own identity>",
     )
     invocations = []
     stub_archive_public(monkeypatch, tmp_path, invocations=invocations, resolution=resolution)
     report = archive.archive_change(root=tmp_path, change=CHANGE, expect_head=HEAD)
     assert invocations == ["workspace", "resolution"]
     assert report["required_gaps"] == [gap]
-    assert report["next_action"] == "export ETHOS_ACTOR=agent:test"
+    assert report["next_action"] == "rerun the command with --actor <your own identity>"
     assert report["user_decision_required"] is False
 
 

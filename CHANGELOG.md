@@ -35,6 +35,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   and names the same request run through `mise --cd <root> exec --locked`. A pin with options
   stays as it is. `ethos adopt`'s conflict for an older selection now names this command and says
   that it runs in a Work Lane. Without `--pin` the command and the paradigm report are unchanged.
+- Every catalog command takes `--actor <identity>`: the executor's own identity for that invocation
+  and its children, which wins over the fallback `ETHOS_ACTOR`. `ethos host run` alone takes none:
+  it hands its words to the child command as before, with or without `--`. A result that lacks an
+  actor (`invocation_actor_missing`) is the first to emit `next.inputs`: its step is an
+  `instruction` whose one input holds the name `actor`, the flag `--actor` and a description. The
+  step's prose names the CLI flag; a tool projection reads the input.
 
 ### Changed
 
@@ -61,6 +67,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The next action of `host_reservation_exceeded` names the value of `reserved_cpus` to declare. On
   a host whose guests hold as many virtual CPUs as it has, or more, it names the guests' sizes: no
   declaration reserves every CPU, and the earlier text asked for a value that none satisfies.
+- **Breaking:** no continuation renders `export ETHOS_ACTOR=<holder>`. A result without an actor
+  continues to the instruction `rerun the command with --actor <your own identity>`. A result whose
+  actor is not the holder (`lease_holder_mismatch`, or `foreign_work_lane_retire_authority_required`
+  at a retirement) continues to the `ethos lane handoff transfer` preview with the Lease's exact
+  coordinates, as a decision for a person. Repair: a caller that ran or parsed the `export` line
+  passes its own identity with `--actor`, or keeps `ETHOS_ACTOR` set, and takes the handoff to the
+  holder. A reader of 0.2.0-beta.11 reads these results.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

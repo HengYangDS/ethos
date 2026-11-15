@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
-from ethos.adapters.actor import ACTOR_VARIABLE
+from ethos.adapters.actor import ACTOR_STEP
+from ethos.adapters.actor import handoff_step
 from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
@@ -30,8 +32,6 @@ from ethos.contracts.verdict import lease_verdict
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.retirement import LinkedRetirementRequest
 
 
@@ -224,7 +224,12 @@ def _continuation(
     holder = effects.holder_ref(authority)
     if "foreign_work_lane_retire_authority_required" in gaps and holder:
         return {
-            "next_action": f"export {ACTOR_VARIABLE}={shlex.quote(holder)}",
+            "next_action": handoff_step(
+                Path(str(authority["path"])),
+                str(authority["branch"]),
+                cast("dict[str, object]", authority["lease"]),
+                process_actor(),
+            ),
             "user_decision_required": True,
         }
     if "lane_retirement_receipt_required" in gaps:
@@ -242,7 +247,7 @@ def _continuation(
         }
     if gaps:
         return {
-            "next_action": f"ethos lane status --root {shlex.quote(repo.as_posix())} --json",
+            "next_action": _missing_actor_or_status(repo, gaps),
             "user_decision_required": "authorization_required" in gaps,
         }
     if request.apply:
@@ -267,3 +272,10 @@ def _continuation(
         parts.extend(("--authorize", "--apply"))
     parts.extend(("--root", shlex.quote(repo.as_posix()), "--json"))
     return {"next_action": " ".join(parts), "user_decision_required": True}
+
+
+def _missing_actor_or_status(repo: Path, gaps: tuple[str, ...]) -> str:
+    """Return the step of a refusal with no step of its own: the actor it lacks, else the status."""
+    if any(gap.startswith("invocation_actor_missing:") for gap in gaps):
+        return ACTOR_STEP
+    return f"ethos lane status --root {shlex.quote(repo.as_posix())} --json"

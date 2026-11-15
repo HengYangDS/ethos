@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,7 +10,11 @@ import pytest
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.application.inspection import inspect_repository
+from ethos.application.invocation import ACTOR_INPUT
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.operations.catalog import COMMANDS
+from ethos.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
@@ -17,6 +22,15 @@ from tests.support.lane_scenarios import leased_worktree
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_HOLDER = "agent:test:case:agent-a"
+_ACTOR_STEP = "rerun the command with --actor <your own identity>"
+# What each gap continues to: the step's kind, its operation and the values it leaves to the agent.
+_STEPS = {
+    "invocation_actor_missing": ("instruction", "", [ACTOR_INPUT.model_dump()]),
+    "work_lane_missing_lease": ("decision", "lane.lease.reacquire.preview", []),
+    "lease_holder_mismatch": ("decision", "lane.handoff.transfer.preview", []),
+}
 
 
 @pytest.mark.parametrize("policy_declared", [False, True])
@@ -78,11 +92,56 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
 
     assert {result["required_gaps"][0] for result in results} == {gap}
     assert "write_admission_not_armed:runtime_current" in results[0]["required_gaps"]
+    lease = leases_by_branch(lane).get("work/feature", {})
+    handoff = ("lane", "handoff", "transfer", "--generation", str(lease.get("generation")))
+    handoff += ("--expires-at", str(lease.get("expires_at")), "--branch", "work/feature")
+    handoff += ("--holder-ref", _HOLDER, "--target-holder-ref", str(actor))
+    handoff += ("--root", str(lane), "--json")
     assert {result["next_action"] for result in results} == {
         (f"ethos lane lease reacquire --path {lane} --holder-ref {actor} --root {lane} --json")
         if gap.startswith("work_lane_missing_lease:")
-        else "export ETHOS_ACTOR=agent:test:case:agent-a"
+        else shlex.join(("ethos", *handoff))
+        if gap.startswith("lease_holder_mismatch:")
+        else _ACTOR_STEP
     }
     assert {result["user_decision_required"] for result in results} == {
         decision_state == "await-user"
     }
+    steps = [result["next"] for result in results]
+    assert [(step["kind"], step["form"], step.get("inputs", [])) for step in steps] == [
+        _STEPS[gap.partition(":")[0]]
+    ] * len(results)
+    # The handoff that a mismatch names is live: its preview admits the generation it carries.
+    if gap.startswith("lease_holder_mismatch:"):
+        assert run_ethos(*handoff, cwd=lane)["verdict"] == "pass"
+
+
+def test_the_actor_a_step_asks_for_is_supplied_by_its_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--actor` supplies the named input and wins over the fallback; no request declares it."""
+    lane = leased_worktree(init_git_repo(tmp_path / "repo"), tmp_path / "repo-work-feature")
+    gap = "invocation_actor_missing:work/feature"
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+
+    asked = run_ethos("status", "--json", cwd=lane)
+    tool = inspect_repository(lane).to_dict()["next"]
+    supplied = run_ethos("status", ACTOR_INPUT.flag, _HOLDER, "--json", cwd=lane)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
+    preferred = run_ethos("status", ACTOR_INPUT.flag, _HOLDER, "--json", cwd=lane)
+
+    assert (asked["required_gaps"][0], asked["next_action"]) == (gap, _ACTOR_STEP)
+    # The operation behind the MCP status tool carries the entry that a tool projection reads.
+    entry = {"name": "actor", "flag": "--actor", "description": ACTOR_INPUT.description}
+    assert (tool["kind"], tool["inputs"], bool(entry["description"])) == (
+        "instruction",
+        [entry],
+        True,
+    )
+    # The reader of 0.2.0-beta.11 keeps the inputs of the first step that carries them.
+    assert EthosResult.from_payload(asked).to_dict()["next"] == asked["next"]
+    assert [gap in result["required_gaps"] for result in (supplied, preferred)] == [False, False]
+    assert not [item for item in supplied["required_gaps"] if item.startswith("lease_holder_")]
+    assert supplied["required_gaps"] == preferred["required_gaps"]
+    # The flag selects no operation, since it is a field of no request.
+    assert not [name for name, item in COMMANDS.items() if "actor" in item.request.model_fields]

@@ -64,7 +64,7 @@ def test_current_resolution_preserves_the_first_authority_gap() -> None:
         authority=authority(verdict="block", reason="invocation_actor_missing:work/example"),
     )
     assert resolution.required_gaps == ("invocation_actor_missing:work/example",)
-    assert resolution.next_action == "export ETHOS_ACTOR=agent:test"
+    assert resolution.next_action == "rerun the command with --actor <your own identity>"
     assert resolution.user_decision_required is False
 
 

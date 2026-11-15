@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.actor import LOCAL_ISSUER
+from ethos.adapters.actor import invocation_actor
 from ethos.adapters.actor import process_actor
 from ethos.adapters.actor import process_issuer
+from ethos.adapters.process import run_command
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -31,6 +34,41 @@ def test_the_process_actor_is_stripped_and_defaults_only_for_issuers(
     else:
         monkeypatch.setenv(ACTOR_VARIABLE, declared)
     assert (process_actor(), process_issuer()) == (actor, issuer)
+
+
+@pytest.mark.parametrize(
+    ("inherited", "given", "bound"),
+    [
+        ("agent:a:b:outer", " agent:a:b:inner ", "agent:a:b:inner"),
+        (None, "agent:a:b:inner", "agent:a:b:inner"),
+        ("agent:a:b:outer", None, "agent:a:b:outer"),
+        ("agent:a:b:outer", "  ", "agent:a:b:outer"),
+    ],
+)
+def test_an_explicit_actor_binds_one_invocation_and_its_children(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    inherited: str | None,
+    given: str | None,
+    bound: str,
+) -> None:
+    """A given actor wins over the fallback, reaches children and ends with its invocation."""
+    if inherited is None:
+        monkeypatch.delenv(ACTOR_VARIABLE, raising=False)
+    else:
+        monkeypatch.setenv(ACTOR_VARIABLE, inherited)
+    probe = (sys.executable, "-c", "import os; print(os.environ['ETHOS_ACTOR'])")
+    seen: list[str] = []
+
+    def failed_invocation() -> None:
+        with invocation_actor(given):
+            seen.extend((process_actor(), run_command(tmp_path, probe, check=True).stdout.strip()))
+            raise LookupError
+
+    with pytest.raises(LookupError):
+        failed_invocation()
+    assert seen == [bound, bound]
+    assert process_actor() == (inherited or "")
 
 
 def test_no_other_product_module_reads_the_actor_variable() -> None:

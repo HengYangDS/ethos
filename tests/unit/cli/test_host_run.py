@@ -333,11 +333,20 @@ def test_a_run_without_an_actor_marks_nothing(
     assert host_work.work_owner(directory) == _ACTOR
 
 
-def test_every_token_after_the_end_marker_reaches_the_command(tmp_path: Path) -> None:
-    """ETHOS reads its own options before `--` only; the command receives the rest unchanged."""
-    tokens = ["--help", "-h", "--json", "--version", "--root", "elsewhere"]
+@pytest.mark.parametrize(
+    ("marker", "tokens"),
+    [
+        (("--",), ["--help", "-h", "--json", "--version", "--root", "x", "--actor", "x"]),
+        # Without the marker the child still keeps a flag that this command does not declare.
+        ((), ["--actor", "x", "--other"]),
+    ],
+)
+def test_every_token_after_the_end_marker_reaches_the_command(
+    tmp_path: Path, marker: tuple[str, ...], tokens: list[str]
+) -> None:
+    """ETHOS reads its own options before `--` only, and a child's `--actor` is never its own."""
     child = "import json, sys; print(json.dumps(sys.argv[1:]))"
-    argv = ("host", "run", "--", sys.executable, "-c", child, *tokens)
+    argv = ("host", "run", *marker, sys.executable, "-c", child, *tokens)
     completed = run_ethos_raw(*argv, cwd=tmp_path)
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert json.loads(completed.stdout.strip().splitlines()[-1]) == tokens

@@ -27,7 +27,9 @@ uv run ethos status --json
 Read `required_gaps`, the typed `next` step, derived `continuation`,
 `missing_facts_or_evidence`, and `user_decision_required` before changing
 tracked files. Run `next.argv` only when `next.kind` is `command`; a `decision`
-waits for a person, and `next_action` renders the step for people. The
+waits for a person, and `next_action` renders the step for people. When
+`next.inputs` names a value, such as `--actor` for your own identity, rerun the
+command with that entry's `flag`. The
 schema-version-`3` result preserves `state` and `required_gaps`. A readiness
 result is not executed proof, landing, publication, or remote push. Follow only
 the selected boundary, not a fixed status/plan/prove pipeline. When

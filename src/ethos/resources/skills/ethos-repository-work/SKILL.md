@@ -15,8 +15,10 @@ authorization, proof, or an Agent-specific command channel.
    `required_gaps`, `next`, `continuation`, and `user_decision_required`
    together. Run `next.argv` only when `next.kind` is `command`; take a
    `decision` to the person, read an `instruction` as guidance, and stop at
-   `done`. `next_action` renders the same step for people; do not parse it. An
-   empty `next_action` does not mean the product or task is done.
+   `done`. When `next.inputs` names a value, such as `--actor` for your own
+   identity, rerun your command with that entry's `flag` and your value, never
+   another holder's. `next_action` renders the same step for people; do not
+   parse it. An empty `next_action` does not mean the product or task is done.
 2. Read the target repository's `AGENTS.md` when present, its accepted OpenSpec
    Change, and the rules or documents selected by that repository's current
    result. To create or inspect a Change, execute the current status result's

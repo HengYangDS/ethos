@@ -234,6 +234,26 @@ def defer_interruptions() -> Generator[None]:
 
 
 @contextmanager
+def process_input(name: str, value: str | None) -> Generator[None]:
+    """Let an explicit value win over one process input for an invocation and its children.
+
+    The input is restored when the invocation ends; no value leaves the inherited one in place.
+    """
+    if value is None:
+        yield
+        return
+    inherited = os.environ.get(name)
+    os.environ[name] = value
+    try:
+        yield
+    finally:
+        if inherited is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = inherited
+
+
+@contextmanager
 def command_scope(
     *, timeout_seconds: float | None = None, handle_termination: bool = False
 ) -> Generator[CommandScope]:

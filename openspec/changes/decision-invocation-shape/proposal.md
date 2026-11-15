@@ -10,6 +10,12 @@ there with the installed function by a governed repository's session.
 - In that repository 357 prose or heading lines of 47 decision records are flagged, 336 of them
   only for a spaced hyphen or an arrow.
 - The result is `docs_decision_execution_content` on 42 of its records.
+- The same session reported a third case on 2026-11-15. `ethos lane format --apply` reads a whole
+  file's postimage, and a two-word code span in prose is read there as an invocation of an
+  executable that the baseline does not admit
+  (`product_reference_not_admitted_at_baseline:executable:<word>`). A changelog that names a removed
+  command in a code span cannot be formatted with `--apply`. Whether the same function reads it is
+  not measured yet.
 
 ## What Changes
 
@@ -17,6 +23,8 @@ there with the installed function by a governed repository's session.
   followed by a letter or a digit.
 - A regression with the probe strings: a spaced hyphen, an arrow and a heading are no invocation;
   a real option still is.
+- The reader behind the third case is found and measured against the same probe. If it is another
+  function, it gets its own narrowing and regression in this Change.
 
 ## Capabilities
 

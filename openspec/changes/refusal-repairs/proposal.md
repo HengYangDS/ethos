@@ -32,6 +32,11 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - To read, not measured yet: other denied placements that may refuse their own repair, as the
   write guard did before `denied-path-removal`: the audit's repair plans for tracked scripts, and
   denied generated homes.
+- A proof's source-format gate result names the same next step as `ethos lane format --check`:
+  the apply, the naming of a kept record, or the Git attribute that marks a path received.
+- The shipped format policy drops `immutable_record_roots`, which `record-roots-one-owner` stopped
+  reading. It leaves one release after that Change, when the runtime that judges this repository
+  is built from a head that accepts the policy without it.
 
 ## Capabilities
 

@@ -78,11 +78,11 @@ Where the accepted branch declares the exact GitHub pin, `CURRENT` follows it fo
 host's platform from the accepted branch, ask Mise where that release is installed and select the
 install only when it is newer than `CURRENT`; a development build precedes the release of its
 version. Otherwise `CURRENT` stays and `data.runtime_pin` names the state:
-`runtime_pin_behind_current` for an older pin, `runtime_pin_unattested` for a lock entry without
-`github-attestations` outside the checksum class, and `runtime_pin_not_installed` with
-`mise install --locked` as the next action. With nothing selected the last two refuse. ETHOS
-installs and fetches nothing, and a repository without the pin selects the invoking build and
-reports `runtime_pin_absent`.
+`runtime_pin_behind_current` for an older pin, `runtime_pin_unattested` for a lock entry that is
+absent or does not record what binds the release (`github-attestations`, or the checksum in the
+checksum class), and `runtime_pin_not_installed` with `mise install --locked` as the next action.
+With nothing selected the last two refuse. ETHOS installs and fetches nothing, and a repository
+without the pin selects the invoking build and reports `runtime_pin_absent`.
 
 To select another release than the accepted pin, a Work Lane runs
 `ethos hook install --runtime <absolute-runtime-path> --reason <text> --root <lane> --json`. After

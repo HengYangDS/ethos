@@ -185,6 +185,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   now holds a verification provider reference to the form and the uniqueness of a provider
   reference; it accepted any string, repeated or not. A reader of the gap registry receives a copy
   of a row, so a change to it stays with that reader.
+- A transition that follows the accepted pin no longer selects a checksum-class release (one
+  before 0.2.0-alpha.29, or 0.2.0-beta.3) whose lock entry for the host's platform is absent or
+  records no checksum. Only a release outside that class needed its entry, so such a pin selected
+  whatever install Mise reported. The transition now keeps `CURRENT` and names
+  `runtime_pin_unattested`, and refuses by that name when nothing is selected.
+- The shared conformance of the CLI, SDK and MCP surfaces requires exactly the files an adoption
+  plans: its two bindings, and the pin only from a release build. It accepted any superset.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

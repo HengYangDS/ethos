@@ -16,6 +16,7 @@ from ethos.adapters.repo.runtime.pin_selection import follow_accepted_pin
 from ethos.adapters.repo.runtime.pin_selection import receipt_departure
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.application.adoption import adopt_repository
 from ethos.application.catalog import invoke
 from ethos.repository.release.identity import build_identity
@@ -40,6 +41,14 @@ _REFUSED, _DECLARATION = (
 _HTTP = '[tools."http:ethos"]\nversion = "9.3.0"\n'
 _BARE = pinned_release_files("9.3.0", attested=False)
 _BOTH = {path: text + _HTTP for path, text in pinned_release_files("9.3.0").items()}
+# A checksum-class pin that its accepted lock does not bind for this host: no lock, an entry
+# for another platform only, and an entry that records no checksum.
+_OLD = pinned_release_files("0.1.0", attested=False)
+_NO_LOCK = {MISE_CONFIG: _OLD[MISE_CONFIG]}
+_NO_ENTRY = pinned_release_files("0.1.0", attested=False, platform="other-x64")
+_NO_SUM = {
+    path: text.replace(f'checksum = "sha256:{"0" * 64}"\n', "") for path, text in _OLD.items()
+}
 CASES = [
     ("no-pin", "9.2.0", {}, "", "runtime_pin_absent", "invoking", ""),
     (
@@ -88,6 +97,9 @@ CASES = [
         "pinned",
         "",
     ),
+    ("checksum-no-lock", "", _NO_LOCK, "0.1.0", "runtime_pin_unattested", "refused", _REPAIR),
+    ("checksum-no-entry", "0.0.9", _NO_ENTRY, "0.1.0", "runtime_pin_unattested", "kept", _REPAIR),
+    ("checksum-no-sum", "", _NO_SUM, "0.1.0", "runtime_pin_unattested", "refused", _REPAIR),
     (
         "not-installed",
         "9.2.0",

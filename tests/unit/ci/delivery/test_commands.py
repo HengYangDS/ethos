@@ -26,6 +26,7 @@ from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import host_environment
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
+from tools.ci.delivery.acceptance.mcp import require_planned_files
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -101,6 +102,30 @@ def test_brownfield_conformance_checks_authored_content(
             "planned_files": planned,
         }
     assert stages == (["preview"] if "preview_invalid" in gap else ["preview", "apply"])
+
+
+_BINDINGS = [".ethos/profile.toml", "openspec/config.yaml"]
+_PIN = ".config/mise/config.toml"
+
+
+@pytest.mark.parametrize(
+    ("release", "planned", "exact"),
+    [
+        (False, _BINDINGS, True),
+        (True, [*_BINDINGS, _PIN], True),
+        (True, _BINDINGS, False),
+        (False, [*_BINDINGS, _PIN], False),
+        (True, [*_BINDINGS, _PIN, "README.md"], False),
+        (False, _BINDINGS[:1], False),
+    ],
+)
+def test_shared_conformance_requires_the_exact_planned_files(release, planned, exact) -> None:
+    """Only a release build plans its pin, and no build plans any other file."""
+    if exact:
+        require_planned_files(planned, release=release)
+    else:
+        with pytest.raises(AssertionError):
+            require_planned_files(planned, release=release)
 
 
 def _run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:

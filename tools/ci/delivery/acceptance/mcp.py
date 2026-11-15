@@ -17,6 +17,7 @@ from unittest.mock import patch
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.application.adoption import adopt_repository
 from ethos.application.inspection import inspect_repository
@@ -24,6 +25,7 @@ from ethos.application.land.operation import land_repository
 from ethos.application.plan import plan_repository
 from ethos.application.publication.operation import publish_repository
 from ethos.application.result_projection import with_runtime
+from ethos.repository.release.identity import is_release_build
 from ethos.result import expand_result
 
 
@@ -141,6 +143,12 @@ async def _call(
     return expand_result(json.loads(completed.stdout))
 
 
+def require_planned_files(planned: list[str], *, release: bool) -> None:
+    """Require the exact files an adoption plans: its two bindings, and a release's own pin."""
+    pin = {".config/mise/config.toml"} if release else set()
+    assert set(planned) == {".ethos/profile.toml", "openspec/config.yaml"} | pin, planned
+
+
 async def _adoption(
     surface: str,
     *,
@@ -231,11 +239,9 @@ async def _adoption(
         )
         assert applied["verdict"] == "pass"
         assert applied["data"]["applied"] is True
-        # A release build also plans its own pin; the hashes below cover every planned file.
-        assert set(applied["data"]["planned_files"]) >= {
-            ".ethos/profile.toml",
-            "openspec/config.yaml",
-        }
+        # Only a release build plans its own pin; the hashes below cover every planned file.
+        release = is_release_build(invoking_build_identity())
+        require_planned_files(applied["data"]["planned_files"], release=release)
         retained = {
             root / item["path"]: item["content_sha256"] for item in preview["data"]["write_plan"]
         }

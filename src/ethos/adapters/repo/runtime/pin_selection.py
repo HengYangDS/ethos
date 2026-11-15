@@ -106,8 +106,7 @@ def _selection(
             )
     # The lock is judged only here, where the transition would select the pinned bytes.
     entry = pin.lock_entry(_accepted_text(repo, MISE_LOCK), declared, mise_platform())
-    attested = entry is not None and entry.provenance == pin.ATTESTED_PROVENANCE
-    if pin.release_class(declared.version) != "checksum" and not attested:
+    if not _binds(entry, declared.version):
         return PinSelection("runtime_pin_unattested", next_action=_REPAIR)
     if installed := _installed(repo, f"{declared.key}@{declared.version}"):
         return PinSelection(runtime=installed)
@@ -160,6 +159,19 @@ def mise_platform() -> str:
 def _accepted_text(repo: Path, path: str) -> str:
     """Read one tracked file from the accepted branch's tree; empty where it has none."""
     return git.committed_file_text(repo, roles.BranchRolePolicy().accepted_branch, path)
+
+
+def _binds(entry: pin.LockEntry | None, version: str) -> bool:
+    """Whether the platform's lock entry records what binds the release's bytes.
+
+    That is the release's attestation, or its checksum where only checksums bind the release. An
+    absent entry binds nothing in either class.
+    """
+    if entry is None:
+        return False
+    if pin.release_class(version) == "checksum":
+        return entry.checksum != ""
+    return entry.provenance == pin.ATTESTED_PROVENANCE
 
 
 def _installed(repo: Path, tool: str) -> Path | None:

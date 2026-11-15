@@ -14,6 +14,7 @@ from ethos.adapters.mutation.projection import project_repository
 from ethos.adapters.mutation.source_format import format_source
 from ethos.adapters.repo.commit.rebuild.census import rebuild_census
 from ethos.adapters.repo.commit.rebuild.readiness import rebuild_readiness
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.trust_anchor.authorization import authorize_configured_commit_signer
 from ethos.application.catalog import standard_input
 from ethos.application.lane.result import lane_result
@@ -26,6 +27,7 @@ from ethos.contracts.operations.lane_repair import RepairSignatureRequest
 from ethos.contracts.operations.lane_repair import TrustCommitSignerRequest
 from ethos.contracts.outcome import require
 from ethos.contracts.semantic import parse_semantic_json
+from ethos.repository.release.identity import is_release_build
 from ethos.result import EthosResult
 
 _REDACTED = ("count", "outside_roots", "changed_paths", "generation")
@@ -53,8 +55,17 @@ def format_lane(root: Path, request: FormatRequest) -> EthosResult:
 
 
 def repair_lane_paradigm(root: Path, request: RepairParadigmRequest) -> EthosResult:
-    """Preview or apply the deterministic repairs of repository paradigm gaps."""
-    return lane_result("lane repair-paradigm", repair_paradigm(root=root, apply=request.apply))
+    """Preview or apply the deterministic repairs of repository paradigm gaps.
+
+    With `--pin` the plan also declares the invoking release as the ETHOS selection. A development
+    build is no release that Mise could install, so it names no target and only reports.
+    """
+    release = None
+    if request.pin:
+        build = invoking_build_identity()
+        release = build.product_version if is_release_build(build) else ""
+    report = repair_paradigm(root=root, apply=request.apply, release=release)
+    return lane_result("lane repair-paradigm", report)
 
 
 def trust_lane_signer(root: Path, request: TrustCommitSignerRequest) -> EthosResult:

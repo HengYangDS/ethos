@@ -1452,6 +1452,7 @@ rules_config_parse_error = { owner = "repository.policy", detail = "the value th
 rules_profile_ambiguous = { owner = "repository.policy", detail = "the value that follows the colon" }
 rules_profile_invalid = { owner = "repository.policy", detail = "the value that follows the colon" }
 runtime_manifest = { owner = "adapters.repo" }
+runtime_pin_ahead = { owner = "adapters.mutation", detail = "the value that follows the colon", meaning = "A pin move was asked of a tree that selects a newer release; a pin moves up only." }
 runtime_pin_ambiguous = { owner = "repository.release" }
 runtime_pin_invalid = { owner = "repository.release" }
 runtime_pin_lock_invalid = { owner = "repository.release" }

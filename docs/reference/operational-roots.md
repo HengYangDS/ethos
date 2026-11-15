@@ -43,6 +43,11 @@ peer remote rename, and every gap that needs judgment with its canonical repair.
 Apply writes only after exact-path prewrite admission and plans nothing on a
 repaired tree. It neither runs the follow-up commands nor commits.
 
+With `--pin`, a release's plan first declares that release's bare entry as the repository's
+ETHOS selection. The
+[ETHOS source adoption architecture](../architecture/adoption-profiles.md "source-only")
+describes the move, the steps it names and the request it blocks.
+
 To keep a protected peer's identity out of tracked records, preview it and then
 redact it with the owner's key, read from standard input:
 

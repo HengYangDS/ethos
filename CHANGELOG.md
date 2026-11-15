@@ -25,6 +25,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The Python behavior probe writes the same `.ethos-owner.json` into the scratch root of its
   attempt when its proof holds or has joined a host ticket and declares an actor, so a root that
   outlives an interrupted proof names its owner. The mark is removed with the scratch.
+- `ethos lane repair-paradigm --pin` moves a repository to the release that runs it. The plan
+  first declares that release's bare entry in `.config/mise/config.toml`, in the same admitted
+  patch as its other repairs: it replaces an older bare pin or the `http:ethos` table with its
+  sub-tables, and a repository without a selection gets its first pin. After the apply the next
+  action is `mise --cd <root> lock`, and where the repository declares projections the result
+  then names `ethos lane project --root <root> --json`; ETHOS runs neither. A repository that
+  selects a newer release blocks the request with `runtime_pin_ahead:<version>`, plans nothing
+  and names the same request run through `mise --cd <root> exec --locked`. A pin with options
+  stays as it is. `ethos adopt`'s conflict for an older selection now names this command and says
+  that it runs in a Work Lane. Without `--pin` the command and the paradigm report are unchanged.
 
 ### Changed
 

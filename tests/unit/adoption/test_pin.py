@@ -126,6 +126,36 @@ def test_an_applied_pin_is_followed_by_the_relock(
 
 
 @pytest.mark.parametrize(
+    ("config", "moved"),
+    [
+        pytest.param(HTTP, True, id="http-table"),
+        pytest.param(bare_entry("0.2.0-beta.10"), True, id="older-pin"),
+        pytest.param(bare_entry("0.2.0-beta.12"), False, id="newer-pin"),
+        pytest.param(OPTIONS, False, id="options-form"),
+    ],
+)
+def test_a_conflict_that_the_lane_repair_moves_names_that_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config: str, *, moved: bool
+) -> None:
+    """An older selection's conflict names the lane repair with `--pin`, run in a Work Lane."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / MISE_CONFIG).parent.mkdir(parents=True)
+    (repo / MISE_CONFIG).write_text(config, encoding="utf-8")
+    build = build_identity(
+        product=RELEASE, source_commit="a" * 40, source_tree="b" * 40, release=True
+    )
+    monkeypatch.setattr(adoption_requests, "invoking_build_identity", lambda: build)
+
+    result = adopt_repository(repo)
+
+    repair = f"by running ethos lane repair-paradigm --pin --root {repo} --json in a Work Lane"
+    assert result.required_gaps == (f"adoption_conflict:{MISE_CONFIG}",)
+    assert (repair in result.next_action) is moved
+    assert result.next_action.endswith(f"; then ethos adopt --root {repo} --json")
+    assert _text(repo / MISE_CONFIG) == config
+
+
+@pytest.mark.parametrize(
     ("config", "planned"),
     [
         pytest.param(PINNED_OWN, {"key": PIN_KEY, "after": OWN + f"\n{SETTING}"}, id="own-pin"),

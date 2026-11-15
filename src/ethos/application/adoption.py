@@ -10,6 +10,7 @@ from ethos.adapters.repo.hook.exit import adopt_exit
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
+from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.application.catalog import invoke
 from ethos.contracts.operations.adopt import AdoptRequest
 from ethos.contracts.verdict import report_verdict
@@ -135,7 +136,8 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
         plan_payload, shlex.join(relock if plan_payload["relock"] else action)
     )
     if conflicts:
-        next_action = f"Resolve {', '.join(conflicts)} in {target}; then {next_action}"
+        movable = bool(plan_payload["movable_pin"])
+        next_action = _resolution(conflicts, target, next_action, movable=movable)
     return EthosResult(
         command="adopt",
         verdict=verdict,
@@ -170,6 +172,21 @@ def _continuation(plan: dict[str, object], request: str) -> str:
     selection = plan.get("runtime_selection")
     repair = selection.get("next_action") if isinstance(selection, dict) else ""
     return str(repair or request)
+
+
+def _resolution(conflicts: tuple[str, ...], target: Path, then: str, *, movable: bool) -> str:
+    """Name what resolves each conflict before the request continues.
+
+    An older selection in the Mise configuration is moved by the lane repair, which names its
+    root and runs in a Work Lane; any other conflict is its author's to resolve in the tree.
+    """
+    pin = f"adoption_conflict:{MISE_CONFIG}"
+    repair = ("ethos", "lane", "repair-paradigm", "--pin", "--root", str(target), "--json")
+    others = [gap for gap in conflicts if not (movable and gap == pin)]
+    parts = [f"{', '.join(others)} in {target}"] if others else []
+    if movable:
+        parts.append(f"{pin} by running {shlex.join(repair)} in a Work Lane")
+    return f"Resolve {' and '.join(parts)}; then {then}"
 
 
 def leave_ethos(root: Path, request: AdoptRequest) -> EthosResult:

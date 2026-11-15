@@ -52,6 +52,7 @@ class FormatRequest(CommandRequest):
 class RepairParadigmRequest(CommandRequest):
     """Plan, or apply, the deterministic repairs of the repository's paradigm gaps."""
 
+    pin: bool = switch("Also declare the invoking release as the repository's ETHOS selection.")
     apply: Apply = False
 
 
@@ -128,7 +129,7 @@ REPAIR_PARADIGM = Command(
         "lane.repair-paradigm",
         "Plan the repairs of the repository's paradigm gaps.",
         "Write the planned repairs after exact-path prewrite admission.",
-        request="",
+        request="pin",
     ),
 )
 TRUST_COMMIT_SIGNER = Command(

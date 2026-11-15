@@ -11,8 +11,12 @@ import json
 import tomllib
 from typing import TYPE_CHECKING
 
+from packaging.version import Version
+
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.release.pin import bare_entry
+from ethos.repository.release.pin import declared_pin
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -50,6 +54,40 @@ def toolchain_gaps(
             f"add {config} with locked resolution and {_listed(paradigm.toolchain.verbs)} "
             "tasks; only mise and npm run tasks",
         )
+
+
+# The obligation of a requested pin move; its repair is the one handler that a request adds.
+PIN_OBLIGATION = "runtime-pin"
+
+
+def pin_gap(config: str, text: str | None, release: str) -> ParadigmGap | None:
+    """Report an ETHOS selection that is not the release's bare entry; None when it is.
+
+    Only an upgrade asks: the paradigm report holds no repository to the release that reads it.
+    A build that is no release gives an empty `release` and names no target.
+    """
+    repair = f"declare {release}'s bare entry as the ETHOS selection"
+    try:
+        pin = declared_pin(text or "")
+    except ValueError:
+        return ParadigmGap(PIN_OBLIGATION, config, f"declare one exact ETHOS pin in {config}")
+    if not release:
+        repair = "run ethos lane repair-paradigm --pin from a released ETHOS"
+    elif pin == declared_pin(bare_entry(release)):
+        return None
+    return ParadigmGap(PIN_OBLIGATION, config, repair)
+
+
+def pin_ahead(text: str | None, release: str) -> str:
+    """Return the version of a selection newer than the release, or nothing when it is none.
+
+    A pin moves up only, so an upgrade to an older release is refused and never planned.
+    """
+    try:
+        pin = declared_pin(text or "")
+    except ValueError:
+        return ""
+    return pin.version if release and pin and Version(pin.version) > Version(release) else ""
 
 
 def _lock_gaps(

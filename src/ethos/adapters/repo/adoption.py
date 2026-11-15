@@ -7,7 +7,6 @@ import os
 import stat
 import sys
 import tempfile
-import tomllib
 from difflib import unified_diff
 from pathlib import Path
 
@@ -28,12 +27,11 @@ from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.paradigm.repair import set_toml_value
+from ethos.repository.paradigm.repair import pin_move
+from ethos.repository.paradigm.repair import with_bare_entry
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
-from ethos.repository.release.pin import bare_entry
-from ethos.repository.release.pin import declared_pin
 
 PROFILE_PATH = binding_path("profile")
 APPLY_CRITERIA = (
@@ -88,7 +86,7 @@ def adoption_plan(
         config_path: (*current_openspec, contents[config_path]),
     }
     current_pin = _current_binding(root, root / MISE_CONFIG)
-    pinned = _pinned(current_pin[0], release) if release else None
+    pinned = with_bare_entry(current_pin[0], release) if release else None
     if release:
         bindings[MISE_CONFIG] = (*current_pin, pinned or "")
     conflicts = [
@@ -164,6 +162,7 @@ def adoption_plan(
         "applied": applied,
         # Mise needs the lock entry of a pin that this apply wrote.
         "relock": applied and pinned not in {None, current_pin[0]},
+        "movable_pin": _movable(current_pin[0], release, pinned),
         "verdict": reduce_verdicts(
             report_verdict(configuration),
             "block" if conflicts else "pass",
@@ -272,28 +271,9 @@ def _apply_runtime(
         raise
 
 
-def _pinned(current: str | None, release: str) -> str | None:
-    """Merge the release's bare entry into Mise configuration text, keeping every other line.
-
-    None when the text selects another release or form, or cannot take the entry without losing a
-    line: adoption adds the pin and its setting and replaces nothing.
-    """
-    entry = bare_entry(release)
-    if not current:
-        return entry
-    planned: str | None = current
-    try:
-        declared = tomllib.loads(current)
-        for table, values in tomllib.loads(entry).items():
-            for key, value in values.items():
-                held = declared.get(table, {})
-                if key not in held:
-                    planned = planned and set_toml_value(planned, f"{table}.{key}", value)
-                elif held[key] != value:
-                    return None
-        return planned if planned and declared_pin(planned) == declared_pin(entry) else None
-    except (TypeError, ValueError):
-        return None
+def _movable(current: str | None, release: str | None, pinned: str | None) -> bool:
+    """Whether the lane repair's pin move replaces the selection that adoption will not."""
+    return bool(release and pinned is None and pin_move(current or "", release, ""))
 
 
 def _existing_profile_is_valid(root: Path, binding: tuple[str | None, bool, bool]) -> bool:

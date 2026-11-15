@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
+from packaging.version import Version
+
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import RELEASE_MIRROR_FIELD
 from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
@@ -24,6 +26,10 @@ from ethos.repository.paradigm.openspec import schema_repair
 from ethos.repository.paradigm.records import ROOTS
 from ethos.repository.paradigm.records import TABLE
 from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
+from ethos.repository.release.pin import LEGACY_KEY
+from ethos.repository.release.pin import PIN_KEY
+from ethos.repository.release.pin import bare_entry
+from ethos.repository.release.pin import declared_pin
 from ethos.repository.toml_layout import render_toml
 
 if TYPE_CHECKING:
@@ -55,6 +61,7 @@ _RETIRED_FIELDS = frozenset(
 
 # The repaired text, or None when the repair removes the carrier, and a follow-up command.
 Repair = tuple[str | None, str]
+type Handler = Callable[[RepositoryParadigm, ParadigmGap, str | None], Repair | None]
 # The command that previews every deterministic repair of a repository's paradigm gaps.
 REPAIR_PREVIEW = "ethos lane repair-paradigm --json"
 
@@ -76,9 +83,15 @@ class RepairPlan(NamedTuple):
     report_only: tuple[ParadigmGap, ...]
 
 
-def paradigm_repair_plan(root: Path, gaps: Iterable[ParadigmGap]) -> RepairPlan:
-    """Derive every deterministic repair for the gaps, composing edits to one carrier."""
+def paradigm_repair_plan(
+    root: Path, gaps: Iterable[ParadigmGap], requested: Iterable[tuple[str, Handler]] = ()
+) -> RepairPlan:
+    """Derive every deterministic repair for the gaps, composing edits to one carrier.
+
+    `requested` names the handlers of obligations that a request, not the report, adds.
+    """
     paradigm = load_repository_paradigm()
+    handlers = {**_HANDLERS, **dict(requested)}
     original: dict[str, str | None] = {}
     working: dict[str, str | None] = {}
     unreadable: set[str] = set()
@@ -86,7 +99,7 @@ def paradigm_repair_plan(root: Path, gaps: Iterable[ParadigmGap]) -> RepairPlan:
     actions: list[str] = []
     report_only: list[ParadigmGap] = []
     for gap in gaps:
-        handler = _HANDLERS.get(gap.obligation)
+        handler = handlers.get(gap.obligation)
         path = gap.carrier.partition(":")[0]
         if handler is not None and path not in original and path not in unreadable:
             try:
@@ -479,6 +492,53 @@ def _release_mirror(
     return None if repaired is None else (repaired, "")
 
 
+def with_bare_entry(current: str | None, release: str) -> str | None:
+    """Merge the release's bare entry into Mise configuration text, keeping every other line.
+
+    None when the text selects another release or form, or cannot take the entry without losing a
+    line: the merge adds the pin and its setting and replaces nothing.
+    """
+    entry = bare_entry(release)
+    if not current:
+        return entry
+    planned: str | None = current
+    try:
+        declared = tomllib.loads(current)
+        for table, values in tomllib.loads(entry).items():
+            for key, value in values.items():
+                held = declared.get(table, {})
+                if key not in held:
+                    planned = planned and set_toml_value(planned, f"{table}.{key}", value)
+                elif held[key] != value:
+                    return None
+        return planned if planned and declared_pin(planned) == declared_pin(entry) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def pin_move(text: str, release: str, relock: str) -> Repair | None:
+    """Declare the release's bare entry where the text holds an older selection or none.
+
+    An older bare pin is set in place, and the `http:ethos` table goes with its sub-tables; every
+    other key stays. A pin with options is its author's, and a selection of a newer release is
+    never moved down.
+    """
+    try:
+        pin = declared_pin(text)
+    except ValueError:
+        return None
+    if pin is None:
+        cleared: str | None = text
+    elif Version(pin.version) > Version(release):
+        return None
+    elif pin.form == "http":
+        cleared = _without_table(text, f'tools."{LEGACY_KEY}"')
+    else:
+        cleared = set_toml_value(text, f"tools.{PIN_KEY}", release) if pin.bare else None
+    moved = None if cleared is None else with_bare_entry(cleared, release)
+    return None if moved is None else (moved, relock)
+
+
 def _without_table(text: str, table: str) -> str:
     """Drop every header block of one top-level table and the comment lines directly above it."""
     lines = text.rstrip("\n").split("\n")
@@ -540,7 +600,7 @@ def _fixed(paradigm: RepositoryParadigm, table: str, name: str) -> object:
     return _UNFIXED
 
 
-_HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Repair | None]] = {
+_HANDLERS: dict[str, Handler] = {
     "text-normalization": _normalization,
     "formatter-setting": _formatter,
     "front-matter": _front_matter,

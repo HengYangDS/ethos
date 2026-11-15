@@ -46,6 +46,17 @@ that the exit cannot read, or a bare pin that is not a line of its own under
 `kept`. The owner removes that pin by hand, so the applied exit's next action
 names the file and the reason before the status command.
 
+Adoption replaces no selection. An upgrade writes it in a Work Lane:
+`ethos lane repair-paradigm --pin` plans, ahead of its other repairs, the bare entry of the
+release that runs it. That entry replaces an older bare pin or the `http:ethos` table with its
+sub-tables, and a repository without a selection gets its first pin. The apply is one admitted
+patch. Its next action is `mise --cd <root> lock`, and where the repository declares projections
+the result then names `ethos lane project --root <root> --json`; ETHOS runs neither. A
+repository that selects a newer release blocks the request with `runtime_pin_ahead:<version>`
+and plans nothing: a pin moves up only. A pin with options or a development build gets no edit.
+Adoption's conflict for a selection that the move replaces names that command and says that it
+runs in a Work Lane.
+
 The strict frozen repository-profile declaration owns validation and TOML
 serialization. It binds adopter identity and OpenSpec material paths. The
 selected official OpenSpec package owns configuration generation, field meaning,

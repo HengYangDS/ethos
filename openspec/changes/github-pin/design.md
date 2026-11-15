@@ -128,3 +128,5 @@ Non-Goals:
 - The measured size is 105 product, 304 test and 197 tool line-equivalents against a planned 60, 80
   and 60. The plan priced the module's readers and the journey's lock admission, rebound locks and
   receipt at well under half of what its own list of them needs.
+- DR-0020 counted this Change's unified installation at about 440 product line-equivalents when
+  it took the product budget step; the installation that landed measures 105.

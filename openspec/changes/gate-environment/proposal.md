@@ -28,9 +28,12 @@ releasing host build into the one uv cache that every repository of that host sh
 the hosted jobs use a cache root of their own. Measured by the session that keeps the host's
 supply: on 2026-11-14 that cache held 287 GB, of which 284 GB were entries that nothing
 referenced, most of them copies of one test fixture and local builds of this product. Trimmed
-to 12 GB, it held 18 GB two days later, and 23 local builds of this product were the largest
-young group. uv's own pruning cannot run there while long-lived holders keep the cache open.
-The owner asked for the root fix on 2026-11-16, as that session relayed.
+to 12 GB, it held 18 GB two days later. By that session's reading of the cache's buckets, the
+growth since the trim is 19 wheels of this product built from a path or URL source, about 340 MB
+each and 6.5 GB together, which stay referenced, so no pruning removes them; 26 editable builds
+of this product; and 495 editable installs of one test fixture, small in bytes. Which command
+wrote each entry is not measured. uv's own pruning cannot run there while long-lived holders
+keep the cache open. The owner asked for the root fix on 2026-11-16, as that session relayed.
 
 ## What Changes
 

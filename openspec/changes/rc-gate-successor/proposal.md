@@ -15,7 +15,8 @@ the candidate's date through DR-0026 alone.
 ## What Changes
 
 - DR-0029 is added with the approved text and indexed in the decisions README. It succeeds DR-0026
-  and does not edit it.
+  and does not edit it. One sentence names a command in words where the approved draft used a code
+  span, which the documentation registry refuses in a decision record.
 
 Not breaking: one decision record and its index line. No command, schema or rule changes; the rule
 of the record that the product enforces arrived with the `reporting-obligations` Change.

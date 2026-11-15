@@ -89,9 +89,9 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
 - **Moves.** The adopter bump moves to the second batch in the owner's full scope, with the
   handler for the older selector form. The retirement of that form lands in the batch after the
   last pin of the derived subject set, and never in the frozen batch. `structure-report` follows
-  0.2.0. So does the move of reclamation out of `hook install`: the candidate does not claim that
-  `hook install` deletes nothing. One-time repair code gets its own budget category and deletion
-  condition before the stable release, by a successor of DR-0010.
+  0.2.0. So does the move of reclamation out of the hook installation: the candidate does not
+  claim that installing the hook deletes nothing. One-time repair code gets its own budget
+  category and deletion condition before the stable release, by a successor of DR-0010.
 - **The weekly page.** On each tag day one page states fifteen measures by command from `dev` at a
   named commit: rows left by reading, rows by state, the landing rate, the free lines under the
   three ceilings, whole checks and proofs of the stack, host minutes declared against used, the

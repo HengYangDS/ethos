@@ -21,13 +21,20 @@ Non-Goals:
 
 ## Decisions
 
-1. **The record lands with the approved text, byte for byte.**
+1. **The record lands with the approved text, less two code spans in one sentence.**
    - **Rests on:** the owner's answer of 2026-11-15 to the question whether DR-0029 lands as
-     drafted.
+     drafted; and the documentation registry, which refuses a decision record whose code span may
+     be a command invocation (`docs_decision_execution_content`, `inline_invocation`).
    - **Considered:** revising the sentences that later decisions of the same day touch, such as
-     the subject set of the candidate's condition.
-   - **Chosen because:** the approval covers one text. A later decision is a draft or a successor
-     record that names this one, as the record itself requires.
+     the subject set of the candidate's condition; and narrowing the registry's rule so that the
+     approved bytes pass.
+   - **Chosen because:** the approval covers one text, and a later decision is a draft or a
+     successor record that names this one, as the record itself requires. The approved draft named
+     the hook installation command twice in a code span, in its sentence on the move of
+     reclamation. No other decision record holds such a span, so the record follows the rule, and
+     the sentence now names the command in words. Its meaning is unchanged and no other byte
+     differs. The hosted run of the proposal ref found the refusal; the release lane's local check
+     did not run the registry and now does.
    - **Applies to:** `docs/decisions/dr-0029-release-candidate-gate-successor.md`.
 2. **The decisions README is the one pointer.**
    - **Rests on:** the README's rule that it is the only navigation among decision records, and

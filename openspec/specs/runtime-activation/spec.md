@@ -318,7 +318,11 @@ When `ethos hook install` replaces a value that ETHOS does not own, it SHALL rec
 
 ### Requirement: A repository exit is previewed before any effect
 
-`ethos adopt --exit` SHALL report, without any effect, the configuration after the exit per key, the keys it keeps because ETHOS no longer owns them, the keys it leaves unrecorded, the record entries it cannot restore, the generations it removes and keeps, the selectors with their hashes, the Leases and unlanded branches, and a digest over them. It SHALL resume an interrupted exit from its receipt.
+`ethos adopt --exit` SHALL report, without any effect, the configuration after the exit per key, the
+keys it keeps because ETHOS no longer owns them, the keys it leaves unrecorded, the record entries
+it cannot restore, the generations it removes and keeps, the selectors with their hashes, the Leases
+and unlanded branches, the Mise pin it removes, and a digest over them. It SHALL resume an
+interrupted exit from its receipt.
 
 #### Scenario: An exit is inspected
 
@@ -333,8 +337,8 @@ When `ethos hook install` replaces a value that ETHOS does not own, it SHALL rec
 
 #### Scenario: A repository is not adopted
 
-- **WHEN** the repository has no runtime selector, no hooks path that ETHOS owns and no
-  interrupted exit
+- **WHEN** the repository has no runtime selector, no hooks path that ETHOS owns and no interrupted
+  exit
 - **THEN** the exit reports `adoption_exit_not_adopted` and plans no effect
 - **AND** it reads no hand-made file as a record.
 
@@ -361,9 +365,19 @@ When `ethos hook install` replaces a value that ETHOS does not own, it SHALL rec
   generations
 - **THEN** the exit preview names `adoption_exit_runtime_in_use` as a blocker.
 
+#### Scenario: The Mise configuration holds the pin that adoption wrote
+
+- **WHEN** the Mise configuration of an adopted repository holds the bare ETHOS pin
+- **THEN** the preview names that file, the pin's key and the file's text without the pin's line
+- **AND** the provenance setting and a pin in any other form are not part of the plan
+
 ### Requirement: A previewed exit is applied in a fenced order
 
-With `--apply`, `--authorize`, the current head and the previewed digest, the exit SHALL, under the runtime selection lock and a state write transaction, write a durable receipt, remove the record, restore each key that still holds ETHOS's value, verify that no worktree uses ETHOS's hooks, remove each selector that still holds its planned bytes, and mark the receipt applied. A failure SHALL attempt every compensation step and report any that fails.
+With `--apply`, `--authorize`, the current head and the previewed digest, the exit SHALL, under the
+runtime selection lock and a state write transaction, write a durable receipt, remove the record,
+restore each key that still holds ETHOS's value, verify that no worktree uses ETHOS's hooks, remove
+each selector that still holds its planned bytes and the planned Mise pin, and mark the receipt
+applied. A failure SHALL attempt every compensation step and report any that fails.
 
 #### Scenario: An adopted repository exits
 
@@ -382,6 +396,14 @@ With `--apply`, `--authorize`, the current head and the previewed digest, the ex
 - **WHEN** a step after the receipt fails
 - **THEN** every compensation step is attempted
 - **AND** the result is `unknown` when one of them fails.
+
+#### Scenario: An exit removes the pin that adoption wrote
+
+- **GIVEN** a repository whose Mise configuration holds the bare ETHOS pin beside its own tools
+- **WHEN** the exit is applied with the previewed digest
+- **THEN** that file loses the pin's line and keeps every other line, the provenance setting
+  included
+- **AND** no other tracked file changes
 
 ### Requirement: Status reports an exit
 

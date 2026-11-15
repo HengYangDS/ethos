@@ -1442,10 +1442,11 @@ information rather than trigger an automatic repeated effect.
 
 ### Requirement: Adoption continuation preserves request meaning
 
-The shared adoption operation SHALL select one root-bound continuation from the
-actual request, binding plan and outcome. Preview SHALL require review before
-mutation; conflicts and stale input SHALL NOT appear as applied readiness.
-The planner SHALL NOT own a competing public next action.
+The shared adoption operation SHALL select one root-bound continuation from the actual request,
+binding plan and outcome; after an apply that wrote the release's pin, that continuation SHALL be
+`mise lock`, which the caller runs in the adopted root. Preview SHALL require review before
+mutation; conflicts and stale input SHALL NOT appear as applied readiness. The planner SHALL NOT own
+a competing public next action.
 
 #### Scenario: Preview or blocked adoption is consumed by another client
 
@@ -1458,6 +1459,12 @@ The planner SHALL NOT own a competing public next action.
 - **WHEN** an authorized exact adoption applies successfully
 - **THEN** the next observation explicitly selects the adopted repository
 - **AND** the caller working directory does not change that selection
+
+#### Scenario: An applied adoption wrote the release's pin
+
+- **WHEN** an authorized exact adoption applies and writes the Mise configuration
+- **THEN** the next action is exactly `mise lock`
+- **AND** an applied adoption that kept the Mise configuration continues with status
 
 ### Requirement: Installed context enables portable Agent continuation
 

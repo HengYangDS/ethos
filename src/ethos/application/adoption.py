@@ -128,7 +128,10 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
                 str(plan_payload["plan_digest"]),
             ]
         )
-    next_action = "mise lock" if plan_payload["relock"] else shlex.join(action)
+    # The relock names the adopted root, like every continuation here: Mise would otherwise lock
+    # the configuration that the caller's working directory selects.
+    relock = ("mise", "--cd", str(target), "lock")
+    next_action = shlex.join(relock if plan_payload["relock"] else action)
     if conflicts:
         next_action = f"Resolve {', '.join(conflicts)} in {target}; then {next_action}"
     return EthosResult(

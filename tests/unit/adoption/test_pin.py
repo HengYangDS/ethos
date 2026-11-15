@@ -98,7 +98,7 @@ def test_a_failed_adoption_removes_the_directories_it_made(
 def test_an_applied_pin_is_followed_by_the_relock(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
 ) -> None:
-    """A release build writes its own pin and names `mise lock`; a development build plans none."""
+    """A release build writes its pin and names that root's relock; a development build none."""
     repo = init_git_repo(tmp_path / "repo")
     release = kind == "release"
     build = build_identity(
@@ -115,7 +115,8 @@ def test_an_applied_pin_is_followed_by_the_relock(
     assert preview.data["pin"] == (RELEASE if release else "none:development_build")
     assert (MISE_CONFIG in preview.data["planned_files"]) is release
     assert _text(repo / MISE_CONFIG) == (ENTRY if release else None)
-    assert applied.next_action == ("mise lock" if release else status), applied.to_dict()
+    relock = f"mise --cd {repo} lock"
+    assert applied.next_action == (relock if release else status), applied.to_dict()
     assert (applied.next.kind, again.next_action) == (
         "instruction" if release else "command",
         status,

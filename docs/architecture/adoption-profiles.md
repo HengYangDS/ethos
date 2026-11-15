@@ -38,9 +38,9 @@ of native tool selections: the release's bare entry under `[tools]` and
 and only adds lines. A configuration that names another ETHOS version or form,
 an `http:ethos` table included, is an `adoption_conflict`. A development build
 names no release, plans no pin and says so; formation plans none. After an apply
-that wrote the pin, the next action is `mise lock`, run in the repository's
-root. `ethos adopt --exit` previews and removes that key alone: the provenance
-setting stays, because Mise applies it to every tool.
+that wrote the pin, the next action is `mise --cd <root> lock`, which names the
+adopted root. `ethos adopt --exit` previews and removes that key alone: the
+provenance setting stays, because Mise applies it to every tool.
 
 The strict frozen repository-profile declaration owns validation and TOML
 serialization. It binds adopter identity and OpenSpec material paths. The

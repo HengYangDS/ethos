@@ -90,9 +90,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `locked_verify_provenance = true` under `[settings]`, as one step with its diff. A configuration
   that holds an `http:ethos` table or another ETHOS version is an `adoption_conflict`; to repair
   it, replace that entry with the release's bare entry and run `mise lock`. After an apply that
-  wrote the pin the next action is `mise lock`, and `ethos adopt --exit` removes that key alone.
-  A repository that holds the `http:ethos` table can keep it: only `ethos adopt` refuses it, and
-  binding this release through that table and `ethos hook install` works as before.
+  wrote the pin the next action is `mise --cd <root> lock`, and `ethos adopt --exit` removes that
+  key alone. A repository that holds the `http:ethos` table can keep it: only `ethos adopt` refuses
+  it, and binding this release through that table and `ethos hook install` works as before.
 - **Breaking:** hosted CI artifacts expire after 14 days. Each pipeline model declares the
   retention once, and its projections carry `retention-days: 14` on every GitHub upload step and
   `expire_in: 14 days` on every GitLab `artifacts` block; until now each Forge kept an artifact for

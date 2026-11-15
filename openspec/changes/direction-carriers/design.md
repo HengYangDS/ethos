@@ -409,7 +409,24 @@ repository with another maintainer moves only with that maintainer.
   active and not a draft, and the contract held at its bound. The decidability seat gave four:
   selection prefers a created Change and adds no refusal, what a decision and a part are for the
   reader, the topology's text only, and the plan keeping its path. All ten are in this text.
-- **Revision 6** is this text.
+- **Revision 6**, commit `6f6165611`, is the text that every seat signed on 2026-11-15. Only this
+  record was added after it.
+  - "Fleet seat on revision 6: signed; a draft reaches a governed repository's accepted branch
+    only after step 4 or with every lane command naming its Change, the reader finds bullet and
+    heading decisions, and no rule reaches back to an archived design."
+  - "Essence and contract: signed at 6f6165611. No carrier is added, each change of law this seat
+    found is listed with its step, and the three questions are answered truthfully."
+  - "Decidability seat: signed revision 6; each state and check is decided from one tree and its
+    declarations; the readers of build homes and of a study's review date read one host and the
+    day, and refuse nothing; the selection change concerns a lane before it merges its base and
+    adds no refusal."
+- **Readings the seats left for step 4's Change**, none blocking. The selection sentence of
+  decision 3 holds for a lane that has not merged its base; after that merge the product already
+  tells a lane's own Change from an inherited one. For a governed repository, "landed" in decision
+  3's condition means in the release it runs. With "prefers", the scenario on an inherited Change
+  stands and gains a case. While this design is the only open Change on a branch, a lane that
+  creates none writes under it, which only the agent rule guards. The reader's definition of a
+  decision makes "which the design numbers" unnecessary.
 
 ## Risks / Trade-offs
 

@@ -14,11 +14,13 @@
 
 ## 2. Review
 
-- [ ] 2.1 Review the design by three seats: essence and contract, every governed repository, and
+- [x] 2.1 Review the design by three seats: essence and contract, every governed repository, and
       decidability with cost and order. Done when each seat's statement is recorded and no blocker
-      remains, or the owner has ruled on the one that does.
-- [ ] 2.2 Bring the review to one text that every seat signs, as the owner decided on 2026-11-15.
-      Done when the design's review record holds each seat's signature on one revision.
+      remains, or the owner has ruled on the one that does. Six revisions; the design's review
+      record holds each verdict.
+- [x] 2.2 Bring the review to one text that every seat signs, as the owner decided on 2026-11-15.
+      Done when the design's review record holds each seat's signature on one revision. All three
+      signed commit `6f6165611`.
 
 ## 3. Lane
 

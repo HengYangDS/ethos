@@ -359,6 +359,7 @@ class RepositoryParadigm(BaseModel):
     license: LicenseConventions
     configuration: ConfigurationPlane
     immutable_roots: FrozenTuple[str]
+    retained_roots: FrozenTuple[str]
     reporting: FrozenTuple[str] = ()
     private_address: str
     formatter: FrozenTuple[FormatterBinding]
@@ -412,6 +413,11 @@ class RepositoryParadigm(BaseModel):
     def names_private_address(self, text: str) -> bool:
         """Return whether text names a private-class network address."""
         return re.search(self.private_address, text) is not None
+
+    @property
+    def captured_roots(self) -> tuple[str, ...]:
+        """Return the immutable and the retained roots, whose bytes are never authored input."""
+        return (*self.immutable_roots, *self.retained_roots)
 
     @property
     def module_suffixes(self) -> tuple[str, ...]:

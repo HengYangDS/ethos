@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 _LOOSE = "# Notes\n\n- one\n\n- two\n"
 _TIGHT = "# Notes\n\n- one\n- two\n"
+_RECORDS = 'profile_id = "records"\nrecord_roots = [\n  "kept/",\n]\n'
 
 
 @pytest.mark.parametrize(
@@ -24,8 +25,10 @@ _TIGHT = "# Notes\n\n- one\n- two\n"
         ({"notes.md": _TIGHT}, {"notes.md": _LOOSE}, ""),
         ({".gitattributes": "notes.md linguist-vendored\n", "notes.md": _LOOSE}, {}, ""),
         ({"openspec/changes/archive/2026-09-01-old/notes.md": _LOOSE}, {}, ""),
+        ({"docs/archive/notes.md": _LOOSE, "evidence/run/notes.md": _LOOSE}, {}, ""),
+        ({".ethos/profile.toml": _RECORDS, "kept/notes.md": _LOOSE}, {}, "kept/notes.md:5"),
     ],
-    ids=["stray-blank", "worktree-only", "received", "archived-record"],
+    ids=["stray-blank", "worktree-only", "received", "archived-record", "retained", "declared"],
 )
 def test_pre_commit_admits_the_list_rule_on_staged_markdown(
     repo: Path,
@@ -34,7 +37,10 @@ def test_pre_commit_admits_the_list_rule_on_staged_markdown(
     unstaged: dict[str, str],
     gap: str,
 ) -> None:
-    """The staged bytes decide; received files and archived records keep their own bytes."""
+    """The staged bytes decide; received files and the paradigm's records keep their own bytes.
+
+    A staged file under a record root that a profile declares is new or changed, so it is judged.
+    """
     for name, text in staged.items():
         (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_text(text, encoding="utf-8")

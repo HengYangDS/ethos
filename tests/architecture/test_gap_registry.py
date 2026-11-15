@@ -154,6 +154,7 @@ def test_every_row_names_a_package_owner_and_the_rows_are_sorted() -> None:
         ("repository_paradigm_docs:AGENTS.md", True, ""),
         ("no_such_family_member", False, ""),
         ("candidate_base_stale:x", True, "ethos lane refresh-base"),
+        ("source_format_drift:docs/a.md", True, "run ethos lane format --apply"),
     ],
 )
 def test_the_loader_registers_families_and_reports_the_unknown(

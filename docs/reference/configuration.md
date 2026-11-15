@@ -81,8 +81,14 @@ configuration plane, not a truth center.
   non-formatting document and link semantics, plus the spacing and style rules of
   official OpenSpec Markdown, which has no formatter. The `markdown_lint` Nox session
   projects the shared product gate and its shipped, lock-bound native tools.
-  Both checks consume the same current authored files. Immutable records are
-  retained without rewrite; generated and local outputs are not source inputs.
+  Both checks consume the same current authored files. The paradigm's immutable
+  and retained roots, `openspec/changes/archive/`, `docs/archive/` and `evidence/`,
+  are retained without rewrite; generated and local outputs are not source inputs.
+  Under a record root that the profile's `record_roots` declares, every file is
+  judged by the gates and by `ethos lane format --check`. The format apply leaves
+  alone a file that the merge base with the local accepted branch holds unchanged,
+  and every such file without that base; the reports name the base as
+  `record_base` and the kept files as `record_paths`, and a named file is repaired.
   The shared gate passes exact named documents and the explicit policy to the
   unchanged official Markdownlint API with globs, imports, inline configuration
   and fixing disabled, so local configuration cannot drop inputs, suppress rules
@@ -247,7 +253,7 @@ Each repository surface holds one kind of fact; the owner column names the carri
 
 The binding layer holds only ETHOS-defined files (repository-paradigm "The binding uses only ETHOS-defined files"):
 
-- `.ethos/profile.toml`: the repository profile. The profile model (`src/ethos/repository/profile.py`) owns its fields, and repository-governance "Repository profile is a strict current binding" owns its validation.
+- `.ethos/profile.toml`: the repository profile. The profile model (`src/ethos/repository/profile.py`) owns its fields, and repository-governance "Repository profile is a strict current binding" owns its validation. Its `record_roots` join the paradigm's immutable roots as the one record set (repository-paradigm "Record roots have one definition"): redaction rewrites under it, the source budget counts its carriers as records, and the format apply keeps the files of a declared root that the accepted branch already holds. The format policy's `immutable_record_roots` key is no longer read and stays in the shipped policy for one release.
 - `.ethos/release.toml`: `[protected_refs]`, `[host_profile]`, `[publication]` with its local verification and installation commands, `[[publication.peers]]` (identity, provider, role, Git remote, capabilities, Forge repository and CI surface), `[attestation]` and `[release]`. `src/ethos/repository/release/publication.py` owns the peer fields, and repository-governance "Declared publication peer topology" owns the topology.
 - `.ethos/rules.toml`: the active rule profiles and repository rules (`src/ethos/repository/policy/rules/config.py`).
 - `.ethos/workspace.toml`, when present: the workspace binding.

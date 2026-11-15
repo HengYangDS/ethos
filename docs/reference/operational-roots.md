@@ -60,7 +60,9 @@ ethos lane redact private-addresses --verify --key-stdin --base <rev> --head <re
 
 The preview needs no key and prints no value: it lists each occurrence's file,
 line and form, and whether it lies in the effective record roots, the paradigm's
-immutable roots plus the profile's `record_roots`. Apply writes keyed markers and
+immutable roots plus the profile's `record_roots`. The paradigm's retained roots,
+`docs/archive/` and `evidence/`, are record roots only where the profile declares
+them. Apply writes keyed markers and
 numbers in those roots only, after exact-path prewrite admission, and refuses an
 occurrence it cannot classify. Verify re-derives the head from its base and
 records the Attestation `redaction:private-peer`.

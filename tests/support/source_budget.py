@@ -30,8 +30,7 @@ def write_budget_selection(
         f"python_product = {terminal[0]}, python_tests = {terminal[1]}, "
         f"python_tools = {terminal[2]}, python_other = {terminal[3]}, "
         f"global_total = {terminal[4]} }}\n"
-        f"""immutable_record_roots = ["openspec/changes/archive/"]
-line_width = 100
+        f"""line_width = 100
 
 [source_budget.cross_check]
 command = "fake-scc"

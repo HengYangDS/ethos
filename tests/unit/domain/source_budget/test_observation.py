@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 @pytest.mark.parametrize(
     ("before", "after"),
     [
-        ("immutable_record_roots =", "invalid_record_roots ="),
         ('  "toml", "json", "yaml", "ini", "shell",\n', ""),
         (
             'python_total = ["python_product", "python_tests", "python_tools", "python_other"]',

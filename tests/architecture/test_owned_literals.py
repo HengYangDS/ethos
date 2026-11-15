@@ -31,6 +31,7 @@ def test_product_code_restates_no_declared_value_and_tools_only_shed_theirs() ->
         ('carrier = f"{root}/workspace.toml"', 1),
         ('branch = "candidate/dev"\nchangelog = "CHANGELOG.md"', 2),
         ('gap = "product_version_missing:VERSION"\nshow = f"{commit}:VERSION"', 2),
+        ('skipped = ("evidence/", "docs/archive/", "openspec/changes/archive/")', 2),
         ('"""Read `.ethos/rules.toml`."""\ngroup = "dev"\nbranch = "main"', 0),
     ],
 )
@@ -50,7 +51,7 @@ def _restatements(root: Path, prefix: str) -> list[str]:
     carriers = (paradigm.release.version_file, paradigm.release.changelog)
     branch = paradigm.branch
     branches = (branch.candidate, branch.work_prefix, branch.proposal_prefix)
-    equal = {*names, *carriers, *branches}
+    equal = {*names, *carriers, *branches, *paradigm.retained_roots}
     contained = (
         *(f"/{name}" for name in names),
         *(f"{mark}{name}" for name in carriers for mark in ":/"),

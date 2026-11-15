@@ -8,6 +8,7 @@ from ethos.contracts.gate_providers import provider_id
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.policy.rules.config import path_matches
 
 
@@ -22,11 +23,8 @@ def select_gate_declaration(
     """Compose applicable shared floors into every repository; explicit diagnosis stays focused."""
     owned = declaration.registry()
     packaged = packaged_declaration.registry()
-    authored = tuple(
-        path
-        for path in repository_paths
-        if not path.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
-    )
+    captured = load_repository_paradigm().captured_roots
+    authored = tuple(path for path in repository_paths if not path.startswith(captured))
     common = tuple(
         gate.id
         for gate in packaged.values()

@@ -465,6 +465,7 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         authored = native_inputs.authored_text_report(root, files)
         if authored["required_gaps"]:
             return _native_report("markdown-lint", files, [authored])
+        base, kept = native_inputs.kept_record_files(root)
         node = str(resolve_node_runtime().executable)
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
         lint_configs = native_configurations(
@@ -492,6 +493,8 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         "required_gaps": format_gaps,
         "files": [relative for relative, _owner in formatted],
         "file_count": len(formatted),
+        "record_base": base,
+        "record_paths": kept,
     }
     commands = []
     adapter = str(Path(__file__).with_name("markdown.mjs"))

@@ -10,9 +10,12 @@ from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import received_paths
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.outcome import refusal
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.policy.gates import compile_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
@@ -24,6 +27,7 @@ from ethos.repository.policy.quality.source_budget import policy_for_root
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.rules.config import path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import effective_record_roots
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import shipped_resource
@@ -35,10 +39,6 @@ if TYPE_CHECKING:
 
     from ethos.repository.policy.quality.format_selection import CarrierAudit
     from ethos.repository.policy.quality.format_selection import OwnerDeclaration
-
-
-# Retained records keep their bytes: no formatter or spacing rule reads them as authored input.
-RECORD_PREFIXES = ("evidence/", "docs/archive/", "openspec/changes/archive/")
 
 
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
@@ -53,10 +53,38 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
     return [path for path in listed if path not in deleted]
 
 
+def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, list[str]]:
+    """Return the local base and the declared record files that a format apply leaves alone.
+
+    The base is the merge base with the local accepted branch, and the apply leaves alone each
+    record file that it holds unchanged. Without one the base is named `unresolved` and the apply
+    leaves every file under a declared record root alone. A caller that names its paths asks for
+    them, and a profile without a declared record root has no base to name. No gate reads this as
+    a verdict: a hosted checkout has no local accepted branch, so a gate judges every record file.
+    The paradigm's captured roots are never authored input, so they are not read here.
+    """
+    profile = load_repository_profile(root)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    captured = load_repository_paradigm().captured_roots
+    roots = [item for item in effective_record_roots(profile) if not item.startswith(captured)]
+    if paths or not roots:
+        return "", []
+    accepted = load_branch_role_policy(root).accepted_branch
+    base = run_git(root, "merge-base", "HEAD", accepted, check=False).stdout.strip()
+    if not base:
+        return "unresolved", quality_source_files(root, *roots)
+    held = run_git(root, "ls-tree", "-r", "-z", "--name-only", base, "--", *roots)
+    changed = run_git(root, "diff", "-z", "--name-only", "--no-renames", base, "--", *roots)
+    return base, sorted({*held.stdout.split("\0")} - {*changed.stdout.split("\0")} - {""})
+
+
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
-    """Join authored inputs once, preserving producer, upstream and archived-record ownership.
+    """Join authored inputs once, preserving producer, upstream and captured-root ownership.
 
     A path that Git attributes mark vendored or generated is received, so no consumer selects it.
+    Neither is a path under a root the paradigm captures. A file under a record root that a
+    profile declares is authored input like any other.
     """
     profile = load_repository_profile(root)
     if profile.state == "invalid":
@@ -79,11 +107,12 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
     )
     listed = tuple(paths or quality_source_files(root, *patterns))
     outside = {*foreign, *generated, *received_paths(root, listed)}
+    captured = load_repository_paradigm().captured_roots
     selected = [
         relative
         for relative in listed
         if relative not in outside
-        and not relative.startswith(RECORD_PREFIXES)
+        and not relative.startswith(captured)
         and not path_matches(relative, dependencies)
     ]
     if any(relative.endswith(".md") for relative in selected):

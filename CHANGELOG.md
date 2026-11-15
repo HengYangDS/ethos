@@ -118,6 +118,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `journey_environment_not_hermetic:<what>`, `release_journey_archive_tampered:<archive>` and
   `release_journey_manifest_invalid`; the receipt gains `venue`. A host that runs the journey
   needs `gh` and `curl` on its path.
+- One record set serves every reader: the paradigm's immutable roots plus a profile's
+  `record_roots`. `ethos lane format`, in its preview and apply forms, no longer rewrites a file
+  under a declared record root that the merge base with the local accepted branch holds
+  unchanged, and rewrites none of them when that base does not resolve; a record that the request
+  names is repaired as before. The format gates and `ethos lane format --check` judge every
+  record file as before, in every checkout. The format reports name the base as `record_base`,
+  `unresolved` without one, and the kept files as `record_paths`. The source budget counts a
+  carrier under a declared record root as a record. The paradigm declares `docs/archive/` and
+  `evidence/` as its retained roots, which stay outside every authored input and outside
+  redaction as before. The format policy's `immutable_record_roots` key is no longer read; the
+  shipped policy keeps it for this release, and a policy without it is valid.
+- A `source_format_drift` refusal of `ethos lane format --check` names its next step: the apply,
+  the naming of a path under `record_paths`, or marking a third-party or generated path
+  `linguist-vendored` or `linguist-generated` in `.gitattributes`. The refusal named no next step.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

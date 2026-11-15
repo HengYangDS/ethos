@@ -18,6 +18,7 @@ from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import authored_text_files
 from ethos.adapters.gates.native.inputs import authored_text_gaps
 from ethos.adapters.gates.native.inputs import format_ownership
+from ethos.adapters.gates.native.inputs import kept_record_files
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
@@ -310,13 +311,16 @@ def render_source_content(
     return _run(root, command, content), False
 
 
-def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[FormattedFile, ...]:
+def prepare_source_format(
+    root: Path, *, paths: tuple[str, ...] = (), kept: tuple[str, ...] | list[str] = ()
+) -> tuple[FormattedFile, ...]:
     """Prepare all selected files first; native refusal leaves every source byte untouched.
 
-    The complete authored-text selection is validated before any formatter reads it.
+    The complete authored-text selection is validated before any formatter reads it. A repair
+    names the record files it keeps, and no formatter reads them.
     """
     authored = authored_source_files(root, paths=paths)
-    selected = _selected_files(root, paths, authored)
+    selected = tuple(item for item in _selected_files(root, paths, authored) if item[0] not in kept)
     if invalid := authored_text_gaps(root, authored_text_files(root, authored)):
         raise ValueError(invalid[0])
     return _postimages(root, selected)
@@ -497,6 +501,7 @@ def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
         selected = _selected_files(root, paths, authored)
         invalid = authored_text_gaps(root, authored_text_files(root, authored))
         prepared = () if invalid else _postimages(root, selected)
+        base, kept = kept_record_files(root, paths)
         changed = [item.path for item in prepared if item.before != item.after]
         gaps = invalid or [f"source_format_drift:{path}" for path in changed]
         return {
@@ -507,6 +512,8 @@ def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
             "file_count": len(selected),
             "changed_paths": changed,
             "ignored_paths": [item.path for item in prepared if item.ignored],
+            "record_base": base,
+            "record_paths": kept,
             "required_gaps": gaps,
         }
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:

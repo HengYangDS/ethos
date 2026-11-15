@@ -71,6 +71,24 @@ def test_applicable_common_document_floor_preserves_native_increment_and_focus(
         assert {gate["id"] for gate in policy.projection["gates"]} == {"native", *common}
 
 
+@pytest.mark.parametrize(
+    ("path", "composed"),
+    [
+        ("openspec/changes/archive/2026-09-01-old/notes.md", False),
+        ("docs/archive/notes.md", False),
+        ("evidence/run/notes.md", False),
+        ("docs/decisions/notes.md", True),
+    ],
+)
+def test_the_paradigms_record_roots_compose_no_shared_document_floor(
+    tmp_path: Path, path: str, *, composed: bool
+) -> None:
+    """A document under a root the paradigm names is no authored input; any other one is."""
+    profile = _gated(tmp_path, Gate(id="native", kind="test", command=("native-check",)))
+    policy = compile_gate_policy(profile=profile, repository_paths=(path,))
+    assert ("markdown-lint" in policy.gate_ids) is composed
+
+
 def test_required_common_verifier_cannot_be_replaced_by_same_named_native_command(
     tmp_path: Path,
 ) -> None:

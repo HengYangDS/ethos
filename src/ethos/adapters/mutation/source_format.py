@@ -9,9 +9,11 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.gates.formatting import source_format_failure
+from ethos.adapters.gates.native.inputs import kept_record_files
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
+from ethos.contracts.codes.gaps import repair_for
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,7 +55,9 @@ def _format_source(
 ) -> dict[str, object]:
     head = current_tracked_head(root)
     index = run_git(root, "write-tree", check=True).stdout.strip()
-    prepared = prepare_source_format(root, paths=paths)
+    base, kept = kept_record_files(root, paths)
+    # The check is a verdict and judges every file; the preview and the apply are the repair.
+    prepared = prepare_source_format(root, paths=paths, kept=() if check else kept)
     changed = tuple(item for item in prepared if item.before != item.after)
     report: dict[str, object] = {
         "verdict": "pass",
@@ -64,6 +68,8 @@ def _format_source(
         "file_count": len(prepared),
         "changed_count": len(changed),
         "ignored_paths": [item.path for item in prepared if item.ignored],
+        "record_base": base,
+        "record_paths": kept,
         "required_gaps": [],
     }
     if check:
@@ -71,6 +77,7 @@ def _format_source(
             verdict="block" if changed else "pass",
             state="failed" if changed else "passed",
             required_gaps=[f"source_format_drift:{item.path}" for item in changed],
+            next_action=repair_for("source_format_drift") if changed else "",
         )
         return report
     if not apply:

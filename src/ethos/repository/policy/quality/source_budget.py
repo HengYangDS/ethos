@@ -21,7 +21,6 @@ from ethos.normalization.coercion import required_sequence
 POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
 PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
 AGGREGATE_TOTALS = ("python_total", "global_total")
-IMMUTABLE_RECORD_ROOTS = ("openspec/changes/archive/",)
 
 
 class _Contract(BaseModel):
@@ -83,7 +82,6 @@ class Policy(_Contract):
     terminal: TerminalTotals
     cross_check: CrossCheck
     aggregates: dict[str, tuple[str, ...]]
-    immutable_record_roots: tuple[str, ...] = ()
     line_width: Annotated[int, Field(gt=0, le=200)]
     carriers: tuple[Carrier, ...]
     # A Python category with a ratio is enforced in line-equivalents of its layout-invariant tokens.
@@ -120,9 +118,6 @@ class Policy(_Contract):
             not values or len(values) != len(set(values)) for values in self.aggregates.values()
         ):
             msg = "aggregate members must be non-empty and unique"
-            raise ValueError(msg)
-        if self.immutable_record_roots != IMMUTABLE_RECORD_ROOTS:
-            msg = "source-budget must declare the exact immutable record roots"
             raise ValueError(msg)
         return self
 
@@ -232,7 +227,6 @@ def _policy_contract(payload: dict[str, object]) -> Policy | None:
                 tolerance=tolerance,
             ),
             aggregates=aggregates,
-            immutable_record_roots=_strings(source.get("immutable_record_roots", []), empty=True),
             line_width=_integer(source.get("line_width")),
             carriers=_raw_carriers(payload),
             tokens_per_line=_ratios(source.get("tokens_per_line", {})),

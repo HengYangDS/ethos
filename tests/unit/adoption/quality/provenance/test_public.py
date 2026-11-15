@@ -341,6 +341,8 @@ def test_javascript_lint_session_uses_native_authored_partition(
                 "file_count": 2,
                 "changed_paths": [],
                 "ignored_paths": [],
+                "record_base": "",
+                "record_paths": [],
                 "required_gaps": [],
             }
         ]
@@ -370,6 +372,8 @@ def test_javascript_lint_session_refuses_authored_format_drift(
             "file_count": 2,
             "changed_paths": ["answer.js"],
             "ignored_paths": [],
+            "record_base": "",
+            "record_paths": [],
             "required_gaps": ["source_format_drift:answer.js"],
         }
     ]

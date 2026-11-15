@@ -11,7 +11,6 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.gates.native.inputs import RECORD_PREFIXES
 from ethos.adapters.gates.native.inputs import paradigm_received_paths
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.staged_size import staged_regular_files
@@ -35,18 +34,20 @@ def check_staged_text(root: Path, *, index_env: Mapping[str, str] | None = None)
     """Refuse the first staged authored file whose index blob breaks its layout rule.
 
     The canonical-text rows come from the shipped policy: under an installed runtime the product's
-    own repository keeps a full policy file that is not a byte-bound carrier increment.
+    own repository keeps a full policy file that is not a byte-bound carrier increment. A staged
+    file under a record root that a profile declares is new or changed, so it is judged.
     """
+    paradigm = load_repository_paradigm()
     staged = tuple(
         path
         for path in staged_regular_files(root, index_env)
-        if not path.startswith(RECORD_PREFIXES)
+        if not path.startswith(paradigm.captured_roots)
     )
     if not staged:
         return
     canonical = canonical_text_paths(staged, canonical_resource(POLICY_PATH.as_posix()))
     # A reporting obligation is the audit's to name; the hook refuses only an armed one.
-    markers = load_repository_paradigm().armed(PACKAGE_DOCSTRING)
+    markers = paradigm.armed(PACKAGE_DOCSTRING)
     for path in sorted(set(staged) - paradigm_received_paths(root, staged)):
         markdown = path.endswith(".md")
         marker = markers and path.rpartition("/")[2] == PACKAGE_MARKER

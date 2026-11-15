@@ -89,7 +89,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
     assert (lane / "docs/new.md").stat().st_mode & 0o777 == 0o640
     accepted = {path: (lane / path).read_bytes() for path in paths}
     code, checked = _command(lane, *paths, "--check")
-    assert (code, checked["verdict"]) == (0, "pass"), checked
+    assert (code, checked["verdict"], checked["next_action"]) == (0, "pass", ""), checked
     code, repeated = _command(lane, *paths, "--apply", "--authorize", "--expect-head", head)
     assert (code, repeated["verdict"], repeated["data"]["changed_paths"]) == (0, "pass", [])
     assert all((lane / path).read_bytes() == content for path, content in accepted.items())
@@ -181,6 +181,7 @@ def test_official_openspec_keeps_its_owner_and_is_never_formatted(lane: Path) ->
 
 
 _CARRIERS = ".config/checks/format-selection/policy.toml"
+_RECEIVED = ("linguist-vendored", "linguist-generated")
 _DECLARATION = "format_selection_increment_invalid:custody-bound-sources"
 _INCREMENT = f"format_selection_increment_invalid:{_CARRIERS}"
 _CARRIER = (
@@ -214,7 +215,10 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
 
 
 def test_received_paths_leave_every_authored_selection(lane: Path) -> None:
-    """No authored check selects vendored bytes or rewrites them; a named one has another owner."""
+    """No authored check selects vendored bytes or rewrites them; a named one has another owner.
+
+    A drift refusal names the apply and the two attributes that mark a path received.
+    """
     kept = {
         ".gitattributes": "vendor/** linguist-vendored\n* text=auto eol=lf\n",
         "vendor/font/LICENSE": "Grant\n\n\nTerms\n",
@@ -231,7 +235,9 @@ def test_received_paths_leave_every_authored_selection(lane: Path) -> None:
     )
 
     assert [report(lane)["required_gaps"] for report in reports] == [drift, drift, [], []]
-    assert _command(lane, "--check")[1]["required_gaps"] == drift
+    checked = _command(lane, "--check")[1]
+    assert checked["required_gaps"] == drift
+    assert all(name in checked["next_action"] for name in ("--apply", *_RECEIVED)), checked
     named = _command(lane, "vendor/font/LICENSE", "--check")[1]["required_gaps"]
     assert named == ["source_format_other_owner:vendor/font/LICENSE"]
     code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)

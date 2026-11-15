@@ -1567,7 +1567,7 @@ source_candidate_membership_changed = { owner = "adapters.repo" }
 source_contract_invalid = { owner = "repository.policy" }
 source_contract_missing = { owner = "repository.policy", detail = "the value that follows the colon" }
 source_format_apply_refused = { owner = "adapters.mutation", detail = "the value that follows the colon" }
-source_format_drift = { owner = "ethos", detail = "the value that follows the colon" }
+source_format_drift = { owner = "ethos", detail = "the value that follows the colon", repair = "run ethos lane format --apply --authorize --expect-head <head> --json, naming each path under record_paths to rewrite it, or mark a third-party or generated path linguist-vendored or linguist-generated in .gitattributes" }
 source_format_input_missing = { owner = "adapters.gates", detail = "the value that follows the colon" }
 source_format_other_owner = { owner = "adapters.gates", detail = "the value that follows the colon" }
 source_format_path_invalid = { owner = "adapters.gates", detail = "the value that follows the colon" }

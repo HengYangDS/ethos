@@ -43,6 +43,9 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     }
     assert {row.bound for row in paradigm.parameter if row.group == "size"} == {1000}
     assert paradigm.parameter_defaults("timeout")["gate_seconds"] == 600
+    assert paradigm.immutable_roots == ("openspec/changes/archive/",)
+    assert paradigm.retained_roots == ("docs/archive/", "evidence/")
+    assert paradigm.captured_roots == (*paradigm.immutable_roots, *paradigm.retained_roots)
     assert paradigm.documents.decision_record_name.startswith("^dr-")
     grammar = paradigm.commit.subject_pattern(("cli",))
     assert grammar.startswith("^(build|chore|ci|docs|feat|fix|perf|refactor|revert|test)")

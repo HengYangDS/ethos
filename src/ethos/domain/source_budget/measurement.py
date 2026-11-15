@@ -25,6 +25,8 @@ from ethos.repository.policy.quality.source_budget import PYTHON_CATEGORIES
 from ethos.repository.policy.quality.source_budget import Carrier
 from ethos.repository.policy.quality.source_budget import Policy
 from ethos.repository.policy.quality.source_budget import policy_for_root
+from ethos.repository.profile import effective_record_roots
+from ethos.repository.profile import load_repository_profile
 
 
 class Inventory(TypedDict):
@@ -223,6 +225,7 @@ def _measure(
     root: Path,
     paths: tuple[tuple[str, bool], ...],
     policy: Policy,
+    roots: tuple[str, ...],
     *,
     contents: dict[str, bytes] | None = None,
     classify_executables: bool = True,
@@ -286,7 +289,7 @@ def _measure(
         ):
             gaps.append(f"source_budget_carrier_unreadable:{relative}")
             continue
-        record = relative.startswith(policy.immutable_record_roots)
+        record = relative.startswith(roots)
         accounting = "record" if record else carrier.accounting
         metric = (
             "record_total"
@@ -446,14 +449,21 @@ def _enforced(name: str, metrics: dict[str, int], tokens: dict[str, int], policy
 
 
 def source_budget_report(root: Path) -> SourceBudgetReport:
-    """Measure implementation and immutable records, then enforce implementation limits."""
+    """Measure implementation and records, then enforce implementation limits.
+
+    A record is a carrier under an effective record root of the repository's profile.
+    """
     policy, gaps = policy_for_root(root)
     if policy is None:
         return _blocked(*gaps)
     paths, gaps = _paths(root)
     if paths is None:
         return _blocked(*gaps)
-    metrics, tokens, inventory, records, measure_gaps = _measure(root, paths, policy)
+    try:
+        roots = effective_record_roots(load_repository_profile(root))
+    except ValueError as error:
+        return _blocked(str(error))
+    metrics, tokens, inventory, records, measure_gaps = _measure(root, paths, policy, roots)
     cross_check, cross_gaps = _cross_check(root, policy, records, metrics)
     terminal = policy.terminal.model_dump(exclude_none=True)
     enforced = {name: _enforced(name, metrics, tokens, policy) for name in terminal}

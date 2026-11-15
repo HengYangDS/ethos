@@ -340,10 +340,11 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
 
 
 def effective_record_roots(profile: RepositoryProfile) -> tuple[str, ...]:
-    """Return the paradigm's immutable roots and one profile's record roots; none is immutable.
+    """Return the one record set: the paradigm's immutable roots and one profile's record roots.
 
-    The profile may be the working tree's or one read at a commit, so a verifier of a range reads
-    the roots that each revision declares.
+    Declaring a root adds no immutability. Redaction, the marker verifier, the source budget and
+    the format repair read this set and no other. The profile may be the working tree's or one
+    read at a commit, so a verifier of a range reads the roots that each revision declares.
     """
     if profile.state == "invalid":
         message = "repository_profile_invalid"

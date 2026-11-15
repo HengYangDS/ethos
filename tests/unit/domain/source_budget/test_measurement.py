@@ -273,6 +273,36 @@ def test_python_role_partition_is_complete_and_non_overlapping(
     assert report["metrics"]["record_total"] == 0
 
 
+@pytest.mark.parametrize(
+    ("profile", "policy", "records"),
+    [
+        ("", "", 0),
+        ("", 'immutable_record_roots = ["kept/"]\n', 0),
+        ('record_roots = ["kept/"]\n', "", 2),
+        ('record_roots = ["kept.py"]\n', "", None),
+    ],
+    ids=["undeclared", "retired-policy-key", "declared", "invalid"],
+)
+def test_a_profiles_record_roots_are_counted_as_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: str, policy: str, records: int | None
+) -> None:
+    """Carriers under a declared record root leave the source budget, as archived ones do.
+
+    The policy's retired key is accepted and decides nothing, whatever it names.
+    """
+    selection, _ = budget_repository(tmp_path)
+    selection.write_text(selection.read_text().replace("line_width", f"{policy}line_width"))
+    tracked_budget_file(tmp_path, ".ethos/profile.toml", f'profile_id = "budget"\n{profile}')
+    tracked_budget_file(tmp_path, "kept/decision.py", "FIRST = 1\nSECOND = 2\n")
+    report = measure_budget(monkeypatch, tmp_path)
+
+    if records is None:
+        assert report["required_gaps"] == ["repository_profile_invalid"]
+    else:
+        metrics = report["metrics"]
+        assert (metrics["record_total"], metrics["python_other"]) == (records, 2 - records)
+
+
 def test_overlapping_python_role_patterns_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

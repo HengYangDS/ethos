@@ -82,7 +82,7 @@ branch. It creates ordinary new local commits when Git requires them; it never
 reconstructs an existing product object merely to change identity or signature.
 History-preserving integration uses `refresh-base --strategy merge`; its
 operation-aware preview, continue and preserved abort are described in the
-[command reference](../reference/command-plane.md#native-merge-continuation).
+[integration reference](../reference/integration-and-release.md#native-merge-continuation).
 Native parent provenance selects lane intent without consuming another Change's
 progress. A pending merge is not a dirty-rebase recovery instruction.
 `ethos land` advances the configured candidate branch, and `ethos lane retire landed`

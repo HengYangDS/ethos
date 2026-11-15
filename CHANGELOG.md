@@ -12,6 +12,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Changed
+
+- The command reference splits by reader question, and five of its sections move with unchanged
+  text and anchors. `docs/reference/integration-and-release.md` holds what was
+  `docs/reference/command-plane.md#native-merge-continuation`,
+  `#retained-candidate-materialization` and `#accepted-release-selection`;
+  `docs/reference/ci-operations.md` holds what was `#native-ci-projection` and
+  `#exact-ref-observation-for-ci`. The command reference keeps each heading with a pointer to the
+  new place, so an old anchor still resolves, and the wheel and the source archive carry both new
+  pages.
+
 ## [0.2.0-beta.11] - 2026-11-21
 
 ### Added

@@ -14,7 +14,8 @@ Purpose: hold stable vocabulary, command-plane references, boundaries, and
 governance references for ETHOS and governed repositories.
 
 See also: [Documentation Root](../README.md), [Command Plane](command-plane.md),
-[Operational Roots](operational-roots.md),
+[Operational Roots](operational-roots.md), [Integration And Release](integration-and-release.md),
+[CI Operations](ci-operations.md),
 [Configuration Plane](configuration.md), [Glossary](glossary.md), and [Brand Kit](brand-kit.md).
 
 Reference docs explain terms and boundaries and link their owners: the Product Design

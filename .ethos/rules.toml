@@ -37,14 +37,3 @@ stop_condition = "skill-package-projection-drift"
 profile_layers = []
 path_globs = [".agents/skills/**", "rules/skills.md"]
 required_gates = ["skills"]
-
-# This repository's reference page for the command plane carries every public operation and the
-# obligations each one owes, so it grows with the product surface. It stood at 499 of 500 nonblank
-# lines before the release batch and its four Changes add sixteen. The bound is raised for the
-# whole repository, with the measured count, until the page is split by reader question in its own
-# Change (registered for the following batch); it is not raised for one document.
-[paradigm.size]
-document_nonblank_lines = 560
-
-[paradigm.size.reasons]
-document_nonblank_lines = "the command-plane reference measured 515 nonblank lines after the batch's four Changes that document new operations (measured 2026-11-14); the page splits by reader question in the following batch, and the bound returns to the default when it does"

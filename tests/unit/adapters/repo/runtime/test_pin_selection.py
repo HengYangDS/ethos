@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.adoption as adoption_effect
+import ethos.adapters.repo.hook.rollback as rollback
 import ethos.application.hook.installation as installation
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.rollback import RollbackRefusalError
@@ -30,6 +32,10 @@ _INSTALL = "mise --cd {} install --locked"
 _REPAIR = (
     "in a lane, declare one exact pin, lock it with its attestation (mise lock) and land both; "
     "a clone with nothing selected first binds a runtime: ethos hook install --runtime <runtime>"
+)
+_REFUSED, _DECLARATION = (
+    "runtime_rollback_declaration_repaired",
+    "publication_topology_declaration_invalid",
 )
 _HTTP = '[tools."http:ethos"]\nversion = "9.3.0"\n'
 _BARE = pinned_release_files("9.3.0", attested=False)
@@ -234,6 +240,40 @@ def test_only_a_departure_needs_a_reason_from_a_lane(
     assert not (Path(git_common_dir(repo)) / "ethos/receipts").exists()
 
 
+@pytest.mark.parametrize(
+    ("files", "refused", "gap", "action"),
+    [
+        (_BARE, "", "runtime_pin_unattested", _REPAIR),
+        (pinned_release_files("9.3.0"), "", "runtime_pin_not_installed", _INSTALL),
+        (pinned_release_files("9.3.0"), "probe", _REFUSED, rollback.RESTORE_ACTION),
+        (pinned_release_files("9.3.0"), "payload", "hook_runtime_payload_mismatch", ""),
+    ],
+    ids=["unattested", "not-installed", "declaration-repaired", "damaged-install"],
+)
+def test_adoption_refuses_a_selection_as_activation_does_and_names_its_repair(
+    tmp_path, monkeypatch, files, refused, gap, action
+) -> None:
+    """A refused pin blocks before any effect; the result's next action is the refusal's own."""
+    repo, _selected = _adopter(tmp_path, "", files)
+    release = _release(tmp_path / "mise/runtime", "9.3.0") if refused else None
+    mise_installs(monkeypatch, {"9.3.0": tmp_path / "mise"} if refused else {})
+    monkeypatch.setattr(rollback, "_publication_gaps", lambda *_a: (_DECLARATION,))
+    monkeypatch.setattr(
+        adoption_effect, "materialize_runtime", lambda *_a, **_k: release / "python"
+    )
+    if refused == "payload":
+        (release / "added").write_bytes(b"")
+    exact = {"apply": True, "authorize": True, "expect_head": git(repo, "rev-parse", "HEAD")}
+
+    for request in (exact, {}):
+        result = adopt_repository(repo, select_runtime=True, **request)
+        assert (result.verdict, result.required_gaps) == ("block", (gap,)), result.to_dict()
+        again = f"ethos adopt --root {repo} --json --select-runtime"
+        assert result.next_action == (action.format(repo.as_posix()) or again)
+    assert not (Path(git_common_dir(repo)) / "ethos/runtime/CURRENT").exists()
+    assert not (repo / ".ethos").exists()
+
+
 def test_adoption_and_the_install_command_read_the_same_pin(tmp_path, monkeypatch) -> None:
     """`adopt --select-runtime` plans no unattested selection; `hook install` carries `--reason`."""
     repo, _selected = _adopter(tmp_path, "", _BARE)
@@ -241,13 +281,18 @@ def test_adoption_and_the_install_command_read_the_same_pin(tmp_path, monkeypatc
     assert "runtime_pin_unattested" in plan.required_gaps
     assert plan.data["runtime_selection"]["next_action"] == _REPAIR
     assert not (Path(git_common_dir(repo)) / "ethos/runtime/CURRENT").exists()
-    # With the pin attested and installed, the plan binds the pinned install's build.
+    # With the pin attested and installed, the plan probes the pinned install and binds its build.
     write_tree(repo, pinned_release_files("9.3.0"))
     commit_fixture(repo, "chore: lock the pin")
-    _release(tmp_path / "mise/runtime", "9.3.0")
+    release = _release(tmp_path / "mise/runtime", "9.3.0")
     mise_installs(monkeypatch, {"9.3.0": tmp_path / "mise"})
+    probed: list[Path] = []
+    monkeypatch.setattr(
+        rollback, "_publication_gaps", lambda _root, python: probed.append(python) or ()
+    )
     bound = adopt_repository(repo, select_runtime=True).data["runtime_selection"]
     assert (bound["runtime_pin"]["state"], bound["source_commit"]) == ("followed", "a" * 40)
+    assert [python.is_relative_to(release) for python in probed] == [True]
     seen: dict[str, object] = {}
     binding = {"hooks_path": "", "python": "", "current": True, "required_gaps": []}
     monkeypatch.setattr(

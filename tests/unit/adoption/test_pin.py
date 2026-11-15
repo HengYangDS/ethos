@@ -31,6 +31,7 @@ OWN = '# The project\'s own tools.\n[tools]\nnode = "26.13.1"\n\n[tasks.check]\n
 PINNED_OWN = OWN.replace("\n\n", f"\n{PIN}\n\n") + f"\n{SETTING}"
 OPTIONS = ENTRY.replace(f'"{RELEASE}"', f'{{ version = "{RELEASE}", os = ["linux"] }}')
 HTTP = f'[tools."http:ethos"]\nversion = "{RELEASE}"\nurl = "https://example.invalid/a"\n'
+NOT_ALONE = "pin_not_on_its_own_line"
 
 
 def _text(path: Path) -> str | None:
@@ -124,28 +125,42 @@ def test_an_applied_pin_is_followed_by_the_relock(
 
 
 @pytest.mark.parametrize(
-    ("config", "after"),
+    ("config", "planned"),
     [
-        pytest.param(PINNED_OWN, OWN + f"\n{SETTING}", id="own-pin"),
+        pytest.param(PINNED_OWN, {"key": PIN_KEY, "after": OWN + f"\n{SETTING}"}, id="own-pin"),
         pytest.param(OPTIONS, None, id="options-form"),
+        pytest.param(None, None, id="no-file"),
+        pytest.param(PINNED_OWN + "[tools", {"kept": "runtime_pin_invalid"}, id="unparsable"),
+        pytest.param(ENTRY + HTTP, {"kept": "runtime_pin_ambiguous"}, id="both-keys"),
+        pytest.param(f"tools.{PIN}\n", {"key": PIN_KEY, "kept": NOT_ALONE}, id="dotted-key"),
     ],
 )
 def test_an_exit_removes_only_the_pin_that_adoption_wrote(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config: str, after: str | None
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    config: str | None,
+    planned: dict[str, str] | None,
 ) -> None:
-    """The preview names the key; the apply keeps every other line, the setting and each file."""
+    """The preview names the key; the apply keeps every other line, the setting and each file.
+
+    A configuration that the exit cannot read, or a pin whose line it cannot delete alone, stays
+    as it is and the plan names it with the reason; a missing file holds no pin.
+    """
     repo, _common, _before = adopted_with_own_hooks(tmp_path, monkeypatch)
     adoption_plan(repo, apply=True, release=RELEASE)
-    (repo / MISE_CONFIG).write_text(config, encoding="utf-8")
+    if config is None:
+        (repo / MISE_CONFIG).unlink()
+    else:
+        (repo / MISE_CONFIG).write_text(config, encoding="utf-8")
     profile = _text(repo / ".ethos/profile.toml")
 
     pin = exit_preview(repo)["pin"]
     result = apply_exit(repo)
 
-    assert pin == (after and {"path": MISE_CONFIG, "key": PIN_KEY, "after": after})
+    assert pin == (planned and {"path": MISE_CONFIG} | planned)
     assert (result.state, result.data["pin"]) == ("applied", pin), result.to_dict()
     assert (_text(repo / MISE_CONFIG), _text(repo / ".ethos/profile.toml")) == (
-        after or config,
+        (planned or {}).get("after", config),
         profile,
     )
     assert exit_preview(repo)["pin"] is None

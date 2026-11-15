@@ -161,6 +161,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   that did not run in `data.not_run`; it reported `executed: false` and no check. Its verdict, its
   gap and its exit are unchanged. Neither defect is in a release: both came with the foreground
   host proof's ticket.
+- `ethos adopt --select-runtime` treats the accepted pin as `ethos hook install` does. When the pin
+  refuses because nothing is selected, the next action is the refusal's own repair, for example
+  `mise --cd <root> install --locked`; it used to name the same request, which met the same
+  refusal. Its plan also probes a pinned install against the root's publication declaration, so
+  it refuses with `runtime_rollback_declaration_repaired` where the installation refuses; it used
+  to select that install. For both commands that refusal now ends with "repeat this request with
+  `--root <lane>`".
+- `ethos adopt --exit` names a Mise pin that it keeps. When it cannot read the Mise configuration,
+  or the bare pin is not a line of its own under `[tools]`, the plan's `pin` names the file and
+  the reason under `kept`, and the apply leaves the file as it is. The plan used to read as if the
+  repository held no pin.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

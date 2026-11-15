@@ -7,7 +7,8 @@ it cannot restore, the selectors with their hashes, the Leases, the unlanded top
 generations the exit removes and keeps, and what blocks the exit, all under one digest. It reads
 the state database read-only and probes each lock without creating it. An `applying` receipt
 makes the plan resume that exit, and its record stands in for a removed record file. The plan
-also names the Mise pin that adoption wrote and the configuration text without it.
+also names the Mise pin that adoption wrote and the configuration text without it, or the reason
+it keeps that file.
 """
 
 from __future__ import annotations
@@ -251,18 +252,22 @@ def _pin(repo: Path) -> dict[str, str] | None:
     """Name the bare pin that adoption wrote, with the Mise configuration without its line.
 
     Only that key goes. The provenance setting stays, because Mise applies it to every tool and
-    no record says who set it, and a pin in any other form is the repository's own.
+    no record says who set it, and a pin in any other form is the repository's own. A
+    configuration that cannot be read, or a bare pin that is not a line of its own, stays as it
+    is and is named as kept with the reason; only a path that names no file holds no pin.
     """
     try:
         text = (repo / MISE_CONFIG).read_text(encoding="utf-8")
         pin = declared_pin(text)
-        if not (pin and pin.bare):
-            return None
-        removed = without_field(text, tomllib.loads(text), "tools", pin.key)
-    except (OSError, ValueError):
+    except (FileNotFoundError, NotADirectoryError):
         return None
+    except (OSError, ValueError) as error:
+        return {"path": MISE_CONFIG, "kept": str(error) or type(error).__name__}
+    if not (pin and pin.bare):
+        return None
+    removed = without_field(text, tomllib.loads(text), "tools", pin.key)
     if removed is None:
-        return None
+        return {"path": MISE_CONFIG, "key": pin.key, "kept": "pin_not_on_its_own_line"}
     return {"path": MISE_CONFIG, "key": pin.key, "after": removed[0] or ""}
 
 

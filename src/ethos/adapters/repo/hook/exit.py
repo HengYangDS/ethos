@@ -210,8 +210,10 @@ def _apply_fenced(repo: Path, common: Path, expect_plan_digest: str) -> EthosRes
     if gaps:
         return _result(plan, gaps, next_action=_PREVIEW)
     paths = _paths(common)
-    if plan["pin"]:
-        paths["pin"] = repo / plan["pin"]["path"]
+    # A pin that the plan keeps names no text to write, and its file is never read again here.
+    pin = plan["pin"] or {}
+    if "after" in pin:
+        paths["pin"] = repo / pin["path"]
     prior = {name: file_bytes(path) for name, path in paths.items()}
     written: list[_Write] = []
     try:
@@ -222,8 +224,8 @@ def _apply_fenced(repo: Path, common: Path, expect_plan_digest: str) -> EthosRes
         _require_no_ethos_hooks(common, plan["worktrees"])
         for name in SELECTORS:
             _remove_selector(paths[name], plan["selectors"][name])
-        if plan["pin"]:
-            restore_file(paths["pin"], plan["pin"]["after"].encode())
+        if "pin" in paths:
+            restore_file(paths["pin"], pin["after"].encode())
         _mark_applied(paths["receipt"])
     except (OSError, ValueError) as error:
         return _compensate(plan, prior, paths, written, str(error) or type(error).__name__)

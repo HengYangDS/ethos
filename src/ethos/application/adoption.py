@@ -131,7 +131,9 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
     # The relock names the adopted root, like every continuation here: Mise would otherwise lock
     # the configuration that the caller's working directory selects.
     relock = ("mise", "--cd", str(target), "lock")
-    next_action = shlex.join(relock if plan_payload["relock"] else action)
+    next_action = _continuation(
+        plan_payload, shlex.join(relock if plan_payload["relock"] else action)
+    )
     if conflicts:
         next_action = f"Resolve {', '.join(conflicts)} in {target}; then {next_action}"
     return EthosResult(
@@ -161,6 +163,13 @@ def adopt_existing(root: Path, request: AdoptRequest) -> EthosResult:
             },
         },
     )
+
+
+def _continuation(plan: dict[str, object], request: str) -> str:
+    """Name a refused runtime selection's own repair; the same request would be refused again."""
+    selection = plan.get("runtime_selection")
+    repair = selection.get("next_action") if isinstance(selection, dict) else ""
+    return str(repair or request)
 
 
 def leave_ethos(root: Path, request: AdoptRequest) -> EthosResult:

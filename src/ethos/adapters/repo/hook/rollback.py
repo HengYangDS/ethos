@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 RESTORE_ACTION = (
     "restore the predecessor's publication declaration in a lane whose HEAD contains the "
-    "accepted tip, then run this hook install with --root <lane>"
+    "accepted tip, then repeat this request with --root <lane>"
 )
 # The predecessor's loader refuses a repaired declaration with this one gap.
 _REPAIRED = "publication_topology_declaration_invalid"

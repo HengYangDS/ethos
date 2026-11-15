@@ -156,6 +156,11 @@ narrow.
 - **Path projects metadata.** The role is declared in each document; the directory is derived
   from it. The check is that a document's first-level directory is the home of its declared role,
   so path equality does not stand for meaning, which was the first reason.
+- **What serves another document stays with it.** A document whose declared role is `index`
+  indexes its own directory and stays there; a `template` and an asset sit beside what they
+  serve. A repository's declared normative sources and product roots keep their paths. A home
+  without role metadata completes it first, which is the fallback's work, before the check
+  reports it.
 - **A mixture splits.** A directory of two kinds is two kinds of document, and each file maps by
   its own role with a preview for each file, so no mixture needs a kind of its own, which was the
   second reason.
@@ -167,8 +172,12 @@ narrow.
   how it declares a role. A repository without a documentation home is asked for nothing. An
   asset sits beside the document that uses it or under one asset name.
 - **The table of names is the fleet step's work**, written with the fleet seat's per-file reading
-  before that step's Change is written. No governed repository keeps a backlog tool's tree; the
-  one that does disposes each open task as a draft or a closed item in its own lane.
+  before that step's Change is written.
+- **No governed repository keeps a backlog tool's tree.** In the one that does, the open tasks
+  become drafts, its decisions become decision records, its documents move to the documentation
+  home, its milestones go to the plan, and completed and archived tasks are removed, since Git
+  keeps them. The session that holds its lane does it, after the repair, and no other repository
+  adopts a backlog tool.
 
 ### 8. The session rule
 
@@ -196,7 +205,9 @@ gives the first.
   owns it and is retired with that lane, or when its content has been sunk to a carrier. A purpose
   directory with no owner is residue.
 - **Evidence is a directory for each subject**, with its consumer and exit; no file lies loose at
-  the root of the evidence home. A name the topology does not declare is not created.
+  the root of the evidence home. A name the topology does not declare is not created. A path
+  that a repository's documented command or its own tool writes is reported with that producer as
+  the repair, and a product's documented output maps to the artifacts home.
 
 The mechanism belongs to rows the gate already has: the residue classes, the proof's scratch
 output and store retention. This design adds their input: the reader prints, for each home, the
@@ -250,6 +261,11 @@ commits of similar shape. Steps 4 and 5 do not fit the test ceiling's 247 free l
 prepared budget step. Step 3 moves 23 tracked mentions of the plan's path, five of them in
 documents an installation carries, one constant in the audit and two tests that pin the path.
 
+Step 5 moves repositories in this order: ETHOS; then the producers whose documents others cite;
+then the guidance and benchmark repositories; then the two repositories under repair, inside
+their repair lanes. A repository without a documentation home is asked for nothing, and a
+repository with another maintainer moves only with that maintainer.
+
 ### 13. Review record
 
 - **Revision 1**, commit `ae42de7cb`: a fourth object for intake, a `proposals` home, roadmap rows
@@ -268,7 +284,11 @@ documents an installation carries, one constant in the audit and two tests that 
 - **Owner after revision 1:** no backlog; the review's unanimous final text decides the rest; the
   build tree is brought to one shape.
 - **Revision 2**, commit `25a6925a4`: the intake and the `proposals` home removed.
-- **Revision 3** is this text.
+- **Revision 3**, commit `4034f0c6c`: no new carrier.
+- **Fleet seat on revision 3: signed with four additions**, measured on every governed
+  repository's accepted branch on 2026-11-15: index and template documents and declared
+  normative sources in decision 7, the disposal of the one backlog tree, the producers of build
+  paths in decision 9, and the fleet's order in decision 12. All four are in this text.
 
 ## Risks / Trade-offs
 

@@ -4,9 +4,8 @@
 
 See the [proposal](proposal.md) and
 [DR-0028](../../../docs/decisions/dr-0028-test-budget-step-110.md). DR-0023 took the previous test
-step the same way. Every figure below was read on 2026-11-15: the ceilings from Git objects with
-the product's own token measure, and each module's delta with the budget tool on this Change's
-tree.
+step the same way. Every figure below was read on 2026-11-15: the ceilings from the report of the
+source-budget gate, and each module's delta with the budget tool on this Change's tree.
 
 ## Goals / Non-Goals
 
@@ -47,7 +46,7 @@ Non-Goals:
      estimates for the other six, 670 together; and the ten sized Changes of 0.2.0-beta.11, which
      measured 1,662 against 785 estimated on their prepared stack.
    - **Considered:** the plan's estimates alone, which give 670 for the six rows that are not
-     prepared and already exceed the 297 that remain after the removals.
+     prepared and already exceed the 296 that remain after the removals.
    - **Chosen because:** the estimates left out refusal cases and journeys that the done
      conditions name, and the measured factor of 2.1 is the only reading of that omission.
    - **Applies to:** the expectation of about 2,340 for the batch. It is no budget for any row.

@@ -38,7 +38,7 @@ step with evidence.
   run and one queue read replaced four copies in the host proof tests (-29.2). The exit table's
   copy of the short-write case, which the output tests own, went (-13.0). The rollback journey uses
   the shared tree writer and Git helper (-5.8), and a repeated declaration assertion went (-3.2).
-  Together that is 51.1 line-equivalents, and the tests stand at 104,703 with 297 free.
+  Together that is 51.1 line-equivalents, and the tests stand at 104,704 with 296 free.
 - **Two prepared removals do not count.** Both were measured on 2026-11-14 on a prepared stack.
   One, 7.0 in the admission tests, no longer applies after three commits that landed, and the host
   row of this batch rewrites that module. The other, 24.8, removed a repeated test that only the
@@ -46,7 +46,7 @@ step with evidence.
   journey, so nothing is left to remove.
 - **What still needs the space.** The nine rows of 0.2.0-beta.12. Three are prepared and measured:
   the host row's second Change at 351.9, the adopter bump at 204.7 and the hosted reader at 375.5.
-  Together they are 932.1, more than three times the 297 that remain. The plan's estimates for
+  Together they are 932.1, more than three times the 296 that remain. The plan's estimates for
   the other six add up to 670. The ten sized Changes of 0.2.0-beta.11 measured 1,662 against 785
   estimated on their prepared stack, 2.1 times. At that factor the six need about 1,410 and the
   batch about 2,340.
@@ -73,7 +73,7 @@ step with evidence.
 
 ## Consequences and Boundary
 
-- 0.2.0-beta.12 has 5,297 line-equivalents of space against about 2,340 expected, of which 932.1
+- 0.2.0-beta.12 has 5,296 line-equivalents of space against about 2,340 expected, of which 932.1
   are measured and the rest is estimated.
 - The step is not expected to hold the whole release candidate: 24 rows follow this batch. The
   review below decides the next step; this record does not.

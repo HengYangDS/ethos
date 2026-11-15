@@ -64,7 +64,8 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
      removes a member.
    - **Applies to:** the command path, its two operation IDs `release.accept.preview` and
      `release.accept.apply`, and the group's help. A hidden group still runs and still answers
-     `ethos release --help --json`.
+     `ethos release --help --json`. The terminal surface test pins the registered roots and
+     names `release` among them (`tests/unit/cli/test_terminal_command_surface.py`).
 2. **The publish refusal holds for the product root only.**
    - **Rests on:** a measurement in a temporary root that declares `v*` tags and holds every
      required release file and no Python project. `release_role_policy_report` gives no gap

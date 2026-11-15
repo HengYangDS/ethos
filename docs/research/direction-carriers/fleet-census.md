@@ -27,18 +27,18 @@ tracker; the fleet seat's reading of open issues is in a later section.
 
 ## ETHOS
 
-| Measure                                                          | Value      |
-| ---------------------------------------------------------------- | ---------- |
-| Documents under `docs/plans`                                     | 1          |
-| Nonblank lines of that plan, against the bound                   | 500 of 500 |
-| Nonblank lines of the product design contract, against the bound | 500 of 500 |
-| Archived Changes                                                 | 353        |
-| Archived Changes with a `Workflow follow-up` section             | 152        |
-| Follow-up bullets in those sections                              | 248        |
-| Tasks withdrawn under DR-0016                                    | 96         |
-| Archived Changes that change no requirement (`skip_specs: true`) | 174        |
-| Documents in the state `planned` or `experimental`               | 0 of 68    |
-| Research documents                                               | 12         |
+| Measure                                                              | Value   |
+| -------------------------------------------------------------------- | ------- |
+| Documents under `docs/plans`                                         | 1       |
+| Nonblank lines of that plan; default bound 500, repository bound 560 | 500     |
+| Nonblank lines of the product design contract, same bounds           | 500     |
+| Archived Changes                                                     | 353     |
+| Archived Changes with a `Workflow follow-up` section                 | 152     |
+| Follow-up bullets in those sections                                  | 248     |
+| Tasks withdrawn under DR-0016                                        | 96      |
+| Archived Changes that change no requirement (`skip_specs: true`)     | 174     |
+| Documents in the state `planned` or `experimental`                   | 0 of 68 |
+| Research documents                                                   | 12      |
 
 - The specification requires exactly two design authorities and forbids a parallel roadmap; the
   plan forbids an active backlog and a feedback registry.

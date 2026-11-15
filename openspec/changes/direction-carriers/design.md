@@ -2,253 +2,289 @@
 
 ## Context
 
-Measured on `dev` at `c79f3aaf8` and on 14 governed repositories of the releasing host on
-2026-11-15; the three research pages of this Change hold the figures and the sources.
+Measured on `dev` and on 14 governed repositories of the releasing host on 2026-11-15; the three
+research pages of this Change hold the figures and the sources.
 
-- **One carrier for the future, and it is full.** The specification keeps exactly two design
-  authorities. The terminal plan holds the end state's architecture, the convergence order and the
-  rules of convergence in one document of 500 nonblank lines, the bound. The contract holds 500.
 - **Intent leaves by the side doors.** 248 follow-up bullets and 96 withdrawn tasks sit in archived
   Changes, which the specification says own no queue. 174 of 353 archived Changes change no
   requirement; the largest of them are designs that span many later Changes, and an archive is
-  immutable while such a design is still the current one. The gate's 43 rows are prose in a
-  decision record and a list in an untracked script. Defects, rulings and proposals of a week sit
-  in one session's untracked notes and in agent memory.
+  immutable while such a design is still the current one. The rows of the release-candidate gate
+  are prose in a decision record and a list in an untracked script. Defects, rulings and proposals
+  of a week sit in one session's untracked notes and in agent memory.
 - **A session is not a carrier.** On 2026-11-15 a request failed and a session lost two hours and
   seventeen minutes. What was in files, detached processes and pushed refs was intact. What the
   session alone held was gone.
-- **One price for every write.** A tracked write needs a Work Lane, a Change and a proof. That is
-  right for a change of behavior and wrong for a sentence of intent, so the sentence is not
-  written where it would last.
-- **No common shape.** DR-0011 fixed metadata and left structure to each repository: 20 first-level
-  names in 9 documentation homes, four forms of plan, four forms of contract, two of research.
-- **Practice elsewhere** (primary sources, read 2026-11-15) agrees on five points. A proposal is
-  one document with an identity and a state for "not now". Acceptance is not scheduling. The
-  design document is a record, and execution is another object. Intake is apart from tracked
-  work. A roadmap that is hand-kept in a file goes stale, so projects keep entries as thin
-  pointers to tracked objects or generate the view from metadata. The sources disagree on a
-  backlog: one method keeps none on purpose, most keep a holding place.
-- **The owner decided two things on 2026-11-15**, after the first revision: there is no backlog,
-  and the remaining choices of this design are settled by the review once every seat signs one
-  text.
+- **The plan mixes two lifetimes.** The terminal plan holds the order of unfinished work and, in
+  about 260 of its 500 nonblank lines, the architecture of the end state. It and the contract stand
+  at the default bound of 500; the repository's bound is 560 until the command reference splits.
+- **No common shape.** 9 documentation homes use 20 first-level names, four forms of plan, four
+  forms of contract and two of research. Two homes carry no role metadata.
+- **The ignored build tree has the same disease.** ETHOS's holds 14 GB: 77 purpose directories
+  under `build/runtime/work`, 29 of them untouched for a week, one of them 10.5 GB of clones; 56
+  loose files at the root of `build/evidence`; a directory that the topology does not name.
+- **Practice elsewhere** (primary sources, read 2026-11-15): a proposal is one document with an
+  identity; acceptance is not scheduling; the design is a record and execution another object; a
+  roadmap that is hand-kept goes stale, so entries are thin pointers to tracked objects or the
+  view is generated. No tracker meets the constraints, and OpenSpec's maintainers answer requests
+  for a backlog with a Change that holds only a proposal.
+- **The owner decided on 2026-11-15**: the common law and mechanisms come from ETHOS; a decision
+  record that contradicts the end state is replaced; there is no backlog; the review's unanimous
+  final text settles the rest; and the build tree is brought to one shape as well.
+
+Revision 1 answered with new carriers. Two of the three seats blocked it, and the contract already
+held the test that it failed.
 
 ## Goals / Non-Goals
 
 Goals:
 
-- Everything that must outlive a session has one carrier in the repository, named by its nature,
-  with an identity, states and a reader, and a price that fits it.
-- ETHOS provides the carriers and their mechanisms once for every governed repository.
+- Everything that must outlive a session is in the tracked carrier of its kind.
+- ETHOS provides the carriers and the rules once for every governed repository.
 - A reader finds the end state, what is committed and in what order, what is proposed and the
-  evidence behind each, from the tree alone.
-- No state is written twice: what a tool can derive from the tree is derived.
+  evidence behind each, from the repository alone.
+- No state is written twice: what a reader can derive is derived.
 
 Non-Goals:
 
 - A backlog, an inbox or a feedback registry, in ETHOS or in a governed repository.
-- A project-management system, estimates, assignees or boards.
-- A carrier for conversation. A message becomes a draft, a row, a task or a decision, or it is
-  not kept.
+- A new carrier, schema or lifecycle state where an existing one holds the obligation.
 - A fixed tree of subjects. Subjects, their names and their number stay with each repository.
-- A second place for task progress. OpenSpec Changes keep it.
 
 ## Decisions
 
-### 1. Seven layers, sorted by what an object is
+### 1. The contract's test decides: no new carrier
 
-| Layer         | Says                                         | Lives until                 | Carrier                         |
-| ------------- | -------------------------------------------- | --------------------------- | ------------------------------- |
-| Contract      | what the product is and its end state        | the product changes meaning | contract documents              |
-| Specification | what the product does now                    | the next accepted Change    | `openspec/specs`                |
-| Decision      | why a choice was made                        | a successor replaces it     | decision records                |
-| Direction     | where it goes, in what order, what is unsure | done, declined or replaced  | the roadmap and draft Changes   |
-| Change        | one bounded step                             | its archive                 | `openspec/changes`              |
-| Explanation   | how to use and understand it                 | its subject changes         | architecture, guides, reference |
-| Evidence      | what was observed                            | its retention or review     | proofs, receipts, research      |
+The contract admits a carrier, a persisted record or a lifecycle state only when the obligation is
+absent from OpenSpec, Git and the existing carriers, when deleting the entity would make an
+invariant unprovable, and when it has one owner and an end. Applied to what revision 1 proposed:
 
-Direction is the layer the law lacked. The contract layer owns the end state and nothing about
-order; the Change layer owns one step and nothing about the next.
+| Entity of revision 1                 | Absent elsewhere                                          | Verdict      |
+| ------------------------------------ | --------------------------------------------------------- | ------------ |
+| An intake of short files             | no: a Change without tasks holds it                       | not admitted |
+| A `proposals` home with six states   | no: a draft's proposal and design hold it                 | not admitted |
+| A roadmap file of rows with an order | no: the plan owns order, and a Change names what it needs | not admitted |
+| A documentation tier of the proof    | it is the fast tier's subject                             | not here     |
+| A path class for direction writes    | no: admission already lets a lane create a Change         | not admitted |
 
-### 2. Three direction objects and research
+What was missing is not a carrier. It is the use of the carriers that exist, three sentences of
+law that kept them from being used, and the readers that make their content visible.
 
-| Object    | Nature                                           | Identity          | Written                                  | Derived                                   |
-| --------- | ------------------------------------------------ | ----------------- | ---------------------------------------- | ----------------------------------------- |
-| End state | invariants as readings with today's value        | one document      | the sentence and its command             | each reading's value                      |
-| Roadmap   | ordered rows, each a pointer to one Change       | the Change's name | release, batch, what it follows          | open, drafted, active, landed             |
-| Draft     | an idea, a defect's repair or a design, proposed | the Change's name | a proposal, and a design when it has one | draft, by having no task; its age in cuts |
-| Research  | dated findings about the world, with sources     | subject and slug  | active, settled, superseded; review date | due for review                            |
+### 2. Where each thing lives
 
-- **End state.** The contract family states each terminal invariant as a reading: the sentence,
-  the command that reads it and the value today. It replaces the plan's completion boundary.
-- **Roadmap.** Rows are data in one file for each release line. A row names its Change, its
-  release and batch and the rows it follows. It holds no status: a row is landed when the Change is
-  archived on the accepted branch, active when the Change has tasks, drafted when it has none, and
-  open when no Change of that name exists. The view is printed by a reader and stored nowhere.
-- **Draft.** OpenSpec has this object already: a Change without tasks validates strictly, and its
-  list and view name it a draft (probed on 2026-11-15 with the installed 2.0.0). A draft holds a
-  proposal: why, what would change, and the impact. A design that spans several Changes is a draft
-  with a design document that lists its member Changes. There is no other carrier for intent that
-  is not yet admitted, and no backlog: an idea that is worth keeping is a draft, and one that is
-  not is let go.
-- **A draft is disposed at the weekly cut** in one of the four ways the contract names. Accepted:
-  it gains tasks and a roadmap row, or, for a design, a decision record and the rows of its
-  members. Superseded or rejected: it is archived with one sentence that names the owner that
-  covers it or the reason, so the archive keeps what the contract asks to keep. Pending
-  verification: it stays a draft and names the missing fact. A draft older than two cuts is
-  reported.
+| What must last                              | Its carrier, which exists                         | What was missing                               |
+| ------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| The end state                               | the contract's numbered invariants                | a reader's command and terminal value for each |
+| The order of unfinished work, and its exits | the terminal plan                                 | room, and the gate's rows by name              |
+| An idea, a defect's repair, a wish          | a draft: an OpenSpec Change without tasks         | the rule that a draft may stay open            |
+| A design that spans Changes                 | a draft with a design, active while it is current | the same rule; it was archived too early       |
+| A deferred task or a follow-up              | the draft that will carry it                      | a draft at the moment of deferral              |
+| A ruling by the owner or the lead           | the Change it rules on, or a decision record      | the habit; rulings sat in chat and notes       |
+| A finding about the world                   | a research study under the documentation home     | a review date, and the habit                   |
+| An observation of a run                     | its Attestation or the forge's record             | nothing                                        |
+| An agent's lesson                           | the rule, tool or test that it corrects           | nothing new; memory is a cache                 |
+
+### 3. Drafts
+
+OpenSpec has the object: a Change without tasks validates strictly with `skip_specs`, and its
+list and view name it a draft (probed on 2026-11-15 with the installed 2.0.0). A lane may create a
+Change's files without another Change, so a draft costs one commit in the lane a writer already
+holds, and its lane's proposal ref makes it durable on both forges before it lands. It lands with
+that lane's batch under the existing proof.
+
+- **A draft may stay open.** It is intent, not unfinished work. The readers list drafts apart
+  from Changes in work, each with its age in releases.
+- **A draft is disposed in the contract's four ways, and only by a commit to it.** Accepted: it
+  gains its tasks, with their acceptance and proof, and the plan names it. Superseded: it is
+  archived with the name of the later Change or decision on the same subject. Pending
+  verification: it stays, and its proposal names the missing fact, the contradiction or the gap.
+  Rejected: it is archived with the reason. The governing Change of a draft is the draft, so the
+  archive keeps what the contract asks to keep.
 - **A design draft stays active while it is the current design.** It is edited as its members
-  land, and it is archived when the last has landed and its lasting content is settled: the
-  decision in a record, the order on the roadmap, the explanation in the architecture pages.
-  This removes the defect of today's form, where a design freezes at its archive while it is still
-  the current one.
-- **Research.** A study states its question, the date and URL of each source, findings apart
-  from inference, what it could not reach, what it informs and the date by which it is reviewed.
-  A study that a decision cites is settled and is not edited; a newer study supersedes it.
+  land and archived when the last has landed and its lasting content is settled: the decision in
+  a record, the order in the plan, the explanation in the architecture pages.
+- **A deferral creates its draft.** A task withdrawn under DR-0016 for later work, and a follow-up
+  that is work and not an observation, name the draft that carries them. Nothing waits in an
+  archive.
+- **An idea that is not worth a draft is let go.** No other list holds it.
 
-The execution plan of a release needs no new object: it is the release's Change, opened at the
-cut with the rows of its batch as its tasks.
+### 4. The roadmap is the plan and a derived view
 
-### 3. Role homes: one name for one role in every governed repository
+The contract gives the plan the order of unfinished work and forbids a queue, a dependency ledger
+and a stored graph. Both stand.
 
-The first level of a documentation home names a role, and ETHOS fixes the names. The second level
-names the repository's own subjects. A repository without a role has no directory for it.
+- **The plan divides by lifetime.** Its architecture section moves to the architecture pages, by
+  subject. The plan keeps the order, the dependencies, the exits and the rules of convergence,
+  and gains the gate's rows by the name of their Changes, grouped by release.
+- **A row's state is read, never written.** For the tree that is read: landed when a Change of
+  that name is archived, in work when it is active with tasks, drafted when it is active without,
+  and open otherwise. A ref on a forge is a separate observation and no state. A row with two
+  Changes names both; a waived row names its record.
+- **A release is the unit of time.** A cut is a dated release heading of the changelog. When a
+  release is tagged its landed rows leave the plan, and the changelog and the tag keep them, so a
+  pruned archive misreads nothing.
+- **The execution plan of a release is its release Change**, opened as a draft when the release
+  before it is tagged, with the Changes of its batch as its tasks.
 
-| Home           | Role                         | Measured names that map to it                 |
-| -------------- | ---------------------------- | --------------------------------------------- |
-| `contract`     | contract and end state       | `governance`, a root contract or charter      |
-| `decisions`    | decision                     | `decisions`                                   |
-| `roadmap`      | roadmap                      | `plans`, `future`, a root roadmap             |
-| `research`     | research                     | `research`, `studies`                         |
-| `architecture` | explanation of the structure | `architecture`, `concepts`                    |
-| `guides`       | how-to and tutorial          | `guides`, `operations`, `start`, `experience` |
-| `reference`    | reference                    | `reference`                                   |
-| `history`      | retired rationale            | `history`, a directory of retired plans       |
+### 5. The end state is the contract's invariants, each with a reader
 
-`current` and `future` are states, which DR-0011 already refused as directories.
+The contract's fifteen invariants are the end state. The plan's completion boundary states, for
+each invariant by number, the command that reads it and the value that means done. Today's value
+is printed by the reader for one tree and one product version and is stored nowhere; a value that
+no command reads yet is printed as unread, never as zero. An invariant changes by the owner's
+decision alone.
 
-The fleet seat read every governed documentation home against this table (the census holds its
-counts), and five rules follow from what it found:
+### 6. Research is built as a role
 
-- **A document maps by its kind, never by its directory's name.** One repository's `operations`
-  holds runbooks beside a design of its architecture and its program of work; another's holds
-  runbooks only. The repair preview names each file's target, and a directory of two kinds splits.
-- **What carries no role is exempt by role or by toolchain.** Evidence under a documentation home
-  is reported as belonging to the record root of DR-0027, with that repair. The taxonomy and
-  generated views follow DR-0027's design. A home that another documentation toolchain builds is
-  exempt until the documentation contract states how such a home declares a role.
-- **A repository without a documentation home is asked for nothing.**
-- **An asset sits beside the document that uses it, or under one asset name of its home.**
-- **No governed repository keeps a backlog carrier.** The one that tracks a backlog tool's tree
-  disposes each open task as a draft, a row or a closed item and retires the tree, in its own lane
-  and after a report.
+The role and its home exist. A study states its question, the date and URL of each source,
+findings apart from inference, what it could not reach and what it informs. It gains one field, a
+review date as data, which the documentation reader reports when it has passed. A study that a
+decision cites is not edited; a newer study supersedes it through the existing state. The
+committee's fact bases, the censuses and the pre-tag readings are research and are written there,
+not in a work directory. The lifecycle and dossier template that one governed repository already
+keeps are inputs to the role's page in the documentation contract.
 
-### 4. A price that fits: drafts and research
+### 7. Role homes: the first level of a documentation home names a role
 
-A draft's files and a research study are direction paths. Creating a draft needs no other Change,
-which admission already grants to the files of a new Change. A write that touches only direction
-paths takes the documentation tier of the proof: the documentation contract, OpenSpec validation,
-Markdown, prose, links and secrets. It still needs a Work Lane, a signed commit and a landing, so
-the accepted branch keeps one way in. A draft is told from a Change in work by the tree alone: it
-has no task file. Roadmap rows, the end state, a decision record and a Change's first task alter
-what is committed; they keep the full price.
+DR-0027 rejected a closed vocabulary of planes for three reasons, and the owner's direction of
+2026-11-15 on the same subject is later. This design answers the reasons and keeps the change
+narrow.
 
-A draft on a lane's pushed proposal ref is already durable and readable by every session of the
-repository before it lands.
+- **The rule.** A first-level directory of a documentation home is the home of one document role,
+  and ETHOS fixes its name from the role vocabulary that the documentation contract already has.
+  Below it a repository keeps its own subjects. A role without documents has no directory. A file
+  at the home's root stays where DR-0027 admits it.
+- **Path projects metadata.** The role is declared in each document; the directory is derived
+  from it. The check is that a document's first-level directory is the home of its declared role,
+  so path equality does not stand for meaning, which was the first reason.
+- **A mixture splits.** A directory of two kinds is two kinds of document, and each file maps by
+  its own role with a preview for each file, so no mixture needs a kind of its own, which was the
+  second reason.
+- **No carrier is added.** A name is fixed, not an entity, so the three questions do not arise,
+  which was the third.
+- **Exempt by role or by toolchain.** Evidence under a documentation home is reported as
+  belonging to the record root. The taxonomy and generated views follow DR-0027's design. A home
+  that another documentation toolchain builds is exempt until the documentation contract states
+  how it declares a role. A repository without a documentation home is asked for nothing. An
+  asset sits beside the document that uses it or under one asset name.
+- **The table of names is the fleet step's work**, written with the fleet seat's per-file reading
+  before that step's Change is written. No governed repository keeps a backlog tool's tree; the
+  one that does disposes each open task as a draft or a closed item in its own lane.
 
-### 5. The law that changes
+### 8. The session rule
 
-A rule that blocks the end state is replaced by its successor, and the successor says so.
+One sentence replaces the contract's sentence on transcripts and memory and the plan's matching
+ones, so the contract does not grow:
 
-| Text                                                           | Change                                                                    |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `repository-governance`, requirement `Product Design Contract` | two authorities become the contract family, the roadmap and the drafts    |
-| DR-0011, structure chosen by each repository                   | a successor: role homes fixed, subjects free, no empty carrier            |
-| the documentation contract, portability boundary               | the role homes are part of the portable contract                          |
-| DR-0016 and the task rule on follow-ups                        | a withdrawn task and a follow-up each name a draft or a roadmap row       |
-| the convergence rule that every Change closes                  | a draft and a design draft stay open by rule, bounded by the cut's report |
-| DR-0027's design, section 10, on `docs/plans`                  | `docs/plans` retires; its content divides by layer                        |
+> A session, an agent's memory and an ignored directory authorize nothing. Losing all three loses
+> no obligation, ruling, finding or design: each is in the tracked carrier of its kind, an
+> observation in its Attestation, and a successor that reads only those reaches the same next
+> action.
 
-The plan's sentences against a backlog and a feedback registry stand, and this design keeps them.
-DR-0012's sentence that leaves documentation subjects to each repository stands.
+The agent rules gain the procedure: at each operation boundary an agent names what exists only in
+its session and writes it to the carrier of its kind.
 
-### 6. The session rule
+### 9. The build tree
 
-The contract gains one sentence and the agent rules one procedure. The sentence: a session, an
-agent's memory and an ignored directory are caches; only the repository carries what must last.
-The procedure: at each safe boundary an agent asks what exists only in its session and writes it
-to the carrier of its kind; a handoff is derived from the repository and never the reverse.
+The topology already names the homes of the ignored build tree: tool caches, work, artifacts,
+evidence and ETHOS's own output. Three things below that level have no rule, and the session rule
+gives the first.
 
-### 7. Tools
+- **Nothing in the build tree is the only copy of what must last.** A design, a ruling, a study
+  or a tool that others run is tracked; the build tree keeps what a command can produce again,
+  and evidence with a named consumer and an exit.
+- **A work directory has an owner and ends with it.** It is named by the lane or the session that
+  owns it and is retired with that lane, or when its content has been sunk to a carrier. A purpose
+  directory with no owner is residue.
+- **Evidence is a directory for each subject**, with its consumer and exit; no file lies loose at
+  the root of the evidence home. A name the topology does not declare is not created.
 
-The tool study found no tool that meets the constraints and none that carries these objects as
-plain text beside OpenSpec. The tracker that stores text fails with several writers: its
-sequential identities collide across branches and then stop its own listing. The tracker that
-merges well stores a database in ignored directories. The others have no 1.0 release. No tool is
-a dependency of this design.
+The mechanism belongs to rows the gate already has: the residue classes, the proof's scratch
+output and store retention. This design adds their input: the reader prints, for each home, the
+count, the size and the oldest entry. ETHOS applies it to its own tree first.
 
-The one mature tool that fits is the one the fleet already runs. OpenSpec's maintainers give a
-Change without tasks as their answer to requests for a backlog, and they name the risk of turning
-OpenSpec into a project-management tool. The design takes that answer whole, and three practices
-from the other tools: a roadmap whose state is read from the tree and where a mark written by
-hand has no authority; an identity that two branches cannot both allocate, which a Change's name
-is; and a review instant on a research record.
+### 10. The law that changes, sentence by sentence
 
-### 8. Order: ETHOS first, report before refusal
+| Text                                                                     | What happens                                             | Step |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- | ---- |
+| The contract: OpenSpec is the sole intent, design and dependency carrier | stands; the design now obeys it                          | none |
+| The contract: no queue, dependency ledger or stored graph                | stands; the roadmap view is derived                      | none |
+| The specification: two design authorities; archives own no queue         | stands                                                   | none |
+| The plan: no backlog and no feedback registry                            | stands                                                   | none |
+| The contract and the plan: transcripts and memory as context             | replaced by the session rule's sentence                  | 2    |
+| The plan's rules of convergence                                          | one sentence added: a draft is open by rule              | 2    |
+| DR-0016: a withdrawn task returns as a new Change when taken up          | a successor sentence: its draft exists at the withdrawal | 2    |
+| The OpenSpec configuration's rule on follow-ups                          | a follow-up that is work names its draft                 | 2    |
+| The plan itself                                                          | divides; gains the rows by name                          | 3    |
+| DR-0027's sentence that names and axes stay with each repository         | a successor for the first level of a documentation home  | 5    |
+| The specification's scenario on product extension roots                  | amended with it                                          | 5    |
+| The documentation contract's portability boundary                        | amended with it; ships with the code that reports        | 5    |
+| The documentation contract's research role                               | gains the review date, with its reader                   | 4    |
 
-1. This Change: the design, its review by three seats to one signed text.
-2. The law for ETHOS: the successor of DR-0011, the specification delta and the contract's
-   sentence.
-3. ETHOS's own tree: the roadmap rows as data; each open note, follow-up and withdrawn task
-   disposed once as a draft, a row, a task of an open Change or a closed item; the terminal plan
-   divided; `docs/plans` retired.
-4. The documentation tier for direction paths. This narrows a refusal.
-5. Readers: `status` prints rows left and drafts by age; the weekly page reads them.
-6. The fleet: a report of first-level names outside the role homes, with the preview of its
-   repair for each file. It enters as a reporting obligation and refuses nothing before a later
-   release. Repositories move in this order: ETHOS; then those whose documents others cite; then
-   the rest; a repository under repair inside its repair lane; a repository with another
-   maintainer only with that maintainer.
+DR-0011's remaining sentences were succeeded by DR-0027. No rule binds a governed repository
+before the Change that carries its reader has landed.
 
-Steps 2 and 3 change no rule for a governed repository. Step 6 is a new rule and waits for the
-rule row after 0.2.0.
+### 11. Alternatives considered
 
-### 9. Review record
+- **New carriers for intake, proposals and roadmap (revision 1):** rejected by the contract's
+  three questions and by the owner's decision against a backlog.
+- **A tracker tool:** none meets the constraints; the tool study holds the reasons.
+- **Keep DR-0027 whole and unify by metadata only:** it costs no move, and it leaves nine homes
+  with twenty names, which is what the owner asked to end. Kept as the fallback if the review does
+  not sign decision 7: then role metadata is completed everywhere and one reader lists every
+  home by role.
+- **Do nothing before 0.2.0:** rejected by the owner's direction; steps 1 to 3 change text and
+  ETHOS's own tree only.
 
-Three seats review the design; this section holds each verdict and what the design took from it.
+### 12. Order and cost
 
-- **Revision 1**, commit `ae42de7cb`, had a fourth direction object, an intake of short files
-  under its own home, and a `proposals` home.
-- **Fleet seat on revision 1, 2026-11-15: approve with conditions, no blocker.** Its conditions
-  are in the text above: a mapping by file kind with a preview for each file, exemptions by role
-  and by toolchain, the corrected census, and the order of the fleet's moves. Its condition of
-  one intake for each repository became the rule that no repository keeps a backlog carrier.
-- **Owner, 2026-11-15, after revision 1:** no backlog; the review's unanimous final text decides
-  the rest.
-- **Revision 2** is this text: the intake and the `proposals` home are gone, and a draft Change
-  carries intent that is not yet admitted.
+| Step | What                                                                                                                     | Class                         | Product, tests | When                         |
+| ---- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------- | -------------- | ---------------------------- |
+| 1    | this design, reviewed to one signed text; it stays an active draft                                                       | no rule                       | 0, 0           | now                          |
+| 2    | the text of decision 10's step 2                                                                                         | ETHOS's own law               | 0, 0           | an off-gate row before 0.2.0 |
+| 3    | ETHOS's tree: the plan divides; every open note, follow-up and withdrawn task is disposed once; the build tree is sorted | no rule; a few path constants | about 3, 3     | off-gate rows before 0.2.0   |
+| 4    | readers: drafts by age, rows by state, research past review, build homes                                                 | new code, no refusal          | about 170, 200 | after the test budget step   |
+| 5    | the fleet: role homes, research fields and build homes as reporting obligations, with previews                           | a new rule, reporting         | about 190, 230 | after 0.2.0, with DR-0027's  |
+
+The figures for steps 4 and 5 are the decidability seat's, within 40 percent, from measured
+commits of similar shape. Steps 4 and 5 do not fit the test ceiling's 247 free lines without the
+prepared budget step. Step 3 moves 23 tracked mentions of the plan's path, five of them in
+documents an installation carries, one constant in the audit and two tests that pin the path.
+
+### 13. Review record
+
+- **Revision 1**, commit `ae42de7cb`: a fourth object for intake, a `proposals` home, roadmap rows
+  as a file, a documentation tier and direction paths.
+- **Fleet seat on revision 1: approve with conditions.** Taken: mapping by file kind with a
+  preview for each file, exemptions by role and by toolchain, the corrected census, the order of
+  the fleet's moves, and no second intake in any repository.
+- **Essence seat on revision 1: block.** The law that the design changed was not listed; role
+  homes contradicted DR-0027 without an answer; the contract's three questions were unanswered;
+  the dispositions were not the contract's. Taken: decisions 1, 3, 7, 8 and 10, and the end state
+  as the contract's invariants.
+- **Decidability seat on revision 1: block.** The documentation tier does not exist and is no
+  narrowing; a class by a file's content is not decidable at admission; the claim that step 2
+  changes no rule was false; two states read outside the tree. Taken: no tier and no path class;
+  each change of law has its step; a state is read from one tree and a cut is a release.
+- **Owner after revision 1:** no backlog; the review's unanimous final text decides the rest; the
+  build tree is brought to one shape.
+- **Revision 2**, commit `25a6925a4`: the intake and the `proposals` home removed.
+- **Revision 3** is this text.
 
 ## Risks / Trade-offs
 
-- **Drafts that pile up are a backlog by another name.** The cut disposes every draft or reports
-  it, the weekly page prints their count and the oldest age, and a declined draft leaves the open
-  set by its archive.
-- **A third authority.** The specification allowed two on purpose, after a period of parallel
-  plans. The answer is one owner for each proposition: the row list owns order, a draft owns one
-  proposal, and neither restates the other.
-- **Active Changes that stay open.** The fleet's rule so far is to close every Change. A design
-  draft is open by rule until its members land; the reader that lists drafts by age keeps it
-  visible.
-- **Role homes against truthful structure.** DR-0011 feared empty and misleading carriers. No
-  role, no directory; and a role home holds the repository's own subjects.
-- **Cost before 0.2.0.** Steps 2 and 3 are off-gate rows and the owner allowed one a week. They
-  ride with a batch's proof or wait.
-- **Moved paths.** Documents that an installation carries keep their paths in steps 2 and 3. A
-  later move of a carried path is a release entry.
+- **Drafts that pile up are a backlog by another name.** A draft costs a proposal that validates,
+  the reader prints their count and the oldest age, and a rejected draft leaves by its archive.
+- **Open Changes on the accepted branch.** A draft is open by rule; the reader keeps it apart from
+  work so that an unfinished Change stays visible as one.
+- **Role homes move files.** The fleet seat counted the mentions: 49 in ETHOS for three
+  directories, and 715 in the two repositories under repair. The step reports first and moves a
+  repository in its own lane.
+- **The plan's division moves carried paths.** A move of a path that an installation carries is a
+  release entry.
+- **Cost before 0.2.0.** Steps 2 and 3 take off-gate slots that other rows wanted.
 
 ## Open Questions
 
-- Is `contract` the right name for the home that four repositories call `governance`?
+- Which off-gate slots do steps 2 and 3 take, beside the gate record that holds the first?
 - Are the 248 follow-ups and 96 withdrawn tasks disposed one by one, or only those that a current
   reader still needs?
-- Does the first task of a Change, written into a draft, need the full proof, or only the first
-  commit that changes a path outside the Change?

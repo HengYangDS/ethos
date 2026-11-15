@@ -17,8 +17,8 @@
 - [ ] 2.1 Review the design by three seats: essence and contract, every governed repository, and
       decidability with cost and order. Done when each seat's statement is recorded and no blocker
       remains, or the owner has ruled on the one that does.
-- [ ] 2.2 Put the open questions and the changes of law to the owner. Done when each has an
-      answer recorded in this design.
+- [ ] 2.2 Bring the review to one text that every seat signs, as the owner decided on 2026-11-15.
+      Done when the design's review record holds each seat's signature on one revision.
 
 ## 3. Lane
 
@@ -27,5 +27,4 @@
 
 ## Workflow follow-up
 
-- The member Changes of the design's section 8, steps 2 to 6, each in its own lane with its own
-  proof.
+- The member Changes of the design's order, steps 2 to 5, each with its own proof.

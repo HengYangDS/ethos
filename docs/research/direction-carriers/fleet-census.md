@@ -22,7 +22,8 @@ Read-only, from Git objects. For ETHOS, the tree of `dev` at `c79f3aaf8`. For th
 documentation home, the documents whose path names a plan-like carrier, the decision and research
 holdings, and whether a document's front matter declares a role. Governed repositories appear by
 shape and count. Three governed repositories exist only on a forge; a later section holds what was
-read of them. The content of the plan documents was not read, and no forge issue tracker was read.
+read of them. The content of the plan documents was not read. This census read no forge issue
+tracker; the fleet seat's reading of open issues is in a later section.
 
 ## ETHOS
 

@@ -2,14 +2,15 @@
 
 ## 1. Evidence
 
-- [ ] 1.1 Add the fleet census as `docs/research/direction-carriers/fleet-census.md`. Done when it
+- [x] 1.1 Add the fleet census as `docs/research/direction-carriers/fleet-census.md`. Done when it
       states the method, the figures by shape and count without a repository's name, and what was
       not measured, and the documentation contract accepts it.
-- [ ] 1.2 Add the practice study as `docs/research/direction-carriers/practice.md`. Done when each
+- [x] 1.2 Add the practice study as `docs/research/direction-carriers/practice.md`. Done when each
       finding names its source and read date, the shared patterns and the disagreements are apart
       from the findings, and the list of what could not be reached is kept.
-- [ ] 1.3 Add the tool study to the practice page or beside it. Done when each candidate is judged
-      against the stated constraints from its own sources.
+- [x] 1.3 Add the tool study to the practice page or beside it. Done when each candidate is judged
+      against the stated constraints from its own sources. It is
+      `docs/research/direction-carriers/tools.md`.
 
 ## 2. Review
 

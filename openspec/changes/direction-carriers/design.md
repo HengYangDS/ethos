@@ -171,9 +171,26 @@ to the carrier of its kind; a handoff is derived from the repository and never t
 
 ### 7. Tools
 
-The carriers are plain text that reads and diffs without a tool, on two forges. A tool is taken
-only where it keeps that and adds a reader or a safe writer. The second research page compares
-the candidates; no tool is a dependency of this design.
+The tool study found no tool that meets the constraints and none that carries the four objects as
+plain text beside OpenSpec. The tracker that stores text fails with several writers: its
+sequential identities collide across branches and then stop its own listing. The tracker that
+merges well stores a database in ignored directories. The others have no 1.0 release. So the
+carriers are ETHOS's own text formats, and no tool is a dependency of this design.
+
+The design takes four things from the tools: one file for each item; an identity that two
+branches cannot both allocate; a roadmap whose state is read from the tree and where a mark
+written by hand has no authority; and a review instant on a research record.
+
+One finding reopens a decision. OpenSpec has a draft of its own: a Change without tasks, which
+its view lists as a draft and which its maintainers give as their answer to requests for a
+backlog. ETHOS already uses that form: 174 archived Changes carry a design and no requirement,
+and this Change is one. The form's defect here is the archive, which freezes a design while it is
+still the current one. A proposal can therefore be a Change that stays active until the Changes
+it lists have landed and that is settled before its archive, with no `proposals` home at all.
+Revision 2 decides between the two forms. This revision's author leans to the native one,
+because it adds no carrier and keeps one identity for a proposal and its roadmap rows. An intake
+item stays a short file: a Change with a validated proposal is too heavy for one sentence, and
+the maintainers of OpenSpec name the risk of turning it into a project-management tool.
 
 ### 8. Order: ETHOS first, report before refusal
 
@@ -223,6 +240,8 @@ the design took from it.
   a tool's store? The design above assumes the first; the tool study may change it. Either way a
   repository has one intake: the Change that builds the verb states what becomes of the backlog
   tool's tree that one governed repository tracks today.
+- Is a proposal a document under a `proposals` home, or an OpenSpec Change that stays active
+  until its member Changes land (decision 7)?
 - Is `contract` the right name for the home that four repositories call `governance`?
 - Do the 248 follow-ups and 96 withdrawn tasks enter the intake one by one, or only those that a
   current reader still needs?

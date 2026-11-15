@@ -93,7 +93,7 @@ Sources: <https://basecamp.com/shapeup/2.1-chapter-07>, <https://github.com/djan
 - **Documentation structure.** Diátaxis names four kinds (tutorials, how-to guides, reference,
   explanation), calls itself "a guide, not a plan" and says not to create empty structures. Its
   pages say nothing about plans, roadmaps or research (<https://diataxis.fr/>). arc42 has twelve
-  sections, the ninth for decisions, and none for a roadmap (<https://arc42.org/overview>).
+  sections, the ninth for decisions, and none for a roadmap (<https://arc42.org/overview/>).
 - **Design documents.** The public account of design documents at Google lists context and scope,
   goals and non-goals, the design, alternatives considered and cross-cutting concerns, and treats
   later changes as new documents beside the old

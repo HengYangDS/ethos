@@ -1444,9 +1444,10 @@ information rather than trigger an automatic repeated effect.
 
 The shared adoption operation SHALL select one root-bound continuation from the actual request,
 binding plan and outcome; after an apply that wrote the release's pin, that continuation SHALL be
-`mise lock`, which the caller runs in the adopted root. Preview SHALL require review before
-mutation; conflicts and stale input SHALL NOT appear as applied readiness. The planner SHALL NOT own
-a competing public next action.
+`mise --cd <root> lock` with the adopted root, so that the caller's working directory does not
+select the configuration it locks. Preview SHALL require review before mutation; conflicts and
+stale input SHALL NOT appear as applied readiness. The planner SHALL NOT own a competing public
+next action.
 
 #### Scenario: Preview or blocked adoption is consumed by another client
 
@@ -1463,7 +1464,7 @@ a competing public next action.
 #### Scenario: An applied adoption wrote the release's pin
 
 - **WHEN** an authorized exact adoption applies and writes the Mise configuration
-- **THEN** the next action is exactly `mise lock`
+- **THEN** the next action is exactly `mise --cd <root> lock`, where `<root>` is the adopted root
 - **AND** an applied adoption that kept the Mise configuration continues with status
 
 ### Requirement: Installed context enables portable Agent continuation

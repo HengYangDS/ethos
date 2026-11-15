@@ -50,6 +50,8 @@ Candidates for this row's design, none decided:
   bytes and minutes; one shared store that is only read, with builds beside it; no cache for
   the product's own build. The runtime's materialization already runs without a cache.
 - The proof contract says whether a gate's inputs are closed over tracked files.
+- A gate's base is an input that the proof binds, the same in every plane; the record check
+  takes it, so a gate can report older content of a declared record root without refusing it.
 - ETHOS's own gates that refuse on a measure get an invariance test: the verdict holds under
   changes that do not change the subject, such as where it starts, its order, its path and the
   clock. As a product check for governed repositories this is a new rule, and it waits for the

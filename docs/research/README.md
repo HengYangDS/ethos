@@ -18,3 +18,5 @@ See also: [Documentation Root](../README.md),
 
 - [Modern engineering foundations](modern-engineering-foundations.md) gives the comparative frame, decision criteria, and evidence limits.
 - [Foundation topics](foundations/README.md) route directly to supply, execution, effects, semantics, verification, adoption, interfaces, and documentation.
+- [Direction carriers](direction-carriers/README.md) hold the fleet census and the practice
+  study behind the design of a repository's roadmap, intake, proposals and research.

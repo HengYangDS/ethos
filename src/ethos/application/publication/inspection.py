@@ -29,6 +29,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
+from ethos.repository.release.configuration import release_ref_policy
 from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_target_ref_for_source
@@ -122,6 +123,7 @@ class PublicationContext:
     proof_admission: dict[str, object]
     audit: dict[str, object]
     independent_verification: dict[str, object]
+    release_policy: dict[str, object]
     required_gaps: tuple[str, ...]
     verdict: Verdict
 
@@ -256,6 +258,8 @@ def observe_publication(
         if decision.verdict != "block"
         else unavailable_proof_admission()
     )
+    # The product's release tag also owes its release policy; any other target passes it.
+    release_policy = release_ref_policy(repo, target_roles)
     gaps = tuple(
         dict.fromkeys(
             (
@@ -264,6 +268,7 @@ def observe_publication(
                 *string_sequence(independent_verification.get("required_gaps")),
                 *string_sequence(proof_admission.get("required_gaps")),
                 *string_sequence(remote_topology.get("required_gaps")),
+                *string_sequence(release_policy["required_gaps"]),
             )
         )
     )
@@ -287,6 +292,7 @@ def observe_publication(
         proof_admission=proof_admission,
         audit=audit,
         independent_verification=independent_verification,
+        release_policy=release_policy,
         required_gaps=gaps,
         verdict=local_verdict,
     )
@@ -297,6 +303,7 @@ def blocked_publication_action(context: PublicationContext) -> str:
     reports = (
         context.audit,
         context.topology,
+        context.release_policy,
         context.independent_verification,
         context.proof_admission,
     )

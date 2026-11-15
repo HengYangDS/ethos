@@ -10,7 +10,8 @@ relations:
 
 This reference projects the hidden operational roots `ethos lane` and `ethos hook` from the
 [Product Design Contract](../governance/product-design-contract.md#first-hour-ux), where they
-support admission only. The [Command Plane](command-plane.md) lists the public commands.
+support admission only. The [Command Plane](command-plane.md) lists the public commands. The
+hidden root `ethos release`, described last, serves the releasing host of the product alone.
 
 `ethos lane format` prepares native source postimages without writes. Optional
 literal paths select exact inputs; omission selects tracked and non-ignored new
@@ -171,3 +172,36 @@ ethos lane lease renew --root <worktree> --json
 The apply binds the lane ref, holder ref, generation and expiry that the preview read, so a Lease
 that changed in between refuses. An expired Lease is resumed the same way with
 `ethos lane lease resume`.
+
+The hidden root `ethos release` holds one operation, for the repository that declares the ETHOS
+product profile. Once a release is published and its journey has passed, the releasing host
+installs it as its global `ethos` and accepts it from the accepted root with the release's
+checksum file:
+
+```bash
+ethos release accept --checksums <SHA256SUMS> --json
+ethos release accept --checksums <SHA256SUMS> --apply --json
+```
+
+The command runs in the installation that was invoked and is not re-executed into the repository's
+selected runtime, so the bytes that run are the bytes it accepts. The preview checks everything and
+writes nothing, and its next action is the exact apply. The apply stores the release's wheel in the
+repository's package store and records the accepted release identity, which binds the version, the
+source commit and tree, the digest of `SHA256SUMS` and every wheel and archive that file lists. A
+second run reads `unchanged` and writes nothing.
+
+Each of these refusals comes before any effect and names its repair:
+
+- `release_installation_absent`: the invoking `ethos` is a source checkout or a development build.
+- `release_installation_older:<version>` or `release_installation_newer:<version>`: the installed
+  release is not the version that the accepted branch commits.
+- `release_tag_missing:v<version>`: the repository holds no tag of that version.
+- `release_wheel_build_identity_stale`: the installed wheel was not built from the commit that the
+  tag names.
+- `accepted_release_checksum_mismatch:<file>`: the checksum file does not list the installed wheel
+  with its digest.
+- `release_acceptance_product_only`: the repository does not declare the product profile.
+
+The operation does not verify the checksum file's attestation; verify the file before the preview.
+Reinstalling the predecessor as the global `ethos` undoes a bad global release. Do it before the
+apply: an accepted identity is immutable, and a fault found later needs a later release.

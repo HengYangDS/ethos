@@ -25,11 +25,12 @@ from ethos.contracts.operations.lease import LEASE
 from ethos.contracts.operations.plan import PLAN
 from ethos.contracts.operations.prove import PROVE
 from ethos.contracts.operations.publish import PUBLISH
+from ethos.contracts.operations.release import ACCEPT
 from ethos.contracts.operations.retire import RETIRE
 from ethos.contracts.operations.status import STATUS
 
 _ROOTS = (STATUS, PLAN, PROVE, LAND, PUBLISH, ADOPT)
-_LEAVES = (*ATTESTATION, *HOST, *HOOK, *LANE, *LANE_REPAIR, *RETIRE, *LEASE, *HANDOFF)
+_LEAVES = (*ATTESTATION, *HOST, *HOOK, *LANE, *LANE_REPAIR, *RETIRE, *LEASE, *HANDOFF, ACCEPT)
 COMMANDS: dict[str, Command] = {command.name: command for command in (*_ROOTS, *_LEAVES)}
 GROUPS: dict[str, Group] = {
     group.name: group
@@ -42,6 +43,11 @@ GROUPS: dict[str, Group] = {
         Group(name="lane retire", help="Bounded Work Lane retirement lifecycle."),
         Group(name="lane lease", help="Generation-bound local Lane Lease lifecycle."),
         Group(name="lane handoff", help="Local and cross-host Work Lane handoff."),
+        Group(
+            name="release",
+            help="Accept a published release on the releasing host.",
+            hidden=True,
+        ),
     )
 }
 # Options every command takes besides its request: the bound root and the JSON frame; after the

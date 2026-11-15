@@ -107,6 +107,7 @@ IMPLEMENTATIONS = {
     "lane handoff export": f"{_LEASE}:export_handoff",
     "lane handoff import": f"{_LEASE}:import_handoff",
     "lane handoff revoke-source": f"{_LEASE}:revoke_handoff_source",
+    "release accept": "ethos.application.land.release_acceptance:accept_release",
 }
 # The text the transport read from standard input for the running invocation, or empty.
 _STANDARD_INPUT: ContextVar[str] = ContextVar("ethos_standard_input", default="")

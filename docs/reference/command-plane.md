@@ -341,8 +341,8 @@ Full proof first runs its readiness gates, every gate that is not a test or pack
 
 ## Hidden Operational Roots
 
-[Operational Roots](operational-roots.md) describes the hidden operational roots `ethos lane` and
-`ethos hook`.
+[Operational Roots](operational-roots.md) describes the hidden operational roots `ethos lane`,
+`ethos hook` and `ethos release`.
 
 ## OpenSpec Ownership
 

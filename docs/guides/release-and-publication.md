@@ -40,7 +40,21 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    create the signed annotated tag: preview `ethos land --release --expect-head <accepted-head>
 --release-head <main> --tag v<version> --json`, then apply it with `--apply --authorize`.
    Publish the tag with the same publish probe and receipt.
+   In the repository that declares the ETHOS product profile, that probe refuses while the release
+   policy holds a gap, such as a missing release file, an invalid version manifest, release tags
+   other than `v*`, a missing host surface or an incomplete attestation format, and its next
+   action names the repair. A governed repository's tag publishes under its role policy and
+   topology, as before.
 5. **Build the release.** Dispatch the hosted `ETHOS CI` workflow on `main` with its `release_tag` and `release_head` inputs. Verify the published assets. After publication, the run's `release-journey` job installs the published prerelease through Mise on macOS and Linux and runs the adopter journey that a beta needs; dispatch the workflow with `journey_tag` to run that journey alone for an already published prerelease. A beta's journey must also upgrade from every release that `[release.upgrade_from]` records: name them, comma-separated, in `journey_previous`, and the journey upgrades from and rolls back to each one in its own host store. Name in the release entry each journey that the target does not declare, or whose environment was unavailable.
+   Then accept the release on the releasing host. Install the published release as the host's
+   global `ethos` through the host's one global owner, download the release's `SHA256SUMS` and
+   verify that file's attestation. From the accepted root, preview
+   `ethos release accept --checksums <SHA256SUMS> --json` with that installation and run the apply
+   that it returns. The acceptance records the release identity once, bound to the checksum file
+   and every wheel and archive it lists; a second run changes nothing, and a refusal names its
+   repair ([Operational Roots](../reference/operational-roots.md) lists them). A bad global
+   release is undone by reinstalling the predecessor as the global `ethos`. Do that before the
+   apply: an accepted identity is immutable.
 
 ## Activate A Second Forge
 

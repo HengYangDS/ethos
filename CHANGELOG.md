@@ -62,6 +62,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
   read blocks with `release_upgrade_from_empty` or `release_upgrade_from_incomplete` when the
   record lacks one. The paradigm no longer reports that key of the release table. No other
   command reads the record in this release.
+- `ethos release accept --checksums <SHA256SUMS>` accepts, on the releasing host, the release that
+  the invoked installation is. It previews by default; with `--apply` it stores the release's
+  wheel and records the accepted identity once, bound to the checksum file and every wheel and
+  archive it lists, and a second run changes nothing. It refuses, with a repair, unless that
+  installation is a release build of the version the accepted branch commits
+  (`release_installation_absent`, `release_installation_older`, `release_installation_newer`),
+  built from the commit that the version's tag names. In the repository that declares the ETHOS
+  product profile, `ethos publish` refuses a release tag while the release policy holds a gap; a
+  governed repository's publication does not change. After the first applied acceptance in the
+  product repository, an engine older than 0.2.0-beta.11 no longer reads the accepted identity
+  set (`accepted_release_attestation_invalid`), so that repository's runtime rolls back no
+  further than 0.2.0-beta.11.
 
 ### Changed
 

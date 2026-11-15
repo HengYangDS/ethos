@@ -13,6 +13,7 @@ from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import node_manifests_without_version
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.publication import publication_topology
@@ -227,3 +228,22 @@ def release_policy_report(root: Path) -> dict[str, Any]:
             "signing": attestation.get("signing", ""),
         },
     }
+
+
+def is_product_root(root: Path) -> bool:
+    """Whether the root declares the ETHOS product profile, whose release conformance is stated."""
+    declared = load_repository_profile(root).declaration
+    return declared is not None and declared.profile_id == "ethos"
+
+
+def release_ref_policy(root: Path, roles: tuple[str, ...]) -> dict[str, Any]:
+    """Report the product's release policy for a release-tag publication, and pass any other.
+
+    Only the root that declares the ETHOS product profile owes this conformance; every other
+    governed repository's release tag publishes under its role policy and topology alone.
+    """
+    if "release_publication" not in roles or not is_product_root(root):
+        return {"verdict": "pass", "required_gaps": []}
+    report = release_policy_report(root)
+    repair = "repair the release policy gaps in a Work Lane, land them, then publish the tag again"
+    return {**report, "next_action": repair if report["required_gaps"] else ""}

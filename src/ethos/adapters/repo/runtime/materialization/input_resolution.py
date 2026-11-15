@@ -194,7 +194,7 @@ def invoking_runtime_requirement() -> str | None:
     if selected is None:
         return None
     try:
-        wheel = _selected_runtime_wheel(selected)
+        wheel = selected_runtime_wheel(selected)
     except OSError as error:
         refuse("hook_runtime_wheel_provenance_missing", cause=error)
     return f"ethos @ {wheel.as_uri()}#sha256={selected.wheel_sha256}"
@@ -202,10 +202,11 @@ def invoking_runtime_requirement() -> str | None:
 
 def _managed_runtime_wheel(source: Path) -> Path | None:
     selected = selected_runtime_source(source)
-    return None if selected is None else _selected_runtime_wheel(selected)
+    return None if selected is None else selected_runtime_wheel(selected)
 
 
-def _selected_runtime_wheel(selected: SelectedRuntime) -> Path:
+def selected_runtime_wheel(selected: SelectedRuntime) -> Path:
+    """Return the exact wheel an installed runtime was built from, or refuse without it."""
     package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
         refuse("hook_runtime_wheel_provenance_missing")

@@ -44,6 +44,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Generator
 
+# The commands that run in the invoking installation, never re-executed into the selected runtime:
+# one selects that installation, and the other accepts the release that it is.
+_INVOKING = (["hook", "install"], ["release", "accept"])
 # The root a command resolved; its oversized result detail belongs in that repository's store.
 _RESOLVED_ROOT: ContextVar[Path | None] = ContextVar("ethos_resolved_root", default=None)
 
@@ -86,11 +89,7 @@ def run_console(argv: list[str], main: Callable[[], None]) -> EthosResult | None
             return None
         common = git_common_dir(target)
         selector = Path(common) / "ethos/runtime/CURRENT"
-        if (
-            common
-            and argv[:2] != ["hook", "install"]
-            and (selector.exists() or selector.is_symlink())
-        ):
+        if common and argv[:2] not in _INVOKING and (selector.exists() or selector.is_symlink()):
             selected = current_runtime(Path(common))
             if Path(sys.executable).absolute() != selected.python.absolute():
                 executable = str(selected.python)

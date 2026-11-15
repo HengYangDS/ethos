@@ -12,10 +12,13 @@ import pytest
 
 import ethos.adapters.repo.runtime.materialization.dependency_supply as dependency_supply
 import ethos.adapters.repo.runtime.transition as identity_transition
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.repository.release.admission import accepted_release_attestation
+from ethos.repository.release.admission import accepted_release_identities
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import checksum_bound_release
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.governed_repository import init_git_repo
 
 _BUILD_IDENTITY = BuildIdentity(
     "0.2.0-alpha.2",
@@ -95,7 +98,8 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
 
 
 @pytest.mark.parametrize(
-    "observation", ["match", "mismatch", "attestation", "admission", "bound", "unlisted"]
+    "observation",
+    ["match", "mismatch", "attestation", "raced", "rebound", "admission", "bound", "unlisted"],
 )
 def test_release_transition_attests_only_after_matching_post_observation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, observation: str
@@ -104,12 +108,13 @@ def test_release_transition_attests_only_after_matching_post_observation(
     release = accepted_release_identity(build, wheel_sha256=hashlib.sha256(b"wheel").hexdigest())
     wheel = tmp_path / "ethos-0.2.0a2-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
-    # Only these two cases pass the release's checksum file, which lists the wheel or does not.
-    checksums = tmp_path / "SHA256SUMS" if observation in {"bound", "unlisted"} else None
+    # Only these cases pass the release's checksum file, which lists the wheel or does not.
+    bound = observation in {"bound", "rebound", "unlisted"}
+    checksums = tmp_path / "SHA256SUMS" if bound else None
     if checksums:
-        listed = release.wheel_sha256 if observation == "bound" else "0" * 64
+        listed = "0" * 64 if observation == "unlisted" else release.wheel_sha256
         checksums.write_text(f"{listed}  {wheel.name}\n", encoding="ascii")
-        if observation == "bound":
+        if observation != "unlisted":
             release = checksum_bound_release(release, checksums.read_bytes(), published={})
     common = tmp_path / "repo.git"
     common.mkdir()
@@ -145,7 +150,15 @@ def test_release_transition_attests_only_after_matching_post_observation(
         return path
 
     monkeypatch.setattr(identity_transition, "write_content_addressed", write)
-    attestation = accepted_release_attestation(release, issued_at=datetime(2026, 8, 25, tzinfo=UTC))
+    # In two cases another writer recorded this version first: with another wheel, or with
+    # another checksum file.
+    won = release
+    if observation == "raced":
+        won = release._replace(wheel_sha256="0" * 64)
+    if observation == "rebound":
+        other = f"{release.wheel_sha256}  other.whl\n".encode()
+        won = checksum_bound_release(release, other, published={})
+    attestation = accepted_release_attestation(won, issued_at=datetime(2026, 8, 25, tzinfo=UTC))
     monkeypatch.setattr(
         identity_transition,
         "record_attestation_once",
@@ -173,10 +186,45 @@ def test_release_transition_attests_only_after_matching_post_observation(
     else:
         reason = {
             "attestation": "identity_transition_attestation_mismatch",
+            "raced": "identity_transition_attestation_mismatch",
+            "rebound": "identity_transition_attestation_mismatch",
             "admission": "accepted_version_source_conflict",
             "unlisted": "accepted_release_checksum_mismatch:ethos-0",
         }.get(observation, "identity_transition_post_observation_mismatch")
         with pytest.raises(ValueError, match=reason):
             transition()
-        expected = {"attestation": ["effect", "observe", "attest"], "admission": [], "unlisted": []}
-        assert events == expected.get(observation, ["effect", "observe"])
+        late = ["effect", "observe", "attest"]
+        early = {"mismatch": ["effect", "observe"], "admission": [], "unlisted": []}
+        assert events == early.get(observation, late)
+
+
+@pytest.mark.parametrize("first", ["unbound", "bound"])
+def test_a_version_accepted_again_with_or_without_its_checksum_file_keeps_its_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, first: str
+) -> None:
+    """Admission accepts a candidate that differs only in the binding, so the transition ends."""
+    build = _BUILD_IDENTITY._replace(distribution_version="0.2.0a2")
+    repo = init_git_repo(tmp_path / "repo")
+    wheel = tmp_path / "ethos-0.2.0a2-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    checksums = tmp_path / "SHA256SUMS"
+    checksums.write_text(
+        f"{hashlib.sha256(b'wheel').hexdigest()}  {wheel.name}\n", encoding="ascii"
+    )
+    monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _path: build)
+    accept = partial(
+        identity_transition.materialize_explicit_release,
+        repo,
+        wheel,
+        expected_build=build,
+        collision="wheel_collision",
+    )
+    earlier, later = (None, checksums) if first == "unbound" else (checksums, None)
+    recorded = accept(checksums=earlier)
+    members = read_attestation_set(repo)[1]
+
+    # The version's one Attestation stands, and the transition returns the identity it records.
+    assert accept(checksums=later) == recorded
+    assert bool(recorded.checksums_sha256) is (first == "bound")
+    assert read_attestation_set(repo)[1] == members
+    assert accepted_release_identities(members) == (recorded,)

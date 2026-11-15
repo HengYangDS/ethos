@@ -8,14 +8,15 @@ whole repository. The recorded reason is the command reference, measured at 515 
 bound returns to the default when it does. The release lead's ruling of 2026-11-15 first withdrew
 the split and was wrong; the essence seat of the direction review found the recorded condition.
 
-A plain count of the page's nonblank lines on `dev` at `d98081605` reads 497. The two figures
-differ, and the difference is not explained yet.
+The rule's reader counts every nonblank line of a file, front matter included. By that count the
+page read 503 in the commit that raised the bound, 515 at its largest on 2026-11-14, 499 later
+that day, and 497 on `dev` at `d98081605`. No authored document on `dev` exceeds 500: the plan and the
+contract read 500. The raised bound has had no user since 2026-11-14.
 
 ## What Changes
 
-- The page is measured with the rule's own reader.
-- It splits by reader question, or the measure shows that it fits, and the bound returns to 500
-  in the same Change.
+- The bound returns to 500 first, in one line of the rules.
+- The page splits by reader question, because three free lines do not hold the next operation.
 
 ## Capabilities
 
@@ -32,5 +33,5 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 `docs/reference/command-plane.md`, its links, the pages an installation carries and one line of
 `.ethos/rules.toml`. A moved anchor of a carried page is a release entry.
 
-Owner: the release lead. Next action: measure the page with the rule's reader. Read again: at the
-cut of 0.2.0-beta.12.
+Owner: the release lead. Next action: return the bound in the first lane of 0.2.0-beta.12, then
+design the split. Read again: at the cut of 0.2.0-beta.12.

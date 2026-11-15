@@ -11,9 +11,10 @@ any of the three took place, and the third had no carrier in the repository at a
 - The review lapsed. It was not run for the last landing of 0.2.0-beta.10 or for the five
   landings of 0.2.0-beta.11, because no step asked for it.
 - Run late, on 2026-11-15, over that release's whole diff of product, tools and configuration (83
-  files, 5.7 million tokens in two passes), it returned 13 leads. Four full proofs, the hosted
-  runs of both forges and the copies run on 13 trees had passed the same code. The repair Changes
-  of that release state, for each lead, the regression that decided it.
+  files, 5.7 million tokens in two passes), it returned 13 leads. Five full proofs, the hosted
+  runs of both forges and the copies run on 13 trees had passed the same code, and a sixth proof
+  passed it that evening. The repair Changes of that release state, for each lead, the regression
+  that decided it.
 - Two of the leads were checks that the diff itself had loosened: an assertion of one queue
   record that became two, and an exact list of planned files that became a superset. No gate
   reads a weakened check.

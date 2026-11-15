@@ -33,6 +33,8 @@ each met by a session between 2026-11-14 and 2026-11-15:
   handoff, the missing heading or artifact, the accepted form of the runtime argument, the commit
   that the projection waits for, the landing that admits the peer.
 - A regression for each of the six.
+- Carried from `environment-entry`: no continuation renders `--holder-ref`, because a lane verb
+  takes its holder from the invocation's actor, and the flag stays accepted for one support window.
 
 ## Capabilities
 

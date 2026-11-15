@@ -43,7 +43,8 @@ adopted root. `ethos adopt --exit` previews and removes that key alone: the
 provenance setting stays, because Mise applies it to every tool. A configuration
 that the exit cannot read, or a bare pin that is not a line of its own under
 `[tools]`, stays as it is: the plan's `pin` names the file and the reason under
-`kept`, and the owner removes the pin by hand.
+`kept`. The owner removes that pin by hand, so the applied exit's next action
+names the file and the reason before the status command.
 
 The strict frozen repository-profile declaration owns validation and TOML
 serialization. It binds adopter identity and OpenSpec material paths. The

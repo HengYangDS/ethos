@@ -13,13 +13,11 @@ from pathlib import Path
 
 from ethos.adapters.openspec.configuration import official_config_report
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.hook.rollback import rollback_preflight
+from ethos.adapters.repo.hook.rollback import require_accepting_runtime
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
-from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.materialization.effect import materialize_runtime
 from ethos.adapters.repo.runtime.pin_selection import follow_accepted_pin
 from ethos.adapters.repo.runtime.selection import activate_runtime
-from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
@@ -211,8 +209,7 @@ def _runtime_plan(root: Path) -> dict[str, object]:
         expected = expected_runtime_build(root, installed_runtime=selected).identity
         if pinned.runtime is not None:
             # As activation does before it pins anything: the install must accept the declaration.
-            target = require_installed_runtime(pinned.runtime)
-            rollback_preflight(root, target, invoking=invoking_build_identity())
+            require_accepting_runtime(root, pinned.runtime)
     except (OSError, ValueError) as error:
         return {"required_gaps": [str(error)], "next_action": getattr(error, "next_action", "")}
     return {

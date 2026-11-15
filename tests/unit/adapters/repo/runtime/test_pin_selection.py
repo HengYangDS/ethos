@@ -259,7 +259,9 @@ def test_adoption_refuses_a_selection_as_activation_does_and_names_its_repair(
     mise_installs(monkeypatch, {"9.3.0": tmp_path / "mise"} if refused else {})
     monkeypatch.setattr(rollback, "_publication_gaps", lambda *_a: (_DECLARATION,))
     monkeypatch.setattr(
-        adoption_effect, "materialize_runtime", lambda *_a, **_k: release / "python"
+        adoption_effect,
+        "materialize_runtime",
+        lambda *_a, **_k: pytest.fail("a refused selection reached materialization"),
     )
     if refused == "payload":
         (release / "added").write_bytes(b"")

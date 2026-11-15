@@ -27,11 +27,13 @@ Goals:
 
 - A refused selection names what settles it.
 - Adoption selects no pinned install that hook activation refuses.
-- An exit plan that keeps the Mise configuration says so and why.
+- An exit that keeps the Mise configuration says so and why, in its plan and after its apply.
+- The check that activation and adoption share has one owner.
 
 Non-Goals:
 
-- One resolver shared by activation and adoption; decision 2 records why not here.
+- One resolver of the whole selection shared by activation and adoption; decision 2 records why
+  only the check is shared.
 - Deleting a pin that is not a line of its own. `without_field` deletes one field on a line of its
   own, and the exit keeps what it cannot delete exactly.
 - Refusing an exit because the Mise configuration cannot be read.
@@ -57,24 +59,28 @@ Non-Goals:
      still puts its own sentence first. The choice is a helper beside `adopt_existing`, which
      measures 14 against the threshold of 15 that `tests/architecture/test_decision_density.py`
      reads with `complexipy`.
-2. **The adoption plan runs activation's declaration preflight on a pinned install.**
+2. **One function requires an installed runtime that accepts the root's declaration, and the
+   adoption plan and hook activation both call it.**
    - **Rests on:** the reading in Context; the case `declaration-repaired`, where an authorized
-     apply returned `pass` and `applied` for an install whose probe refuses; the scenario
-     `A newer pin is installed`.
-   - **Considered:** the check in `_apply_runtime` alone, where the finding points; a preview
-     would pass and ask for an authorized apply, which would then end as `unknown` and name the
-     preview again. The check in both functions; two runs of the target's publish readiness for
-     one apply. One resolver shared with `_supply_selection`; it needs a `settle` parameter and a
-     public name in activation, and three patches in two test modules name what it would move,
-     which is more than a repair before a release.
-   - **Chosen because:** `adoption_plan` computes `_runtime_plan` first in every call, for a
-     preview and for an apply, and reaches `_apply_runtime` only without a gap. `_apply_runtime`
-     already refuses with `adoption_runtime_source_changed` when the build it resolves is not the
-     plan's. One probe therefore covers both, and a refusal blocks before any effect with the
-     preflight's own gap and next action.
-   - **Applies to:** a pinned install that the transition would select. A selection left in place
-     is not probed, as in activation, and `rollback_preflight` returns at once for the invoking
-     build. `rollback_preflight` stays the owner of the behavior; adoption is its second caller.
+     apply reached materialization for an install whose probe refuses; the scenario
+     `A newer pin is installed`; and the import graph, read with `grimp`: neither module that the
+     function needs, the runtime's selection and its build authority, reaches the rollback module,
+     and no module is both above and below it.
+   - **Considered:** the two calls repeated in `_runtime_plan`; the behavior then has two owners,
+     which the finding itself names. The function in the runtime's selection module; that module
+     would import the hook package, which imports it. One resolver of the whole selection shared
+     with `_supply_selection`; it needs a `settle` parameter, a named-runtime branch and the
+     departure receipt, which adoption has no use for. The check in `_apply_runtime` alone, where
+     the finding points; a preview would pass and ask for an authorized apply, which would then
+     end as `unknown`.
+   - **Chosen because:** `require_accepting_runtime` sits beside `rollback_preflight`, takes the
+     root and the runtime's path and returns the validated selection, so activation keeps its
+     receipt. Measured with `complexipy`, `_supply_selection` stays at 4 and `_runtime_plan` gains
+     its one branch, 6 to 7. `adoption_plan` computes `_runtime_plan` first in every call and
+     reaches `_apply_runtime` only without a gap, so one probe covers a preview and an apply.
+   - **Applies to:** a pinned or named install that a transition would select. A selection left in
+     place is not probed, and `rollback_preflight` returns at once for the invoking build. Three
+     test patches that named the two calls in activation now name them in the rollback module.
 3. **The preflight's refusal names the request, not one command.**
    - **Rests on:** `RESTORE_ACTION` has two raise sites, both in `rollback_preflight`, and its
      text has no copy: a search of `src`, `tests`, `docs`, `rules` and `openspec/specs` for its
@@ -105,6 +111,22 @@ Non-Goals:
      table plan no pin, as before. The reason is the reader's gap, the error's text or
      `pin_not_on_its_own_line`; it is a value of the plan and not a gap. The apply adds the file
      to its effects only when the plan names `after`.
+5. **An applied exit that kept the Mise configuration names it in its next action.**
+   - **Rests on:** the three kept cases of `test_an_exit_removes_only_the_pin_that_adoption_wrote`,
+     each of which applied and continued with the bare status command; the form of the adoption
+     conflict, an instruction, then "; then" and the command; `derive_next_step`, which reads
+     prose as an instruction.
+   - **Considered:** the kept file in `residue`; that member lists generation paths that the exit
+     could not remove, and a tracked file is none. A gap on the applied result; an exit that did
+     apply would read as blocked. Only the plan's `pin`; the result's own continuation would not
+     name the step that did not run.
+   - **Chosen because:** an agent follows `next`, and the one step left is the owner's: remove the
+     pin by hand. The text names the file's path and the reason and ends with the status command
+     that follows every exit. `data.pin` and the plan's digest do not change.
+   - **Applies to:** an applied or resumed exit whose plan's `pin` carries `kept`. The preview's
+     next action stays the exact apply request, and an exit that removed the pin or found none
+     continues with status as before. The choice is a helper beside `_apply_fenced`, which
+     measures 13 against the threshold of 15.
 
 ## Risks / Trade-offs
 
@@ -117,6 +139,8 @@ Non-Goals:
   shipped preview is affected.
 - A kept reason from the operating system carries the file's absolute path, as the generation
   plan's `unknown` does.
+- After an exit that kept the pin, `next` is an instruction without an argument vector. A reader
+  that runs only commands stops there, which is the intent: the pin is the owner's to remove.
 - Between the plan and the apply of one call, `_apply_runtime` resolves the pin again. A selector
   removed in that window could turn a kept selection into the pinned install of the same build
   without a second probe. Activation has the same window between its preflight and its selection.

@@ -28,9 +28,8 @@ from ethos.adapters.repo.hook.preimage import file_bytes
 from ethos.adapters.repo.hook.preimage import hooks_preimage_path
 from ethos.adapters.repo.hook.preimage import record_hooks_preimage
 from ethos.adapters.repo.hook.preimage import restore_file
-from ethos.adapters.repo.hook.rollback import rollback_preflight
+from ethos.adapters.repo.hook.rollback import require_accepting_runtime
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
-from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.pin_selection import PinSelection
@@ -41,7 +40,6 @@ from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import named_runtime
-from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import rollback_gap
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -254,8 +252,7 @@ def _supply_selection(
     expected = expected_runtime_build(repo, installed_runtime=pinned.runtime or pinned.kept)
     receipt: dict[str, str] = {}
     if pinned.runtime is not None:
-        target = require_installed_runtime(pinned.runtime)
-        rollback_preflight(repo, target, invoking=invoking_build_identity())
+        target = require_accepting_runtime(repo, pinned.runtime)
         if named:
             receipt = receipt_departure(repo, target, reason)
     return pinned, expected, receipt

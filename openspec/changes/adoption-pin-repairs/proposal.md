@@ -27,11 +27,13 @@ behavior that no release has shipped:
 
 - A refused runtime selection continues with the refusal's own next action.
 - The adoption plan probes a pinned install against the root's publication declaration before any
-  effect, and refuses as hook activation does.
+  effect, and refuses as hook activation does. One function beside the preflight owns that check,
+  and both commands call it.
 - The preflight's refusal ends with "repeat this request with `--root <lane>`", which holds for
   both commands; it named `hook install`.
 - The exit plan's `pin` names a configuration that the exit keeps, with the reason under `kept`,
-  and the apply writes only a text that the plan names.
+  and the apply writes only a text that the plan names. The applied result's next action names
+  the kept file and the reason before the status command.
 - The adoption architecture page and the changelog say the same.
 
 Not breaking: adoption's pin following and the exit's pin removal are unreleased. For
@@ -52,7 +54,8 @@ None.
 
 ## Impact
 
-`src/ethos/application/adoption.py`, `src/ethos/adapters/repo/adoption.py`,
-`src/ethos/adapters/repo/hook/rollback.py`, `src/ethos/adapters/repo/hook/exit_plan.py`,
-`src/ethos/adapters/repo/hook/exit.py`, `tests/unit/adapters/repo/runtime/test_pin_selection.py`,
-`tests/unit/adoption/test_pin.py`, `docs/architecture/adoption-profiles.md` and `CHANGELOG.md`.
+`src/ethos/application/adoption.py`, `src/ethos/adapters/repo/adoption.py`, and under
+`src/ethos/adapters/repo/hook/`: `rollback.py`, `activation.py`, `exit_plan.py` and `exit.py`.
+Tests: `tests/unit/adapters/repo/runtime/test_pin_selection.py`, `tests/unit/adoption/test_pin.py`,
+and the patch targets of two tests in `tests/unit/adapters/repo/hook/`. Documents:
+`docs/architecture/adoption-profiles.md` and `CHANGELOG.md`.

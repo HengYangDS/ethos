@@ -32,6 +32,7 @@ PINNED_OWN = OWN.replace("\n\n", f"\n{PIN}\n\n") + f"\n{SETTING}"
 OPTIONS = ENTRY.replace(f'"{RELEASE}"', f'{{ version = "{RELEASE}", os = ["linux"] }}')
 HTTP = f'[tools."http:ethos"]\nversion = "{RELEASE}"\nurl = "https://example.invalid/a"\n'
 NOT_ALONE = "pin_not_on_its_own_line"
+KEPT = "The exit kept {} ({}). Remove the ETHOS pin from it by hand; then "
 
 
 def _text(path: Path) -> str | None:
@@ -144,7 +145,8 @@ def test_an_exit_removes_only_the_pin_that_adoption_wrote(
     """The preview names the key; the apply keeps every other line, the setting and each file.
 
     A configuration that the exit cannot read, or a pin whose line it cannot delete alone, stays
-    as it is and the plan names it with the reason; a missing file holds no pin.
+    as it is and the plan names it with the reason; a missing file holds no pin. The applied
+    result then names the kept file and the reason before the status that follows every exit.
     """
     repo, _common, _before = adopted_with_own_hooks(tmp_path, monkeypatch)
     adoption_plan(repo, apply=True, release=RELEASE)
@@ -162,5 +164,11 @@ def test_an_exit_removes_only_the_pin_that_adoption_wrote(
     assert (_text(repo / MISE_CONFIG), _text(repo / ".ethos/profile.toml")) == (
         (planned or {}).get("after", config),
         profile,
+    )
+    kept = (planned or {}).get("kept")
+    note = KEPT.format(repo.resolve() / MISE_CONFIG, kept) if kept else ""
+    assert (result.next_action, result.next.kind) == (
+        note + "ethos status --json",
+        "instruction" if kept else "command",
     )
     assert exit_preview(repo)["pin"] is None

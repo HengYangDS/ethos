@@ -135,8 +135,8 @@ def test_a_refused_rollback_leaves_no_effect(
     monkeypatch.setattr(
         activation, "expected_runtime_build", lambda *_a, **_k: RuntimeBuild("predecessor", None)
     )
-    monkeypatch.setattr(activation, "require_installed_runtime", lambda _runtime: _TARGET)
-    monkeypatch.setattr(activation, "invoking_build_identity", lambda: "successor")
+    monkeypatch.setattr(rollback, "require_installed_runtime", lambda _runtime: _TARGET)
+    monkeypatch.setattr(rollback, "invoking_build_identity", lambda: "successor")
     monkeypatch.setattr(
         activation.runtime_materialization,
         "materialize_runtime",

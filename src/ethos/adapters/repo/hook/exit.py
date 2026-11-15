@@ -6,7 +6,8 @@ durable receipt and removes the record. It then writes each planned key only whi
 holds its planned value, verifies that no worktree uses ETHOS's hooks, removes each selector only
 while it holds its planned bytes, and marks the receipt applied. A failure attempts every
 compensation step. Consumer records stay with the host store. Before the receipt is marked
-applied, the Mise configuration loses the pin that the plan named.
+applied, the Mise configuration loses the pin that the plan named; the applied result's next
+action names a configuration that the plan kept.
 """
 
 from __future__ import annotations
@@ -237,9 +238,18 @@ def _apply_fenced(repo: Path, common: Path, expect_plan_digest: str) -> EthosRes
         plan | {"receipt": paths["receipt"].as_posix(), "generation_cleanup": cleanup},
         (),
         state="applied",
-        next_action="ethos status --json",
+        next_action=_after_exit(repo, pin),
         residue=residue,
     )
+
+
+def _after_exit(repo: Path, pin: dict[str, str]) -> str:
+    """Name a Mise configuration that the exit kept, before the status that follows every exit."""
+    status = "ethos status --json"
+    if "kept" not in pin:
+        return status
+    kept = f"The exit kept {repo / pin['path']} ({pin['kept']})."
+    return f"{kept} Remove the ETHOS pin from it by hand; then {status}"
 
 
 def _result(

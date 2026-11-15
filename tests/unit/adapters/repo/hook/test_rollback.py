@@ -375,7 +375,7 @@ def test_activation_selects_the_pinned_install_and_a_lane_rolls_back_with_a_rece
     monkeypatch.setattr(activation, "expected_runtime_build", expected_runtime_build)
     probed: list[Path] = []
     monkeypatch.setattr(
-        activation, "rollback_preflight", lambda _root, target, **_k: probed.append(target.root)
+        rollback_proof, "rollback_preflight", lambda _root, target, **_k: probed.append(target.root)
     )
     write_tree(repo, pinned_release_files("9.3.0"))
     git(repo, "add", ".config")

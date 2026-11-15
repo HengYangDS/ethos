@@ -17,6 +17,8 @@ import ethos.adapters.process as process
 from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.paradigm.parameters import seconds
 from ethos.result import expand_result
@@ -55,6 +57,16 @@ def rollback_preflight(root: Path, target: SelectedRuntime, *, invoking: BuildId
     if _REPAIRED in _publication_gaps(root, target.python):
         gap = "runtime_rollback_declaration_repaired"
         raise RollbackRefusalError(gap, RESTORE_ACTION)
+
+
+def require_accepting_runtime(root: Path, runtime: Path) -> SelectedRuntime:
+    """Require an installed runtime that accepts the root's declaration; return it selected.
+
+    Hook activation and adoption both call it before they pin or select anything.
+    """
+    target = require_installed_runtime(runtime)
+    rollback_preflight(root, target, invoking=invoking_build_identity())
+    return target
 
 
 def _publication_gaps(root: Path, python: Path) -> tuple[str, ...]:

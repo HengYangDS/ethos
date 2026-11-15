@@ -25,6 +25,12 @@
 - [ ] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head.
 
+## 4. Settlement
+
+- [ ] 4.1 Settle this design when it is no longer the current one. Done when the last member Change
+      of the design's order has landed and the decision record, the plan and the architecture
+      pages hold its lasting content. This task stays open while the design is current.
+
 ## Workflow follow-up
 
 - The member Changes of the design's order, steps 2 to 5, each with its own proof.

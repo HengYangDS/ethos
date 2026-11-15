@@ -15,7 +15,7 @@ research pages of this Change hold the figures and the sources.
   seventeen minutes. What was in files, detached processes and pushed refs was intact. What the
   session alone held was gone.
 - **The plan mixes two lifetimes.** The terminal plan holds the order of unfinished work and, in
-  about 260 of its 500 nonblank lines, the architecture of the end state. It and the contract stand
+  about 90 of its 500 nonblank lines, the architecture of the end state. It and the contract stand
   at the default bound of 500; the repository's bound is 560 until the command reference splits.
 - **No common shape.** 9 documentation homes use 20 first-level names, four forms of plan, four
   forms of contract and two of research. Two homes carry no role metadata.
@@ -109,12 +109,15 @@ lane command names its Change with `--change`. Step 4 ends that price.
   Rejected: it is archived with the reason. The governing Change of a draft is the draft, so the
   archive keeps what the contract asks to keep.
 - **A design stays active while it is the current design.** It may hold tasks of its own, such as
-  its review, and then reads as a Change in work. It is edited as its members land and archived
+  its review, and then reads as a Change in work. It keeps one open task, its settlement, because
+  a Change whose tasks are all checked is complete and takes no further edit. It is edited as its
+  members land and archived
   when the last has landed and its lasting content is settled: the decision in a record, the
   order in the plan, the explanation in the architecture pages.
 - **A deferral creates its draft.** A task withdrawn under DR-0016 for later work, and a follow-up
-  that is work and not an observation, name the draft that carries them. Nothing waits in an
-  archive.
+  that is work and not an observation, name the draft that carries them, whose proposal names
+  its owner by role, its next action and the release at which it is read again. Nothing waits in
+  an archive.
 - **An idea that is not worth a draft is let go.** No other list holds it.
 
 ### 4. The roadmap is the plan and a derived view
@@ -122,8 +125,9 @@ lane command names its Change with `--change`. Step 4 ends that price.
 The contract gives the plan the order of unfinished work and forbids a queue, a dependency ledger
 and a stored graph. Both stand.
 
-- **The plan divides by lifetime.** Its architecture section moves to the architecture pages, by
-  subject. The plan keeps the order, the dependencies, the exits and the rules of convergence,
+- **The plan divides by lifetime.** The lines of its `Architecture` section that describe the end
+  state move to the architecture pages, by subject. The plan keeps the order, the dependencies,
+  its eight batches with their exits and the rules of convergence,
   and gains the gate's rows by the name of their Changes, grouped by release.
 - **A row's state is read, never written.** For the tree that is read: landed when a Change of
   that name is archived, in work when it is active with tasks, drafted when it is active without,
@@ -133,8 +137,8 @@ and a stored graph. Both stand.
 - **A release is the unit of time.** A cut is a dated release heading of the changelog. When a
   release is tagged its landed rows leave the plan, and the changelog and the tag keep them, so a
   pruned archive misreads nothing.
-- **The execution plan of a release is its release Change**, opened as a draft when the release
-  before it is tagged, with the Changes of its batch as its tasks.
+- **The execution plan of a release is the plan's rows under that release.** Its release Change
+  keeps the release's own steps as its tasks and copies no row.
 
 ### 5. The end state is the contract's invariants, each with a reader
 
@@ -180,8 +184,9 @@ narrow.
 - **A mixture splits.** A directory of two kinds is two kinds of document, and each file maps by
   its own role with a preview for each file, so no mixture needs a kind of its own, which was the
   second reason.
-- **No carrier is added.** A name is fixed, not an entity, so the three questions do not arise,
-  which was the third.
+- **The three questions are answered.** One table is added to the paradigm, from role to name:
+  no carrier fixes where a role's documents live, without it one role cannot be shown to have one
+  home across repositories, and the paradigm owns it while the role stands.
 - **Exempt by role or by toolchain.** Evidence under a documentation home is reported as
   belonging to the record root. The taxonomy and generated views follow DR-0027's design. A home
   that another documentation toolchain builds is exempt until the documentation contract states
@@ -217,11 +222,12 @@ gives the first.
 - **Nothing in the build tree is the only copy of what must last.** A design, a ruling, a study
   or a tool that others run is tracked; the build tree keeps what a command can produce again,
   and evidence with a named consumer and an exit.
-- **A work directory has an owner and ends with it.** It is named by the lane or the session that
-  owns it and is retired with that lane, or when its content has been sunk to a carrier. A purpose
+- **A work directory has an owner and ends with it.** It keeps its purpose's name, as the
+  configuration reference says, and belongs to one lane or session; how that owner is read is the
+  owner mark that the host reservation row's second Change designs. It is retired with its
+  owner, or when its content has been sunk to a carrier. A purpose
   directory whose owner cannot be read is unknown, never residue: the reader reports it, and only
   an explicit, previewed step releases it.
-  directory with no owner is residue.
 - **Evidence is a directory for each subject**, with its consumer and exit; no file lies loose at
   the root of the evidence home. A name the topology does not declare is not created. A path
   that a repository's documented command or its own tool writes is reported with that producer as
@@ -266,6 +272,13 @@ the Change it rules on, with its reason and its scope. A value that several repo
 as a threshold, has one study in the repository that produces it, and the others cite that study
 and do not restate it.
 
+The form is a schema that a reader checks, so it answers the contract's three questions. The
+obligation that each single decision carries its alternatives, its reason and its scope is absent
+from OpenSpec's design template and from every other carrier. Without labelled parts no reader
+can show that a decision has them; a free text can only be judged by reading it. The OpenSpec
+configuration's rule for a design owns the form, and the form ends when OpenSpec's own template
+carries such parts.
+
 Presence is decidable and quality is not: the reader of step 4 lists each decision without a
 part, and the review judges the content. ETHOS writes the form once, in its OpenSpec
 configuration's rule for a design and in the research role's page of the documentation contract,
@@ -273,25 +286,29 @@ and step 5 brings it to every governed repository as a reporting obligation.
 
 ### 11. The law that changes, sentence by sentence
 
-| Text                                                                     | What happens                                             | Step |
-| ------------------------------------------------------------------------ | -------------------------------------------------------- | ---- |
-| The contract: OpenSpec is the sole intent, design and dependency carrier | stands; the design now obeys it                          | none |
-| The contract: no queue, dependency ledger or stored graph                | stands; the roadmap view is derived                      | none |
-| The specification: two design authorities; archives own no queue         | stands                                                   | none |
-| The plan: no backlog and no feedback registry                            | stands                                                   | none |
-| The contract and the plan: transcripts and memory as context             | replaced by the session rule's sentence                  | 2    |
-| The plan's rules of convergence                                          | one sentence added: a draft is open by rule              | 2    |
-| DR-0016: a withdrawn task returns as a new Change when taken up          | a successor sentence: its draft exists at the withdrawal | 2    |
-| The OpenSpec configuration's rule on follow-ups                          | a follow-up that is work names its draft                 | 2    |
-| The plan itself                                                          | divides; gains the rows by name                          | 3    |
-| The plan's completion boundary: no active proposal may remain            | amended: a draft and a current design are open by rule   | 3    |
-| The OpenSpec configuration's rule for a design                           | each decision carries its four parts                     | 2    |
-| DR-0027's sentence that names and axes stay with each repository         | a successor for the first level of a documentation home  | 5    |
-| The specification's scenario on product extension roots                  | amended with it                                          | 5    |
-| The documentation contract's portability boundary                        | amended with it; ships with the code that reports        | 5    |
-| The documentation contract's research role                               | gains the review date and the study's parts, with reader | 4    |
+| Text                                                                                                                                         | What happens                                                                     | Step |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---- |
+| The contract: OpenSpec is the sole intent, design and dependency carrier                                                                     | stands; the design now obeys it                                                  | none |
+| The contract: no queue, dependency ledger or stored graph                                                                                    | stands; the roadmap view is derived                                              | none |
+| The specification: two design authorities; archives own no queue                                                                             | stands                                                                           | none |
+| The plan: no backlog and no feedback registry                                                                                                | stands                                                                           | none |
+| The contract and the plan: transcripts and memory as context                                                                                 | replaced by the session rule's sentence                                          | 2    |
+| The plan's rules of convergence                                                                                                              | one sentence added: a draft is open by rule                                      | 2    |
+| DR-0016: a withdrawn task returns as a new Change when taken up                                                                              | a successor sentence: its draft exists at the withdrawal                         | 2    |
+| The OpenSpec configuration's rule on follow-ups                                                                                              | a follow-up that is work names its draft                                         | 2    |
+| The plan itself                                                                                                                              | divides; gains the rows by name                                                  | 3    |
+| The plan's completion boundary: no active proposal may remain                                                                                | amended: a draft and a current design are open by rule                           | 3    |
+| The OpenSpec configuration's rule for a design                                                                                               | each decision carries its four parts                                             | 2    |
+| DR-0027's sentence that names and axes stay with each repository                                                                             | a successor for the first level of a documentation home                          | 5    |
+| The specification's scenario on product extension roots                                                                                      | amended with it                                                                  | 5    |
+| The documentation contract's portability boundary                                                                                            | amended with it; ships with the code that reports                                | 5    |
+| The documentation contract's research role                                                                                                   | gains the review date and the study's parts, with reader                         | 4    |
+| The specification's scenario, the documentation contract's sentence and DR-0027's remainder that an adopter need not reproduce an ETHOS root | amended: no role, no directory                                                   | 5    |
+| The artifact topology                                                                                                                        | holds decision 9's rules                                                         | 3    |
+| The agent rules and the OpenSpec configuration's withdrawal rule                                                                             | amended with them                                                                | 2    |
+| The repository paradigm                                                                                                                      | gains the role-to-name table and the reporting obligation for a decision's parts | 5    |
 
-DR-0011's remaining sentences were succeeded by DR-0027. No rule binds a governed repository
+DR-0011's remaining sentences were narrowed by DR-0027. No rule binds a governed repository
 before the Change that carries its reader has landed.
 
 ### 12. Alternatives considered
@@ -366,6 +383,15 @@ repository with another maintainer moves only with that maintainer.
   most rest on a measurement of their own and not on an outside source; a third name an
   alternative. Taken: the two kinds of source in decision 6, the named exclusions of
   `Applies to`, one study for a shared value, and a reader that lists and does not refuse.
+- **Essence seat on revision 3: block, with five replacements.** The plan's rows are a release's
+  execution plan and its release Change copies none; only the lines that describe the end state
+  leave the plan, which keeps its eight batches; the role table answers the contract's three
+  questions; a deferral's draft names its owner, its next action and the release at which it is
+  read again; decision 9's rules get an owner and three more texts are listed. Its notes on the
+  later revisions are taken as well: a leftover sentence removed, the three answers for decision
+  10's form, the paradigm's row, the proposal's capability list, and the open settlement task.
+  All are in this text.
+- **Revision 5** is this text.
 
 ## Risks / Trade-offs
 

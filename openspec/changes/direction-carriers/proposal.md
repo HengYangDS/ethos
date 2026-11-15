@@ -63,8 +63,9 @@ None.
 ### Modified Capabilities
 
 None in this Change, so `skip_specs: true` applies. The member Changes modify
-`repository-governance` (the requirement `Product Design Contract`) and `repository-paradigm` (the
-documentation home).
+`repository-governance` (the scenarios on product extension roots and on an adopter's roots) and
+`repository-paradigm` (the role-to-name table and the reporting obligations). The requirement
+`Product Design Contract` stands.
 
 ## Impact
 

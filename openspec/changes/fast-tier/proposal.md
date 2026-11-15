@@ -19,6 +19,9 @@ would say, learned in minutes. Three facts of 2026-11-15 belong to its acceptanc
 - The tier lists the sessions that a workstation cannot run, so that a pass does not read as the
   forges' pass.
 - The tier's result names what it did not examine.
+- The tier runs the root-cache check of the repository audit. On 2026-11-15 a cache directory
+  that Git ignores failed readiness 80 minutes after the command that made it, while the tree
+  read as clean.
 
 ## Capabilities
 

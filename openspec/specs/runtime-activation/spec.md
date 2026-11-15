@@ -524,8 +524,17 @@ build. ETHOS SHALL fetch nothing.
 
 #### Scenario: A checksum-class release is pinned
 
-- **WHEN** the pinned release's class is `checksum` and its lock entry records no provenance
+- **WHEN** the pinned release's class is `checksum` and the lock entry of the host's platform
+  records its checksum and no provenance
 - **THEN** the transition SHALL select its install as it selects an attested one
+
+#### Scenario: A checksum-class pin has no locked checksum
+
+- **WHEN** the pinned release's class is `checksum` and the lock entry of the host's platform is
+  absent or records no checksum
+- **THEN** the pinned release SHALL NOT be selected, and the transition SHALL name
+  `runtime_pin_unattested`
+- **AND** it SHALL keep a selection that is in place and refuse when there is none
 
 #### Scenario: The pinned release is not installed
 

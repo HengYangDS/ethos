@@ -282,8 +282,10 @@ let releaseLegs = [
 let releaseLegRun = "${{ contains(fromJSON('\(json.Marshal([for leg in releaseLegs {"\(leg.host) \(leg.python)"}]))'), format('{0} {1}', matrix.platform, matrix.python)) }}"
 let releaseHosts = "--required \(strings.Join([for leg in releaseLegs if leg.required {leg.host}], ",")) --optional \(strings.Join([for leg in releaseLegs if !leg.required {leg.host}], ","))"
 
-// The adopter journey runs from the published artifacts on the platforms a beta must qualify.
-let journeyLegs = [for leg in releaseLegs if leg.host == "linux-x64" || leg.host == "macos-arm64" {leg}]
+// The adopter journey runs from the published artifacts on each host whose journey the release
+// target declares. A journey host is a platform that the release must publish.
+let journeyHosts = ["linux-x64", "linux-arm64", "macos-arm64"]
+let journeyLegs = [for leg in releaseLegs if list.Contains(journeyHosts, leg.host) {leg}]
 
 // The host-conformance supply order that every hosted OS proves: checkout, Python image,
 // build-only dependencies, native and npm supply, then the project environment.

@@ -1,4 +1,4 @@
-"""A release run qualifies its published prerelease on the adopter journey on macOS and Linux."""
+"""A release run qualifies its published prerelease on the adopter journey on each declared host."""
 
 from __future__ import annotations
 
@@ -7,12 +7,14 @@ from typing import Any
 TAG = "${{ inputs.release_tag || inputs.journey_tag }}"
 
 
-def test_the_journey_follows_publication_on_macos_and_linux(github: dict[str, Any]) -> None:
+def test_the_journey_follows_publication_on_each_declared_host(github: dict[str, Any]) -> None:
     job = github["jobs"]["release-journey"]
     assert job["needs"] == "release-publish"
-    assert [leg["os"] for leg in job["strategy"]["matrix"]["include"]] == [
-        "ubuntu-latest",
-        "macos-latest",
+    # Each declared host runs on a runner of its own architecture.
+    assert [(leg["host"], leg["os"]) for leg in job["strategy"]["matrix"]["include"]] == [
+        ("linux-x64", "ubuntu-latest"),
+        ("linux-arm64", "ubuntu-24.04-arm"),
+        ("macos-arm64", "macos-latest"),
     ]
     assert "needs.release-publish.result == 'success'" in job["if"]
     assert "inputs.journey_tag != ''" in job["if"]

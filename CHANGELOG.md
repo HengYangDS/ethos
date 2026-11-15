@@ -80,6 +80,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   interpreter that started it, with coverage measured and no floor decided. The floor keeps one
   decision for a proof attempt, by its test gate. A push or pull request runs no leg. The probe's
   gates are unchanged.
+- The release journey gains its Linux arm64 leg. A release run and a journey dispatch run the
+  adopter journey on Linux x64, Linux arm64 and macOS arm64, the three hosts whose journey 0.2.0
+  declares, each on a runner of its own architecture.
 
 ### Changed
 

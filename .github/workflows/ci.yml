@@ -636,10 +636,16 @@ jobs:
       matrix:
         host:
           - linux-x64
+          - linux-arm64
           - macos-arm64
         include:
           - host: linux-x64
             os: ubuntu-latest
+            python: "3.14"
+            required: true
+            emulated: false
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
             python: "3.14"
             required: true
             emulated: false

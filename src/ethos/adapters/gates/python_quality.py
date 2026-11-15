@@ -231,8 +231,12 @@ def _behavior_gap(
     source: tuple[str, ...],
     event_text: str,
     failed: bool,
+    leg: bool,
 ) -> str:
-    """Name what a measured run fails, or nothing; a run short of the floor names the floor."""
+    """Name what a measured run fails, or nothing; a run short of the floor names the floor.
+
+    A leg decides no floor, so its failed run names its tests.
+    """
     files = cast("dict[str, dict[str, int]]", measured["files"])
     if any(name not in files for name in source):
         return "coverage_scope_incomplete"
@@ -242,7 +246,7 @@ def _behavior_gap(
         return "tests_failed"
     if not failed:
         return ""
-    floor = _coverage_floor(root)
+    floor = None if leg else _coverage_floor(root)
     if floor is None:
         return "tests_failed"
     observed["floor"] = {"fail_under": floor[0], "precision": floor[1]}
@@ -289,6 +293,13 @@ def _locked_uv(
     return {**locked, **environment}, str(locked_tool(root, "uv", files=mise_files)), pin
 
 
+def _leg_selection(
+    root: Path, pin: tuple[str, ...], *, leg: bool
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return the interpreter pin and the floor option: a leg's caller, and no floor to fail."""
+    return (_interpreter_pin(root), ("--cov-fail-under=0",)) if leg else (pin, ())
+
+
 def _behavior_evidence(
     root: Path,
     *,
@@ -297,6 +308,7 @@ def _behavior_evidence(
     tests: tuple[str, ...],
     bindable: tuple[str, ...],
     timeout_seconds: float | None,
+    leg: bool,
 ) -> dict[str, object]:
     """Run pytest once in its scratch, copy its reports to a named native root, judge its own."""
     with ExitStack() as scope:
@@ -316,6 +328,7 @@ def _behavior_evidence(
             "HYPOTHESIS_STORAGE_DIRECTORY": str(output / "hypothesis"),
         }
         environment, uv, pin = _locked_uv(root, mise_files, scope, environment)
+        pin, unfloored = _leg_selection(root, pin, leg=leg)
         # The environment is synced first, so its files can carry this attempt's access times.
         sync = (uv, "sync", "--locked", "--offline", *pin)
         command = (
@@ -338,6 +351,7 @@ def _behavior_evidence(
             *_native_configuration(root),
             "--cov-branch",
             f"--cov-report=xml:{coverage}",
+            *unfloored,
             *targets,
         )
         removed = (
@@ -416,6 +430,7 @@ def _behavior_evidence(
                 source=source,
                 event_text=event_text,
                 failed=failed or bool(result.returncode),
+                leg=leg,
             )
             if reason:
                 return {**evidence, **unproven("behavior", reason)}
@@ -426,9 +441,17 @@ def _behavior_evidence(
 
 
 def behavior_report(
-    root: Path, *, execution: NativeExecution | None = None, timeout_seconds: float | None = None
+    root: Path,
+    *,
+    execution: NativeExecution | None = None,
+    timeout_seconds: float | None = None,
+    leg: bool = False,
 ) -> dict[str, object]:
-    """Run locked pytest within its gate's bound; verify fresh JUnit and source coverage."""
+    """Run locked pytest within its gate's bound; verify fresh JUnit and source coverage.
+
+    A leg repeats the suite on its caller's interpreter and records coverage without deciding
+    the floor, which the gate's own run decides once for its proof attempt.
+    """
     if execution is not None and execution.evidence is None:
         return {
             **unproven("behavior", "python_native_evidence_unavailable"),
@@ -452,6 +475,7 @@ def behavior_report(
                 tests=tests,
                 bindable=bindable,
                 timeout_seconds=timeout_seconds,
+                leg=leg,
             )
         finally:
             remove_owned_path(output)

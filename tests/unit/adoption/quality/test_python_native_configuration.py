@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import sys
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from uv import find_uv_bin
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
@@ -20,6 +23,16 @@ if TYPE_CHECKING:
 _FIXTURE = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
 _SOURCE = "def answer() -> int:\n    return 42\n"
 _TEST = "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
+# A carrier whose floor the sample's one test cannot meet: the `zero` branch never runs.
+_UNMET_FLOOR = {
+    ".config/checks/coverage/coverage.toml": (
+        '[tool.coverage.run]\nsource = ["src"]\n\n[tool.coverage.report]\nfail_under = 100\n'
+    ),
+    "src/sample/__init__.py": (
+        "def answer(*, zero: bool = False) -> int:\n    if zero:\n        return 0\n    return 42\n"
+    ),
+    "tests/test_sample.py": _TEST,
+}
 
 
 def _sample(tmp_path: Path, files: dict[str, str]) -> Path:
@@ -52,20 +65,7 @@ def test_probe_collects_with_the_repository_pytest_carrier(tmp_path: Path) -> No
 
 def test_probe_measures_with_the_repository_coverage_carrier(tmp_path: Path) -> None:
     """The coverage carrier's floor decides the verdict of the execution that measured it."""
-    repo = _sample(
-        tmp_path,
-        {
-            ".config/checks/coverage/coverage.toml": (
-                '[tool.coverage.run]\nsource = ["src"]\n\n'
-                "[tool.coverage.report]\nfail_under = 100\n"
-            ),
-            "src/sample/__init__.py": (
-                "def answer(*, zero: bool = False) -> int:\n"
-                "    if zero:\n        return 0\n    return 42\n"
-            ),
-            "tests/test_sample.py": _TEST,
-        },
-    )
+    repo = _sample(tmp_path, _UNMET_FLOOR)
 
     report = python_quality.behavior_report(repo)
 
@@ -73,6 +73,30 @@ def test_probe_measures_with_the_repository_coverage_carrier(tmp_path: Path) -> 
     assert report["tests"] == {"total": 1, "failures": 0, "errors": 0, "skipped": 0}
     assert report["coverage"]["floor"] == {"fail_under": 100.0, "precision": 0}
     assert "fail-under=100" in report["native"]["stdout"]
+
+
+@pytest.mark.parametrize("status", [0, 1], ids=["tests-pass", "run-fails"])
+def test_a_leg_runs_on_its_callers_interpreter_and_never_decides_the_floor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    """A leg leaves the locked interpreter and the floor to the gate's own run."""
+    finish = f"def pytest_sessionfinish(session):\n    session.exitstatus = {status}\n"
+    mise = {
+        ".config/mise/config.toml": '[tools]\npython = "3.14.7"\n',
+        ".config/mise/mise.lock": "",
+    }
+    repo = _sample(tmp_path, {**_UNMET_FLOOR, **mise, "tests/conftest.py": finish})
+    monkeypatch.setattr(python_quality, "locked_environment", lambda *_a, **_k: nullcontext({}))
+    locked = {"python": tmp_path / "locked-python", "uv": Path(find_uv_bin())}
+    monkeypatch.setattr(python_quality, "locked_tool", lambda _root, name, **_k: locked[name])
+
+    report = python_quality.behavior_report(repo, leg=True)
+
+    command = report["native"]["command"]
+    assert command[command.index("--python") + 1] == sys.executable
+    assert report["required_gaps"] == (["quality_behavior_tests_failed"] if status else []), report
+    assert report["coverage"]["combined_percent"] < 100
+    assert "floor" not in report["coverage"]
 
 
 @pytest.mark.parametrize("provider", [python_quality, native_quality], ids=["python", "code"])

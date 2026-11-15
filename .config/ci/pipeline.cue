@@ -162,12 +162,16 @@ let pullRequestRange = "\(sourceCLI) hook commit-range --target-ref \"refs/heads
 // range once, in commit-policy. The aggregate requires success of a required job whose condition
 // holds and expects any other to be skipped, so a job that wrongly skips fails it. The external
 // link job observes sites that the repository does not own: it reports and is allowed to fail on
-// both providers, so the aggregate neither needs it nor reads its result.
+// both providers, so the aggregate neither needs it nor reads its result. A required suite leg
+// runs only in a full run, so a push or pull request expects it skipped.
 let admissionRun = "github.event_name == 'push' || github.event_name == 'pull_request'"
 let requiredJobs = {
 	"commit-policy":    admissionRun
 	"host-conformance": commitRun
 	quality:            commitRun
+	for leg in suiteLegs if leg.required {
+		(leg.job): suiteRun
+	}
 }
 let perPushJobs = {
 	requiredJobs
@@ -195,13 +199,15 @@ let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request')
 //   observation n=926   p99 5.4, longest 21.1, both GitLab npm
 //   aggregate   n=448   p99 0.2, the two jobs it replaces
 // Supply (n=26, longest 4.1), release (n=163, at most 27 on a leg, longest 86.0) and publication
-// (n=33, longest 2.2) have under 100 samples on a leg and stay provisional.
+// (n=33, longest 2.2) have under 100 samples on a leg and stay provisional. The suite class has
+// no sample: it takes the full set's minutes, above the 120 of the gate whose suite it repeats.
 let timeoutMinutes = {
 	admission:   25
 	conformance: 35
 	windows:     70
 	emulated:    105
 	fullSet:     130
+	suite:       130
 	observation: 25
 	aggregate:   5
 	supply:      90
@@ -222,6 +228,7 @@ let classGates = {
 	emulated:    conformanceGates
 	release:     conformanceGates
 	fullSet:     _inputs.gate_registry.proof_sets.full
+	suite: [suiteGate]
 	observation: ["external-links", "javascript-tests"]
 }
 
@@ -243,6 +250,24 @@ let fullLegs = list.Concat([pushLegs, [for version in pythons if version != pyth
 	{platform: "macos-arm64", runner: "macos-latest", python: version, timeout: timeoutMinutes.conformance}
 }], windowsLegs])
 let conformanceTier = "${{ fromJSON((\(fullRun)) && '\(json.Marshal(fullLegs))' || inputs.windows_legs && '\(json.Marshal(list.Concat([pushLegs, windowsLegs])))' || '\(json.Marshal(pushLegs))') }}"
+
+// The suite runs once per release on every operating system, both architectures and each supported
+// Python version. The quality job runs it on Linux arm64 and the local proof on macOS arm64, both
+// at the locked Python; a batch-head dispatch or the drift schedule adds these legs. A leg repeats
+// the suite of the test gate through the shipped probe, on its own interpreter and within that
+// gate's deadline, and records coverage without deciding the floor. A required leg blocks the
+// aggregate; the Windows leg is timed and may fail, because 0.2.0 declares no Windows journey.
+let suiteGate = "unit-architecture"
+let suiteDeadline = [for gate in _inputs.gate_registry.gates if gate.id == suiteGate {gate.timeout_seconds}][0]
+let suiteRun = "(\(commitRun)) && (\(fullRun))"
+let suiteLegs = [for leg in [
+	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.12", required: true},
+	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.13", required: true},
+	{platform: "windows-x64", runner: "windows-latest", python: "3.14", required: false},
+] {
+	leg
+	job: "suite-\(leg.platform)-py\(strings.Replace(leg.python, ".", "", -1))"
+}]
 
 // Each release leg qualifies the one host platform it declares, on the runner that provides it.
 // A required platform must publish; an optional one is left out and named when its leg fails.
@@ -562,6 +587,50 @@ github: {
 				}
 			}]])
 		}
+		// One job per suite leg, so the aggregate needs exactly the required legs and never reads
+		// the result of a leg that may fail.
+		for leg in suiteLegs {
+			(leg.job): {
+				name:              "suite \(leg.platform) / Python \(leg.python)"
+				"runs-on":         leg.runner
+				"timeout-minutes": timeoutMinutes.suite
+				if:                "${{ \(suiteRun) }}"
+				if !leg.required {
+					"continue-on-error": true
+				}
+				env: {
+					ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
+					UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
+				}
+				steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: leg.python}).out, [{
+					// The suite reaches the native tools from the prepared supply, never from PATH.
+					name: "Prepare the locked native tools of the suite"
+					run:  "uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft vale"
+				}], [for index, command in githubBootstrap if index > 3 {
+					name: githubBootstrapNames[index]
+					run:  command
+				}], [{
+					// The probe copies the leg's reports to this root, whether its tests pass or fail.
+					name: "Repeat the suite on this leg and record its coverage"
+					env: ETHOS_NATIVE_OUTPUT_DIR: "${{ github.workspace }}/build/evidence/quality/tests"
+					run: "uv run --frozen python -m nox -s suite_leg -- \(suiteDeadline)"
+				}, {
+					name: "Upload the suite leg reports"
+					if:   "always()"
+					uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+					with: {
+						name: leg.job
+						path: """
+							build/evidence/quality/tests/pytest/junit*.xml
+							build/evidence/quality/tests/coverage/coverage.xml
+							"""
+						"if-no-files-found": "error"
+						"retention-days":    artifactRetentionDays
+					}
+				}]])
+			}
+		}
+
 		// One aggregate reports the per-push jobs under a stable name, so a forge requires one
 		// check. Its result is a host observation: a runner holds no repository proof.
 		"hosted-checks": {

@@ -1,0 +1,35 @@
+"""A suite leg repeats the suite through the shipped probe and fails with it."""
+
+from __future__ import annotations
+
+import os
+import sys
+from unittest.mock import Mock
+
+import pytest
+
+from tests.support.nox_session import SessionDouble
+from tools.ci import sessions
+
+
+@pytest.mark.parametrize("verdict", ["pass", "block"])
+def test_a_suite_leg_runs_the_probe_as_a_leg_within_the_named_deadline(
+    tmp_path, monkeypatch, verdict
+) -> None:
+    """The probe finds the repository's Mise first on its path; a leg that does not pass fails."""
+    report = {"verdict": verdict, "required_gaps": ["a_gap"]}
+    # The stub's output is the path it ran under, which the session logs.
+    probe = Mock(side_effect=lambda *_a, **_k: report | {"native": {"stdout": os.environ["PATH"]}})
+    monkeypatch.setenv("PATH", "host")
+    monkeypatch.setattr("tools.ci.toolchain.native.prepare_mise", lambda _root: tmp_path / "mise")
+    monkeypatch.setattr("ethos.adapters.gates.python_quality.behavior_report", probe)
+    session = SessionDouble(posargs=("7200",))
+
+    if verdict == "pass":
+        sessions.suite_leg(session)
+    else:
+        with pytest.raises(pytest.fail.Exception, match=r"suite leg failed: \['a_gap'\]"):
+            sessions.suite_leg(session)
+
+    probe.assert_called_once_with(sessions.ROOT, timeout_seconds=7200, leg=True)
+    assert session.logs == [(f"Python {sys.version}\n{tmp_path}{os.pathsep}host",)]

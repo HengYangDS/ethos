@@ -57,6 +57,7 @@ PUBLIC_SESSIONS = (
     "config_quality",
     "hosted_observation",
     "hosted_verification",
+    "suite_leg",
     "external_links",
     "module_layout",
     "product_boundary",
@@ -340,6 +341,27 @@ def hosted_verification(session: Session) -> None:
     status = owner.run(ROOT, session.posargs[0] if session.posargs else None)
     if status:
         session.error(f"hosted verification failed with exit status {status}")
+
+
+def suite_leg(session: Session) -> None:
+    """Repeat the suite on this interpreter through the shipped probe, deciding no floor.
+
+    The caller names the test gate's deadline in seconds. The probe copies the leg's JUnit and
+    coverage reports to the native output root; the log names the interpreter, which is the
+    suite's, and shows how the run ended.
+    """
+    (deadline,) = session.posargs
+    # The probe finds Mise on PATH, and a hosted job keeps the staged one in the tool cache.
+    mise = import_module("tools.ci.toolchain.native").prepare_mise(ROOT)
+    os.environ["PATH"] = os.pathsep.join((str(mise.parent), os.environ.get("PATH", "")))
+    report = import_module("ethos.adapters.gates.python_quality").behavior_report(
+        ROOT, timeout_seconds=float(deadline), leg=True
+    )
+    native = cast("dict[str, str]", report.get("native", {}))
+    ending = native.get("stdout", "")[-4000:] + native.get("stderr", "")[-4000:]
+    session.log(f"Python {sys.version}\n{ending}")
+    if report["verdict"] != "pass":
+        session.error(f"suite leg failed: {report['required_gaps']}")
 
 
 def external_links(session: Session) -> None:

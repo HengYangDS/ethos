@@ -61,6 +61,163 @@ env:
   UV_CACHE_DIR: ${{ github.workspace }}/build/runtime/tool-cache/uv
   ETHOS_CI_TOOL_CACHE_DIR: ${{ github.workspace }}/build/runtime/tool-cache/ci-tools
 jobs:
+  suite-linux-x64-py312:
+    name: suite linux-x64 / Python 3.12
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: "3.12"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.12
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare the locked native tools of the suite
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft vale
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
+      - name: Repeat the suite on this leg and record its coverage
+        env:
+          ETHOS_NATIVE_OUTPUT_DIR: ${{ github.workspace }}/build/evidence/quality/tests
+        run: uv run --frozen python -m nox -s suite_leg -- 7200
+      - name: Upload the suite leg reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: suite-linux-x64-py312
+          path: |-
+            build/evidence/quality/tests/pytest/junit*.xml
+            build/evidence/quality/tests/coverage/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+  suite-linux-x64-py313:
+    name: suite linux-x64 / Python 3.13
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: "3.13"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.13
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare the locked native tools of the suite
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft vale
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
+      - name: Repeat the suite on this leg and record its coverage
+        env:
+          ETHOS_NATIVE_OUTPUT_DIR: ${{ github.workspace }}/build/evidence/quality/tests
+        run: uv run --frozen python -m nox -s suite_leg -- 7200
+      - name: Upload the suite leg reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: suite-linux-x64-py313
+          path: |-
+            build/evidence/quality/tests/pytest/junit*.xml
+            build/evidence/quality/tests/coverage/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+  suite-windows-x64-py314:
+    continue-on-error: true
+    name: suite windows-x64 / Python 3.14
+    runs-on: windows-latest
+    timeout-minutes: 130
+    if: ${{ (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule') }}
+    env:
+      ETHOS_COMMIT_ALLOWED_SIGNERS: ${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}
+      UV_PYTHON_INSTALL_DIR: ${{ github.workspace }}/build/runtime/python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: 0.13.8
+          python-version: "3.14"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.14
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Prepare locked native build supply
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
+      - name: Install locked npm packages
+        env:
+          PYTHONPATH: src
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare the locked native tools of the suite
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft vale
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -I -m ethos.cli hook bind-trust --apply --root . --json
+      - name: Repeat the suite on this leg and record its coverage
+        env:
+          ETHOS_NATIVE_OUTPUT_DIR: ${{ github.workspace }}/build/evidence/quality/tests
+        run: uv run --frozen python -m nox -s suite_leg -- 7200
+      - name: Upload the suite leg reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: suite-windows-x64-py314
+          path: |-
+            build/evidence/quality/tests/pytest/junit*.xml
+            build/evidence/quality/tests/coverage/coverage.xml
+          if-no-files-found: error
+          retention-days: 14
   supply-image:
     name: locked Linux ARM64 supply
     if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/proposal/')) && inputs.supply_image }}
@@ -279,12 +436,14 @@ jobs:
       - commit-policy
       - host-conformance
       - quality
+      - suite-linux-x64-py312
+      - suite-linux-x64-py313
     if: ${{ always() && (github.event_name != 'workflow_dispatch' || (!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag)) }}
     timeout-minutes: 5
     steps:
       - name: Require the expected result of every per-push job
         env:
-          EXPECTED: ${{ needs.commit-policy.result == ((github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped') && needs.host-conformance.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.quality.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') }}
+          EXPECTED: ${{ needs.commit-policy.result == ((github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped') && needs.host-conformance.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.quality.result == ((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && 'success' || 'skipped') && needs.suite-linux-x64-py312.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') && needs.suite-linux-x64-py313.result == (((!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && (inputs.qualify_head == '' || inputs.qualify_head == github.sha)) && ((github.event_name == 'workflow_dispatch' && inputs.qualify_head != '') || github.event_name == 'schedule')) && 'success' || 'skipped') }}
         run: test "$EXPECTED" = true
       - name: Require the head that the dispatch qualifies
         env:

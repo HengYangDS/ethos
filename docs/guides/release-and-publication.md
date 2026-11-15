@@ -33,7 +33,9 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    GitLab verifies a published ref by admission and conformance alone, so qualify the release head
    on both Forges before its tag. On GitHub, dispatch `ETHOS CI` on the release lane's proposal ref
    with `qualify_head` set to that head: every supported platform and Python version runs, and
-   `hosted checks` reports the result. On GitLab, start a `web` or `api` pipeline on the same ref
+   `hosted checks` reports the result. The same run repeats the test suite on Linux x64 at Python
+   3.12 and 3.13, which `hosted checks` needs, and on Windows x64 at Python 3.14, which may fail
+   without failing the run. On GitLab, start a `web` or `api` pipeline on the same ref
    with the variable `ETHOS_QUALIFY_HEAD` set to that head: the full gate set runs. A run at any
    other commit qualifies nothing: GitHub's run fails, and GitLab creates no pipeline. When both
    runs pass (the practised order; the distribution specification states what each stage requires),

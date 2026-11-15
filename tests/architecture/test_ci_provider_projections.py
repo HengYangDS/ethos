@@ -249,7 +249,9 @@ def test_one_aggregate_check_expects_each_per_push_job_to_end_as_its_condition_s
     jobs = github["jobs"]
     # The external link job observes sites the repository does not own: it reports, is allowed to
     # fail on both providers, and the aggregate neither needs it nor reads its result.
-    needed = ("commit-policy", "host-conformance", "quality")
+    # A required suite leg runs only in a full run, so a push expects it skipped.
+    suites = ("suite-linux-x64-py312", "suite-linux-x64-py313")
+    needed = ("commit-policy", "host-conformance", "quality", *suites)
     assert jobs["external-links"]["continue-on-error"] is True
     aggregate = jobs["hosted-checks"]
     assert (aggregate["name"], aggregate["needs"]) == ("hosted checks", list(needed))

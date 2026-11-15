@@ -74,6 +74,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   product repository, an engine older than 0.2.0-beta.11 no longer reads the accepted identity
   set (`accepted_release_attestation_invalid`), so that repository's runtime rolls back no
   further than 0.2.0-beta.11.
+- A batch-head qualification and the drift schedule repeat ETHOS's test suite on Linux x64 at
+  Python 3.12 and 3.13, which `hosted checks` needs, and on Windows x64 at Python 3.14, which may
+  fail without failing the run. Each leg runs the shipped Python behavior probe as a leg: on the
+  interpreter that started it, with coverage measured and no floor decided. The floor keeps one
+  decision for a proof attempt, by its test gate. A push or pull request runs no leg. The probe's
+  gates are unchanged.
 
 ### Changed
 

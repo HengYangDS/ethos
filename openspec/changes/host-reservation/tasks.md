@@ -43,18 +43,27 @@
 
 ## 5. Lane only
 
-- [ ] 5.1 Run the precheck and readiness at the lane head, then the full proof. Done when each
-      passes on the committed head.
-- [ ] 5.2 Prove the acceptance on the workstation: one foreground host proof holds `proof.host`, a
+- [x] 5.1 Run the precheck and readiness at the lane head, then the full proof. Done when each
+      passes on the committed head. The precheck and readiness passed at `76510cd54` and the
+      proof at `c79f3aaf8`.
+- [x] 5.2 Prove the acceptance on the workstation: one foreground host proof holds `proof.host`, a
       second reads it with `ethos host status --json`, and a third waits and names it. Done when
-      the three observations match.
-- [ ] 5.3 Prove mixed engines: a repository on an older release queues behind the new holder and
-      the reverse. Done when both directions are observed.
-- [ ] 5.4 Measure the guests' vCPU sum, run `ethos host status --guest-cpus N`, and raise
-      `reserved_cpus` if it does not fit. Done when the read passes on the reference host.
-- [ ] 5.5 Declare the hosted job's worker count as 4 in the pipeline model and both projections.
-      Done when `.config/ci/pipeline.cue` and both generated pipelines name 4 workers for the heavy
-      test steps.
+      the three observations match. Observed on 2026-11-15 with the install smoke gate as the
+      host proof: the read lists it as `holding` with `proof.host`, and a bounded `host run` of
+      the same repository ends with `host_admission_contended:proof.host` and its process.
+- [x] 5.3 Prove mixed engines: a repository on an older release queues behind the new holder and
+      the reverse. Done when both directions are observed. Observed on 2026-11-15: the released
+      0.2.0-beta.10 engine waited behind this engine's holder and named it, and this engine
+      waited behind a holder whose record an older engine wrote.
+- 5.4 Withdrawn by DR-0016 (environment). Measure the guests' vCPU sum, run
+  `ethos host status --guest-cpus N`, and raise `reserved_cpus` if it does not fit. Done when the
+  read passes on the reference host. Measured on 2026-11-15: three running guests hold 20 virtual
+  CPUs on a host of 18 that reserves 4, and the read reports `host_reservation_exceeded`. No
+  reservation below 18 holds 20, so the guests' sizes are the owner's to decide first.
+- [x] 5.5 Declare the hosted job's worker count as 4 in the pipeline model and the projection
+      whose jobs run on this host. Done when `.config/ci/pipeline.cue` and the generated
+      `.gitlab-ci.yml` name 4 workers for the heavy test steps. GitHub's runners are not on this
+      host and take no ticket, so that projection carries no count.
 
 ## Workflow follow-up
 

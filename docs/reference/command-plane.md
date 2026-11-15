@@ -160,7 +160,8 @@ status does not derive a parallel runtime verdict.
 
 Where the accepted branch declares the exact GitHub pin, the selection follows that pin forward
 only, and a Work Lane departs from it with `--runtime <R> --reason <text>`. The
-[local-state architecture](../architecture/local-state.md) states those rules.
+[ETHOS source local-state architecture](../architecture/local-state.md "source-only") states
+those rules.
 
 `ethos hook install --root <linked-worktree> --json` is one repository-family
 repair operation. It activates one immutable generation in repository-common

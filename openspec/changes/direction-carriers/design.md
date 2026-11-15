@@ -434,6 +434,12 @@ repository with another maintainer moves only with that maintainer.
   the reader prints their count and the oldest age, and a rejected draft leaves by its archive.
 - **Open Changes on the accepted branch.** A draft is open by rule; the reader keeps it apart from
   work so that an unfinished Change stays visible as one.
+- **A draft's declaration is a reported finding.** OpenSpec 2.0.0 validates a Change that declares
+  `skip_specs` and reports one finding at its lowest severity for it (read in ETHOS on
+  2026-11-16). ETHOS's own gates pass with it: 34 active Changes declared it at the head that the
+  proof of 0.2.0-beta.11 passed. One governed repository measured the same finding under 1.16.0,
+  where its own gate fails on every reported finding, so no draft can stand on its accepted
+  branch until its quality policy admits that one.
 - **Role homes move files.** The fleet seat counted the mentions: 49 in ETHOS for three
   directories, and 715 in the two repositories under repair. The step reports first and moves a
   repository in its own lane.

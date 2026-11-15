@@ -29,7 +29,9 @@ Change keeps the release's own steps, opened now so that none waits in an archiv
 - The release build's install smoke records three planned files in its brownfield stage and passes
   its MCP stage.
 - The copies run's executed half is complete, or each tree it could not prove is named with its
-  reason.
+  reason. A source build cannot exercise a gate that asks for the runtime's own wheel, so the
+  release lane hands the reader a packaged candidate of the release head for the trees with such
+  gates. The reader's count of subjects on 2026-11-15 is 10.
 - The weekly page's first edition is read from `dev` by a session other than the authors'. Its
   measure of off-gate rows states the five items of this batch and the owner's word on each.
 

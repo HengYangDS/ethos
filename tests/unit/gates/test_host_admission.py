@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -240,19 +241,31 @@ def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
     message: str,
     cause: type,
 ) -> None:
-    """An OS error while leaving keeps the wait's own ending; after a normal end it is the gap."""
+    """An OS error while leaving keeps the wait's own ending; after a normal end it is the gap.
+
+    The exit that stays in flight carries a note of the place that was not given up, and the run
+    asks once to leave, for its own ticket.
+    """
     queue = _queue(host_root)
     busy = [] if ending == "admitted" else [queue.enter(tmp_path / "busy", "renderer")]
+    refused = Mock(side_effect=PermissionError)
 
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(host_admission.HostQueue, "leave", Mock(side_effect=PermissionError))
-        with pytest.raises(raised, match=message) as ended:
+        patch.setattr(host_admission.HostQueue, "leave", refused)
+        with pytest.raises(raised) as ended:
             _admission(tmp_path, ending)
 
+    # The message alone is the gap that a caller reads; pytest's own match would read the note too.
     assert ended.type is raised
+    assert re.search(message, str(ended.value)) is not None
     assert isinstance(ended.value.__cause__, cause)
-    for holder in busy:
+    kept = [] if ending == "admitted" else ["host_admission_unavailable: PermissionError"]
+    assert getattr(ended.value, "__notes__", []) == kept
+    # The mock kept the run's own ticket; the real release then empties the queue.
+    for holder in (*busy, *(call.args for call in refused.call_args_list)):
         queue.leave(*holder)
+    assert refused.call_count == 1
+    assert not any(queue.directory.iterdir())
 
 
 def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(

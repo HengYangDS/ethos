@@ -312,17 +312,20 @@ class HostPlace:
             self.queue.leave(*self.ticket)
             self.ticket = None
 
-    def leave_on_exit(self, in_flight: type[BaseException] | None, *_exit: object) -> None:
+    def leave_on_exit(
+        self, _kind: type[BaseException] | None, exit_: BaseException | None, *_trace: object
+    ) -> None:
         """Give up the place as an exit callback, never replacing an exit that is in flight.
 
-        An OS error while leaving is the named gap after a normal end; an exit already in flight,
-        such as the wait's own gap or an interrupt, survives it unchanged.
+        An OS error while leaving is the named gap after a normal end. An exit already in flight,
+        such as the wait's own gap or an interrupt, survives it and carries a note of the error.
         """
         try:
             self.leave()
         except OSError as error:
-            if in_flight is None:
+            if exit_ is None:
                 raise ValueError(UNAVAILABLE) from error
+            exit_.add_note(f"{UNAVAILABLE}: {type(error).__name__}")
 
 
 @dataclass(frozen=True)

@@ -110,8 +110,10 @@ Non-Goals:
      of the release, which hides a queue that can no longer be written from a run that ended
      normally; and catching the error in `HostQueue.leave`, which also changes the full proof.
    - **Chosen because:** an exit callback is told whether an exit is in flight, so it keeps that
-     exit and names the gap only when there is none. The decision sits in one method of the
-     place, of density 3, and `admitted_host_work` stays at 6.
+     exit and names the gap only when there is none. The exit that stays carries a note that
+     names the gap and the error's kind, so a release that failed is not lost; the lane's review
+     asked for that. The decision sits in one method of the place, and `admitted_host_work`
+     stays at 6.
    - **Applies to:** `admitted_host_work` and both consumers. A record that could not be removed
      stays beside its lock file; once the holder's lock is free, at the latest when its process
      ends, the next waiter's read of the live tickets removes both, and the status read does not

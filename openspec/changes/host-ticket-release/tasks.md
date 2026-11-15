@@ -11,9 +11,10 @@
       and the function's decision density is unchanged.
 - [ ] 1.3 Add `test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight` with one
       case for each wait ending and one for a normal end, and give the place up through an exit
-      callback that keeps an exit in flight and names `host_admission_unavailable` when there is
-      none. Done when the four cases pass, having failed with a plain callback, and
-      `admitted_host_work` keeps its decision density.
+      callback that keeps an exit in flight, notes the failed release on it and names
+      `host_admission_unavailable` when there is none. Done when the four cases pass, having
+      failed with a plain callback and again without the note, the queue is empty after the real
+      release, and `admitted_host_work` keeps its decision density.
 
 ## 2. The result of a refused host proof
 

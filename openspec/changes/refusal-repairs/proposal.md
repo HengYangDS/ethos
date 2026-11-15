@@ -26,6 +26,9 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - A refused runtime selection whose refusal carries no next action, as for a damaged
   install, names its repair; `ethos adopt --select-runtime` repeats its own request there,
   which meets the same refusal (observed in `adoption-pin-repairs`).
+- The repair text of `runtime_pin_unattested` names what the lock must record for the release's
+  class. It speaks of an attestation also for a release that only a checksum binds, which
+  `release-trust-repairs` began to refuse without a lock entry.
 - To read, not measured yet: other denied placements that may refuse their own repair, as the
   write guard did before `denied-path-removal`: the audit's repair plans for tracked scripts, and
   denied generated homes.

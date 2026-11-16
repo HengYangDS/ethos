@@ -184,8 +184,23 @@ def test_a_peer_state_that_no_gap_names_is_never_dropped(
     assert (observation["state"], sorted(observation["observation_gaps"])) == ("unknown", unknown)
     result = full_result(run_ethos_raw("publish", "--observe-hosted", "--json", cwd=repo))
     assert (result["verdict"], sorted(result["required_gaps"])) == ("unknown", unknown)
-    # Every gap of a peer names a registered repair, so no such result is without a step.
+    # The result names the gap's registered repair, and every gap of a peer holds one.
+    assert result["next_action"] == repair_for("hosted_run_unknown")
     assert all(repair_for(code) for code in hosted.HOSTED_GAPS.values())
+
+
+def test_an_invalid_declaration_names_the_first_repair_that_the_registry_holds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Declaration gaps come as they are found, so the repair is not the first gap's alone.
+
+    No declaration gap holds a repair today; the stubs stand for a second gap that does.
+    """
+    found = {"required_gaps": ["first_gap", "second_gap"]}
+    monkeypatch.setattr(hosted, "release_config", lambda _root: {})
+    monkeypatch.setattr(hosted, "publication_topology", lambda *_args: found)
+    monkeypatch.setattr(hosted, "repair_for", {"second_gap": "the second repair"}.get)
+    assert hosted_observation(tmp_path, "0" * 40)["next_action"] == "the second repair"
 
 
 def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(

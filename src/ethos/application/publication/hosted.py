@@ -48,10 +48,11 @@ def hosted_observation(root: Path, head: str) -> dict[str, object]:
         topology = {"required_gaps": [str(error)]}
     invalid = string_sequence(topology["required_gaps"])
     if invalid:
-        # The topology's own repair comes first, then the registered repair of the first gap,
-        # then a general step. The observation carries it, so each of its readers has a step,
-        # the preview and the probe too.
-        step = str(topology.get("next_action") or "") or repair_for(invalid[0]) or _DECLARATION
+        # The topology's own repair comes first, then the first repair that the registry holds
+        # for one of the gaps, which come as they were found, then a general step. The
+        # observation carries it, so each of its readers has a step.
+        registered = next(filter(None, map(repair_for, invalid)), "")
+        step = str(topology.get("next_action") or "") or registered or _DECLARATION
         observed = {"head": head, "state": "topology_invalid", "peers": {}}
         return {**observed, "observation_gaps": invalid, "next_action": step}
     peers = {

@@ -151,8 +151,9 @@ Non-Goals:
      peers that were observed, which is zero there. An invalid peer declaration blocks with
      its own gaps and the topology's own next action, or a general one where the topology
      names none. The observation carries that step itself, so the landing preview and the
-     release probe show it too. Where the topology names none, a repair that the registry
-     holds for the first gap comes before the general one. A peer state that no gap names
+     release probe show it too. Where the topology names none, the first repair that the
+     registry holds for one of the gaps comes before the general one; declaration gaps come
+     as they were found. A peer state that no gap names
      is `unknown` for that peer; it is never left out of the gaps, which would read as a
      pass.
 7. **The landing preview carries the observation as data.**

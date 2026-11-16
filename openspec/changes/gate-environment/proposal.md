@@ -6,9 +6,11 @@ A verdict must depend on its subject alone. Five times in three days a proof's v
 it examined, moved with something outside the subject. Each case was measured on the releasing
 host or relayed by the session that met it:
 
-- **The shell that launched it.** Gate children dropped `MISE_` variables and kept Mise's
-  activation state, so a result depended on the launching shell. `mise-activation-isolation`
-  fixed it in 0.2.0-beta.11.
+- **The shell that launched it.** The children of the providers dropped `MISE_` variables and
+  kept Mise's activation state, so a result depended on the launching shell.
+  `mise-activation-isolation` fixed it for those children in 0.2.0-beta.11. A gate that a
+  repository declares as a command still receives the launching environment unchanged; the
+  third case measures it.
 - **The host's package cache.** A full proof of 2026-11-15 failed two gates on one cause: the
   behavior gate's offline locked sync found no wheel for one interpreter in the host's uv cache,
   which a cleaner had emptied the day before. It held a wheel for 103 of 121 locked packages. A
@@ -18,16 +20,16 @@ host or relayed by the session that met it:
   the gate's environments bound that manager's interpreters; launched through the locked
   toolchain, they bound the locked ones. The verdict was the same and the subject was not.
   On 2026-11-16 one full proof of a disposable copy of a governed repository, under the
-  packaged candidate of 0.2.0-beta.11, failed one test of a behavior gate: the test found the
-  package manager that the interpreter bundles, where the repository declares another. The
-  proof was launched from a harness whose shell held an activated path without Mise's
-  activation state, and the same proof passed from an empty environment. The cause is not
-  established. The gate's child environment is ruled out as far as it was measured: with
-  each release's own runtime, 0.2.0-beta.10 and 0.2.0-beta.11 build the same `PATH` for that
-  repository's child from such a shell, with its state, without it and from an empty
-  environment, and the child resolves the declared tool and passes the test each time. A
-  direct `mise exec` from such a shell does run the bundled copy (jdx/mise#15771); that is
-  the shell's launch of Mise and no gate's child.
+  packaged candidate of 0.2.0-beta.11, failed one test of a declared command gate: the test
+  found the package manager that the interpreter bundles, where the repository declares
+  another. The harness had removed Mise's activation variables from its shell while the
+  shell's path stayed activated, and Mise then runs the bundled copy (jdx/mise#15771). A
+  declared command gate receives the launching environment unchanged, by the same code in
+  0.2.0-beta.10 and 0.2.0-beta.11; the Mise adapter builds the children of the providers
+  alone. A second pair of full proofs from the same launch failed the same test under both
+  releases with the same six gaps. The proof passed from an empty environment, and the gate's
+  command passed from the unchanged shell. So no release regressed, and the verdict followed
+  the launch.
 - **Ignored files.** A governed product tagged a release with three failed hosted runs. A tracked
   test pinned a digest of a value that includes ignored build output, so the full proof passed
   only in the lane that held the build.

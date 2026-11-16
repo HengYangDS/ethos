@@ -181,8 +181,9 @@ Non-Goals:
      `runtime_pin_unattested`. A retained topic's rename ends the command before any plan, so
      under `--pin` its result continues to the same request: the apply with `--pin` until the
      rename is done, and the preview with `--pin` after it. Its other fields are the rename's.
-     A rename that does not pass keeps its own next action: the apply that was just refused
-     is not named again.
+     A rename that stopped part way is finished by the same apply, so it keeps `--pin` too.
+     A refused rename names its apply again, as it does without `--pin`; that step is the
+     rename's own, and `refusal-repairs` holds its repair.
 7. **No digest and no receipt of this Change's own.**
    - **Rests on:** `apply_carrier_edits`, which derives the patch again at the apply and refuses a
      preimage that changed (`carrier_edit_preimage_changed`); the `successor` receipt of

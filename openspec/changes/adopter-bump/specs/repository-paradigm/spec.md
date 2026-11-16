@@ -72,7 +72,7 @@ no selection.
 - **THEN** the rename's result names `ethos lane repair-paradigm --pin --apply --json` as its
   next action until the rename is done
 - **AND** the result of the applied rename names `ethos lane repair-paradigm --pin --json`
-- **AND** a rename that is refused keeps its own next action
+- **AND** a rename that stopped part way names the apply with `--pin` again
 
 #### Scenario: A development build names no target
 

@@ -395,6 +395,26 @@ def test_a_pin_request_survives_the_retained_topic_rename(tmp_path: Path) -> Non
     )
 
 
+def _stopped(*_args: object, **_kwargs: object) -> None:
+    """Fail one projection of a rename after its ref effect, as an interrupt does."""
+    msg = "interrupted worktree projection"
+    raise OSError(msg)
+
+
+def test_a_pin_request_survives_a_rename_that_stopped_part_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same request recovers the rename forward, so its continuation keeps the pin."""
+    _repo, lane, _head = _retained_topic(tmp_path)
+    monkeypatch.setattr(branch_roles, "bind_renamed_worktrees", _stopped)
+    request = ("lane", "repair-paradigm", "--pin", "--apply", "--json")
+    partial = run_ethos_blocked(*request, cwd=lane)
+    assert (partial["state"], partial["next_action"]) == (
+        "partial_transition",
+        "ethos lane repair-paradigm --pin --apply --json",
+    )
+
+
 @pytest.mark.parametrize("obstacle", ["foreign-holder", "target-ref"])
 def test_retained_topic_migration_refuses_without_changing_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, obstacle: str
@@ -407,14 +427,8 @@ def test_retained_topic_migration_refuses_without_changing_content(
         git(repo, "branch", "work/retained", head)
 
     refused = run_ethos_blocked("lane", "repair-paradigm", "--apply", "--json", cwd=lane)
-    # A pin request keeps the refusal's own next action: the refused apply is not named again.
-    pinned = run_ethos_blocked("lane", "repair-paradigm", "--pin", "--apply", "--json", cwd=lane)
 
     assert refused["required_gaps"], refused
-    assert (pinned["required_gaps"], pinned["next_action"]) == (
-        refused["required_gaps"],
-        refused["next_action"],
-    )
     assert git(lane, "branch", "--show-current") == "task/retained"
     assert git(lane, "rev-parse", "HEAD") == head
     assert observe_lease(state_database(repo), "task/retained").record() == before
@@ -429,12 +443,7 @@ def test_retained_topic_recovers_projection_forward_from_the_attested_ref_effect
     repo, lane, head = _retained_topic(tmp_path)
     operation = "bind_renamed_worktrees" if projection == "worktree" else "migrate_lease"
     project = getattr(branch_roles, operation)
-
-    def interrupted(*_args, **_kwargs):
-        msg = "interrupted worktree projection"
-        raise OSError(msg)
-
-    monkeypatch.setattr(branch_roles, operation, interrupted)
+    monkeypatch.setattr(branch_roles, operation, _stopped)
     partial = run_ethos_blocked("lane", "repair-paradigm", "--apply", "--json", cwd=lane)
     assert partial["state"] == "partial_transition", partial
     assert git(repo, "rev-parse", "work/retained") == head

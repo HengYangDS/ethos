@@ -183,13 +183,13 @@ def _before_plan(repo: Path, upgrade: _Upgrade, *, apply: bool) -> dict[str, obj
     """Return the report that ends the command before a plan: a refused upgrade, else a rename.
 
     A rename plans nothing else, so an upgrade asked with it continues to the same request: its
-    apply until the rename is done, and its preview after it. A rename that does not pass keeps
-    its own next action: the request that was just refused is not asked for again.
+    apply until the rename is done, and its preview after it. A rename that stopped part way is
+    finished by that apply, so it keeps the request too.
     """
     if upgrade.refusal:
         return upgrade.refusal
     renamed = rename_retained_topic(repo, apply=apply)
-    if renamed is None or upgrade.command == _APPLY or renamed["verdict"] != "pass":
+    if renamed is None or upgrade.command == _APPLY:
         return renamed
     done = renamed["verdict"] == "pass" and renamed["applied"] is True
     request = upgrade.command.replace(" --apply", "") if done else upgrade.command

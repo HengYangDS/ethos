@@ -14,7 +14,6 @@ beside it, whether the journey passes or fails.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from datetime import UTC
@@ -31,12 +30,14 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import require_installed_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.toolchain.mise import mise_version
+from ethos.contracts.digest import file_sha256
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tools.ci.delivery.acceptance.acquisition import PRERELEASE
 from tools.ci.delivery.acceptance.acquisition import acquire
 from tools.ci.delivery.acceptance.acquisition import read_manifest
 from tools.ci.delivery.acceptance.host_environment import hermetic_environment
 from tools.ci.delivery.acceptance.host_environment import hermetic_gap
+from tools.ci.delivery.acceptance.host_environment import host_supply
 from tools.ci.delivery.acceptance.invocation import acceptance_observation
 from tools.ci.delivery.acceptance.invocation import continuation
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -63,7 +64,7 @@ _ACTOR = "agent:test:journey:adopter"
 # What a journey child finds on its path. Acquisition also finds what reaches the network: the
 # forge's client, and the downloader that stages Mise where the host's tool supply lacks it.
 _EXECUTABLES, _CLIENTS = ("git", "ssh-keygen"), ("gh", "curl")
-# Where the host's tool supply is: acquisition's own process keeps these to resolve Mise there.
+# Where the host's tool supply is: acquisition's process holds these while it prepares Mise.
 _SUPPLY = (
     "ETHOS_CI_TOOL_CACHE_DIR",
     "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR",
@@ -197,12 +198,17 @@ def prove_upgrade(
 def install_acquired(
     release: PublishedRelease, home: Path, *, mise: Path, environment: dict[str, str]
 ) -> InstalledTool:
-    """Hash an acquired archive again, then let Mise install it offline in a fresh home."""
-    with release.archive.open("rb") as stream:
-        if hashlib.file_digest(stream, "sha256").hexdigest() != release.sha256:
-            message = f"release_journey_archive_tampered:{release.archive.name}"
-            raise ValueError(message)
-    return install_archive(release.archive, home, mise=mise, environment=environment)
+    """Hash an acquired archive again, then let Mise install it offline in a fresh home.
+
+    Mise is given the manifest's digest as the archive's checksum, so bytes that change after
+    this check are refused by Mise itself.
+    """
+    if file_sha256(release.archive) != release.sha256:
+        message = f"release_journey_archive_tampered:{release.archive.name}"
+        raise ValueError(message)
+    return install_archive(
+        release.archive, home, mise=mise, environment=environment, sha256=release.sha256
+    )
 
 
 def qualify_offline(
@@ -256,18 +262,20 @@ def qualify(
     The receipt is filled as the journey goes, so a failed leg keeps what it had established.
     With `classes_only` the journey stops once each named release is verified by its class.
     Acquisition's path holds no Mise, so the journey runs the executable whose digest the
-    repository binds, from the host's tool supply, and never a Mise the host installed. The
-    job's forge token leaves the environment before either stage: acquisition hands it to the
-    forge's client and to Mise's forge calls, and to no other child.
+    repository binds, from the host's tool supply, and never a Mise the host installed. Only
+    that preparation is shown where the supply is. The job's forge token leaves the
+    environment before either stage: acquisition hands it to the forge's client and to Mise's
+    forge calls, and to no other child.
     """
     receipt = {} if receipt is None else receipt
     mise, token = None, os.environ.get("GH_TOKEN", "")
+    supply = {name: os.environ[name] for name in _SUPPLY if name in os.environ}
     acquired, qualified = work / "acquisition", work / "qualification"
-    with hermetic_environment(
-        acquired / "environment", (*_EXECUTABLES, *_CLIENTS), forwarded=_SUPPLY
-    ) as environment:
+    clients = (*_EXECUTABLES, *_CLIENTS)
+    with hermetic_environment(acquired / "environment", clients) as environment:
         if not classes_only:
-            mise = prepare_mise(ROOT)
+            with host_supply(supply):
+                mise = prepare_mise(ROOT)
             receipt["mise"] = ".".join(map(str, mise_version(mise) or ()))
         manifest = acquire(
             tag,
@@ -305,8 +313,9 @@ def run(
     host = mise_target()
     output = evidence if evidence is not None else EVIDENCE / f"journey-{host}.json"
     events = output.with_suffix(".events.jsonl")
-    # The venue is where this leg ran: under a forge's runner, or on a local host.
-    venue = "ci" if os.environ.get("CI") else "local"
+    # The venue is where this leg ran: under a forge's runner, which sets `CI` so, or on a
+    # local host.
+    venue = "ci" if os.environ.get("CI", "").lower() in {"true", "1"} else "local"
     payload: dict[str, object] = {"tag": tag, "platform": host, "venue": venue, "state": "failed"}
     failure: Exception | None = None
     try:

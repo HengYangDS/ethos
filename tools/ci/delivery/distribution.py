@@ -25,6 +25,7 @@ from ethos.adapters.repo.runtime.materialization.python_image import render_wind
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.contracts.digest import file_sha256
 from ethos.repository.release.identity import is_release_build
 from tools.ci.delivery import mise_tool
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -362,8 +363,13 @@ def install_archive(
     *,
     mise: Path,
     environment: Mapping[str, str],
+    sha256: str = "",
 ) -> InstalledTool:
-    """Install a local archive offline as adopters install a release, in the same layout."""
+    """Install a local archive offline as adopters install a release, in the same layout.
+
+    A caller that verified the archive names the digest it verified, and Mise refuses other
+    bytes; without one the archive's own digest is declared.
+    """
     with tarfile.open(archive) as packed:
         manifests = [
             name
@@ -378,8 +384,7 @@ def install_archive(
     # Adopters label the tool with its product version, which also keeps a Windows install's
     # paths within what `cmd` runs; the console must still report the exact distribution.
     version = manifest.get("product_version", "")
-    with archive.open("rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    digest = sha256 or file_sha256(archive)
     # Mise strips the archive's one top directory, as it does for a release pinned on the forge.
     local = (
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'

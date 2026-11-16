@@ -75,7 +75,9 @@ Non-Goals:
      write to it can be seen. Mise is not on the path: the journey calls the executable of the
      repository's tool supply by its absolute path, and that executable is bound by digest.
    - **Applies to:** POSIX hosts. On Windows the owner adds the Git variables to the install
-     smoke's minimal environment and links nothing. The journey's own `XDG_DATA_HOME`, which
+     smoke's minimal environment and links nothing; its path also names the directory of each
+     declared executable, since the minimal path holds Git and the signing tool alone and the
+     forge's client is installed elsewhere. The journey's own `XDG_DATA_HOME`, which
      gives each upgrade its own host store under the work tree, stays: B.5 excludes the host's
      desktop variables, and this one is the product's declared input for the store's place.
 3. **The forge token is handed to two kinds of child and inherited by none.**
@@ -87,9 +89,11 @@ Non-Goals:
    - **Chosen because:** the journey reads the token once, before the first stage, and the stage
      never holds it. The forge's client receives it as one added variable, and Mise receives it
      for a pin's lock and install as before. The cost is one parameter on ten signatures.
-   - **Applies to:** acquisition. Qualification has no token to hand. Acquisition's process does
-     keep three variables that say where the host's tool supply is; a child that inherits there
-     can read them, and none is a credential.
+   - **Applies to:** acquisition. Qualification has no token to hand. Acquisition's process
+     holds three variables that say where the host's tool supply is only while it prepares
+     Mise from that supply. The commands of that preparation can read them, no later child
+     can, and none is a credential. The first form of this Change kept them for the whole
+     stage, where the forge's client inherited them.
 4. **Acquisition proves the pins; the steps run on offline installs of the acquired archives.**
    - **Rests on:** B.5, which has qualification hash again before each install. Mise's lock and
      locked install of the pin reach the forge. The install smoke already installs a local
@@ -98,7 +102,9 @@ Non-Goals:
      before an install and makes qualification depend on a Mise home that the networked stage
      wrote; and an offline install of the pin from Mise's download cache, which depends on that
      cache's layout and is unproven.
-   - **Chosen because:** the bytes the steps run on are the bytes the manifest names. The cost
+   - **Chosen because:** the bytes the steps run on are the bytes the manifest names: the
+     journey hashes the archive again, and Mise is given the manifest's digest as the
+     archive's checksum, so it refuses bytes that change after that check. The cost
      is that each release is installed twice, and that the console and the uninstall are
      exercised on the local table's installation. The pin's installation is checked for its
      console in acquisition and then removed as a tree, not through Mise.
@@ -119,8 +125,9 @@ Non-Goals:
 6. **Qualification checks its environment before its first child, by reading it back.**
    - **Rests on:** B.5's refusal, `journey_environment_not_hermetic:<what>`, and 13 cases in the
      owner's test.
-   - **Considered:** the same check in acquisition, which needs an allowance for the three
-     supply variables; and a network sandbox, which differs by platform and is not in the plan.
+   - **Considered:** the same check in acquisition, whose first children, the preparation of
+     Mise, are shown the three supply variables; and a network sandbox, which differs by
+     platform and is not in the plan.
    - **Chosen because:** the check reads the process environment and the directories, not the
      owner's intent, and names the first variable, directory or path entry that differs.
    - **Applies to:** the moment before the first child. After it, children write to the home
@@ -133,7 +140,9 @@ Non-Goals:
    - **Considered:** a forge's runner-kind variable, which needs a new declared input in a
      shared file; and an option that the operator sets, which records an assertion.
    - **Chosen because:** it is the smallest reading that separates a runner from a local host.
-   - **Applies to:** the receipt's `venue` key. A self-hosted runner reads `ci` as well.
+   - **Applies to:** the receipt's `venue` key. A self-hosted runner reads `ci` as well. Only
+     the values `true` and `1` read `ci`, as both forges' runners set the input; a host that
+     exports `CI=false` is local.
 
 ## Risks / Trade-offs
 
@@ -147,5 +156,7 @@ Non-Goals:
   forwarded. Mise's forge calls had none before either.
 - A host now needs the forge's client and a downloader on its path even where the Mise supply is
   present, because the links are made before the stage knows.
-- The tests of the owner are skipped on Windows, so its Windows branch is unverified.
+- The tests of the owner are skipped on Windows, so its Windows branch is unverified. One test
+  replaces the owner's view of the operating system to read that branch's path; nothing runs
+  it on Windows.
 - Each release is installed twice. The time is unmeasured; the tasks ask the dispatch to read it.

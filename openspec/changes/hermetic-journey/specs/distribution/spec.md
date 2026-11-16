@@ -27,9 +27,11 @@ the repository binds.
 #### Scenario: Acquisition finds the host's tool supply
 
 - **WHEN** the host's environment says where its tool supply is
-- **THEN** acquisition's own process SHALL keep those variables, and a child that is handed its
-  environment SHALL NOT receive them
-- **AND** qualification's process SHALL NOT keep them
+- **THEN** acquisition's own process SHALL hold those variables only while it prepares Mise from
+  that supply
+- **AND** no child that starts after that preparation SHALL receive them, whether it inherits
+  its environment or is handed it
+- **AND** qualification's process SHALL NOT hold them
 
 #### Scenario: The host installed another Mise
 
@@ -52,6 +54,7 @@ the repository binds.
 - **WHEN** a stage runs on Windows
 - **THEN** its children SHALL receive the Git variables over the install smoke's minimal
   environment, and the home, temporary directory and path SHALL stay the host's
+- **AND** the path SHALL also name the directory of each declared executable
 
 ### Requirement: Acquisition is the journey's only networked stage
 
@@ -82,6 +85,8 @@ run every journey step. Each leg's receipt SHALL name its venue.
 - **WHEN** an archive's SHA-256 differs from the one its manifest entry records
 - **THEN** the leg SHALL fail with `release_journey_archive_tampered:<archive>` before Mise
   installs it
+- **AND** Mise SHALL be given the manifest's SHA-256 as the archive's checksum, so that it
+  refuses bytes that change after that check
 
 #### Scenario: The manifest is not whole
 
@@ -98,7 +103,8 @@ run every journey step. Each leg's receipt SHALL name its venue.
 #### Scenario: A leg records where it ran
 
 - **WHEN** a leg writes its receipt
-- **THEN** `venue` SHALL read `ci` under a CI runner and `local` otherwise
+- **THEN** `venue` SHALL read `ci` where the `CI` input is `true` or `1`, as a CI runner sets
+  it, and `local` otherwise
 
 ## MODIFIED Requirements
 

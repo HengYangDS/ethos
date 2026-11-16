@@ -11,7 +11,6 @@ is the only input of the offline qualification.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import tomllib
@@ -27,6 +26,7 @@ import ethos.repository.release.pin as pin
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.toolchain.mise import MISE_LOCK
+from ethos.contracts.digest import file_sha256
 from tools.ci.delivery.acceptance.invocation import command_label
 from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.invocation import run_native
@@ -158,8 +158,7 @@ def download_release(
         token=token,
     )
     archive = target / name
-    with archive.open("rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    digest = file_sha256(archive)
     listed = {
         name.strip(): listed_digest
         for listed_digest, _, name in (

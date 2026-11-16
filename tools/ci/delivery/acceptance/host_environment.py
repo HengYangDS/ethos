@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from collections.abc import Mapping
 
 # The directories of a fresh environment, by the variable that names each to a child.
 _FRESH = {"HOME": "home", "TMPDIR": "tmp", "PATH": "bin", "GIT_TEMPLATE_DIR": "templates"}
@@ -83,11 +84,12 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
     return env, tools["git"].as_posix()
 
 
-def _declared(root: Path) -> dict[str, str]:
+def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
     """Name every variable a hermetic child receives; each path it names lies under `root`.
 
     Windows gets the Git variables alone, over the minimal environment: its home, temporary
-    directory and path stay the host's.
+    directory and path stay the host's. It links nothing, so its path also names the
+    directory of each declared executable.
     """
     fresh = {name: str(root / directory) for name, directory in _FRESH.items()}
     git = {
@@ -96,21 +98,37 @@ def _declared(root: Path) -> dict[str, str]:
         "GIT_ATTR_NOSYSTEM": "1",
         "GIT_TEMPLATE_DIR": fresh["GIT_TEMPLATE_DIR"],
     }
-    return independent_host_environment()[0] | git if os.name == "nt" else fresh | git
+    if os.name != "nt":
+        return fresh | git
+    host = independent_host_environment()[0]
+    found = (str(source.parent) for source in _resolve(executables).values())
+    path = os.pathsep.join(dict.fromkeys((*host["PATH"].split(os.pathsep), *found)))
+    return host | git | {"PATH": path}
 
 
 @contextmanager
-def hermetic_environment(
-    root: Path, executables: tuple[str, ...], *, forwarded: tuple[str, ...] = ()
-) -> Generator[dict[str, str]]:
+def host_supply(values: Mapping[str, str]) -> Generator[None]:
+    """Show this process where the host's tool supply is, for one block alone.
+
+    The block prepares a tool from that supply, and the commands of that preparation inherit
+    the variables. No child that starts after the block does.
+    """
+    os.environ.update(values)
+    try:
+        yield
+    finally:
+        for name in values:
+            os.environ.pop(name, None)
+
+
+@contextmanager
+def hermetic_environment(root: Path, executables: tuple[str, ...]) -> Generator[dict[str, str]]:
     """Give this process, and so each of its children, one fresh environment under `root`.
 
     A child gets a new home and temporary directory, Git without system or global configuration,
     system attributes or templates, and a path that holds one link for each declared executable.
     It gets no other variable of the host: no agent socket, no forge token and no desktop
-    variable. `forwarded` names host variables that this process alone keeps, to find the host's
-    tool supply; the yielded environment, which children are handed, leaves them out. The host's
-    environment returns when the block ends.
+    variable. The host's environment returns when the block ends.
     """
     sources = _resolve(executables)
     for directory in _FRESH.values():
@@ -119,10 +137,9 @@ def hermetic_environment(
     if os.name != "nt":
         for name, source in sources.items():
             (root / _FRESH["PATH"] / name).symlink_to(source)
-    environment, host = _declared(root), dict(os.environ)
-    kept = {name: host[name] for name in forwarded if name in host}
+    environment, host = _declared(root, executables), dict(os.environ)
     os.environ.clear()
-    os.environ.update(environment | kept)
+    os.environ.update(environment)
     # Python remembers the first temporary directory it resolved, on either side of the change.
     tempfile.tempdir = None
     try:
@@ -140,7 +157,7 @@ def hermetic_gap(root: Path, executables: tuple[str, ...]) -> str:
     directory, template directory or global configuration that is no longer empty; or a path
     that holds anything but one link to an existing file for each declared executable.
     """
-    declared = _declared(root)
+    declared = _declared(root, executables)
     for name in sorted(declared.keys() | os.environ.keys()):
         if os.environ.get(name) != declared.get(name):
             return name

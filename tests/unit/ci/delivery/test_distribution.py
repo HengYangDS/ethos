@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import tarfile
+from functools import partial
 from pathlib import Path
 from pathlib import PurePosixPath
 from pathlib import PureWindowsPath
@@ -84,8 +86,15 @@ def test_a_local_archive_installs_from_a_table_that_strips_its_top_directory(
         "install_declared",
         lambda text, *_a, offline, **_k: seen.append(f"{text}offline = {offline}"),
     )
-    distribution.install_archive(archive, tmp_path / "home", mise=tmp_path / "mise", environment={})
+    install = partial(distribution.install_archive, archive, tmp_path / "home", environment={})
+    install(mise=tmp_path / "mise")
     assert ("strip_components = 1\n" in seen[0], "bin_path" in seen[0]) == (True, False)
+    # A caller that verified the archive binds the digest it verified, so Mise refuses other
+    # bytes; without one the archive's own digest is declared.
+    install(mise=tmp_path / "mise", sha256="f" * 64)
+    own = hashlib.sha256(archive.read_bytes()).hexdigest()
+    declared = [text.partition('checksum = "sha256:')[2][:64] for text in seen]
+    assert declared == [own, "f" * 64]
     assert (archive.resolve().as_uri() in seen[0], seen[0].endswith("offline = True")) == (
         True,
         True,
@@ -159,6 +168,7 @@ def test_mise_reads_no_configuration_above_its_isolated_home(
     names = [name for name, _environment in calls]
     assert names[names.index("lock") :][:3] == ["lock", "seed", "install"]
     assert ("settings" in names) is bool(forge)
-    tokens = [(name, environment.get("GITHUB_TOKEN")) for name, environment in calls]
-    assert [pair for pair in tokens if pair[1]] == [(name, "handed") for name in forge]
+    # Every call that carries the key at all is a forge call, and it carries the handed token.
+    carried = [(name, env["GITHUB_TOKEN"]) for name, env in calls if "GITHUB_TOKEN" in env]
+    assert carried == [(name, "handed") for name in forge]
     assert "GITHUB_TOKEN" not in tool.environment

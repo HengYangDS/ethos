@@ -127,7 +127,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   system attributes or templates, and a path of links to the declared executables. Acquisition,
   the only stage that reaches the network, verifies each release, proves its pin and writes a
   manifest of the archives it verified. Qualification reads the manifest alone, checks its
-  environment before its first child, hashes each archive again and installs it offline. The
+  environment before its first child, hashes each archive again and installs it offline, with
+  the manifest's digest as the checksum that Mise checks. Every journey step runs on that
+  offline install; the pin's own installation is checked for its console in acquisition and
+  then removed, where 0.2.0-beta.11 ran the steps on it. The
   forge token reaches the forge's client and Mise's pin calls and no other child, and the journey
   runs the Mise executable that the repository binds by digest. New refusals are
   `journey_environment_not_hermetic:<what>`, `release_journey_archive_tampered:<archive>` and

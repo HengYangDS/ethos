@@ -10,6 +10,7 @@ import sys
 import tempfile
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 EXECUTABLES = ("git", "ssh-keygen")
 # A child that prints its whole environment.
 PRINT = (sys.executable, "-c", "import json, os; print(json.dumps(dict(os.environ)))")
-# What a host shows and no journey child may see, but for the forwarded one; each value is fake.
+# What a host shows and no journey child may see; each value is fake.
 SUPPLY = "ETHOS_CI_TOOL_CACHE_DIR"
 HOST = {
     SUPPLY: "/fake/supply",
@@ -37,7 +38,7 @@ HOST = {
     "DISPLAY": ":0",
 }
 # What a child's own runtime adds to an environment that lacks it.
-RUNTIME = {SUPPLY, "LC_CTYPE", "__CF_USER_TEXT_ENCODING"}
+RUNTIME = {"LC_CTYPE", "__CF_USER_TEXT_ENCODING"}
 # Every variable a journey child is given: fresh directories and a file under the owner's root.
 FRESH = {"HOME": "home", "TMPDIR": "tmp", "PATH": "bin", "GIT_TEMPLATE_DIR": "templates"}
 FRESH |= {"GIT_CONFIG_GLOBAL": "gitconfig"}
@@ -60,15 +61,17 @@ def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
 ) -> None:
     """A child sees a new home and temporary directory, isolated Git and linked executables.
 
-    Nothing else of the host reaches it: no agent socket, forge token or desktop variable. A
-    forwarded variable stays with this process, and the host's environment returns afterwards.
-    Removing the environment leaves the host's executables where they are.
+    Nothing else of the host reaches it: no agent socket, forge token or desktop variable. The
+    place of the host's tool supply is shown to this process for one block alone, and to no
+    child after it; the host's environment returns afterwards. Removing the environment
+    leaves the host's executables where they are.
     """
     for name, value in HOST.items():
         monkeypatch.setenv(name, value)
     host, root, temporary = dict(os.environ), tmp_path / "environment", tempfile.gettempdir()
-    owner = host_environment.hermetic_environment(root, EXECUTABLES, forwarded=(SUPPLY,))
-    with owner as environment:
+    with host_environment.hermetic_environment(root, EXECUTABLES) as environment:
+        with host_environment.host_supply({SUPPLY: HOST[SUPPLY]}):
+            shown = os.environ[SUPPLY]
         inherited = json.loads(run_command(tmp_path, PRINT).stdout)
         handed = json.loads(
             run_command(tmp_path, PRINT, env=environment, inherit_environment=False).stdout
@@ -79,7 +82,7 @@ def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
     for child in (inherited, handed):
         assert {name: child[name] for name in environment} == environment
         assert child.keys() - environment.keys() <= RUNTIME
-    assert (inherited[SUPPLY], SUPPLY in handed) == ("/fake/supply", False)
+    assert (shown, SUPPLY in inherited, SUPPLY in handed) == ("/fake/supply", False, False)
     assert resolved == {name: str(root / "bin" / name) for name in EXECUTABLES}
     assert (dict(os.environ), tempfile.gettempdir()) == (host, temporary)
     sources = [Path(link).resolve() for link in resolved.values()]
@@ -112,6 +115,24 @@ def test_the_fixture_adopter_is_built_and_signed_inside_the_fresh_environment(
         journey.prove_upgrade(None, None, tmp_path / "store", environment=fresh)
         signed = run_native("git", "log", "--format=%G?", cwd=built[0], env=fresh)
     assert (signed, (built[0] / ".git/hooks").exists()) == ("G", False)
+
+
+def test_a_windows_stage_finds_each_declared_executable_on_its_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows links nothing, so its path names the directory of each declared executable."""
+    client = tmp_path / "forge/client"
+    client.parent.mkdir()
+    client.touch(mode=0o755)
+    monkeypatch.setenv("PATH", os.pathsep.join((os.environ["PATH"], str(client.parent))))
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path / "windows"))
+    windows = SimpleNamespace(name="nt", environ=os.environ, pathsep=os.pathsep)
+    monkeypatch.setattr(host_environment, "os", windows)
+    root, executables = tmp_path / "environment", (*EXECUTABLES, "client")
+    with host_environment.hermetic_environment(root, executables) as stage:
+        found = shutil.which("client", path=stage["PATH"])
+        assert host_environment.hermetic_gap(root, executables) == ""
+    assert Path(found or "").resolve() == client.resolve()
 
 
 # Each way a stage's environment can show a child more than was declared, and what is named.
@@ -157,12 +178,15 @@ def test_qualification_installs_only_an_archive_that_still_matches_its_manifest(
     manifest, installed = tmp_path / "manifest.json", []
     manifest.write_text(json.dumps({"releases": [ENTRY | {"verified": "attested"}]}))
     monkeypatch.setattr(
-        journey, "install_archive", lambda archive, *_a, **_k: installed.append(archive)
+        journey,
+        "install_archive",
+        lambda archive, *_a, sha256, **_k: installed.append((archive, sha256)),
     )
     (release,) = acquisition.read_manifest(manifest)
     with pytest.raises(ValueError, match=gap) if gap else nullcontext():
         journey.install_acquired(release, tmp_path / "home", mise=tmp_path, environment={})
-    assert installed == ([] if gap else [release.archive])
+    # Mise is given the manifest's digest, so bytes that change after this check stay out too.
+    assert installed == ([] if gap else [(release.archive, DIGEST)])
 
 
 @pytest.mark.parametrize(

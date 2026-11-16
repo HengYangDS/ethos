@@ -38,6 +38,8 @@ CHANGELOG = """# Changelog
 """
 VERSION, PLATFORM = "0.2.0-alpha.29", "linux-x64"
 ARCHIVE = f"ethos-{VERSION}-{PLATFORM}.tar.gz"
+# One of the variables that say where the host's tool supply is.
+_SUPPLY = "ETHOS_CI_TOOL_CACHE_DIR"
 # The expected SHA-256 of each archive body a case publishes.
 SHA256 = {body: hashlib.sha256(body).hexdigest() for body in (b"archive", b"other")}
 DIGEST, SEED = SHA256[b"archive"], "lockfile_version = 3\n"
@@ -268,7 +270,7 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
 
     monkeypatch.setattr(journey, "qualify", qualify)
     monkeypatch.setattr(journey, "mise_target", lambda: PLATFORM)
-    monkeypatch.setenv("CI", "true" if failure else "")
+    monkeypatch.setenv("CI", "true" if failure else "false")
     session = Mock()
     output = tmp_path / "evidence" / f"journey-{PLATFORM}.json"
     classes = state == "classes_verified"
@@ -299,7 +301,7 @@ def _journey_without_effects(
     `tokens` holds, for each download, pin and offline install, the forge token this process
     held, the one in the environment that the step hands its children, and the one it was handed.
     """
-    names = ("downloads", "upgrades", "pins", "tokens", "mise")
+    names = ("downloads", "upgrades", "pins", "tokens", "mise", "supply")
     seen: dict[str, list] = {name: [] for name in names}
 
     def held(environment: dict[str, str]) -> tuple[str | None, str | None]:
@@ -307,6 +309,7 @@ def _journey_without_effects(
 
     def download(tag: str, target: Path, *, environment: dict[str, str], token: str, **_k: object):
         seen["downloads"].append(tag)
+        seen["supply"].append(("download", os.environ.get(_SUPPLY)))
         seen["tokens"].append(("download", *held(environment), token))
         target.mkdir(parents=True)
         (target / "a.tar.gz").write_bytes(b"archive")
@@ -320,7 +323,9 @@ def _journey_without_effects(
         seen["tokens"].append(("pin", *held(options["environment"]), options["token"]))
         return Mock()
 
-    def offline(archive: Path, _home: Path, *, mise: Path, environment: dict[str, str]):
+    def offline(
+        archive: Path, _home: Path, *, mise: Path, environment: dict[str, str], **_bound: str
+    ):
         seen["mise"].append(mise)
         seen["tokens"].append((archive.parent.name, *held(environment), ""))
         return Mock(runtime=tmp_path / "previous-install/runtime/0123456789abcdef")
@@ -330,6 +335,10 @@ def _journey_without_effects(
     ) -> dict[str, object]:
         seen["upgrades"].append((work, environment["XDG_DATA_HOME"]))
         return {"state": "passed"}
+
+    def bound(_root: Path) -> Path:
+        seen["supply"].append(("mise", os.environ.get(_SUPPLY)))
+        return Path(shutil.which("mise") or "bound-mise")
 
     passed, which = {"state": "passed", "runtime_digest": "f" * 64}, shutil.which
     # A Mise that the host installed is on the host's path, and on no stage's.
@@ -344,7 +353,7 @@ def _journey_without_effects(
         (journey, "prove_installed_supply", lambda *_a, **_k: passed),
         (journey, "require_selected_runtime", lambda path: path),
         (journey, "prove_full", lambda *_a, **_k: passed),
-        (journey, "prepare_mise", lambda _root: Path(shutil.which("mise") or "bound-mise")),
+        (journey, "prepare_mise", bound),
         (journey, "mise_version", lambda _mise: (2026, 11, 7)),
         (journey, "install_archive", offline),
         (journey, "require_installed_runtime", lambda path: path),
@@ -353,6 +362,7 @@ def _journey_without_effects(
     ):
         monkeypatch.setattr(owner, name, value)
     monkeypatch.setenv("GH_TOKEN", "fake-token")
+    monkeypatch.setenv(_SUPPLY, "/fake/supply")
     return seen
 
 
@@ -416,6 +426,8 @@ def test_only_acquisition_holds_the_forge_token_and_qualification_reads_the_mani
         ("0.2.0-alpha.27", DIGEST),
     ]
     assert set(seen["mise"]) == {Path("bound-mise")}
+    # Only the preparation of Mise is shown where the host's tool supply is.
+    assert seen["supply"] == [("mise", "/fake/supply"), *[("download", None)] * 2]
     assert not (tmp_path / "work/acquisition/pins").exists()
     assert dict(os.environ) == host
 

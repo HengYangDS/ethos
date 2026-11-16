@@ -28,7 +28,8 @@ path. Ignored files and the holder stay with that row, as do all five cases for 
 - One owner gives every child of the journey a fresh environment: a new home and temporary
   directory, Git without system or global configuration, system attributes or templates, and a
   path that holds one link for each declared executable. No other variable of the host reaches a
-  child.
+  child; the three that say where the host's tool supply is are in acquisition's process only
+  while it prepares Mise.
 - The journey runs in two stages. Acquisition is the only stage that reaches the network: it
   verifies each release, proves its exact GitHub pin and writes a manifest of the archives it
   verified. Qualification reads the manifest alone, checks its environment before its first

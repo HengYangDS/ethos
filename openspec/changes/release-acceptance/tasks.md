@@ -73,7 +73,7 @@
       codespell pass.
 - [ ] 4.4 Pass readiness and the precheck at the lane head. Done when each passes on the committed
       head.
-- [ ] 4.5 Hand the operation's first real run to the release Change of this batch. Done when the
+- [x] 4.5 Hand the operation's first real run to the release Change of this batch. Done when the
       Workflow follow-up names it: after the release's journey passes, the releasing host installs
       the release as the global `ethos`, verifies the attestation of `SHA256SUMS`, runs the preview
       and then the apply, and the release Change records that the apply reads `accepted` and a

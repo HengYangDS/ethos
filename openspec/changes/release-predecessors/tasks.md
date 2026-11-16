@@ -73,11 +73,11 @@
       unread record and each subject outside the window is explained. Evidence: the read at
       `66770b394` lists 13 subjects, none unread and none outside the window; the governing session
       read each row against the tree's accepted head, which is the local accepted branch.
-- [ ] 5.2 Hand the record of `[release.upgrade_from]` in the product's own release binding to the
+- [x] 5.2 Hand the record of `[release.upgrade_from]` in the product's own release binding to the
       first release Change whose selected runtime contains this Change. Done when the Workflow
       follow-up names it: that lane records the table, the operation passes on its committed head,
       and the predecessor's paradigm audit does not report the table.
-- [ ] 5.3 Hand the journey's dispatch input to the release that first records the table. Done when
+- [x] 5.3 Hand the journey's dispatch input to the release that first records the table. Done when
       the Workflow follow-up names it: the dispatch names every recorded release in
       `journey_previous`, and each leg's receipt names every recorded release as a predecessor.
 - [x] 5.4 Owner: read the text of DR-0030, which the release lead shows before this row lands.

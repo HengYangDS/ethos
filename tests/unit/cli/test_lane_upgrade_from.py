@@ -186,6 +186,7 @@ UNREAD = {
     "linked-installation": ([_READ], (0, 0, 0)),
     "linked-beside-its-target": ([_READ], (0, 1, 0)),
     "dangling-link": ([_READ], (0, 1, 0)),
+    "linked-file": ([_READ], (0, 0, 0)),
     "no-accepted-branch": ([], (1, 0, 0)),
     "torn-selection": ([(_READ[0], None)], (0, 0, 1)),
 }
@@ -220,6 +221,10 @@ def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
         (installations / ("2" * 16)).symlink_to(installations / ("1" * 16))
     if case == "dangling-link":
         (installations / ("1" * 16)).symlink_to(tmp_path / "gone")
+    if case == "linked-file":
+        # A link to a file is no installation, like a file that stands there itself.
+        (tmp_path / "file").write_text("", encoding="utf-8")
+        (installations / ("1" * 16)).symlink_to(tmp_path / "file")
     if case == "no-accepted-branch":
         git(subject, "branch", "-m", "dev", "trunk")
     if case == "torn-selection":

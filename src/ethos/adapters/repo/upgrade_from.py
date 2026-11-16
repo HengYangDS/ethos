@@ -59,7 +59,7 @@ def _records() -> tuple[set[Path], int, int]:
     if installations is None or not installations.is_dir():
         return commons, unread, unrecorded
     entries = sorted(installations.iterdir())
-    unrecorded += sum(entry.is_symlink() and not entry.is_dir() for entry in entries)
+    unrecorded += sum(entry.is_symlink() and not entry.exists() for entry in entries)
     for installation in sorted({entry.resolve() for entry in entries if entry.is_dir()}):
         consumers = installation_consumers(installation)
         unrecorded += consumers is None

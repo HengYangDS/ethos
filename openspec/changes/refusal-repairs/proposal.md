@@ -45,7 +45,9 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - A refused rename of a retained topic names `ethos lane repair-paradigm --apply --json` as its
   next action, which is the request that was just refused; under `--pin` it names the same
   apply with `--pin`. The rename's own report is the owner: its step names what removes the
-  obstacle. Found by the model review of `adopter-bump` on 2026-11-16.
+  obstacle. A recovery that is itself refused (a stale binding, a foreign holder) reports
+  `partial_transition` like an interrupted rename and is named the same apply; the report
+  tells the two apart. Found by the model review of `adopter-bump` on 2026-11-16.
 - Three readers of a caught refusal take its gaps from the error's text or from its outcome,
   which is empty for a refusal that carries none, so a block can read as a pass: the mutation
   proof, dependency acceptance and the readiness of a commit rebuild. `refused_gaps` never

@@ -148,8 +148,8 @@ def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
     gaps = tuple(string_sequence(observation["observation_gaps"]))
     undecided = all(gap_code(gap) in OPEN_HOSTED_GAPS for gap in gaps)
     again = ("ethos", "publish", "--observe-hosted", "--expect-head", head)
-    # A declaration that could not be observed names its own step, which no registered repair
-    # replaces; otherwise the first gap is the one that decided, and its repair is the step.
+    # A declaration that could not be observed carries its step in the observation;
+    # otherwise the first gap is the one that decided, and its repair is the step.
     declared = str(observation.get("next_action") or "")
     peers = string_mapping(observation["peers"])
     return EthosResult(

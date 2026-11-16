@@ -41,8 +41,9 @@
       peers for `no_ci_peer`, and three invalid declarations each block with a next action.
 - [ ] 2.6 Carry the declaration's step in the observation, look every peer state up, and name
       both fields that a peer without a reader drops. Done when the observation of an invalid
-      declaration holds its next action before any registered repair, a state outside the
-      table raises, and the step by hand names `ci_cd` and `ci_surface`.
+      declaration holds the topology's step, else a registered repair, else the general
+      one; a state outside the table is `hosted_run_unknown` for its peer; and the step by
+      hand names `ci_cd` and `ci_surface`.
 
 ## 3. The landing preview and the release probe
 

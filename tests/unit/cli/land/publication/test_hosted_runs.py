@@ -204,7 +204,12 @@ def test_an_answer_the_reader_cannot_use_is_unknown_and_never_a_pass(
             "forge_repository_unresolved:forge",
             "git config --local remote.forge.forgeRepository <web-url>",
         ),
-        ("git", "", "provider_unsupported", "drop ci_cd and ci_surface from the peer"),
+        (
+            "git",
+            "",
+            "provider_unsupported",
+            "drop ci_cd and ci_surface from the peer's declaration, or read its runs on its forge",
+        ),
     ],
 )
 def test_a_peer_without_a_readable_forge_runs_no_provider_command(
@@ -223,4 +228,4 @@ def test_a_peer_without_a_readable_forge_runs_no_provider_command(
     commands = recorded_forge(monkeypatch, {})
     observed = observe_hosted_runs(_peer(tmp_path, "github", url), "forge", provider, HEAD)
     assert (observed["state"], observed["reason"], commands) == ("unknown", reason, [])
-    assert observed["next_action"].startswith(step)
+    assert observed["next_action"] == step

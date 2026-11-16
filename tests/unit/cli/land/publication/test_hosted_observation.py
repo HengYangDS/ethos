@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.application.publication.hosted as hosted
-import ethos.application.publication.operation as operation
 from ethos.application.publication.hosted import hosted_observation
 from ethos.contracts.codes.gaps import repair_for
 from tests.support.ethos_cli_runner import full_result
@@ -156,13 +155,9 @@ def test_a_declaration_that_cannot_be_observed_blocks_with_a_next_action(
     declaration: tuple[str | None, str],
     step: str,
 ) -> None:
-    """The topology's own repair is kept; a gap without one still names what to do.
-
-    A repair that the registry gains for one of these gaps later does not replace either.
-    """
+    """The topology's own repair comes first, then a registered one, then a general step."""
     repo, _head = _repository(tmp_path)
     recorded_forge(monkeypatch, {})
-    monkeypatch.setattr(operation, "repair_for", lambda _gap: "a registered repair")
     binding = repo / ".ethos/release.toml"
     old, new = declaration
     text = binding.read_text(encoding="utf-8")
@@ -172,16 +167,25 @@ def test_a_declaration_that_cannot_be_observed_blocks_with_a_next_action(
     assert result["next_action"] == (
         step or "repair the publication declaration, then observe again"
     )
+    # A repair that the registry gains for such a gap replaces the general step alone.
+    monkeypatch.setattr(hosted, "repair_for", lambda _gap: "a registered repair")
+    again = full_result(run_ethos_raw("publish", "--observe-hosted", "--json", cwd=repo))
+    assert again["next_action"] == (step or "a registered repair")
 
 
 def test_a_peer_state_that_no_gap_names_is_never_dropped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A state outside the table fails loudly; left out of the gaps it would read as passed."""
+    """A state outside the table is unknown for its peer; left out it would read as passed."""
     repo, head = _repository(tmp_path)
     monkeypatch.setattr(hosted, "observe_hosted_runs", lambda *_peer: {"state": "paused"})
-    with pytest.raises(KeyError, match="paused"):
-        hosted_observation(repo, head)
+    observation = hosted_observation(repo, head)
+    unknown = ["hosted_run_unknown:github", "hosted_run_unknown:gitlab"]
+    assert (observation["state"], sorted(observation["observation_gaps"])) == ("unknown", unknown)
+    result = full_result(run_ethos_raw("publish", "--observe-hosted", "--json", cwd=repo))
+    assert (result["verdict"], sorted(result["required_gaps"])) == ("unknown", unknown)
+    # Every gap of a peer names a registered repair, so no such result is without a step.
+    assert all(repair_for(code) for code in hosted.HOSTED_GAPS.values())
 
 
 def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(

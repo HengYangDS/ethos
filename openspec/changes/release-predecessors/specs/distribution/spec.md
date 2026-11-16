@@ -31,7 +31,8 @@ empty, lacks a derived release, or gives a release another class than its own.
 
 - **WHEN** the record names something other than one exact release, or gives a release a class
   other than the one its dispatch has
-- **THEN** the operation blocks with `release_upgrade_from_invalid`.
+- **THEN** the operation blocks with `release_upgrade_from_invalid`
+- **AND** its result still carries the derived releases with their classes.
 
 #### Scenario: A subject selects a build that is no listed release
 

@@ -166,7 +166,11 @@ Non-Goals:
      once, under selection alone, and is no pin in. A refusal carries the gaps of its cause:
      the record's three gaps name the record as their registered repair, an operating system
      error is `release_upgrade_from_store_unreadable` with the error's name and no path, and
-     any other gap names its own repair or a general instruction.
+     any other gap names its own repair or a general instruction. A record that its reader
+     refuses is no record, and the derivation goes on, so the refusal carries the derived
+     releases with their classes: its repair asks for exactly those. A refusal always blocks,
+     also one that carries no gap, which is then named by its class. An installation
+     directory that is a link is read like any other.
 8. **A version that the changelog does not list is counted and named, and refuses nothing.**
    - **Rests on:** the release lead's ruling of 2026-11-15; the owner's definition, which counts
      what the host can read.

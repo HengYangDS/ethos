@@ -4,7 +4,6 @@ Each operation takes the resolved root and its catalog request, runs the one own
 and projects that owner's report through `lane_result`.
 """
 
-import errno
 import hashlib
 import shlex
 from pathlib import Path
@@ -31,7 +30,8 @@ from ethos.contracts.operations.lane_repair import RepairParadigmRequest
 from ethos.contracts.operations.lane_repair import RepairSignatureRequest
 from ethos.contracts.operations.lane_repair import TrustCommitSignerRequest
 from ethos.contracts.operations.lane_repair import UpgradeFromRequest
-from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import os_error_gap
+from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.outcome import require
 from ethos.contracts.semantic import parse_semantic_json
 from ethos.repository.release.identity import is_release_build
@@ -83,11 +83,9 @@ def derive_lane_upgrade_from(root: Path, _request: UpgradeFromRequest) -> EthosR
         report = upgrade_from_report(root, current_tracked_head(root))
     except OSError as error:
         # The message names a path, and no repository's path leaves the read: the name stays.
-        name = errno.errorcode.get(error.errno or 0)
-        gap = "release_upgrade_from_store_unreadable"
-        report = {"required_gaps": [f"{gap}:{name}" if name else gap]}
+        report = {"required_gaps": [os_error_gap("release_upgrade_from_store_unreadable", error)]}
     except ValueError as error:
-        report = {"required_gaps": list(outcome_of(error).gaps)}
+        report = {"required_gaps": list(refused_gaps(error))}
     gaps = cast("list[str]", report["required_gaps"])
     step = (repair_for(gaps[0]) or _AGAIN) if gaps else ""
     report |= {"verdict": "block" if gaps else "pass", "next_action": step}

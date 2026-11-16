@@ -14,6 +14,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.contracts.outcome import refusal
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.pin import pin_line
 from tests.support.ethos_cli_runner import run_ethos
@@ -149,9 +150,9 @@ def test_a_lane_derives_what_its_release_upgrades_from(
     assert result["required_gaps"] == gaps
     assert result["verdict"] == ("block" if gaps else "pass")
     assert bool(result["next_action"]) is bool(gaps)
-    if gaps == [_INVALID]:
-        return
     data, listed = result["data"], current in DERIVED
+    # A record that its reader refuses is no record, and the result still names what to record.
+    assert (data["recorded"] is None) is (_name in {"undeclared", "another-class"})
     assert (data["release"], data["derived"], data["unread"]) == ("0.2.0-beta.12", DERIVED, 3)
     assert list(data["derived"]) == list(DERIVED)
     assert data["counts"] == {"github": 1, "http": 1, "selection": 4}
@@ -180,6 +181,7 @@ _READ = ("0.2.0-beta.10", "0.2.0-beta.3")
 UNREAD = {
     "torn-records": ([_READ], (2, 0, 0)),
     "no-records": ([_READ], (0, 1, 0)),
+    "linked-installation": ([_READ], (0, 0, 0)),
     "no-accepted-branch": ([], (1, 0, 0)),
     "torn-selection": ([(_READ[0], None)], (0, 0, 1)),
 }
@@ -204,6 +206,9 @@ def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
     if case == "no-records":
         (installations / ("1" * 16)).mkdir()
         (installations / "install.lock").write_text("", encoding="utf-8")
+    if case == "linked-installation":
+        _installation(tmp_path).rename(tmp_path / "moved")
+        (installations / ("0" * 16)).symlink_to(tmp_path / "moved", target_is_directory=True)
     if case == "no-accepted-branch":
         git(subject, "branch", "-m", "dev", "trunk")
     if case == "torn-selection":
@@ -234,17 +239,27 @@ def test_a_gap_outside_the_record_does_not_ask_for_the_record(tmp_path: Path) ->
     assert unlisted["next_action"].startswith("repair the reported gap")
 
 
-def test_an_operating_system_error_names_itself_and_no_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+_RAISED = [
+    (PermissionError(errno.EACCES, "Permission denied", "/host/store"), "EACCES"),
+    (refusal(), "OutcomeError"),
+]
+
+
+@pytest.mark.parametrize(("raised", "named"), _RAISED, ids=["os-error", "refusal-without-a-gap"])
+def test_an_error_of_the_read_blocks_and_names_itself_without_a_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception, named: str
 ) -> None:
-    """The result carries the error's name; its message, which holds a path, stays behind."""
+    """An operating system error keeps its name and leaves its message, which holds a path.
 
-    def denied(*_args: object) -> dict[str, object]:
-        raise PermissionError(errno.EACCES, "Permission denied", "/host/store")
+    A refusal that carries no gap still blocks: it is named by its class.
+    """
 
-    monkeypatch.setattr(lane_repair, "upgrade_from_report", denied)
+    def failed(*_args: object) -> dict[str, object]:
+        raise raised
+
+    monkeypatch.setattr(lane_repair, "upgrade_from_report", failed)
     refused = run_ethos(*_unlisted(tmp_path))
-    assert refused["required_gaps"] == ["release_upgrade_from_store_unreadable:EACCES"]
+    assert (refused["verdict"], refused["required_gaps"][0].rpartition(":")[2]) == ("block", named)
     assert "/host/store" not in json.dumps(refused)
 
 

@@ -56,7 +56,7 @@ def _records() -> tuple[set[Path], int, int]:
     if installations is None or not installations.is_dir():
         return commons, unread, unrecorded
     for installation in sorted(installations.iterdir()):
-        if not installation.is_dir() or installation.is_symlink():
+        if not installation.is_dir():
             continue
         consumers = installation_consumers(installation)
         unrecorded += consumers is None
@@ -132,10 +132,27 @@ def _subject(common: Path) -> list[predecessors.Subject]:
     return [predecessors.Subject(head, declared.form, declared.version, current, bumped)]
 
 
-def recorded_upgrade_from(root: Path, head: str) -> dict[str, str] | None:
-    """Read what the release binding at `head` records; None where it declares no carrier."""
+def recorded_upgrade_from(root: Path, head: str) -> tuple[dict[str, str] | None, list[str]]:
+    """Read what the release binding at `head` records, and the gap of a record it refuses.
+
+    The record is None where the binding declares no carrier. A record that its reader refuses
+    is no record either, and the derivation goes on, so the result names what to record.
+    """
     binding = git.committed_file_text(root, head, binding_path("release"))
-    return predecessors.recorded(release_config_from_text(binding))
+    config = release_config_from_text(binding)
+    try:
+        return predecessors.recorded(config), []
+    except ValueError as error:
+        return None, [str(error)]
+
+
+def _record_gaps(recorded: dict[str, str] | None, refused: list[str], missing: str) -> list[str]:
+    """Name what the record lacks: its reader's refusal, else its absence, else what it omits."""
+    if refused:
+        return refused
+    if not recorded:
+        return ["release_upgrade_from_empty"]
+    return [f"release_upgrade_from_incomplete:{missing}"] if missing else []
 
 
 def _unreadable(window: tuple[predecessors.Subject, ...]) -> dict[str, int]:
@@ -159,7 +176,7 @@ def upgrade_from_report(root: Path, head: str) -> dict[str, object]:
     whose selection cannot be read; none of them is an unread consumer.
     `unrecorded_installations` counts the installations that record no consumer.
     """
-    recorded = recorded_upgrade_from(root, head)
+    recorded, refused = recorded_upgrade_from(root, head)
     subjects, unread, unrecorded = read_subjects(root)
     version = committed_release_version(root, head)["version"]
     changelog = load_repository_paradigm().release.changelog
@@ -182,9 +199,5 @@ def upgrade_from_report(root: Path, head: str) -> dict[str, object]:
         "unread": unread,
         "unrecorded_installations": unrecorded,
         **_unreadable(window),
-        "required_gaps": ["release_upgrade_from_empty"]
-        if not recorded
-        else [f"release_upgrade_from_incomplete:{missing}"]
-        if missing
-        else [],
+        "required_gaps": _record_gaps(recorded, refused, missing),
     }

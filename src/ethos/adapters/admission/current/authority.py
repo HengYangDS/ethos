@@ -11,7 +11,7 @@ from ethos.adapters.actor import handoff_step
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from pathlib import Path

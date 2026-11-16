@@ -19,8 +19,8 @@ from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import takeover_lease
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from pathlib import Path

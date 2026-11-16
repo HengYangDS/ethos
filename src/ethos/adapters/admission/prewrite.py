@@ -24,7 +24,6 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -34,6 +33,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import integer_value
 from ethos.normalization.coercion import string_mapping
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 

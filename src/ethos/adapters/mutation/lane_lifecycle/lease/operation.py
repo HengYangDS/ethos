@@ -14,10 +14,10 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from pathlib import Path

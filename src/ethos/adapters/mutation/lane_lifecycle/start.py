@@ -35,7 +35,6 @@ from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -46,6 +45,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

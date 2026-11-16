@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.digest import is_object_id
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import lease_verdict
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from pathlib import Path

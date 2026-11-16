@@ -11,13 +11,13 @@ from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.merge.observation import pending_merge_heads
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.normalization.coercion import integer_value
 
 
 @dataclass(frozen=True, slots=True)

@@ -19,11 +19,11 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.normalization.coercion import integer_value
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git

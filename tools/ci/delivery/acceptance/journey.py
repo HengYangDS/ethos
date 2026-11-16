@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from datetime import UTC
 from datetime import datetime
 from functools import partial
@@ -265,36 +266,44 @@ def qualify(
     repository binds, from the host's tool supply, and never a Mise the host installed. Only
     that preparation is shown where the supply is. The job's forge token leaves the
     environment before either stage: acquisition hands it to the forge's client and to Mise's
-    forge calls, and to no other child.
+    forge calls, and to no other child. Each stage's home and temporary directory lie under the
+    host's temporary directory, outside this checkout, as a host's own do: a release through
+    0.2.0-beta.11 misjudges a patch whose temporary workspace lies inside a Git work tree.
     """
     receipt = {} if receipt is None else receipt
     mise, token = None, os.environ.get("GH_TOKEN", "")
     supply = {name: os.environ[name] for name in _SUPPLY if name in os.environ}
     acquired, qualified = work / "acquisition", work / "qualification"
     clients = (*_EXECUTABLES, *_CLIENTS)
-    with hermetic_environment(acquired / "environment", clients) as environment:
-        if not classes_only:
-            with host_supply(supply):
-                mise = prepare_mise(ROOT)
-            receipt["mise"] = ".".join(map(str, mise_version(mise) or ()))
-        manifest = acquire(
-            tag,
-            acquired,
-            platform=platform,
-            changelog=changelog,
-            previous=previous,
-            receipt=receipt,
-            environment=environment,
-            token=token,
-            mise=mise,
-        )
-    if mise is None:
-        return receipt
-    with hermetic_environment(qualified / "environment", _EXECUTABLES) as environment:
-        if gap := hermetic_gap(qualified / "environment", _EXECUTABLES):
-            message = f"journey_environment_not_hermetic:{gap}"
-            raise RuntimeError(message)
-        receipt["steps"] = qualify_offline(manifest, qualified, mise=mise, environment=environment)
+    fresh = Path(tempfile.mkdtemp(prefix="ethos-journey-")).resolve()
+    try:
+        with hermetic_environment(fresh / "acquisition", clients) as environment:
+            if not classes_only:
+                with host_supply(supply):
+                    mise = prepare_mise(ROOT)
+                receipt["mise"] = ".".join(map(str, mise_version(mise) or ()))
+            manifest = acquire(
+                tag,
+                acquired,
+                platform=platform,
+                changelog=changelog,
+                previous=previous,
+                receipt=receipt,
+                environment=environment,
+                token=token,
+                mise=mise,
+            )
+        if mise is None:
+            return receipt
+        with hermetic_environment(fresh / "qualification", _EXECUTABLES) as environment:
+            if gap := hermetic_gap(fresh / "qualification", _EXECUTABLES):
+                message = f"journey_environment_not_hermetic:{gap}"
+                raise RuntimeError(message)
+            receipt["steps"] = qualify_offline(
+                manifest, qualified, mise=mise, environment=environment
+            )
+    finally:
+        remove_generated_tree(fresh)
     return receipt
 
 

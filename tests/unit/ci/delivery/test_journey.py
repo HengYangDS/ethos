@@ -301,7 +301,7 @@ def _journey_without_effects(
     `tokens` holds, for each download, pin and offline install, the forge token this process
     held, the one in the environment that the step hands its children, and the one it was handed.
     """
-    names = ("downloads", "upgrades", "pins", "tokens", "mise", "supply", "digests")
+    names = ("downloads", "upgrades", "pins", "tokens", "mise", "supply", "digests", "roots")
     seen: dict[str, list] = {name: [] for name in names}
 
     def held(environment: dict[str, str]) -> tuple[str | None, str | None]:
@@ -310,6 +310,7 @@ def _journey_without_effects(
     def download(tag: str, target: Path, *, environment: dict[str, str], token: str, **_k: object):
         seen["downloads"].append(tag)
         seen["supply"].append(("download", os.environ.get(_SUPPLY)))
+        seen["roots"].append(Path(os.environ["GIT_CONFIG_GLOBAL"]).parent)
         seen["tokens"].append(("download", *held(environment), token))
         target.mkdir(parents=True)
         (target / "a.tar.gz").write_bytes(b"archive")
@@ -328,6 +329,7 @@ def _journey_without_effects(
     ):
         seen["mise"].append(mise)
         seen["digests"].append(sha256)
+        seen["roots"].append(Path(os.environ["GIT_CONFIG_GLOBAL"]).parent)
         seen["tokens"].append((archive.parent.name, *held(environment), ""))
         return Mock(runtime=tmp_path / "previous-install/runtime/0123456789abcdef")
 
@@ -432,6 +434,11 @@ def test_only_acquisition_holds_the_forge_token_and_qualification_reads_the_mani
     # Only the preparation of Mise is shown where the host's tool supply is.
     assert seen["supply"] == [("mise", "/fake/supply"), *[("download", None)] * 2]
     assert not (tmp_path / "work/acquisition/pins").exists()
+    # Each stage's directories lie outside the journey's work, as a host's lie outside a
+    # checkout, and are gone when the journey ends.
+    assert len(set(seen["roots"])) == 2
+    work = tmp_path / "work"
+    assert not any(root.is_relative_to(work) or root.exists() for root in seen["roots"])
     assert dict(os.environ) == host
 
 

@@ -148,6 +148,25 @@ Non-Goals:
    - **Applies to:** the receipt's `venue` key. A self-hosted runner reads `ci` as well. Any
      non-empty value reads `ci`, as the product's other readers of the same input read it;
      a stricter reading here would give one run two venues.
+8. **A stage's directories lie under the host's temporary directory, outside the checkout.**
+   - **Rests on:** the first end-to-end run of this journey, on 2026-11-16 for 0.2.0-beta.10
+     with the stage directories under the checkout's ignored work directory: each of the three
+     legs failed at the retained Change's move with `prewrite_patch_postimage_failed`. Patch
+     admission applies a patch in a temporary workspace, and inside a Git work tree Git skips
+     every path of the patch. The Change `postimage-workspace` holds the measurements and
+     repairs the product. The product's Git runner drops inherited Git variables, so the
+     journey cannot stop Git's discovery from outside.
+   - **Considered:** keeping the directories under the checkout and relying on the repaired
+     product, which leaves the journey unable to qualify any release through 0.2.0-beta.11,
+     as a subject or as a predecessor, and so unable to pass before a tag; and moving the
+     temporary directory alone, which changes the owner's signature and its check for one
+     variable.
+   - **Chosen because:** a host's home and temporary directory do not lie inside a checkout,
+     the owner and its check stay as they are, and the journey qualifies the releases that
+     exist. The regression of the product's defect is the product's own test.
+   - **Applies to:** the two stages of `qualify`. The directory is new for each journey and is
+     removed when the journey ends, passing or not. The archives, the manifest and each
+     step's work stay under the journey's work directory.
 
 ## Risks / Trade-offs
 

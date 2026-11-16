@@ -163,6 +163,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
   defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
   releases, keep the temporary directory outside every checkout.
+- The quality gates of a repository with many code files run on Windows. The check that no code
+  subject differs from the commit named every subject on one Git command line, which Windows
+  refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing
+  paths and compares them itself. The defect is in every release through 0.2.0-beta.11.
 - A command that passes its time bound reports that bound as its timeout on every supported
   interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
   when the wait began, a little less than the bound, where no stream of the command was a pipe.

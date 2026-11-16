@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.gate_policy as owner
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -44,3 +45,29 @@ def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: s
     message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
     with pytest.raises(ValueError, match=message):
         observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")
+
+
+def test_quality_observation_names_no_subject_on_its_command_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows refuses a command line past 32,767 characters, so no subject rides on one."""
+    repo = init_git_repo(tmp_path / "repo")
+    for name in ("answer.py", "other.py", "notes.md"):
+        (repo / name).write_text("VALUE = 42\n")
+    commit_fixture(repo, "record sources")
+    commands: list[tuple[str, ...]] = []
+    run = owner.run_git
+
+    def recorded(root: Path, *args: str, **options: object) -> object:
+        commands.append(args)
+        return run(root, *args, **options)
+
+    monkeypatch.setattr(owner, "run_git", recorded)
+    (repo / "notes.md").write_text("no code subject\n")
+    assert len(observe_quality_subjects(repo, language="python")[1]) == 2
+    compared = [args for args in commands if args[0] == "diff"]
+    assert compared
+    assert not any(name in args for args in compared for name in ("answer.py", "other.py"))
+    (repo / "other.py").write_text("VALUE = 43\n")
+    with pytest.raises(ValueError, match="code_source_changed"):
+        observe_quality_subjects(repo, language="python")

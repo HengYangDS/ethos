@@ -394,6 +394,16 @@ def _repository_python(root: Path) -> str | None:
     return next((path.as_posix() for path in candidates if path.is_file()), None)
 
 
+def _subject_differs(root: Path, head: str, subjects: tuple[CodeSubject, ...]) -> bool:
+    """Say whether a code subject differs from the commit, or that Git could not tell.
+
+    No subject rides on the command line: Windows refuses one past 32,767 characters.
+    """
+    differing = run_git(root, "diff", "--name-only", "--no-renames", "-z", head, "--", check=False)
+    paths = {subject.path for subject in subjects}
+    return bool(differing.returncode) or not paths.isdisjoint(differing.stdout.split("\0"))
+
+
 def observe_quality_subjects(
     root: Path, *, expected_tree: str = "", language: str = ""
 ) -> tuple[str, tuple[CodeSubject, ...]]:
@@ -423,18 +433,7 @@ def observe_quality_subjects(
     if any(not (root / subject.path).is_file() for subject in subjects):
         message = "code_source_unavailable"
         raise ValueError(message)
-    if (
-        subjects
-        and run_git(
-            root,
-            "diff",
-            "--quiet",
-            head,
-            "--",
-            *(subject.path for subject in subjects),
-            check=False,
-        ).returncode
-    ):
+    if subjects and _subject_differs(root, head, subjects):
         message = "code_source_changed"
         raise ValueError(message)
     tree = current_tree(root, head)

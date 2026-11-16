@@ -82,6 +82,9 @@
       reads them, and a leg that fails before pytest starts shows its cause in the job's log.
 - [ ] 6.4 Run the whole suite at Python 3.12 and at Python 3.13 without the stop at the first
       failure. Done when each failure is repaired in this Change or named with its owner.
+- [ ] 6.5 Compare the code subjects with the commit without naming them on a command line, in
+      `src/ethos/adapters/repo/gate_policy.py`. Done when the regression fails without the
+      change and the Windows leg's log shows pytest starting.
 
 ## Workflow follow-up
 

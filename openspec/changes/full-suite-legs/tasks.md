@@ -2,53 +2,55 @@
 
 ## 1. The probe's leg mode
 
-- [ ] 1.1 Add `test_a_leg_runs_on_its_callers_interpreter_and_never_decides_the_floor` to
+- [x] 1.1 Add `test_a_leg_runs_on_its_callers_interpreter_and_never_decides_the_floor` to
       `tests/unit/adoption/quality/test_python_native_configuration.py`. Done when both cases
       fail because the probe selects the locked interpreter, in a repository that declares Mise
       and a floor its tests do not meet.
-- [ ] 1.2 Add the `leg` keyword to `behavior_report` in
+- [x] 1.2 Add the `leg` keyword to `behavior_report` in
       `src/ethos/adapters/gates/python_quality.py`. Done when 1.1 passes: the command names the
       caller's interpreter, a passing leg below the floor passes without a floor in its coverage
       evidence, and a failing run blocks with `quality_behavior_tests_failed`.
-- [ ] 1.3 Name the caller's interpreter for every leg. Done when a leg in a project whose Python
+- [x] 1.3 Name the caller's interpreter for every leg. Done when a leg in a project whose Python
       range excludes its interpreter fails its sync with the caller named; it ran on an
       interpreter of uv's choice before. The lock states the same range, and the test reads
       uv's own refusal of the interpreter.
 
 ## 2. The session
 
-- [ ] 2.1 Add `tests/unit/ci/test_suite_leg.py`. Done when both cases fail before the session
+- [x] 2.1 Add `tests/unit/ci/test_suite_leg.py`. Done when both cases fail before the session
       exists.
-- [ ] 2.2 Add `suite_leg` to `tools/ci/sessions.py` and its public sessions. Done when 2.1
+- [x] 2.2 Add `suite_leg` to `tools/ci/sessions.py` and its public sessions. Done when 2.1
       passes: the probe is called as a leg with the named deadline and with the repository's
       Mise first on its path, the log names the interpreter, and a leg that does not pass fails
       the session.
-- [ ] 2.3 Open one deadline scope around the probe in `suite_leg`. Done when the session's test
+- [x] 2.3 Open one deadline scope around the probe in `suite_leg`. Done when the session's test
       shows the probe running inside a scope of the named deadline.
 
 ## 3. The model and the generated workflow
 
-- [ ] 3.1 Add `tests/architecture/ci/test_suite_legs.py` and the two required legs to the
+- [x] 3.1 Add `tests/architecture/ci/test_suite_legs.py` and the two required legs to the
       aggregate's pin in `tests/architecture/test_ci_provider_projections.py`. Done when both
       fail on the unchanged workflow.
-- [ ] 3.2 Declare the three legs, the `suite` class and its gate in `.config/ci/pipeline.cue`.
+- [x] 3.2 Declare the three legs, the `suite` class and its gate in `.config/ci/pipeline.cue`.
       Done when the model compiles and is formatted, and does not compile with the class's
       minutes at the test gate's 120.
-- [ ] 3.3 Generate `.github/workflows/ci.yml` from the model. Done when the projection check
+- [x] 3.3 Generate `.github/workflows/ci.yml` from the model. Done when the projection check
       passes, the second forge's pipeline is unchanged, and 3.1 passes.
-- [ ] 3.4 Declare the leg's setup margin in the model and refuse a suite job below the deadline
+- [x] 3.4 Declare the leg's setup margin in the model and refuse a suite job below the deadline
       plus the margin. Done when a regression compiles the model with the class's minutes at
       125 and reads the refusal of `timeout-setup:suite`, and the generated files are
       unchanged.
 
 ## 4. Documents and budgets
 
-- [ ] 4.1 State the legs in step 4 of the release guide and the leg's coverage in the
+- [x] 4.1 State the legs in step 4 of the release guide and the leg's coverage in the
       configuration reference; add the changelog entry and the quality delta. Done when OpenSpec
       validates the Change strictly and Prettier and the documentation registry accept the
       documents.
-- [ ] 4.2 Measure the source budget. Done when the report states product, tests and tools, with
-      tools by file.
+- [x] 4.2 Measure the source budget. Done when the Change's commits are measured against their
+      parents and stated by class: the integration adds 14.6 product, 108.0 tests and 23.7 tools
+      line-equivalents, the tools all in `tools/ci/sessions.py`, and the four review repairs beside
+      it add -0.4, 57.6 and 2.7 (14.1, 165.6 and 26.4 in all).
 
 ## 5. Lane, hosted run and owner
 

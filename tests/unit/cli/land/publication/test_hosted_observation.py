@@ -138,13 +138,14 @@ def test_a_repository_without_a_readable_ci_peer_runs_no_provider_command(
 
 
 _RETIRED = '[publication]\nlocal_verification_command = "true"\n\n[[publication.peers]]'
+_CAPABILITIES = '"repository", "ci_cd", "publication"'
 
 
 @pytest.mark.parametrize(
     ("declaration", "step"),
     [
         (("[[publication.peers]]", _RETIRED), "ethos lane repair-paradigm --apply --json"),
-        (('"repository", "ci_cd", "publication"', '"ci_cd"'), ""),
+        ((_CAPABILITIES, '"ci_cd"'), ""),
         ((None, "not valid TOML ["), ""),
     ],
     ids=["retired-field", "peer-capabilities", "unparsable"],
@@ -192,15 +193,20 @@ def test_a_peer_state_that_no_gap_names_is_never_dropped(
 def test_an_invalid_declaration_names_the_first_repair_that_the_registry_holds(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Declaration gaps come as they are found, so the repair is not the first gap's alone.
+    """Declaration gaps come as they are found; the repair is the first that the registry holds.
 
-    No declaration gap holds a repair today; the stubs stand for a second gap that does.
+    No declaration gap holds a repair today, so the registry alone is stubbed: both peers of
+    a real declaration lose two capabilities, and each names its gap.
     """
-    found = {"required_gaps": ["first_gap", "second_gap"]}
-    monkeypatch.setattr(hosted, "release_config", lambda _root: {})
-    monkeypatch.setattr(hosted, "publication_topology", lambda *_args: found)
-    monkeypatch.setattr(hosted, "repair_for", {"second_gap": "the second repair"}.get)
-    assert hosted_observation(tmp_path, "0" * 40)["next_action"] == "the second repair"
+    repo, head = _repository(tmp_path)
+    binding = repo / ".ethos/release.toml"
+    declared = binding.read_text(encoding="utf-8")
+    assert declared.count(_CAPABILITIES) == 2
+    binding.write_text(declared.replace(_CAPABILITIES, '"ci_cd"'), encoding="utf-8")
+    first, second = hosted_observation(repo, head)["observation_gaps"]
+    for registered, step in (({first: "one", second: "two"}, "one"), ({second: "two"}, "two")):
+        monkeypatch.setattr(hosted, "repair_for", registered.get)
+        assert hosted_observation(repo, head)["next_action"] == step
 
 
 def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(

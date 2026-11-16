@@ -200,7 +200,8 @@ let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request')
 //   aggregate   n=448   p99 0.2, the two jobs it replaces
 // Supply (n=26, longest 4.1), release (n=163, at most 27 on a leg, longest 86.0) and publication
 // (n=33, longest 2.2) have under 100 samples on a leg and stay provisional. The suite class has
-// no sample: it takes the full set's minutes, above the 120 of the gate whose suite it repeats.
+// no sample: it takes the full set's minutes, which are the 120 of the gate whose suite it
+// repeats and the leg's setup margin.
 let timeoutMinutes = {
 	admission:   25
 	conformance: 35
@@ -259,6 +260,12 @@ let conformanceTier = "${{ fromJSON((\(fullRun)) && '\(json.Marshal(fullLegs))' 
 // aggregate; the Windows leg is timed and may fail, because 0.2.0 declares no Windows journey.
 let suiteGate = "unit-architecture"
 let suiteDeadline = [for gate in _inputs.gate_registry.gates if gate.id == suiteGate {gate.timeout_seconds}][0]
+
+// What a leg spends outside its suite: the supply steps before the probe and the upload after
+// it. In the hosted runs of 2026-11-16 the same supply steps took 36 seconds on Linux arm64
+// (n=1) and 80 to 86 on Windows x64 (n=3); ten minutes is seven times the slowest. A suite job
+// outlives the deadline by this margin, so the leg's own deadline reports before its job's.
+let suiteSetupSeconds = 600
 let suiteRun = "(\(commitRun)) && (\(fullRun))"
 let suiteLegs = [for leg in [
 	{platform: "linux-x64", runner: "ubuntu-latest", python: "3.12", required: true},
@@ -354,6 +361,7 @@ compiled: {
 				"timeout:\(class):\(gate.id)": true & (timeoutMinutes[class]*60 > gate.timeout_seconds)
 			}
 		}
+		"timeout-setup:suite": true & (timeoutMinutes.suite*60 >= suiteDeadline+suiteSetupSeconds)
 	}
 	providers: {github: githubView, gitlab: gitlabView}
 }

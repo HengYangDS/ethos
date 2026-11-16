@@ -293,11 +293,13 @@ def _locked_uv(
     return {**locked, **environment}, str(locked_tool(root, "uv", files=mise_files)), pin
 
 
-def _leg_selection(
-    root: Path, pin: tuple[str, ...], *, leg: bool
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Return the interpreter pin and the floor option: a leg's caller, and no floor to fail."""
-    return (_interpreter_pin(root), ("--cov-fail-under=0",)) if leg else (pin, ())
+def _leg_selection(pin: tuple[str, ...], *, leg: bool) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return the interpreter pin and the floor option: a leg's caller, and no floor to fail.
+
+    A leg names its caller whatever the project admits: uv then refuses the sync of an
+    interpreter outside the project's range, and never runs the suite on another one.
+    """
+    return (("--python", sys.executable), ("--cov-fail-under=0",)) if leg else (pin, ())
 
 
 def _behavior_evidence(
@@ -328,7 +330,7 @@ def _behavior_evidence(
             "HYPOTHESIS_STORAGE_DIRECTORY": str(output / "hypothesis"),
         }
         environment, uv, pin = _locked_uv(root, mise_files, scope, environment)
-        pin, unfloored = _leg_selection(root, pin, leg=leg)
+        pin, unfloored = _leg_selection(pin, leg=leg)
         # The environment is synced first, so its files can carry this attempt's access times.
         sync = (uv, "sync", "--locked", "--offline", *pin)
         command = (

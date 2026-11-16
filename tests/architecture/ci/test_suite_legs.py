@@ -18,6 +18,8 @@ LEGS = {
 }
 FULL = "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
 REPORTS = "build/evidence/quality/tests/"
+# The model's margin for what a leg spends outside its suite, in seconds.
+SETUP = 600
 
 
 def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
@@ -40,7 +42,9 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
     for name, job in legs.items():
         # A push or pull request runs no leg; a batch head or the drift schedule runs each.
         assert job["if"] == f"${{{{ ({commit}) && ({FULL} || github.event_name == 'schedule') }}}}"
-        # The test gate's deadline bounds the leg's suite; the model refuses a shorter job.
+        # The test gate's deadline bounds the leg's suite; the model refuses a job that does
+        # not outlive it by the margin for the leg's supply steps and its upload.
+        assert job["timeout-minutes"] * 60 >= deadline + SETUP
         suite, upload = job["steps"][-2:]
         assert suite["run"] == f"uv run --frozen python -m nox -s suite_leg -- {deadline}"
         # The probe copies the leg's reports to the root that the upload reads, also on failure.

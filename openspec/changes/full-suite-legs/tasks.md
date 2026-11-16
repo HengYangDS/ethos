@@ -10,6 +10,9 @@
       `src/ethos/adapters/gates/python_quality.py`. Done when 1.1 passes: the command names the
       caller's interpreter, a passing leg below the floor passes without a floor in its coverage
       evidence, and a failing run blocks with `quality_behavior_tests_failed`.
+- [ ] 1.3 Name the caller's interpreter for every leg. Done when a leg in a project whose Python
+      range excludes its interpreter fails its sync with the caller named; it ran on an
+      interpreter of uv's choice before.
 
 ## 2. The session
 
@@ -19,6 +22,8 @@
       passes: the probe is called as a leg with the named deadline and with the repository's
       Mise first on its path, the log names the interpreter, and a leg that does not pass fails
       the session.
+- [ ] 2.3 Open one deadline scope around the probe in `suite_leg`. Done when the session's test
+      shows the probe running inside a scope of the named deadline.
 
 ## 3. The model and the generated workflow
 
@@ -30,6 +35,9 @@
       minutes at the test gate's 120.
 - [ ] 3.3 Generate `.github/workflows/ci.yml` from the model. Done when the projection check
       passes, the second forge's pipeline is unchanged, and 3.1 passes.
+- [ ] 3.4 Declare the leg's setup margin in the model and refuse a suite job below the deadline
+      plus the margin. Done when the model does not compile with the class's minutes at 125,
+      the generated files are unchanged, and the legs' test asserts the relation.
 
 ## 4. Documents and budgets
 

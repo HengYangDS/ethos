@@ -30,16 +30,17 @@ run the suite once for a release. The Linux legs SHALL be required; the Windows 
 
 - **WHEN** a suite leg is projected
 - **THEN** it passes the timeout that the test gate declares to the probe as the suite's deadline
-- **AND** a suite job class whose timeout does not exceed that timeout does not compile
+- **AND** the leg's environment sync and its suite share that one deadline
+- **AND** a suite job class whose timeout does not exceed that timeout by the declared margin for
+  the leg's supply steps does not compile
 
 ### Requirement: A suite leg records coverage and decides no floor
 
-A suite leg SHALL run the tests on the interpreter that started it, when the project's Python
-range admits it, also where the repository locks another one. It SHALL measure coverage without
-applying the coverage carrier's floor. It SHALL block on a failed test, an unexercised product
-file or an incomplete coverage scope, never with `quality_behavior_coverage_below_floor`. The
-floor SHALL be decided once for a proof attempt, by its test gate; a gate SHALL NOT run the probe
-as a leg.
+A suite leg SHALL run the tests on the interpreter that started it, also where the repository
+locks another one, and never on another. It SHALL measure coverage without applying the coverage
+carrier's floor. It SHALL block on a failed test, an unexercised product file or an incomplete
+coverage scope, never with `quality_behavior_coverage_below_floor`. The floor SHALL be decided once
+for a proof attempt, by its test gate; a gate SHALL NOT run the probe as a leg.
 
 #### Scenario: A leg measures less than the floor
 
@@ -56,6 +57,12 @@ as a leg.
 
 - **WHEN** a leg starts on Python 3.12 in a repository whose locked interpreter is Python 3.14
 - **THEN** the tests run on Python 3.12
+
+#### Scenario: The project does not admit the leg's interpreter
+
+- **WHEN** a leg starts on an interpreter outside the project's Python range
+- **THEN** the leg blocks with `quality_behavior_test_environment_sync_failed`
+- **AND** no test runs on another interpreter
 
 #### Scenario: A proof attempt decides the floor
 

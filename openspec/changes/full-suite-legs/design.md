@@ -79,9 +79,12 @@ Non-Goals:
      environment variable that the probe reads, which is an input no caller declares and every
      adopter's gate would inherit; a Mise declaration for each leg, which changes the locked
      supply.
-   - **Chosen because:** one keyword on `behavior_report` selects the caller's interpreter under
-     the rule the probe already applies to a repository without Mise. The gate runner passes a
-     provider its arguments by name and never passes this one, so no gate becomes a leg.
+   - **Chosen because:** one keyword on `behavior_report` selects the caller's interpreter. A leg
+     names it to uv whatever the project admits: where the project's Python range does not
+     admit it, uv refuses the sync and the leg fails. The rule for a repository without Mise,
+     which leaves such an interpreter's replacement to uv, would let a leg report another
+     interpreter's run as its own. The gate runner passes a provider its arguments by name and
+     never passes this one, so no gate becomes a leg.
    - **Applies to:** the Python provider. Its consumers are the provider row of the test gate,
      the code provider that adopters' gates use, hosted verification, which reads the provider's
      report from the proof, and the new session; only the session passes the keyword.
@@ -103,9 +106,15 @@ Non-Goals:
      tool and leaves the job's timeout unchecked; a number of the model's own.
    - **Chosen because:** the model reads the gate's timeout from the registry it already
      receives, passes it to the session, and lists the gate for the `suite` class, so a longer
-     gate timeout fails compilation instead of stopping a leg from outside.
-   - **Applies to:** the `suite` class, set to the full set's 130 minutes. It has no sample, like
-     the model's other provisional classes.
+     gate timeout fails compilation instead of stopping a leg from outside. The session opens
+     one deadline scope of that length around the probe, as a gate's scope bounds its provider,
+     so the leg's sync and its suite share the deadline; without the scope each command had the
+     whole of it. The model also declares what a leg spends outside its suite, ten minutes
+     against 36 to 86 seconds measured for the same supply steps on 2026-11-16, and refuses a
+     suite job that does not outlive the deadline by that margin, so the leg's own deadline
+     reports before its job is cancelled.
+   - **Applies to:** the `suite` class, set to the full set's 130 minutes: the gate's 120 and the
+     margin. It has no sample, like the model's other provisional classes.
 6. **A leg's record is the probe's reports.**
    - **Rests on:** the probe, which copies an attempt's JUnit report and coverage report to the
      native output root that its caller names; the rehearsal receipt of appendix B.1, which wants
@@ -115,7 +124,8 @@ Non-Goals:
    - **Chosen because:** the session then adds no format. Its log names the interpreter, which
      neither report does, and shows how the run ended.
    - **Applies to:** the reports of a run that reached pytest. A leg that stops earlier uploads
-     nothing, and its upload step fails with it.
+     nothing, and its upload step fails with it. A suite that the deadline ends is not copied
+     either: the probe copies its reports after the command returns.
 7. **A leg is supplied as host conformance is, then as the quality gates job is.**
    - **Rests on:** `githubHostSupplyAt`, the supply order that host conformance runs on every
      hosted operating system and Python version; the quality gates job, whose bootstrap names
@@ -154,3 +164,5 @@ Non-Goals:
   operation of the product reads that check before a tag in this Change.
 - A leg still blocks on a product file that no test executes on its platform. On Windows that
   judgment may fail the leg where the tests pass.
+- A leg that its own deadline ends fails with the probe's timeout and uploads no report. It
+  shows that the suite did not finish, and not where it stopped.

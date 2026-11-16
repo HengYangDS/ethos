@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 from unittest.mock import Mock
 
 import pytest
@@ -18,8 +19,21 @@ def test_a_suite_leg_runs_the_probe_as_a_leg_within_the_named_deadline(
 ) -> None:
     """The probe finds the repository's Mise first on its path; a leg that does not pass fails."""
     report = {"verdict": verdict, "required_gaps": ["a_gap"]}
-    # The stub's output is the path it ran under, which the session logs.
-    probe = Mock(side_effect=lambda *_a, **_k: report | {"native": {"stdout": os.environ["PATH"]}})
+    opened: list[object] = []
+
+    @contextmanager
+    def scope(*, timeout_seconds):
+        opened.append(timeout_seconds)
+        yield
+        opened.append("closed")
+
+    # The stub's output is the path and the deadline scope it ran under, which the session logs.
+    probe = Mock(
+        side_effect=lambda *_a, **_k: (
+            report | {"native": {"stdout": f"{os.environ['PATH']} {opened}"}}
+        )
+    )
+    monkeypatch.setattr("ethos.adapters.process.command_scope", scope)
     monkeypatch.setenv("PATH", "host")
     monkeypatch.setattr("tools.ci.toolchain.native.prepare_mise", lambda _root: tmp_path / "mise")
     monkeypatch.setattr("ethos.adapters.gates.python_quality.behavior_report", probe)
@@ -32,4 +46,5 @@ def test_a_suite_leg_runs_the_probe_as_a_leg_within_the_named_deadline(
             sessions.suite_leg(session)
 
     probe.assert_called_once_with(sessions.ROOT, timeout_seconds=7200, leg=True)
-    assert session.logs == [(f"Python {sys.version}\n{tmp_path}{os.pathsep}host",)]
+    # One deadline bounds the leg's sync and its suite together: the probe ran inside it.
+    assert session.logs == [(f"Python {sys.version}\n{tmp_path}{os.pathsep}host [7200.0]",)]

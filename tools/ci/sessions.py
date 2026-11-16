@@ -354,9 +354,10 @@ def suite_leg(session: Session) -> None:
     # The probe finds Mise on PATH, and a hosted job keeps the staged one in the tool cache.
     mise = import_module("tools.ci.toolchain.native").prepare_mise(ROOT)
     os.environ["PATH"] = os.pathsep.join((str(mise.parent), os.environ.get("PATH", "")))
-    report = import_module("ethos.adapters.gates.python_quality").behavior_report(
-        ROOT, timeout_seconds=float(deadline), leg=True
-    )
+    probe = import_module("ethos.adapters.gates.python_quality").behavior_report
+    # One deadline bounds the leg's sync and its suite together, as a gate's scope does.
+    with import_module("ethos.adapters.process").command_scope(timeout_seconds=float(deadline)):
+        report = probe(ROOT, timeout_seconds=float(deadline), leg=True)
     native = cast("dict[str, str]", report.get("native", {}))
     ending = native.get("stdout", "")[-4000:] + native.get("stderr", "")[-4000:]
     session.log(f"Python {sys.version}\n{ending}")

@@ -99,6 +99,19 @@ def test_a_leg_runs_on_its_callers_interpreter_and_never_decides_the_floor(
     assert "floor" not in report["coverage"]
 
 
+def test_a_leg_fails_where_the_project_does_not_admit_its_interpreter(tmp_path: Path) -> None:
+    """The leg names its caller to uv, which refuses the sync; uv selects no other one."""
+    project = (_FIXTURE / "pyproject.toml").read_text(encoding="utf-8")
+    excluded = project.replace('requires-python = ">=3.12,<3.15"', 'requires-python = ">=3.99"')
+    repo = _sample(tmp_path, {"pyproject.toml": excluded, "tests/test_sample.py": _TEST})
+
+    report = python_quality.behavior_report(repo, leg=True)
+
+    command = report["native"]["command"]
+    assert command[command.index("--python") + 1] == sys.executable
+    assert report["required_gaps"] == ["quality_behavior_test_environment_sync_failed"], report
+
+
 @pytest.mark.parametrize("provider", [python_quality, native_quality], ids=["python", "code"])
 @pytest.mark.parametrize("declared", [None, 1200], ids=["default", "declared"])
 def test_probe_runs_within_the_gate_timeout(

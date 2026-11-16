@@ -288,7 +288,7 @@ class HostPlace:
     """One heavy run's place in this host's queue, or the live admission that it joins.
 
     Opening the queue, taking the place and reading what is ahead each answer the named gap
-    for an OS error, so no caller maps it again.
+    for an OS error, so no caller maps a queue error again.
     """
 
     @_named
@@ -382,7 +382,8 @@ class AdmissionBound:
             self.since += now - self.asked
         self.asked, self.held = now, held
         left = self.started + self.ceiling - now
-        return left if held else min(self.since + seconds - now, left)
+        # The ceiling stands first: a bound that is no number then leaves its remainder.
+        return left if held else min(left, self.since + seconds - now)
 
 
 @dataclass(frozen=True)
@@ -459,6 +460,8 @@ def admitted_host_work(
                     raise ValueError(place.contention())
                 sleep(min(_POLL_SECONDS, remaining))
         except OSError as error:
+            # The place names the gap for the queue itself. This handler owns what else the
+            # wait does: the write of its event, its clock and its sleep.
             message = UNAVAILABLE
             raise ValueError(message) from error
         waited = round(clock() - started, 1)

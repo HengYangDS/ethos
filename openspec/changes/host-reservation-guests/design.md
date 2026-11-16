@@ -188,8 +188,10 @@ Non-Goals:
    - **Applies to:** file systems with hard links; elsewhere the claim answers
      `host_work_unavailable`. A mark is released by removing it or its directory, which stays a
      person's or the build reader's step. The record written beside the mark goes on every exit,
-     also after a write that fails part way; one that cannot be removed refuses no claim whose
-     mark is linked and replaces no exit in flight. Each refusal's repair can be followed in
+     also after a write that fails part way; one that cannot be removed replaces no exit in
+     flight. After a whole write and link its error is the mark's own: the claim answers
+     `host_work_unavailable`, and a later run of the same owner keeps the mark. Each refusal's
+     repair can be followed in
      every case that raises it: a mark that names no owner is never taken over, and a file where
      the directory belongs is repaired at that directory. The repair of `host_work_owned` names
      `ETHOS_ACTOR` for the run's own identity, because `host run` alone takes no `--actor`: it

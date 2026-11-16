@@ -86,6 +86,9 @@ def _scratch(_root: Path, directory: Path) -> None:
 _UNAVAILABLE = "^host_work_unavailable$"
 
 
+_BOTH = [".json", ".partial"]
+
+
 @pytest.mark.parametrize(
     ("mark", "write", "link", "unlink", "ends", "left"),
     [
@@ -96,8 +99,10 @@ _UNAVAILABLE = "^host_work_unavailable$"
         # A partial that cannot be removed never replaces the exit in flight, for either caller.
         (_claim, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
         (_scratch, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
-        # The mark decides the claim, not the partial that stays beside it.
-        (_claim, None, None, _refused, nullcontext(), [".json", ".partial"]),
+        # After a whole write and link, a partial that cannot be removed refuses the claim.
+        (_claim, None, None, _refused, pytest.raises(ValueError, match=_UNAVAILABLE), _BOTH),
+        # A scratch mark never fails the work, so there the same error is dropped.
+        (_scratch, None, None, _refused, nullcontext(), _BOTH),
     ],
 )
 def test_a_partial_record_is_removed_and_never_decides_how_a_mark_ends(
@@ -110,7 +115,7 @@ def test_a_partial_record_is_removed_and_never_decides_how_a_mark_ends(
     ends: AbstractContextManager[object],
     left: list[str],
 ) -> None:
-    """A torn write leaves no partial; one that stays replaces no exit and refuses no claim."""
+    """A torn write leaves no partial; one that stays replaces no exit that is in flight."""
     monkeypatch.setenv("ETHOS_ACTOR", _ACTOR)
     monkeypatch.setenv(host_admission.ADMISSION_ENV, "a-ticket")
     directory = tmp_path / host_work.WORK_HOME / "render"

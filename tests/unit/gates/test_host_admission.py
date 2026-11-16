@@ -272,6 +272,13 @@ def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
     assert not any(queue.directory.iterdir())
 
 
+def test_a_bound_that_is_no_number_leaves_the_ceilings_remainder() -> None:
+    """Held or not, a bound of no number ends its wait at the ceiling, as a total does."""
+    bound = host_admission.AdmissionBound(lambda: 0.0)
+    ceiling = load_repository_paradigm().parameter_row("timeout", "admission_seconds").bound
+    assert [bound.remaining(math.nan, held=held) for held in (False, True)] == [ceiling] * 2
+
+
 def test_a_ticket_whose_record_cannot_be_removed_still_frees_its_place(
     host_root: Path, tmp_path: Path
 ) -> None:

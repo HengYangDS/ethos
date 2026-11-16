@@ -103,3 +103,68 @@ def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) 
         owner.patched_workspace(repo, "", [change]),
     ):
         pytest.fail("the workspace was yielded")
+
+
+def test_text_around_the_entries_declares_no_mode(tmp_path: Path) -> None:
+    """Only an entry's header declares a mode; a line of prose before the entries does not."""
+    assert _entered(_repository(tmp_path), "new mode for the scripts\n\n" + _EDIT) == _READ[_EDIT]
+
+
+def test_a_mode_change_between_regular_files_is_read(tmp_path: Path) -> None:
+    """Making a file executable keeps it a regular file, so the patch is read as usual."""
+    patch = "diff --git a/tool.sh b/tool.sh\nold mode 100644\nnew mode 100755\n"
+    assert _entered(_repository(tmp_path), patch) == {"tool.sh": "#!/bin/sh\n"}
+
+
+def test_a_named_path_without_its_file_must_be_a_deletion(tmp_path: Path) -> None:
+    """A named path that the patch leaves absent is read as absent only where it is deleted."""
+    repo = _repository(tmp_path)
+    changes, _gap = unified_patch_changes(repo, _EDIT)
+    changes.append({"old_path": "/dev/null", "path": "c.txt", "new": True, "deleted": False})
+    with (
+        pytest.raises(ValueError, match="without its file"),
+        owner.patched_workspace(repo, _EDIT, changes),
+    ):
+        pytest.fail("the workspace was yielded")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
+def test_a_preimage_that_is_no_regular_file_is_refused(tmp_path: Path) -> None:
+    """The workspace copies regular files alone; a link's text is not what it names."""
+    repo = _repository(tmp_path)
+    (repo / "link").symlink_to("a.txt")
+    change: dict[str, object] = {"old_path": "link", "path": "link", "deleted": False}
+    with (
+        pytest.raises(ValueError, match="no regular file"),
+        owner.patched_workspace(repo, "", [change]),
+    ):
+        pytest.fail("the workspace was yielded")
+
+
+def test_a_path_that_names_the_root_itself_is_refused(tmp_path: Path) -> None:
+    """An empty path names no file under the root."""
+    repo = _repository(tmp_path)
+    change: dict[str, object] = {"old_path": ".", "path": "a.txt", "deleted": False}
+    with (
+        pytest.raises(ValueError, match="escapes root"),
+        owner.patched_workspace(repo, "", [change]),
+    ):
+        pytest.fail("the workspace was yielded")
+
+
+def test_the_workspace_takes_nothing_from_a_git_template(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The host's template does not reach the workspace, whatever it holds."""
+    template = tmp_path / "template"
+    template.mkdir()
+    (template / "marker").write_text("from the template\n", encoding="utf-8")
+    count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+    monkeypatch.setenv(f"GIT_CONFIG_KEY_{count}", "init.templateDir")
+    monkeypatch.setenv(f"GIT_CONFIG_VALUE_{count}", template.as_posix())
+    monkeypatch.setenv("GIT_CONFIG_COUNT", str(count + 1))
+    repo = _repository(tmp_path)
+    changes, _gap = unified_patch_changes(repo, _EDIT)
+    with owner.patched_workspace(repo, _EDIT, changes) as (workspace, postimages):
+        assert not (workspace / ".git" / "marker").exists()
+    assert postimages == _READ[_EDIT]

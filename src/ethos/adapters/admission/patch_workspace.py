@@ -15,7 +15,20 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 # A patch declares each entry's kind by its mode; a regular file is one of these two.
-_OTHER_KIND = re.compile(r"(?m)^(?:new file mode|new mode) (?!100644$|100755$)")
+_OTHER_KIND = re.compile(r"(?:new file mode|new mode) (?!100644$|100755$)")
+
+
+def _declares_other_kind(patch: str) -> bool:
+    """Read the modes in each entry's header alone; text around the entries declares nothing."""
+    in_header = False
+    for line in patch.splitlines():
+        if line.startswith("diff --git "):
+            in_header = True
+        elif line.startswith(("--- ", "@@")):
+            in_header = False
+        elif in_header and _OTHER_KIND.match(line):
+            return True
+    return False
 
 
 def patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bool:
@@ -30,11 +43,11 @@ def patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bo
 
 def _within(directory: Path, path: str) -> Path:
     """Return the named path under the directory; refuse one that leaves it or is Git's own."""
-    relative = Path(path)
-    if relative.is_absolute() or ".." in relative.parts or relative.parts[0].lower() == ".git":
+    parts = Path(path).parts
+    if not parts or Path(path).is_absolute() or ".." in parts or parts[0].lower() == ".git":
         msg = "prewrite patch path escapes root"
         raise ValueError(msg)
-    return directory / relative
+    return directory / path
 
 
 @contextmanager
@@ -48,36 +61,55 @@ def patched_workspace(
     it and exits with 0, so the unchanged copies would be read as the postimage. In its own
     repository no path lies outside, and Git's exit status means what it means in a checkout.
 
-    A patch that declares another kind of entry than a regular file is refused: a postimage is
-    read as the text of a regular file, and a link would be admitted without what it names.
+    A patch that declares another kind of entry than a regular file is refused, and so is a
+    preimage that is not a regular file: a postimage is read as the text of a regular file. A
+    named path that the patch leaves without its file must be one that the patch deletes.
     """
-    if _OTHER_KIND.search(patch):
+    if _declares_other_kind(patch):
         msg = "prewrite patch makes a named path no regular file"
         raise ValueError(msg)
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         targets = {
-            str(change["path"]): _within(workspace, str(change["path"])) for change in changes
+            str(change["path"]): (
+                _within(workspace, str(change["path"])),
+                bool(change.get("deleted")),
+            )
+            for change in changes
         }
         for change in changes:
             old_path = str(change["old_path"])
             if old_path == "/dev/null":
                 continue
             source = _within(root, old_path)
+            if source.is_symlink():
+                msg = "prewrite patch preimage is no regular file"
+                raise ValueError(msg)
             if not source.is_file():
                 msg = "prewrite patch preimage missing"
                 raise ValueError(msg)
             target = workspace / old_path
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
-        founded = run_git(workspace, "init", "--quiet", check=False).returncode == 0
+        # No template: the workspace takes no hooks or configuration from the host's Git setup.
+        founded = run_git(workspace, "init", "--quiet", "--template=", check=False).returncode == 0
         if not founded or not patch_applies(workspace, patch):
             msg = "prewrite patch postimage application failed"
             raise ValueError(msg)
         yield (
             workspace,
             {
-                path: target.read_text(encoding="utf-8") if target.is_file() else None
-                for path, target in targets.items()
+                path: _postimage(target, deleted=deleted)
+                for path, (target, deleted) in targets.items()
             },
         )
+
+
+def _postimage(target: Path, *, deleted: bool) -> str | None:
+    """Read a named path's text; only a deleted path may be left without its file."""
+    if target.is_file():
+        return target.read_text(encoding="utf-8")
+    if deleted:
+        return None
+    msg = "prewrite patch left a named path without its file"
+    raise ValueError(msg)

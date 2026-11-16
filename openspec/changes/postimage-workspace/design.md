@@ -61,7 +61,9 @@ Non-Goals:
      or the tree of one Change.
    - **Applies to:** the apply in the workspace. The preimage check keeps running in the
      repository. A change that names a path under the Git directory is refused as a path that
-     leaves the root; Git refuses such a path too.
+     leaves the root; Git refuses such a path too. The workspace starts from no template, as
+     the product's other repositories do: a host's template could set where the new
+     repository's work tree lies (measured, review part 25).
 2. **A patch that declares another kind of entry than a regular file is refused.**
    - **Rests on:** the model review: a new link is dangling in the workspace, its postimage
      reads as absent, and the patch is admitted without what the link names being read. The
@@ -71,9 +73,11 @@ Non-Goals:
    - **Chosen because:** the admission judges text, and what it cannot read it does not admit.
      The patch's own mode decides, on every platform. The lead's ruling V of 2026-11-16 holds
      it.
-   - **Applies to:** a `new file mode` or `new mode` other than a regular file's two. A
-     repository adds a link through the worktree target without a patch, where the staged
-     admission judges the index.
+   - **Applies to:** a `new file mode` or `new mode` other than a regular file's two, read in
+     an entry's header alone. A preimage that is not a regular file is refused the same way,
+     and a named path that the apply leaves without its file reads as absent only where the
+     change deletes it. A repository adds a link through the worktree target without a
+     patch, where the staged admission judges the index.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.

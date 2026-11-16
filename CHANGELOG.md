@@ -163,8 +163,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
   defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
   releases, keep the temporary directory outside every checkout. The admission's workspace is
-  now a repository of its own. A patch that declares a symbolic link or a submodule entry is
-  refused: its postimage read as absent, and it was admitted without what the link names.
+  now a repository of its own. A patch that declares a symbolic link or a submodule entry, or
+  that changes a link, is refused: its postimage read as absent, and it was admitted without
+  what the link names.
 - The quality gates of a repository with many code files run on Windows. The check that no code
   subject differs from the commit named every subject on one Git command line, which Windows
   refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing

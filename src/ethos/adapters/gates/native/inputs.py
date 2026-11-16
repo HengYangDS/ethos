@@ -13,7 +13,7 @@ from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import received_paths
-from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.policy.gates import compile_gate_declaration
@@ -53,26 +53,17 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
     return [path for path in listed if path not in deleted]
 
 
-def _local_base(root: Path) -> str:
-    """Name the merge base with the local accepted branch; empty where none can be read."""
-    try:
-        accepted = load_branch_role_policy(root).accepted_branch
-    except (OSError, ValueError):
-        return ""
-    return run_git(root, "merge-base", "HEAD", accepted, check=False).stdout.strip()
-
-
 def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, list[str]]:
     """Return the local base and the declared record files that a format apply leaves alone.
 
     The base is the merge base with the local accepted branch, and the apply leaves alone each
     record file that it holds unchanged. Without one the base is named `unresolved` and the apply
-    leaves every file under a declared record root alone. A base that cannot be read is no base:
-    only the repair needs it, so the binding that names the accepted branch and the base's tree
-    fail no caller. A caller that names its paths asks for them, and a profile without a declared
-    record root has no base to name. No gate reads this as a verdict: a hosted checkout has no
-    local accepted branch, so a gate judges every record file. The paradigm's captured roots are
-    never authored input, so they are not read here.
+    leaves every file under a declared record root alone. The paradigm names the accepted branch,
+    so no binding is read for it. A base whose tree cannot be read is no base: only the repair
+    needs it, so that read fails no caller. A caller that names its paths asks for them, and a
+    profile without a declared record root has no base to name. No gate reads this as a verdict:
+    a hosted checkout has no local accepted branch, so a gate judges every record file. The
+    paradigm's captured roots are never authored input, so they are not read here.
     """
     profile = load_repository_profile(root)
     if profile.state == "invalid":
@@ -81,7 +72,8 @@ def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, lis
     roots = [item for item in effective_record_roots(profile) if not item.startswith(captured)]
     if paths or not roots:
         return "", []
-    base = _local_base(root)
+    accepted = BranchRolePolicy().accepted_branch
+    base = run_git(root, "merge-base", "HEAD", accepted, check=False).stdout.strip()
     if base:
         scope = (base, "--", *roots)
         held = run_git(root, "ls-tree", "-r", "-z", "--name-only", *scope, check=False)

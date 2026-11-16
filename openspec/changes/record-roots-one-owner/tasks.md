@@ -31,9 +31,12 @@
       `test_the_apply_rewrites_no_record_that_the_base_holds_unchanged` passes.
 - [ ] 2.4 `pre-commit` judges a staged file under a declared record root. Done when the `declared`
       case of `test_pre_commit_admits_the_list_rule_on_staged_markdown` passes.
-- [ ] 2.5 A base that cannot be read is no base and fails no verdict. Done when, with the
-      binding unreadable and with the base's tree unreadable, the two gates and the format check
-      report the same drift, name the base `unresolved` and list every record file.
+- [ ] 2.5 A base whose tree cannot be read is no base and fails no verdict. Done when, with
+      the tree's listing or its difference failing, the two gates and the format check report
+      the same drift, name the base `unresolved` and list every record file, and the repair's
+      preview rewrites no record.
+- [ ] 2.6 Name the accepted branch from the paradigm, not from the release binding. Done when a
+      binding that cannot be read leaves the base and the kept records as they are.
 
 ## 3. The way out of a drift refusal
 

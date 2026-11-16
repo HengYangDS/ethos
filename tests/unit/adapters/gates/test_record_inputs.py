@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import errno
 from typing import TYPE_CHECKING
 
 import pytest
@@ -20,6 +19,7 @@ from tests.support.governed_repository import write_test_profile
 from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 _DRIFT = "# Record\n\ntext   \n\n- one\n\n- two\n"
@@ -87,31 +87,34 @@ def test_gates_judge_every_record_and_the_repair_keeps_older_ones(
 _GIT = native_inputs.run_git
 
 
-def _no_policy(_root: Path) -> None:
-    raise PermissionError(errno.EACCES, "Permission denied")
+def _failing(subcommand: str) -> Callable[..., object]:
+    """Answer every Git read but one subcommand, which fails as it does on an absent object."""
+
+    def run(root: Path, *args: str, **kwargs: object) -> object:
+        return _GIT(root, *((subcommand, "0" * 40) if args[0] == subcommand else args), **kwargs)
+
+    return run
 
 
-def _no_tree(root: Path, *args: str, **kwargs: object) -> object:
-    """Answer every Git read but the listing of a tree, which fails as an absent object does."""
-    return _GIT(root, *(("ls-tree", "0" * 40) if args[0] == "ls-tree" else args), **kwargs)
-
-
-_UNREAD = {"policy": ("load_branch_role_policy", _no_policy), "tree": ("run_git", _no_tree)}
-
-
-@pytest.mark.parametrize("unread", list(_UNREAD))
-def test_a_base_that_cannot_be_read_is_no_base_and_changes_no_verdict(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unread: str
-) -> None:
-    """Only the repair reads the local base: unread, it keeps every record, and gates judge all."""
+def _work_branch(tmp_path: Path) -> tuple[Path, str]:
+    """A work branch with one record that the accepted branch holds and one that it added."""
     root = init_git_repo(tmp_path / "repo")
     write_test_profile(root, record_roots=(_ROOT,))
     write_tree(root, {f"{_ROOT}old.md": _DRIFT})
-    commit_fixture(root, "docs: accept a record")
+    accepted = commit_fixture(root, "docs: accept a record")
     git(root, "checkout", "-q", "-b", "work/records")
     write_tree(root, {f"{_ROOT}new.md": _DRIFT})
     commit_fixture(root, "docs: add a record")
-    monkeypatch.setattr(native_inputs, *_UNREAD[unread])
+    return root, accepted
+
+
+@pytest.mark.parametrize("unread", ["ls-tree", "diff"])
+def test_a_base_whose_tree_cannot_be_read_is_no_base_and_changes_no_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unread: str
+) -> None:
+    """Only the repair reads the local base: unread, it keeps every record, and gates judge all."""
+    root, _accepted = _work_branch(tmp_path)
+    monkeypatch.setattr(native_inputs, "run_git", _failing(unread))
     records = _records("new", "old")
     drift = [f"source_format_drift:{path}" for path in records]
 
@@ -121,6 +124,17 @@ def test_a_base_that_cannot_be_read_is_no_base_and_changes_no_verdict(
     assert format_source(root, check=True)["required_gaps"] == drift
     markdown = gate_tool.markdown_lint_report(root)["native"][0]
     assert (markdown["record_base"], markdown["record_paths"]) == ("unresolved", records)
+    # The repair keeps every record then: its preview rewrites none of them.
+    assert not [path for path in format_source(root)["changed_paths"] if path.startswith(_ROOT)]
+
+
+def test_the_base_is_named_by_the_paradigm_whatever_the_release_binding_holds(
+    tmp_path: Path,
+) -> None:
+    """The accepted branch's name is the paradigm's: a binding that cannot be read hides no base."""
+    root, accepted = _work_branch(tmp_path)
+    (root / ".ethos/release.toml").mkdir()
+    assert native_inputs.kept_record_files(root) == (accepted, _records("old"))
 
 
 def test_the_apply_rewrites_no_record_that_the_base_holds_unchanged(

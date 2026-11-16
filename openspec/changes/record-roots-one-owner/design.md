@@ -111,10 +111,10 @@ Non-Goals:
      for the record a lane just wrote; and keeping nothing, which is the behavior at the base.
    - **Chosen because:** the record a lane adds or edits is its own work, and the apply repairs
      it; what the accepted branch holds is not. Without a local accepted branch the apply keeps
-     every file under a declared record root and names the base `unresolved`. A base that
-     cannot be read is no base either: the binding that names the accepted branch, or the
-     base's tree. The reader then answers as it does without a base, so the read fails no
-     caller.
+     every file under a declared record root and names the base `unresolved`. The paradigm
+     names the accepted branch, so the reader reads no binding for it. A base whose tree
+     cannot be read is no base either: the reader then answers as it does without a base, so
+     the read fails no caller, and the apply keeps every record.
    - **Applies to:** the preview and apply without paths. Naming a record asks for its repair.
 5. **Kept records are reported by path.**
    - **Rests on:** no measurement of the alternative; its size was not built. The reports of

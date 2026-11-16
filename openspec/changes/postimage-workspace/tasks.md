@@ -2,24 +2,24 @@
 
 ## 1. The regression and the repair
 
-- [ ] 1.1 Add a regression to `tests/unit/admission/test_patch_admission_public_fail_closed.py`
+- [x] 1.1 Add a regression to `tests/unit/admission/test_patch_admission_public_fail_closed.py`
       that places Python's temporary directory inside another repository and admits a patch with
       an undeclared executable. Done when it fails on the unchanged module with a verdict of
       `pass`.
-- [ ] 1.2 Make the workspace a repository of its own, in the workspace's own module
+- [x] 1.2 Make the workspace a repository of its own, in the workspace's own module
       `src/ethos/adapters/admission/patch_workspace.py`. Done when 1.1 passes, also with a
       path-list separator in the temporary directory's name, the owner's tests read four
       shapes of patch in three places, and the six admission modules pass with the temporary
       directory inside a work tree and outside one.
-- [ ] 1.3 Refuse a patch that declares another kind of entry than a regular file. Done when a
+- [x] 1.3 Refuse a patch that declares another kind of entry than a regular file. Done when a
       patch that declares a link and one that declares a submodule entry are refused by the
       owner's tests.
 
 ## 2. Documents and budgets
 
-- [ ] 2.1 Add the changelog entry and the governance delta. Done when OpenSpec validates the
+- [x] 2.1 Add the changelog entry and the governance delta. Done when OpenSpec validates the
       Change strictly and Prettier and the documentation registry accept the documents.
-- [ ] 2.2 Measure the source budget. Done when the report states product and tests.
+- [x] 2.2 Measure the source budget. Done when the report states product and tests.
 
 ## 3. The class and the lane
 

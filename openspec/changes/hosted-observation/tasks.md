@@ -16,6 +16,9 @@
 - [ ] 1.4 A run that passed is one row whose jobs are not read; a run that failed or still runs
       lists only its jobs that did not pass. Done when the reader's table counts one provider
       call for a passed run and one more for each run that failed or still runs.
+- [ ] 1.5 Name, for an unknown peer, the query that failed or a step by hand. Done when a failed
+      read of a run's jobs names that read, an answer that the reader does not use names no
+      query, and a peer whose provider has no reader names its declaration.
 
 ## 2. The observation and its command
 
@@ -32,6 +35,10 @@
       unreadable peer, repeats itself only while a run may conclude, refuses another expected
       head without a provider command, and passes as `no_ci_peer` without a CI peer. Done when
       `test_hosted_observation.py` passes.
+- [ ] 2.5 Order the gaps by what decides, count the observed CI peers in the summary, and keep a
+      next action for a declaration that cannot be observed. Done when a peer without a run
+      beside an unreadable one names the publication as the repair, the summary counts zero
+      peers for `no_ci_peer`, and three invalid declarations each block with a next action.
 
 ## 3. The landing preview and the release probe
 

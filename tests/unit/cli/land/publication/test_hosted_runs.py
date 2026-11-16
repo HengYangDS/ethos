@@ -148,23 +148,32 @@ def test_a_job_the_pipeline_marks_allowed_stays_apart_in_a_failed_run(
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
 @pytest.mark.parametrize(
-    ("case", "reason"),
+    ("case", "reason", "names"),
     [
-        ("denied", "provider_query_failed"),
-        ("timeout", "provider_query_failed"),
-        ("absent", "provider_query_failed"),
-        ("unparsable", "provider_query_failed"),
-        ("jobs_not_listed", "provider_query_failed"),
-        ("other_commit", "provider_answer_unusable"),
-        ("unnamed_run", "provider_answer_unusable"),
-        ("new_word", "provider_answer_unusable"),
-        ("full_page", "provider_answer_unusable"),
+        ("denied", "provider_query_failed", "listing"),
+        ("timeout", "provider_query_failed", "listing"),
+        ("absent", "provider_query_failed", "listing"),
+        ("unparsable", "provider_query_failed", "listing"),
+        ("jobs_not_listed", "provider_query_failed", "jobs"),
+        ("other_commit", "provider_answer_unusable", "hand"),
+        ("unnamed_run", "provider_answer_unusable", "hand"),
+        ("new_word", "provider_answer_unusable", "hand"),
+        ("full_page", "provider_answer_unusable", "hand"),
     ],
 )
 def test_an_answer_the_reader_cannot_use_is_unknown_and_never_a_pass(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str, case: str, reason: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    provider: str,
+    case: str,
+    reason: str,
+    names: str,
 ) -> None:
-    """No credentials, no CLI, a timeout or an answer for another commit states nothing."""
+    """No credentials, no CLI, a timeout or an answer for another commit states nothing.
+
+    The next action names the query that failed, the listing or the read of a run's jobs;
+    an answer that the reader does not use is not asked for again.
+    """
     listed = json.dumps([run_row(provider, "failed")])
     answers: dict[str, object] = {
         "denied": subprocess.CompletedProcess((), 1, "", "authentication required"),
@@ -181,6 +190,9 @@ def test_an_answer_the_reader_cannot_use_is_unknown_and_never_a_pass(
     observed = observe_hosted_runs(_peer(tmp_path, provider), "forge", provider, HEAD)
     assert (observed["state"], observed["reason"], observed["runs"]) == ("unknown", reason, [])
     assert "authentication" not in json.dumps(observed)
+    action = observed["next_action"]
+    asked = {"listing": (True, True), "jobs": (True, False), "hand": (False, False)}[names]
+    assert (action.split()[0] in {"gh", "glab"}, HEAD in action) == asked
 
 
 @pytest.mark.parametrize(
@@ -197,3 +209,5 @@ def test_a_peer_without_a_readable_forge_runs_no_provider_command(
     commands = recorded_forge(monkeypatch, {})
     observed = observe_hosted_runs(_peer(tmp_path, "github", url), "forge", provider, HEAD)
     assert (observed["state"], observed["reason"], commands) == ("unknown", reason, [])
+    # Each names what a person can do: the local key, or the peer's own declaration.
+    assert ("ci_cd" in observed["next_action"]) is (reason == "provider_unsupported")

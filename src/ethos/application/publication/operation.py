@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
@@ -47,6 +48,8 @@ from ethos.application.publication.request_gaps import publication_request_gaps
 from ethos.contracts.semantic import model_digest
 from ethos.repository.profile import load_repository_profile
 
+# The step for a publication declaration that cannot be observed and names no repair.
+_DECLARATION = "repair the publication declaration, then observe again"
 # One publish operation's body, which `_publishing` runs on the resolved root.
 type PublishImplementation = Callable[[Path, PublishRequest], EthosResult]
 
@@ -133,6 +136,8 @@ def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
 
     The verdict is the observation's own: a peer that failed or holds no run blocks, one that is
     still running or not readable is unknown, and only a run that may still conclude asks again.
+    A repository that declares no CI peer has none to fail: it passes as `no_ci_peer`, and the
+    summary counts the peers that were observed.
     """
     head = current_head(root)
     if request.expect_head not in {None, head}:
@@ -146,15 +151,19 @@ def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
     gaps = tuple(string_sequence(observation["observation_gaps"]))
     undecided = all(gap_code(gap) in OPEN_HOSTED_GAPS for gap in gaps)
     again = ("ethos", "publish", "--observe-hosted", "--expect-head", head)
+    # The first gap is the one that decided. A declaration that could not be observed keeps
+    # its topology's repair, and a gap without a registered one still names what to do.
+    declared = str(observation.get("next_action") or "") or _DECLARATION
+    peers = cast("dict[str, object]", observation["peers"])
     return EthosResult(
         command="publish",
         verdict=("unknown" if undecided else "block") if gaps else "pass",
         state=str(observation["state"]),
-        summary={"mode": "hosted_observation", "source_head": head},
+        summary={"mode": "hosted_observation", "source_head": head, "ci_peers": len(peers)},
         required_gaps=gaps,
         next_action=shlex.join((*again, "--root", root.as_posix(), "--json"))
         if observation["state"] == "running"
-        else repair_for(gaps[0])
+        else (repair_for(gaps[0]) or declared)
         if gaps
         else "",
         data={"hosted_observation": observation},

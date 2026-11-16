@@ -47,7 +47,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   with a job that the provider marks as allowed to fail listed as `allowed_failure`. It exits 1
   unless every CI peer's runs passed, naming `hosted_run_failed`, `hosted_run_missing`,
   `hosted_run_running` or `hosted_run_unknown` with the peer; a forge that cannot be read is
-  `unknown`, never a pass. `ethos land --json`, and the probe of the release branch or a release
+  `unknown`, never a pass. A repository that declares no CI peer passes in the state
+  `no_ci_peer`, and `summary.ci_peers` counts the peers observed. `ethos land --json`, and the
+  probe of the release branch or a release
   tag, state the same observation under `data.hosted_observation` and refuse nothing for it, so a
   preview and a release probe now ask the two CLIs, once for each CI peer when the runs passed. No
   refusal is added in this release; a release ref will require a passing observation no earlier

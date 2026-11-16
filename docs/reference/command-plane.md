@@ -50,7 +50,11 @@ one row; a run that failed or still runs also lists its jobs that did not pass, 
 that the provider marks as allowed to fail is `allowed_failure`. The result passes when every CI
 peer's runs passed. It blocks with `hosted_run_failed:<peer>` or `hosted_run_missing:<peer>`, and
 it is `unknown` with `hosted_run_running:<peer>` or `hosted_run_unknown:<peer>`: a forge that
-cannot be read is never a pass. The observation is read each time and recorded nowhere.
+cannot be read is never a pass. The gaps come in the order that decides the verdict, so the
+first names the peer that decided, and the next action is its repair. An unknown peer carries its
+own next action under `data.hosted_observation.peers`: the query that failed, or a step by hand.
+A repository that declares no CI peer has no hosted plane: the result passes in the state
+`no_ci_peer`, and `summary.ci_peers` is 0. The observation is read each time and recorded nowhere.
 `ethos land --json` states the same observation of the lane head under `data.hosted_observation`,
 and so does the probe of the release branch or a release tag for its proof head. Neither refuses
 anything for it; an apply does not read it.

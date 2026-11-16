@@ -58,11 +58,31 @@ authority.
   be parsed or answers for another commit, or the peer's web repository is not resolved
 - **THEN** that peer's state is `unknown` with a reason and a next action, and no stderr
 - **AND** the result carries `hosted_run_unknown:<peer>` and its verdict is never `pass`
+- **AND** the next action names the query that failed, never one that answered
+
+#### Scenario: The reader cannot use the forge's answer
+
+- **WHEN** the provider's answer names another commit, a run without an identity or a state
+  outside the reader's table, or fills a page, or the peer's provider has no reader
+- **THEN** that peer's next action is a step by hand, and no query is named again
+
+#### Scenario: Two peers decide differently
+
+- **WHEN** one CI peer holds no run of the head and another cannot be read
+- **THEN** the result blocks, its first gap names the peer without a run, and its next action is
+  that gap's repair
 
 #### Scenario: No CI peer is declared
 
 - **WHEN** the repository declares no peer with the `ci_cd` capability
 - **THEN** the observation runs no provider command and passes in the state `no_ci_peer`
+- **AND** its summary counts zero CI peers
+
+#### Scenario: The publication declaration cannot be observed
+
+- **WHEN** the release binding cannot be read or declares an invalid peer or a retired field
+- **THEN** the result blocks in the state `topology_invalid` with the declaration's own gaps
+- **AND** its next action is the topology's repair where it names one, and never empty
 
 #### Scenario: The observation is asked for another head
 

@@ -38,7 +38,10 @@ def hosted_observation(root: Path, head: str) -> dict[str, object]:
         topology = {"required_gaps": [str(error)]}
     invalid = string_sequence(topology["required_gaps"])
     if invalid:
-        return {"head": head, "state": "topology_invalid", "peers": {}, "observation_gaps": invalid}
+        # The topology names its own repair where it has one, and the observation keeps it.
+        repair = {"next_action": str(topology.get("next_action") or "")}
+        observed = {"head": head, "state": "topology_invalid", "peers": {}}
+        return {**observed, "observation_gaps": invalid, **repair}
     peers = {
         str(peer["id"]): observe_hosted_runs(
             root, str(peer["git_remote"]), str(peer["provider"]), head
@@ -54,7 +57,11 @@ def hosted_observation(root: Path, head: str) -> dict[str, object]:
         if peers
         else "no_ci_peer",
         "peers": peers,
+        # The gaps come in the order that decides, so the first names the deciding peer.
         "observation_gaps": [
-            f"{HOSTED_GAPS[state]}:{peer}" for peer, state in states.items() if state != "passed"
+            f"{gap}:{peer}"
+            for decided, gap in HOSTED_GAPS.items()
+            for peer, state in states.items()
+            if state == decided
         ],
     }

@@ -62,7 +62,7 @@ def _forge(monkeypatch: pytest.MonkeyPatch, head: str, **runs: str) -> list[tupl
             "none",
             "block",
             "no_run",
-            ["hosted_run_unknown:gitlab", "hosted_run_missing:github"],
+            ["hosted_run_missing:github", "hosted_run_unknown:gitlab"],
         ),
     ],
 )
@@ -75,7 +75,10 @@ def test_the_observation_names_each_peer_that_did_not_pass(
     state: str,
     gaps: list[str],
 ) -> None:
-    """Two peers that disagree stay two facts; no credentials is `unknown`, never a pass."""
+    """Two peers that disagree stay two facts; no credentials is `unknown`, never a pass.
+
+    The gaps come in the order that decides the verdict, so the first is the one that decided.
+    """
     repo, head = _repository(tmp_path)
     _forge(monkeypatch, head, gitlab=gitlab, github=github)
     argv = ("publish", "--observe-hosted", "--expect-head", head, "--json")
@@ -90,8 +93,9 @@ def test_the_observation_names_each_peer_that_did_not_pass(
         "gitlab": wanted.get(gitlab, gitlab),
         "github": wanted.get(github, github),
     }
+    assert result["summary"]["ci_peers"] == 2
     # Only an observation that may still conclude asks for itself again; any other names the
-    # registered repair of its first gap.
+    # registered repair of its first gap, which is the gap that decided.
     assert (result["next"]["form"] == "publish.hosted.observe") == (state == "running")
     assert state == "running" or result["next_action"] == (repair_for(gaps[0]) if gaps else "")
 
@@ -121,11 +125,45 @@ def test_a_repository_without_a_readable_ci_peer_runs_no_provider_command(
     commands = recorded_forge(monkeypatch, {})
     result = run_ethos("publish", "--observe-hosted", "--json", cwd=repo)
     assert (result["verdict"], result["state"]) == ("pass", "no_ci_peer")
+    # The pass is of no peer, and the summary says how many were observed.
+    assert result["summary"]["ci_peers"] == 0
     (repo / ".ethos/release.toml").write_text("not valid TOML [", encoding="utf-8")
     unreadable = hosted_observation(repo, head)
     gap = "release_config_invalid:.ethos/release.toml"
     assert (unreadable["state"], unreadable["observation_gaps"]) == ("topology_invalid", [gap])
     assert commands == []
+
+
+_RETIRED = '[publication]\nlocal_verification_command = "true"\n\n[[publication.peers]]'
+
+
+@pytest.mark.parametrize(
+    ("declaration", "step"),
+    [
+        (("[[publication.peers]]", _RETIRED), "ethos lane repair-paradigm --apply --json"),
+        (('"repository", "ci_cd", "publication"', '"ci_cd"'), ""),
+        ((None, "not valid TOML ["), ""),
+    ],
+    ids=["retired-field", "peer-capabilities", "unparsable"],
+)
+def test_a_declaration_that_cannot_be_observed_blocks_with_a_next_action(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    declaration: tuple[str | None, str],
+    step: str,
+) -> None:
+    """The topology's own repair is kept; a gap without one still names what to do."""
+    repo, _head = _repository(tmp_path)
+    recorded_forge(monkeypatch, {})
+    binding = repo / ".ethos/release.toml"
+    old, new = declaration
+    text = binding.read_text(encoding="utf-8")
+    binding.write_text(new if old is None else text.replace(old, new, 1), encoding="utf-8")
+    result = full_result(run_ethos_raw("publish", "--observe-hosted", "--json", cwd=repo))
+    assert (result["verdict"], result["state"]) == ("block", "topology_invalid")
+    assert result["next_action"] == (
+        step or "repair the publication declaration, then observe again"
+    )
 
 
 def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(
@@ -147,8 +185,8 @@ def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(
     observation = preview["data"]["hosted_observation"]
     assert (observation["state"], observation["head"]) == ("failed", head)
     assert observation["observation_gaps"] == [
-        "hosted_run_missing:gitlab",
         "hosted_run_failed:github",
+        "hosted_run_missing:gitlab",
     ]
     assert {peer: item["state"] for peer, item in observation["peers"].items()} == {
         "gitlab": "no_run",
@@ -178,7 +216,7 @@ def test_a_release_ref_probe_states_the_observation_and_refuses_nothing_for_it(
     observation = probe["data"]["hosted_observation"]
     assert (observation["head"], observation["observation_gaps"]) == (
         head,
-        ["hosted_run_missing:gitlab", "hosted_run_failed:github"],
+        ["hosted_run_failed:github", "hosted_run_missing:gitlab"],
     )
     assert (probe["verdict"], probe["required_gaps"]) == (passed["verdict"], [])
     accepted = branch_publication(repo, head, target_ref="refs/heads/dev")

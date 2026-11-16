@@ -42,7 +42,7 @@ PUBLISH = Command(
         ),
         operation(
             "publish.hosted.observe",
-            "Report whether the head's hosted runs passed on every CI peer.",
+            "Report whether the head's hosted runs passed on every CI peer; with none, pass.",
             select="observe_hosted=true target_refs=unset receipt=unset retire=false apply=false",
             request="expect_head",
             effects="read remote-read",

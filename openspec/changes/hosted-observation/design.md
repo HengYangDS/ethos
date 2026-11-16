@@ -107,9 +107,14 @@ Non-Goals:
    - **Chosen because:** a missing CLI, a session without credentials, a timeout and an
      unparsable answer are one fact for the caller: nothing is known. The peer carries the reason
      (`provider_query_failed`, `provider_answer_unusable`, `provider_unsupported` or the forge
-     resolver's own gap), the next action a person can take, and no stderr.
+     resolver's own gap), the next action a person can take, and no stderr. That action is the
+     query that failed, the listing or the read of one run's jobs, so that a person reads the
+     provider's own refusal; the resolver's local key; or a step by hand where no query of the
+     reader answers: an answer that the reader does not use is not asked for again, and a peer
+     whose provider has no reader drops `ci_cd` or is read on its forge.
    - **Applies to:** the gap `hosted_run_unknown:<peer>`. With only such gaps the command's
-     verdict is `unknown` and its exit 1.
+     verdict is `unknown` and its exit 1. The gap's registered repair names the sign-in and
+     points to the peer's own next action, since one code has four causes.
 5. **The observation is read each time. This departs from the plan, which records one
    hosted-plane Attestation per CI peer.**
    - **Rests on:** the plan's sentence in its A.5; and the consumers of this Change, which are
@@ -134,10 +139,16 @@ Non-Goals:
      selection.
    - **Chosen because:** the release lane's script gates a landing by its exit, and this command
      replaces it. A peer that failed or holds no run is `block`; only undecided peers are
-     `unknown`. The next action is the gap's registered repair, and the command itself only while
-     a run may still conclude.
+     `unknown`. The gaps come in the order that decides the verdict, so the first gap names the
+     peer that decided, and the next action is that gap's registered repair, or the command
+     itself while a run may still conclude.
    - **Applies to:** the worktree's head, which `--expect-head` guards. A repository with no CI
-     peer passes in the state `no_ci_peer`; an invalid peer declaration blocks with its own gaps.
+     peer passes in the state `no_ci_peer`: it has no hosted plane, so no peer can fail, and a
+     block would stop every landing chain of a repository without CI. The pass is stated
+     where it is read: the operation's description says it, and the summary counts the CI
+     peers that were observed, which is zero there. An invalid peer declaration blocks with
+     its own gaps and the topology's own next action, or a general one where the topology
+     names none.
 7. **The landing preview carries the observation as data.**
    - **Rests on:** `require_closed_verdict` refuses a pass that carries a required gap, and
      `close_verdict` turns a warning into a block, so neither can hold an observation.

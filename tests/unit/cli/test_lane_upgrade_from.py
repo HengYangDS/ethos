@@ -10,9 +10,11 @@ from pathlib import Path
 import pytest
 
 import ethos.application.lane.repair as lane_repair
+import ethos.repository.release.predecessors as predecessors
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.upgrade_from import recorded_upgrade_from
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.contracts.outcome import refusal
 from ethos.repository.release.identity import build_identity
@@ -181,7 +183,7 @@ _READ = ("0.2.0-beta.10", "0.2.0-beta.3")
 UNREAD = {
     "torn-records": ([_READ], (2, 0, 0)),
     "no-records": ([_READ], (0, 1, 0)),
-    "linked-installation": ([_READ], (0, 0, 0)),
+    "linked-installation": ([], (0, 1, 0)),
     "no-accepted-branch": ([], (1, 0, 0)),
     "torn-selection": ([(_READ[0], None)], (0, 0, 1)),
 }
@@ -193,6 +195,7 @@ def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
 ) -> None:
     """Each torn record counts; an installation that records no consumer is counted by itself.
 
+    A linked installation is counted with those and is not read: retirement leaves it alone too.
     A repository whose accepted branch cannot be read is unread, not a subject without a pin.
     A selection that cannot be read is counted, and its repository stays a subject by its pin.
     """
@@ -240,14 +243,17 @@ def test_a_gap_outside_the_record_does_not_ask_for_the_record(tmp_path: Path) ->
 
 
 _RAISED = [
-    (PermissionError(errno.EACCES, "Permission denied", "/host/store"), "EACCES"),
-    (refusal(), "OutcomeError"),
+    (
+        PermissionError(errno.EACCES, "Permission denied", "/host/store"),
+        ["release_upgrade_from_store_unreadable:EACCES"],
+    ),
+    (refusal(), ["OutcomeError"]),
 ]
 
 
-@pytest.mark.parametrize(("raised", "named"), _RAISED, ids=["os-error", "refusal-without-a-gap"])
+@pytest.mark.parametrize(("raised", "gaps"), _RAISED, ids=["os-error", "refusal-without-a-gap"])
 def test_an_error_of_the_read_blocks_and_names_itself_without_a_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception, named: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Exception, gaps: list[str]
 ) -> None:
     """An operating system error keeps its name and leaves its message, which holds a path.
 
@@ -259,8 +265,25 @@ def test_an_error_of_the_read_blocks_and_names_itself_without_a_path(
 
     monkeypatch.setattr(lane_repair, "upgrade_from_report", failed)
     refused = run_ethos(*_unlisted(tmp_path))
-    assert (refused["verdict"], refused["required_gaps"][0].rpartition(":")[2]) == ("block", named)
+    assert (refused["verdict"], refused["required_gaps"]) == ("block", gaps)
     assert "/host/store" not in json.dumps(refused)
+
+
+def test_a_refused_record_carries_every_gap_of_its_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The owner of a refusal's gaps reads the record's refusal, and keeps each gap."""
+    product = init_git_repo(tmp_path / "product")
+    write_tree(product, {".ethos/release.toml": '[release]\nmirror = "independent"\n'})
+    commit_fixture(product, "chore: declare the release")
+
+    gaps = ["first_gap", "second_gap"]
+
+    def refused(_config: object) -> None:
+        raise refusal(*gaps)
+
+    monkeypatch.setattr(predecessors, "recorded", refused)
+    assert recorded_upgrade_from(product, git(product, "rev-parse", "HEAD")) == (None, gaps)
 
 
 def test_a_host_without_a_store_derives_the_previous_release_alone(tmp_path: Path) -> None:

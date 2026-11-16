@@ -33,6 +33,7 @@ from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import named_runtime
 from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.release.changelog import released_versions
@@ -47,7 +48,9 @@ def _records() -> tuple[set[Path], int, int]:
 
     Returns the common directories they name, the count of records that cannot be read, and the
     count of installations that record no consumer: one pinned before consumers were recorded
-    names none, so its users are not read. A host without a store records nothing.
+    names none, so its users are not read. An installation that is a link is counted with
+    those and is not read, as retirement leaves it alone. A host without a store records
+    nothing.
     """
     store = host_store_root()
     installations = store / "installations" if store is not None else None
@@ -58,7 +61,7 @@ def _records() -> tuple[set[Path], int, int]:
     for installation in sorted(installations.iterdir()):
         if not installation.is_dir():
             continue
-        consumers = installation_consumers(installation)
+        consumers = None if installation.is_symlink() else installation_consumers(installation)
         unrecorded += consumers is None
         named = list((consumers or {}).values())
         unread += named.count(None)
@@ -143,7 +146,7 @@ def recorded_upgrade_from(root: Path, head: str) -> tuple[dict[str, str] | None,
     try:
         return predecessors.recorded(config), []
     except ValueError as error:
-        return None, [str(error)]
+        return None, list(refused_gaps(error))
 
 
 def _record_gaps(recorded: dict[str, str] | None, refused: list[str], missing: str) -> list[str]:

@@ -43,9 +43,10 @@
       record does not ask for the record, and an operating system error is named without its
       message or a path.
 - [ ] 2.5 Derive beside a record that its reader refuses, block on a refusal that carries no
-      gap, and read an installation directory that is a link. Done when the case of another
-      class carries the derived releases, a refusal without a gap blocks under its class's
-      name, and a linked installation's consumer is a subject.
+      gap, and count an installation directory that is a link without reading it. Done when
+      the case of another class carries the derived releases, a refusal without a gap
+      blocks under its class's name, and a linked installation is counted and names no
+      subject.
 
 ## 3. Documents
 

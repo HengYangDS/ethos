@@ -17,6 +17,11 @@ host or relayed by the session that met it:
   repository both passed. Launched from a shell with another package manager first on the path,
   the gate's environments bound that manager's interpreters; launched through the locked
   toolchain, they bound the locked ones. The verdict was the same and the subject was not.
+  On 2026-11-16 the verdict moved too: on a disposable copy of a governed repository, under
+  the packaged candidate of 0.2.0-beta.11, one test of a command gate found the interpreter's
+  bundled package manager where the repository declares another. The launching shell's path
+  was activated and its activation state was gone. The same proof passed in an empty
+  environment; the test alone reproduces both results without this product.
 - **Ignored files.** A governed product tagged a release with three failed hosted runs. A tracked
   test pinned a digest of a value that includes ignored build output, so the full proof passed
   only in the lane that held the build.

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.application.publication.hosted as hosted
+import ethos.application.publication.operation as operation
 from ethos.application.publication.hosted import hosted_observation
 from ethos.contracts.codes.gaps import repair_for
 from tests.support.ethos_cli_runner import full_result
@@ -131,6 +133,8 @@ def test_a_repository_without_a_readable_ci_peer_runs_no_provider_command(
     unreadable = hosted_observation(repo, head)
     gap = "release_config_invalid:.ethos/release.toml"
     assert (unreadable["state"], unreadable["observation_gaps"]) == ("topology_invalid", [gap])
+    # The observation itself names the step, so the landing preview and the probe carry it too.
+    assert unreadable["next_action"] == "repair the publication declaration, then observe again"
     assert commands == []
 
 
@@ -152,9 +156,13 @@ def test_a_declaration_that_cannot_be_observed_blocks_with_a_next_action(
     declaration: tuple[str | None, str],
     step: str,
 ) -> None:
-    """The topology's own repair is kept; a gap without one still names what to do."""
+    """The topology's own repair is kept; a gap without one still names what to do.
+
+    A repair that the registry gains for one of these gaps later does not replace either.
+    """
     repo, _head = _repository(tmp_path)
     recorded_forge(monkeypatch, {})
+    monkeypatch.setattr(operation, "repair_for", lambda _gap: "a registered repair")
     binding = repo / ".ethos/release.toml"
     old, new = declaration
     text = binding.read_text(encoding="utf-8")
@@ -164,6 +172,16 @@ def test_a_declaration_that_cannot_be_observed_blocks_with_a_next_action(
     assert result["next_action"] == (
         step or "repair the publication declaration, then observe again"
     )
+
+
+def test_a_peer_state_that_no_gap_names_is_never_dropped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A state outside the table fails loudly; left out of the gaps it would read as passed."""
+    repo, head = _repository(tmp_path)
+    monkeypatch.setattr(hosted, "observe_hosted_runs", lambda *_peer: {"state": "paused"})
+    with pytest.raises(KeyError, match="paused"):
+        hosted_observation(repo, head)
 
 
 def test_the_landing_preview_states_the_observation_and_refuses_nothing_for_it(

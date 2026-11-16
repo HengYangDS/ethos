@@ -196,18 +196,31 @@ def test_an_answer_the_reader_cannot_use_is_unknown_and_never_a_pass(
 
 
 @pytest.mark.parametrize(
-    ("provider", "url", "reason"),
+    ("provider", "url", "reason", "step"),
     [
-        ("github", "git@example.test:team/repo.git", "forge_repository_unresolved:forge"),
-        ("git", "", "provider_unsupported"),
+        (
+            "github",
+            "git@example.test:team/repo.git",
+            "forge_repository_unresolved:forge",
+            "git config --local remote.forge.forgeRepository <web-url>",
+        ),
+        ("git", "", "provider_unsupported", "drop ci_cd and ci_surface from the peer"),
     ],
 )
 def test_a_peer_without_a_readable_forge_runs_no_provider_command(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str, url: str, reason: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    provider: str,
+    url: str,
+    reason: str,
+    step: str,
 ) -> None:
-    """An SSH remote without the local key, or a provider with no reader, is a named unknown."""
+    """An SSH remote without the local key, or a provider with no reader, is a named unknown.
+
+    Each names what a person can do: the local key, or the two fields of the peer's declaration
+    that go together.
+    """
     commands = recorded_forge(monkeypatch, {})
     observed = observe_hosted_runs(_peer(tmp_path, "github", url), "forge", provider, HEAD)
     assert (observed["state"], observed["reason"], commands) == ("unknown", reason, [])
-    # Each names what a person can do: the local key, or the peer's own declaration.
-    assert ("ci_cd" in observed["next_action"]) is (reason == "provider_unsupported")
+    assert observed["next_action"].startswith(step)

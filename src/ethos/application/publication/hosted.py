@@ -7,6 +7,7 @@ hosted plane to observe. The observation is read each time and stored nowhere.
 
 from __future__ import annotations
 
+from operator import itemgetter
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -28,6 +29,8 @@ HOSTED_GAPS = {
     "running": "hosted_run_running",
 }
 OPEN_HOSTED_GAPS = frozenset({"hosted_run_unknown", "hosted_run_running"})
+# The step for a publication declaration that cannot be observed and names no repair.
+_DECLARATION = "repair the publication declaration, then observe again"
 
 
 def hosted_observation(root: Path, head: str) -> dict[str, object]:
@@ -38,8 +41,9 @@ def hosted_observation(root: Path, head: str) -> dict[str, object]:
         topology = {"required_gaps": [str(error)]}
     invalid = string_sequence(topology["required_gaps"])
     if invalid:
-        # The topology names its own repair where it has one, and the observation keeps it.
-        repair = {"next_action": str(topology.get("next_action") or "")}
+        # The topology names its own repair where it has one, and the observation keeps it;
+        # every reader of the observation then has a step, the preview and the probe too.
+        repair = {"next_action": str(topology.get("next_action") or "") or _DECLARATION}
         observed = {"head": head, "state": "topology_invalid", "peers": {}}
         return {**observed, "observation_gaps": invalid, **repair}
     peers = {
@@ -51,17 +55,19 @@ def hosted_observation(root: Path, head: str) -> dict[str, object]:
     }
     states = {peer: str(observed["state"]) for peer, observed in peers.items()}
     found = set(states.values())
+    # Every state but a pass is looked up, so a state that no gap names fails here and is not
+    # dropped. The gaps then come in the order that decides: the first names the deciding peer.
+    order = list(HOSTED_GAPS)
+    named = [
+        (f"{HOSTED_GAPS[state]}:{peer}", order.index(state))
+        for peer, state in states.items()
+        if state != "passed"
+    ]
     return {
         "head": head,
         "state": next((state for state in HOSTED_GAPS if state in found), "passed")
         if peers
         else "no_ci_peer",
         "peers": peers,
-        # The gaps come in the order that decides, so the first names the deciding peer.
-        "observation_gaps": [
-            f"{gap}:{peer}"
-            for decided, gap in HOSTED_GAPS.items()
-            for peer, state in states.items()
-            if state == decided
-        ],
+        "observation_gaps": [gap for gap, _rank in sorted(named, key=itemgetter(1))],
     }

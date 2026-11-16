@@ -39,6 +39,10 @@
       next action for a declaration that cannot be observed. Done when a peer without a run
       beside an unreadable one names the publication as the repair, the summary counts zero
       peers for `no_ci_peer`, and three invalid declarations each block with a next action.
+- [ ] 2.6 Carry the declaration's step in the observation, look every peer state up, and name
+      both fields that a peer without a reader drops. Done when the observation of an invalid
+      declaration holds its next action before any registered repair, a state outside the
+      table raises, and the step by hand names `ci_cd` and `ci_surface`.
 
 ## 3. The landing preview and the release probe
 
@@ -69,3 +73,14 @@
       earlier than the release after this one, after the three cases of decision 8 are measured
       on the governed repositories. Done when the decision names a release and a successor Change
       is opened for the refusal, its Breaking entry, its repair and the stored record.
+
+## Workflow follow-up
+
+- A failed observation job that the pipeline lets fail does not say what it observed. On the
+  run of one accepted head the job `external link health` failed, the run passed, and which
+  link failed was only in an uploaded report that nobody had read; the release lane's own script
+  printed the failure as allowed at every landing. Two candidates, neither built here: the
+  session prints the report's gap lines to the job log when its gate fails, and this reader
+  lists a failed observation job's gaps beside the run. Read again when the release ref's
+  refusal is designed (task 5.5): an allowed failure that names nothing trains its reader to
+  skip it.

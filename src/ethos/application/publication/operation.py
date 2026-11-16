@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import cast
 
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
@@ -48,8 +47,6 @@ from ethos.application.publication.request_gaps import publication_request_gaps
 from ethos.contracts.semantic import model_digest
 from ethos.repository.profile import load_repository_profile
 
-# The step for a publication declaration that cannot be observed and names no repair.
-_DECLARATION = "repair the publication declaration, then observe again"
 # One publish operation's body, which `_publishing` runs on the resolved root.
 type PublishImplementation = Callable[[Path, PublishRequest], EthosResult]
 
@@ -151,10 +148,10 @@ def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
     gaps = tuple(string_sequence(observation["observation_gaps"]))
     undecided = all(gap_code(gap) in OPEN_HOSTED_GAPS for gap in gaps)
     again = ("ethos", "publish", "--observe-hosted", "--expect-head", head)
-    # The first gap is the one that decided. A declaration that could not be observed keeps
-    # its topology's repair, and a gap without a registered one still names what to do.
-    declared = str(observation.get("next_action") or "") or _DECLARATION
-    peers = cast("dict[str, object]", observation["peers"])
+    # A declaration that could not be observed names its own step, which no registered repair
+    # replaces; otherwise the first gap is the one that decided, and its repair is the step.
+    declared = str(observation.get("next_action") or "")
+    peers = string_mapping(observation["peers"])
     return EthosResult(
         command="publish",
         verdict=("unknown" if undecided else "block") if gaps else "pass",
@@ -163,7 +160,7 @@ def observe_hosted(root: Path, request: PublishRequest) -> EthosResult:
         required_gaps=gaps,
         next_action=shlex.join((*again, "--root", root.as_posix(), "--json"))
         if observation["state"] == "running"
-        else (repair_for(gaps[0]) or declared)
+        else (declared or repair_for(gaps[0]))
         if gaps
         else "",
         data={"hosted_observation": observation},

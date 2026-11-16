@@ -585,7 +585,7 @@ host_work_unavailable = { owner = "adapters.gates", repair = "make build/runtime
 hosted_run_failed = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head failed on the CI peer.", repair = "read the failed run on the peer, then rerun it or repair the head and observe again" }
 hosted_run_missing = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer holds no run of the observed head that ran.", repair = "publish the observed head to the peer, then observe again" }
 hosted_run_running = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head has not concluded on the CI peer.", repair = "observe again once the run concludes" }
-hosted_run_unknown = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer's forge gave no usable answer about the observed head.", repair = "sign in to the peer's forge CLI, or follow the peer's next_action under data.hosted_observation.peers, then observe again" }
+hosted_run_unknown = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer's forge gave no usable answer about the observed head.", repair = "sign in to the peer's forge CLI and observe again, or follow the peer's next_action under data.hosted_observation.peers" }
 housekeeping_candidate_stale = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 housekeeping_remove_failed = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 identity_transition_attestation_mismatch = { owner = "adapters.repo" }

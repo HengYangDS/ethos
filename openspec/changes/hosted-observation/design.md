@@ -111,10 +111,12 @@ Non-Goals:
      query that failed, the listing or the read of one run's jobs, so that a person reads the
      provider's own refusal; the resolver's local key; or a step by hand where no query of the
      reader answers: an answer that the reader does not use is not asked for again, and a peer
-     whose provider has no reader drops `ci_cd` or is read on its forge.
+     whose provider has no reader drops `ci_cd` with its `ci_surface`, which a declaration
+     holds together, or is read on its forge.
    - **Applies to:** the gap `hosted_run_unknown:<peer>`. With only such gaps the command's
-     verdict is `unknown` and its exit 1. The gap's registered repair names the sign-in and
-     points to the peer's own next action, since one code has four causes.
+     verdict is `unknown` and its exit 1. The gap's registered repair names the sign-in, after
+     which observing again can answer, or points to the peer's own next action, since one code
+     has four causes and a step by hand ends there.
 5. **The observation is read each time. This departs from the plan, which records one
    hosted-plane Attestation per CI peer.**
    - **Rests on:** the plan's sentence in its A.5; and the consumers of this Change, which are
@@ -148,7 +150,10 @@ Non-Goals:
      where it is read: the operation's description says it, and the summary counts the CI
      peers that were observed, which is zero there. An invalid peer declaration blocks with
      its own gaps and the topology's own next action, or a general one where the topology
-     names none.
+     names none. The observation carries that step itself, so the landing preview and the
+     release probe show it too, and a repair that the registry holds for such a gap does not
+     replace it. A peer state that no gap names fails the observation; it is never left out
+     of the gaps, which would read as a pass.
 7. **The landing preview carries the observation as data.**
    - **Rests on:** `require_closed_verdict` refuses a pass that carries a required gap, and
      `close_verdict` turns a warning into a block, so neither can hold an observation.

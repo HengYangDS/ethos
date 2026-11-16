@@ -64,7 +64,9 @@ type _Unread = tuple[str, tuple[str, ...]]
 _UNUSABLE: _Unread = ("provider_answer_unusable", ())
 # What a person can do where no query of the reader answers.
 _BY_HAND = {
-    "provider_unsupported": "drop ci_cd from the peer's declaration, or read its runs on its forge",
+    # A peer declares `ci_cd` and its `ci_surface` together, so both go.
+    "provider_unsupported": "drop ci_cd and ci_surface from the peer's declaration, "
+    "or read its runs on its forge",
     "provider_answer_unusable": "read the commit's runs on the peer's forge",
 }
 

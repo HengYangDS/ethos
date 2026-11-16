@@ -83,6 +83,7 @@ authority.
 - **WHEN** the release binding cannot be read or declares an invalid peer or a retired field
 - **THEN** the result blocks in the state `topology_invalid` with the declaration's own gaps
 - **AND** its next action is the topology's repair where it names one, and never empty
+- **AND** the observation under `data.hosted_observation` carries the same next action
 
 #### Scenario: The observation is asked for another head
 

@@ -104,18 +104,17 @@ def _copied_preimages(root: Path, workspace: Path, changes: list[dict[str, objec
 def _free(root: Path, path: Path) -> bool:
     """Tell whether nothing lies at the path and only real directories lie above it.
 
-    Each place from the root down is looked at once, without following a link. Nothing below
-    an absent place exists. A place that cannot be looked at is an error, which the caller
-    reports as a refusal; it is never read as an absence.
+    Each place from the root down is looked at without following a link. Nothing below an
+    absent place exists. A place that cannot be looked at is an error, which the caller reports
+    as a refusal; it is never read as an absence.
     """
-    above = [parent for parent in path.parents if root in parent.parents]
-    for place in (*reversed(above), path):
-        try:
-            mode = place.lstat().st_mode
-        except FileNotFoundError:
-            return True
-        if place == path or not stat.S_ISDIR(mode) or is_junction(place):
-            return False
+    try:
+        for parent in reversed([above for above in path.parents if root in above.parents]):
+            if not stat.S_ISDIR(parent.lstat().st_mode) or is_junction(parent):
+                return False
+        path.lstat()
+    except FileNotFoundError:
+        return True
     return False
 
 

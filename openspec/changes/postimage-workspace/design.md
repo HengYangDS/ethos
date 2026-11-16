@@ -64,17 +64,19 @@ Non-Goals:
      every other reason for which Git may not honor it, such as a short path form on Windows;
      and a Git directory in each workspace, which costs one more process for each admission.
    - **Chosen because:** the check does not depend on why Git left the workspace alone. Each
-     named path is read as the entry it is, a file with its bytes and executable bits, a link
-     with its target, or nothing, before the apply and after it. Git applies a patch whole or
-     not at all, so one path that differs proves the apply ran; a workspace in which no path
-     differs is refused with the gap that a failed apply already has. A first form required
-     every path to differ; the model review showed three valid patches that it refused: a
-     creation at a path that a move in the same patch vacates, a new link, and a new submodule
-     entry.
+     named path is read as the entry it is, a regular file with its bytes and executable bits,
+     another kind of entry, or nothing, before the apply and after it. Git skips by path, so
+     every named path must differ; the one that may hold what it held is a path that a move in
+     the same patch vacates and a creation fills. The admission reads a postimage as the text
+     of a regular file, so a patch that makes a named path a link or a submodule entry is
+     refused: it would be admitted without what the link names ever being read, as it was
+     before this Change. Three forms came before this one in two review parts; the lead's
+     ruling V of 2026-11-16 decides the three points once.
    - **Applies to:** the workspace's owner, which is its own module since the admission module
-     is at its line ceiling. A patch whose only change the work tree already holds, such as a
-     mode change that was made by hand, shows no effect and is refused; the release before
-     admitted it on Git's exit status.
+     is at its line ceiling. A patch whose change the work tree already holds, such as a mode
+     change that was made by hand, shows no effect and is refused; the release before admitted
+     it on Git's exit status. A repository adds a link through the worktree target without a
+     patch, where the staged admission judges the index.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.

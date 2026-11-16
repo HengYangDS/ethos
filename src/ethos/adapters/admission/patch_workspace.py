@@ -43,11 +43,31 @@ def _state(path: Path) -> tuple[object, ...] | None:
         mode = path.lstat().st_mode
     except (FileNotFoundError, NotADirectoryError):
         return None
-    if stat.S_ISLNK(mode):
-        return "link", path.readlink()
     if stat.S_ISREG(mode):
         return "file", mode & 0o111, path.read_bytes()
     return "other", stat.S_IFMT(mode)
+
+
+def _unread(
+    changes: list[dict[str, object]],
+    before: dict[str, tuple[object, ...] | None],
+    after: dict[str, tuple[object, ...] | None],
+) -> str:
+    """Say why the workspace cannot be read as the patch's postimage, or nothing.
+
+    Git skips by path and exits with 0, so every named path must show the patch. The one path
+    that may hold what it held is one that a move in the same patch vacates and a creation
+    fills. Postimages are read as the text of regular files, so a link or another kind of
+    entry at a named path is not judged and is refused.
+    """
+    if any(state is not None and state[0] != "file" for state in after.values()):
+        return "prewrite patch makes a named path no regular file"
+    moved = (change for change in changes if change["old_path"] != change["path"])
+    vacated = {str(change["old_path"]) for change in moved}
+    same = {path for path, state in after.items() if state == before[path]}
+    if same - vacated or len(same) == len(after):
+        return "prewrite patch left a path that it names as it was"
+    return ""
 
 
 @contextmanager
@@ -57,9 +77,8 @@ def patched_workspace(
     """Yield a directory of the patched files, and each named path's text as the patch leaves it.
 
     Git's exit status alone does not prove the effect: a workspace that Git reads as part of
-    another repository is left as it was. Git applies a patch whole or not at all, so one path
-    that shows a change proves the apply ran, and a run that shows none is refused and never
-    read as the postimage.
+    another repository is left as it was. The workspace is read only when every named path
+    shows the patch.
     """
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
@@ -81,13 +100,13 @@ def patched_workspace(
         if not patch_applies(workspace, patch):
             msg = "prewrite patch postimage application failed"
             raise ValueError(msg)
-        if all(_state(target) == before[path] for path, target in targets.items()):
-            msg = "prewrite patch left the workspace as it was"
+        after = {path: _state(target) for path, target in targets.items()}
+        if msg := _unread(changes, before, after):
             raise ValueError(msg)
         yield (
             workspace,
             {
-                path: target.read_text(encoding="utf-8") if target.is_file() else None
+                path: target.read_text(encoding="utf-8") if after[path] else None
                 for path, target in targets.items()
             },
         )

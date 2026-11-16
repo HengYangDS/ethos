@@ -9,11 +9,12 @@
 - [ ] 1.2 Run the workspace's apply under a ceiling at the workspace's parent in
       `src/ethos/adapters/admission/patch_admission.py`. Done when 1.1 passes and the six
       admission modules pass with the temporary directory inside a work tree and outside one.
-- [ ] 1.3 Refuse a patch that left the workspace as it was, in the workspace's own module
-      `src/ethos/adapters/admission/patch_workspace.py`. Done when the regression's case with a
-      path-list separator in the temporary directory's name fails without the check and refuses
-      with `prewrite_patch_postimage_failed` with it, and the owner's tests admit a creation at
-      a path that a move vacates and a new link.
+- [ ] 1.3 Refuse a patch that leaves a named path as it was or makes one anything but a regular
+      file, in the workspace's own module `src/ethos/adapters/admission/patch_workspace.py`.
+      Done when the regression's case with a path-list separator in the temporary directory's
+      name fails without the check and refuses with `prewrite_patch_postimage_failed` with it,
+      and the owner's tests admit a creation at a path that a move vacates and refuse a new
+      link and a patch that changed one of two named paths.
 
 ## 2. Documents and budgets
 

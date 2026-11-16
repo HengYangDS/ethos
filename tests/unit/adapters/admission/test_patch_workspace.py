@@ -200,18 +200,40 @@ def test_a_record_that_is_not_of_git_s_form_is_refused(
 _CONTENT_TO_THE_NULL_PATH = _DELETE_WITHOUT_MODE.replace(
     "@@ -1 +0,0 @@\n-old\n", "@@ -1 +1 @@\n-old\n+kept\n"
 )
+# A null target under a copy to the null path: Git empties a copy and deletes nothing.
+_COPY_TO_THE_NULL_PATH = (
+    "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ /dev/null\n"
+    "copy from tool.sh\ncopy to dev/null\n@@ -1 +0,0 @@\n-#!/bin/sh\n"
+)
 
 
 @pytest.mark.parametrize(
-    ("patch", "named"),
-    [(_FILE_TO_DIRECTORY, 1), (_CONTENT_TO_THE_NULL_PATH, 1)],
-    ids=["an-entry-left-out", "content-at-the-null-path"],
+    ("patch", "named", "held"),
+    [
+        (_FILE_TO_DIRECTORY, 1, ""),
+        (_CONTENT_TO_THE_NULL_PATH, 1, ""),
+        (_COPY_TO_THE_NULL_PATH, 1, ""),
+        (_DELETE_WITHOUT_MODE, 1, "held\n"),
+    ],
+    ids=[
+        "an-entry-left-out",
+        "content-at-the-null-path",
+        "nothing-deleted",
+        "a-file-held-at-the-null-path",
+    ],
 )
 def test_a_changed_path_that_no_change_names_is_refused(
-    tmp_path: Path, patch: str, named: int
+    tmp_path: Path, patch: str, named: int, held: str
 ) -> None:
-    """Every changed path is named or deleted; only Git's empty file at the null path is let be."""
+    """Every changed path is named or deleted; only Git's empty file at the null path is let be.
+
+    That file is let be where the record shows the entry's preimage deleted and the repository
+    held nothing at the null path.
+    """
     repo = _repository(tmp_path)
+    if held:
+        (repo / "dev").mkdir()
+        (repo / "dev/null").write_text(held, encoding="utf-8")
     changes, gap = unified_patch_changes(repo, patch)
     assert gap == ""
     with (

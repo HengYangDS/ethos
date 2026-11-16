@@ -288,15 +288,23 @@ def test_a_path_that_git_changes_beyond_the_reading_of_the_text_is_refused(
 
 
 @pytest.mark.parametrize(
-    ("hunk", "verdict"),
-    [("@@ -1 +0,0 @@\n-VALUE = 2\n", "pass"), ("@@ -1 +1 @@\n-VALUE = 2\n+KEPT = 1\n", "block")],
-    ids=["emptied", "content-at-the-null-path"],
+    ("hunk", "held", "verdict"),
+    [
+        ("@@ -1 +0,0 @@\n-VALUE = 2\n", "", "pass"),
+        ("@@ -1 +1 @@\n-VALUE = 2\n+KEPT = 1\n", "", "block"),
+        ("@@ -1 +0,0 @@\n-VALUE = 2\n", "held\n", "block"),
+    ],
+    ids=["emptied", "content-at-the-null-path", "a-file-held-at-the-null-path"],
 )
 def test_a_deletion_without_its_mode_line_reads_as_on_the_worktree_target(
-    mixed_lane: Path, hunk: str, verdict: str
+    mixed_lane: Path, hunk: str, held: str, verdict: str
 ) -> None:
-    """Git's empty file at the null path is let be on both targets; content there is refused."""
+    """Git's empty file at the null path is let be on both targets; anything else is refused."""
     root = mixed_lane
+    if held:
+        (root / "dev").mkdir()
+        (root / "dev/null").write_text(held, encoding="utf-8")
+        git(root, "add", "dev/null")
     patch = "diff --git a/module.py b/module.py\n--- a/module.py\n+++ /dev/null\n" + hunk
     report = prewrite.prewrite_guard(
         root=root, paths=[root / "module.py"], editor_root=root, patch=patch, target="index"

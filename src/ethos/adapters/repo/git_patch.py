@@ -146,24 +146,29 @@ def unnamed_changes(
 ) -> set[str]:
     """Name the changed paths beyond `allowed`, which a target refuses.
 
-    One path is let through on both targets: the empty file that Git creates at the null path
-    for a deletion written without its `deleted file mode` line, which the reader names by its
-    preimage. The same path with content, or changed otherwise, is named like any other.
+    One path is let through on both targets: the empty regular file that Git creates at the
+    null path for a deletion written without its `deleted file mode` line, which the reader
+    names by its preimage, and only where the record shows that preimage deleted. The same
+    path with content, of another kind, or changed otherwise, is named like any other.
     """
     nulls = {
         str(change["reported"])
         for change in changes
         if change.get("reported", change["path"]) != change["path"]
+        and observed.get(str(change["path"]), ("",))[0] == "D"
     }
     return {
         path
         for path in observed.keys() - set(allowed)
         if path not in nulls
         or observed[path][0] != "A"
+        or observed[path][2] not in _FILE_MODES
         or _stdout(root, "cat-file", "-s", observed[path][3], env=env).strip() != b"0"
     }
 
 
+# The two modes of a regular file.
+_FILE_MODES = {"100644", "100755"}
 # The name that Git reports for an entry whose target is the null path without a deletion's mode.
 _NULL_AS_REPORTED = "dev/null"
 # The lines that Git reads as an entry's extended header; the header ends at the first other line.

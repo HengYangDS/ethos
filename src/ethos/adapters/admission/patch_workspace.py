@@ -89,6 +89,15 @@ def _copied_preimages(root: Path, workspace: Path, changes: list[dict[str, objec
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         copied.append(old_path)
+    # Where an entry is named by its preimage, a file that the repository holds at the name that
+    # Git reported is copied as well, so that Git's record shows whether the patch replaced it.
+    for change in changes:
+        occupied = str(change.get("reported", change["path"]))
+        held = _within(root, occupied)
+        if occupied != change["path"] and occupied not in copied and held.is_file():
+            (workspace / occupied).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(held, workspace / occupied)
+            copied.append(occupied)
     return copied
 
 

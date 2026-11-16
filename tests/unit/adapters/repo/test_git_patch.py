@@ -9,6 +9,7 @@ import pytest
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import unified_patch
 from ethos.adapters.repo.git_patch import unified_patch_changes
+from ethos.adapters.repo.git_patch import unnamed_changes
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
@@ -125,8 +126,27 @@ def test_each_entry_names_git_s_path_and_where_its_preimage_lies(
     patch, expected = _READ[shape]
     changes, gap = unified_patch_changes(init_git_repo(tmp_path / "repo"), patch)
     assert (gap, [(change["old_path"], change["path"]) for change in changes]) == ("", expected)
+    assert all(change.keys() == {"old_path", "path", "reported"} for change in changes)
     # Git's own name for an entry is its path, but for the deletion that is named by its preimage.
     reported = "dev/null" if shape == "deletion-without-its-mode" else None
     assert [change["reported"] for change in changes] == [
         reported or path for _old, path in expected
     ]
+
+
+def test_only_an_empty_regular_file_at_the_null_path_is_let_be(tmp_path: Path) -> None:
+    """The allowance reads Git's record: the preimage deleted, the file added, regular, empty."""
+    repo = init_git_repo(tmp_path / "repo")
+    empty = run_git(repo, "hash-object", "-w", "--stdin", stdin="").stdout.strip()
+    change: dict[str, object] = {"old_path": "a.txt", "path": "a.txt", "reported": "dev/null"}
+
+    def unnamed(mode: str, status: str = "A", preimage: str = "D") -> set[str]:
+        observed = {
+            "a.txt": (preimage, "100644", "000000", "0" * 40),
+            "dev/null": (status, "000000", mode, empty),
+        }
+        return unnamed_changes(repo, [change], observed, {"a.txt"})
+
+    assert unnamed("100644") == unnamed("100755") == set()
+    assert unnamed("120000") == unnamed("100644", "M") == {"dev/null"}
+    assert unnamed("100644", preimage="M") == {"dev/null"}

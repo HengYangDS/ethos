@@ -128,10 +128,12 @@ Non-Goals:
      targets read the record by one function, tree against tree, so that an entry that is
      only an intent to add and a submodule's configuration change nothing in it. A changed
      path that no change names and that Git did not delete is refused on both. One file is
-     let be on both: the empty file that Git creates at the null path for a deletion without
-     its mode line (the entry below); the same path with content is refused. The index's
-     mode is the one reading of a path's kind: the workspace is a new directory of regular
-     copies, so no separate look at the disk is kept (ruling Y).
+     let be on both: the empty regular file that Git creates at the null path for a deletion
+     without its mode line (the entry below), where Git's record shows the entry's preimage
+     deleted and that file added. The same path with content, of another kind, or held by
+     the repository before the patch, is refused on both. The index's mode is the one
+     reading of a path's kind: the workspace is a new directory of regular copies, so no
+     separate look at the disk is kept (ruling Y).
 
 ## Risks / Trade-offs
 

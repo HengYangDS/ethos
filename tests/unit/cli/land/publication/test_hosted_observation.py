@@ -205,7 +205,8 @@ def test_an_invalid_declaration_names_the_first_repair_that_the_registry_holds(
     declared = binding.read_text(encoding="utf-8")
     broken = declared.replace(_CAPABILITIES, '"ci_cd"', 1)
     broken = broken.replace('git_remote = "github"', 'git_remote = "no remote"')
-    assert (broken.count('"ci_cd"'), broken.count('"no remote"')) == (2, 1)
+    # One peer keeps its capabilities and one lost them; one peer names no remote name.
+    assert (broken.count(_CAPABILITIES), broken.count('"no remote"')) == (1, 1)
     binding.write_text(broken, encoding="utf-8")
     first, second = map(gap_code, hosted_observation(repo, head)["observation_gaps"])
     assert first != second

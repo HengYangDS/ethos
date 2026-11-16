@@ -6,15 +6,14 @@
       that places Python's temporary directory inside another repository and admits a patch with
       an undeclared executable. Done when it fails on the unchanged module with a verdict of
       `pass`.
-- [ ] 1.2 Run the workspace's apply under a ceiling at the workspace's parent in
-      `src/ethos/adapters/admission/patch_admission.py`. Done when 1.1 passes and the six
-      admission modules pass with the temporary directory inside a work tree and outside one.
-- [ ] 1.3 Refuse a patch that leaves a named path as it was or makes one anything but a regular
-      file, in the workspace's own module `src/ethos/adapters/admission/patch_workspace.py`.
-      Done when the regression's case with a path-list separator in the temporary directory's
-      name fails without the check and refuses with `prewrite_patch_postimage_failed` with it,
-      and the owner's tests admit a creation at a path that a move vacates and refuse a new
-      link and a patch that changed one of two named paths.
+- [ ] 1.2 Make the workspace a repository of its own, in the workspace's own module
+      `src/ethos/adapters/admission/patch_workspace.py`. Done when 1.1 passes, also with a
+      path-list separator in the temporary directory's name, the owner's tests read four
+      shapes of patch in three places, and the six admission modules pass with the temporary
+      directory inside a work tree and outside one.
+- [ ] 1.3 Refuse a patch that declares another kind of entry than a regular file. Done when a
+      patch that declares a link and one that declares a submodule entry are refused by the
+      owner's tests.
 
 ## 2. Documents and budgets
 

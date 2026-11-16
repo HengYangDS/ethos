@@ -12,10 +12,9 @@ Read and measured on 2026-11-16:
   the workspace as its directory and returns whether Git exited with 0.
 - Git's manual for `apply` states that from a subdirectory of a repository, patched paths outside
   that directory are ignored. Plain Git 2.56.1, run in a directory under an ignored directory of
-  a repository, exits with 0 for a two-file move and changes no file. With
-  `GIT_CEILING_DIRECTORIES` set to the directory's parent it applies the move.
-- The product's Git runner drops every inherited `GIT_` variable except the identity ones, and
-  adds what a caller passes. A launcher therefore cannot set the ceiling from outside.
+  a repository, exits with 0 for a two-file move and changes no file.
+- The product's Git runner drops every inherited `GIT_` variable except the identity ones, so a
+  launcher cannot change Git's discovery from outside.
 - The same module's check of the preimage runs `git apply --check` in the repository's root and
   is not affected. The admission of an index target reads the prospective index tree and uses no
   workspace.
@@ -43,47 +42,47 @@ Non-Goals:
 
 ## Decisions
 
-1. **The workspace's apply runs under a ceiling at the workspace's parent.**
-   - **Rests on:** the two plain Git runs above, and the runner's `env` parameter, which adds
-     the variable to this one command.
-   - **Considered:** initializing a repository in the workspace, which makes it its own top
-     level, costs one more Git process for each admission and leaves a Git directory among the
-     files that the postimage readers walk; a second reader of patches in Python, which would
-     repeat what Git owns; and creating the workspace in another place, which only moves the
-     question, because no directory of a host is known to lie outside every work tree.
-   - **Chosen because:** it is Git's own control for where discovery stops, it changes one call,
-     and outside a work tree the command runs as it did.
+1. **The workspace is a repository of its own.**
+   - **Rests on:** two plain Git runs in one directory inside another repository's work tree,
+     whose name held the separator of a path list: without a repository of its own Git exited
+     with 0 and changed no file; after `git init` in the directory it applied the patch. The
+     initialization took no time that the measurement shows.
+   - **Considered:** a ceiling on Git's discovery at the workspace's parent, which was built
+     first and which a path-list separator in the temporary directory's name defeats, with a
+     wrong admission as before (measured); a comparison of each named path before and after
+     the apply, built in three forms over three review parts, each of which refused a valid
+     patch or admitted a wrong one, and which gave valid patches refusals that the release
+     before did not have; a reader of patches in Python, which would repeat what Git owns; and
+     another place for the workspace, which only moves the question.
+   - **Chosen because:** it removes the cause and detects nothing. In its own repository no
+     path of the patch lies outside, so Git skips none, and its exit status means what it means
+     in a checkout. No valid patch is judged otherwise than before. The Git directory lies at
+     the workspace's root, which no reader of the workspace walks: each reads the named paths
+     or the tree of one Change.
    - **Applies to:** the apply in the workspace. The preimage check keeps running in the
-     repository, where discovery must find the repository.
-2. **Git's exit status does not prove the effect: each change must show in the workspace.**
-   - **Rests on:** the model review of the first repair, and a measurement of its case: a
-     temporary directory whose path holds the separator of a path list, inside a work tree,
-     splits the ceiling into two entries that name nothing, and the repaired admission admitted
-     the undeclared executable again.
-   - **Considered:** quoting or resolving the ceiling, which closes that one case and leaves
-     every other reason for which Git may not honor it, such as a short path form on Windows;
-     and a Git directory in each workspace, which costs one more process for each admission.
-   - **Chosen because:** the check does not depend on why Git left the workspace alone. Each
-     named path is read as the entry it is, a regular file with its bytes and executable bits,
-     another kind of entry, or nothing, before the apply and after it. Git skips by path, so
-     every named path must differ; the one that may hold what it held is a path that a move in
-     the same patch vacates and a creation fills. The admission reads a postimage as the text
-     of a regular file, so a patch that makes a named path a link or a submodule entry is
-     refused: it would be admitted without what the link names ever being read, as it was
-     before this Change. Three forms came before this one in two review parts; the lead's
-     ruling V of 2026-11-16 decides the three points once.
-   - **Applies to:** the workspace's owner, which is its own module since the admission module
-     is at its line ceiling. A patch whose change the work tree already holds, such as a mode
-     change that was made by hand, shows no effect and is refused; the release before admitted
-     it on Git's exit status. A repository adds a link through the worktree target without a
-     patch, where the staged admission judges the index.
+     repository. A change that names a path under the Git directory is refused as a path that
+     leaves the root; Git refuses such a path too.
+2. **A patch that declares another kind of entry than a regular file is refused.**
+   - **Rests on:** the model review: a new link is dangling in the workspace, its postimage
+     reads as absent, and the patch is admitted without what the link names being read. The
+     release before admitted it the same way.
+   - **Considered:** reading what the link names, which the workspace does not hold; and
+     judging by what Git writes, which is a plain file where Git is told not to make links.
+   - **Chosen because:** the admission judges text, and what it cannot read it does not admit.
+     The patch's own mode decides, on every platform. The lead's ruling V of 2026-11-16 holds
+     it.
+   - **Applies to:** a `new file mode` or `new mode` other than a regular file's two. A
+     repository adds a link through the worktree target without a patch, where the staged
+     admission judges the index.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.
-   - **Considered:** a test of `_patch_applies` alone, which would pin the helper and not the
-     verdict that an adopter receives.
+   - **Considered:** a test of the helper alone, which would pin the helper and not the verdict
+     that an adopter receives.
    - **Chosen because:** the public admission is what was wrong, and the test fails on the
-     unchanged module.
+     unchanged module. The workspace's own tests read four shapes of patch in a plain
+     temporary directory, inside another checkout, and inside one whose name holds the
+     separator.
    - **Applies to:** the worktree target of `lane prewrite --patch`.
 4. **The class is swept once by the whole suite.**
    - **Rests on:** the six modules run so far, which are a sample.
@@ -96,10 +95,8 @@ Non-Goals:
 
 ## Risks / Trade-offs
 
-- On Windows a temporary path can be written in a short form. If Git does not match the ceiling
-  to it, the workspace is left as it was and the admission refuses: a refusal of a patch that
-  is right, and never an admission of one that is wrong. The suite's Windows leg runs the
-  regression. A patch that changes a file's mode alone shows no effect on a platform without
-  executable bits and is refused there.
-- A later caller that applies a patch in a workspace of its own must pass the same ceiling. The
-  helper takes it from its own directory, so a caller cannot forget it.
+- Each admission of a patch starts one more Git process.
+- In a repository Git reads the attributes of the files it finds. The workspace holds the named
+  files alone, so an attributes file counts only when the patch names it, with its content
+  before the patch; the preimage check in the repository already reads the same file.
+- A repository that added a link through a patch must add it through the worktree target.

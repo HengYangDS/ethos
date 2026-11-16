@@ -33,12 +33,15 @@ launching environment.
 
 ## What Changes
 
-- Patch admission applies a patch in a workspace that Git reads as no part of any repository,
-  wherever the process's temporary directory lies.
+- Patch admission applies a patch in a workspace that is a repository of its own, wherever the
+  process's temporary directory lies, and refuses a patch that declares a symbolic link or a
+  submodule entry.
 
 Not breaking: on a host whose temporary directory lies outside every repository nothing changes.
 On a host whose temporary directory lies inside one, an admission that was wrong becomes right:
-some patches that passed are now refused, and the dated Change's move passes.
+some patches that passed are now refused, and the dated Change's move passes. A patch that
+declares a link was admitted without what the link names being read, and is now refused on
+every host.
 
 ## Capabilities
 

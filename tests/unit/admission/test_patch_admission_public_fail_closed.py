@@ -137,10 +137,10 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
 def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_work_tree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """Git skips a patch's paths in a workspace inside another checkout; no such run admits.
+    """Git skips a patch's paths in a plain directory inside another checkout.
 
-    Where Git's ceiling holds, the verdict is the one from outside a checkout. A directory whose
-    name holds the separator of a path list defeats the ceiling, and the admission then refuses.
+    The verdict is the one from outside a checkout, also where the directory's name holds the
+    separator of a path list, which defeats a ceiling on Git's discovery.
     """
     repo, _head = _repository(tmp_path)
     script = "tools/run.sh"
@@ -164,9 +164,7 @@ def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_w
 
     refused = "product_reference_not_admitted_at_baseline:executable:frobnicate"
     assert (outside["verdict"], outside["reason"]) == ("block", refused)
-    # The workspace's own module reads which failure of the postimage step this is.
-    expected = refused if name == "build" else "prewrite_patch_postimage_failed"
-    assert (inside["verdict"], inside["reason"]) == ("block", expected)
+    assert (inside["verdict"], inside["reason"]) == ("block", refused)
 
 
 @pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app", "retire"])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -44,11 +45,14 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
     gates = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))["gates"]
     (deadline,) = (gate["timeout_seconds"] for gate in gates if gate["id"] == "unit-architecture")
     commit = jobs["quality"]["if"][4:-3]
+    model = (ROOT / ".config/ci/pipeline.cue").read_text(encoding="utf-8")
+    (margin,) = re.findall(r"^let suiteSetupSeconds = (\d+)$", model, flags=re.MULTILINE)
     for name, job in legs.items():
         # A push or pull request runs no leg; a batch head or the drift schedule runs each.
         assert job["if"] == f"${{{{ ({commit}) && ({FULL} || github.event_name == 'schedule') }}}}"
-        # The test gate's deadline bounds the leg's suite; the model's own test below shows
-        # that it refuses a job that does not outlive the deadline by its setup margin.
+        # The test gate's deadline bounds the leg's suite, and each generated job outlives it
+        # by the model's own setup margin; the test below drives the model to its refusal.
+        assert job["timeout-minutes"] * 60 >= deadline + int(margin)
         suite, upload = job["steps"][-2:]
         assert suite["run"] == f"uv run --frozen python -m nox -s suite_leg -- {deadline}"
         # The probe copies the leg's reports to the root that the upload reads, also on failure.

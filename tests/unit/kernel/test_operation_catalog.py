@@ -198,8 +198,9 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         (f"host status {ACTOR_FLAG} agent:a:b:c", "host.status"),
         (f"lane status {ACTOR_FLAG}=agent:a:b:c --json", "lane.status"),
         (f"lane status {ACTOR_FLAG}", ""),
-        # `host run` leaves the flag to its child: there it is a word, with a value after it
-        # and also without one.
+        # `host run` leaves the flag to its child. The selection shows it only where the
+        # flag has no value: taken as an option, it would select nothing there. With a
+        # value the argv selects `host.run` either way, so that row pins the operation.
         (f"host run git {ACTOR_FLAG} agent:a:b:c status", "host.run"),
         (f"host run git status {ACTOR_FLAG}", "host.run"),
         ("host run git -C x status --json", "host.run"),

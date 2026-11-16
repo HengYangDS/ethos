@@ -163,6 +163,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
   defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
   releases, keep the temporary directory outside every checkout.
+- A command that passes its time bound reports that bound as its timeout on every supported
+  interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
+  when the wait began, a little less than the bound, where no stream of the command was a pipe.
 - A full proof that cannot open the host queue, take its place in it or give that place up
   answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
   error itself, in 0.2.0-beta.10 and 0.2.0-beta.11 as well, in place of a gap or an interrupt

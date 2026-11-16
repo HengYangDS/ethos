@@ -70,6 +70,19 @@
       the three durations are written where the next editor of the model's timeout table reads
       them; they are the `suite` class's first samples.
 
+## 6. Findings of the first run
+
+- [ ] 6.1 Report a command's bound as its timeout on every interpreter, in
+      `src/ethos/adapters/process.py`. Done when the regression fails without the change and
+      the Python 3.12 leg passes `tests/unit/adapters/process/test_capture.py`.
+- [ ] 6.2 Change the runtime identity test's interpreter tag to one that the running
+      interpreter does not hold. Done when the Python 3.13 leg passes
+      `tests/unit/adapters/repo/runtime/test_selection.py`.
+- [ ] 6.3 Name a failed leg's diagnostics in the session's error. Done when the session's test
+      reads them, and a leg that fails before pytest starts shows its cause in the job's log.
+- [ ] 6.4 Run the whole suite at Python 3.12 and at Python 3.13 without the stop at the first
+      failure. Done when each failure is repaired in this Change or named with its owner.
+
 ## Workflow follow-up
 
 - Delivery: read the first scheduled run after this Change reaches the default branch. It runs

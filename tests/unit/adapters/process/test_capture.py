@@ -314,6 +314,22 @@ def test_uncooperative_native_command_is_killed_and_reaped(
         assert closed()
 
 
+def test_a_timeout_reports_its_bound_whatever_the_interpreter_reports(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CPython 3.12 reports the time that was left when no stream is a pipe."""
+
+    def left(self: subprocess.Popen[bytes], **options: float) -> None:
+        raise subprocess.TimeoutExpired(self.args, options["timeout"] / 2)
+
+    monkeypatch.setattr(subprocess.Popen, "communicate", left)
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        process_adapter.run_command(
+            tmp_path, (sys.executable, "-c", "pass"), timeout=8, spool_stdout=True
+        )
+    assert caught.value.timeout == 8
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX shared cancellation budget")
 def test_nested_scope_cancels_all_registered_groups_with_one_budget(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

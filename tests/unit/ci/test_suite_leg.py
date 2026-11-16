@@ -18,7 +18,7 @@ def test_a_suite_leg_runs_the_probe_as_a_leg_within_the_named_deadline(
     tmp_path, monkeypatch, verdict
 ) -> None:
     """The probe finds the repository's Mise first on its path; a leg that does not pass fails."""
-    report = {"verdict": verdict, "required_gaps": ["a_gap"]}
+    report = {"verdict": verdict, "required_gaps": ["a_gap"], "diagnostics": [{"cause": "why"}]}
     opened: list[object] = []
 
     @contextmanager
@@ -42,7 +42,9 @@ def test_a_suite_leg_runs_the_probe_as_a_leg_within_the_named_deadline(
     if verdict == "pass":
         sessions.suite_leg(session)
     else:
-        with pytest.raises(pytest.fail.Exception, match=r"suite leg failed: \['a_gap'\]"):
+        # A refusal that never reached pytest has no output: the error names its diagnostics.
+        named = r"suite leg failed: \['a_gap'\] \[\{'cause': 'why'\}\]$"
+        with pytest.raises(pytest.fail.Exception, match=named):
             sessions.suite_leg(session)
 
     probe.assert_called_once_with(sessions.ROOT, timeout_seconds=7200, leg=True)

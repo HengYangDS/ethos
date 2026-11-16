@@ -452,7 +452,13 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        _unpiped, stderr = process.communicate(timeout=timeout)
+        try:
+            _unpiped, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            # CPython 3.12 reports the time that was left when no stream is a pipe; every
+            # interpreter reports the bound.
+            error.timeout = error.timeout if timeout is None else timeout
+            raise
         if diagnostic is not None:
             scope.terminate(process)
             stderr = _decoded(_written(diagnostic), text=text_mode, encoding=encoding)

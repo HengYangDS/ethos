@@ -300,7 +300,8 @@ def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
         )
     environment = manifest.environment
     if changed_source in {"source", "wheel", "target"}:
-        environment = environment._replace(python_abi="cpython-313")
+        other = "cpython-312" if environment.python_abi == "cpython-313" else "cpython-313"
+        environment = environment._replace(python_abi=other)
     wheel_sha256 = "d" * 64 if changed_source == "wheel" else manifest.wheel_sha256
     runtime_files = runtime_file_inventory(second_staging)
     digest = runtime_digest(

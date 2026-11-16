@@ -156,7 +156,9 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
      transition attests the identity that admission named and refuses
      `identity_transition_attestation_mismatch` when the set returns another, so a record that
      another writer made in between is reported by the next run and never stands in for this
-     one.
+     one. Which record agrees with a candidate is one rule, `identities_agree`, that admission
+     and the choice of the standing record both apply, so the choice does not rest on the
+     check that ran before it. A refusal that carries no gap still blocks, named by its class.
    - **Applies to:** the states `ready`, `accepted` and `unchanged`. A passing preview's next step
      is the apply with the checksum file's absolute path; the other two are done. `unchanged`
      carries the recorded identity, so a checksum file presented after a record without the

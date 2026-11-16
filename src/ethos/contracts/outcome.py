@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -128,6 +129,24 @@ def outcome_of(error: BaseException, *, fallback: str = "") -> Outcome:
     if isinstance(error, OutcomeError):
         return error.outcome
     return Outcome.of("block", str(error).strip() or fallback or type(error).__name__)
+
+
+def refused_gaps(error: BaseException) -> tuple[str, ...]:
+    """Return the gaps a refusal carries, and never none: one without a gap is named by its class.
+
+    A result that takes its verdict from its gaps would read a refusal without one as a pass.
+    """
+    return outcome_of(error).gaps or (type(error).__name__,)
+
+
+def os_error_gap(code: str, error: OSError) -> str:
+    """Name an operating system error under a registered code by its errno name.
+
+    Its message holds a path, which no result prints; an error without a known number is the
+    code alone.
+    """
+    name = errno.errorcode.get(error.errno or 0)
+    return f"{code}:{name}" if name else code
 
 
 def gate_outcome(checks: Iterable[Mapping[str, object]]) -> Outcome:

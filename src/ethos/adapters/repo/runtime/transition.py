@@ -19,6 +19,7 @@ from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identities
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import checksum_bound_release
+from ethos.repository.release.admission import identities_agree
 from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
@@ -83,9 +84,11 @@ def _admitted(
     accepted = accepted_release_identities(attestations)
     if gaps := release_identity_admission_gaps(release, accepted):
         refuse(*gaps)
-    # Admission left only a record that this candidate equals, or differs from in a checksum
-    # binding that one of the two lacks. That record is the version's identity.
-    recorded = next((item for item in accepted if item[:2] == release[:2]), None)
+    # The version's identity is a record of the same build that agrees with this candidate: it
+    # equals it, or differs only in a checksum binding that one of the two lacks. The rule is
+    # admission's own, applied here too, so that no other record is ever answered.
+    agreed = (item for item in accepted if item.build == release.build)
+    recorded = next((item for item in agreed if identities_agree(item, release)), None)
     return recorded or release, recorded is not None
 
 

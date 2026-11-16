@@ -97,6 +97,16 @@ def checksum_bound_release(
     )
 
 
+def identities_agree(existing: AcceptedReleaseIdentity, candidate: AcceptedReleaseIdentity) -> bool:
+    """Whether two identities of one source are one release.
+
+    They hold the same wheel, and no two different checksum files: a binding that one of them
+    lacks is no disagreement.
+    """
+    sums = {existing.checksums_sha256, candidate.checksums_sha256} - {""}
+    return existing.wheel_sha256 == candidate.wheel_sha256 and len(sums) < 2
+
+
 def release_identity_admission_gaps(
     candidate: AcceptedReleaseIdentity,
     prior: tuple[AcceptedReleaseIdentity, ...],
@@ -113,8 +123,7 @@ def release_identity_admission_gaps(
             continue
         if existing.build[2:4] != candidate.build[2:4]:
             return (f"accepted_version_source_conflict:{candidate.build.product_version}",)
-        sums = {existing.checksums_sha256, candidate.checksums_sha256} - {""}
-        if existing.wheel_sha256 != candidate.wheel_sha256 or len(sums) > 1:
+        if not identities_agree(existing, candidate):
             return (f"accepted_version_artifact_conflict:{candidate.build.product_version}",)
     return ()
 

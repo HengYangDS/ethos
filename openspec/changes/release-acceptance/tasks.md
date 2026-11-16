@@ -44,6 +44,10 @@
       the registry row's repair.
 - [ ] 2.8 Order the installed and the committed version as SemVer texts. Done when a committed
       version outside the wheel profile refuses as older or newer, by a registered code.
+- [ ] 2.9 Choose the standing record by the admission's own rule, and block on a refusal that
+      carries no gap. Done when, with the admission's refusal removed, a candidate bound to
+      another checksum file is not answered with the record, and a refusal without a gap
+      blocks under its class's name.
 
 ## 3. Documents
 

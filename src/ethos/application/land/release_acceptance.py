@@ -6,7 +6,6 @@ the version the accepted branch commits, built from the commit that the version'
 accepted identity binds the release's checksum file; the wheel and the Attestation are written once.
 """
 
-import errno
 import shlex
 from pathlib import Path
 
@@ -23,8 +22,9 @@ from ethos.adapters.repo.runtime.transition import materialize_explicit_release
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.codes.gaps import repair_for
 from ethos.contracts.operations.release import AcceptRequest
-from ethos.contracts.outcome import outcome_of
+from ethos.contracts.outcome import os_error_gap
 from ethos.contracts.outcome import refuse
+from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.outcome import require
 from ethos.repository.release.configuration import is_product_root
 from ethos.repository.release.identity import BuildIdentity
@@ -68,7 +68,7 @@ def accept_release(root: Path, request: AcceptRequest) -> EthosResult:
     except OSError:
         return _refused("release_acceptance_input_unreadable")
     except ValueError as error:
-        return _refused(*outcome_of(error).gaps)
+        return _refused(*refused_gaps(error))
     if request.apply and not held:
         try:
             release = materialize_explicit_release(
@@ -80,11 +80,9 @@ def accept_release(root: Path, request: AcceptRequest) -> EthosResult:
             )
         except OSError as error:
             # The inputs were just read, so this is the store or the set; name the error only.
-            name = errno.errorcode.get(error.errno or 0)
-            gap = "release_acceptance_store_unavailable"
-            return _refused(f"{gap}:{name}" if name else gap)
+            return _refused(os_error_gap("release_acceptance_store_unavailable", error))
         except ValueError as error:
-            return _refused(*outcome_of(error).gaps)
+            return _refused(*refused_gaps(error))
     # The apply names the file by its absolute path, so it runs from any working directory.
     checksums = str(request.checksums.resolve())
     apply = ("ethos", *_COMMAND.split(), "--checksums", checksums, "--apply")

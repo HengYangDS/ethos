@@ -15,9 +15,9 @@ Measured by that session on its two runs, and relayed to the release lead on 202
 - The scripts are six files of 417 lines together.
 - Their own defects cost three host proofs and one wrong first result: an admission wait of one
   hour inside a deadline of 130 minutes; a clone made without its remote, which one governed
-  tree's release test needs; a launch from the harness's shell, under which one proof failed a
-  test that it passed from an empty environment, for a cause that is not established; and a
-  reader that took an absent key for zero, caught before use.
+  tree's release test needs; a launch from the harness's shell after the harness had removed
+  Mise's activation variables alone, under which one proof failed a test that it passed from
+  an empty environment; and a reader that took an absent key for zero, caught before use.
 - The second run took 8 hours 40 minutes for ten trees, one proof at a time behind the host
   queue, and its last tree needed three proofs before the candidate's own result could be read.
 
@@ -47,8 +47,9 @@ Candidates for a design; none is decided.
   projection's patch as a result of the candidate that the run applies. Neither weakens the
   refusal in a governed root.
 - The proof's environment. One proof of the second run failed from the harness's shell and
-  passed from an empty environment; `gate-environment` holds the observation. The command
-  launches each proof from an environment that it builds, and copies no repair.
+  passed from an empty environment; `gate-environment` holds the cause, a declared command
+  gate that receives the launching environment. The command launches each proof from an
+  environment that it builds, and copies no repair.
 - The result is the record that `second-reader-record` asks for the copies run: its subject, its
   reader and what was not run. The release's tag condition reads that record in place of a file
   that the release lead writes by hand.

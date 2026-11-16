@@ -162,8 +162,10 @@ def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_w
     monkeypatch.setattr(tempfile, "tempdir", str(checkout))
     inside = admitted()
 
-    assert outside["reason"] == "product_reference_not_admitted_at_baseline:executable:frobnicate"
-    expected = outside["reason"] if name == "build" else "prewrite_patch_postimage_failed"
+    refused = "product_reference_not_admitted_at_baseline:executable:frobnicate"
+    assert (outside["verdict"], outside["reason"]) == ("block", refused)
+    # The workspace's own module reads which failure of the postimage step this is.
+    expected = refused if name == "build" else "prewrite_patch_postimage_failed"
     assert (inside["verdict"], inside["reason"]) == ("block", expected)
 
 

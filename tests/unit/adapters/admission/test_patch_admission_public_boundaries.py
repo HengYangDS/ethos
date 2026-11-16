@@ -9,6 +9,7 @@ import pytest
 import tomli_w
 
 import ethos.adapters.admission.patch_admission as admission
+import ethos.adapters.admission.patch_workspace as workspace
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.contracts.gates import Gate
@@ -126,7 +127,7 @@ def test_patch_admission_reports_failed_postimage_apply(
     repo, head = _repository(tmp_path)
     calls = 0
 
-    real_run = admission.run_git
+    real_run = workspace.run_git
 
     def fail_second_apply(root: Path, *args: str, **kwargs):
         nonlocal calls
@@ -136,7 +137,8 @@ def test_patch_admission_reports_failed_postimage_apply(
         calls += 1
         return completed if calls == 1 else completed.__class__(completed.args, 1, "", "")
 
-    monkeypatch.setattr(admission, "run_git", fail_second_apply)
+    # The check of the preimage and the workspace's apply both run in the workspace's owner.
+    monkeypatch.setattr(workspace, "run_git", fail_second_apply)
 
     report = patch_admission(
         root=repo, requested_paths=("safe.txt",), baseline_head=head, patch=_change_patch()

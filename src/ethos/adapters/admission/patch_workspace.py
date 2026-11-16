@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import stat
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -36,9 +37,17 @@ def _within(directory: Path, path: str) -> Path:
     return directory / relative
 
 
-def _state(path: Path) -> tuple[int, bytes] | None:
-    """Return the file's executable bits and bytes, or nothing where no file is."""
-    return (path.stat().st_mode & 0o111, path.read_bytes()) if path.is_file() else None
+def _state(path: Path) -> tuple[object, ...] | None:
+    """Return what the entry itself is, never what a link names; nothing where no entry is."""
+    try:
+        mode = path.lstat().st_mode
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    if stat.S_ISLNK(mode):
+        return "link", path.readlink()
+    if stat.S_ISREG(mode):
+        return "file", mode & 0o111, path.read_bytes()
+    return "other", stat.S_IFMT(mode)
 
 
 @contextmanager
@@ -48,8 +57,9 @@ def patched_workspace(
     """Yield a directory of the patched files, and each named path's text as the patch leaves it.
 
     Git's exit status alone does not prove the effect: a workspace that Git reads as part of
-    another repository is left as it was. Each change must show in the workspace, so such a run
-    is refused and never read as the postimage.
+    another repository is left as it was. Git applies a patch whole or not at all, so one path
+    that shows a change proves the apply ran, and a run that shows none is refused and never
+    read as the postimage.
     """
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
@@ -68,9 +78,11 @@ def patched_workspace(
             str(change["path"]): _within(workspace, str(change["path"])) for change in changes
         }
         before = {path: _state(target) for path, target in targets.items()}
-        applied = patch_applies(workspace, patch)
-        if not applied or any(_state(target) == before[path] for path, target in targets.items()):
+        if not patch_applies(workspace, patch):
             msg = "prewrite patch postimage application failed"
+            raise ValueError(msg)
+        if all(_state(target) == before[path] for path, target in targets.items()):
+            msg = "prewrite patch left the workspace as it was"
             raise ValueError(msg)
         yield (
             workspace,

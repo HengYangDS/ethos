@@ -4,9 +4,8 @@
 
 Patch admission SHALL report every product reference of a patch that its baseline does not own,
 in stable order, so that one admission names every declaration the repository lacks. It SHALL
-read the patch's postimage from a workspace in which every change of the patch took effect,
-wherever the process's temporary directory lies, and SHALL refuse a patch whose effect the
-workspace does not show.
+read the patch's postimage from a workspace in which the patch took effect, wherever the
+process's temporary directory lies, and SHALL refuse a patch that left the workspace as it was.
 
 #### Scenario: A patch consumes two unowned references
 
@@ -23,5 +22,5 @@ workspace does not show.
 
 #### Scenario: Git leaves the workspace as it was
 
-- **WHEN** Git reports success for the patch and a file that the patch changes is as it was
+- **WHEN** Git reports success for the patch and every path that the patch names is as it was
 - **THEN** the admission refuses with `prewrite_patch_postimage_failed`

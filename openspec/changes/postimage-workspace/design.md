@@ -63,12 +63,18 @@ Non-Goals:
    - **Considered:** quoting or resolving the ceiling, which closes that one case and leaves
      every other reason for which Git may not honor it, such as a short path form on Windows;
      and a Git directory in each workspace, which costs one more process for each admission.
-   - **Chosen because:** the check does not depend on why Git left the workspace alone. A
-     created path must exist, a deleted one must be gone, and a changed one must differ in
-     bytes or in its executable bits from the copy made before the apply; otherwise the
-     admission refuses with the gap it already has for a failed apply.
-   - **Applies to:** every change of a patch, in the workspace's owner, which is its own
-     module since the admission module is at its line ceiling.
+   - **Chosen because:** the check does not depend on why Git left the workspace alone. Each
+     named path is read as the entry it is, a file with its bytes and executable bits, a link
+     with its target, or nothing, before the apply and after it. Git applies a patch whole or
+     not at all, so one path that differs proves the apply ran; a workspace in which no path
+     differs is refused with the gap that a failed apply already has. A first form required
+     every path to differ; the model review showed three valid patches that it refused: a
+     creation at a path that a move in the same patch vacates, a new link, and a new submodule
+     entry.
+   - **Applies to:** the workspace's owner, which is its own module since the admission module
+     is at its line ceiling. A patch whose only change the work tree already holds, such as a
+     mode change that was made by hand, shows no effect and is refused; the release before
+     admitted it on Git's exit status.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.

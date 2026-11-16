@@ -320,7 +320,8 @@ def prepare_source_format(
     names the record files it keeps, and no formatter reads them.
     """
     authored = authored_source_files(root, paths=paths)
-    selected = tuple(item for item in _selected_files(root, paths, authored) if item[0] not in kept)
+    held = frozenset(kept)
+    selected = tuple(item for item in _selected_files(root, paths, authored) if item[0] not in held)
     if invalid := authored_text_gaps(root, authored_text_files(root, authored)):
         raise ValueError(invalid[0])
     return _postimages(root, selected)

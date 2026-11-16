@@ -53,15 +53,26 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
     return [path for path in listed if path not in deleted]
 
 
+def _local_base(root: Path) -> str:
+    """Name the merge base with the local accepted branch; empty where none can be read."""
+    try:
+        accepted = load_branch_role_policy(root).accepted_branch
+    except (OSError, ValueError):
+        return ""
+    return run_git(root, "merge-base", "HEAD", accepted, check=False).stdout.strip()
+
+
 def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, list[str]]:
     """Return the local base and the declared record files that a format apply leaves alone.
 
     The base is the merge base with the local accepted branch, and the apply leaves alone each
     record file that it holds unchanged. Without one the base is named `unresolved` and the apply
-    leaves every file under a declared record root alone. A caller that names its paths asks for
-    them, and a profile without a declared record root has no base to name. No gate reads this as
-    a verdict: a hosted checkout has no local accepted branch, so a gate judges every record file.
-    The paradigm's captured roots are never authored input, so they are not read here.
+    leaves every file under a declared record root alone. A base that cannot be read is no base:
+    only the repair needs it, so the binding that names the accepted branch and the base's tree
+    fail no caller. A caller that names its paths asks for them, and a profile without a declared
+    record root has no base to name. No gate reads this as a verdict: a hosted checkout has no
+    local accepted branch, so a gate judges every record file. The paradigm's captured roots are
+    never authored input, so they are not read here.
     """
     profile = load_repository_profile(root)
     if profile.state == "invalid":
@@ -70,13 +81,15 @@ def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, lis
     roots = [item for item in effective_record_roots(profile) if not item.startswith(captured)]
     if paths or not roots:
         return "", []
-    accepted = load_branch_role_policy(root).accepted_branch
-    base = run_git(root, "merge-base", "HEAD", accepted, check=False).stdout.strip()
-    if not base:
-        return "unresolved", quality_source_files(root, *roots)
-    held = run_git(root, "ls-tree", "-r", "-z", "--name-only", base, "--", *roots)
-    changed = run_git(root, "diff", "-z", "--name-only", "--no-renames", base, "--", *roots)
-    return base, sorted({*held.stdout.split("\0")} - {*changed.stdout.split("\0")} - {""})
+    base = _local_base(root)
+    if base:
+        scope = (base, "--", *roots)
+        held = run_git(root, "ls-tree", "-r", "-z", "--name-only", *scope, check=False)
+        changed = run_git(root, "diff", "-z", "--name-only", "--no-renames", *scope, check=False)
+        if not (held.returncode or changed.returncode):
+            names = {*held.stdout.split("\0")} - {*changed.stdout.split("\0")} - {""}
+            return base, sorted(names)
+    return "unresolved", quality_source_files(root, *roots)
 
 
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:

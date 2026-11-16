@@ -111,7 +111,10 @@ Non-Goals:
      for the record a lane just wrote; and keeping nothing, which is the behavior at the base.
    - **Chosen because:** the record a lane adds or edits is its own work, and the apply repairs
      it; what the accepted branch holds is not. Without a local accepted branch the apply keeps
-     every file under a declared record root and names the base `unresolved`.
+     every file under a declared record root and names the base `unresolved`. A base that
+     cannot be read is no base either: the binding that names the accepted branch, or the
+     base's tree. The reader then answers as it does without a base, so the read fails no
+     caller.
    - **Applies to:** the preview and apply without paths. Naming a record asks for its repair.
 5. **Kept records are reported by path.**
    - **Rests on:** no measurement of the alternative; its size was not built. The reports of
@@ -119,7 +122,8 @@ Non-Goals:
    - **Considered:** reporting nothing, which hides what the apply left alone and why.
    - **Chosen because:** `record_base` and `record_paths` tell the reader which base was read and
      which files the apply keeps, at the cost of two fields. In a gate they are information and
-     decide nothing.
+     decide nothing: the read that fills them cannot fail a gate or the format check, which
+     the first form of this Change let it do through a base that could not be read.
    - **Applies to:** the three format reports. Both fields are empty when a request names its
      paths or the profile declares no record root.
 6. **A declared root needs no migration (question 2).**

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 from ethos.adapters.gates.formatting import source_format_report
 from ethos.adapters.mutation.source_format import format_source
@@ -80,6 +82,45 @@ def test_gates_judge_every_record_and_the_repair_keeps_older_ones(
         assert spacing["required_gaps"] == [f"markdown_list_spacing:{path}:7" for path in judged]
     (root / ".ethos/profile.toml").write_text("record_roots = 1\n", encoding="utf-8")
     assert format_source(root, paths=paths)["required_gaps"] == [INVALID_PROFILE_ERROR]
+
+
+_GIT = native_inputs.run_git
+
+
+def _no_policy(_root: Path) -> None:
+    raise PermissionError(errno.EACCES, "Permission denied")
+
+
+def _no_tree(root: Path, *args: str, **kwargs: object) -> object:
+    """Answer every Git read but the listing of a tree, which fails as an absent object does."""
+    return _GIT(root, *(("ls-tree", "0" * 40) if args[0] == "ls-tree" else args), **kwargs)
+
+
+_UNREAD = {"policy": ("load_branch_role_policy", _no_policy), "tree": ("run_git", _no_tree)}
+
+
+@pytest.mark.parametrize("unread", list(_UNREAD))
+def test_a_base_that_cannot_be_read_is_no_base_and_changes_no_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unread: str
+) -> None:
+    """Only the repair reads the local base: unread, it keeps every record, and gates judge all."""
+    root = init_git_repo(tmp_path / "repo")
+    write_test_profile(root, record_roots=(_ROOT,))
+    write_tree(root, {f"{_ROOT}old.md": _DRIFT})
+    commit_fixture(root, "docs: accept a record")
+    git(root, "checkout", "-q", "-b", "work/records")
+    write_tree(root, {f"{_ROOT}new.md": _DRIFT})
+    commit_fixture(root, "docs: add a record")
+    monkeypatch.setattr(native_inputs, *_UNREAD[unread])
+    records = _records("new", "old")
+    drift = [f"source_format_drift:{path}" for path in records]
+
+    gate = source_format_report(root)
+    reported = (gate["required_gaps"], gate.get("record_base"), gate.get("record_paths"))
+    assert reported == (drift, "unresolved", records)
+    assert format_source(root, check=True)["required_gaps"] == drift
+    markdown = gate_tool.markdown_lint_report(root)["native"][0]
+    assert (markdown["record_base"], markdown["record_paths"]) == ("unresolved", records)
 
 
 def test_the_apply_rewrites_no_record_that_the_base_holds_unchanged(

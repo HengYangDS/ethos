@@ -57,9 +57,11 @@ as `record_paths`.
 
 #### Scenario: The base does not resolve
 
-- **WHEN** the checkout has no local accepted branch
+- **WHEN** the checkout has no local accepted branch, or the binding that names it or the base's
+  tree cannot be read
 - **THEN** `record_base` is `unresolved`, `record_paths` names every file under the declared root
-  and the repair would rewrite none of them.
+  and the repair would rewrite none of them
+- **AND** the format gates and the format check report the drift they report with a base.
 
 #### Scenario: A record is named
 

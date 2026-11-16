@@ -190,7 +190,9 @@ selected runtime, so the bytes that run are the bytes it accepts. The preview ch
 writes nothing, and its next action is the exact apply. The apply stores the release's wheel in the
 repository's package store and records the accepted release identity, which binds the version, the
 source commit and tree, the digest of `SHA256SUMS` and every wheel and archive that file lists. A
-second run reads `unchanged` and writes nothing.
+second run reads `unchanged`, writes nothing and reports the identity that the set records. A
+version that was recorded without its checksum file keeps that record: the file presented now is
+checked against the wheel and is not recorded.
 
 Each of these refusals comes before any effect and names its repair:
 
@@ -202,7 +204,13 @@ Each of these refusals comes before any effect and names its repair:
   tag names.
 - `accepted_release_checksum_mismatch:<file>`: the checksum file does not list the installed wheel
   with its digest.
-- `release_acceptance_product_only`: the repository does not declare the product profile.
+- `release_acceptance_product_only`: the repository does not declare the product profile. A
+  profile that cannot be read refuses with its own gap, `repository_profile_invalid:<path>`.
+
+An apply that cannot write the package store or the Attestation set refuses with
+`release_acceptance_store_unavailable:<error name>`, where the name is the operating system's,
+such as `ENOSPC`. Make the Git common directory writable, with free space, and repeat the
+request.
 
 The operation does not verify the checksum file's attestation; verify the file before the preview.
 Reinstalling the predecessor as the global `ethos` undoes a bad global release. Do it before the

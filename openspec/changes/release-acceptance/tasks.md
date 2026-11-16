@@ -9,6 +9,13 @@
 - [ ] 1.2 Read the report in `observe_publication` and name its step in
       `blocked_publication_action`. Done when a publication of a release tag blocks with the
       policy's gap and its next step, and the publication tests that passed before still pass.
+- [ ] 1.3 Print the policy report in the publication result and state the tree it reads. Done
+      when a blocked release-tag publication carries the report under `data.release_policy`,
+      and the design, the delta and the release guide say that the report reads the checkout.
+- [ ] 1.4 Raise the profile's own gap from `is_product_root` for a profile that cannot be read.
+      Done when `release accept` in such a root refuses with `repository_profile_invalid:<path>`.
+- [ ] 1.5 Read the product tree's own policy once, from the root that holds the test. Done when
+      that test passes from any working directory.
 
 ## 2. The operation
 
@@ -26,6 +33,17 @@
       `unchanged` with the same set root and the same stored file.
 - [ ] 2.4 Register the six new gap codes with their repairs. Done when
       `tests/architecture/test_gap_registry.py` passes.
+- [ ] 2.5 Have admission answer with the recorded identity, and report it. Done when a version
+      recorded without the binding reads `unchanged` with the recorded identity on a preview
+      and on an apply that presents the checksum file, and the set does not change.
+- [ ] 2.6 Restore the transition's exact Attestation check and read the wheel once. Done when a
+      record that another writer made refuses with `identity_transition_attestation_mismatch`,
+      and a wheel that changes after it was read is stored with the admitted bytes.
+- [ ] 2.7 Name a failed store or Attestation write by its own registered code. Done when a
+      write that meets `ENOSPC` refuses with `release_acceptance_store_unavailable:ENOSPC` and
+      the registry row's repair.
+- [ ] 2.8 Order the installed and the committed version as SemVer texts. Done when a committed
+      version outside the wheel profile refuses as older or newer, by a registered code.
 
 ## 3. Documents
 

@@ -6,10 +6,11 @@ the version the accepted branch commits, built from the commit that the version'
 accepted identity binds the release's checksum file; the wheel and the Attestation are written once.
 """
 
+import errno
 import shlex
 from pathlib import Path
 
-from packaging.version import Version
+from semver import Version
 
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_stdout
@@ -43,9 +44,12 @@ def _installed_release(root: Path) -> tuple[Path, BuildIdentity]:
     accepted = ref_head(root, load_branch_role_policy(root).accepted_branch)
     version = committed_release_version(root, accepted)["version"]
     held = installed.build.product_version
-    if Version(held) < Version(version):
+    # Both are SemVer texts, so SemVer orders them; the wheel profile would refuse to read a
+    # committed version outside it.
+    order = Version.parse(held).compare(version)
+    if order < 0:
         refuse(f"release_installation_older:{held}")
-    if Version(held) > Version(version):
+    if order > 0:
         refuse(f"release_installation_newer:{held}")
     commit = git_stdout(root, "rev-parse", "--verify", f"refs/tags/v{version}^{{commit}}")
     require(commit, f"release_tag_missing:v{version}")
@@ -61,18 +65,26 @@ def accept_release(root: Path, request: AcceptRequest) -> EthosResult:
         release, held = admit_explicit_release(
             root, wheel, expected_build=build, checksums=request.checksums
         )
-        if request.apply and not held:
-            materialize_explicit_release(
+    except OSError:
+        return _refused("release_acceptance_input_unreadable")
+    except ValueError as error:
+        return _refused(*outcome_of(error).gaps)
+    if request.apply and not held:
+        try:
+            release = materialize_explicit_release(
                 root,
                 wheel,
                 expected_build=build,
                 collision="release_wheel_digest_collision",
                 checksums=request.checksums,
             )
-    except OSError:
-        return _refused("release_acceptance_input_unreadable")
-    except ValueError as error:
-        return _refused(*outcome_of(error).gaps)
+        except OSError as error:
+            # The inputs were just read, so this is the store or the set; name the error only.
+            name = errno.errorcode.get(error.errno or 0)
+            gap = "release_acceptance_store_unavailable"
+            return _refused(f"{gap}:{name}" if name else gap)
+        except ValueError as error:
+            return _refused(*outcome_of(error).gaps)
     # The apply names the file by its absolute path, so it runs from any working directory.
     checksums = str(request.checksums.resolve())
     apply = ("ethos", *_COMMAND.split(), "--checksums", checksums, "--apply")

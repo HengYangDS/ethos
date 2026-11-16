@@ -83,6 +83,9 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
    - **Applies to:** a publication probe or apply whose target ref has the release tag role, in a
      root whose profile ID is the product's. Branches, transport tags, retirements of other roles
      and every other root read no product policy. Readiness without a target ref is not covered.
+     The report reads the checkout, as the repository audit beside it does, so it states the
+     tagged tree's policy only while the checkout's head is the tagged commit. A profile that
+     cannot be read raises the profile's own gap and is never read as another repository.
 3. **The gaps join the publication's own gaps, and the next step follows the topology's.**
    - **Rests on:** `observe_publication`, where each report's gaps close the local verdict, and
      `blocked_publication_action`, which names the first report that has a next step.
@@ -91,8 +94,9 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
    - **Chosen because:** one gap list and one ordered choice of step already exist. The audit and
      the topology name exact repairs for their own gaps, so they stay ahead; the policy's step is
      an instruction, since no single command repairs a version manifest or a host surface.
-   - **Applies to:** `required_gaps` and `next_action` of a blocked publication. The result's data
-     does not print the policy report.
+   - **Applies to:** `required_gaps`, `next_action` and `data.release_policy` of a publication
+     with a target ref. The data prints the report because no other command prints it: a gap
+     such as `package_version_mismatch` names no file, and its report does.
 4. **The release to accept is the invoked installation.**
    - **Rests on:** `selected_runtime_source`, which answers for a running package inside an
      immutable runtime and never for a source checkout; `run_console`, which would otherwise
@@ -125,7 +129,9 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
      accepted branch commits the next version, the previous release reads as older and is no
      longer accepted.
    - **Applies to:** the product root; any other root is `release_acceptance_product_only`. The
-     expected build is the tagged commit and its tree, never the accepted head.
+     expected build is the tagged commit and its tree, never the accepted head. The two
+     versions are ordered as SemVer texts, the form of both carriers, so a committed version
+     outside the wheel profile reads as older or newer and never as an unreadable one.
 6. **The checksum file is required.**
    - **Rests on:** the first half's decision 8: the acceptance of a release without its checksum
      file is removed at the contract step.
@@ -142,12 +148,21 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
    - **Considered:** calling the whole transition on every run, which touches the stored wheel
      each time; and a preview that repeats the admission's steps in the application module.
    - **Chosen because:** `admit_explicit_release` is the part of the transition before its first
-     effect, and it says whether the set already holds the identity. The preview and the second
-     run call it alone, so they write nothing; the apply calls the transition, which starts with
-     the same admission. The wheel is hashed for admission and read again for the write, and the
-     post-observation compares the stored bytes as before.
+     effect. It answers with the identity that stands: the candidate's when the set records
+     nothing for the version, and the recorded one when the set holds it equal or different
+     only in a checksum binding that one of the two lacks; and it says which. The preview and
+     the second run call it alone, so they write nothing; the apply calls the transition, which
+     reads the wheel once, admits the digest of those bytes and stores the same bytes. The
+     transition attests the identity that admission named and refuses
+     `identity_transition_attestation_mismatch` when the set returns another, so a record that
+     another writer made in between is reported by the next run and never stands in for this
+     one.
    - **Applies to:** the states `ready`, `accepted` and `unchanged`. A passing preview's next step
-     is the apply with the checksum file's absolute path; the other two are done.
+     is the apply with the checksum file's absolute path; the other two are done. `unchanged`
+     carries the recorded identity, so a checksum file presented after a record without the
+     binding is checked against the wheel and not reported as bound. An operating system error
+     of the apply, after its inputs were read, is `release_acceptance_store_unavailable` with
+     the error's name, not an unreadable input.
 8. **The module lives beside the land operations.**
    - **Rests on:** `CONTROL_PREFIXES`, which names `src/ethos/application/land/` and whose last
      widening needed the owner's acknowledgement; and the catalog's test that an entry of a group
@@ -159,13 +174,13 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
    - **Applies to:** `src/ethos/application/land/release_acceptance.py`.
 9. **Each new refusal carries its repair in the gap registry.**
    - **Rests on:** `repair_for`, the one owner of repair texts; the registry held 6 rows with a
-     repair at the base and holds 12 with this Change.
+     repair at the base and holds 13 with this Change.
    - **Considered:** a table of next steps in the application module, as the Attestation commands
      keep.
    - **Chosen because:** a second table restates what the registry owns. A transition gap without
      a registered repair gets one general instruction.
-   - **Applies to:** the six new codes. The step is an instruction, since each repair is an
-     installation, a tag or a file that no single ETHOS command provides.
+   - **Applies to:** the seven new codes. The step is an instruction, since each repair is an
+     installation, a tag, a file or a writable store that no single ETHOS command provides.
 10. **The break is the product's alone, and the reader already shipped.**
     - **Rests on:** the first half's decision 8 and its reader, released in 0.2.0-beta.11.
     - **Considered:** holding the writer one more release, which delays the first accepted
@@ -191,5 +206,10 @@ See the [proposal](proposal.md) and the [delta](specs/distribution/spec.md). "rc
   that the guide states, reinstalling the predecessor, belongs before the apply.
 - The publish refusal covers one repository. Until `release-ref-policy-report` lands, a governed
   repository's tag publishes without its release policy being read, as today.
+- The publish refusal reads the checkout. A release tag that names an earlier commit than the
+  checkout's head is judged by the checkout's tree, as the repository audit is. Reading the
+  tagged tree needs the report's readers to take a commit, which no Change does yet; refusing
+  a tag that the checkout does not name would end the publication of an earlier tag, which the
+  proof selection supports.
 - The hand-kept operation count in the catalog test moves from 107 to 109 here; two other Changes
   of the batch each add one operation, so the stack's count is theirs to merge.

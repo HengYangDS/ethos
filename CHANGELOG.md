@@ -69,8 +69,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   installation is a release build of the version the accepted branch commits
   (`release_installation_absent`, `release_installation_older`, `release_installation_newer`),
   built from the commit that the version's tag names. In the repository that declares the ETHOS
-  product profile, `ethos publish` refuses a release tag while the release policy holds a gap; a
-  governed repository's publication does not change. After the first applied acceptance in the
+  product profile, `ethos publish` refuses a release tag while the release policy of its
+  checkout holds a gap. Every publication result with a target ref prints the report under
+  `data.release_policy`; outside the product repository it passes with no gap, and that
+  repository's publication does not otherwise change. After the first applied acceptance in the
   product repository, an engine older than 0.2.0-beta.11 no longer reads the accepted identity
   set (`accepted_release_attestation_invalid`), so that repository's runtime rolls back no
   further than 0.2.0-beta.11.

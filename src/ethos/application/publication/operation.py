@@ -481,6 +481,7 @@ def _publication_result(
             "independent_verification": context.independent_verification,
             "proof_admission": dict(context.proof_admission),
             "remote_topology": context.topology,
+            "release_policy": context.release_policy,
             "remote_observations": observations,
             "push_admission": push_admission,
             "remote_effect": remote_effect,

@@ -1296,6 +1296,7 @@ refresh_evidence_ambiguous = { owner = "adapters.mutation" }
 refused = { owner = "adapters.mutation" }
 release_acceptance_input_unreadable = { owner = "application.land", repair = "pass the release's readable SHA256SUMS file with --checksums" }
 release_acceptance_product_only = { owner = "application.land", meaning = "Only the root that declares the ETHOS product profile accepts a release identity.", repair = "run the command in the repository that declares the product profile" }
+release_acceptance_store_unavailable = { owner = "application.land", meaning = "The apply could not write the package store or the Attestation set.", detail = "the operating system error's name", repair = "make the Git common directory writable and free space in it, then repeat the request" }
 release_accepted_root_required = { owner = "adapters.repo" }
 release_base_not_exact_ancestor = { owner = "adapters.repo" }
 release_base_signature_untrusted = { owner = "adapters.repo" }

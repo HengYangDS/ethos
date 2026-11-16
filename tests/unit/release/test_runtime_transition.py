@@ -198,13 +198,11 @@ def test_release_transition_attests_only_after_matching_post_observation(
         assert events == early.get(observation, late)
 
 
-@pytest.mark.parametrize("first", ["unbound", "bound"])
-def test_a_version_accepted_again_with_or_without_its_checksum_file_keeps_its_record(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, first: str
-) -> None:
-    """Admission accepts a candidate that differs only in the binding, so the transition ends."""
+def _release_case(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[BuildIdentity, Path, Path, Path]:
+    """Build a repository, the release wheel a transition is to accept, and its checksum file."""
     build = _BUILD_IDENTITY._replace(distribution_version="0.2.0a2")
-    repo = init_git_repo(tmp_path / "repo")
     wheel = tmp_path / "ethos-0.2.0a2-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
     checksums = tmp_path / "SHA256SUMS"
@@ -212,6 +210,15 @@ def test_a_version_accepted_again_with_or_without_its_checksum_file_keeps_its_re
         f"{hashlib.sha256(b'wheel').hexdigest()}  {wheel.name}\n", encoding="ascii"
     )
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda _path: build)
+    return build, init_git_repo(tmp_path / "repo"), wheel, checksums
+
+
+@pytest.mark.parametrize("first", ["unbound", "bound"])
+def test_a_version_accepted_again_with_or_without_its_checksum_file_keeps_its_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, first: str
+) -> None:
+    """Admission accepts a candidate that differs only in the binding, so the transition ends."""
+    build, repo, wheel, checksums = _release_case(tmp_path, monkeypatch)
     accept = partial(
         identity_transition.materialize_explicit_release,
         repo,
@@ -223,8 +230,45 @@ def test_a_version_accepted_again_with_or_without_its_checksum_file_keeps_its_re
     recorded = accept(checksums=earlier)
     members = read_attestation_set(repo)[1]
 
+    # Admission names that record before any effect, and says that the set holds it.
+    admit = partial(identity_transition.admit_explicit_release, repo, wheel, expected_build=build)
+    assert admit(checksums=later) == (recorded, True)
     # The version's one Attestation stands, and the transition returns the identity it records.
     assert accept(checksums=later) == recorded
     assert bool(recorded.checksums_sha256) is (first == "bound")
     assert read_attestation_set(repo)[1] == members
     assert accepted_release_identities(members) == (recorded,)
+
+
+def test_a_record_that_another_writer_made_without_the_binding_refuses_the_transition(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The transition attests the identity it admitted, or it refuses: no record stands in."""
+    build, repo, wheel, checksums = _release_case(tmp_path, monkeypatch)
+    bare = accepted_release_identity(build, wheel_sha256=hashlib.sha256(b"wheel").hexdigest())
+    won = accepted_release_attestation(bare, issued_at=datetime(2026, 8, 25, tzinfo=UTC))
+    monkeypatch.setattr(identity_transition, "record_attestation_once", lambda *_args: won)
+    with pytest.raises(ValueError, match="identity_transition_attestation_mismatch"):
+        identity_transition.materialize_explicit_release(
+            repo, wheel, expected_build=build, collision="wheel_collision", checksums=checksums
+        )
+
+
+def test_the_transition_stores_the_bytes_that_admission_hashed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A wheel that changes after it was hashed does not reach the store under that digest."""
+    build, repo, wheel, _checksums = _release_case(tmp_path, monkeypatch)
+    read = identity_transition.read_attestation_set
+    # Admission reads the set after it hashed the wheel; the wheel changes at that moment.
+    monkeypatch.setattr(
+        identity_transition,
+        "read_attestation_set",
+        lambda root: (wheel.write_bytes(b"other"), read(root))[1],
+    )
+    recorded = identity_transition.materialize_explicit_release(
+        repo, wheel, expected_build=build, collision="wheel_collision"
+    )
+    stored = repo / ".git/ethos/packages" / recorded.wheel_sha256 / wheel.name
+    assert recorded.wheel_sha256 == hashlib.sha256(b"wheel").hexdigest()
+    assert stored.read_bytes() == b"wheel"

@@ -67,9 +67,23 @@ host SHALL accept, once, the release that its invoked installation is.
 - **WHEN** an explicit release transition presents the source and wheel of a version whose identity
   is recorded, and the two identities are equal or differ only in a checksum binding that one of
   them lacks
-- **THEN** the transition completes and returns the recorded identity
+- **THEN** admission answers with the recorded identity and says that the set holds it
+- **AND** the transition completes and returns that identity
 - **AND** the version keeps its one release Attestation, so a checksum file presented after a
   record without the binding is checked and not recorded.
+
+#### Scenario: The set returns another record than the admitted identity
+
+- **WHEN** the Attestation set answers a transition with a record that is not the identity
+  its admission named, as when another writer recorded the version in between
+- **THEN** the transition refuses with `identity_transition_attestation_mismatch`
+- **AND** it returns no identity that it did not record.
+
+#### Scenario: The wheel changes while it is accepted
+
+- **WHEN** the wheel's bytes change after the transition read them
+- **THEN** the package store receives the bytes whose digest was admitted
+- **AND** no file is stored under a digest that is not its own.
 
 #### Scenario: The releasing host accepts the release it installed
 
@@ -82,9 +96,17 @@ host SHALL accept, once, the release that its invoked installation is.
 
 #### Scenario: An accepted release is accepted again
 
-- **WHEN** the same request runs after its identity is recorded
-- **THEN** the result's state is `unchanged`
+- **WHEN** the request runs after the version's identity is recorded, with the checksum binding
+  or without it
+- **THEN** the result's state is `unchanged`, on a preview and on an apply, and its data carries
+  the recorded identity
 - **AND** neither the package store nor the Attestation set changes.
+
+#### Scenario: The apply cannot write the store or the set
+
+- **WHEN** the apply meets an operating system error after its inputs were read
+- **THEN** it refuses with `release_acceptance_store_unavailable:<error name>`
+- **AND** the refusal's repair names the Git common directory, not the checksum file.
 
 #### Scenario: The invoked installation is not the release to accept
 
@@ -92,7 +114,9 @@ host SHALL accept, once, the release that its invoked installation is.
   release older or newer than the version that the accepted branch commits
 - **THEN** the acceptance refuses with `release_installation_absent`,
   `release_installation_older:<version>` or `release_installation_newer:<version>`
-- **AND** the refusal precedes every effect and names its repair.
+- **AND** the refusal precedes every effect and names its repair
+- **AND** the two versions are ordered as SemVer texts, so a committed version outside the
+  wheel profile reads as older or newer.
 
 #### Scenario: The release has no tag, or the installation has another source
 
@@ -106,7 +130,9 @@ host SHALL accept, once, the release that its invoked installation is.
 
 - **WHEN** the command runs in a repository that does not declare the ETHOS product profile
 - **THEN** it refuses with `release_acceptance_product_only`
-- **AND** that repository records no release identity.
+- **AND** that repository records no release identity
+- **AND** a profile that cannot be read refuses with `repository_profile_invalid:<path>`, never
+  as another repository.
 
 ### Requirement: Public channels consume explicitly accepted release artifacts
 
@@ -170,8 +196,9 @@ policy gap.
 #### Scenario: The product's release tag is published under a release policy gap
 
 - **WHEN** `ethos publish` targets a release tag in the repository that declares the ETHOS product
-  profile while its release policy report holds a required gap
+  profile while the release policy report of its checkout holds a required gap
 - **THEN** the result blocks with that gap among its required gaps
+- **AND** its data carries the report under `release_policy`
 - **AND** its next step names the repair of the first report that has one.
 
 #### Scenario: A governed repository publishes a release tag

@@ -13,6 +13,7 @@ from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.identity import node_manifests_without_version
 from ethos.repository.release.identity import product_version
@@ -231,9 +232,14 @@ def release_policy_report(root: Path) -> dict[str, Any]:
 
 
 def is_product_root(root: Path) -> bool:
-    """Whether the root declares the ETHOS product profile, whose release conformance is stated."""
-    declared = load_repository_profile(root).declaration
-    return declared is not None and declared.profile_id == "ethos"
+    """Whether the root declares the ETHOS product profile, whose release conformance is stated.
+
+    A profile that cannot be read answers neither way, so it raises the profile's own gap.
+    """
+    profile = load_repository_profile(root)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    return profile.declaration is not None and profile.declaration.profile_id == "ethos"
 
 
 def release_ref_policy(root: Path, roles: tuple[str, ...]) -> dict[str, Any]:

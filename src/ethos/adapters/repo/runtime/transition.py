@@ -61,10 +61,16 @@ def admit_explicit_release(
     """Admit one explicit release before any effect, and say whether the set already holds it.
 
     With the release's checksum file, the identity binds it and every wheel and archive it lists.
-    A version keeps the identity it first recorded: a later transition of the same source and
-    wheel, with the binding or without it, records nothing more and returns that identity.
+    A version keeps the identity it first recorded: for a later transition of the same source and
+    wheel, with the binding or without it, the answer is that identity, and the set holds it.
     """
-    sha256 = file_sha256(wheel)
+    return _admitted(repo, wheel, file_sha256(wheel), expected_build, checksums)
+
+
+def _admitted(
+    repo: Path, wheel: Path, sha256: str, expected_build: BuildIdentity, checksums: Path | None
+) -> tuple[AcceptedReleaseIdentity, bool]:
+    """Admit the wheel by the digest of its bytes, which a caller that stores them read once."""
     build = wheel_build_identity(wheel)
     if build != expected_build:
         refuse("release_wheel_build_identity_stale")
@@ -76,8 +82,11 @@ def admit_explicit_release(
     _root, attestations = read_attestation_set(repo)
     accepted = accepted_release_identities(attestations)
     if gaps := release_identity_admission_gaps(release, accepted):
-        raise ValueError(",".join(gaps))
-    return release, release in accepted
+        refuse(*gaps)
+    # Admission left only a record that this candidate equals, or differs from in a checksum
+    # binding that one of the two lacks. That record is the version's identity.
+    recorded = next((item for item in accepted if item[:2] == release[:2]), None)
+    return recorded or release, recorded is not None
 
 
 def materialize_explicit_release(
@@ -89,28 +98,27 @@ def materialize_explicit_release(
     checksums: Path | None = None,
 ) -> AcceptedReleaseIdentity:
     """Admit, materialize, observe, and attest one explicit release."""
-    release, _held = admit_explicit_release(
-        repo, wheel, expected_build=expected_build, checksums=checksums
-    )
+    # The wheel is read once: the bytes that admission hashes are the bytes the store receives.
+    payload = wheel.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    release, _held = _admitted(repo, wheel, digest, expected_build, checksums)
     common = Path(git_common_dir(repo))
     package_store = common / "ethos" / "packages"
     _require_package_store(common, package_store)
     target = package_store / release.wheel_sha256 / wheel.name
-    durable = write_content_addressed(target, wheel.read_bytes(), collision=collision)
+    durable = write_content_addressed(target, payload, collision=collision)
     # The effect is the stored wheel, so the fresh observation covers the build and that wheel.
     if _observe_release_wheel(durable)[:2] != release[:2]:
         refuse("identity_transition_post_observation_mismatch")
-    attestation = accepted_release_attestation(release, issued_at=datetime.now(UTC))
-    recorded = accepted_release_identities((record_attestation_once(repo, attestation),))
-    # The set holds one Attestation for a version, so an earlier acceptance's record comes back
-    # in place of this one. It stands when the two differ only in a checksum binding one lacks.
-    if recorded != (release,) and (
-        len(recorded) != 1
-        or recorded[0][:2] != release[:2]
-        or (recorded[0].checksums_sha256 and release.checksums_sha256)
-    ):
+    recorded = record_attestation_once(
+        repo,
+        accepted_release_attestation(release, issued_at=datetime.now(UTC)),
+    )
+    # Admission named the identity that stands, so a record that another writer made since
+    # is not this transition's, whatever it binds.
+    if accepted_release_identities((recorded,)) != (release,):
         refuse("identity_transition_attestation_mismatch")
-    return recorded[0]
+    return release
 
 
 def _observe_release_wheel(path: Path) -> AcceptedReleaseIdentity:

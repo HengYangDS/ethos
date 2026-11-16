@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_patch import index_changes
 from ethos.adapters.repo.git_patch import unified_patch_changes
+from ethos.adapters.repo.git_patch import unnamed_changes
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -22,7 +24,7 @@ def index_patch_prewrite(
     evaluate: Callable[[dict[str, str]], dict[str, object]],
 ) -> dict[str, object]:
     """Evaluate one disposable postimage and independently fence its real prestate."""
-    refused = _patch_scope(root, paths, patch)
+    refused, changes = _patch_scope(root, paths, patch)
     if refused:
         return refused
     index = run_git(root, "rev-parse", "--path-format=absolute", "--git-path", "index", check=False)
@@ -47,7 +49,7 @@ def index_patch_prewrite(
                     Path(git_common_dir(root)) / "objects"
                 ).as_posix(),
             }
-            expected_tree, gap = _apply_candidate(root, paths, patch, environment)
+            expected_tree, gap = _apply_candidate(root, paths, patch, changes, environment)
             if gap:
                 return _refusal(
                     gap,
@@ -86,7 +88,11 @@ def _index_preimage(root: Path, source: Path) -> tuple[bytes, str]:
 
 
 def _apply_candidate(
-    root: Path, paths: list[Path], patch: str, index_env: dict[str, str]
+    root: Path,
+    paths: list[Path],
+    patch: str,
+    changes: list[dict[str, object]],
+    index_env: dict[str, str],
 ) -> tuple[str, str]:
     expected_tree = run_git(root, "write-tree", check=False, env=index_env)
     if expected_tree.returncode:
@@ -107,47 +113,28 @@ def _apply_candidate(
         if applied.returncode:
             return "", "prewrite_patch_preimage_mismatch"
     prestate = expected_tree.stdout.strip()
-    if _changed_outside_request(root, paths, prestate, index_env):
-        return "", "prewrite_patch_paths_mismatch"
-    return prestate, ""
-
-
-def _changed_outside_request(
-    root: Path, paths: list[Path], prestate: str, index_env: dict[str, str]
-) -> bool:
-    """Tell whether Git changed a path of the candidate index that the request does not name.
-
-    The scope before the apply rests on the reading of the patch's text; this one rests on Git's
-    comparison of the candidate index with its tree before the patch, without rename detection.
-    """
-    changed = run_git(
-        root,
-        "diff-index",
-        "--cached",
-        "--name-only",
-        "--no-renames",
-        "-z",
-        prestate,
-        check=False,
-        env=index_env,
-    )
-    if changed.returncode:
-        message = "prewrite_index_candidate_unreadable"
-        raise ValueError(message)
+    # The scope before the apply rests on the reading of the patch's text; this one rests on
+    # Git's comparison of the candidate index with its tree before the patch.
     root_path = root.resolve()
     requested = {
         (path if path.is_absolute() else root_path / path).relative_to(root_path).as_posix()
         for path in paths
     }
-    return not set(filter(None, changed.stdout.split("\0"))) <= requested
+    observed = index_changes(root, prestate, env=index_env)
+    if unnamed_changes(root, changes, observed, requested, env=index_env):
+        return "", "prewrite_patch_paths_mismatch"
+    return prestate, ""
 
 
-def _patch_scope(root: Path, paths: list[Path], patch: str) -> dict[str, object]:
+def _patch_scope(
+    root: Path, paths: list[Path], patch: str
+) -> tuple[dict[str, object], list[dict[str, object]]]:
+    """Refuse a request that the reading of the patch's text does not match; return the reading."""
     if not patch:
-        return _refusal("prewrite_index_patch_required")
+        return _refusal("prewrite_index_patch_required"), []
     changes, gap = unified_patch_changes(root, patch)
     if gap:
-        return _refusal(gap)
+        return _refusal(gap), changes
     try:
         root_path = root.resolve()
         relative = {
@@ -155,9 +142,9 @@ def _patch_scope(root: Path, paths: list[Path], patch: str) -> dict[str, object]
             for path in paths
         }
     except ValueError:
-        return _refusal("prewrite_patch_paths_mismatch")
+        return _refusal("prewrite_patch_paths_mismatch"), changes
     if any(".." in path.parts for path in relative):
-        return _refusal("prewrite_patch_paths_mismatch")
+        return _refusal("prewrite_patch_paths_mismatch"), changes
     requested = sorted(path.as_posix() for path in relative)
     affected = {
         str(path)
@@ -166,8 +153,8 @@ def _patch_scope(root: Path, paths: list[Path], patch: str) -> dict[str, object]
         if path != "/dev/null"
     }
     if sorted(affected) != requested:
-        return _refusal("prewrite_patch_paths_mismatch")
-    return {}
+        return _refusal("prewrite_patch_paths_mismatch"), changes
+    return {}, changes
 
 
 def _prestate_drift(root: Path, source: Path, before: bytes, head: str, index: str) -> str:

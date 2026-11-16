@@ -285,3 +285,35 @@ def test_a_path_that_git_changes_beyond_the_reading_of_the_text_is_refused(
     assert report["verdict"] == "block", report
     assert "prewrite_patch_paths_mismatch" in report["required_gaps"]
     assert _snapshot(root) == before
+
+
+@pytest.mark.parametrize(
+    ("hunk", "verdict"),
+    [("@@ -1 +0,0 @@\n-VALUE = 2\n", "pass"), ("@@ -1 +1 @@\n-VALUE = 2\n+KEPT = 1\n", "block")],
+    ids=["emptied", "content-at-the-null-path"],
+)
+def test_a_deletion_without_its_mode_line_reads_as_on_the_worktree_target(
+    mixed_lane: Path, hunk: str, verdict: str
+) -> None:
+    """Git's empty file at the null path is let be on both targets; content there is refused."""
+    root = mixed_lane
+    patch = "diff --git a/module.py b/module.py\n--- a/module.py\n+++ /dev/null\n" + hunk
+    report = prewrite.prewrite_guard(
+        root=root, paths=[root / "module.py"], editor_root=root, patch=patch, target="index"
+    )
+    assert report["verdict"] == verdict, report
+    assert ("prewrite_patch_paths_mismatch" in report.get("required_gaps", [])) is (
+        verdict == "block"
+    )
+
+
+def test_an_intent_to_add_beside_the_patch_is_no_path_of_it(mixed_lane: Path) -> None:
+    """A tree leaves out an entry that is only an intent to add, so the request stands."""
+    root = mixed_lane
+    (root / "later.py").write_text("LATER = 1\n", encoding="utf-8")
+    git(root, "add", "--intent-to-add", "later.py")
+    report = prewrite.prewrite_guard(
+        root=root, paths=[root / "module.py"], editor_root=root, patch=PATCH, target="index"
+    )
+    assert "prewrite_patch_paths_mismatch" not in report.get("required_gaps", [])
+    assert report["verdict"] == "pass", report

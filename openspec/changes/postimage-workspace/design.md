@@ -124,11 +124,14 @@ Non-Goals:
      target has required in every release; a request for a move's target alone left the
      source's deletion unjudged and is refused (the lead's ruling X of 2026-11-17). The
      staged target holds its request against Git's comparison of the candidate index too, so
-     a wrong reading of the text refuses on either target and admits on neither. A changed
-     path that no change names, that Git did not report for an entry and that Git did not
-     delete is refused. The index's mode is the one reading of a path's kind: the workspace
-     is a new directory of regular copies, so no separate look at the disk is kept (ruling
-     Y).
+     a wrong reading of the text refuses on either target and admits on neither. Both
+     targets read the record by one function, tree against tree, so that an entry that is
+     only an intent to add and a submodule's configuration change nothing in it. A changed
+     path that no change names and that Git did not delete is refused on both. One file is
+     let be on both: the empty file that Git creates at the null path for a deletion without
+     its mode line (the entry below); the same path with content is refused. The index's
+     mode is the one reading of a path's kind: the workspace is a new directory of regular
+     copies, so no separate look at the disk is kept (ruling Y).
 
 ## Risks / Trade-offs
 
@@ -139,7 +142,7 @@ Non-Goals:
 - A deletion written without its `deleted file mode` line (`+++ /dev/null` under a `diff --git`
   line, as a plain unified diff has it) is read as a deletion of its preimage, as in every
   release. Git applies that entry as a move of the file to an empty file at `dev/null`
-  (measured with Git 2.56.1), and the workspace does not read that file. Whether the admission
-  keeps this reading or refuses the form is a question for the cut of 2026-11-19; a creation
-  without its `new file mode` line is refused by Git already.
+  (measured with Git 2.56.1), and neither target reads that file while it is empty. Whether
+  the admission keeps this reading or refuses the form is a question for the cut of
+  2026-11-19; a creation without its `new file mode` line is refused by Git already.
 - Each admission of a patch starts four more Git processes in a repository of a few files.

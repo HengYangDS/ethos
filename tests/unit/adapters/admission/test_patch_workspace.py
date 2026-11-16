@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.patch_workspace as owner
+import ethos.adapters.repo.git_patch as reader
 from ethos.adapters.repo.git_patch import unified_patch_changes
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -185,6 +186,7 @@ def test_a_record_that_is_not_of_git_s_form_is_refused(
         return done.__class__(done.args, status, output, b"")
 
     monkeypatch.setattr(owner, "run_git", recorded)
+    monkeypatch.setattr(reader, "run_git", recorded)
     repo = _repository(tmp_path)
     changes, _gap = unified_patch_changes(repo, _EDIT)
     with (
@@ -194,13 +196,27 @@ def test_a_record_that_is_not_of_git_s_form_is_refused(
         pytest.fail("the workspace was yielded")
 
 
-def test_a_changed_path_that_no_change_names_is_refused(tmp_path: Path) -> None:
-    """Every path that Git changed is named, reported for an entry, or deleted; else refused."""
+# The null target of `_DELETE_WITHOUT_MODE` with content left: Git writes it to `dev/null`.
+_CONTENT_TO_THE_NULL_PATH = _DELETE_WITHOUT_MODE.replace(
+    "@@ -1 +0,0 @@\n-old\n", "@@ -1 +1 @@\n-old\n+kept\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("patch", "named"),
+    [(_FILE_TO_DIRECTORY, 1), (_CONTENT_TO_THE_NULL_PATH, 1)],
+    ids=["an-entry-left-out", "content-at-the-null-path"],
+)
+def test_a_changed_path_that_no_change_names_is_refused(
+    tmp_path: Path, patch: str, named: int
+) -> None:
+    """Every changed path is named or deleted; only Git's empty file at the null path is let be."""
     repo = _repository(tmp_path)
-    changes, _gap = unified_patch_changes(repo, _FILE_TO_DIRECTORY)
+    changes, gap = unified_patch_changes(repo, patch)
+    assert gap == ""
     with (
         pytest.raises(ValueError, match="no change names"),
-        owner.patched_workspace(repo, _FILE_TO_DIRECTORY, changes[:1]),
+        owner.patched_workspace(repo, patch, changes[:named]),
     ):
         pytest.fail("the workspace was yielded")
 

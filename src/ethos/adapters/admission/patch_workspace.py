@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_patch import index_changes
+from ethos.adapters.repo.git_patch import unnamed_changes
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -38,13 +40,14 @@ def _within(directory: Path, path: str) -> Path:
     return directory / path
 
 
-def _observed(workspace: Path, patch: str, staged: list[str]) -> dict[str, str]:
-    """Apply the patch with the workspace's own index; return the status of each changed path.
+def _observed(
+    workspace: Path, patch: str, staged: list[str]
+) -> dict[str, tuple[str, str, str, str]]:
+    """Apply the patch with the workspace's own index; return Git's record of what changed.
 
-    Git compares the index before and after the apply, without rename detection, and names
-    every path that the patch changed with its modes. A path whose mode before or after is no
-    regular file's is refused. Nothing here reads the patch's text, and a record that is not
-    of Git's form is refused, not guessed at.
+    Git compares the index before and after the apply and names every path that the patch
+    changed with its status and its modes. A path whose mode before or after is no regular
+    file's is refused. Nothing here reads the patch's text.
     """
 
     def git(*arguments: str, stdin: bytes | None = None) -> bytes:
@@ -62,20 +65,31 @@ def _observed(workspace: Path, patch: str, staged: list[str]) -> dict[str, str]:
     git("update-index", "--add", "-z", "--stdin", stdin=names)
     before = git("write-tree").decode().strip()
     git("apply", "--index", "--whitespace=error-all", "-", stdin=patch.encode("utf-8"))
-    after = git("write-tree").decode().strip()
-    record = git("diff-tree", "-r", "-z", "--raw", "--no-renames", before, after)
-    fields = record.removesuffix(b"\0").split(b"\0") if record else []
-    entries = [entry.decode().removeprefix(":").split() for entry in fields[::2]]
-    if len(fields) % 2 or any(len(entry) != 5 for entry in entries):
-        msg = "prewrite patch workspace record is not of Git's form"
+    observed = index_changes(workspace, before)
+    if not all({old, new} <= _REGULAR for _status, old, new, _object in observed.values()):
+        msg = "prewrite patch makes a named path no regular file"
         raise ValueError(msg)
-    statuses: dict[str, str] = {}
-    for (old_mode, new_mode, _old, _new, status), path in zip(entries, fields[1::2], strict=True):
-        if not {old_mode, new_mode} <= _REGULAR:
-            msg = "prewrite patch makes a named path no regular file"
+    return observed
+
+
+def _copied_preimages(root: Path, workspace: Path, changes: list[dict[str, object]]) -> list[str]:
+    """Copy each preimage into the workspace and name the copies; only a regular file is one."""
+    copied: list[str] = []
+    for old_path in dict.fromkeys(str(change["old_path"]) for change in changes):
+        if old_path == "/dev/null":
+            continue
+        source = _within(root, old_path)
+        if source.is_symlink():
+            msg = "prewrite patch preimage is no regular file"
             raise ValueError(msg)
-        statuses[path.decode("utf-8")] = status
-    return statuses
+        if not source.is_file():
+            msg = "prewrite patch preimage missing"
+            raise ValueError(msg)
+        target = workspace / old_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        copied.append(old_path)
+    return copied
 
 
 @contextmanager
@@ -101,31 +115,15 @@ def patched_workspace(
         named = {str(change["path"]) for change in changes}
         for path in named:
             _within(workspace, path)
-        # The name that Git reported for an entry, where the entry is named by its preimage.
-        reported = {str(change.get("reported", change["path"])) for change in changes}
-        staged: list[str] = []
-        for old_path in dict.fromkeys(str(change["old_path"]) for change in changes):
-            if old_path == "/dev/null":
-                continue
-            source = _within(root, old_path)
-            if source.is_symlink():
-                msg = "prewrite patch preimage is no regular file"
-                raise ValueError(msg)
-            if not source.is_file():
-                msg = "prewrite patch preimage missing"
-                raise ValueError(msg)
-            target = workspace / old_path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-            staged.append(old_path)
-        observed = _observed(workspace, patch, staged)
+        observed = _observed(workspace, patch, _copied_preimages(root, workspace, changes))
         # A path that Git deleted is read as deleted where no change names it: a move's source.
-        removed = {path for path, status in observed.items() if status == "D"}
-        if not observed.keys() <= named | reported | removed:
+        removed = {path for path, change in observed.items() if change[0] == "D"}
+        if unnamed_changes(workspace, changes, observed, named | removed):
             msg = "prewrite patch changes a path that no change names"
             raise ValueError(msg)
         effects = {
-            path: EFFECTS.get(observed.get(path, "M"), "modify") for path in sorted(named | removed)
+            path: EFFECTS.get(observed[path][0] if path in observed else "M", "modify")
+            for path in sorted(named | removed)
         }
         yield (
             workspace,

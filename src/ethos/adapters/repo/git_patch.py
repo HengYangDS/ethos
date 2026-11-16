@@ -13,6 +13,8 @@ from ethos.adapters.repo.git import run_git
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
     from pathlib import Path
 
 
@@ -90,6 +92,80 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
     return changes, ""
 
 
+def _stdout(root: Path, *arguments: str, env: Mapping[str, str] | None = None) -> bytes:
+    """Run one Git reading and return its output; a reading that fails is refused."""
+    done = run_git(root, *arguments, text=False, check=False, env=env)
+    if done.returncode:
+        message = f"prewrite patch record unavailable: git {arguments[0]}"
+        raise ValueError(message)
+    return done.stdout
+
+
+def index_changes(
+    root: Path, before: str, *, env: Mapping[str, str] | None = None
+) -> dict[str, tuple[str, str, str, str]]:
+    """Write the index's tree and return Git's comparison of it with the tree `before`.
+
+    Each changed path maps to its status, its mode before, its mode after and its new object.
+    No rename is detected, a submodule's configuration hides nothing, and a tree leaves out an
+    entry that is only an intent to add. A record that is not of Git's form is refused.
+    """
+    after = _stdout(root, "write-tree", env=env).decode().strip()
+    record = _stdout(
+        root,
+        "diff-tree",
+        "-r",
+        "-z",
+        "--raw",
+        "--no-renames",
+        "--ignore-submodules=none",
+        before,
+        after,
+        env=env,
+    )
+    fields = record.removesuffix(b"\0").split(b"\0") if record else []
+    entries = [entry.decode().removeprefix(":").split() for entry in fields[::2]]
+    if len(fields) % 2 or any(len(entry) != 5 for entry in entries):
+        message = "prewrite patch record is not of Git's form"
+        raise ValueError(message)
+    return {
+        path.decode("utf-8"): (status, old_mode, new_mode, new_object)
+        for (old_mode, new_mode, _old, new_object, status), path in zip(
+            entries, fields[1::2], strict=True
+        )
+    }
+
+
+def unnamed_changes(
+    root: Path,
+    changes: list[dict[str, object]],
+    observed: Mapping[str, tuple[str, str, str, str]],
+    allowed: AbstractSet[str],
+    *,
+    env: Mapping[str, str] | None = None,
+) -> set[str]:
+    """Name the changed paths beyond `allowed`, which a target refuses.
+
+    One path is let through on both targets: the empty file that Git creates at the null path
+    for a deletion written without its `deleted file mode` line, which the reader names by its
+    preimage. The same path with content, or changed otherwise, is named like any other.
+    """
+    nulls = {
+        str(change["reported"])
+        for change in changes
+        if change.get("reported", change["path"]) != change["path"]
+    }
+    return {
+        path
+        for path in observed.keys() - allowed
+        if path not in nulls
+        or observed[path][0] != "A"
+        or _stdout(root, "cat-file", "-s", observed[path][3], env=env).strip() != b"0"
+    }
+
+
+# The name that Git reports for an entry whose target is the null path without a deletion's mode.
+_NULL_AS_REPORTED = "dev/null"
 # The lines that Git reads as an entry's extended header; the header ends at the first other line.
 _HEADER = (
     "--- ",
@@ -133,8 +209,8 @@ def _update_patch_change(change: dict[str, object], line: str) -> None:
         change["old_path"] = _file_line_path(line) or change["old_path"]
     elif line.startswith("+++ "):
         # A deletion written without its `deleted file mode` line: Git reports the null path
-        # as the entry's name. The entry is named by its preimage, as a deletion of it.
-        if _file_line_path(line) == "/dev/null":
+        # as the entry's name. Only there is the entry named by its preimage, as a deletion.
+        if _file_line_path(line) == "/dev/null" and change["reported"] == _NULL_AS_REPORTED:
             change["path"] = change["old_path"]
     elif line.startswith(("rename from ", "rename old ", "copy from ")):
         # Git writes these names whole, without the component that a file line carries.

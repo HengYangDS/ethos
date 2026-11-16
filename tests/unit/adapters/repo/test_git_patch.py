@@ -39,6 +39,10 @@ def test_a_built_patch_applies_to_each_postimage(tmp_path: Path) -> None:
 _CREATED = "diff --git a/fresh.txt b/fresh.txt\nnew file mode 100644\n"
 _FILE = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n"
 _MOVE = "diff --git a/{0} b/{1}\nsimilarity index 100%\nrename from {0}\nrename to {1}\n"
+_NULL_THEN_COPY = (
+    "diff --git a/a.txt b/c.txt\n--- a/a.txt\n+++ /dev/null\n"
+    "copy from a.txt\ncopy to c.txt\n@@ -1 +1 @@\n-old\n+new\n"
+)
 _READ = {
     "edit": (
         _FILE + "@@ -1 +1 @@\n-old\n+new\n",
@@ -78,11 +82,8 @@ _READ = {
         _FILE + "@@ -1,2 +1 @@\n old\n--- a/c.txt\n",
         [("a.txt", "a.txt")],
     ),
-    # An added line of content that reads like a null target moves no path either.
-    "line-like-a-null-target": (
-        _FILE + "@@ -1 +1,2 @@\n old\n+++ /dev/null\n",
-        [("a.txt", "a.txt")],
-    ),
+    # A null target under a copy's lines: Git reports the copy's target, and so the entry is.
+    "null-target-then-a-copy": (_NULL_THEN_COPY, [("a.txt", "c.txt")]),
     # Git ends a name at a carriage return wherever it stands in the line.
     "carriage-return-inside-a-line": (
         _MOVE.format("a.txt", "b.txt").replace("from a.txt", "from a.txt\rX"),
@@ -124,4 +125,8 @@ def test_each_entry_names_git_s_path_and_where_its_preimage_lies(
     patch, expected = _READ[shape]
     changes, gap = unified_patch_changes(init_git_repo(tmp_path / "repo"), patch)
     assert (gap, [(change["old_path"], change["path"]) for change in changes]) == ("", expected)
-    assert all(change.keys() == {"old_path", "path", "reported"} for change in changes)
+    # Git's own name for an entry is its path, but for the deletion that is named by its preimage.
+    reported = "dev/null" if shape == "deletion-without-its-mode" else None
+    assert [change["reported"] for change in changes] == [
+        reported or path for _old, path in expected
+    ]

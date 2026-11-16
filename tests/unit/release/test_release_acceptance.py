@@ -18,7 +18,6 @@ from ethos.application.console import run_console
 from ethos.application.publication.operation import publish_repository
 from ethos.contracts.codes.gaps import repair_for
 from ethos.contracts.digest import file_sha256
-from ethos.contracts.outcome import refusal
 from ethos.repository.release.configuration import release_ref_policy
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import build_identity_bytes
@@ -47,8 +46,6 @@ _REFUSALS = [
     # A committed version outside the wheel profile is still ordered, as SemVer orders it.
     ({"committed": "0.1.0-x.7"}, "release_installation_newer:0.1.0"),
     ({"profile_text": "profile_id = [\n"}, "repository_profile_invalid:.ethos/profile.toml"),
-    # A refusal that carries no gap still blocks, named by its class.
-    ({"unnamed": True}, "OutcomeError"),
 ]
 
 
@@ -106,10 +103,6 @@ def _full(*_args: object, **_kwargs: object) -> Path:
     raise OSError(errno.ENOSPC, "No space left on device")
 
 
-def _unnamed(*_args: object, **_kwargs: object) -> Path:
-    raise refusal()
-
-
 def _installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **differs: object) -> Path:
     """Build the product root at release 0.1.0 and the installed release that runs the command."""
     case = {"product": "0.1.0", "release": True, "commit": "", "profile": "ethos"} | differs
@@ -140,8 +133,6 @@ def _installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **differs: objec
     if case.get("committed"):
         committed = {"version": str(case["committed"])}
         monkeypatch.setattr(acceptance, "committed_release_version", lambda *_: committed)
-    if case.get("unnamed"):
-        monkeypatch.setattr(acceptance, "admit_explicit_release", _unnamed)
     if case.get("full"):
         monkeypatch.setattr(transition, "write_content_addressed", _full)
     return repo

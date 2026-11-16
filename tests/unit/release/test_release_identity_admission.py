@@ -15,6 +15,7 @@ from ethos.repository.release.admission import accepted_release_attestation
 from ethos.repository.release.admission import accepted_release_identities
 from ethos.repository.release.admission import accepted_release_identity
 from ethos.repository.release.admission import checksum_bound_release
+from ethos.repository.release.admission import identities_agree
 from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import build_identity
 
@@ -38,6 +39,29 @@ _SUMS = f"{'d' * 64}  {_ARCHIVE}\n{'e' * 64}  ethos-0.2.0-alpha.1.spdx.json\n{'c
 def _bound(sums: str = _SUMS, published=((_WHEEL, "c" * 64),)):
     release = _release("0.2.0-alpha.1")
     return checksum_bound_release(release, sums.encode(), published=dict(published))
+
+
+_OTHER_SUMS = _SUMS + f"{'f' * 64}  extra.whl\n"
+
+
+@pytest.mark.parametrize(
+    ("recorded", "candidate", "agree"),
+    [
+        (_release("0.2.0-alpha.1"), _release("0.2.0-alpha.1"), True),
+        (_release("0.2.0-alpha.1"), _bound(), True),
+        (_bound(), _release("0.2.0-alpha.1"), True),
+        (_bound(), _bound(_OTHER_SUMS), False),
+        (_release("0.2.0-alpha.1"), _release("0.2.0-alpha.1", wheel="9" * 64), False),
+    ],
+    ids=["equal", "binding-added", "binding-absent", "two-checksum-files", "another-wheel"],
+)
+def test_two_identities_agree_unless_a_wheel_or_two_checksum_files_differ(
+    recorded: object, candidate: object, *, agree: bool
+) -> None:
+    """One rule says which record is a candidate's own; admission and the transition share it."""
+    assert identities_agree(recorded, candidate) is agree
+    conflict = release_identity_admission_gaps(candidate, (recorded,))
+    assert conflict == (() if agree else ("accepted_version_artifact_conflict:0.2.0-alpha.1",))
 
 
 def test_local_only_first_release_and_exact_replay_are_admitted() -> None:

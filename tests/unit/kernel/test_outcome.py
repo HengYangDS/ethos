@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import errno
+
 from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.outcome import CAUSE_LIMIT
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import os_error_gap
 from ethos.contracts.outcome import outcome_of
 from ethos.contracts.outcome import refusal
+from ethos.contracts.outcome import refused_gaps
 from ethos.result import EthosResult
 
 TIMEOUT = Outcome.part(
@@ -97,3 +101,15 @@ def test_one_conversion_builds_every_boundary_result() -> None:
     assert EthosResult.from_outcome("x", declared, fallback="other").next_action == "repair the gap"
     chosen = EthosResult.from_outcome("x", declared, state="gapped", next_action="refresh")
     assert (chosen.state, chosen.next_action) == ("gapped", "refresh")
+
+
+def test_a_caught_refusal_always_names_a_gap_and_an_os_error_names_no_path() -> None:
+    """A reader that takes its verdict from the gaps never reads a refusal as a pass."""
+    assert refused_gaps(refusal("first_gap", "second_gap")) == ("first_gap", "second_gap")
+    assert refused_gaps(ValueError("plain_gap")) == ("plain_gap",)
+    # A refusal that carries no gap is named by its class, as an error without a message is.
+    assert refused_gaps(refusal()) == ("OutcomeError",)
+    assert refused_gaps(ValueError()) == ("ValueError",)
+    denied = PermissionError(errno.EACCES, "Permission denied", "/host/store")
+    assert os_error_gap("store_unreadable", denied) == "store_unreadable:EACCES"
+    assert os_error_gap("store_unreadable", OSError("no number")) == "store_unreadable"

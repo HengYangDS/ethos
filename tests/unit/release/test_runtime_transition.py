@@ -272,20 +272,3 @@ def test_the_transition_stores_the_bytes_that_admission_hashed(
     stored = repo / ".git/ethos/packages" / recorded.wheel_sha256 / wheel.name
     assert recorded.wheel_sha256 == hashlib.sha256(b"wheel").hexdigest()
     assert stored.read_bytes() == b"wheel"
-
-
-def test_admission_never_answers_a_record_bound_to_another_checksum_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """The record that stands is chosen by the rule itself, not by the check that ran before."""
-    build, repo, wheel, checksums = _release_case(tmp_path, monkeypatch)
-    transition = partial(identity_transition.materialize_explicit_release, repo, wheel)
-    recorded = transition(expected_build=build, collision="wheel_collision", checksums=checksums)
-    other = tmp_path / "OTHER"
-    other.write_text(checksums.read_text() + f"{'0' * 64}  extra.whl\n", encoding="ascii")
-    # Were the admission's refusal of a second checksum file ever lost, the record still would
-    # not be answered for it.
-    monkeypatch.setattr(identity_transition, "release_identity_admission_gaps", lambda *_: ())
-    admit = identity_transition.admit_explicit_release
-    release, held = admit(repo, wheel, expected_build=build, checksums=other)
-    assert (held, release == recorded) == (False, False)

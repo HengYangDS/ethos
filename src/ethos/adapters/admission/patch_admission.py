@@ -217,9 +217,13 @@ def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> b
     command = ["apply", "--whitespace=error-all", "-"]
     if check_preimage:
         command.insert(2, "--check")
+    # Inside another checkout Git takes a workspace for a subdirectory of that work tree, skips
+    # every path of the patch as outside it and exits with 0: the workspace's apply stops Git's
+    # discovery at the workspace. The check runs in the repository, which discovery must find.
+    alone = {} if check_preimage else {"GIT_CEILING_DIRECTORIES": str(root.parent)}
     # Bytes, so that no platform's text stream rewrites the patch's line endings.
-    completed = run_git(root, *command, stdin=patch.encode("utf-8"), text=False, check=False)
-    return completed.returncode == 0
+    data = patch.encode("utf-8")
+    return run_git(root, *command, stdin=data, text=False, check=False, env=alone).returncode == 0
 
 
 def projection_preimages(root: Path, head: str) -> dict[str, str]:

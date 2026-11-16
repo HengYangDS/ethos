@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -129,6 +130,34 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
 
     assert report["verdict"] == "pass"
     assert report["state"] == "admitted"
+
+
+def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_work_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Git skips a patch's paths in a workspace inside another checkout; the verdict stays."""
+    repo, _head = _repository(tmp_path)
+    script = "tools/run.sh"
+    (repo / script).parent.mkdir()
+    (repo / script).write_text("echo start\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare a script")
+    head = git(repo, "rev-parse", "HEAD")
+    patch = _patch(repo, script, "echo start\nfrobnicate --now\n")
+    checkout = init_git_repo(tmp_path / "other") / "build"
+    checkout.mkdir()
+
+    def admitted() -> dict[str, object]:
+        return admission.patch_admission(
+            root=repo, requested_paths=(script,), baseline_head=head, patch=patch
+        )
+
+    outside = admitted()
+    monkeypatch.setattr(tempfile, "tempdir", str(checkout))
+    inside = admitted()
+
+    assert outside["reason"] == "product_reference_not_admitted_at_baseline:executable:frobnicate"
+    assert (inside["verdict"], inside["reason"]) == (outside["verdict"], outside["reason"])
 
 
 @pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app", "retire"])

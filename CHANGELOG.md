@@ -156,6 +156,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- `ethos lane prewrite --patch` reads a patch's postimage wherever the process's temporary
+  directory lies. With that directory inside a Git work tree, Git skipped every path of the
+  patch in the admission's temporary workspace and reported success, so the admission judged the
+  unchanged files: it admitted a patch whose undeclared reference or deleted input it must
+  refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
+  defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
+  releases, keep the temporary directory outside every checkout.
 - A full proof that cannot open the host queue, take its place in it or give that place up
   answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
   error itself, in 0.2.0-beta.10 and 0.2.0-beta.11 as well, in place of a gap or an interrupt

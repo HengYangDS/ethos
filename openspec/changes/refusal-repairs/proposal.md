@@ -51,7 +51,10 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
   proof, dependency acceptance and the readiness of a commit rebuild. `refused_gaps` never
   answers none; each reader moves to it with its own regression. The name it gives such a
   refusal is its class, which no registry row holds and no repair follows: it gets a
-  registered code. Found by the same review.
+  registered code. Found by the same review. Read in the batch lane on 2026-11-16: 43 more
+  lines of product code make a one-element list or tuple of the error's text, nearly all as a
+  result's gaps, which keeps the first gap of a refusal that carries several; not each line
+  was traced. The repair is one reader and a guard for the class, not a patch a line.
 - The argv selection takes the next token as an option's value, also when that token is an
   option: `status --root --json` selects an operation, and the CLI refuses the same argv. A
   step derived from such an argv reads as live. Found while `environment-entry` was repaired.

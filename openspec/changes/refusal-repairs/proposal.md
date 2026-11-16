@@ -42,6 +42,19 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
   and in neither its message nor its next action; the refusal names it. Reported by one governed
   repository's session on 2026-11-16: on a host east of UTC the two days differ in the first
   hours of its day.
+- A refused rename of a retained topic names `ethos lane repair-paradigm --apply --json` as its
+  next action, which is the request that was just refused; under `--pin` it names the same
+  apply with `--pin`. The rename's own report is the owner: its step names what removes the
+  obstacle. Found by the model review of `adopter-bump` on 2026-11-16.
+- Three readers of a caught refusal take its gaps from the error's text or from its outcome,
+  which is empty for a refusal that carries none, so a block can read as a pass: the mutation
+  proof, dependency acceptance and the readiness of a commit rebuild. `refused_gaps` never
+  answers none; each reader moves to it with its own regression. The name it gives such a
+  refusal is its class, which no registry row holds and no repair follows: it gets a
+  registered code. Found by the same review.
+- The argv selection takes the next token as an option's value, also when that token is an
+  option: `status --root --json` selects an operation, and the CLI refuses the same argv. A
+  step derived from such an argv reads as live. Found while `environment-entry` was repaired.
 - The release build's install smoke takes the one wheel under the release artifacts, which only
   the release build writes. Run without that build, it read a wheel that an earlier release
   build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the

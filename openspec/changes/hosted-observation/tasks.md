@@ -71,7 +71,7 @@
       against each forge for a head that has a failed run. Done when each peer's runs and the
       failed run's jobs are listed with the states the forge shows, or the reader's keys are
       corrected to the JSON it prints.
-- [ ] 5.5 Hand the arming of the release ref's refusal to the owner. Done when the Workflow
+- [x] 5.5 Hand the arming of the release ref's refusal to the owner. Done when the Workflow
       follow-up names the owner's decision (the release in which a release ref requires a passing
       observation, no earlier than the release after this one), the three cases of decision 8 that
       are measured on the governed repositories first, and the successor Change that carries the

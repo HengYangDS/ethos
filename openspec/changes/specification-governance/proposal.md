@@ -63,8 +63,21 @@ What the resolution asks of this product, in the order in which it arrives. None
 - **Content is asked, not measured.** Fixed review questions on a sheet that the product
   generates, answered by a reviewer other than the author. The product refuses only a missing
   record, after a release that reported it.
-- **No refusal on an amount of text.** The lines, characters and bytes of a specification are
-  reported.
+- **No rule that the scheme adds refuses on an amount of text.** The lines, characters and bytes
+  of a specification are reported. Two refusals on an amount of text stand outside the scheme,
+  both OpenSpec's, through this product's strict validation: a requirement statement above 500
+  characters and a Purpose under 50. The resolution measures how statements bunch below 500
+  characters, and that measure decides whether this product asks upstream to change the first
+  or stops refusing on it.
+- **The test that every later rule passes.** An obligation has a performer, an input, a moment
+  and a recorded result. It refuses only where a machine decides it the same way on every run,
+  the author can repair it inside the refused Change, and the cheapest way to pass is the
+  wanted repair. What fails that test is reported or asked.
+- **A Change does not remove the last verifier** of a requirement that it neither modifies nor
+  removes: a refusal, base against head.
+- **Of the named principles, one enters by name:** a single source of truth. The others enter
+  as plain obligations or are rejected for specifications, as the owner asked the committee to
+  rule.
 - **Retired here:** the exemption of accepted specifications, the phrase "semantic capability
   review", and the precondition that a split waits for a capability without open deltas.
 - **This repository's own specifications:** a capability above the value takes no new requirement
@@ -73,8 +86,10 @@ What the resolution asks of this product, in the order in which it arrives. None
 The committee states what it did not prove. The values come from the distributions of four
 repositories and from no study. Nothing that this product must build exists: the resolver and the
 citation form, the sheet and its record, the index, the acceptance digest's entries for a retired
-scenario, the comparison of blocks for a move, and the titles that the runtime ships. The
-resolution names its own measures, read on 2027-02-16.
+scenario, the comparison of blocks for a move, the titles that the runtime ships, and the
+generated worklist of what stands above a value, ranked by how often each requirement is
+edited, with the report of its head and age. The resolution names its own measures, read on
+2027-02-16, and no performer for them: the release lead reads them, and the design says so.
 
 ## Capabilities
 

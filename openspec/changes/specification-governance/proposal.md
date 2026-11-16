@@ -21,9 +21,9 @@ The owner therefore mandated an expert committee on 2026-11-16, in that session:
 (requirements engineering, governance mechanism design, maintenance and delivery, agentic use,
 evidence audit), six rounds, and a resolution that all five accept, adopted the same day.
 
-Status of the direction: the owner's confirmation that ETHOS implements the resolution was given
-in that session and reached the release lead as a relay. The release lead asks the owner in its
-own session before this Change gains a task.
+Status of the direction: the owner confirmed on 2026-11-16, in that session and then first-hand
+in the release lead's, that ETHOS implements the resolution. The release that reports and the
+release that arms are not placed.
 
 The record (the brief, the rounds, a research packet and the resolution, 49 files) names governed
 repositories and their figures, so it is not tracked here. A byte copy is in the release lead's
@@ -114,6 +114,6 @@ the owner's to place. The session that keeps the two governed repositories plans
 retires its own gate when it binds the runtime that carries the mechanism, the other archives its
 open Change within the reporting release.
 
-Owner: the release lead. Next action: confirm the direction with the owner first-hand; size the
-reporting release as rows; put the two releases to the owner at the cut of 0.2.0-beta.12, and
-tell that session which they are. Read again: 2026-11-19.
+Owner: the release lead. Next action: size the reporting release as rows; put the two releases
+to the owner at the cut of 0.2.0-beta.12, and tell that session which they are. Read again:
+2026-11-19.

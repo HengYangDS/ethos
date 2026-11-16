@@ -31,8 +31,9 @@ local evidence, `build/evidence/spec-governance-committee-20261116/`; the resolu
 begins `f33f5fc59d4dd9f1`.
 
 The same exchange restated that every per-file ceiling of this product is 500 lines. One
-decision record still named 512, which a later record calls stale. Its sentence is corrected in
-a commit of this Change beside the draft; nothing else of this Change is built.
+decision record still named 512, which a later record calls stale. The documents row of the
+batch that holds this draft, `command-reference-split`, corrects that sentence; nothing of
+this Change is built.
 
 ## What Changes
 

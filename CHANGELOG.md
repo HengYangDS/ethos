@@ -169,8 +169,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   paths and compares them itself. The defect is in every release through 0.2.0-beta.11.
 - Text that ETHOS hands a native tool on its standard input keeps its line endings on Windows.
   The text went through a stream that wrote each newline as CRLF there, so the CUE compiler
-  refused the pipeline model with `cue_compilation_failed`; 26 calls hand a tool text this way.
-  The defect is in every release through 0.2.0-beta.11.
+  refused the pipeline model with `cue_compilation_failed`, and any other tool that reads text
+  this way received other bytes than its caller sent. The defect is in every release through
+  0.2.0-beta.11.
 - A command that passes its time bound reports that bound as its timeout on every supported
   interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
   when the wait began, a little less than the bound, where no stream of the command was a pipe.

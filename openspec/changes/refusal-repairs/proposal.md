@@ -60,6 +60,11 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 - The argv selection takes the next token as an option's value, also when that token is an
   option: `status --root --json` selects an operation, and the CLI refuses the same argv. A
   step derived from such an argv reads as live. Found while `environment-entry` was repaired.
+- The documentation health report measures the documents it is handed. Called without the
+  tracked documents it reads the registered ones alone, so a Change artifact above the document
+  ceiling passes there and is refused by the gate, whose callers pass every tracked Markdown
+  file. A reader of the report alone reads a pass. Reported by a governed repository's session
+  on 2026-11-16; one caller in this product asks without them.
 - The release build's install smoke takes the one wheel under the release artifacts, which only
   the release build writes. Run without that build, it read a wheel that an earlier release
   build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the

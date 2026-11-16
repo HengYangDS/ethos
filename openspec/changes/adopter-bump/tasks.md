@@ -32,6 +32,9 @@
 - [ ] 2.3 Continue a retained topic's rename to the pin request. Done when the regression in
       `tests/unit/lanes/test_legacy_role_rename.py` shows `--pin` in the next action of the
       rename's preview and the request's preview after the applied rename.
+- [ ] 2.4 Keep a refused rename's own next action under `--pin`. Done when the two refused
+      cases of the same module report, with `--pin`, the gaps and the next action that they
+      report without it.
 
 ## 3. Documents and budgets
 

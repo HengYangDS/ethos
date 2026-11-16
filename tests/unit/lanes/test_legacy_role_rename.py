@@ -407,8 +407,14 @@ def test_retained_topic_migration_refuses_without_changing_content(
         git(repo, "branch", "work/retained", head)
 
     refused = run_ethos_blocked("lane", "repair-paradigm", "--apply", "--json", cwd=lane)
+    # A pin request keeps the refusal's own next action: the refused apply is not named again.
+    pinned = run_ethos_blocked("lane", "repair-paradigm", "--pin", "--apply", "--json", cwd=lane)
 
     assert refused["required_gaps"], refused
+    assert (pinned["required_gaps"], pinned["next_action"]) == (
+        refused["required_gaps"],
+        refused["next_action"],
+    )
     assert git(lane, "branch", "--show-current") == "task/retained"
     assert git(lane, "rev-parse", "HEAD") == head
     assert observe_lease(state_database(repo), "task/retained").record() == before

@@ -406,12 +406,20 @@ def test_a_pin_request_survives_a_rename_that_stopped_part_way(
 ) -> None:
     """The same request recovers the rename forward, so its continuation keeps the pin."""
     _repo, lane, _head = _retained_topic(tmp_path)
+    project = branch_roles.bind_renamed_worktrees
     monkeypatch.setattr(branch_roles, "bind_renamed_worktrees", _stopped)
     request = ("lane", "repair-paradigm", "--pin", "--apply", "--json")
     partial = run_ethos_blocked(*request, cwd=lane)
     assert (partial["state"], partial["next_action"]) == (
         "partial_transition",
         "ethos lane repair-paradigm --pin --apply --json",
+    )
+    # The named request finishes the rename, and the pin request continues to its preview.
+    monkeypatch.setattr(branch_roles, "bind_renamed_worktrees", project)
+    finished = run_ethos(*request, cwd=lane)
+    assert (finished["state"], finished["next_action"]) == (
+        "topic_identity_migrated",
+        "ethos lane repair-paradigm --pin --json",
     )
 
 
@@ -427,8 +435,15 @@ def test_retained_topic_migration_refuses_without_changing_content(
         git(repo, "branch", "work/retained", head)
 
     refused = run_ethos_blocked("lane", "repair-paradigm", "--apply", "--json", cwd=lane)
+    # A pin request is refused alike. It names its own apply again, as the plain request
+    # does: the rename's report owns that step, and `refusal-repairs` holds its repair.
+    pinned = run_ethos_blocked("lane", "repair-paradigm", "--pin", "--apply", "--json", cwd=lane)
 
     assert refused["required_gaps"], refused
+    assert (pinned["required_gaps"], pinned["next_action"]) == (
+        refused["required_gaps"],
+        "ethos lane repair-paradigm --pin --apply --json",
+    )
     assert git(lane, "branch", "--show-current") == "task/retained"
     assert git(lane, "rev-parse", "HEAD") == head
     assert observe_lease(state_database(repo), "task/retained").record() == before

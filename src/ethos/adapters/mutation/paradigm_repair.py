@@ -183,8 +183,10 @@ def _before_plan(repo: Path, upgrade: _Upgrade, *, apply: bool) -> dict[str, obj
     """Return the report that ends the command before a plan: a refused upgrade, else a rename.
 
     A rename plans nothing else, so an upgrade asked with it continues to the same request: its
-    apply until the rename is done, and its preview after it. A rename that stopped part way is
-    finished by that apply, so it keeps the request too.
+    apply until the rename is done, and its preview after it. A rename that stopped part way
+    keeps the request too: the same apply finishes an interrupted one. A recovery that is
+    itself refused reports the same state, so it is named that apply again, as a refused
+    rename is.
     """
     if upgrade.refusal:
         return upgrade.refusal

@@ -34,7 +34,8 @@
       rename's preview and the request's preview after the applied rename.
 - [ ] 2.4 Keep `--pin` in the next action of a rename that stopped part way. Done when an
       interrupted rename under `--pin --apply` reports `partial_transition` and names the
-      apply with `--pin`.
+      apply with `--pin`, that apply finishes the rename and names the preview with `--pin`,
+      and a refused rename under `--pin` changes no content.
 
 ## 3. Documents and budgets
 

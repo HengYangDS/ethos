@@ -152,7 +152,8 @@ def test_a_windows_stage_keeps_its_minimal_path_and_refuses_what_it_does_not_hol
     monkeypatch.setattr(host_environment, "os", windows)
     refused, started = tmp_path / "refused", tmp_path / "started"
     stage = host_environment.hermetic_environment
-    with pytest.raises(RuntimeError, match="cannot resolve client"), stage(refused, ("client",)):
+    unresolved = "cannot resolve client: a Windows stage's path holds"
+    with pytest.raises(RuntimeError, match=unresolved), stage(refused, ("client",)):
         pass
     with stage(started, EXECUTABLES) as declared:
         clean = host_environment.hermetic_gap(started, EXECUTABLES)

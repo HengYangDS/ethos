@@ -104,7 +104,10 @@ def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
     host = independent_host_environment()[0]
     for name in executables:
         if shutil.which(name, path=host["PATH"]) is None:
-            message = f"minimal host environment cannot resolve {name}"
+            message = (
+                f"minimal host environment cannot resolve {name}: a Windows stage's path holds "
+                "the directories of git and ssh-keygen and the system's alone"
+            )
             raise RuntimeError(message)
     return host | git
 

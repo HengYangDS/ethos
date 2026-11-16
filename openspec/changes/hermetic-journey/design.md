@@ -77,7 +77,8 @@ Non-Goals:
    - **Applies to:** POSIX hosts. On Windows the owner adds the Git variables to the install
      smoke's minimal environment and links nothing. Its path gains no directory, which would
      show a child every neighbour of an executable, a host's Mise among them; a stage whose
-     declared executable the minimal path does not hold refuses at its start, by name. So
+     declared executable the minimal path does not hold refuses at its start, by name, and
+     says what that path holds. So
      acquisition starts on Windows only where the forge's client is on that path. The
      journey's own `XDG_DATA_HOME`, which
      gives each upgrade its own host store under the work tree, stays: B.5 excludes the host's

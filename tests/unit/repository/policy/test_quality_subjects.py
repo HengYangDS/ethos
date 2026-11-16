@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -69,5 +70,19 @@ def test_quality_observation_names_no_subject_on_its_command_line(
     assert compared
     assert not any(name in args for args in compared for name in ("answer.py", "other.py"))
     (repo / "other.py").write_text("VALUE = 43\n")
+    with pytest.raises(ValueError, match="code_source_changed"):
+        observe_quality_subjects(repo, language="python")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a POSIX file name")
+def test_quality_observation_compares_subject_names_as_bytes(tmp_path: Path) -> None:
+    """A text read rewrites a carriage return in a name, and the subject's change goes unseen."""
+    repo = init_git_repo(tmp_path / "repo")
+    name = "odd\rname.py"
+    (repo / name).write_text("VALUE = 42\n")
+    commit_fixture(repo, "record a source")
+    subjects = observe_quality_subjects(repo, language="python")[1]
+    assert [subject.path for subject in subjects] == [name]
+    (repo / name).write_text("VALUE = 43\n")
     with pytest.raises(ValueError, match="code_source_changed"):
         observe_quality_subjects(repo, language="python")

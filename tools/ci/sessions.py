@@ -363,7 +363,9 @@ def suite_leg(session: Session) -> None:
     session.log(f"Python {sys.version}\n{ending}")
     if report["verdict"] != "pass":
         # A refusal before pytest starts has no output to log: its diagnostics say why.
-        session.error(f"suite leg failed: {report['required_gaps']} {report.get('diagnostics')}")
+        diagnostics = report.get("diagnostics")
+        why = f" {diagnostics}" if diagnostics else ""
+        session.error(f"suite leg failed: {report['required_gaps']}{why}")
 
 
 def external_links(session: Session) -> None:

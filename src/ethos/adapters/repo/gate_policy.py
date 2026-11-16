@@ -397,11 +397,14 @@ def _repository_python(root: Path) -> str | None:
 def _subject_differs(root: Path, head: str, subjects: tuple[CodeSubject, ...]) -> bool:
     """Say whether a code subject differs from the commit, or that Git could not tell.
 
-    No subject rides on the command line: Windows refuses one past 32,767 characters.
+    No subject rides on the command line: Windows refuses one past 32,767 characters. The names
+    are compared as bytes: a text read rewrites a carriage return in a name and refuses another
+    encoding.
     """
-    differing = run_git(root, "diff", "--name-only", "--no-renames", "-z", head, "--", check=False)
-    paths = {subject.path for subject in subjects}
-    return bool(differing.returncode) or not paths.isdisjoint(differing.stdout.split("\0"))
+    command = ("diff", "--name-only", "--no-renames", "-z", head, "--")
+    differing = run_git(root, *command, check=False, text=False)
+    paths = {subject.path.encode("utf-8") for subject in subjects}
+    return bool(differing.returncode) or not paths.isdisjoint(differing.stdout.split(b"\0"))
 
 
 def observe_quality_subjects(

@@ -10,6 +10,7 @@ import pytest
 
 import ethos.application.publication.hosted as hosted
 from ethos.application.publication.hosted import hosted_observation
+from ethos.contracts.codes.gaps import gap_code
 from ethos.contracts.codes.gaps import repair_for
 from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos
@@ -195,17 +196,23 @@ def test_an_invalid_declaration_names_the_first_repair_that_the_registry_holds(
 ) -> None:
     """Declaration gaps come as they are found; the repair is the first that the registry holds.
 
-    No declaration gap holds a repair today, so the registry alone is stubbed: both peers of
-    a real declaration lose two capabilities, and each names its gap.
+    No declaration gap holds a repair today, so the registry alone is stubbed, by code as it
+    is keyed. One peer of a real declaration loses two capabilities and the other names a
+    remote that is no remote name, so the two gaps carry two codes.
     """
     repo, head = _repository(tmp_path)
     binding = repo / ".ethos/release.toml"
     declared = binding.read_text(encoding="utf-8")
-    assert declared.count(_CAPABILITIES) == 2
-    binding.write_text(declared.replace(_CAPABILITIES, '"ci_cd"'), encoding="utf-8")
-    first, second = hosted_observation(repo, head)["observation_gaps"]
+    broken = declared.replace(_CAPABILITIES, '"ci_cd"', 1)
+    broken = broken.replace('git_remote = "github"', 'git_remote = "no remote"')
+    assert (broken.count('"ci_cd"'), broken.count('"no remote"')) == (2, 1)
+    binding.write_text(broken, encoding="utf-8")
+    first, second = map(gap_code, hosted_observation(repo, head)["observation_gaps"])
+    assert first != second
     for registered, step in (({first: "one", second: "two"}, "one"), ({second: "two"}, "two")):
-        monkeypatch.setattr(hosted, "repair_for", registered.get)
+        monkeypatch.setattr(
+            hosted, "repair_for", lambda gap, held=registered: held.get(gap_code(gap), "")
+        )
         assert hosted_observation(repo, head)["next_action"] == step
 
 

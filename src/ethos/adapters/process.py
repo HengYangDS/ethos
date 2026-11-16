@@ -424,11 +424,10 @@ def _execute_command(
     ):
         (output, diagnostic), finite_input = spooled, None
         if stdin is not None:
+            # A text stream keeps the caller's line endings; Windows would write each as CRLF.
+            named = {"encoding": encoding, "newline": ""} if kwargs["text"] else {}
             finite_input = resources.enter_context(
-                TemporaryFile(
-                    mode="w+" if kwargs["text"] else "w+b",
-                    encoding=encoding if kwargs["text"] else None,
-                )
+                TemporaryFile(mode="w+" if kwargs["text"] else "w+b", **named)
             )
             finite_input.write(stdin)
             finite_input.seek(0)

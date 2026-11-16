@@ -107,7 +107,7 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
     monkeypatch.setattr(
         process,
         "TemporaryFile",
-        lambda mode, encoding=None: temporary(
+        lambda mode, encoding=None, **_named: temporary(
             mode, encoding=encoding, **(crlf if mode == "w+" else {})
         ),
     )

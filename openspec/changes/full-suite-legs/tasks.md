@@ -85,6 +85,9 @@
 - [ ] 6.5 Compare the code subjects with the commit without naming them on a command line, in
       `src/ethos/adapters/repo/gate_policy.py`. Done when the regression fails without the
       change and the Windows leg's log shows pytest starting.
+- [ ] 6.6 Hand a tool its text input with the caller's line endings on every platform, in
+      `src/ethos/adapters/process.py`. Done when the regression fails without the change and
+      the Windows leg passes `tests/architecture/ci/test_job_identity.py`.
 
 ## Workflow follow-up
 

@@ -314,6 +314,24 @@ def test_uncooperative_native_command_is_killed_and_reaped(
         assert closed()
 
 
+def test_text_input_reaches_the_child_with_its_own_line_endings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Windows text stream writes a newline as CRLF; the owner names the stream's newline."""
+    temporary = process_adapter.TemporaryFile
+
+    def windows(mode: str, **options: object) -> object:
+        # The platform's default for a text stream, unless the caller names its own.
+        return temporary(mode, **(({"newline": "\r\n"} | options) if mode == "w+" else options))
+
+    monkeypatch.setattr(process_adapter, "TemporaryFile", windows)
+    received = "import sys; print(sys.stdin.buffer.read().hex())"
+    completed = process_adapter.run_command(
+        tmp_path, (sys.executable, "-c", received), stdin="one\ntwo\n", check=True
+    )
+    assert completed.stdout.strip() == b"one\ntwo\n".hex()
+
+
 def test_a_timeout_reports_its_bound_whatever_the_interpreter_reports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -35,6 +35,9 @@ lines to the page. So the split lands before them, and the bound returns in this
 - `.ethos/rules.toml` loses the `[paradigm.size]` override, its reason and its comment. The bound
   is the paradigm's default of 500 again.
 - The unreleased changelog names the five moved anchors.
+- DR-0010 names the paradigm's per-file ceiling of 500 lines where it said 512, a figure
+  that DR-0019 already calls stale and that a reader outside this repository has copied. No
+  tracked record then states a per-file ceiling other than the paradigm's.
 
 Not breaking: no command, schema or requirement changes, and no anchor of the command reference
 stops resolving.

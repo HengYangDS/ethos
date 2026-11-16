@@ -28,6 +28,9 @@
 - [ ] 3.1 Remove the `[paradigm.size]` table, its reason and its comment from `.ethos/rules.toml`.
       Done when the documentation registry reports `docs_length_exceeded` for a registered
       document of 501 nonblank lines, no gap for one of 500, and no gap on the tree.
+- [ ] 3.2 Correct the per-file limit that DR-0010 names to the paradigm's 500. Done when
+      DR-0010 names 500, and the one tracked mention of a 512-line limit outside the archive
+      and the changelog is DR-0019's note on that sentence.
 
 ## 4. The release entry
 

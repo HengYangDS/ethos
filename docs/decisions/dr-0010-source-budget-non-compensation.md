@@ -13,7 +13,7 @@ relations:
 Status: canonical rationale. Executable thresholds are owned by quality
 configuration.
 
-Date: 2026-09-02 (record established); revised 2026-11-02.
+Date: 2026-09-02 (record established); revised 2026-11-02 and 2026-11-16.
 
 Purpose: preserve why unrelated source classes cannot compensate for one
 another and why size remains a tripwire rather than a design target.
@@ -56,7 +56,7 @@ superseded mechanics, reject zero-benefit abstractions, and identify the
 remaining behavior or acceptance boundaries that require the space. This is a
 source-policy change, never automatic growth admission or evidence that the
 repository is globally minimal. Each later step requires a fresh necessity
-judgment. Independent role accounting, the 512-ELOC per-file limit, measurement,
+judgment. Independent role accounting, the 500-ELOC per-file limit, measurement,
 coverage and all other quality obligations remain unchanged.
 
 ## Alternatives Rejected

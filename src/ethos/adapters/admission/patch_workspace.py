@@ -89,16 +89,24 @@ def _copied_preimages(root: Path, workspace: Path, changes: list[dict[str, objec
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         copied.append(old_path)
-    # Where an entry is named by its preimage, a file that the repository holds at the name that
-    # Git reported is copied as well, so that Git's record shows whether the patch replaced it.
+    # Where an entry is named by its preimage, Git writes at the name that it reported. That
+    # name is free in the repository, or the patch replaces what no change names.
     for change in changes:
-        occupied = str(change.get("reported", change["path"]))
-        held = _within(root, occupied)
-        if occupied != change["path"] and occupied not in copied and held.is_file():
-            (workspace / occupied).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(held, workspace / occupied)
-            copied.append(occupied)
+        reported = str(change.get("reported", change["path"]))
+        if reported != change["path"] and not _free(root, _within(root, reported)):
+            msg = "prewrite patch changes a path that no change names"
+            raise ValueError(msg)
     return copied
+
+
+def _free(root: Path, path: Path) -> bool:
+    """Tell whether nothing lies at the path and only real directories lie above it."""
+    above = [parent for parent in path.parents if root in parent.parents]
+    return not path.exists(follow_symlinks=False) and all(
+        parent.is_dir() and not parent.is_symlink()
+        for parent in above
+        if parent.exists(follow_symlinks=False)
+    )
 
 
 @contextmanager

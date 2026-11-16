@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
     from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
@@ -140,7 +139,7 @@ def unnamed_changes(
     root: Path,
     changes: list[dict[str, object]],
     observed: Mapping[str, tuple[str, str, str, str]],
-    allowed: Collection[str],
+    allowed: set[str],
     *,
     env: Mapping[str, str] | None = None,
 ) -> set[str]:
@@ -159,7 +158,7 @@ def unnamed_changes(
     }
     return {
         path
-        for path in observed.keys() - set(allowed)
+        for path in observed.keys() - allowed
         if path not in nulls
         or observed[path][0] != "A"
         or observed[path][2] not in _FILE_MODES

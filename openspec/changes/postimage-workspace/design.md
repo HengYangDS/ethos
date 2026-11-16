@@ -130,8 +130,9 @@ Non-Goals:
      path that no change names and that Git did not delete is refused on both. One file is
      let be on both: the empty regular file that Git creates at the null path for a deletion
      without its mode line (the entry below), where Git's record shows the entry's preimage
-     deleted and that file added. The same path with content, of another kind, or held by
-     the repository before the patch, is refused on both. The index's mode is the one
+     deleted and that file added. The same path with content or of another kind is refused
+     on both, and so is the patch where the repository holds anything at that name or a file
+     above it: the name must be free for Git to create it. The index's mode is the one
      reading of a path's kind: the workspace is a new directory of regular copies, so no
      separate look at the disk is kept (ruling Y).
 

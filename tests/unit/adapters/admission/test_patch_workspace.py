@@ -207,38 +207,54 @@ _COPY_TO_THE_NULL_PATH = (
 )
 
 
+_NEEDS_LINKS = pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege")
+
+
 @pytest.mark.parametrize(
-    ("patch", "named", "held"),
+    ("patch", "held"),
     [
-        (_FILE_TO_DIRECTORY, 1, ""),
-        (_CONTENT_TO_THE_NULL_PATH, 1, ""),
-        (_COPY_TO_THE_NULL_PATH, 1, ""),
-        (_DELETE_WITHOUT_MODE, 1, "held\n"),
+        (_FILE_TO_DIRECTORY, ""),
+        (_CONTENT_TO_THE_NULL_PATH, ""),
+        (_COPY_TO_THE_NULL_PATH, ""),
+        (_DELETE_WITHOUT_MODE, "file"),
+        (_DELETE_WITHOUT_MODE, "directory"),
+        (_DELETE_WITHOUT_MODE, "file-above"),
+        pytest.param(_DELETE_WITHOUT_MODE, "link", marks=_NEEDS_LINKS),
     ],
     ids=[
         "an-entry-left-out",
         "content-at-the-null-path",
         "nothing-deleted",
-        "a-file-held-at-the-null-path",
+        "a-file-at-the-null-path",
+        "a-directory-at-the-null-path",
+        "a-file-above-the-null-path",
+        "a-link-at-the-null-path",
     ],
 )
 def test_a_changed_path_that_no_change_names_is_refused(
-    tmp_path: Path, patch: str, named: int, held: str
+    tmp_path: Path, patch: str, held: str
 ) -> None:
     """Every changed path is named or deleted; only Git's empty file at the null path is let be.
 
-    That file is let be where the record shows the entry's preimage deleted and the repository
-    held nothing at the null path.
+    That file is let be where the record shows the entry's preimage deleted and the name is
+    free in the repository: nothing lies at it, and only directories lie above it.
     """
     repo = _repository(tmp_path)
-    if held:
+    if held == "file-above":
+        (repo / "dev").write_text("held\n", encoding="utf-8")
+    elif held:
         (repo / "dev").mkdir()
-        (repo / "dev/null").write_text(held, encoding="utf-8")
+    if held == "file":
+        (repo / "dev/null").write_text("held\n", encoding="utf-8")
+    elif held == "directory":
+        (repo / "dev/null").mkdir()
+    elif held == "link":
+        (repo / "dev/null").symlink_to("nowhere")
     changes, gap = unified_patch_changes(repo, patch)
     assert gap == ""
     with (
         pytest.raises(ValueError, match="no change names"),
-        owner.patched_workspace(repo, patch, changes[:named]),
+        owner.patched_workspace(repo, patch, changes[:1]),
     ):
         pytest.fail("the workspace was yielded")
 

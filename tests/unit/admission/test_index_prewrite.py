@@ -287,32 +287,34 @@ def test_a_path_that_git_changes_beyond_the_reading_of_the_text_is_refused(
     assert _snapshot(root) == before
 
 
+_EMPTIED = "@@ -1 +0,0 @@\n-VALUE = 2\n"
+
+
 @pytest.mark.parametrize(
-    ("hunk", "held", "verdict"),
+    ("hunk", "held", "gap"),
     [
-        ("@@ -1 +0,0 @@\n-VALUE = 2\n", "", "pass"),
-        ("@@ -1 +1 @@\n-VALUE = 2\n+KEPT = 1\n", "", "block"),
-        ("@@ -1 +0,0 @@\n-VALUE = 2\n", "held\n", "block"),
+        (_EMPTIED, "", ""),
+        ("@@ -1 +1 @@\n-VALUE = 2\n+KEPT = 1\n", "", "prewrite_patch_paths_mismatch"),
+        (_EMPTIED, "dev/null", "prewrite_patch_paths_mismatch"),
+        (_EMPTIED, "dev", "prewrite_patch_preimage_mismatch"),
     ],
-    ids=["emptied", "content-at-the-null-path", "a-file-held-at-the-null-path"],
+    ids=["emptied", "content-at-the-null-path", "a-file-at-the-null-path", "a-file-above-it"],
 )
 def test_a_deletion_without_its_mode_line_reads_as_on_the_worktree_target(
-    mixed_lane: Path, hunk: str, held: str, verdict: str
+    mixed_lane: Path, hunk: str, held: str, gap: str
 ) -> None:
     """Git's empty file at the null path is let be on both targets; anything else is refused."""
     root = mixed_lane
     if held:
-        (root / "dev").mkdir()
-        (root / "dev/null").write_text(held, encoding="utf-8")
-        git(root, "add", "dev/null")
+        (root / held).parent.mkdir(exist_ok=True)
+        (root / held).write_text("held\n", encoding="utf-8")
+        git(root, "add", held)
     patch = "diff --git a/module.py b/module.py\n--- a/module.py\n+++ /dev/null\n" + hunk
     report = prewrite.prewrite_guard(
         root=root, paths=[root / "module.py"], editor_root=root, patch=patch, target="index"
     )
-    assert report["verdict"] == verdict, report
-    assert ("prewrite_patch_paths_mismatch" in report.get("required_gaps", [])) is (
-        verdict == "block"
-    )
+    assert report["verdict"] == ("block" if gap else "pass"), report
+    assert report.get("required_gaps", [])[:1] == ([gap] if gap else [])
 
 
 def test_an_intent_to_add_beside_the_patch_is_no_path_of_it(mixed_lane: Path) -> None:

@@ -99,9 +99,8 @@ _BOTH = [".json", ".partial"]
         # A partial that cannot be removed never replaces the exit in flight, for either caller.
         (_claim, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
         (_scratch, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
-        # After a whole write and link, a partial that cannot be removed refuses the claim.
-        (_claim, None, None, _refused, pytest.raises(ValueError, match=_UNAVAILABLE), _BOTH),
-        # A scratch mark never fails the work, so there the same error is dropped.
+        # The mark decides: a partial that stays beside it refuses no claim and fails no work.
+        (_claim, None, None, _refused, nullcontext(), _BOTH),
         (_scratch, None, None, _refused, nullcontext(), _BOTH),
     ],
 )
@@ -115,7 +114,7 @@ def test_a_partial_record_is_removed_and_never_decides_how_a_mark_ends(
     ends: AbstractContextManager[object],
     left: list[str],
 ) -> None:
-    """A torn write leaves no partial; one that stays replaces no exit that is in flight."""
+    """A torn write leaves no partial; one that stays replaces no exit and decides no claim."""
     monkeypatch.setenv("ETHOS_ACTOR", _ACTOR)
     monkeypatch.setenv(host_admission.ADMISSION_ENV, "a-ticket")
     directory = tmp_path / host_work.WORK_HOME / "render"

@@ -63,7 +63,7 @@
 - [ ] 4.4 `_mark` removes the record it writes beside the mark on every exit. Done when a write
       that fails part way leaves no file, a record that cannot be removed keeps an interrupt as
       the exit of a claim and of a scratch mark, and after a whole write and link the same
-      record refuses the claim with `host_work_unavailable` and fails no scratch mark.
+      record refuses no claim and fails no scratch mark.
 - [ ] 4.5 The repair of `host_work_owned` can be followed in every case that raises it. Done when
       another owner's mark, a mark that names no owner and a run without an actor each read a
       next action that names another directory, `ETHOS_ACTOR` for the run's own identity, which

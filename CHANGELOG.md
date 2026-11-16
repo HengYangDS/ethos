@@ -179,6 +179,28 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - The release journey counts any failed install of a rebound lock as Mise's refusal. It does
     not yet require the refusal to name its cause, so a failed download would read as a refusal.
     The journey's receipt records each refusal's text under `refusals`.
+  - `ethos lane prewrite --patch` judges the files as they were when the process's temporary
+    directory lies inside a Git work tree. Git skips every path of the patch in the admission's
+    temporary workspace and reports success, so the admission admits a patch that it must
+    refuse, for example one that adds an undeclared reference or deletes a file that another
+    still reads, and refuses the move of a dated Change with `prewrite_patch_postimage_failed`.
+    The default temporary directory of macOS and of Linux is not inside a checkout and is not
+    affected. Keep `TMPDIR` outside every checkout. The defect is in 0.2.0-beta.9 and
+    0.2.0-beta.10 as well.
+  - A full proof that cannot open the host queue, take its place in it or give that place up
+    raises the operating system's error itself, in place of a gap or of an interrupt already in
+    flight. A place that cannot be given up leaves the repository's proof slot held, and a
+    ticket whose record cannot be removed keeps its place in the host queue, until the process
+    ends. End that process and run the proof again once the queue can be read and written. The
+    defect is in 0.2.0-beta.10 as well.
+  - A gate that a repository declares as a command receives the environment of the shell that
+    launched the proof, so its verdict can follow that shell. Measured on one governed
+    repository, under this release and under 0.2.0-beta.10 alike: from a shell whose Mise
+    activation variables had been removed while its `PATH` stayed activated, a test of such a
+    gate read the npm that Node bundles and not the declared one (jdx/mise#15771), and the
+    proof failed; from a clean environment it passed. Launch a local proof from the shell as it
+    is, or under `env -i` with `HOME`, a system `PATH` and `TMPDIR`, and do not remove Mise's
+    activation variables alone.
 
 ### Fixed
 
@@ -208,11 +230,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   could not take away what the rule says does not belong. A removal is now admitted: for a
   worktree request the file is already absent, and for an index request the patch deletes it. A
   creation or an edit there stays refused.
-- A gate's child no longer inherits the state that a shell's `mise activate` exports
-  (`__MISE_DIFF` and its siblings). The gates removed only `MISE_` variables, so a test that itself
-  ran `mise exec` resolved its tools in the launching shell's order: one head could fail a proof
-  from an activated shell and pass it from a clean one. The Mise adapter now names both families
-  once, and every child that resolves or runs locked tools starts without them.
+- A provider's child no longer inherits the state that a shell's `mise activate` exports
+  (`__MISE_DIFF` and its siblings). The providers removed only `MISE_` variables, so a
+  test that itself ran `mise exec` resolved its tools in the launching shell's order: one head
+  could fail a proof from an activated shell and pass it from a clean one. The Mise adapter now
+  names both families once, and every child through which a provider resolves or runs locked
+  tools starts without them. A gate that a repository declares as a command still receives
+  the launching environment; the known open defects state it.
 - A run that stops waiting for the host queue gives up its place. When the wait of `ethos host run`
   or of a foreground host proof reached its bound, met an OS error or was interrupted, the run left
   its ticket behind: the record and the lock file stayed for the next waiter to remove, and in a

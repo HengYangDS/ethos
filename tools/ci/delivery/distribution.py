@@ -26,6 +26,7 @@ from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.contracts.digest import file_sha256
+from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.release.identity import is_release_build
 from tools.ci.delivery import mise_tool
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -112,8 +113,7 @@ def package_runtime(
         if require_selected_runtime(runtime) != selected or wheel.read_bytes() != payload:
             message = "distribution_inputs_changed"
             raise ValueError(message)
-        with archive_path.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        digest = file_sha256(archive_path)
         if acceptance is not None and (
             digest != acceptance["sha256"]
             or selected.digest != acceptance["runtime_digest"]
@@ -363,13 +363,17 @@ def install_archive(
     *,
     mise: Path,
     environment: Mapping[str, str],
-    sha256: str = "",
+    sha256: str | None = None,
 ) -> InstalledTool:
     """Install a local archive offline as adopters install a release, in the same layout.
 
     A caller that verified the archive names the digest it verified, and Mise refuses other
-    bytes; without one the archive's own digest is declared.
+    bytes; a caller that names none declares the archive's own digest. A digest that is
+    given and is no SHA-256 is refused, and never replaced by the archive's own.
     """
+    if sha256 is not None and not is_sha256_hex(sha256):
+        message = "shared_supply_archive_digest_invalid"
+        raise ValueError(message)
     with tarfile.open(archive) as packed:
         manifests = [
             name
@@ -384,7 +388,7 @@ def install_archive(
     # Adopters label the tool with its product version, which also keeps a Windows install's
     # paths within what `cmd` runs; the console must still report the exact distribution.
     version = manifest.get("product_version", "")
-    digest = sha256 or file_sha256(archive)
+    digest = file_sha256(archive) if sha256 is None else sha256
     # Mise strips the archive's one top directory, as it does for a release pinned on the forge.
     local = (
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'

@@ -54,7 +54,7 @@ the repository binds.
 - **WHEN** a stage runs on Windows
 - **THEN** its children SHALL receive the Git variables over the install smoke's minimal
   environment, and the home, temporary directory and path SHALL stay the host's
-- **AND** the path SHALL also name the directory of each declared executable
+- **AND** a stage whose declared executable that path does not hold SHALL refuse at its start
 
 ### Requirement: Acquisition is the journey's only networked stage
 
@@ -103,8 +103,7 @@ run every journey step. Each leg's receipt SHALL name its venue.
 #### Scenario: A leg records where it ran
 
 - **WHEN** a leg writes its receipt
-- **THEN** `venue` SHALL read `ci` where the `CI` input is `true` or `1`, as a CI runner sets
-  it, and `local` otherwise
+- **THEN** `venue` SHALL read `ci` under a CI runner and `local` otherwise
 
 ## MODIFIED Requirements
 

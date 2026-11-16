@@ -313,9 +313,9 @@ def run(
     host = mise_target()
     output = evidence if evidence is not None else EVIDENCE / f"journey-{host}.json"
     events = output.with_suffix(".events.jsonl")
-    # The venue is where this leg ran: under a forge's runner, which sets `CI` so, or on a
-    # local host.
-    venue = "ci" if os.environ.get("CI", "").lower() in {"true", "1"} else "local"
+    # The venue is where this leg ran: under a forge's runner, or on a local host. Any value of
+    # `CI` reads as a runner, as the product's other readers of that input read it.
+    venue = "ci" if os.environ.get("CI") else "local"
     payload: dict[str, object] = {"tag": tag, "platform": host, "venue": venue, "state": "failed"}
     failure: Exception | None = None
     try:

@@ -12,11 +12,13 @@
 - [ ] 1.3 Add `hermetic_gap` with one test case for each way the environment can show more than
       it declared. Done when each case fails against a check that reports nothing, then passes.
 - [ ] 1.4 Show the place of the host's tool supply to the preparation of Mise alone. Done when
-      a child that inherits after it sees no supply variable, and a journey's downloads see
-      none in their process.
-- [ ] 1.5 Name each declared executable's directory on a Windows stage's path. Done when the
-      owner's test, with its view of the operating system replaced, resolves a declared
-      executable that the minimal path does not hold. No run on Windows verifies it.
+      a command inside it inherits the supply's place, a child after it sees none, a journey's
+      downloads see none in their process, and each name is afterwards as it was, also when
+      the preparation fails.
+- [ ] 1.5 Refuse, on a Windows stage, a declared executable that the minimal path does not
+      hold. Done when the owner's test, with its view of the operating system replaced, reads
+      the refusal by name, a path without an added directory and a named variable beyond the
+      declaration. No run on Windows verifies it.
 
 ## 2. Acquisition
 
@@ -42,10 +44,11 @@
       Mise on the host's path is not the one the installs receive.
 - [ ] 3.4 Record `venue` in the receipt. Done when the receipt test reads `ci` and `local`.
 - [ ] 3.5 Give Mise the manifest's digest as the archive's checksum. Done when the offline
-      install's table carries the digest that its caller names, and the archive's own without
-      one.
-- [ ] 3.6 Read `venue` as `ci` only where `CI` is `true` or `1`. Done when a host that exports
-      `CI=false` writes `local`.
+      install's table carries the digest that its caller names, the archive's own without
+      one, a given digest that is no SHA-256 is refused, and the journey's installs record
+      their manifest's digest.
+- [ ] 3.6 Keep the venue's reading of `CI` equal to the product's other readers of that input.
+      Done when an empty `CI` writes `local` and a set one `ci`.
 
 ## 4. Documents and budgets
 

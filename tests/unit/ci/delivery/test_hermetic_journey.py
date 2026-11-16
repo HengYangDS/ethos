@@ -71,7 +71,7 @@ def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
     host, root, temporary = dict(os.environ), tmp_path / "environment", tempfile.gettempdir()
     with host_environment.hermetic_environment(root, EXECUTABLES) as environment:
         with host_environment.host_supply({SUPPLY: HOST[SUPPLY]}):
-            shown = os.environ[SUPPLY]
+            prepared = json.loads(run_command(tmp_path, PRINT).stdout)
         inherited = json.loads(run_command(tmp_path, PRINT).stdout)
         handed = json.loads(
             run_command(tmp_path, PRINT, env=environment, inherit_environment=False).stdout
@@ -82,7 +82,9 @@ def test_every_child_inherits_or_is_handed_the_same_fresh_environment(
     for child in (inherited, handed):
         assert {name: child[name] for name in environment} == environment
         assert child.keys() - environment.keys() <= RUNTIME
-    assert (shown, SUPPLY in inherited, SUPPLY in handed) == ("/fake/supply", False, False)
+    # A command of the preparation inherits the supply's place, and no later child does.
+    supplied = (prepared[SUPPLY], SUPPLY in inherited, SUPPLY in handed)
+    assert supplied == ("/fake/supply", False, False)
     assert resolved == {name: str(root / "bin" / name) for name in EXECUTABLES}
     assert (dict(os.environ), tempfile.gettempdir()) == (host, temporary)
     sources = [Path(link).resolve() for link in resolved.values()]
@@ -117,10 +119,30 @@ def test_the_fixture_adopter_is_built_and_signed_inside_the_fresh_environment(
     assert (signed, (built[0] / ".git/hooks").exists()) == ("G", False)
 
 
-def test_a_windows_stage_finds_each_declared_executable_on_its_path(
+def test_the_supply_block_restores_every_name_it_set_also_when_it_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A name that the process held before keeps its value; one it did not hold is gone again."""
+    monkeypatch.setenv("HELD", "before")
+    monkeypatch.delenv(SUPPLY, raising=False)
+    shown = {SUPPLY: "/fake/supply", "HELD": "inside"}
+    with host_environment.host_supply(shown):
+        inside = {name: os.environ[name] for name in shown}
+    after = (os.environ.get(SUPPLY), os.environ.get("HELD"))
+    with pytest.raises(RuntimeError), host_environment.host_supply(shown):
+        raise RuntimeError
+    assert (inside, after) == (shown, (None, "before"))
+    assert (os.environ.get(SUPPLY), os.environ.get("HELD")) == (None, "before")
+
+
+def test_a_windows_stage_keeps_its_minimal_path_and_refuses_what_it_does_not_hold(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Windows links nothing, so its path names the directory of each declared executable."""
+    """Windows links nothing, so a declared executable outside the minimal path is refused by name.
+
+    The path gains no directory for it: a directory would show a child every neighbour of that
+    executable. A stage that starts still names a variable beyond its declaration.
+    """
     client = tmp_path / "forge/client"
     client.parent.mkdir()
     client.touch(mode=0o755)
@@ -128,11 +150,16 @@ def test_a_windows_stage_finds_each_declared_executable_on_its_path(
     monkeypatch.setenv("SYSTEMROOT", str(tmp_path / "windows"))
     windows = SimpleNamespace(name="nt", environ=os.environ, pathsep=os.pathsep)
     monkeypatch.setattr(host_environment, "os", windows)
-    root, executables = tmp_path / "environment", (*EXECUTABLES, "client")
-    with host_environment.hermetic_environment(root, executables) as stage:
-        found = shutil.which("client", path=stage["PATH"])
-        assert host_environment.hermetic_gap(root, executables) == ""
-    assert Path(found or "").resolve() == client.resolve()
+    refused, started = tmp_path / "refused", tmp_path / "started"
+    stage = host_environment.hermetic_environment
+    with pytest.raises(RuntimeError, match="cannot resolve client"), stage(refused, ("client",)):
+        pass
+    with stage(started, EXECUTABLES) as declared:
+        clean = host_environment.hermetic_gap(started, EXECUTABLES)
+        os.environ.update(GH_TOKEN="fake")
+        shown = host_environment.hermetic_gap(started, EXECUTABLES)
+    assert (refused.exists(), str(client.parent) in declared["PATH"]) == (False, False)
+    assert (clean, shown) == ("", "GH_TOKEN")
 
 
 # Each way a stage's environment can show a child more than was declared, and what is named.

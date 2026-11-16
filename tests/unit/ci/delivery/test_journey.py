@@ -270,7 +270,7 @@ def test_each_leg_writes_its_receipt_whether_it_passes_or_fails(
 
     monkeypatch.setattr(journey, "qualify", qualify)
     monkeypatch.setattr(journey, "mise_target", lambda: PLATFORM)
-    monkeypatch.setenv("CI", "true" if failure else "false")
+    monkeypatch.setenv("CI", "true" if failure else "")
     session = Mock()
     output = tmp_path / "evidence" / f"journey-{PLATFORM}.json"
     classes = state == "classes_verified"
@@ -301,7 +301,7 @@ def _journey_without_effects(
     `tokens` holds, for each download, pin and offline install, the forge token this process
     held, the one in the environment that the step hands its children, and the one it was handed.
     """
-    names = ("downloads", "upgrades", "pins", "tokens", "mise", "supply")
+    names = ("downloads", "upgrades", "pins", "tokens", "mise", "supply", "digests")
     seen: dict[str, list] = {name: [] for name in names}
 
     def held(environment: dict[str, str]) -> tuple[str | None, str | None]:
@@ -324,9 +324,10 @@ def _journey_without_effects(
         return Mock()
 
     def offline(
-        archive: Path, _home: Path, *, mise: Path, environment: dict[str, str], **_bound: str
+        archive: Path, _home: Path, *, mise: Path, environment: dict[str, str], sha256: str
     ):
         seen["mise"].append(mise)
+        seen["digests"].append(sha256)
         seen["tokens"].append((archive.parent.name, *held(environment), ""))
         return Mock(runtime=tmp_path / "previous-install/runtime/0123456789abcdef")
 
@@ -426,6 +427,8 @@ def test_only_acquisition_holds_the_forge_token_and_qualification_reads_the_mani
         ("0.2.0-alpha.27", DIGEST),
     ]
     assert set(seen["mise"]) == {Path("bound-mise")}
+    # Each offline install is bound to the digest that its manifest entry records.
+    assert seen["digests"] == [DIGEST, DIGEST]
     # Only the preparation of Mise is shown where the host's tool supply is.
     assert seen["supply"] == [("mise", "/fake/supply"), *[("download", None)] * 2]
     assert not (tmp_path / "work/acquisition/pins").exists()

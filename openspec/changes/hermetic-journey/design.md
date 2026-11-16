@@ -75,9 +75,11 @@ Non-Goals:
      write to it can be seen. Mise is not on the path: the journey calls the executable of the
      repository's tool supply by its absolute path, and that executable is bound by digest.
    - **Applies to:** POSIX hosts. On Windows the owner adds the Git variables to the install
-     smoke's minimal environment and links nothing; its path also names the directory of each
-     declared executable, since the minimal path holds Git and the signing tool alone and the
-     forge's client is installed elsewhere. The journey's own `XDG_DATA_HOME`, which
+     smoke's minimal environment and links nothing. Its path gains no directory, which would
+     show a child every neighbour of an executable, a host's Mise among them; a stage whose
+     declared executable the minimal path does not hold refuses at its start, by name. So
+     acquisition starts on Windows only where the forge's client is on that path. The
+     journey's own `XDG_DATA_HOME`, which
      gives each upgrade its own host store under the work tree, stays: B.5 excludes the host's
      desktop variables, and this one is the product's declared input for the store's place.
 3. **The forge token is handed to two kinds of child and inherited by none.**
@@ -92,7 +94,8 @@ Non-Goals:
    - **Applies to:** acquisition. Qualification has no token to hand. Acquisition's process
      holds three variables that say where the host's tool supply is only while it prepares
      Mise from that supply. The commands of that preparation can read them, no later child
-     can, and none is a credential. The first form of this Change kept them for the whole
+     can, and none is a credential: each name is afterwards as the process held it before,
+     also when the preparation fails. The first form of this Change kept them for the whole
      stage, where the forge's client inherited them.
 4. **Acquisition proves the pins; the steps run on offline installs of the acquired archives.**
    - **Rests on:** B.5, which has qualification hash again before each install. Mise's lock and
@@ -104,7 +107,8 @@ Non-Goals:
      cache's layout and is unproven.
    - **Chosen because:** the bytes the steps run on are the bytes the manifest names: the
      journey hashes the archive again, and Mise is given the manifest's digest as the
-     archive's checksum, so it refuses bytes that change after that check. The cost
+     archive's checksum, so it refuses bytes that change after that check; a digest that is
+     given and is no SHA-256 is refused and never replaced by the archive's own. The cost
      is that each release is installed twice, and that the console and the uninstall are
      exercised on the local table's installation. The pin's installation is checked for its
      console in acquisition and then removed as a tree, not through Mise.
@@ -140,9 +144,9 @@ Non-Goals:
    - **Considered:** a forge's runner-kind variable, which needs a new declared input in a
      shared file; and an option that the operator sets, which records an assertion.
    - **Chosen because:** it is the smallest reading that separates a runner from a local host.
-   - **Applies to:** the receipt's `venue` key. A self-hosted runner reads `ci` as well. Only
-     the values `true` and `1` read `ci`, as both forges' runners set the input; a host that
-     exports `CI=false` is local.
+   - **Applies to:** the receipt's `venue` key. A self-hosted runner reads `ci` as well. Any
+     non-empty value reads `ci`, as the product's other readers of the same input read it;
+     a stricter reading here would give one run two venues.
 
 ## Risks / Trade-offs
 
@@ -157,6 +161,6 @@ Non-Goals:
 - A host now needs the forge's client and a downloader on its path even where the Mise supply is
   present, because the links are made before the stage knows.
 - The tests of the owner are skipped on Windows, so its Windows branch is unverified. One test
-  replaces the owner's view of the operating system to read that branch's path; nothing runs
-  it on Windows.
+  replaces the owner's view of the operating system to read that branch's refusal and its
+  gap; nothing runs it on Windows.
 - Each release is installed twice. The time is unmeasured; the tasks ask the dispatch to read it.

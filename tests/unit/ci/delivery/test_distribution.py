@@ -95,6 +95,10 @@ def test_a_local_archive_installs_from_a_table_that_strips_its_top_directory(
     own = hashlib.sha256(archive.read_bytes()).hexdigest()
     declared = [text.partition('checksum = "sha256:')[2][:64] for text in seen]
     assert declared == [own, "f" * 64]
+    # A digest that is given and is none is refused; it never falls back to the archive's own.
+    for given in ("", "not-a-digest"):
+        with pytest.raises(ValueError, match="shared_supply_archive_digest_invalid"):
+            install(mise=tmp_path / "mise", sha256=given)
     assert (archive.resolve().as_uri() in seen[0], seen[0].endswith("offline = True")) == (
         True,
         True,

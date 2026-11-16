@@ -88,8 +88,9 @@ def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
     """Name every variable a hermetic child receives; each path it names lies under `root`.
 
     Windows gets the Git variables alone, over the minimal environment: its home, temporary
-    directory and path stay the host's. It links nothing, so its path also names the
-    directory of each declared executable.
+    directory and path stay the host's. It links nothing and its path gains no directory,
+    which would show a child every neighbour of an executable; a declared executable that
+    the minimal path does not hold is refused by name.
     """
     fresh = {name: str(root / directory) for name, directory in _FRESH.items()}
     git = {
@@ -101,9 +102,11 @@ def _declared(root: Path, executables: tuple[str, ...]) -> dict[str, str]:
     if os.name != "nt":
         return fresh | git
     host = independent_host_environment()[0]
-    found = (str(source.parent) for source in _resolve(executables).values())
-    path = os.pathsep.join(dict.fromkeys((*host["PATH"].split(os.pathsep), *found)))
-    return host | git | {"PATH": path}
+    for name in executables:
+        if shutil.which(name, path=host["PATH"]) is None:
+            message = f"minimal host environment cannot resolve {name}"
+            raise RuntimeError(message)
+    return host | git
 
 
 @contextmanager
@@ -111,14 +114,17 @@ def host_supply(values: Mapping[str, str]) -> Generator[None]:
     """Show this process where the host's tool supply is, for one block alone.
 
     The block prepares a tool from that supply, and the commands of that preparation inherit
-    the variables. No child that starts after the block does.
+    the variables. No child that starts after the block does: each name is then as the
+    process held it before, set or unset.
     """
+    before = {name: os.environ.get(name) for name in values}
     os.environ.update(values)
     try:
         yield
     finally:
-        for name in values:
+        for name, held in before.items():
             os.environ.pop(name, None)
+            os.environ.update({} if held is None else {name: held})
 
 
 @contextmanager
@@ -131,13 +137,14 @@ def hermetic_environment(root: Path, executables: tuple[str, ...]) -> Generator[
     variable. The host's environment returns when the block ends.
     """
     sources = _resolve(executables)
+    # The declaration can refuse, so it is made before anything is created under the root.
+    environment, host = _declared(root, executables), dict(os.environ)
     for directory in _FRESH.values():
         (root / directory).mkdir(parents=True)
     (root / "gitconfig").touch()
     if os.name != "nt":
         for name, source in sources.items():
             (root / _FRESH["PATH"] / name).symlink_to(source)
-    environment, host = _declared(root, executables), dict(os.environ)
     os.environ.clear()
     os.environ.update(environment)
     # Python remembers the first temporary directory it resolved, on either side of the change.

@@ -90,7 +90,7 @@
 - [ ] 6.4 Prove mixed engines: an engine of an earlier release waits beside this one. Done when
       the earlier engine ends at its own total bound, this one keeps its place, and neither
       changes the other's order.
-- [ ] 6.5 Run `ethos host status --guest-cpus <N>` on the reference host with the guests' own count.
+- [x] 6.5 Run `ethos host status --guest-cpus <N>` on the reference host with the guests' own count.
       Done when the next action names a value that `host.toml` takes or the guests' sizes.
 - [ ] 6.6 Run one render under `ethos host run --work <name>` on the workstation, and read the
       scratch root of one full proof's test gate while it runs. Done when both marks name the

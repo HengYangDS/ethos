@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.schema import state_database
@@ -60,8 +61,9 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
         monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     else:
         monkeypatch.setenv("ETHOS_ACTOR", actor)
+    # The held Lease, read before any command runs, so a handoff names its real coordinates.
+    lease = leases_by_branch(lane)["work/feature"]
     if gap.startswith("work_lane_missing_lease:"):
-        lease = leases_by_branch(lane)["work/feature"]
         revoke_lease(
             state_database(lane),
             request=LeaseOperationRequest.model_validate(
@@ -92,9 +94,8 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
 
     assert {result["required_gaps"][0] for result in results} == {gap}
     assert "write_admission_not_armed:runtime_current" in results[0]["required_gaps"]
-    lease = leases_by_branch(lane).get("work/feature", {})
-    handoff = ("lane", "handoff", "transfer", "--generation", str(lease.get("generation")))
-    handoff += ("--expires-at", str(lease.get("expires_at")), "--branch", "work/feature")
+    handoff = ("lane", "handoff", "transfer", "--generation", str(lease["generation"]))
+    handoff += ("--expires-at", str(lease["expires_at"]), "--branch", "work/feature")
     handoff += ("--holder-ref", _HOLDER, "--target-holder-ref", str(actor))
     handoff += ("--root", str(lane), "--json")
     assert {result["next_action"] for result in results} == {
@@ -111,9 +112,27 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
     assert [(step["kind"], step["form"], step.get("inputs", [])) for step in steps] == [
         _STEPS[gap.partition(":")[0]]
     ] * len(results)
+    # A step that leaves no value to the agent has no `inputs` key, not an empty one.
+    assert {"inputs" in step for step in steps} == {bool(_STEPS[gap.partition(":")[0]][2])}
     # The handoff that a mismatch names is live: its preview admits the generation it carries.
     if gap.startswith("lease_holder_mismatch:"):
         assert run_ethos(*handoff, cwd=lane)["verdict"] == "pass"
+
+
+@pytest.mark.parametrize("missing", [{"generation": 0}, {"expires_at": ""}])
+def test_a_foreign_lease_without_its_coordinates_continues_to_lane_status(
+    tmp_path: Path, missing: dict[str, object]
+) -> None:
+    """A handoff that cannot name the generation it moves is no step; the lane's status is."""
+    lease: dict[str, object] = {"lease_state": "valid", "holder_ref": _HOLDER, "generation": 1}
+    lease |= {"expires_at": "2099-01-01T00:00:00Z"} | missing
+    authority = resolve_current_authority(
+        root=tmp_path, branch="work/feature", lease=lease, actor="agent:a:b:c", current_head=""
+    )
+
+    assert authority.reason == "lease_holder_mismatch:work/feature"
+    status = f"ethos lane status --root {tmp_path.resolve().as_posix()} --json"
+    assert authority.recovery(tmp_path) == (status, False)
 
 
 def test_the_actor_a_step_asks_for_is_supplied_by_its_flag(

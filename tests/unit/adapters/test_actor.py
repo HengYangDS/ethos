@@ -9,6 +9,7 @@ import pytest
 
 from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.actor import LOCAL_ISSUER
+from ethos.adapters.actor import handoff_step
 from ethos.adapters.actor import invocation_actor
 from ethos.adapters.actor import process_actor
 from ethos.adapters.actor import process_issuer
@@ -80,3 +81,13 @@ def test_no_other_product_module_reads_the_actor_variable() -> None:
         if path != owner and '"ETHOS_ACTOR"' in path.read_text(encoding="utf-8")
     ]
     assert readers == []
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [{"generation": None}, {"generation": 0}, {"expires_at": None}, {"holder_ref": "  "}],
+)
+def test_a_lease_without_its_coordinates_renders_no_handoff(missing: dict[str, object]) -> None:
+    """A preview that reads `--generation None` cannot be followed, so the caller gets none."""
+    lease = {"holder_ref": "agent:a:b:c", "generation": 1, "expires_at": "2099-01-01T00:00:00Z"}
+    assert handoff_step(ROOT, "work/example", lease | missing, "agent:a:b:d") == ""

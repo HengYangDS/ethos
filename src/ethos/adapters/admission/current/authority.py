@@ -36,7 +36,6 @@ class CurrentAuthority:
 
     def recovery(self, root: Path) -> tuple[str, bool]:
         """Return the sole public recovery command and decision boundary."""
-        holder = str(self.lease.get("holder_ref") or "").strip()
         if self.reason.startswith("work_lane_missing_lease:") and self.actor:
             return shlex.join(
                 (
@@ -55,8 +54,11 @@ class CurrentAuthority:
             ), True
         if self.reason.startswith("invocation_actor_missing:"):
             return ACTOR_STEP, False
-        if self.reason.startswith("lease_holder_mismatch:") and holder:
-            return handoff_step(root, self.branch, self.lease, self.actor), True
+        # A Lease whose coordinates cannot be read names no handoff; the step is the lane's status.
+        if self.reason.startswith("lease_holder_mismatch:") and (
+            handoff := handoff_step(root, self.branch, self.lease, self.actor)
+        ):
+            return handoff, True
         return f"ethos lane status --root {root.resolve().as_posix()} --json", False
 
     def projection(self) -> dict[str, object]:

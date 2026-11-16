@@ -57,7 +57,9 @@ Non-Goals:
      flag and ignores it.
    - **Applies to:** catalog commands on the CLI and the `actor` argument of `invoke`. It does not
      cover `ethos host run` (Decision 9), `ethos mcp`, `--version` or help, and `--help --json`
-     lists request fields only, so it names `--actor` no more than `--root`.
+     lists request fields only, so it names `--actor` no more than `--root`. The argv selection
+     that `next`, the console and the command boundary share reads the flag on the same commands,
+     so an argv that the CLI accepts selects the same operation on each of them.
 2. **A given actor binds the invocation through the process input and ends with it.**
    - **Rests on:** the 52 reads of the one owner; the hooks that a commit starts and a detached
      run, which are child processes and read the variable; and the requirement
@@ -119,7 +121,8 @@ Non-Goals:
      `lane lease reacquire`, as before.
    - **Applies to:** `lease_holder_mismatch` from the current authority and
      `foreign_work_lane_retire_authority_required` from a linked retirement, each with a valid
-     Lease. The step is rooted at the lane, where the transfer runs.
+     Lease. The step is rooted at the lane, where the transfer runs. A Lease whose generation,
+     expiry or holder cannot be read names nothing to move, so its step is the lane's status.
 7. **Continuations keep `--holder-ref` here, and `lane-operations` removes it.**
    - **Rests on:** five lines in four modules that render the flag, and the requests of
      `lane start`, `lane lease reacquire` and `lane handoff transfer`, where the field is
@@ -161,7 +164,8 @@ Non-Goals:
      `host run` reads the actor only as the owner of its ticket and never returns the step that
      asks for one. Accepted: for this command the actor comes from `ETHOS_ACTOR` alone.
    - **Applies to:** every command whose operation exits as its child does, which is one command
-     today. The rule is read from that declared exit kind, not from the command's name.
+     today. The rule is read from that declared exit kind, not from the command's name, by one
+     function that the CLI and the argv selection both call.
 10. **The step's `inputs` are what a tool projection reads; rendering them is another Change.**
     - **Rests on:** `src/ethos/surface/mcp/server.py`, which binds the actor at startup and whose
       `status` tool calls the operation that a test reads the input entry from; and the

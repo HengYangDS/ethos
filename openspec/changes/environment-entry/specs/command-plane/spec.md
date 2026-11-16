@@ -50,11 +50,17 @@ as a decision. No continuation SHALL name the holder as the actor.
 #### Scenario: A foreign actor is offered the handoff
 
 - **WHEN** the current authority or a linked retirement finds a valid Lease whose holder is not
-  the invocation's actor
+  the invocation's actor, and the Lease's coordinates are readable
 - **THEN** `next` is a `decision` whose argv is the `ethos lane handoff transfer` preview, with
   the Lease's generation, expiry, branch and holder, the actor as the target and the lane as the
   root
 - **AND** running that argv reports whether that generation can move
+
+#### Scenario: A Lease without its coordinates names no handoff
+
+- **WHEN** a valid Lease has a holder that is not the invocation's actor, but its generation is
+  below 1 or its expiry is blank or absent
+- **THEN** the next step is the lane's status, and no argv carries `None` or a blank coordinate
 
 #### Scenario: A missing Lease still continues to its acquisition
 

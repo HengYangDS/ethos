@@ -12,6 +12,9 @@
 - [ ] 1.4 Give no actor option to a command that exits as its child does. Done when both cases of
       `test_every_token_after_the_end_marker_reaches_the_command` pass: the child of
       `ethos host run` receives `--actor` and its value with `--` and without it.
+- [ ] 1.5 Read `--actor` in the shared argv selection on every command that takes it, through the
+      function that the CLI's signature calls. Done when the four `--actor` cases of
+      `test_an_argv_selects_its_declared_form_and_nothing_else` pass.
 
 ## 2. The continuations
 
@@ -26,6 +29,16 @@
       delete `tests/unit/kernel/test_next_inputs_reader_first.py`. Done when each of the five
       commands returns the input, the operation behind the MCP `status` tool returns the same
       entry of name, flag and description, and `EthosResult.from_payload` returns the same step.
+- [ ] 2.4 Render the handoff only from a Lease whose generation, expiry and holder can be read, and
+      continue to the lane's status otherwise, in both callers. Done when the four cases of
+      `test_a_lease_without_its_coordinates_renders_no_handoff`, both cases of
+      `test_a_foreign_lease_without_its_coordinates_continues_to_lane_status`, the foreign case of
+      `test_landed_public_actor_and_lease_state_matrix` and
+      `test_a_foreign_actor_without_a_handoff_keeps_the_lane_status_step` pass.
+- [ ] 2.5 Pin that a step with no value to choose has no `inputs` member. Done when the six cases of
+      `test_public_surfaces_preserve_one_current_authority_recovery` pass with that assertion.
+- [ ] 2.6 Build the expected handoff of that test from the held Lease, read by its branch before
+      the commands run. Done when its two cases of a foreign actor pass and run the preview.
 
 ## 3. Documents
 

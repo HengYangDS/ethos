@@ -177,12 +177,35 @@ def test_landed_public_actor_and_lease_state_matrix(
         "unknown" if lease_state == "unknown" else "pass" if not expected else "block"
     )
     assert report["verdict"] == expected_verdict
+    # The stub Lease carries no generation, so a foreign actor's step is the lane's status.
+    if "foreign_work_lane_retire_authority_required" in expected:
+        assert report["next_action"] == f"ethos lane status --root {tmp_path.as_posix()} --json"
     assert mutation["decision"]["policy_refs"] == [
         (
             "openspec/specs/repository-governance/spec.md"
             "#linked-work-lane-retirement-has-one-exact-effect"
         )
     ]
+
+
+def test_a_foreign_actor_without_a_handoff_keeps_the_lane_status_step(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The refusal of a foreign actor never continues to the retirement that refused it."""
+    _stub_retirement(
+        monkeypatch, worktrees=[_worktree()], lanes={SOURCE: _lane()}, stub_holder_gaps=False
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:other")
+    kept = LinkedRetirementRequest(
+        branch=SOURCE, expect_head=SOURCE_HEAD, absorbed_by="refs/heads/work/kept", apply=True
+    )
+
+    report = retire_linked_work_lane(root=tmp_path, mode="superseded", request=kept)
+
+    foreign = {"foreign_work_lane_retire_authority_required", "lane_retirement_receipt_required"}
+    assert foreign <= set(report["required_gaps"])
+    assert report["next_action"] == f"ethos lane status --root {tmp_path.as_posix()} --json"
+    assert report["user_decision_required"] is False
 
 
 @pytest.mark.parametrize(

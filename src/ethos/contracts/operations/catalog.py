@@ -50,9 +50,14 @@ GROUPS: dict[str, Group] = {
         ),
     )
 }
-# Options every command takes besides its request: the bound root and the JSON frame; after the
-# end of options, every token is a word.
-_ROOT_FLAG, _JSON_FLAG, _END = "--root", "--json", "--"
+# Options every command takes besides its request: the bound root, the executor's identity and the
+# JSON frame; after the end of options, every token is a word.
+_ROOT_FLAG, _ACTOR_FLAG, _JSON_FLAG, _END = "--root", "--actor", "--json", "--"
+
+
+def takes_actor(command: Command) -> bool:
+    """Whether a command takes `--actor`; one that exits as its child leaves it to the child."""
+    return not any(item.exit == "process" for item in command.operations)
 
 
 def command_path(words: Sequence[str]) -> Command | None:
@@ -98,13 +103,14 @@ def _bound_fields(command: Command, rest: Sequence[str]) -> tuple[set[str], list
     boolean selector, or an option the command does not declare.
     """
     names = {command.flag(name): name for name in command.request.model_fields}
+    options = {_ROOT_FLAG, _JSON_FLAG, *((_ACTOR_FLAG,) if takes_actor(command) else ())}
     present: set[str] = set()
     words: list[str] = []
     tokens = iter(rest)
     for token in tokens:
         flag, equals = token.partition("=")[:2]
         name = names.get(flag)
-        unknown = name is None and flag not in {_ROOT_FLAG, _JSON_FLAG}
+        unknown = name is None and flag not in options
         if _is_word(command, token, unknown=unknown, position=len(words)):
             words.extend(tokens if token == _END else (token,))
         elif not _option_admitted(
@@ -134,10 +140,11 @@ def _option_admitted(
 ) -> bool:
     """Whether an option is admitted, consuming its separate value when it takes one.
 
-    `--root` and every valued field take a value, inline after `=` or as the next token; a boolean
-    selector or `--json` takes none, so a value on it or an undeclared option leaves the argv
-    unselected.
+    `--root`, a taken `--actor` and every valued field take a value, inline after `=` or as the
+    next token; a boolean selector or `--json` takes none, so a value on it or an undeclared option
+    leaves the argv unselected.
     """
-    if flag == _ROOT_FLAG or (name is not None and command.valued(name)):
+    taken = not unknown and flag in {_ROOT_FLAG, _ACTOR_FLAG}
+    if taken or (name is not None and command.valued(name)):
         return bool(equals) or next(tokens, None) is not None
     return not equals and not unknown

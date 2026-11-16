@@ -12,6 +12,7 @@ import shlex
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import process_input
+from ethos.normalization.coercion import integer
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -42,13 +43,21 @@ def invocation_actor(actor: str | None) -> AbstractContextManager[None]:
 
 
 def handoff_step(root: Path, branch: str, lease: Mapping[str, object], target: str) -> str:
-    """Render the preview that moves one held Lease generation to the target, in the lane."""
+    """Render the preview that moves one held Lease generation to the target, in the lane.
+
+    A Lease without a readable generation, expiry or holder names nothing to move, so it has none.
+    """
+    generation = integer(lease.get("generation"))
+    expires_at = str(lease.get("expires_at") or "").strip()
+    holder_ref = str(lease.get("holder_ref") or "").strip()
+    if generation < 1 or not expires_at or not holder_ref:
+        return ""
     return shlex.join(
         (
             *("ethos", "lane", "handoff", "transfer"),
-            *("--generation", str(lease.get("generation"))),
-            *("--expires-at", str(lease.get("expires_at")), "--branch", branch),
-            *("--holder-ref", str(lease.get("holder_ref")), "--target-holder-ref", target),
+            *("--generation", str(generation)),
+            *("--expires-at", expires_at, "--branch", branch),
+            *("--holder-ref", holder_ref, "--target-holder-ref", target),
             *("--root", root.resolve().as_posix(), "--json"),
         )
     )

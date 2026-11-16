@@ -223,15 +223,7 @@ def _continuation(
     gaps = tuple(string_sequence(report.get("required_gaps")))
     holder = effects.holder_ref(authority)
     if "foreign_work_lane_retire_authority_required" in gaps and holder:
-        return {
-            "next_action": handoff_step(
-                Path(str(authority["path"])),
-                str(authority["branch"]),
-                cast("dict[str, object]", authority["lease"]),
-                process_actor(),
-            ),
-            "user_decision_required": True,
-        }
+        return _foreign_actor_step(repo, gaps, authority)
     if "lane_retirement_receipt_required" in gaps:
         return _continuation(
             repo,
@@ -272,6 +264,26 @@ def _continuation(
         parts.extend(("--authorize", "--apply"))
     parts.extend(("--root", shlex.quote(repo.as_posix()), "--json"))
     return {"next_action": " ".join(parts), "user_decision_required": True}
+
+
+def _foreign_actor_step(
+    repo: Path, gaps: tuple[str, ...], authority: dict[str, object]
+) -> dict[str, object]:
+    """Return the step of a foreign actor: the handoff, or the refusal's own step without one.
+
+    A Lease whose coordinates cannot be read names no handoff, and the refusal never continues to
+    the retirement that refused it.
+    """
+    handoff = handoff_step(
+        Path(str(authority["path"])),
+        str(authority["branch"]),
+        cast("dict[str, object]", authority["lease"]),
+        process_actor(),
+    )
+    return {
+        "next_action": handoff or _missing_actor_or_status(repo, gaps),
+        "user_decision_required": bool(handoff) or "authorization_required" in gaps,
+    }
 
 
 def _missing_actor_or_status(repo: Path, gaps: tuple[str, ...]) -> str:

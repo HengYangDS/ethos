@@ -32,6 +32,7 @@ from ethos.application.invocation import ACTOR_INPUT
 from ethos.contracts.operations.catalog import COMMANDS
 from ethos.contracts.operations.catalog import GROUPS
 from ethos.contracts.operations.catalog import command_path
+from ethos.contracts.operations.catalog import takes_actor
 from ethos.contracts.operations.declaration import Command
 from ethos.contracts.operations.declaration import CommandRequest
 from ethos.contracts.operations.declaration import Group
@@ -89,7 +90,7 @@ def _signature(command: Command) -> inspect.Signature:
     fields = [name for name in command.request.model_fields if name not in command.positionals]
     named = [_parameter(command, name) for name in (*command.positionals, *fields)]
     # A command that hands its words to a child takes no actor option, so the child keeps its own.
-    passes = any(item.exit == "process" for item in command.operations)
+    passes = not takes_actor(command)
     options = [item for item in _OPTIONS if not (passes and item.name == ACTOR_INPUT.name)]
     return inspect.Signature([*named, *options])
 

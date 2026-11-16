@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
-    from collections.abc import Set as AbstractSet
     from pathlib import Path
 
 
@@ -140,7 +140,7 @@ def unnamed_changes(
     root: Path,
     changes: list[dict[str, object]],
     observed: Mapping[str, tuple[str, str, str, str]],
-    allowed: AbstractSet[str],
+    allowed: Collection[str],
     *,
     env: Mapping[str, str] | None = None,
 ) -> set[str]:
@@ -157,7 +157,7 @@ def unnamed_changes(
     }
     return {
         path
-        for path in observed.keys() - allowed
+        for path in observed.keys() - set(allowed)
         if path not in nulls
         or observed[path][0] != "A"
         or _stdout(root, "cat-file", "-s", observed[path][3], env=env).strip() != b"0"

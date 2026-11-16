@@ -420,9 +420,9 @@ def _execute_command(
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with (
         ExitStack() as resources,
-        _finite_output(enabled=spool_stdout or os.name == "nt") as (output, diagnostic),
+        _finite_output(enabled=spool_stdout or os.name == "nt", bound=timeout) as spooled,
     ):
-        finite_input = None
+        (output, diagnostic), finite_input = spooled, None
         if stdin is not None:
             finite_input = resources.enter_context(
                 TemporaryFile(
@@ -452,13 +452,7 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        try:
-            _unpiped, stderr = process.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as error:
-            # CPython 3.12 reports the time that was left when no stream is a pipe; every
-            # interpreter reports the bound.
-            error.timeout = error.timeout if timeout is None else timeout
-            raise
+        _unpiped, stderr = process.communicate(timeout=timeout)
         if diagnostic is not None:
             scope.terminate(process)
             stderr = _decoded(_written(diagnostic), text=text_mode, encoding=encoding)
@@ -470,9 +464,14 @@ def _execute_command(
 
 
 @contextmanager
-def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO | None]]:
+def _finite_output(
+    *, enabled: bool, bound: float | None
+) -> Generator[tuple[BinaryIO, BinaryIO | None]]:
     """Capture stdout, and stderr when enabled, in files; snapshot both before timeout cleanup.
 
+    A timeout reports the command's bound: CPython 3.12 reports the time that was left when no
+    stream is a pipe. The caller's wait stays one line after the child exists, with no `try`
+    of its own, whose first instruction no handler of the caller would cover.
     Windows always captures stderr in a file: a descendant that keeps a pipe open makes its reader
     wait for the pipe's end, while a file is read as soon as the leader exits.
     """
@@ -482,6 +481,7 @@ def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO | Non
         try:
             yield output, diagnostic
         except subprocess.TimeoutExpired as error:
+            error.timeout = error.timeout if bound is None else bound
             error.stdout = _written(output)
             if diagnostic is not None:
                 error.stderr = _written(diagnostic)

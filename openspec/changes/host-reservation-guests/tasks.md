@@ -6,13 +6,30 @@
       `run_host_command` and the host proof pass no bound of the repository's. Done when a run
       without `--wait` and a host proof are admitted behind a holder of 6,400 seconds, and
       `--wait 12` ends after 12.
-- [ ] 1.2 `AdmissionBound` holds a full proof's bound at the present while a live ticket holds the
-      host slot ahead. Done when a full proof of bound 3,600 is admitted behind a render of 6,400
-      seconds and its load wait has the whole bound.
+- [ ] 1.2 `AdmissionBound` stops a full proof's bound while a live ticket holds the host slot
+      ahead. Done when a full proof of bound 3,600 that took its repository's slot at once is
+      admitted behind a render of 6,400 seconds and its load wait has the whole bound.
 - [ ] 1.3 `ceiling_seconds` returns the declared maximum of a timeout or a caller's lower total,
       and both waits end there. Done when a wait with no total, one with a total of 40,000 and a
       full proof behind a render that never leaves all end at 36,000 seconds with the holder's
       gap.
+- [ ] 1.4 `AdmissionBound` leaves out of a full proof's bound only the time behind a live holder
+      of the host slot. Done when a proof of bound 3,600 that waited 3,480 seconds for its
+      repository's slot and 15 behind a render ends its load wait at 3,615 seconds, and a proof
+      with 9 seconds of its bound left keeps the length of its polls behind the render.
+- [ ] 1.5 `admitted_full_proof` gives its place up through `HostPlace.leave_on_exit` ahead of its
+      repository's slot, and `HostPlace.admitted` answers `host_admission_unavailable` for an OS
+      error of the queue. Done when an OS error while leaving is that gap after a normal end and
+      a note on the contended gap and on an interrupt, the repository's slot and its record are
+      gone in each case, and a queue that cannot be written ends a full proof with that gap.
+- [ ] 1.6 `ceiling_seconds` holds the declared maximum for a total that is no number. Done when a
+      wait with a total of `nan` ends at 36,000 seconds, and `--wait -1` asks once as before.
+- [ ] 1.7 Every read of the host queue through `HostPlace` answers `host_admission_unavailable`
+      for an OS error, a ticket's lock goes when its record cannot be removed, and the
+      repository's slot goes when its own record cannot. Done when a full proof names the gap
+      for an OS error while it opens the queue, names the holder ahead or names the contention,
+      a ticket whose record stays is not live for the next reader, and a slot whose record
+      stays is free for the next proof.
 
 ## 2. The worker cap
 
@@ -42,6 +59,18 @@
       root when its process holds or has joined a host ticket and declares an actor. Done when the
       root is marked while the tests run, carries no mark without a ticket or without an actor,
       and is removed with its mark.
+- [ ] 4.4 `_mark` removes the record it writes beside the mark on every exit. Done when a write
+      that fails part way leaves no file, a record that cannot be removed keeps an interrupt as
+      the exit of a claim and of a scratch mark, and a claim whose mark is linked is not refused
+      for it.
+- [ ] 4.5 The repair of `host_work_owned` can be followed in every case that raises it. Done when
+      another owner's mark, a mark that names no owner and a run without an actor each read a
+      next action that names another directory, `ETHOS_ACTOR` for the run's own identity, which
+      `host run` takes no flag for, and that a mark without an owner is never taken over.
+- [ ] 4.6 The repair of `host_work_unavailable` can be followed in every case that raises it. Done
+      when a file where the work directory belongs and a file where its tree belongs each read a
+      next action that names the directory, what the run must be able to do in it and the run
+      without `--work`, and a file system that links no file answers the same gap.
 
 ## 5. Documents
 
@@ -69,3 +98,11 @@
 - [ ] 6.7 On the first hosted runs on both forges that carry this Change, observe a job that
       waits in the queue. Done when it keeps its place inside the job's own time limit and the
       worker count of the heavy test steps stays at its declared value.
+
+## Workflow follow-up
+
+- A run that joined an outer ticket does not state that ticket, and the outer run does not
+  state its wait. Measured on 2026-11-15: a proof that waited about 65 minutes under
+  `ethos host run` reported a wait of 0, so the weekly page's host minutes have no reader for
+  the wait. Not built here. Read again at the cut of 0.2.0-beta.13, with the gate row that owns
+  the proof's host path.

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import errno
+import os
+from contextlib import nullcontext
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -12,7 +16,8 @@ import ethos.adapters.gates.python_quality as python_quality
 from tests.support.governed_repository import committed_source_repo
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Callable
+    from contextlib import AbstractContextManager
 
 _ACTOR = "agent:test:case:agent-test"
 _PROJECT = {
@@ -54,3 +59,69 @@ def test_the_behavior_probes_scratch_root_carries_its_ticket_holders_mark(
     assert (report["required_gaps"], marked, exists) == (["observed"], owner, bool(owner))
     # The mark ends with the scratch it names.
     assert not root.exists()
+
+
+def _refused(*_arguments: object, **_options: object) -> None:
+    raise PermissionError
+
+
+def _interrupted(*_arguments: object, **_options: object) -> None:
+    raise KeyboardInterrupt
+
+
+def _torn(path: Path, _text: str, **_options: object) -> None:
+    """Create the file and fail before its record is whole, as a full disk does."""
+    path.touch()
+    raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+
+
+def _claim(root: Path, _directory: Path) -> None:
+    host_work.claim_work_directory(root, "render", owner=_ACTOR, operation="host.run")
+
+
+def _scratch(_root: Path, directory: Path) -> None:
+    host_work.mark_ticket_scratch(directory, operation="provider.python-behavior")
+
+
+_UNAVAILABLE = "^host_work_unavailable$"
+
+
+@pytest.mark.parametrize(
+    ("mark", "write", "link", "unlink", "ends", "left"),
+    [
+        # A record that is not written whole leaves no file behind the refusal.
+        (_claim, _torn, None, None, pytest.raises(ValueError, match=_UNAVAILABLE), []),
+        # A file system that links no file refuses the claim, which its repair names.
+        (_claim, None, _refused, None, pytest.raises(ValueError, match=_UNAVAILABLE), []),
+        # A partial that cannot be removed never replaces the exit in flight, for either caller.
+        (_claim, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
+        (_scratch, None, _interrupted, _refused, pytest.raises(KeyboardInterrupt), [".partial"]),
+        # The mark decides the claim, not the partial that stays beside it.
+        (_claim, None, None, _refused, nullcontext(), [".json", ".partial"]),
+    ],
+)
+def test_a_partial_record_is_removed_and_never_decides_how_a_mark_ends(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mark: Callable[[Path, Path], None],
+    write: Callable[..., None] | None,
+    link: Callable[..., None] | None,
+    unlink: Callable[..., None] | None,
+    ends: AbstractContextManager[object],
+    left: list[str],
+) -> None:
+    """A torn write leaves no partial; one that stays replaces no exit and refuses no claim."""
+    monkeypatch.setenv("ETHOS_ACTOR", _ACTOR)
+    monkeypatch.setenv(host_admission.ADMISSION_ENV, "a-ticket")
+    directory = tmp_path / host_work.WORK_HOME / "render"
+    directory.mkdir(parents=True)
+    fakes = ((Path, "write_text", write), (os, "link", link), (Path, "unlink", unlink))
+
+    with pytest.MonkeyPatch.context() as patch, ends:
+        for owner, name, fake in fakes:
+            if fake is not None:
+                patch.setattr(owner, name, fake)
+        mark(tmp_path, directory)
+
+    assert sorted(path.suffix for path in directory.iterdir()) == left
+    assert host_work.work_owner(directory) == (_ACTOR if ".json" in left else "")

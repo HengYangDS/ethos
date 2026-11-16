@@ -21,6 +21,12 @@ repository path.
 - **WHEN** the process holding a place in the queue exits without releasing it
 - **THEN** the next waiter is admitted without any cleanup by age.
 
+#### Scenario: A ticket's record cannot be removed
+
+- **WHEN** a run gives up its place and the ticket's record cannot be removed
+- **THEN** the ticket's lock is released all the same
+- **AND** the next reader of the queue finds the place free.
+
 #### Scenario: The wait reaches its bound
 
 - **WHEN** a heavy run with a total of its own, such as `ethos host run --wait 12`, has waited
@@ -41,8 +47,8 @@ repository path.
 
 #### Scenario: The wait reaches the ceiling
 
-- **WHEN** a run without a total of its own, or with one above the ceiling, waits behind a holder
-  that never leaves
+- **WHEN** a run without a total of its own, or with one above the ceiling or one that is no
+  number, waits behind a holder that never leaves
 - **THEN** its wait ends at the declared maximum of `timeout.admission_seconds`, 36,000 seconds
 - **AND** the gap names that holder.
 
@@ -126,7 +132,15 @@ nothing.
   slot for 6,400 seconds
 - **WHEN** that run ends and the load then falls within the limit
 - **THEN** the proof is admitted in its place
-- **AND** the load wait after the host slot has the whole bound.
+- **AND** the time behind that run uses none of its bound.
+
+#### Scenario: A full proof waits for its slot, then behind a holder
+
+- **GIVEN** a full proof whose admission bound is 3,600 seconds, which waited 3,480 seconds for
+  its repository's slot and then behind a run that holds the host slot
+- **WHEN** that run ends and the load stays above the limit
+- **THEN** the proof's wait ends with `proof_admission_contended` 120 seconds after that run ends
+- **AND** only the time behind that run is left out of its bound.
 
 #### Scenario: A full proof's whole wait reaches the ceiling
 
@@ -134,6 +148,15 @@ nothing.
 - **THEN** the proof's wait ends at the admission ceiling with `host_admission_contended` of that
   holder
 - **AND** it runs no test or package gate.
+
+#### Scenario: A full proof's place in the host queue cannot be written
+
+- **WHEN** a full proof cannot open or read the host queue, cannot take its place in it, or
+  cannot give it up after a normal end
+- **THEN** it ends with `host_admission_unavailable`, and no OS error escapes
+- **AND** a place that cannot be given up never replaces an exit already in flight, such as the
+  contended gap or an interrupt
+- **AND** its repository's slot is free for the next proof.
 
 #### Scenario: A foreground host proof holds the host slot
 

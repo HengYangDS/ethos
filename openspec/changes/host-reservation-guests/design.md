@@ -86,22 +86,35 @@ Non-Goals:
    - **Chosen because:** the declared maximum is already the longest wait a repository could
      declare, so no wait grows past what was admitted before. A caller that wrote `--wait` wrote a
      total, and it stays one.
-   - **Applies to:** every admission wait of this engine. `--wait 0` asks once. A proof has no
-     total of its own: a caller that needs one keeps its own deadline, or runs the proof under
-     `ethos host run --wait`.
+   - **Applies to:** every admission wait of this engine. `--wait 0` asks once, and so does a
+     total below zero, as before. A total that is no number ends at the ceiling: `--wait nan` and
+     `--wait inf` waited without end on the commit before this Change, read there with a clock
+     that the test advances and a holder that never leaves, so the request refuses neither. A
+     proof has no total of its own: a caller that needs one keeps its own deadline, or runs the
+     proof under `ethos host run --wait`.
 3. **`timeout.admission_seconds` bounds a full proof's waits that no live holder of the host slot
-   explains.** `AdmissionBound` moves the bound's start to the present while a live ticket holds
-   the host slot ahead, so the wait for calm load that follows has the whole bound.
+   explains.** `AdmissionBound` leaves out of the bound the time between an answer behind a live
+   ticket and the next question, and no other time. What the proof waited for its repository's
+   slot stays used, so the wait for calm load that follows has what that wait left.
    - **Rests on:** the three waits of `admitted_full_proof`: for the repository's slot, for the
-     host slot, and for two calm 1-minute samples 15 seconds apart. The regression waits 6,405
-     seconds behind a render and then 30 for the load, under a bound of 3,600.
-   - **Considered:** counting the load wait from the proof's start, as before: a proof that
+     host slot, and for two calm 1-minute samples 15 seconds apart. One regression waits 6,405
+     seconds behind a render and then 30 for the load, under a bound of 3,600. A second, added
+     after the review, waits 3,480 seconds for the slot and 15 behind a render, and ends its load
+     wait at 3,615 seconds. Under this decision's first form, which moved the bound's start to
+     the present behind a holder, the same wait ended at 7,080 seconds
+     (`tests/unit/gates/test_proof_slot.py`).
+   - **Considered:** (a) counting the load wait from the proof's start, as before: a proof that
      reached the slot after its bound would give it up at once, on a 1-minute load that still
-     carries the run that just ended.
-   - **Chosen because:** the place a proof keeps includes the slot it has just taken.
+     carries the run that just ended; (b) a whole bound for the load wait after any holder, the
+     first form: the waits for the repository's slot and for calm load, which no live holder
+     explains, could together last almost twice the bound.
+   - **Chosen because:** the place a proof keeps includes the slot it has just taken, and the
+     parameter stays one total for the waits it names. The trade-off accepted: a proof that used
+     most of its bound for its repository's slot has only the rest for calm load, so the case of
+     (a) returns for that proof alone.
    - **Applies to:** `proof.run`. Its wait for the repository's slot is bounded as before. A host
      proof and `ethos host run` have no repository slot and no load wait, so the parameter no
-     longer bounds them.
+     longer bounds them, also where a repository declares a value below the default.
 4. **A place that was given up is not resumed, and the ticket is not taken earlier.** A wait that
    ends leaves the queue, and its next attempt arrives at the tail.
    - **Rests on:** `HostQueue.admitted`, which admits a ticket when fewer than the declared slots
@@ -174,7 +187,13 @@ Non-Goals:
      that exists today is refused.
    - **Applies to:** file systems with hard links; elsewhere the claim answers
      `host_work_unavailable`. A mark is released by removing it or its directory, which stays a
-     person's or the build reader's step.
+     person's or the build reader's step. The record written beside the mark goes on every exit,
+     also after a write that fails part way; one that cannot be removed refuses no claim whose
+     mark is linked and replaces no exit in flight. Each refusal's repair can be followed in
+     every case that raises it: a mark that names no owner is never taken over, and a file where
+     the directory belongs is repaired at that directory. The repair of `host_work_owned` names
+     `ETHOS_ACTOR` for the run's own identity, because `host run` alone takes no `--actor`: it
+     hands that word to its child.
 9. **The scratch root of a proof's tests carries the same record under a ticket.**
    `mark_ticket_scratch` writes it into the root that the Python behavior probe makes, when the
    probe's process holds or has joined a host ticket and declares an actor.
@@ -245,6 +264,27 @@ Non-Goals:
       of every repository on an earlier release.
     - **Chosen because:** each repository's bump to this release line ends the case.
     - **Applies to:** the read, which shows an empty operation and owner for such a ticket.
+15. **A full proof gives its host place up through the place's own exit.** `admitted_full_proof`
+    registers the release of its repository's slot first and `HostPlace.leave_on_exit` after it,
+    so the place goes first and the slot goes whatever the place does. `HostPlace` answers
+    `host_admission_unavailable` for an OS error of the queue at each of its reads: opening
+    the queue, taking the place, naming the holder ahead and naming the contention.
+    - **Rests on:** `HostPlace.leave_on_exit`, which `host-ticket-release` gave the waiting run,
+      and the full proof's `finally`, which called `place.leave()` ahead of the slot's release
+      with nothing around it, in 0.2.0-beta.10 as well
+      (`git show v0.2.0-beta.10:src/ethos/adapters/gates/proof_slot.py`). Four regressions failed
+      before the repair: an OS error while leaving escaped raw after a normal end, in place of
+      the contended gap and in place of an interrupt, and an OS error while entering the queue
+      escaped raw. After the normal end the repository's slot and its record were still held.
+    - **Considered:** a guard of its own around `place.leave()` in the proof, which costs a
+      second statement of what an exit in flight keeps; mapping the OS error of entering in the
+      proof alone, which leaves the next caller of `HostPlace` to repeat it.
+    - **Chosen because:** one owner already states the rule, and an exit stack runs the slot's
+      release after it whatever it raises.
+    - **Applies to:** `proof.run`, and through `HostPlace` every run that asks. `HostQueue.leave`
+      releases a ticket's lock also when its record cannot be removed; the lock stayed held
+      before, so that place stayed live until its process ended. The repository's slot goes
+      also when its own record cannot be removed, and the next holder writes over that record.
 
 ## Risks / Trade-offs
 

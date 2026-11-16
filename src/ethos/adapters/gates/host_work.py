@@ -44,17 +44,22 @@ def work_owner(directory: Path) -> str:
 
 
 def _mark(directory: Path, owner: str, operation: str) -> None:
-    """Link one whole owner record into a directory; a mark that is already there stays."""
+    """Link one whole owner record into a directory; a mark that is already there stays.
+
+    The partial record goes on every exit, also a write that fails part way. One that cannot
+    be removed replaces no exit in flight and refuses no claim: the mark decides, not its
+    scaffold.
+    """
     since = datetime.now(UTC).isoformat(timespec="seconds")
     record = {"owner": owner, "operation": operation, "since": since}
     partial = directory / f".{secrets.token_hex(8)}.partial"
-    partial.write_text(json.dumps(record), encoding="utf-8")
     try:
-        os.link(partial, directory / MARK)
-    except FileExistsError:
-        pass
+        partial.write_text(json.dumps(record), encoding="utf-8")
+        with suppress(FileExistsError):
+            os.link(partial, directory / MARK)
     finally:
-        partial.unlink()
+        with suppress(OSError):
+            partial.unlink()
 
 
 def mark_ticket_scratch(directory: Path, *, operation: str) -> None:

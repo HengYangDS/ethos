@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import subprocess
@@ -271,11 +272,34 @@ def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
     assert not any(queue.directory.iterdir())
 
 
-@pytest.mark.parametrize("total", [None, 40_000.0])
+def test_a_ticket_whose_record_cannot_be_removed_still_frees_its_place(
+    host_root: Path, tmp_path: Path
+) -> None:
+    """A held lock is a live ticket, so the lock goes also when the record stays."""
+    queue = _queue(host_root)
+    ticket = queue.enter(tmp_path / "busy", "renderer")
+    unlink = os.unlink
+
+    def kept(path: object, *arguments: object, **options: object) -> None:
+        if str(path).endswith(".json"):
+            raise PermissionError
+        unlink(path, *arguments, **options)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(os, "unlink", kept)
+        with pytest.raises(PermissionError):
+            queue.leave(*ticket)
+
+    # The next reader finds a free lock and removes what the holder left.
+    assert queue.live() == []
+    assert not any(queue.directory.iterdir())
+
+
+@pytest.mark.parametrize("total", [None, 40_000.0, math.nan])
 def test_every_wait_ends_at_the_declared_ceiling(
     host_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, total: float | None
 ) -> None:
-    """Behind a holder that never leaves, no total and a total above the ceiling both end there."""
+    """No total, one above the ceiling and one that is no number all end at the ceiling."""
     monkeypatch.setattr(host_admission, "_POLL_SECONDS", 600.0)
     ceiling = load_repository_paradigm().parameter_row("timeout", "admission_seconds").bound
     queue = _queue(host_root)

@@ -19,6 +19,7 @@ import json
 import math
 import os
 import time
+from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from dataclasses import dataclass
@@ -123,6 +124,18 @@ def _holder(path: Path) -> dict[str, object] | None:
     return None
 
 
+def _release(slot: FileLock, holder: Path) -> None:
+    """Free the repository's slot if this proof holds it, its record first.
+
+    A record that cannot be removed holds no next proof: the slot goes, and the next holder
+    writes its own record over it.
+    """
+    if slot.is_locked:
+        with suppress(OSError):
+            holder.unlink(missing_ok=True)
+        slot.release()
+
+
 @contextmanager
 def admitted_full_proof(
     root: Path,
@@ -150,7 +163,11 @@ def admitted_full_proof(
     acquired = False
     reason = ""
     calm = 0
-    try:
+    with ExitStack() as releases:
+        # The last exit pushed runs first: the host place goes, then the repository's slot,
+        # which an OS error while leaving the queue must not keep.
+        releases.callback(_release, slot, holder)
+        releases.push(place.leave_on_exit)
         while True:
             if not base_current():
                 raise ValueError(STALE)
@@ -190,7 +207,7 @@ def admitted_full_proof(
                     }
                 )
             # Behind a live holder of the host slot the bound does not run: the proof keeps its
-            # place, and the load wait that follows has the whole bound.
+            # place, and the load wait that follows has what the wait for its slot left.
             remaining = bound.remaining(seconds, held=acquired and not hosted)
             if remaining <= 0:
                 raise ValueError(
@@ -213,8 +230,3 @@ def admitted_full_proof(
         )
         with exported(place.environment()):
             yield admission
-    finally:
-        place.leave()
-        if acquired:
-            holder.unlink(missing_ok=True)
-            slot.release()

@@ -79,6 +79,7 @@ def test_work_under_a_live_admission_joins_it(tmp_path: Path) -> None:
         ((), 0, 6400.0),  # no total of its own: a holder of 6,400 s ends no wait
         (("--wait", "12"), 1, 12.0),  # the caller's own total ends its wait behind a live holder
         (("--wait", "0"), 1, 0.0),  # a total of zero asks once
+        (("--wait", "-1"), 1, 0.0),  # and so does one below zero, as it did before
     ],
 )
 def test_a_run_keeps_its_place_behind_a_live_holder_up_to_its_own_total(
@@ -235,9 +236,24 @@ def test_two_slots_share_the_cpus_that_the_reservation_leaves(
 
 
 _ACTOR = "agent:test:case:agent-test"
-_MARK = f"{host_work.WORK_HOME}/render/{host_work.MARK}"
+_RENDER = f"{host_work.WORK_HOME}/render"
+_MARK = f"{_RENDER}/{host_work.MARK}"
 _FOREIGN = '{"owner": "agent:test:other"}'
 _WORK = ("host", "run", "--work", "render", "--", sys.executable, "-c")
+# The step that each refusal names; every case that raises its code can follow it.
+_STEPS = {
+    "host_work_invalid": (
+        "name one lowercase directory of build/runtime/work, as in `--work render`"
+    ),
+    "host_work_owned": (
+        "name another work directory, or set ETHOS_ACTOR to your own identity when the mark "
+        "names it; a mark that names no owner is never taken over"
+    ),
+    "host_work_unavailable": (
+        "make build/runtime/work/<name> a directory in which this run can create a file and "
+        "hard-link it, or run without --work"
+    ),
+}
 
 
 def test_a_run_marks_its_work_directory_with_its_owner_once(tmp_path: Path) -> None:
@@ -266,6 +282,7 @@ def test_a_run_marks_its_work_directory_with_its_owner_once(tmp_path: Path) -> N
         ("render", {_MARK: "not a mark"}, _ACTOR, "host_work_owned:render"),
         ("render", {_MARK: _FOREIGN}, "", "host_work_owned:render"),
         ("render", {"build": "a file, not a tree"}, _ACTOR, "host_work_unavailable"),
+        ("render", {_RENDER: "a file, not a directory"}, _ACTOR, "host_work_unavailable"),
         ("../render", {}, _ACTOR, "host_work_invalid"),
         ("render/frames", {}, _ACTOR, "host_work_invalid"),
         ("Render", {}, _ACTOR, "host_work_invalid"),
@@ -291,7 +308,7 @@ def test_a_work_directory_that_is_not_the_runs_refuses_it_before_the_queue(
 
     payload = json.loads(refused.stdout)
     assert (refused.returncode, payload["required_gaps"]) == (1, [gap])
-    assert payload["next_action"]
+    assert payload["next_action"] == _STEPS[gap.partition(":")[0]]
     assert not witness.exists()
     assert (tmp_path / "build").exists() == bool(files)
     assert {name: (tmp_path / name).read_text(encoding="utf-8") for name in files} == files

@@ -580,8 +580,8 @@ host_store_plan_required = { owner = "application.hook" }
 host_store_scan_root_invalid = { owner = "application.hook" }
 host_surface_missing = { owner = "repository.release", detail = "the value that follows the colon" }
 host_work_invalid = { owner = "adapters.gates", repair = "name one lowercase directory of build/runtime/work, as in `--work render`" }
-host_work_owned = { owner = "adapters.gates", detail = "the work directory's name", repair = "name another work directory, or run as the owner that its mark declares" }
-host_work_unavailable = { owner = "adapters.gates", repair = "make build/runtime/work writable in this repository" }
+host_work_owned = { owner = "adapters.gates", detail = "the work directory's name", repair = "name another work directory, or set ETHOS_ACTOR to your own identity when the mark names it; a mark that names no owner is never taken over" }
+host_work_unavailable = { owner = "adapters.gates", repair = "make build/runtime/work/<name> a directory in which this run can create a file and hard-link it, or run without --work" }
 hosted_run_failed = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head failed on the CI peer.", repair = "read the failed run on the peer, then rerun it or repair the head and observe again" }
 hosted_run_missing = { owner = "application.publication", detail = "the value that follows the colon", meaning = "The CI peer holds no run of the observed head that ran.", repair = "publish the observed head to the peer, then observe again" }
 hosted_run_running = { owner = "application.publication", detail = "the value that follows the colon", meaning = "A hosted run of the observed head has not concluded on the CI peer.", repair = "observe again once the run concludes" }

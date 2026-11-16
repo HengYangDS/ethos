@@ -62,8 +62,9 @@ dies frees its place. A wait ends at `--wait <seconds>`, the caller's own total 
 `ethos host run`, and at the latest at the admission ceiling, the declared maximum of
 `timeout.admission_seconds`: 36,000 seconds. A holder that lives and hangs therefore holds its
 waiters until then; this read names its process, and ending that process frees the place. The
-repository's `timeout.admission_seconds` still bounds a full proof's wait for calm load. An engine
-of an earlier release in the same queue still ends its wait at its bound in total.
+repository's `timeout.admission_seconds` still bounds, as one total, a full proof's waits for its
+repository's slot and for calm load; the time behind a live holder of the host slot is left out.
+An engine of an earlier release in the same queue still ends its wait at its bound in total.
 
 ## 4. Run A Render
 

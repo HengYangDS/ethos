@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 from filelock import FileLock
@@ -361,6 +363,46 @@ def test_a_full_proof_keeps_its_place_behind_a_live_holder(tmp_path: Path) -> No
     assert not queue.live()
 
 
+@pytest.mark.parametrize(
+    ("seconds", "slot_free", "render_gone", "ended", "polls"),
+    [
+        (3600.0, 3480, 3495, 3615.0, 241),  # 3,480 s for the slot leave the load 120, not 3,600
+        (3594.0, 3585, 3630, 3639.0, 243),  # the 9 s left never shorten a poll behind the render
+    ],
+)
+def test_the_slot_wait_and_the_load_wait_share_one_bound(
+    tmp_path: Path, seconds: float, slot_free: int, render_gone: int, ended: float, polls: int
+) -> None:
+    """Only the time behind a live holder of the host slot is left out of a full proof's bound."""
+    repo = init_git_repo(tmp_path / "repo")
+    lock_path, _record = _slot(repo)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    running = FileLock(lock_path)
+    running.acquire()
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "work", "renderer", operation="host.run")
+    releases = [(slot_free, running.release), (render_gone, lambda: queue.leave(*render))]
+
+    class _HoldersEnd(_Host):
+        def sleep(self, seconds: float) -> None:
+            super().sleep(seconds)
+            while releases and self.now >= releases[0][0]:
+                releases.pop(0)[1]()
+
+    host = _HoldersEnd([30.0])
+    with (
+        pytest.raises(ValueError, match=r"^proof_admission_contended:load=30\.0:"),
+        host.admit(repo, seconds=seconds),
+    ):
+        pytest.fail("no gate may run under contention")
+
+    reasons = [event["reason"] for event in host.waits()]
+    assert reasons == ["slot_held", "host_slot_held", "host_load"]
+    # The bound ran for the slot and for the load, and stood still behind the render.
+    assert (host.now, len(host.sleeps)) == (ended, polls)
+    assert not queue.live()
+
+
 def test_a_full_proofs_whole_wait_ends_at_the_declared_ceiling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -385,6 +427,133 @@ def test_a_full_proofs_whole_wait_ends_at_the_declared_ceiling(
 
     assert (ceiling, host.now) == (36_000, 36_000.0)
     queue.leave(*render)
+
+
+_NOT_LEFT = "host_admission_unavailable: PermissionError"
+
+
+@pytest.mark.parametrize(
+    ("ending", "raised", "message", "cause", "notes"),
+    [
+        ("admitted", ValueError, "^host_admission_unavailable$", PermissionError, []),
+        ("bound", ValueError, r"^proof_admission_contended:load=30\.0:", type(None), [_NOT_LEFT]),
+        ("interrupt", KeyboardInterrupt, "^$", type(None), [_NOT_LEFT]),
+    ],
+)
+def test_a_host_place_that_cannot_be_given_up_still_frees_the_repositorys_slot(
+    tmp_path: Path,
+    ending: str,
+    raised: type[BaseException],
+    message: str,
+    cause: type,
+    notes: list[str],
+) -> None:
+    """An OS error while leaving is the named gap after a normal end and keeps an exit in flight.
+
+    The repository's slot and its record go in every case, so the next proof is not held.
+    """
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    refused = Mock(side_effect=PermissionError)
+
+    class _Ends(_Host):
+        def sleep(self, seconds: float) -> None:
+            if ending == "interrupt":
+                raise KeyboardInterrupt
+            super().sleep(seconds)
+
+    host = _Ends([2.0 if ending == "admitted" else 30.0])
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(host_admission.HostQueue, "leave", refused)
+        with pytest.raises(raised) as ended, host.admit(repo, seconds=60.0):
+            pass
+
+    # The message alone is the gap that a caller reads; pytest's own match would read the note too.
+    assert re.search(message, str(ended.value)) is not None
+    assert isinstance(ended.value.__cause__, cause)
+    assert getattr(ended.value, "__notes__", []) == notes
+    lock_path, holder_path = _slot(repo)
+    # The ended admission's frame is still referenced, so only an explicit release frees the slot.
+    assert FileLock(lock_path).acquire(timeout=0)
+    assert not holder_path.exists()
+    # The mock kept the proof's own ticket; the real release then empties the queue.
+    for call in refused.call_args_list:
+        queue.leave(*call.args)
+    assert refused.call_count == 1
+    assert not queue.live()
+
+
+def test_a_full_proof_names_a_host_queue_that_cannot_be_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A place that cannot be taken is the named gap, as it is for a host proof, not a traceback."""
+    repo = init_git_repo(tmp_path / "repo")
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    (blocked / "host-admission").write_text("a file where the queue belongs", encoding="utf-8")
+    monkeypatch.setattr(host_admission, "host_store_root", lambda: blocked)
+
+    with (
+        pytest.raises(ValueError, match=r"^host_admission_unavailable$") as refused,
+        _Host([2.0]).admit(repo),
+    ):
+        pytest.fail("an unwritable queue admitted a proof")
+
+    # Which OS error a file in the queue's place raises differs by platform.
+    assert isinstance(refused.value.__cause__, OSError)
+    lock_path, holder_path = _slot(repo)
+    assert FileLock(lock_path).acquire(timeout=0)
+    assert not holder_path.exists()
+
+
+@pytest.mark.parametrize("read", ["host_queue", "ahead", "contention"])
+def test_a_host_queue_that_cannot_be_read_is_the_named_gap_at_every_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, read: str
+) -> None:
+    """Opening the queue, naming the holder ahead and naming the contention each answer the gap."""
+    monkeypatch.setattr(proof_slot, "_POLL_SECONDS", 6000.0)
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "work", "renderer", operation="host.run")
+    owner = host_admission if read == "host_queue" else host_admission.HostQueue
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(owner, read, Mock(side_effect=PermissionError))
+        with (
+            pytest.raises(ValueError, match=r"^host_admission_unavailable$") as refused,
+            _Host([2.0]).admit(repo, seconds=60.0),
+        ):
+            pytest.fail("a queue that cannot be read admitted a proof")
+
+    assert isinstance(refused.value.__cause__, PermissionError)
+    lock_path, holder_path = _slot(repo)
+    assert FileLock(lock_path).acquire(timeout=0)
+    assert not holder_path.exists()
+    queue.leave(*render)
+
+
+def _kept(suffix: str) -> Callable[..., None]:
+    """Remove every file but those of one suffix, which refuse as a protected directory does."""
+    unlink = os.unlink
+
+    def kept(path: object, *arguments: object, **options: object) -> None:
+        if str(path).endswith(suffix):
+            raise PermissionError
+        unlink(path, *arguments, **options)
+
+    return kept
+
+
+def test_a_slot_record_that_cannot_be_removed_still_frees_the_slot(tmp_path: Path) -> None:
+    """The record names the holder for a reader; left behind, it holds no next proof."""
+    repo = init_git_repo(tmp_path / "repo")
+    lock_path, holder_path = _slot(repo)
+
+    with pytest.MonkeyPatch.context() as patch, _Host([2.0]).admit(repo):
+        patch.setattr(os, "unlink", _kept(holder_path.name))
+
+    assert FileLock(lock_path).acquire(timeout=0)
+    assert holder_path.exists()
 
 
 def test_a_host_without_a_load_average_records_it_unmeasured(tmp_path: Path) -> None:

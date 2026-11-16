@@ -104,11 +104,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   a proof keeps its place behind tickets whose holders live, however long they run, and its wait
   ends at the admission ceiling: the parameter's declared maximum, 36,000 seconds. A run without
   `--wait`, a host proof and a full proof waited at most the repository's bound before, 3,600
-  seconds by default. `ethos host run --wait <seconds>` stays the caller's own total, now at most
-  the ceiling, and `--wait 0` still asks once. `timeout.admission_seconds` still bounds a full
-  proof's wait for its repository's slot and for calm load, without the time it spent behind a
-  live holder of the host slot. A caller that needs a shorter total for a proof keeps its own
-  deadline, or runs the proof under `ethos host run --wait`.
+  seconds by default. A repository that declares a lower `timeout.admission_seconds` no longer
+  shortens the wait of `ethos host run` or of a host proof for the host queue.
+  `ethos host run --wait <seconds>` stays the caller's own total, now at most the ceiling, and
+  `--wait 0` still asks once. A `--wait` that is no number ends at the ceiling; it waited without
+  end before. `timeout.admission_seconds` still bounds, as one total, a full proof's waits for
+  its repository's slot and for calm load, without the time it spent behind a live holder of the
+  host slot. A caller that needs a shorter total for a proof keeps its own deadline, or runs the
+  proof under `ethos host run --wait`.
 - On a host that declares more than one slot, the worker cap is one slot's share of the CPUs that
   `reserved_cpus` leaves, at least one, so the slots can run at once. A host of one slot keeps its
   cap.
@@ -150,6 +153,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A `source_format_drift` refusal of `ethos lane format --check` names its next step: the apply,
   the naming of a path under `record_paths`, or marking a third-party or generated path
   `linguist-vendored` or `linguist-generated` in `.gitattributes`. The refusal named no next step.
+
+### Fixed
+
+- A full proof that cannot open the host queue, take its place in it or give that place up
+  answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
+  error itself, in 0.2.0-beta.10 and 0.2.0-beta.11 as well, in place of a gap or an interrupt
+  already in flight, and a place that could not be given up left the slot held until the process
+  ended. A ticket whose record cannot be removed no longer keeps its lock, which held its place
+  in the host queue until its process ended.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

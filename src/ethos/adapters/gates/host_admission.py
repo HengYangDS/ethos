@@ -32,6 +32,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -233,9 +234,14 @@ class HostQueue:
         return listed
 
     def leave(self, ticket: Ticket, lock: FileLock) -> None:
-        """Give up a place: the record goes first, then the lock and its file."""
-        (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
-        lock.release()
+        """Give up a place: the record goes first, then the lock and its file.
+
+        The lock goes also when the record cannot be removed: a held lock is a live ticket.
+        """
+        try:
+            (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
+        finally:
+            lock.release()
         (self.directory / f"{ticket.name}.lock").unlink(missing_ok=True)
 
 
@@ -265,9 +271,27 @@ def host_queue(*, cpus: int | None = None) -> tuple[HostQueue, HostDeclaration, 
     return HostQueue(root / "host-admission" / "v1", declaration.slots), declaration, selected
 
 
-class HostPlace:
-    """One heavy run's place in this host's queue, or the live admission that it joins."""
+def _named[**P, T](read: Callable[P, T]) -> Callable[P, T]:
+    """Answer the named gap where the host queue cannot be read or written, for every caller."""
 
+    @wraps(read)
+    def named(*args: P.args, **kwargs: P.kwargs) -> T:
+        try:
+            return read(*args, **kwargs)
+        except OSError as error:
+            raise ValueError(UNAVAILABLE) from error
+
+    return named
+
+
+class HostPlace:
+    """One heavy run's place in this host's queue, or the live admission that it joins.
+
+    Opening the queue, taking the place and reading what is ahead each answer the named gap
+    for an OS error, so no caller maps it again.
+    """
+
+    @_named
     def __init__(self, repository: Path, executable: str, *, operation: str, owner: str) -> None:
         self.queue, self.declaration, self.cpus = host_queue()
         inherited = os.environ.get(ADMISSION_ENV, "")
@@ -278,6 +302,7 @@ class HostPlace:
         self.owner = owner
         self.ticket: tuple[Ticket, FileLock] | None = None
 
+    @_named
     def admitted(self) -> bool:
         """Whether the run may start; the first call takes its place behind earlier arrivals."""
         if self.joined:
@@ -288,11 +313,13 @@ class HostPlace:
             )
         return self.queue.admitted(self.ticket[0])
 
+    @_named
     def holder(self) -> dict[str, object] | None:
         """The projection of the earliest live run ahead of this one."""
         ticket = self.ticket[0] if self.ticket else None
         return self.queue.ahead(ticket, reader=self.repository) if ticket else None
 
+    @_named
     def contention(self) -> str:
         """The gap of a wait that reached its bound."""
         ticket = self.ticket[0] if self.ticket else None
@@ -337,20 +364,25 @@ class AdmissionBound:
 
     def __init__(self, clock: Callable[[], float]) -> None:
         self.clock = clock
-        self.started = self.since = clock()
+        self.started = self.since = self.asked = clock()
+        self.held = False
         self.ceiling = ceiling_seconds("admission")
 
     def remaining(self, seconds: float, *, held: bool) -> float:
         """The seconds left of a bound that does not run behind a live holder.
 
         A ticket's lock shows that its holder lives, and a holder that dies frees its place, so a
-        waiter behind a live holder keeps its place however long that holder runs. The ceiling
-        counts the whole wait, so every wait ends.
+        waiter behind a live holder keeps its place however long that holder runs. The time from
+        an answer behind a holder to the next question is left out of the bound, and no other
+        time is: what the wait used before the holder stays used. Behind a holder only the
+        ceiling runs, which counts the whole wait, so every wait ends.
         """
         now = self.clock()
-        if held:
-            self.since = now
-        return min(self.since + seconds, self.started + self.ceiling) - now
+        if self.held:
+            self.since += now - self.asked
+        self.asked, self.held = now, held
+        left = self.started + self.ceiling - now
+        return left if held else min(self.since + seconds - now, left)
 
 
 @dataclass(frozen=True)

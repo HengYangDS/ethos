@@ -34,7 +34,7 @@
   "src/ethos/adapters/gates/native/evidence.py::_behavior": 20,
   "src/ethos/adapters/gates/native/evidence.py::_static": 20,
   "src/ethos/adapters/gates/native/inputs.py::authored_source_files": 21,
-  "src/ethos/adapters/gates/proof_slot.py::admitted_full_proof": 42,
+  "src/ethos/adapters/gates/proof_slot.py::admitted_full_proof": 41,
   "src/ethos/adapters/gates/provenance/observation.py::_generated": 31,
   "src/ethos/adapters/gates/provenance/observation.py::_received": 24,
   "src/ethos/adapters/gates/provenance/observation.py::_upstream": 20,

@@ -160,8 +160,8 @@ def test_a_patch_that_makes_another_kind_of_entry_is_refused(
 @pytest.mark.parametrize(
     ("command", "status", "output", "refusal"),
     [
-        ("diff-tree", 0, b":100644 100644 a b M\0a.txt\0b.txt\0", "shorter than"),
-        ("diff-tree", 0, b":100644 100644 a M\0a.txt\0", "values to unpack"),
+        ("diff-tree", 0, b":100644 100644 a b M\0a.txt\0b.txt\0", "not of Git's form"),
+        ("diff-tree", 0, b":100644 100644 a M\0a.txt\0", "not of Git's form"),
         ("diff-tree", 0, b":120000 100644 a b M\0a.txt\0", "no regular file"),
         ("write-tree", 1, b"", "workspace failed"),
     ],
@@ -194,13 +194,15 @@ def test_a_record_that_is_not_of_git_s_form_is_refused(
         pytest.fail("the workspace was yielded")
 
 
-@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
-def test_a_changed_path_that_is_a_link_on_disk_is_refused(tmp_path: Path) -> None:
-    """What lies on disk is looked at beside the index: a link's text is what it names."""
-    (tmp_path / "elsewhere.txt").write_text("other\n", encoding="utf-8")
-    (tmp_path / "link").symlink_to(tmp_path / "elsewhere.txt")
-    with pytest.raises(ValueError, match="no regular file"):
-        owner.postimage_text(tmp_path / "link", "modify")
+def test_a_changed_path_that_no_change_names_is_refused(tmp_path: Path) -> None:
+    """Every path that Git changed is named, reported for an entry, or deleted; else refused."""
+    repo = _repository(tmp_path)
+    changes, _gap = unified_patch_changes(repo, _FILE_TO_DIRECTORY)
+    with (
+        pytest.raises(ValueError, match="no change names"),
+        owner.patched_workspace(repo, _FILE_TO_DIRECTORY, changes[:1]),
+    ):
+        pytest.fail("the workspace was yielded")
 
 
 def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) -> None:

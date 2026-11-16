@@ -263,3 +263,25 @@ def test_text_after_an_entry_names_no_path_of_the_request(mixed_lane: Path) -> N
     assert report["verdict"] == "block", report
     assert "prewrite_patch_paths_mismatch" in report["required_gaps"]
     assert _snapshot(root) == before
+
+
+def test_a_path_that_git_changes_beyond_the_reading_of_the_text_is_refused(
+    mixed_lane: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The request is held against the candidate index, whatever the reader made of the text."""
+    root = mixed_lane
+    patch = (
+        "diff --git a/module.py b/src/moved.py\nsimilarity index 100%\n"
+        "rename from module.py\nrename to src/moved.py\n"
+    )
+    target = {"old_path": "src/moved.py", "path": "src/moved.py", "reported": "src/moved.py"}
+    monkeypatch.setattr(
+        index_prewrite, "unified_patch_changes", lambda _root, _patch: ([target], "")
+    )
+    before = _snapshot(root)
+    report = prewrite.prewrite_guard(
+        root=root, paths=[root / "src/moved.py"], editor_root=root, patch=patch, target="index"
+    )
+    assert report["verdict"] == "block", report
+    assert "prewrite_patch_paths_mismatch" in report["required_gaps"]
+    assert _snapshot(root) == before

@@ -171,7 +171,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   and text after an entry without content moves no path of the request. A request for a
   patch that moves a file names the move's source too, as the index target already requires:
   a request for the target alone left the source's deletion unjudged and is now refused with
-  `prewrite_patch_paths_mismatch`, and the report's `paths` name both.
+  `prewrite_patch_paths_mismatch`, and the report's `paths` name both. The index target holds
+  its request against the paths that Git changed in the candidate index as well.
 - The quality gates of a repository with many code files run on Windows. The check that no code
   subject differs from the commit named every subject on one Git command line, which Windows
   refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing

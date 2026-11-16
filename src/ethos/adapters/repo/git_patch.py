@@ -47,7 +47,7 @@ def unified_patch(changes: Iterable[tuple[str, bytes, bytes]]) -> str:
 
 
 def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object]], str]:
-    """Name each entry's path as Git reports it and the path that its preimage lies at.
+    """Name each entry's path, the name that Git reports for it, and its preimage's place.
 
     What a patch does at a path (a creation, a deletion, a kind of file) is no reading of
     its text: a caller observes it from Git, where the patch is applied. Unsupported or
@@ -78,7 +78,7 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
             if len(changes) >= len(paths):
                 return changes, "prewrite_patch_invalid"
             path = paths[len(changes)]
-            current = {"old_path": path, "path": path}
+            current = {"old_path": path, "path": path, "reported": path}
             changes.append(current)
         elif current is not None:
             try:
@@ -128,7 +128,9 @@ def _header_lines(patch: str) -> Iterator[str]:
 def _update_patch_change(change: dict[str, object], line: str) -> None:
     """Read where the entry's preimage lies; Git's own report names the entry's path."""
     if line.startswith("--- "):
-        change["old_path"] = _file_line_path(line)
+        # A name with nothing after its first component names no file to Git, which then keeps
+        # the name of the entry's first line.
+        change["old_path"] = _file_line_path(line) or change["old_path"]
     elif line.startswith("+++ "):
         # A deletion written without its `deleted file mode` line: Git reports the null path
         # as the entry's name. The entry is named by its preimage, as a deletion of it.
@@ -145,13 +147,16 @@ def _update_patch_change(change: dict[str, object], line: str) -> None:
 def _file_line_path(line: str) -> str:
     """Return the name of a `---` or `+++` line without its first component, as Git reads it."""
     name = _unquoted(line[4:].split("\t", 1)[0])
-    return name if name == "/dev/null" else name.partition("/")[2] or name
+    return name if name == "/dev/null" else name.partition("/")[2]
 
 
 def _unquoted(raw: str) -> str:
-    """Return a name as written, or the name that Git's quoting stands for."""
+    """Return a name as written, or the name that Git's quoting stands for.
+
+    Git ends a name that is not quoted at its first carriage return.
+    """
     if not raw.startswith('"'):
-        return raw
+        return raw.partition("\r")[0]
     decoded = ast.literal_eval(raw)
     if not isinstance(decoded, str):
         message = "prewrite_patch_path_invalid"

@@ -122,7 +122,13 @@ Non-Goals:
      entry's header where Git ends it. The request of a patch is held against the same
      record: it names every path that Git changed, a move's source among them, as the staged
      target has required in every release; a request for a move's target alone left the
-     source's deletion unjudged and is refused (the lead's ruling X of 2026-11-17).
+     source's deletion unjudged and is refused (the lead's ruling X of 2026-11-17). The
+     staged target holds its request against Git's comparison of the candidate index too, so
+     a wrong reading of the text refuses on either target and admits on neither. A changed
+     path that no change names, that Git did not report for an entry and that Git did not
+     delete is refused. The index's mode is the one reading of a path's kind: the workspace
+     is a new directory of regular copies, so no separate look at the disk is kept (ruling
+     Y).
 
 ## Risks / Trade-offs
 

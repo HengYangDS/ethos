@@ -65,9 +65,12 @@ def _observed(workspace: Path, patch: str, staged: list[str]) -> dict[str, str]:
     after = git("write-tree").decode().strip()
     record = git("diff-tree", "-r", "-z", "--raw", "--no-renames", before, after)
     fields = record.removesuffix(b"\0").split(b"\0") if record else []
+    entries = [entry.decode().removeprefix(":").split() for entry in fields[::2]]
+    if len(fields) % 2 or any(len(entry) != 5 for entry in entries):
+        msg = "prewrite patch workspace record is not of Git's form"
+        raise ValueError(msg)
     statuses: dict[str, str] = {}
-    for entry, path in zip(fields[::2], fields[1::2], strict=True):
-        old_mode, new_mode, _old, _new, status = entry.decode().removeprefix(":").split()
+    for (old_mode, new_mode, _old, _new, status), path in zip(entries, fields[1::2], strict=True):
         if not {old_mode, new_mode} <= _REGULAR:
             msg = "prewrite patch makes a named path no regular file"
             raise ValueError(msg)
@@ -98,6 +101,8 @@ def patched_workspace(
         named = {str(change["path"]) for change in changes}
         for path in named:
             _within(workspace, path)
+        # The name that Git reported for an entry, where the entry is named by its preimage.
+        reported = {str(change.get("reported", change["path"])) for change in changes}
         staged: list[str] = []
         for old_path in dict.fromkeys(str(change["old_path"]) for change in changes):
             if old_path == "/dev/null":
@@ -116,25 +121,21 @@ def patched_workspace(
         observed = _observed(workspace, patch, staged)
         # A path that Git deleted is read as deleted where no change names it: a move's source.
         removed = {path for path, status in observed.items() if status == "D"}
+        if not observed.keys() <= named | reported | removed:
+            msg = "prewrite patch changes a path that no change names"
+            raise ValueError(msg)
         effects = {
             path: EFFECTS.get(observed.get(path, "M"), "modify") for path in sorted(named | removed)
         }
         yield (
             workspace,
-            {path: postimage_text(workspace / path, effect) for path, effect in effects.items()},
+            {path: _postimage(workspace / path, effect) for path, effect in effects.items()},
             effects,
         )
 
 
-def postimage_text(target: Path, effect: str) -> str | None:
-    """Read a changed path's text; only a path that Git deleted may be without its file.
-
-    The index names each path's mode; what lies on disk is looked at as well, and a link there
-    is refused, since its text would be what it names.
-    """
-    if target.is_symlink():
-        msg = "prewrite patch makes a named path no regular file"
-        raise ValueError(msg)
+def _postimage(target: Path, effect: str) -> str | None:
+    """Read a changed path's text; only a path that Git deleted may be without its file."""
     if effect == "delete":
         return None
     if not target.is_file():

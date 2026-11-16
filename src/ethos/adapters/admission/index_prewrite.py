@@ -47,7 +47,7 @@ def index_patch_prewrite(
                     Path(git_common_dir(root)) / "objects"
                 ).as_posix(),
             }
-            expected_tree, gap = _apply_candidate(root, patch, environment)
+            expected_tree, gap = _apply_candidate(root, paths, patch, environment)
             if gap:
                 return _refusal(
                     gap,
@@ -85,7 +85,9 @@ def _index_preimage(root: Path, source: Path) -> tuple[bytes, str]:
     return before, "" if before else "prewrite_index_prestate_unavailable"
 
 
-def _apply_candidate(root: Path, patch: str, index_env: dict[str, str]) -> tuple[str, str]:
+def _apply_candidate(
+    root: Path, paths: list[Path], patch: str, index_env: dict[str, str]
+) -> tuple[str, str]:
     expected_tree = run_git(root, "write-tree", check=False, env=index_env)
     if expected_tree.returncode:
         return "", "prewrite_index_prestate_unavailable"
@@ -104,7 +106,40 @@ def _apply_candidate(root: Path, patch: str, index_env: dict[str, str]) -> tuple
         )
         if applied.returncode:
             return "", "prewrite_patch_preimage_mismatch"
-    return expected_tree.stdout.strip(), ""
+    prestate = expected_tree.stdout.strip()
+    if _changed_outside_request(root, paths, prestate, index_env):
+        return "", "prewrite_patch_paths_mismatch"
+    return prestate, ""
+
+
+def _changed_outside_request(
+    root: Path, paths: list[Path], prestate: str, index_env: dict[str, str]
+) -> bool:
+    """Tell whether Git changed a path of the candidate index that the request does not name.
+
+    The scope before the apply rests on the reading of the patch's text; this one rests on Git's
+    comparison of the candidate index with its tree before the patch, without rename detection.
+    """
+    changed = run_git(
+        root,
+        "diff-index",
+        "--cached",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        prestate,
+        check=False,
+        env=index_env,
+    )
+    if changed.returncode:
+        message = "prewrite_index_candidate_unreadable"
+        raise ValueError(message)
+    root_path = root.resolve()
+    requested = {
+        (path if path.is_absolute() else root_path / path).relative_to(root_path).as_posix()
+        for path in paths
+    }
+    return not set(filter(None, changed.stdout.split("\0"))) <= requested
 
 
 def _patch_scope(root: Path, paths: list[Path], patch: str) -> dict[str, object]:

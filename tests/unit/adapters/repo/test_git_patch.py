@@ -37,10 +37,11 @@ def test_a_built_patch_applies_to_each_postimage(tmp_path: Path) -> None:
 
 
 _CREATED = "diff --git a/fresh.txt b/fresh.txt\nnew file mode 100644\n"
+_FILE = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n"
 _MOVE = "diff --git a/{0} b/{1}\nsimilarity index 100%\nrename from {0}\nrename to {1}\n"
 _READ = {
     "edit": (
-        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n",
+        _FILE + "@@ -1 +1 @@\n-old\n+new\n",
         [("a.txt", "a.txt")],
     ),
     "rename": (
@@ -74,7 +75,22 @@ _READ = {
     ),
     # A removed line of content that begins like a file line moves no path.
     "line-like-a-header": (
-        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1 @@\n old\n--- a/c.txt\n",
+        _FILE + "@@ -1,2 +1 @@\n old\n--- a/c.txt\n",
+        [("a.txt", "a.txt")],
+    ),
+    # An added line of content that reads like a null target moves no path either.
+    "line-like-a-null-target": (
+        _FILE + "@@ -1 +1,2 @@\n old\n+++ /dev/null\n",
+        [("a.txt", "a.txt")],
+    ),
+    # Git ends a name at a carriage return wherever it stands in the line.
+    "carriage-return-inside-a-line": (
+        _MOVE.format("a.txt", "b.txt").replace("from a.txt", "from a.txt\rX"),
+        [("a.txt", "b.txt")],
+    ),
+    # A file line whose name has one component names nothing; Git keeps the first line's name.
+    "file-line-of-one-component": (
+        "diff --git a/a.txt b/a.txt\n--- x.txt\n+++ x.txt\n@@ -1 +1 @@\n-old\n+new\n",
         [("a.txt", "a.txt")],
     ),
     # Only the null path itself is a null target; Git names any other path under `/dev`.
@@ -108,4 +124,4 @@ def test_each_entry_names_git_s_path_and_where_its_preimage_lies(
     patch, expected = _READ[shape]
     changes, gap = unified_patch_changes(init_git_repo(tmp_path / "repo"), patch)
     assert (gap, [(change["old_path"], change["path"]) for change in changes]) == ("", expected)
-    assert all(change.keys() == {"old_path", "path"} for change in changes)
+    assert all(change.keys() == {"old_path", "path", "reported"} for change in changes)

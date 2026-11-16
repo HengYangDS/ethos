@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -132,10 +133,15 @@ def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_clos
     assert report["state"] == "admitted"
 
 
+@pytest.mark.parametrize("name", ["build", f"build{os.pathsep}1"], ids=["plain", "separator"])
 def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_work_tree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """Git skips a patch's paths in a workspace inside another checkout; the verdict stays."""
+    """Git skips a patch's paths in a workspace inside another checkout; no such run admits.
+
+    Where Git's ceiling holds, the verdict is the one from outside a checkout. A directory whose
+    name holds the separator of a path list defeats the ceiling, and the admission then refuses.
+    """
     repo, _head = _repository(tmp_path)
     script = "tools/run.sh"
     (repo / script).parent.mkdir()
@@ -144,7 +150,7 @@ def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_w
     git(repo, "commit", "-m", "declare a script")
     head = git(repo, "rev-parse", "HEAD")
     patch = _patch(repo, script, "echo start\nfrobnicate --now\n")
-    checkout = init_git_repo(tmp_path / "other") / "build"
+    checkout = init_git_repo(tmp_path / "other") / name
     checkout.mkdir()
 
     def admitted() -> dict[str, object]:
@@ -157,7 +163,8 @@ def test_patch_admission_reads_the_postimage_with_its_temporary_directory_in_a_w
     inside = admitted()
 
     assert outside["reason"] == "product_reference_not_admitted_at_baseline:executable:frobnicate"
-    assert (inside["verdict"], inside["reason"]) == (outside["verdict"], outside["reason"])
+    expected = outside["reason"] if name == "build" else "prewrite_patch_postimage_failed"
+    assert (inside["verdict"], inside["reason"]) == ("block", expected)
 
 
 @pytest.mark.parametrize("change", ["body", "new-command", "prefix", "delete-app", "retire"])

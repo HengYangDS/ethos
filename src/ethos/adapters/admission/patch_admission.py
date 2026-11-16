@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import dataclasses
 import shlex
-import shutil
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.patch_workspace import patch_applies
+from ethos.adapters.admission.patch_workspace import patched_workspace
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_relocation
 from ethos.adapters.openspec.relocation import active_change_relocation
 from ethos.adapters.projections.compiler import render_projections
@@ -38,6 +37,7 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from pathlib import Path
 
 
 def patch_admission(
@@ -66,7 +66,7 @@ def patch_admission(
         reason = "prewrite_patch_paths_mismatch"
     if not reason and not baseline_head:
         reason = "prewrite_patch_baseline_missing"
-    if not reason and not _patch_applies(root, patch, check_preimage=True):
+    if not reason and not patch_applies(root, patch, check_preimage=True):
         reason = "prewrite_patch_preimage_mismatch"
     references: dict[str, set[str]] = {}
     unknown: list[str] = []
@@ -211,19 +211,6 @@ def patch_repair_action(root: Path, requested: tuple[str, ...], report: dict[str
         )
     )
     return command + " --patch <repaired-patch-file> --json"
-
-
-def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bool:
-    command = ["apply", "--whitespace=error-all", "-"]
-    if check_preimage:
-        command.insert(2, "--check")
-    # Inside another checkout Git takes a workspace for a subdirectory of that work tree, skips
-    # every path of the patch as outside it and exits with 0: the workspace's apply stops Git's
-    # discovery at the workspace. The check runs in the repository, which discovery must find.
-    alone = {} if check_preimage else {"GIT_CEILING_DIRECTORIES": str(root.parent)}
-    # Bytes, so that no platform's text stream rewrites the patch's line endings.
-    data = patch.encode("utf-8")
-    return run_git(root, *command, stdin=data, text=False, check=False, env=alone).returncode == 0
 
 
 def projection_preimages(root: Path, head: str) -> dict[str, str]:
@@ -422,35 +409,7 @@ def _patch_references(
     dict[str, object],
     dict[str, object],
 ]:
-    with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
-        workspace = Path(temporary)
-        for change in changes:
-            old_path = str(change["old_path"])
-            if old_path == "/dev/null":
-                continue
-            relative = Path(old_path)
-            if relative.is_absolute() or ".." in relative.parts:
-                msg = "prewrite patch path escapes root"
-                raise ValueError(msg)
-            source = root / relative
-            if not source.is_file():
-                msg = "prewrite patch preimage missing"
-                raise ValueError(msg)
-            target = workspace / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-        if not _patch_applies(workspace, patch):
-            msg = "prewrite patch postimage application failed"
-            raise ValueError(msg)
-        postimages: dict[str, str | None] = {}
-        for change in changes:
-            path = str(change["path"])
-            relative = Path(path)
-            if relative.is_absolute() or ".." in relative.parts:
-                msg = "prewrite patch path escapes root"
-                raise ValueError(msg)
-            target = workspace / relative
-            postimages[path] = target.read_text(encoding="utf-8") if target.is_file() else None
+    with patched_workspace(root, patch, changes) as (workspace, postimages):
         files = {
             path: text
             for path, text in postimages.items()

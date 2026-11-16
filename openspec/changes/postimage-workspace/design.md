@@ -55,7 +55,21 @@ Non-Goals:
      and outside a work tree the command runs as it did.
    - **Applies to:** the apply in the workspace. The preimage check keeps running in the
      repository, where discovery must find the repository.
-2. **The regression places the temporary directory inside another repository.**
+2. **Git's exit status does not prove the effect: each change must show in the workspace.**
+   - **Rests on:** the model review of the first repair, and a measurement of its case: a
+     temporary directory whose path holds the separator of a path list, inside a work tree,
+     splits the ceiling into two entries that name nothing, and the repaired admission admitted
+     the undeclared executable again.
+   - **Considered:** quoting or resolving the ceiling, which closes that one case and leaves
+     every other reason for which Git may not honor it, such as a short path form on Windows;
+     and a Git directory in each workspace, which costs one more process for each admission.
+   - **Chosen because:** the check does not depend on why Git left the workspace alone. A
+     created path must exist, a deleted one must be gone, and a changed one must differ in
+     bytes or in its executable bits from the copy made before the apply; otherwise the
+     admission refuses with the gap it already has for a failed apply.
+   - **Applies to:** every change of a patch, in the workspace's owner, which is its own
+     module since the admission module is at its line ceiling.
+3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.
    - **Considered:** a test of `_patch_applies` alone, which would pin the helper and not the
@@ -63,7 +77,7 @@ Non-Goals:
    - **Chosen because:** the public admission is what was wrong, and the test fails on the
      unchanged module.
    - **Applies to:** the worktree target of `lane prewrite --patch`.
-3. **The class is swept once by the whole suite.**
+4. **The class is swept once by the whole suite.**
    - **Rests on:** the six modules run so far, which are a sample.
    - **Considered:** reading each of the 32 places by hand, which finds what the reader thinks
      of.
@@ -75,7 +89,9 @@ Non-Goals:
 ## Risks / Trade-offs
 
 - On Windows a temporary path can be written in a short form. If Git does not match the ceiling
-  to it, the command runs as before this Change: the repair is then absent there, and nothing
-  is worse. The suite's Windows leg runs the regression.
+  to it, the workspace is left as it was and the admission refuses: a refusal of a patch that
+  is right, and never an admission of one that is wrong. The suite's Windows leg runs the
+  regression. A patch that changes a file's mode alone shows no effect on a platform without
+  executable bits and is refused there.
 - A later caller that applies a patch in a workspace of its own must pass the same ceiling. The
   helper takes it from its own directory, so a caller cannot forget it.

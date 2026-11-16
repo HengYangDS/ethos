@@ -162,7 +162,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   unchanged files: it admitted a patch whose undeclared reference or deleted input it must
   refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
   defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
-  releases, keep the temporary directory outside every checkout.
+  releases, keep the temporary directory outside every checkout. The admission no longer takes
+  Git's exit status for the effect: a patch that left the workspace as it was is refused.
 - The quality gates of a repository with many code files run on Windows. The check that no code
   subject differs from the commit named every subject on one Git command line, which Windows
   refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing

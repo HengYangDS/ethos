@@ -53,7 +53,8 @@ None.
 
 ## Impact
 
-`src/ethos/adapters/admission/patch_admission.py`; one regression in
+`src/ethos/adapters/admission/patch_admission.py` and the workspace's new module
+`src/ethos/adapters/admission/patch_workspace.py`; one regression in
 `tests/unit/admission/test_patch_admission_public_fail_closed.py`;
 `openspec/specs/repository-governance/spec.md` through this Change's delta, and `CHANGELOG.md`.
 

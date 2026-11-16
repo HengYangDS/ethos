@@ -48,8 +48,8 @@ def _records() -> tuple[set[Path], int, int]:
 
     Returns the common directories they name, the count of records that cannot be read, and the
     count of installations that record no consumer: one pinned before consumers were recorded
-    names none, so its users are not read. An installation that is a link is counted with
-    those and is not read, as retirement leaves it alone. A host without a store records
+    names none, so its users are not read. A link is read as the directory it names, once,
+    and a link whose target is gone is counted with those. A host without a store records
     nothing.
     """
     store = host_store_root()
@@ -58,10 +58,10 @@ def _records() -> tuple[set[Path], int, int]:
     unread = unrecorded = 0
     if installations is None or not installations.is_dir():
         return commons, unread, unrecorded
-    for installation in sorted(installations.iterdir()):
-        if not installation.is_dir():
-            continue
-        consumers = None if installation.is_symlink() else installation_consumers(installation)
+    entries = sorted(installations.iterdir())
+    unrecorded += sum(entry.is_symlink() and not entry.is_dir() for entry in entries)
+    for installation in sorted({entry.resolve() for entry in entries if entry.is_dir()}):
+        consumers = installation_consumers(installation)
         unrecorded += consumers is None
         named = list((consumers or {}).values())
         unread += named.count(None)

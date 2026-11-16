@@ -183,7 +183,9 @@ _READ = ("0.2.0-beta.10", "0.2.0-beta.3")
 UNREAD = {
     "torn-records": ([_READ], (2, 0, 0)),
     "no-records": ([_READ], (0, 1, 0)),
-    "linked-installation": ([], (0, 1, 0)),
+    "linked-installation": ([_READ], (0, 0, 0)),
+    "linked-beside-its-target": ([_READ], (0, 1, 0)),
+    "dangling-link": ([_READ], (0, 1, 0)),
     "no-accepted-branch": ([], (1, 0, 0)),
     "torn-selection": ([(_READ[0], None)], (0, 0, 1)),
 }
@@ -195,7 +197,8 @@ def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
 ) -> None:
     """Each torn record counts; an installation that records no consumer is counted by itself.
 
-    A linked installation is counted with those and is not read: retirement leaves it alone too.
+    A linked installation is read as the directory it names, once; a link whose target is gone
+    is counted with the installations that record no consumer.
     A repository whose accepted branch cannot be read is unread, not a subject without a pin.
     A selection that cannot be read is counted, and its repository stays a subject by its pin.
     """
@@ -212,6 +215,11 @@ def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
     if case == "linked-installation":
         _installation(tmp_path).rename(tmp_path / "moved")
         (installations / ("0" * 16)).symlink_to(tmp_path / "moved", target_is_directory=True)
+    if case == "linked-beside-its-target":
+        (installations / ("1" * 16)).mkdir()
+        (installations / ("2" * 16)).symlink_to(installations / ("1" * 16))
+    if case == "dangling-link":
+        (installations / ("1" * 16)).symlink_to(tmp_path / "gone")
     if case == "no-accepted-branch":
         git(subject, "branch", "-m", "dev", "trunk")
     if case == "torn-selection":
@@ -272,7 +280,10 @@ def test_an_error_of_the_read_blocks_and_names_itself_without_a_path(
 def test_a_refused_record_carries_every_gap_of_its_refusal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The owner of a refusal's gaps reads the record's refusal, and keeps each gap."""
+    """The owner of a refusal's gaps reads the record's refusal, and keeps each gap.
+
+    The record's reader names one gap today, so a stub stands for a reader that names two.
+    """
     product = init_git_repo(tmp_path / "product")
     write_tree(product, {".ethos/release.toml": '[release]\nmirror = "independent"\n'})
     commit_fixture(product, "chore: declare the release")

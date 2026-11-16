@@ -170,8 +170,11 @@ Non-Goals:
      refuses is no record, and the derivation goes on, so the refusal carries the derived
      releases with their classes: its repair asks for exactly those. A refusal always blocks,
      also one that carries no gap, which is then named by its class. An installation
-     directory that is a link is counted with those that record no consumer and is not
-     read, as the retirement of unused installations leaves it alone.
+     directory that is a link is read as the directory it names, once, also when its
+     target is listed beside it; a link whose target is gone is counted with those that
+     record no consumer. Reading fewer subjects would ask a release for fewer
+     predecessors. The retirement of unused installations never deletes through a link,
+     which is a rule for a removal.
 8. **A version that the changelog does not list is counted and named, and refuses nothing.**
    - **Rests on:** the release lead's ruling of 2026-11-15; the owner's definition, which counts
      what the host can read.

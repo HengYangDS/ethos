@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import tomllib
+from pathlib import Path
 from typing import Any
 
+import pytest
+
+import tools.ci.ci_projection as owner
+from ethos.adapters.projections.cue import compile_projections
+from ethos.adapters.toolchain.mise import locked_tool
 from tests.support.registries import repository_registry_path
 
 # Job name, runner, Python version and whether the leg may fail; the aggregate's own test names
@@ -18,8 +24,7 @@ LEGS = {
 }
 FULL = "(github.event_name == 'workflow_dispatch' && inputs.qualify_head != '')"
 REPORTS = "build/evidence/quality/tests/"
-# The model's margin for what a leg spends outside its suite, in seconds.
-SETUP = 600
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
@@ -42,12 +47,26 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
     for name, job in legs.items():
         # A push or pull request runs no leg; a batch head or the drift schedule runs each.
         assert job["if"] == f"${{{{ ({commit}) && ({FULL} || github.event_name == 'schedule') }}}}"
-        # The test gate's deadline bounds the leg's suite; the model refuses a job that does
-        # not outlive it by the margin for the leg's supply steps and its upload.
-        assert job["timeout-minutes"] * 60 >= deadline + SETUP
+        # The test gate's deadline bounds the leg's suite; the model's own test below shows
+        # that it refuses a job that does not outlive the deadline by its setup margin.
         suite, upload = job["steps"][-2:]
         assert suite["run"] == f"uv run --frozen python -m nox -s suite_leg -- {deadline}"
         # The probe copies the leg's reports to the root that the upload reads, also on failure.
         assert suite["env"]["ETHOS_NATIVE_OUTPUT_DIR"].endswith("/" + REPORTS[:-1])
         assert all(path.startswith(REPORTS) for path in upload["with"]["path"].splitlines())
         assert (upload["if"], upload["with"]["name"]) == ("always()", name)
+
+
+def test_the_model_refuses_a_suite_job_that_does_not_outlive_the_deadline_by_its_margin(
+    tmp_path: Path, ci_materials: tuple[dict[str, Any], dict[str, str]]
+) -> None:
+    """Five minutes above the deadline outlive the gate, and not the leg's supply steps too."""
+    config, materials = ci_materials
+    files, model = dict(materials), config["compiler"]["source"]
+    declared = "\tsuite:       130\n"
+    assert files[model].count(declared) == 1
+    files[model] = files[model].replace(declared, "\tsuite:       125\n")
+    with pytest.raises(ValueError, match=r"cue_compilation_failed:.*timeout-setup:suite"):
+        compile_projections(
+            tmp_path, owner.CONFIG_RELATIVE_PATH, files, executable=locked_tool(ROOT, "cue")
+        )

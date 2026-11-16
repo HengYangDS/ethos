@@ -12,7 +12,8 @@
       evidence, and a failing run blocks with `quality_behavior_tests_failed`.
 - [ ] 1.3 Name the caller's interpreter for every leg. Done when a leg in a project whose Python
       range excludes its interpreter fails its sync with the caller named; it ran on an
-      interpreter of uv's choice before.
+      interpreter of uv's choice before. The lock states the same range, and the test reads
+      uv's own refusal of the interpreter.
 
 ## 2. The session
 
@@ -36,8 +37,9 @@
 - [ ] 3.3 Generate `.github/workflows/ci.yml` from the model. Done when the projection check
       passes, the second forge's pipeline is unchanged, and 3.1 passes.
 - [ ] 3.4 Declare the leg's setup margin in the model and refuse a suite job below the deadline
-      plus the margin. Done when the model does not compile with the class's minutes at 125,
-      the generated files are unchanged, and the legs' test asserts the relation.
+      plus the margin. Done when a regression compiles the model with the class's minutes at
+      125 and reads the refusal of `timeout-setup:suite`, and the generated files are
+      unchanged.
 
 ## 4. Documents and budgets
 

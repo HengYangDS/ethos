@@ -100,16 +100,24 @@ def test_a_leg_runs_on_its_callers_interpreter_and_never_decides_the_floor(
 
 
 def test_a_leg_fails_where_the_project_does_not_admit_its_interpreter(tmp_path: Path) -> None:
-    """The leg names its caller to uv, which refuses the sync; uv selects no other one."""
-    project = (_FIXTURE / "pyproject.toml").read_text(encoding="utf-8")
-    excluded = project.replace('requires-python = ">=3.12,<3.15"', 'requires-python = ">=3.99"')
-    repo = _sample(tmp_path, {"pyproject.toml": excluded, "tests/test_sample.py": _TEST})
+    """The leg names its caller to uv, which refuses that interpreter; uv selects no other one.
+
+    The lock states the project's range too, so the interpreter is the only reason left.
+    """
+    ranges = {"pyproject.toml": ">=3.12,<3.15", "uv.lock": ">=3.12, <3.15"}
+    excluded = {
+        name: (_FIXTURE / name).read_text(encoding="utf-8").replace(f'"{declared}"', '">=3.99"')
+        for name, declared in ranges.items()
+    }
+    repo = _sample(tmp_path, {**excluded, "tests/test_sample.py": _TEST})
 
     report = python_quality.behavior_report(repo, leg=True)
 
     command = report["native"]["command"]
     assert command[command.index("--python") + 1] == sys.executable
     assert report["required_gaps"] == ["quality_behavior_test_environment_sync_failed"], report
+    # uv's own words: the named interpreter is refused, and no other one was looked for.
+    assert "incompatible with the project's Python requirement" in report["native"]["stderr"]
 
 
 @pytest.mark.parametrize("provider", [python_quality, native_quality], ids=["python", "code"])

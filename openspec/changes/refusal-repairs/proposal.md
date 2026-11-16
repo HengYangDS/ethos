@@ -65,6 +65,14 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
   ceiling passes there and is refused by the gate, whose callers pass every tracked Markdown
   file. A reader of the report alone reads a pass. Reported by a governed repository's session
   on 2026-11-16; one caller in this product asks without them.
+- The retirement of a proposal ref whose tip accepted history does not hold is refused in this
+  repository with `signature_repair_source_coordinates_mismatch`, and its next action repeats
+  the request. The question whether the tip is conserved walks the recorded signature repairs
+  beneath accepted history, and the source commit of one record is no longer in the object
+  store, so its validation fails as a mismatch of coordinates. The rule that such a ref leaves
+  only while a Work Lane or a closed review retains its tip is never reached. Measured on
+  2026-11-16 on the proposal ref of an abandoned lane. The same question is asked for absorbed
+  proposals, for the retirement of an absorbed ref and for the admission of a ref move.
 - The release build's install smoke takes the one wheel under the release artifacts, which only
   the release build writes. Run without that build, it read a wheel that an earlier release
   build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the

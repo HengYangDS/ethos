@@ -55,10 +55,11 @@
 - [x] 4.2 Hand the first bump through the product to the first release that carries `--pin`. Done
       when the Workflow follow-up names the run on a disposable copy of one governed tree that holds
       the `http:ethos` table and the three results it owes.
-- [ ] 4.3 Run the blocked request's next action once with a real Mise. Done when
-      `mise --cd <root> exec --locked -- ethos lane repair-paradigm --pin --root <root> --json`
-      runs the release that the tree selects, or the next action is corrected to the form that
-      does.
+- [x] 4.3 Run the blocked request's next action once with a real Mise on a disposable copy of a tree
+      that selects a published release. Done when
+      `mise --cd <root> exec --locked -- ethos lane repair-paradigm --pin --root <root> --json` is
+      answered by the release that the tree selects (a release older than `--pin` answers by
+      refusing the option), or the next action is corrected to the form that does.
 
 ## Workflow follow-up
 
@@ -69,3 +70,5 @@
   apply, the relock with that repository's CI Mise and the projection step). Record the lock's
   attested entry for the pin, what the relock did with the lock's older entries, and the run's
   minutes on the weekly page.
+- After two releases carry `--pin`, block a request of the older one on a tree that selects the
+  newer one and run the named next action; record that the newer release answers.

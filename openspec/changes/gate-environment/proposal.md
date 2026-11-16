@@ -21,7 +21,14 @@ host or relayed by the session that met it:
   the packaged candidate of 0.2.0-beta.11, one test of a command gate found the interpreter's
   bundled package manager where the repository declares another. The launching shell's path
   was activated and its activation state was gone. The same proof passed in an empty
-  environment; the test alone reproduces both results without this product.
+  environment; the test alone reproduces both results without this product. Measured with
+  the gate's own command from a shell that activated Mise outside the repository: the child
+  environment of 0.2.0-beta.10 passes (state kept), that of 0.2.0-beta.11 fails (state
+  removed, `PATH` kept), and the latter with the `PATH` that the shell held before its
+  activation passes. The cause is upstream (jdx/mise#15771), and this product's own removal
+  of the state puts every gate child of such a launch into it. The owner decided on
+  2026-11-16 that 0.2.0-beta.11 states it among its known open defects and that the repair
+  is a row of this Change.
 - **Ignored files.** A governed product tagged a release with three failed hosted runs. A tracked
   test pinned a digest of a value that includes ignored build output, so the full proof passed
   only in the lane that held the build.
@@ -47,6 +54,12 @@ Candidates for this row's design, none decided:
 - The proof checks the offline environment in its readiness tier, before it takes a host ticket,
   and the refusal names the locked sync that refills the cache; or the gate's environment input
   comes from the repository's own cache root.
+- A child that resolves or runs locked tools starts from the `PATH` that the launching shell
+  held before its activation, where the shell still holds its activation state, with the state
+  removed. It is the smallest repair of the case that 0.2.0-beta.11 introduced, and one
+  measured environment supports it; a launcher that removed the state itself keeps the
+  failure, which the next candidate covers. To decide at the cut of 0.2.0-beta.12 with a size
+  measured on a patch.
 - A command gate runs with the locked toolchain first; or the result states which toolchain
   supplied each executable; or the proof refuses an executable outside the locked toolchain.
 - A lane's builds and environments use a cache root of the lane, under the disposable tool

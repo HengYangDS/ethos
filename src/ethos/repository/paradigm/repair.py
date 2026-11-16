@@ -15,6 +15,7 @@ from typing import NamedTuple
 
 from packaging.version import Version
 
+from ethos.contracts.branch.roles import RELEASE_KEYS
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import RELEASE_MIRROR_FIELD
 from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
@@ -425,11 +426,15 @@ def _restated_field(
 def _unread_field(
     _paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
-    """Delete a binding field that no reader consults; its gap shows that it is unread."""
+    """Delete a binding field that no reader consults; its gap shows that it is unread.
+
+    A key that a reader consults is reported for its value, which only its author corrects.
+    """
     table, _, name = gap.carrier.partition(":")[2].partition(".")
     declared = _parsed(text)
     section = declared.get(table) if declared is not None else None
-    if declared is None or not isinstance(section, dict) or name not in section:
+    unread = isinstance(section, dict) and name in section and name not in RELEASE_KEYS
+    if declared is None or not unread:
         return None
     return without_field(text or "", declared, table, name)
 

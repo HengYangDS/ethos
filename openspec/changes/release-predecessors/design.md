@@ -62,8 +62,11 @@ Non-Goals:
    - **Applies to:** `read_subjects`. A record that cannot be read, a repository that is gone and
      one whose pin's history cannot be read are counted as unread and refuse nothing: the owner's
      definition counts what the host can read, which supersedes B.3's refusal of an absent
-     consumer. The first read on the releasing host's real trees, a lane task, checks what is
-     not read.
+     consumer. Each record that cannot be read counts once. A repository whose accepted
+     branch or tree cannot be read is unread, never a subject without a pin. An installation
+     that records no consumer names no repository, so it is counted by itself and the result
+     states what it did not read. The first read on the releasing host's real trees, a lane
+     task, checks what is not read.
 3. **A recorded consumer is a subject by its selection; a pin, where declared, also names it.**
    - **Rests on:** the release lead's ruling of 2026-11-15 and the fleet reader's reading by form
      that DR-0030 carries: part of the readable trees declare no pin and none the bare form.
@@ -90,7 +93,11 @@ Non-Goals:
      prefix, text that is not TOML) names no release and dates no bump: its repository is a
      subject by its selection, inside the window, and the result counts such pins by themselves,
      apart from the unread consumers. A failed Git read is no unreadable pin: only the
-     declaration's text is judged. A subject frozen on its runtime is not known to the
+     declaration's text is judged. A selection that cannot be read, such as a selector that
+     is torn or names an invalid generation, is the same case from the other side: it names
+     no release, its repository stays a subject by its pin, and the result counts such
+     selections by themselves. Only a repository without a selector has no selection. A
+     subject frozen on its runtime is not known to the
      derivation: its release stays a predecessor while it is inside the window. Its waiver is
      DR-0030's, and no field that the product reads.
 4. **A subject is inside the window while its last bump is at most 14 days before the newest.**
@@ -134,7 +141,11 @@ Non-Goals:
      of them, and TOML refuses a release named twice. A class other than the one the pin module
      gives that release is refused, so the record cannot disagree with the data.
    - **Applies to:** `recorded`, and the paradigm's key set, which now admits `upgrade_from`. A
-     recorded release that no subject names is allowed: the lane may add one.
+     recorded release that no subject names is allowed: the lane may add one. The paradigm
+     reads a declared record through `recorded` and reports one that it refuses under
+     `release-binding`, at the carrier that the key had while no reader consulted it, so the
+     paradigm and the read cannot disagree and no tree that passed the previous release is
+     refused. The paradigm's repair never deletes a record.
 7. **One read-only operation, `ethos lane upgrade-from`, derives and compares.**
    - **Rests on:** appendix B.3, which asks for a catalog operation in the release lane with each
      subject's accepted head and pin as evidence.
@@ -152,7 +163,10 @@ Non-Goals:
      weekly page's measure of pins in reads both numbers there: the total is the sum of the
      three counts, less the waived repository under DR-0030, and the pins in are the subjects
      whose pin names the release. A subject whose declared pin cannot be read is in the total
-     once, under selection alone, and is no pin in.
+     once, under selection alone, and is no pin in. A refusal carries the gaps of its cause:
+     the record's three gaps name the record as their registered repair, an operating system
+     error is `release_upgrade_from_store_unreadable` with the error's name and no path, and
+     any other gap names its own repair or a general instruction.
 8. **A version that the changelog does not list is counted and named, and refuses nothing.**
    - **Rests on:** the release lead's ruling of 2026-11-15; the owner's definition, which counts
      what the host can read.
@@ -164,7 +178,9 @@ Non-Goals:
      with its count, so it is seen and stops nothing. This replaces B.3's refusal, as for the
      absent consumer.
    - **Applies to:** `derive`, `named_by` and the result's unlisted versions. The releasing
-     repository's own version without a changelog entry still refuses. A changelog entry does
+     repository's own version without a changelog entry still refuses, and so does a changelog
+     whose history is out of order or names a release twice, with the history's own errors:
+     the previous release is read from that order. A changelog entry does
      not prove a publication; the journey still asks the forge for each predecessor.
 9. **The subject set and the waiver are a decision record of this Change, DR-0030.**
    - **Rests on:** DR-0029, which requires that a later waiver is a successor record that names

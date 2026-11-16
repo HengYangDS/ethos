@@ -44,9 +44,23 @@ empty, lacks a derived release, or gives a release another class than its own.
 
 - **WHEN** the operation reads subjects inside the support window
 - **THEN** its result states how many of them pin in each form, how many are subjects by their
-  selection alone, and how many recorded consumers could not be read
+  selection alone, how many recorded consumers and records could not be read, and how many
+  installations record no consumer
 - **AND** for the release itself and for each predecessor, how many subjects name it by their
   pin and how many by their selection alone, each subject once for a release.
+
+#### Scenario: The changelog's history is invalid
+
+- **WHEN** the releasing repository's changelog lists its releases out of order or names one
+  twice
+- **THEN** the operation blocks with the history's own errors and derives nothing.
+
+#### Scenario: A refusal names its own repair
+
+- **WHEN** the operation blocks for a gap that is not one of the record's
+- **THEN** its next action does not ask for the record
+- **AND** an operating system error is `release_upgrade_from_store_unreadable` with the error's
+  name, and the result carries no path.
 
 #### Scenario: The host records no consumer
 
@@ -120,10 +134,19 @@ count of subjects.
 
 #### Scenario: A repository that cannot be read is no subject
 
-- **WHEN** a recorded repository is gone, its record cannot be read, or it neither pins a release
-  nor has a selection that can be read
+- **WHEN** a recorded repository is gone, its record or its accepted branch cannot be read, or it
+  neither pins a release nor has a selection that can be read
 - **THEN** it is no subject, and the derivation refuses nothing for it
-- **AND** the result counts the repositories and records that could not be read.
+- **AND** the result counts the repositories and records that could not be read, each record
+  once.
+
+#### Scenario: A subject's selection cannot be read
+
+- **WHEN** a recorded repository's accepted branch pins a release, and its selector cannot be
+  read
+- **THEN** it is a subject by its pin, and that selection names no release
+- **AND** the result counts such selections by themselves, apart from the consumers that could
+  not be read.
 
 #### Scenario: A subject is frozen on its runtime
 

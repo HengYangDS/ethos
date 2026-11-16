@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import errno
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
+import ethos.application.lane.repair as lane_repair
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.selection import activate_runtime
@@ -169,6 +172,80 @@ def test_a_lane_derives_what_its_release_upgrades_from(
         (git(outside, "rev-parse", "dev"), "github", "0.2.0-alpha.28", "", EPOCH + 25 * DAY, False),
         (git(alone, "rev-parse", "dev"), "", "", "0.2.0-beta.10", None, True),
     ]
+
+
+_READ = ("0.2.0-beta.10", "0.2.0-beta.3")
+# What each case leaves unread: the rows, then the unread consumers and records, the
+# installations that record no consumer, and the selections that could not be read.
+UNREAD = {
+    "torn-records": ([_READ], (2, 0, 0)),
+    "no-records": ([_READ], (0, 1, 0)),
+    "no-accepted-branch": ([], (1, 0, 0)),
+    "torn-selection": ([(_READ[0], None)], (0, 0, 1)),
+}
+
+
+@pytest.mark.parametrize("case", list(UNREAD))
+def test_what_cannot_be_read_is_counted_and_never_read_as_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """Each torn record counts; an installation that records no consumer is counted by itself.
+
+    A repository whose accepted branch cannot be read is unread, not a subject without a pin.
+    A selection that cannot be read is counted, and its repository stays a subject by its pin.
+    """
+    subject = _repository(tmp_path, monkeypatch, "s", (40, _pinned("beta.10")))
+    _select(subject, _READ[1])
+    installations = _installation(tmp_path).parent
+    if case == "torn-records":
+        for name in ("torn-1", "torn-2"):
+            record = _installation(tmp_path) / "consumers" / name
+            record.write_text("relative\n", encoding="utf-8")
+    if case == "no-records":
+        (installations / ("1" * 16)).mkdir()
+        (installations / "install.lock").write_text("", encoding="utf-8")
+    if case == "no-accepted-branch":
+        git(subject, "branch", "-m", "dev", "trunk")
+    if case == "torn-selection":
+        selector = Path(git_common_dir(subject)) / "ethos/runtime/CURRENT"
+        selector.write_text("torn\n", encoding="utf-8")
+    release = {"VERSION": "0.2.0-beta.12\n", "CHANGELOG.md": CHANGELOG}
+    product = _repository(tmp_path, monkeypatch, "product", (41, release))
+
+    data = run_ethos("lane", "upgrade-from", "--root", product.as_posix(), "--json")["data"]
+
+    rows = [(row["pinned"], row["current"]) for row in data["subjects"]]
+    counted = ("unread", "unrecorded_installations", "subjects_with_unreadable_selection")
+    assert (rows, tuple(data.get(name) for name in counted)) == UNREAD[case]
+
+
+def _unlisted(tmp_path: Path) -> tuple[str, ...]:
+    """The read of a product whose committed version has no changelog entry."""
+    product = init_git_repo(tmp_path / "product")
+    write_tree(product, {"VERSION": "0.2.0-beta.13\n", "CHANGELOG.md": CHANGELOG})
+    commit_fixture(product, "chore: prepare the release")
+    return ("lane", "upgrade-from", "--root", product.as_posix(), "--json")
+
+
+def test_a_gap_outside_the_record_does_not_ask_for_the_record(tmp_path: Path) -> None:
+    """Only a gap of the record names the record as its repair."""
+    unlisted = run_ethos(*_unlisted(tmp_path))
+    assert unlisted["required_gaps"] == ["release_changelog_target_missing:0.2.0-beta.13"]
+    assert unlisted["next_action"].startswith("repair the reported gap")
+
+
+def test_an_operating_system_error_names_itself_and_no_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The result carries the error's name; its message, which holds a path, stays behind."""
+
+    def denied(*_args: object) -> dict[str, object]:
+        raise PermissionError(errno.EACCES, "Permission denied", "/host/store")
+
+    monkeypatch.setattr(lane_repair, "upgrade_from_report", denied)
+    refused = run_ethos(*_unlisted(tmp_path))
+    assert refused["required_gaps"] == ["release_upgrade_from_store_unreadable:EACCES"]
+    assert "/host/store" not in json.dumps(refused)
 
 
 def test_a_host_without_a_store_derives_the_previous_release_alone(tmp_path: Path) -> None:

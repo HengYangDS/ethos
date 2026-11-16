@@ -15,6 +15,11 @@
 - [ ] 1.3 Admit `upgrade_from` to the release table's key set. Done when the paradigm repair
       deletes an unread key beside a recorded table and keeps the table, and the case fails
       without the key.
+- [ ] 1.4 Report a record that its reader refuses under `release-binding`, and never delete it.
+      Done when a record that is no table, misnames a release or gives another class is
+      reported at `release.upgrade_from` and the repair plans no edit.
+- [ ] 1.5 Refuse a changelog whose history is out of order or names a release twice. Done when
+      `released_versions` raises the history's own errors for both.
 
 ## 2. The derivation
 
@@ -30,6 +35,13 @@
       record, a record with another class, a development build named as unlisted without a
       refusal, the counts by pin form and by selection, a host without a store derives the
       previous release alone, and the catalog test counts one more operation.
+- [ ] 2.3 Count what cannot be read and never read it as absent. Done when two torn records
+      count twice, an installation that records no consumer is counted by itself, a
+      repository whose accepted branch cannot be read is unread, and a selection that cannot
+      be read is counted while its repository stays a subject by its pin.
+- [ ] 2.4 Carry registered gaps and their own repairs in a refusal. Done when a gap outside the
+      record does not ask for the record, and an operating system error is named without its
+      message or a path.
 
 ## 3. Documents
 

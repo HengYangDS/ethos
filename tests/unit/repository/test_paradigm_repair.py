@@ -312,7 +312,7 @@ def test_a_field_that_is_its_table_goes_with_the_table(tmp_path: Path, workspace
 
 _RELEASE_BINDING = ".ethos/release.toml"
 _PUBLICATION = '[publication]\ntransport_tags = ["native-inputs-*"]\n'
-_UPGRADE_FROM = '[release.upgrade_from]\n"1.0.0" = "checksum"\n'
+_UPGRADE_FROM = '[release.upgrade_from]\n"0.1.0" = "checksum"\n'
 
 
 @pytest.mark.parametrize(
@@ -431,6 +431,25 @@ def test_an_unread_release_key_is_deleted(
     plan, files = _plan(tmp_path, {_RELEASE_BINDING: release})
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_RELEASE_BINDING, repaired)]
     assert not _apply(tmp_path, plan, files, "repository_paradigm_release")
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        "upgrade_from = 3\n",
+        _UPGRADE_FROM.replace("checksum", "attested"),
+        _UPGRADE_FROM.replace("0.1.0", "0.1"),
+    ],
+    ids=["not-a-table", "another-class", "inexact-version"],
+)
+def test_a_record_of_predecessors_that_its_reader_refuses_is_reported_and_left(
+    tmp_path: Path, record: str
+) -> None:
+    """The paradigm reads the record through its owner; only its author can correct a value."""
+    release = f'[release]\nmirror = "accepted_ff"\n{record}'
+    plan, _ = _plan(tmp_path, {_RELEASE_BINDING: release})
+    assert plan.edits == ()
+    assert [gap.carrier for gap in plan.report_only] == [f"{_RELEASE_BINDING}:release.upgrade_from"]
 
 
 def test_an_unread_release_key_on_several_lines_beside_the_mirror_stays_reported(

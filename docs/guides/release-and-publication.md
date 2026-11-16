@@ -22,7 +22,9 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    has selected and, where its accepted branch declares a pin, the pinned release and the time of
    its last landed bump. It derives the previous release and every release that a subject inside
    the support window names, each with its class. It counts the subjects by pin form and by
-   selection alone, and it names no repository. Record each derived release under
+   selection alone, and it names no repository. It also counts what it could not read: consumers
+   and records under `unread`, pins and selections that cannot be read, and installations that
+   record no consumer; read those counts before trusting the set. Record each derived release under
    `[release.upgrade_from]` in `.ethos/release.toml`, as `"<version>" = "<class>"`, commit it, and
    run the command again until it passes. A subject frozen on its runtime takes no release: its
    waiver is [DR-0030](../decisions/dr-0030-candidate-subject-set.md), which names its shape and

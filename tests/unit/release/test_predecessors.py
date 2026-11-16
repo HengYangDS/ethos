@@ -5,14 +5,21 @@ from __future__ import annotations
 import pytest
 
 import ethos.repository.release.predecessors as predecessors
+from ethos.contracts.outcome import outcome_of
 from ethos.repository.release.changelog import released_versions
 from ethos.repository.release.predecessors import Subject
 
 DAY = 24 * 60 * 60
 HISTORY = ("0.2.0-beta.12", "0.2.0-beta.11", "0.2.0-beta.10", "0.2.0-beta.3", "0.2.0-alpha.28")
-CHANGELOG = "# Changelog\n\n## [Unreleased]\n\n" + "".join(
-    f"## [{version}] - 2026-11-01\n\n### Fixed\n\n- Correct the result.\n\n" for version in HISTORY
-)
+
+
+def _changelog(history: tuple[str, ...]) -> str:
+    """Render a changelog whose released entries stand in the given order."""
+    entry = "## [{}] - 2026-11-01\n\n### Fixed\n\n- Correct the result.\n\n"
+    return "# Changelog\n\n## [Unreleased]\n\n" + "".join(map(entry.format, history))
+
+
+CHANGELOG = _changelog(HISTORY)
 PREVIOUS = {"0.2.0-beta.11": "attested-main"}
 TENTH = {"0.2.0-beta.10": "attested-main"}
 CHECKSUM = {"0.2.0-beta.3": "checksum"}
@@ -28,6 +35,23 @@ def _subject(pinned: str, current: str = "", *, day: int = 30) -> Subject:
 def test_the_changelog_names_its_releases_newest_first() -> None:
     """The entries are read as the changelog's own parser reads them, without `Unreleased`."""
     assert released_versions(CHANGELOG) == HISTORY
+
+
+@pytest.mark.parametrize(
+    ("history", "gap"),
+    [
+        ((HISTORY[1], HISTORY[0], *HISTORY[2:]), f"release_changelog_version_order:{HISTORY[0]}"),
+        ((*HISTORY, HISTORY[2]), f"release_changelog_version_duplicate:{HISTORY[2]}"),
+    ],
+    ids=["out-of-order", "named-twice"],
+)
+def test_a_changelog_whose_history_is_invalid_names_no_release(
+    history: tuple[str, ...], gap: str
+) -> None:
+    """The previous release is read from the order, so an order that does not hold refuses."""
+    with pytest.raises(ValueError, match="release_changelog_version") as refused:
+        released_versions(_changelog(history))
+    assert gap in outcome_of(refused.value).gaps
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from markdown_it import MarkdownIt
 from semver import Version
 
+from ethos.contracts.outcome import refuse
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 if TYPE_CHECKING:
@@ -180,10 +181,16 @@ def _history_errors(entries: tuple[_Entry, ...]) -> tuple[str, ...]:
 
 
 def released_versions(text: str) -> tuple[str, ...]:
-    """Name every released entry in the changelog's own order, which is newest first."""
+    """Name every released entry in the changelog's own order, which is newest first.
+
+    A reader takes the previous release from that order, so a history that does not hold it,
+    or that names a release twice, refuses with every error of the history.
+    """
     heading = re.compile(load_repository_paradigm().release.changelog_heading)
     sections = _sections(tuple(MarkdownIt("commonmark").parse(text)), "h2")
-    entries = (_entry(section, heading) for section in sections)
+    entries = tuple(_entry(section, heading) for section in sections)
+    if errors := _history_errors(entries):
+        refuse(*errors)
     return tuple(entry.label for entry in entries if entry.release is not None)
 
 

@@ -38,8 +38,9 @@ class Subject(NamedTuple):
     # and `UNREADABLE` with no release where its declaration cannot be read.
     form: str
     pinned: str
-    # The build that `CURRENT` selects; empty where nothing is selected.
-    current: str
+    # The build that `CURRENT` selects; empty where nothing is selected, and None where the
+    # selection cannot be read.
+    current: str | None
     # The committer time, in seconds, of the accepted commit that last changed the pin; None
     # where no pin dates it.
     bumped: int | None

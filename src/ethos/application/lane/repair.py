@@ -4,9 +4,11 @@ Each operation takes the resolved root and its catalog request, runs the one own
 and projects that owner's report through `lane_result`.
 """
 
+import errno
 import hashlib
 import shlex
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.mutation.accepted.signature import repair_signature
 from ethos.adapters.mutation.paradigm_repair import repair_paradigm
@@ -21,6 +23,7 @@ from ethos.adapters.repo.upgrade_from import upgrade_from_report
 from ethos.application.catalog import standard_input
 from ethos.application.lane.result import lane_result
 from ethos.application.redaction import redact_private_addresses
+from ethos.contracts.codes.gaps import repair_for
 from ethos.contracts.operations.lane_repair import FormatRequest
 from ethos.contracts.operations.lane_repair import ProjectRequest
 from ethos.contracts.operations.lane_repair import RedactRequest
@@ -28,16 +31,14 @@ from ethos.contracts.operations.lane_repair import RepairParadigmRequest
 from ethos.contracts.operations.lane_repair import RepairSignatureRequest
 from ethos.contracts.operations.lane_repair import TrustCommitSignerRequest
 from ethos.contracts.operations.lane_repair import UpgradeFromRequest
+from ethos.contracts.outcome import outcome_of
 from ethos.contracts.outcome import require
 from ethos.contracts.semantic import parse_semantic_json
 from ethos.repository.release.identity import is_release_build
 from ethos.result import EthosResult
 
 _REDACTED = ("count", "outside_roots", "changed_paths", "generation")
-_RECORD = (
-    "record each derived release with its class under [release.upgrade_from] in the release "
-    "binding, commit it and run this command again"
-)
+_AGAIN = "repair the reported gap, then run this command again"
 
 
 def project_lane(root: Path, request: ProjectRequest) -> EthosResult:
@@ -80,10 +81,16 @@ def derive_lane_upgrade_from(root: Path, _request: UpgradeFromRequest) -> EthosR
     report: dict[str, object]
     try:
         report = upgrade_from_report(root, current_tracked_head(root))
-    except (OSError, ValueError) as error:
-        report = {"required_gaps": [str(error)]}
-    gaps = report["required_gaps"]
-    report |= {"verdict": "block" if gaps else "pass", "next_action": _RECORD if gaps else ""}
+    except OSError as error:
+        # The message names a path, and no repository's path leaves the read: the name stays.
+        name = errno.errorcode.get(error.errno or 0)
+        gap = "release_upgrade_from_store_unreadable"
+        report = {"required_gaps": [f"{gap}:{name}" if name else gap]}
+    except ValueError as error:
+        report = {"required_gaps": list(outcome_of(error).gaps)}
+    gaps = cast("list[str]", report["required_gaps"])
+    step = (repair_for(gaps[0]) or _AGAIN) if gaps else ""
+    report |= {"verdict": "block" if gaps else "pass", "next_action": step}
     return lane_result("lane upgrade-from", report)
 
 

@@ -57,11 +57,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
   subject is a repository that this host's store records and that has selected a runtime, with or
   without a tracked pin; one with a pin is inside the window while its last landed bump is at most
   14 days older than the newest one read. The result counts the subjects by pin form and by
-  selection alone, and names a selected version that the changelog does not list. The release
+  selection alone, and names a selected version that the changelog does not list. It counts
+  what it could not read by kind: unread consumers and records, pins and selections that cannot
+  be read, and installations that record no consumer. The release
   binding records the set under `[release.upgrade_from]`, each release with its class, and the
   read blocks with `release_upgrade_from_empty` or `release_upgrade_from_incomplete` when the
-  record lacks one. The paradigm no longer reports that key of the release table. No other
-  command reads the record in this release.
+  record lacks one. The paradigm no longer reports that key of the release table, unless its
+  reader refuses the record. No other command reads the record in this release.
 - `ethos release accept --checksums <SHA256SUMS>` accepts, on the releasing host, the release that
   the invoked installation is. It previews by default; with `--apply` it stores the release's
   wheel and records the accepted identity once, bound to the checksum file and every wheel and

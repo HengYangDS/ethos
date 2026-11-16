@@ -272,3 +272,25 @@ def test_the_transition_stores_the_bytes_that_admission_hashed(
     stored = repo / ".git/ethos/packages" / recorded.wheel_sha256 / wheel.name
     assert recorded.wheel_sha256 == hashlib.sha256(b"wheel").hexdigest()
     assert stored.read_bytes() == b"wheel"
+
+
+def test_a_second_checksum_file_of_a_recorded_version_refuses_the_transition(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Two checksum files are two releases of one version: refused, and nothing is recorded."""
+    build, repo, wheel, checksums = _release_case(tmp_path, monkeypatch)
+    accept = partial(
+        identity_transition.materialize_explicit_release,
+        repo,
+        wheel,
+        expected_build=build,
+        collision="wheel_collision",
+    )
+    accept(checksums=checksums)
+    members = read_attestation_set(repo)[1]
+    other = tmp_path / "OTHER"
+    listed = checksums.read_text(encoding="ascii") + f"{'f' * 64}  extra.whl\n"
+    other.write_text(listed, encoding="ascii")
+    with pytest.raises(ValueError, match="accepted_version_artifact_conflict"):
+        accept(checksums=other)
+    assert read_attestation_set(repo)[1] == members

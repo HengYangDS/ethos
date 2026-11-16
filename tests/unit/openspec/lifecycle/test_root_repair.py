@@ -64,8 +64,10 @@ def _relocation(root: Path, *, target: str = TARGET) -> dict[str, tuple[str, str
     }
 
 
-def _prewrite(root: Path, postimages: dict[str, tuple[str, str]], patch_file: Path):
-    patch_file.write_text(_patch(postimages), encoding="utf-8")
+def _prewrite(
+    root: Path, postimages: dict[str, tuple[str, str]], patch_file: Path, patch: str = ""
+):
+    patch_file.write_text(patch or _patch(postimages), encoding="utf-8")
     result = run_ethos_raw(
         "lane",
         "prewrite",
@@ -101,6 +103,22 @@ def test_supporting_template_repair_has_exact_native_scope_without_mutation(tmp_
     assert (root / SOURCE).read_text() == TEMPLATE
     assert not (root / TARGET).exists()
     assert (root / GUIDE).read_text() == postimages[GUIDE][0]
+
+
+def test_a_supporting_template_moved_by_a_rename_is_the_same_repair(tmp_path: Path):
+    """The move's source is a path of the request, so a rename states the same relocation."""
+    root = _root_repair_repository(tmp_path)
+    postimages = _relocation(root)
+    patch = (
+        f"diff --git a/{SOURCE} b/{TARGET}\nsimilarity index 100%\n"
+        f"rename from {SOURCE}\nrename to {TARGET}\n" + _patch({GUIDE: postimages[GUIDE]})
+    )
+    report = _prewrite(root, postimages, tmp_path / "moved.patch", patch)
+
+    assert report["verdict"] == "pass", report
+    scope = report["data"]["material_scope"]
+    assert scope["state"] == "openspec_supporting_file_relocation"
+    assert set(scope["authorized_paths"]) == set(postimages)
 
 
 @pytest.mark.parametrize("mutation", ["content", "consumer", "destination", "extra"])

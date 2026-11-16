@@ -98,6 +98,13 @@ def active_change_relocation_patch(
         if mutation == "partial" and relative == "tasks.md":
             continue
         before, after = f"{old}/{relative}", f"{new}/{relative}"
+        if mutation == "renames":
+            patches.append(
+                f"diff --git a/{before} b/{after}\nsimilarity index 100%\n"
+                f"rename from {before}\nrename to {after}\n"
+            )
+            paths.extend((before, after))
+            continue
         replacement = (
             content.replace("- [ ] 1.2", "- [x] 1.2") if mutation == "content" else content
         )

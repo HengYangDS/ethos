@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -112,19 +111,6 @@ def _entered(repo: Path, patch: str) -> dict[str, tuple[str | None, str]]:
         return {path: (text, effects[path]) for path, text in postimages.items()}
 
 
-def _refusal(repo: Path, patch: str) -> str:
-    """Return how the reader or the workspace refuses the patch."""
-    changes, gap = unified_patch_changes(repo, patch)
-    if gap:
-        return gap
-    with (
-        pytest.raises(ValueError, match="prewrite patch") as refused,
-        owner.patched_workspace(repo, patch, changes),
-    ):
-        pytest.fail("the workspace was yielded")
-    return str(refused.value)
-
-
 @pytest.mark.parametrize("shape", list(_READ))
 @pytest.mark.parametrize("inside", ["", "build", f"build{os.pathsep}1"])
 def test_a_patch_of_regular_files_is_read_wherever_the_workspace_lies(
@@ -151,17 +137,70 @@ def test_a_patch_of_regular_files_is_read_wherever_the_workspace_lies(
         (_NEW_LINK, "no regular file"),
         (_NEW_SUBMODULE, "no regular file"),
         (_LINK_MODE_RETURN, "no regular file"),
-        # Git itself refuses these two; where a Git accepts one, the index names its mode.
+        # Git refuses these two when it applies them; a Git that applied one records its mode.
         (_LINK_MODE_LATER, "application failed|no regular file"),
-        (_LONE_LINK_MODE, "application failed|prewrite_patch_invalid|no regular file"),
+        (_LONE_LINK_MODE, "application failed|no regular file"),
     ],
     ids=["link", "submodule", "mode-with-a-return", "mode-after-the-file-lines", "lone-mode"],
 )
 def test_a_patch_that_makes_another_kind_of_entry_is_refused(
     tmp_path: Path, patch: str, refusal: str
 ) -> None:
-    """The mode that Git records for an entry decides, wherever the patch declares it."""
-    assert re.search(refusal, _refusal(_repository(tmp_path), patch))
+    """The reader names the entry; the apply or the mode in the index refuses it."""
+    repo = _repository(tmp_path)
+    changes, gap = unified_patch_changes(repo, patch)
+    assert gap == ""
+    with (
+        pytest.raises(ValueError, match=refusal),
+        owner.patched_workspace(repo, patch, changes),
+    ):
+        pytest.fail("the workspace was yielded")
+
+
+@pytest.mark.parametrize(
+    ("command", "status", "output", "refusal"),
+    [
+        ("diff-tree", 0, b":100644 100644 a b M\0a.txt\0b.txt\0", "shorter than"),
+        ("diff-tree", 0, b":100644 100644 a M\0a.txt\0", "values to unpack"),
+        ("diff-tree", 0, b":120000 100644 a b M\0a.txt\0", "no regular file"),
+        ("write-tree", 1, b"", "workspace failed"),
+    ],
+    ids=["unpaired-path", "short-entry", "link-before", "failed-step"],
+)
+def test_a_record_that_is_not_of_git_s_form_is_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    status: int,
+    output: bytes,
+    refusal: str,
+) -> None:
+    """The record is read strictly, and a step other than the apply fails by its own name."""
+    real = owner.run_git
+
+    def recorded(root: Path, *arguments: str, **options: object):
+        done = real(root, *arguments, **options)
+        if arguments[0] != command:
+            return done
+        return done.__class__(done.args, status, output, b"")
+
+    monkeypatch.setattr(owner, "run_git", recorded)
+    repo = _repository(tmp_path)
+    changes, _gap = unified_patch_changes(repo, _EDIT)
+    with (
+        pytest.raises(ValueError, match=refusal),
+        owner.patched_workspace(repo, _EDIT, changes),
+    ):
+        pytest.fail("the workspace was yielded")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
+def test_a_changed_path_that_is_a_link_on_disk_is_refused(tmp_path: Path) -> None:
+    """What lies on disk is looked at beside the index: a link's text is what it names."""
+    (tmp_path / "elsewhere.txt").write_text("other\n", encoding="utf-8")
+    (tmp_path / "link").symlink_to(tmp_path / "elsewhere.txt")
+    with pytest.raises(ValueError, match="no regular file"):
+        owner.postimage_text(tmp_path / "link", "modify")
 
 
 def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) -> None:

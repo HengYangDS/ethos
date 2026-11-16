@@ -37,6 +37,7 @@ def test_a_built_patch_applies_to_each_postimage(tmp_path: Path) -> None:
 
 
 _CREATED = "diff --git a/fresh.txt b/fresh.txt\nnew file mode 100644\n"
+_MOVE = "diff --git a/{0} b/{1}\nsimilarity index 100%\nrename from {0}\nrename to {1}\n"
 _READ = {
     "edit": (
         "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n",
@@ -71,10 +72,30 @@ _READ = {
         "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n",
         [("a.txt", "a.txt")],
     ),
-    # A line of content that begins like a header moves no path.
+    # A removed line of content that begins like a file line moves no path.
     "line-like-a-header": (
-        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1,2 @@\n old\n+++ b/c.txt\n",
+        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1 @@\n old\n--- a/c.txt\n",
         [("a.txt", "a.txt")],
+    ),
+    # Only the null path itself is a null target; Git names any other path under `/dev`.
+    "target-like-the-null-path": (
+        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ /dev/nullish.txt\n@@ -1 +1 @@\n-old\n+new\n",
+        [("a.txt", "dev/nullish.txt")],
+    ),
+    # Git reads a carriage return before the line feed as white space.
+    "carriage-returns": (
+        _MOVE.format("a.txt", "b.txt").replace("\n", "\r\n"),
+        [("a.txt", "b.txt")],
+    ),
+    # A move's lines name whole paths: a directory called `a` is no prefix there.
+    "directory-named-like-a-prefix": (
+        _MOVE.format("a/x.txt", "a/y.txt"),
+        [("a/x.txt", "a/y.txt")],
+    ),
+    # A file line loses its first component alone.
+    "directory-named-like-the-second-prefix": (
+        "diff --git a/b/x.txt b/b/x.txt\n--- a/b/x.txt\n+++ b/b/x.txt\n@@ -1 +1 @@\n-old\n+new\n",
+        [("b/x.txt", "b/x.txt")],
     ),
 }
 

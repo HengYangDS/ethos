@@ -113,11 +113,13 @@ _HEADER = (
 def _header_lines(patch: str) -> Iterator[str]:
     """Yield each entry's `diff --git` line and the header lines that follow it at once.
 
-    Git ends a line at a line feed alone and an entry's header at the first line that is none
-    of its header lines; a hunk's content and the text after an entry are read by no caller.
+    Git ends a line at a line feed, reads a carriage return before it as white space, and ends
+    an entry's header at the first line that is none of its header lines; a hunk's content and
+    the text after an entry are read by no caller.
     """
     in_header = False
-    for line in patch.split("\n"):
+    for raw in patch.split("\n"):
+        line = raw.removesuffix("\r")
         in_header = line.startswith("diff --git ") or (in_header and line.startswith(_HEADER))
         if in_header:
             yield line
@@ -126,29 +128,34 @@ def _header_lines(patch: str) -> Iterator[str]:
 def _update_patch_change(change: dict[str, object], line: str) -> None:
     """Read where the entry's preimage lies; Git's own report names the entry's path."""
     if line.startswith("--- "):
-        change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
-    elif line.startswith("+++ /dev/null"):
+        change["old_path"] = _file_line_path(line)
+    elif line.startswith("+++ "):
         # A deletion written without its `deleted file mode` line: Git reports the null path
         # as the entry's name. The entry is named by its preimage, as a deletion of it.
-        change["path"] = change["old_path"]
+        if _file_line_path(line) == "/dev/null":
+            change["path"] = change["old_path"]
     elif line.startswith(("rename from ", "rename old ", "copy from ")):
-        change["old_path"] = _patch_path(line.split(" ", 2)[2])
+        # Git writes these names whole, without the component that a file line carries.
+        change["old_path"] = _unquoted(line.split(" ", 2)[2])
     elif line.startswith("new file mode "):
         # Git writes no `---` and `+++` lines for an entry without content.
         change["old_path"] = "/dev/null"
 
 
-def _patch_path(raw: str) -> str:
-    if raw.startswith('"'):
-        decoded = ast.literal_eval(raw)
-        if not isinstance(decoded, str):
-            message = "prewrite_patch_path_invalid"
-            raise ValueError(message)
-        raw = (
-            decoded.encode("latin-1").decode("utf-8")
-            if any(f"\\{digit}" in raw for digit in string.octdigits)
-            else decoded
-        )
-    if raw == "/dev/null":
+def _file_line_path(line: str) -> str:
+    """Return the name of a `---` or `+++` line without its first component, as Git reads it."""
+    name = _unquoted(line[4:].split("\t", 1)[0])
+    return name if name == "/dev/null" else name.partition("/")[2] or name
+
+
+def _unquoted(raw: str) -> str:
+    """Return a name as written, or the name that Git's quoting stands for."""
+    if not raw.startswith('"'):
         return raw
-    return raw.removeprefix("a/").removeprefix("b/")
+    decoded = ast.literal_eval(raw)
+    if not isinstance(decoded, str):
+        message = "prewrite_patch_path_invalid"
+        raise TypeError(message)
+    if any(f"\\{digit}" in raw for digit in string.octdigits):
+        return decoded.encode("latin-1").decode("utf-8")
+    return decoded

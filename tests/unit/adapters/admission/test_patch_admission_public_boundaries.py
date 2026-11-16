@@ -237,12 +237,15 @@ _DATE_CHANGE = "legacy-change-20261008"
 _LOGICAL_CHANGE = "legacy-change"
 
 
-@pytest.mark.parametrize("source_state", ["working", "committed"])
+@pytest.mark.parametrize("source_state", ["working", "committed", "renames"])
 def test_exact_active_change_relocation_retains_unfinished_source(
     tmp_path: Path, source_state: str
 ) -> None:
+    """The move is the same relocation as deletions with creations and as renames."""
     repo, head, paths, patch = active_change_relocation_patch(
-        tmp_path, committed=source_state == "committed"
+        tmp_path,
+        committed=source_state == "committed",
+        mutation="renames" if source_state == "renames" else "",
     )
     source = repo / f"openspec/changes/{_DATE_CHANGE}"
     preimage = {

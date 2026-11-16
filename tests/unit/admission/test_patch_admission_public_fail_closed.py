@@ -12,8 +12,10 @@ import ethos.adapters.admission.patch_admission as admission
 import ethos.adapters.process as process
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from tests.support.governed_repository import commit_active_change
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -275,32 +277,34 @@ def test_a_script_input_naming_an_emptied_directory_is_a_deleted_input(survivor,
     assert gaps == expected
 
 
-def test_the_source_of_a_move_is_read_as_a_deleted_input(tmp_path) -> None:
-    """A move takes its source away; an import of the source that stays is a dangling input."""
+def test_the_source_of_a_move_is_a_path_of_the_request_and_a_deleted_input(tmp_path) -> None:
+    """A move takes its source away: the request names it, and an import that stays dangles."""
     repo, _head = _repository(tmp_path)
-    files = {
-        "pyproject.toml": '[project]\nname="example"\nversion="1"\ndependencies=["cyclopts"]\n',
-        "src/example/app.py": 'from cyclopts import App\napp = App(name="ethos")\n',
-        "src/example/commands.py": "from example.app import app as cli\n",
-    }
-    for relative, text in files.items():
-        path = repo / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare an owner and its consumer")
+    write_tree(
+        repo,
+        {
+            "pyproject.toml": '[project]\nname="example"\nversion="1"\ndependencies=["cyclopts"]\n',
+            "src/example/app.py": 'from cyclopts import App\napp = App(name="ethos")\n',
+            "src/example/commands.py": "from example.app import app as cli\n",
+        },
+    )
+    head = commit_fixture(repo, "declare an owner and its consumer")
+    source, target = "src/example/app.py", "src/example/moved.py"
     patch = (
-        "diff --git a/src/example/app.py b/src/example/moved.py\nsimilarity index 100%\n"
-        "rename from src/example/app.py\nrename to src/example/moved.py\n"
+        f"diff --git a/{source} b/{target}\nsimilarity index 100%\n"
+        f"rename from {source}\nrename to {target}\n"
     )
-    report = admission.patch_admission(
-        root=repo,
-        requested_paths=("src/example/moved.py",),
-        baseline_head=git(repo, "rev-parse", "HEAD"),
-        patch=patch,
-    )
-    assert report["effects"] == {"src/example/app.py": "delete", "src/example/moved.py": "create"}
-    assert (report["verdict"], report["reason"]) == (
+
+    def admitted(*requested: str) -> dict[str, object]:
+        return admission.patch_admission(
+            root=repo, requested_paths=requested, baseline_head=head, patch=patch
+        )
+
+    alone, both = admitted(target), admitted(source, target)
+    assert (alone["verdict"], alone["reason"]) == ("block", "prewrite_patch_paths_mismatch")
+    assert alone["paths"] == both["paths"] == [source, target]
+    assert both["effects"] == {source: "delete", target: "create"}
+    assert (both["verdict"], both["reason"]) == (
         "block",
-        "deleted_input:src/example/app.py:src/example/commands.py:import",
+        f"deleted_input:{source}:src/example/commands.py:import",
     )

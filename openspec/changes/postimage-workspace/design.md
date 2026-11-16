@@ -119,7 +119,10 @@ Non-Goals:
      move and is read as deleted. The text is still read for two things: the place of each
      preimage, to copy it, where a wrong reading makes the apply fail; and the null target of
      a deletion, by the entry below. The reader takes each entry's path from Git and ends an
-     entry's header where Git ends it.
+     entry's header where Git ends it. The request of a patch is held against the same
+     record: it names every path that Git changed, a move's source among them, as the staged
+     target has required in every release; a request for a move's target alone left the
+     source's deletion unjudged and is refused (the lead's ruling X of 2026-11-17).
 
 ## Risks / Trade-offs
 

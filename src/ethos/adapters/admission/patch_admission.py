@@ -6,6 +6,7 @@ import dataclasses
 import shlex
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.patch_workspace import EFFECTS
 from ethos.adapters.admission.patch_workspace import patch_applies
 from ethos.adapters.admission.patch_workspace import patched_workspace
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_relocation
@@ -62,7 +63,7 @@ def patch_admission(
     patch_paths = sorted({str(change["path"]) for change in changes})
     requested = sorted(set(requested_paths))
     reason = parse_gap
-    if not reason and patch_paths != requested:
+    if not reason and _request_cannot_be_the_patch(changes, requested):
         reason = "prewrite_patch_paths_mismatch"
     if not reason and not baseline_head:
         reason = "prewrite_patch_baseline_missing"
@@ -99,8 +100,11 @@ def patch_admission(
                 context_files=baseline_files,
                 declared_commands=baseline_references["command"],
                 baseline=baseline_head,
+                requested=requested,
             )
             references = observation.references
+            # The paths of a patch are the ones that Git changed, a move's source among them.
+            patch_paths = sorted(effects)
             reason = gaps[0] if gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
@@ -386,9 +390,21 @@ def _indexed_effects(root: Path, *, index_env: Mapping[str, str] | None = None) 
         message = "staged_diff_invalid"
         raise ValueError(message)
     return {
-        path: "delete" if kind == "D" else "create" if kind == "A" else "modify"
+        path: EFFECTS.get(kind, "modify")
         for kind, path in zip(parts[::2], parts[1::2], strict=True)
     }
+
+
+def _request_cannot_be_the_patch(changes: list[dict[str, object]], requested: list[str]) -> bool:
+    """Tell, before the patch is applied, that the request is not the paths that it changes.
+
+    Every named path is requested, and nothing beyond the named paths and the places of their
+    preimages. Which of those the patch changes is observed in the workspace, and the request
+    must then equal them.
+    """
+    named = {str(change["path"]) for change in changes}
+    sources = {str(change["old_path"]) for change in changes} - {"/dev/null"}
+    return not named <= set(requested) <= named | sources
 
 
 def _patch_references(
@@ -398,6 +414,7 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     baseline: str,
+    requested: list[str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
 ) -> tuple[
     ProductReferences,
@@ -410,6 +427,8 @@ def _patch_references(
     dict[str, object],
 ]:
     with patched_workspace(root, patch, changes) as (workspace, postimages, effects):
+        # A move's source is a changed path: a request that lacks it leaves its deletion unjudged.
+        scope = [] if sorted(effects) == requested else ["prewrite_patch_paths_mismatch"]
         files = {
             path: text
             for path, text in postimages.items()
@@ -432,6 +451,8 @@ def _patch_references(
         profile = profile_postimage(root, postimages)
         if profile.gap:
             gaps.insert(0, profile.gap)
+        if scope:
+            return observation, scope + gaps, unknown, effects, outputs, profile, {}, {}
         root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
         relocation = active_change_relocation(root, workspace, effects, baseline=baseline)
         return observation, gaps, unknown, effects, outputs, profile, root_repair, relocation

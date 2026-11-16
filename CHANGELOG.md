@@ -168,7 +168,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   what the link names. What a patch does at each path is now read from Git, in that
   workspace's own index, and no longer from the patch's text: a patch that creates or deletes
   an empty file is read as that and not as an edit, the source of a move is read as deleted,
-  and text after an entry without content moves no path of the request.
+  and text after an entry without content moves no path of the request. A request for a
+  patch that moves a file names the move's source too, as the index target already requires:
+  a request for the target alone left the source's deletion unjudged and is now refused with
+  `prewrite_patch_paths_mismatch`, and the report's `paths` name both.
 - The quality gates of a repository with many code files run on Windows. The check that no code
   subject differs from the commit named every subject on one Git command line, which Windows
   refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing

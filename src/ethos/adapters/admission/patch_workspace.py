@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import stat
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_patch import index_changes
 from ethos.adapters.repo.git_patch import unnamed_changes
+from ethos.adapters.repo.runtime.filesystem import is_junction
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -100,13 +102,21 @@ def _copied_preimages(root: Path, workspace: Path, changes: list[dict[str, objec
 
 
 def _free(root: Path, path: Path) -> bool:
-    """Tell whether nothing lies at the path and only real directories lie above it."""
+    """Tell whether nothing lies at the path and only real directories lie above it.
+
+    Each place from the root down is looked at once, without following a link. Nothing below
+    an absent place exists. A place that cannot be looked at is an error, which the caller
+    reports as a refusal; it is never read as an absence.
+    """
     above = [parent for parent in path.parents if root in parent.parents]
-    return not path.exists(follow_symlinks=False) and all(
-        parent.is_dir() and not parent.is_symlink()
-        for parent in above
-        if parent.exists(follow_symlinks=False)
-    )
+    for place in (*reversed(above), path):
+        try:
+            mode = place.lstat().st_mode
+        except FileNotFoundError:
+            return True
+        if place == path or not stat.S_ISDIR(mode) or is_junction(place):
+            return False
+    return False
 
 
 @contextmanager

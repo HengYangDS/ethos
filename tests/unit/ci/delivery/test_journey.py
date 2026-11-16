@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
@@ -434,11 +435,13 @@ def test_only_acquisition_holds_the_forge_token_and_qualification_reads_the_mani
     # Only the preparation of Mise is shown where the host's tool supply is.
     assert seen["supply"] == [("mise", "/fake/supply"), *[("download", None)] * 2]
     assert not (tmp_path / "work/acquisition/pins").exists()
-    # Each stage's directories lie outside the journey's work, as a host's lie outside a
-    # checkout, and are gone when the journey ends.
+    # The two stages' directories lie in one new directory of the host's temporary directory,
+    # as a host's own lie outside a checkout, and it is gone when the journey ends.
     assert len(set(seen["roots"])) == 2
-    work = tmp_path / "work"
-    assert not any(root.is_relative_to(work) or root.exists() for root in seen["roots"])
+    (fresh,) = {root.parent for root in seen["roots"]}
+    assert fresh.parent == Path(tempfile.gettempdir()).resolve()
+    assert fresh.name.startswith("ethos-journey-")
+    assert not fresh.exists()
     assert dict(os.environ) == host
 
 
@@ -453,6 +456,9 @@ def test_qualification_checks_its_environment_before_its_first_child(
             f"v{VERSION}", work=tmp_path / "work", platform=PLATFORM, changelog=CHANGELOG
         )
     assert [stage for stage, *_tokens in seen["tokens"]] == ["download", "download", "pin", "pin"]
+    # A leg that fails leaves no stage directory behind either.
+    assert seen["roots"]
+    assert not any(root.parent.exists() for root in seen["roots"])
 
 
 def test_named_predecessors_follow_the_changelog_without_duplicates() -> None:

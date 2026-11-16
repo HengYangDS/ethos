@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
-    github: dict[str, Any],
+    github: dict[str, Any], ci_materials: tuple[dict[str, Any], dict[str, str]]
 ) -> None:
     jobs = github["jobs"]
     legs = {name: job for name, job in jobs.items() if name.startswith("suite-")}
@@ -45,7 +45,8 @@ def test_a_full_run_adds_the_suite_legs_and_only_the_linux_legs_block(
     gates = tomllib.loads(repository_registry_path().read_text(encoding="utf-8"))["gates"]
     (deadline,) = (gate["timeout_seconds"] for gate in gates if gate["id"] == "unit-architecture")
     commit = jobs["quality"]["if"][4:-3]
-    model = (ROOT / ".config/ci/pipeline.cue").read_text(encoding="utf-8")
+    config, materials = ci_materials
+    model = materials[config["compiler"]["source"]]
     (margin,) = re.findall(r"^let suiteSetupSeconds = (\d+)$", model, flags=re.MULTILINE)
     for name, job in legs.items():
         # A push or pull request runs no leg; a batch head or the drift schedule runs each.

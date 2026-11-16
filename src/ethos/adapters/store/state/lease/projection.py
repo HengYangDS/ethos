@@ -14,6 +14,7 @@ from typing import Literal
 from ethos.adapters.store.state.schema import read_only_state_uri
 from ethos.adapters.store.state.schema import validate_current_lease_schema
 from ethos.contracts.coordination import LaneLease
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -136,16 +137,3 @@ def _select_lease_rows(connection: sqlite3.Connection) -> list[sqlite3.Row | tup
     return connection.execute(
         "select lane_ref, holder_ref, generation, expires_at from leases order by lane_ref"
     ).fetchall()
-
-
-def integer_value(value: object) -> int:
-    if isinstance(value, bool):
-        return 0
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            return 0
-    return 0

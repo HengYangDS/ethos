@@ -12,7 +12,7 @@ import shlex
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import process_input
-from ethos.normalization.coercion import integer
+from ethos.normalization.coercion import integer_value
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -46,9 +46,10 @@ def handoff_step(root: Path, branch: str, lease: Mapping[str, object], target: s
     """Render the preview that moves one held Lease generation to the target, in the lane.
 
     A Lease without a readable generation, expiry or holder names nothing to move, and a blank
-    target nobody to move it to: neither has a step.
+    target nobody to move it to: neither has a step. The generation is read as every reader
+    of a Lease reads it.
     """
-    generation = integer(lease.get("generation"))
+    generation = integer_value(lease.get("generation"))
     expires_at = str(lease.get("expires_at") or "").strip()
     holder_ref = str(lease.get("holder_ref") or "").strip()
     if generation < 1 or not (expires_at and holder_ref and target.strip()):

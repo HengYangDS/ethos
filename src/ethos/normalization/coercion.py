@@ -55,6 +55,20 @@ def integer(value: object, *, default: int = 0) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) else default
 
 
+def integer_value(value: object) -> int:
+    """Read a stored integer from its number or its decimal text; anything else is 0."""
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0
+
+
 def repository_path_matches(path: str, pattern: str) -> bool:
     """Match one repository-relative path against a recursive glob."""
     if pattern == "**":

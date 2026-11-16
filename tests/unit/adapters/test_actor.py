@@ -93,3 +93,13 @@ def test_a_lease_without_its_coordinates_renders_no_handoff(missing: dict[str, o
     assert handoff_step(ROOT, "work/example", lease | missing, "agent:a:b:d") == ""
     # A blank target names nobody to move the Lease to.
     assert handoff_step(ROOT, "work/example", lease, " ") == ""
+
+
+def test_the_handoff_reads_the_generation_as_the_lease_read_model_does() -> None:
+    """The generation has one reader: its text names the step that its number names."""
+    lease = {"holder_ref": "agent:a:b:c", "expires_at": "2099-01-01T00:00:00Z"}
+    (step,) = {
+        handoff_step(ROOT, "work/example", lease | {"generation": read}, "agent:a:b:d")
+        for read in (3, "3")
+    }
+    assert "--generation 3 --expires-at" in step

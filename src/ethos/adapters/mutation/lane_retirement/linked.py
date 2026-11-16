@@ -270,15 +270,18 @@ def _foreign_actor_step(
 ) -> dict[str, object]:
     """Return the step of a foreign actor: the handoff, or the refusal's own step without one.
 
-    A Lease whose coordinates or holder cannot be read names no handoff, also where no lane
-    was found, and the refusal never continues to the retirement that refused it.
+    A Lease whose coordinates or holder cannot be read names no handoff, and neither does an
+    authority that found no lane, which is empty. The refusal never continues to the
+    retirement that refused it.
     """
-    handoff = handoff_step(
-        Path(str(authority.get("path") or repo)),
-        str(authority.get("branch") or ""),
-        cast("dict[str, object]", authority.get("lease") or {}),
-        process_actor(),
-    )
+    handoff = ""
+    if authority:
+        handoff = handoff_step(
+            Path(str(authority["path"])),
+            str(authority["branch"]),
+            cast("dict[str, object]", authority["lease"]),
+            process_actor(),
+        )
     return {
         "next_action": handoff or _missing_actor_or_status(repo, gaps),
         "user_decision_required": bool(handoff) or "authorization_required" in gaps,

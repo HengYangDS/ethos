@@ -198,7 +198,9 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         (f"host status {ACTOR_FLAG} agent:a:b:c", "host.status"),
         (f"lane status {ACTOR_FLAG}=agent:a:b:c --json", "lane.status"),
         (f"lane status {ACTOR_FLAG}", ""),
-        # `host run` leaves the flag to its child: there it is a word, also without a value.
+        # `host run` leaves the flag to its child: there it is a word, with a value after it
+        # and also without one.
+        (f"host run git {ACTOR_FLAG} agent:a:b:c status", "host.run"),
         (f"host run git status {ACTOR_FLAG}", "host.run"),
         ("host run git -C x status --json", "host.run"),
         ("host run --command x y", ""),

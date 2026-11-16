@@ -192,18 +192,32 @@ _READABLE = {"generation": 3, "expires_at": "2099-01-01T00:00:00Z"}
 
 
 @pytest.mark.parametrize(
-    ("holder", "coordinates"),
-    [("agent:test:holder", _READABLE), ("agent:test:holder", {}), ("", _READABLE)],
-    ids=["readable", "no-coordinates", "no-holder"],
+    ("holder", "coordinates", "linked"),
+    [
+        ("agent:test:holder", _READABLE, True),
+        ("agent:test:holder", {}, True),
+        ("", _READABLE, True),
+        # A retained topic without a linked worktree has no lane: its authority is empty.
+        ("agent:test:holder", _READABLE, False),
+    ],
+    ids=["readable", "no-coordinates", "no-holder", "no-lane"],
 )
 def test_a_foreign_actor_is_offered_the_handoff_or_keeps_the_lane_status_step(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, holder: str, coordinates: dict[str, object]
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    holder: str,
+    coordinates: dict[str, object],
+    *,
+    linked: bool,
 ) -> None:
     """A readable Lease names its handoff; no other continues to the retirement that refused."""
     lane = _lane(holder=holder)
     lane["lease"] = {"holder_ref": holder} | coordinates
     _stub_retirement(
-        monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane}, stub_holder_gaps=False
+        monkeypatch,
+        worktrees=[_worktree()] if linked else [],
+        lanes={SOURCE: lane},
+        stub_holder_gaps=False,
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:other")
     kept = LinkedRetirementRequest(
@@ -214,17 +228,15 @@ def test_a_foreign_actor_is_offered_the_handoff_or_keeps_the_lane_status_step(
 
     foreign = {"foreign_work_lane_retire_authority_required", "lane_retirement_receipt_required"}
     assert foreign <= set(report["required_gaps"])
-    offered = bool(holder and coordinates)
+    offered = bool(holder and coordinates and linked)
     handoff = (
         "ethos lane handoff transfer --generation 3 --expires-at 2099-01-01T00:00:00Z"
-        f" --branch {SOURCE} --holder-ref agent:test:holder"
-        f" --target-holder-ref agent:test:other --root /{SOURCE} --json"
+        f" --branch {SOURCE} --holder-ref agent:test:holder --target-holder-ref agent:test:other"
+        f" --root {Path(f'/{SOURCE}').resolve().as_posix()} --json"
     )
     status = f"ethos lane status --root {tmp_path.as_posix()} --json"
-    assert (report["next_action"], report["user_decision_required"]) == (
-        handoff if offered else status,
-        offered,
-    )
+    assert report["next_action"] == (handoff if offered else status)
+    assert report["user_decision_required"] is offered
 
 
 @pytest.mark.parametrize(

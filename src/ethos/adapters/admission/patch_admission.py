@@ -409,7 +409,7 @@ def _patch_references(
     dict[str, object],
     dict[str, object],
 ]:
-    with patched_workspace(root, patch, changes) as (workspace, postimages):
+    with patched_workspace(root, patch, changes) as (workspace, postimages, effects):
         files = {
             path: text
             for path, text in postimages.items()
@@ -432,14 +432,6 @@ def _patch_references(
         profile = profile_postimage(root, postimages)
         if profile.gap:
             gaps.insert(0, profile.gap)
-        effects = {
-            str(change["path"]): "delete"
-            if change["deleted"]
-            else "create"
-            if change["new"]
-            else "modify"
-            for change in changes
-        }
         root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
         relocation = active_change_relocation(root, workspace, effects, baseline=baseline)
         return observation, gaps, unknown, effects, outputs, profile, root_repair, relocation

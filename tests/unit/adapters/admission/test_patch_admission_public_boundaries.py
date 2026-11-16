@@ -132,8 +132,7 @@ def test_patch_admission_reports_failed_postimage_apply(
     def fail_second_apply(root: Path, *args: str, **kwargs):
         nonlocal calls
         completed = real_run(root, *args, **kwargs)
-        # Only an apply that checks or writes counts; a reading of the patch does not.
-        if args[:1] != ("apply",) or "--numstat" in args or "--summary" in args:
+        if args[:1] != ("apply",) or "--numstat" in args:
             return completed
         calls += 1
         return completed if calls == 1 else completed.__class__(completed.args, 1, "", "")

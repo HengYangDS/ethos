@@ -5,8 +5,9 @@
 Patch admission SHALL report every product reference of a patch that its baseline does not own,
 in stable order, so that one admission names every declaration the repository lacks. It SHALL
 read the patch's postimage in a workspace that is a repository of its own, wherever the
-process's temporary directory lies. It SHALL refuse a patch that declares another kind of entry
-than a regular file.
+process's temporary directory lies. It SHALL take what a patch does at each path, and the kind
+of each entry, from Git's own record of the patch applied in that workspace, and SHALL refuse
+a patch that makes another kind of entry than a regular file.
 
 #### Scenario: A patch consumes two unowned references
 
@@ -26,3 +27,10 @@ than a regular file.
 
 - **WHEN** a patch declares a symbolic link or a submodule entry at a path that it names
 - **THEN** the admission refuses with `prewrite_patch_postimage_failed`
+
+#### Scenario: A patch moves a file that another file still reads
+
+- **WHEN** a patch moves a file, and a file that the patch does not change still imports the
+  source
+- **THEN** the admission reads the source as deleted
+- **AND** it refuses with the reason of a deleted input

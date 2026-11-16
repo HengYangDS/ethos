@@ -248,3 +248,18 @@ def test_native_index_forms_keep_worktree_selection_separate(mixed_lane: Path, f
     )
     assert report["verdict"] == ("block" if form == "default" else "pass"), report
     assert _snapshot(root) == before
+
+
+def test_text_after_an_entry_names_no_path_of_the_request(mixed_lane: Path) -> None:
+    """Git ends an entry's header at the first other line; the scope is the path Git names."""
+    root = mixed_lane
+    patch = (
+        "diff --git a/fresh.py b/fresh.py\nnew file mode 100644\n\n--- a/module.py\n+++ /dev/null\n"
+    )
+    before = _snapshot(root)
+    report = prewrite.prewrite_guard(
+        root=root, paths=[root / "module.py"], editor_root=root, patch=patch, target="index"
+    )
+    assert report["verdict"] == "block", report
+    assert "prewrite_patch_paths_mismatch" in report["required_gaps"]
+    assert _snapshot(root) == before

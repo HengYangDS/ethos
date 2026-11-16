@@ -7,7 +7,6 @@
   "src/ethos/adapters/admission/evidence/external.py::_is_protected_from_current_identity": 18,
   "src/ethos/adapters/admission/git_admission.py::hook_admission_report": 17,
   "src/ethos/adapters/admission/git_admission.py::ref_move_admission_report": 17,
-  "src/ethos/adapters/admission/patch_admission.py::_patch_references": 13,
   "src/ethos/adapters/admission/patch_admission.py::_source_effect_gaps": 23,
   "src/ethos/adapters/admission/patch_admission.py::patch_admission": 42,
   "src/ethos/adapters/admission/patch_admission.py::profile_repair_scope": 18,

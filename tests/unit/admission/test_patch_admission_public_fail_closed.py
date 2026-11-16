@@ -273,3 +273,34 @@ def test_a_script_input_naming_an_emptied_directory_is_a_deleted_input(survivor,
         files[survivor] = "{}\n"
     gaps, _unknown = deleted_input_gaps(files, frozenset({".config/prettier/base.json"}))
     assert gaps == expected
+
+
+def test_the_source_of_a_move_is_read_as_a_deleted_input(tmp_path) -> None:
+    """A move takes its source away; an import of the source that stays is a dangling input."""
+    repo, _head = _repository(tmp_path)
+    files = {
+        "pyproject.toml": '[project]\nname="example"\nversion="1"\ndependencies=["cyclopts"]\n',
+        "src/example/app.py": 'from cyclopts import App\napp = App(name="ethos")\n',
+        "src/example/commands.py": "from example.app import app as cli\n",
+    }
+    for relative, text in files.items():
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare an owner and its consumer")
+    patch = (
+        "diff --git a/src/example/app.py b/src/example/moved.py\nsimilarity index 100%\n"
+        "rename from src/example/app.py\nrename to src/example/moved.py\n"
+    )
+    report = admission.patch_admission(
+        root=repo,
+        requested_paths=("src/example/moved.py",),
+        baseline_head=git(repo, "rev-parse", "HEAD"),
+        patch=patch,
+    )
+    assert report["effects"] == {"src/example/app.py": "delete", "src/example/moved.py": "create"}
+    assert (report["verdict"], report["reason"]) == (
+        "block",
+        "deleted_input:src/example/app.py:src/example/commands.py:import",
+    )

@@ -47,7 +47,12 @@ def unified_patch(changes: Iterable[tuple[str, bytes, bytes]]) -> str:
 
 
 def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object]], str]:
-    """Read literal text-patch identities; refuse unsupported or malformed native input."""
+    """Name each entry's path as Git reports it and the path that its preimage lies at.
+
+    What a patch does at a path (a creation, a deletion, a kind of file) is no reading of
+    its text: a caller observes it from Git, where the patch is applied. Unsupported or
+    malformed native input is refused.
+    """
     if any(line.startswith(("GIT binary patch", "Binary files ")) for line in patch.splitlines()):
         return [], "prewrite_patch_binary_unsupported"
     native = run_git(
@@ -73,7 +78,7 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
             if len(changes) >= len(paths):
                 return changes, "prewrite_patch_invalid"
             path = paths[len(changes)]
-            current = {"old_path": path, "path": path, "new": False, "deleted": False}
+            current = {"old_path": path, "path": path}
             changes.append(current)
         elif current is not None:
             try:
@@ -85,39 +90,52 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
     return changes, ""
 
 
-def _header_lines(patch: str) -> Iterator[str]:
-    """Yield each entry's header lines, from its `diff --git` line to its first hunk.
+# The lines that Git reads as an entry's extended header; the header ends at the first other line.
+_HEADER = (
+    "--- ",
+    "+++ ",
+    "old mode ",
+    "new mode ",
+    "deleted file mode ",
+    "new file mode ",
+    "copy from ",
+    "copy to ",
+    "rename old ",
+    "rename new ",
+    "rename from ",
+    "rename to ",
+    "similarity index ",
+    "dissimilarity index ",
+    "index ",
+)
 
-    Git ends a line at a line feed alone and reads no header inside a hunk, where a line of
-    content may begin like one.
+
+def _header_lines(patch: str) -> Iterator[str]:
+    """Yield each entry's `diff --git` line and the header lines that follow it at once.
+
+    Git ends a line at a line feed alone and an entry's header at the first line that is none
+    of its header lines; a hunk's content and the text after an entry are read by no caller.
     """
     in_header = False
     for line in patch.split("\n"):
-        if line.startswith("diff --git "):
-            in_header = True
-        elif line.startswith("@@"):
-            in_header = False
+        in_header = line.startswith("diff --git ") or (in_header and line.startswith(_HEADER))
         if in_header:
-            yield line.removesuffix("\r")
+            yield line
 
 
 def _update_patch_change(change: dict[str, object], line: str) -> None:
-    """Read one header line of an entry whose path Git reported."""
+    """Read where the entry's preimage lies; Git's own report names the entry's path."""
     if line.startswith("--- "):
         change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
-        change["new"] = change["old_path"] == "/dev/null"
-    elif line.startswith("+++ "):
-        # For a deletion without a `deleted file mode` line Git reports the null path; the
-        # entry keeps its preimage's path. Otherwise Git's own path for the entry stands.
-        if _patch_path(line[4:].split("\t", 1)[0]) == "/dev/null":
-            change["deleted"], change["path"] = True, change["old_path"]
-    elif line.startswith(("rename from ", "copy from ")):
+    elif line.startswith("+++ /dev/null"):
+        # A deletion written without its `deleted file mode` line: Git reports the null path
+        # as the entry's name. The entry is named by its preimage, as a deletion of it.
+        change["path"] = change["old_path"]
+    elif line.startswith(("rename from ", "rename old ", "copy from ")):
         change["old_path"] = _patch_path(line.split(" ", 2)[2])
     elif line.startswith("new file mode "):
         # Git writes no `---` and `+++` lines for an entry without content.
-        change["old_path"], change["new"] = "/dev/null", True
-    elif line.startswith("deleted file mode "):
-        change["deleted"] = True
+        change["old_path"] = "/dev/null"
 
 
 def _patch_path(raw: str) -> str:

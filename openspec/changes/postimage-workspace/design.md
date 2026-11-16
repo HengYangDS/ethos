@@ -69,22 +69,18 @@ Non-Goals:
      reads as absent, and the patch is admitted without what the link names being read. The
      release before admitted it the same way.
    - **Considered:** reading what the link names, which the workspace does not hold;
-     judging by what Git writes, which is a plain file where Git is told not to make links;
-     and reading the modes from the patch's text, which two review parts showed to differ
-     from Git's reading (Git reads header lines after the file lines, and ends a line at a
-     line feed alone).
+     judging by what Git writes to disk, which is a plain file where Git is told not to make
+     links; reading the modes from the patch's text, which three review parts showed to differ
+     from Git's reading (where a header ends, what ends a line); and Git's summary of the
+     patch, which names no mode for a `new mode` line without its pair and has no form for
+     a program to read.
    - **Chosen because:** the admission judges text, and what it cannot read it does not admit.
-     The patch's own mode decides, on every platform. The lead's ruling V of 2026-11-16 holds
-     it.
-   - **Applies to:** every mode that Git's own summary of the patch names (`git apply
---summary`: created, deleted and changed modes) other than a regular file's two. What the
-     workspace then holds is observed too: a preimage or a postimage that is a link is
-     refused, and a named path that the apply leaves without its file reads as absent only
-     where the change deletes it. The reader of a patch's identities takes each entry's
-     path from Git, reads header lines alone and knows a creation or a deletion by its mode
-     line, since Git writes no file lines for an entry without content. A repository adds a
-     link through the worktree target without a patch, where the staged admission judges
-     the index.
+     The mode that Git records for the entry decides, on every platform. The lead's rulings V
+     and W of 2026-11-16 and 2026-11-17 hold it.
+   - **Applies to:** every path that the patch changes in the workspace's index, by the fifth
+     decision. A preimage that is a link is refused before it is copied. A repository adds a
+     link through the worktree target without a patch, where the staged admission judges the
+     index.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.
@@ -103,11 +99,38 @@ Non-Goals:
      the temporary directory inside a work tree shows every owner that answers differently.
    - **Applies to:** this Change's last task. A failure in another owner is repaired here when
      it is this defect, and is otherwise carried to the draft `gate-environment`.
+5. **What a patch does is observed in the workspace's own index, not read from its text.**
+   - **Rests on:** four review parts in a row that each found a place where the product's own
+     reading of a patch differed from Git's, and one measurement of 18 shapes of patch (edits,
+     moves, copies, a file that becomes a directory, entries without content, links, a
+     submodule, modes placed late or alone, text after an entry): after `git apply --index` in
+     the workspace, Git's comparison of the index before and after named every changed path
+     with its status and its mode, and Git itself refused the shapes that it cannot apply.
+   - **Considered:** bounding each reading of the text as Git bounds it, which is a second
+     reader of one format and was corrected again in each part; a walk of the workspace's
+     files, which sees no submodule entry and sees a plain file for a link where Git is told
+     to make none; and Git's summary (second decision).
+   - **Chosen because:** one reader of the patch remains, and it is Git. The staged target
+     already reads a patch's effects from the index without rename detection; both targets
+     now state a creation, a deletion and a kind of file by the same reading. A Git step that
+     fails in the workspace is a refusal.
+   - **Applies to:** the effect at each named path, the refusal of a path that is no regular
+     file, and a path that Git deleted without a change naming it, which is the source of a
+     move and is read as deleted. The text is still read for two things: the place of each
+     preimage, to copy it, where a wrong reading makes the apply fail; and the null target of
+     a deletion, by the entry below. The reader takes each entry's path from Git and ends an
+     entry's header where Git ends it.
 
 ## Risks / Trade-offs
 
-- Each admission of a patch starts one more Git process.
 - In a repository Git reads the attributes of the files it finds. The workspace holds the named
   files alone, so an attributes file counts only when the patch names it, with its content
   before the patch; the preimage check in the repository already reads the same file.
 - A repository that added a link through a patch must add it through the worktree target.
+- A deletion written without its `deleted file mode` line (`+++ /dev/null` under a `diff --git`
+  line, as a plain unified diff has it) is read as a deletion of its preimage, as in every
+  release. Git applies that entry as a move of the file to an empty file at `dev/null`
+  (measured with Git 2.56.1), and the workspace does not read that file. Whether the admission
+  keeps this reading or refuses the form is a question for the cut of 2026-11-19; a creation
+  without its `new file mode` line is refused by Git already.
+- Each admission of a patch starts four more Git processes in a repository of a few files.

@@ -1,8 +1,9 @@
-"""The patch workspace is a repository of its own and reads regular files alone."""
+"""The patch workspace is a repository of its own and reports what Git does with a patch."""
 
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -17,8 +18,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _EDIT = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n"
-_MOVE_AND_REFILL = (
-    "diff --git a/a.txt b/b.txt\nsimilarity index 100%\nrename from a.txt\nrename to b.txt\n"
+_RENAME = "diff --git a/a.txt b/b.txt\nsimilarity index 100%\nrename from a.txt\nrename to b.txt\n"
+_COPY = "diff --git a/a.txt b/c.txt\nsimilarity index 100%\ncopy from a.txt\ncopy to c.txt\n"
+_MOVE_AND_REFILL = _RENAME + (
     "diff --git a/a.txt b/a.txt\nnew file mode 100644\n--- /dev/null\n+++ b/a.txt\n"
     "@@ -0,0 +1 @@\n+old\n"
 )
@@ -32,15 +34,7 @@ _SWAP = (
     "diff --git a/a.txt b/tool.sh\nsimilarity index 100%\nrename from a.txt\nrename to tool.sh\n"
     "diff --git a/tool.sh b/a.txt\nsimilarity index 100%\nrename from tool.sh\nrename to a.txt\n"
 )
-_NEW_LINK = (
-    "diff --git a/link b/link\nnew file mode 120000\n--- /dev/null\n+++ b/link\n"
-    "@@ -0,0 +1 @@\n+no-such-target\n\\ No newline at end of file\n"
-)
-_NEW_SUBMODULE = (
-    "diff --git a/vendor b/vendor\nnew file mode 160000\n--- /dev/null\n+++ b/vendor\n"
-    "@@ -0,0 +1 @@\n+Subproject commit 1111111111111111111111111111111111111111\n"
-)
-# What each patch of regular files leaves at the paths it names.
+_EXECUTABLE = "diff --git a/tool.sh b/tool.sh\nold mode 100644\nnew mode 100755\n"
 # Git writes no `---` and `+++` lines for an entry without content.
 _EMPTY_DELETED = "diff --git a/empty.txt b/empty.txt\ndeleted file mode 100644\n"
 _EMPTY_CREATED = "diff --git a/fresh.txt b/fresh.txt\nnew file mode 100644\n"
@@ -50,33 +44,54 @@ _MARKED_LINE = (
     "diff --git a/tool.sh b/tool.sh\n--- a/tool.sh\n+++ b/tool.sh\n@@ -1 +1,2 @@\n"
     " #!/bin/sh\n+more\n"
 )
-# The same link as `_NEW_LINK`, with its mode where Git still reads it: after the file lines,
-# and with a carriage return closing the line.
+# Text after an entry without hunks: Git ended the entry's header at the empty line.
+_TEXT_AFTER = _EMPTY_CREATED + "\n--- a/a.txt\n+++ /dev/null\n"
+# A deletion written without its `deleted file mode` line, as a plain unified diff has it.
+_DELETE_WITHOUT_MODE = (
+    "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n"
+)
+_NEW_LINK = (
+    "diff --git a/link b/link\nnew file mode 120000\n--- /dev/null\n+++ b/link\n"
+    "@@ -0,0 +1 @@\n+no-such-target\n\\ No newline at end of file\n"
+)
+_NEW_SUBMODULE = (
+    "diff --git a/vendor b/vendor\nnew file mode 160000\n--- /dev/null\n+++ b/vendor\n"
+    "@@ -0,0 +1 @@\n+Subproject commit 1111111111111111111111111111111111111111\n"
+)
+# The same link with its mode where Git still reads it, and one mode line without its pair.
 _LINK_MODE_LATER = (
     "diff --git a/link b/link\n--- /dev/null\n+++ b/link\nnew file mode 120000\n"
     "@@ -0,0 +1 @@\n+a.txt\n\\ No newline at end of file\n"
 )
 _LINK_MODE_RETURN = _NEW_LINK.replace("new file mode 120000\n", "new file mode 120000\r\n")
+_LONE_LINK_MODE = "diff --git a/a.txt b/a.txt\nnew mode 120000\n"
+# What each patch of regular files leaves at every path that it changes, and its effect there.
 _READ = {
-    _EDIT: {"a.txt": "new\n"},
-    # The refilled path holds its bytes as before; the move's target holds them too.
-    _MOVE_AND_REFILL: {"a.txt": "old\n", "b.txt": "old\n"},
-    # Git tracks no directory: the deleted file's path reads as absent beside the new file.
-    _FILE_TO_DIRECTORY: {"a.txt": None, "a.txt/b.txt": "new\n"},
-    _SWAP: {"a.txt": "#!/bin/sh\n", "tool.sh": "old\n"},
-    _EMPTY_DELETED: {"empty.txt": None},
-    _EMPTY_CREATED: {"fresh.txt": ""},
-    _MARKED_LINE: {"a.txt": "old\n++ b/tool.sh\n", "tool.sh": "#!/bin/sh\nmore\n"},
+    "edit": (_EDIT, {"a.txt": ("new\n", "modify")}),
+    "prose-before": ("new mode for the scripts\n\n" + _EDIT, {"a.txt": ("new\n", "modify")}),
+    # A move is the deletion of its source and the creation of its target.
+    "rename": (_RENAME, {"a.txt": (None, "delete"), "b.txt": ("old\n", "create")}),
+    "copy": (_COPY, {"c.txt": ("old\n", "create")}),
+    # The refilled path holds its bytes as before, so Git reports no change of it.
+    "move-and-refill": (
+        _MOVE_AND_REFILL,
+        {"a.txt": ("old\n", "modify"), "b.txt": ("old\n", "create")},
+    ),
+    "file-to-directory": (
+        _FILE_TO_DIRECTORY,
+        {"a.txt": (None, "delete"), "a.txt/b.txt": ("new\n", "create")},
+    ),
+    "swap": (_SWAP, {"a.txt": ("#!/bin/sh\n", "modify"), "tool.sh": ("old\n", "modify")}),
+    "executable": (_EXECUTABLE, {"tool.sh": ("#!/bin/sh\n", "modify")}),
+    "empty-deleted": (_EMPTY_DELETED, {"empty.txt": (None, "delete")}),
+    "empty-created": (_EMPTY_CREATED, {"fresh.txt": ("", "create")}),
+    "line-like-a-header": (
+        _MARKED_LINE,
+        {"a.txt": ("old\n++ b/tool.sh\n", "modify"), "tool.sh": ("#!/bin/sh\nmore\n", "modify")},
+    ),
+    "text-after-an-entry": (_TEXT_AFTER, {"fresh.txt": ("", "create")}),
+    "deletion-without-its-mode": (_DELETE_WITHOUT_MODE, {"a.txt": (None, "delete")}),
 }
-_IDS = [
-    "edit",
-    "move-and-refill",
-    "file-to-directory",
-    "swap",
-    "empty-deleted",
-    "empty-created",
-    "line-like-a-header",
-]
 
 
 def _repository(tmp_path: Path) -> Path:
@@ -88,58 +103,71 @@ def _repository(tmp_path: Path) -> Path:
     return repo
 
 
-def _entered(repo: Path, patch: str) -> dict[str, str | None]:
-    """Enter the workspace of one patch and return what it reads at each named path."""
+def _entered(repo: Path, patch: str) -> dict[str, tuple[str | None, str]]:
+    """Enter the workspace of one patch; return each changed path's text and effect."""
     changes, gap = unified_patch_changes(repo, patch)
     assert (gap, bool(changes)) == ("", True)
-    with owner.patched_workspace(repo, patch, changes) as (_workspace, postimages):
-        return postimages
+    with owner.patched_workspace(repo, patch, changes) as (_workspace, postimages, effects):
+        assert postimages.keys() == effects.keys()
+        return {path: (text, effects[path]) for path, text in postimages.items()}
 
 
-@pytest.mark.parametrize("patch", list(_READ), ids=_IDS)
+def _refusal(repo: Path, patch: str) -> str:
+    """Return how the reader or the workspace refuses the patch."""
+    changes, gap = unified_patch_changes(repo, patch)
+    if gap:
+        return gap
+    with (
+        pytest.raises(ValueError, match="prewrite patch") as refused,
+        owner.patched_workspace(repo, patch, changes),
+    ):
+        pytest.fail("the workspace was yielded")
+    return str(refused.value)
+
+
+@pytest.mark.parametrize("shape", list(_READ))
 @pytest.mark.parametrize("inside", ["", "build", f"build{os.pathsep}1"])
 def test_a_patch_of_regular_files_is_read_wherever_the_workspace_lies(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patch: str, inside: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str, inside: str
 ) -> None:
     """Inside another checkout a plain directory is part of that work tree, and Git skips.
 
     There Git exits with 0 and changes nothing, also where the directory's name holds the
     separator of a path list. The workspace is a repository of its own, so no path lies
-    outside it and each named path reads as the patch leaves it.
+    outside it, and its own index tells what the patch did at each path.
     """
     repo = _repository(tmp_path)
     if inside:
         directory = init_git_repo(tmp_path / "other") / inside
         directory.mkdir()
         monkeypatch.setattr(tempfile, "tempdir", str(directory))
-    assert _entered(repo, patch) == _READ[patch]
+    patch, expected = _READ[shape]
+    assert _entered(repo, patch) == expected
 
 
 @pytest.mark.parametrize(
-    "patch",
-    [_NEW_LINK, _NEW_SUBMODULE, _LINK_MODE_LATER, _LINK_MODE_RETURN],
-    ids=["link", "submodule", "mode-after-the-file-lines", "mode-with-a-return"],
+    ("patch", "refusal"),
+    [
+        (_NEW_LINK, "no regular file"),
+        (_NEW_SUBMODULE, "no regular file"),
+        (_LINK_MODE_RETURN, "no regular file"),
+        # Git itself refuses these two; where a Git accepts one, the index names its mode.
+        (_LINK_MODE_LATER, "application failed|no regular file"),
+        (_LONE_LINK_MODE, "application failed|prewrite_patch_invalid|no regular file"),
+    ],
+    ids=["link", "submodule", "mode-with-a-return", "mode-after-the-file-lines", "lone-mode"],
 )
-def test_a_patch_that_declares_another_kind_of_entry_is_refused(tmp_path: Path, patch: str) -> None:
-    """Git's own reading of the patch's modes decides, wherever in the header a mode stands."""
-    with pytest.raises(ValueError, match="no regular file"):
-        _entered(_repository(tmp_path), patch)
-
-
-@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
-def test_a_named_path_that_is_a_link_in_the_workspace_is_refused(tmp_path: Path) -> None:
-    """What the workspace holds is observed too: a link's text is not what it names."""
-    target = tmp_path / "link"
-    target.symlink_to(tmp_path / "elsewhere.txt")
-    (tmp_path / "elsewhere.txt").write_text("other\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="no regular file"):
-        owner.postimage_text(target, deleted=False)
+def test_a_patch_that_makes_another_kind_of_entry_is_refused(
+    tmp_path: Path, patch: str, refusal: str
+) -> None:
+    """The mode that Git records for an entry decides, wherever the patch declares it."""
+    assert re.search(refusal, _refusal(_repository(tmp_path), patch))
 
 
 def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) -> None:
     """No change may name the directory that makes the workspace a repository."""
     repo = _repository(tmp_path)
-    change: dict[str, object] = {"old_path": "/dev/null", "path": ".git/x", "new": True}
+    change: dict[str, object] = {"old_path": "/dev/null", "path": ".git/x"}
     with (
         pytest.raises(ValueError, match="escapes root"),
         owner.patched_workspace(repo, "", [change]),
@@ -147,22 +175,11 @@ def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) 
         pytest.fail("the workspace was yielded")
 
 
-def test_text_around_the_entries_declares_no_mode(tmp_path: Path) -> None:
-    """Only an entry's header declares a mode; a line of prose before the entries does not."""
-    assert _entered(_repository(tmp_path), "new mode for the scripts\n\n" + _EDIT) == _READ[_EDIT]
-
-
-def test_a_mode_change_between_regular_files_is_read(tmp_path: Path) -> None:
-    """Making a file executable keeps it a regular file, so the patch is read as usual."""
-    patch = "diff --git a/tool.sh b/tool.sh\nold mode 100644\nnew mode 100755\n"
-    assert _entered(_repository(tmp_path), patch) == {"tool.sh": "#!/bin/sh\n"}
-
-
 def test_a_named_path_without_its_file_must_be_a_deletion(tmp_path: Path) -> None:
-    """A named path that the patch leaves absent is read as absent only where it is deleted."""
+    """A named path that the patch leaves absent is read as absent only where Git deleted it."""
     repo = _repository(tmp_path)
     changes, _gap = unified_patch_changes(repo, _EDIT)
-    changes.append({"old_path": "/dev/null", "path": "c.txt", "new": True, "deleted": False})
+    changes.append({"old_path": "/dev/null", "path": "c.txt"})
     with (
         pytest.raises(ValueError, match="without its file"),
         owner.patched_workspace(repo, _EDIT, changes),
@@ -175,7 +192,7 @@ def test_a_preimage_that_is_no_regular_file_is_refused(tmp_path: Path) -> None:
     """The workspace copies regular files alone; a link's text is not what it names."""
     repo = _repository(tmp_path)
     (repo / "link").symlink_to("a.txt")
-    change: dict[str, object] = {"old_path": "link", "path": "link", "deleted": False}
+    change: dict[str, object] = {"old_path": "link", "path": "link"}
     with (
         pytest.raises(ValueError, match="no regular file"),
         owner.patched_workspace(repo, "", [change]),
@@ -186,7 +203,7 @@ def test_a_preimage_that_is_no_regular_file_is_refused(tmp_path: Path) -> None:
 def test_a_path_that_names_the_root_itself_is_refused(tmp_path: Path) -> None:
     """An empty path names no file under the root."""
     repo = _repository(tmp_path)
-    change: dict[str, object] = {"old_path": ".", "path": "a.txt", "deleted": False}
+    change: dict[str, object] = {"old_path": ".", "path": "a.txt"}
     with (
         pytest.raises(ValueError, match="escapes root"),
         owner.patched_workspace(repo, "", [change]),
@@ -207,6 +224,6 @@ def test_the_workspace_takes_nothing_from_a_git_template(
     monkeypatch.setenv("GIT_CONFIG_COUNT", str(count + 1))
     repo = _repository(tmp_path)
     changes, _gap = unified_patch_changes(repo, _EDIT)
-    with owner.patched_workspace(repo, _EDIT, changes) as (workspace, postimages):
+    with owner.patched_workspace(repo, _EDIT, changes) as (workspace, postimages, _effects):
         assert not (workspace / ".git" / "marker").exists()
-    assert postimages == _READ[_EDIT]
+    assert postimages == {"a.txt": "new\n"}

@@ -14,21 +14,28 @@ from ethos.adapters.repo.git import run_git
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-# A patch declares each entry's kind by its mode; a regular file is one of these two.
-_OTHER_KIND = re.compile(r"(?:new file mode|new mode) (?!100644$|100755$)")
+# Git's summary of a patch names the mode of each entry that it creates, deletes or re-modes.
+_SUMMARY_MODES = re.compile(rb"(?m)^ (?:create|delete) mode (\d+) |^ mode change (\d+) => (\d+)")
+_REGULAR = {b"100644", b"100755"}
 
 
-def _declares_other_kind(patch: str) -> bool:
-    """Read the modes in each entry's header alone; text around the entries declares nothing."""
-    in_header = False
-    for line in patch.splitlines():
-        if line.startswith("diff --git "):
-            in_header = True
-        elif line.startswith(("--- ", "@@")):
-            in_header = False
-        elif in_header and _OTHER_KIND.match(line):
-            return True
-    return False
+def _declares_other_kind(root: Path, patch: str) -> bool:
+    """Ask Git which modes the patch declares; no reading of the patch's text stands in for it.
+
+    A patch that Git cannot summarize declares none here; the apply in the workspace refuses it.
+    """
+    summary = run_git(
+        root,
+        "apply",
+        "--summary",
+        "--unsafe-paths",
+        "-",
+        stdin=patch.encode("utf-8"),
+        text=False,
+        check=False,
+    )
+    modes = {mode for found in _SUMMARY_MODES.findall(summary.stdout) for mode in found if mode}
+    return not modes <= _REGULAR
 
 
 def patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bool:
@@ -65,7 +72,7 @@ def patched_workspace(
     preimage that is not a regular file: a postimage is read as the text of a regular file. A
     named path that the patch leaves without its file must be one that the patch deletes.
     """
-    if _declares_other_kind(patch):
+    if _declares_other_kind(root, patch):
         msg = "prewrite patch makes a named path no regular file"
         raise ValueError(msg)
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
@@ -99,14 +106,17 @@ def patched_workspace(
         yield (
             workspace,
             {
-                path: _postimage(target, deleted=deleted)
+                path: postimage_text(target, deleted=deleted)
                 for path, (target, deleted) in targets.items()
             },
         )
 
 
-def _postimage(target: Path, *, deleted: bool) -> str | None:
+def postimage_text(target: Path, *, deleted: bool) -> str | None:
     """Read a named path's text; only a deleted path may be left without its file."""
+    if target.is_symlink():
+        msg = "prewrite patch makes a named path no regular file"
+        raise ValueError(msg)
     if target.is_file():
         return target.read_text(encoding="utf-8")
     if deleted:

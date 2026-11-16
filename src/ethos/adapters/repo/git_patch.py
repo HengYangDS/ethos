@@ -12,6 +12,7 @@ from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from pathlib import Path
 
 
@@ -67,7 +68,7 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
     )
     changes: list[dict[str, object]] = []
     current: dict[str, object] | None = None
-    for line in patch.splitlines():
+    for line in _header_lines(patch):
         if line.startswith("diff --git "):
             if len(changes) >= len(paths):
                 return changes, "prewrite_patch_invalid"
@@ -84,16 +85,39 @@ def unified_patch_changes(root: Path, patch: str) -> tuple[list[dict[str, object
     return changes, ""
 
 
+def _header_lines(patch: str) -> Iterator[str]:
+    """Yield each entry's header lines, from its `diff --git` line to its first hunk.
+
+    Git ends a line at a line feed alone and reads no header inside a hunk, where a line of
+    content may begin like one.
+    """
+    in_header = False
+    for line in patch.split("\n"):
+        if line.startswith("diff --git "):
+            in_header = True
+        elif line.startswith("@@"):
+            in_header = False
+        if in_header:
+            yield line.removesuffix("\r")
+
+
 def _update_patch_change(change: dict[str, object], line: str) -> None:
+    """Read one header line of an entry whose path Git reported."""
     if line.startswith("--- "):
         change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
         change["new"] = change["old_path"] == "/dev/null"
     elif line.startswith("+++ "):
-        path = _patch_path(line[4:].split("\t", 1)[0])
-        change["deleted"] = path == "/dev/null"
-        change["path"] = change["old_path"] if change["deleted"] else path
+        # For a deletion without a `deleted file mode` line Git reports the null path; the
+        # entry keeps its preimage's path. Otherwise Git's own path for the entry stands.
+        if _patch_path(line[4:].split("\t", 1)[0]) == "/dev/null":
+            change["deleted"], change["path"] = True, change["old_path"]
     elif line.startswith(("rename from ", "copy from ")):
         change["old_path"] = _patch_path(line.split(" ", 2)[2])
+    elif line.startswith("new file mode "):
+        # Git writes no `---` and `+++` lines for an entry without content.
+        change["old_path"], change["new"] = "/dev/null", True
+    elif line.startswith("deleted file mode "):
+        change["deleted"] = True
 
 
 def _patch_path(raw: str) -> str:

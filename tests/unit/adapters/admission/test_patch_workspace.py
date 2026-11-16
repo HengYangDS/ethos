@@ -41,6 +41,22 @@ _NEW_SUBMODULE = (
     "@@ -0,0 +1 @@\n+Subproject commit 1111111111111111111111111111111111111111\n"
 )
 # What each patch of regular files leaves at the paths it names.
+# Git writes no `---` and `+++` lines for an entry without content.
+_EMPTY_DELETED = "diff --git a/empty.txt b/empty.txt\ndeleted file mode 100644\n"
+_EMPTY_CREATED = "diff --git a/fresh.txt b/fresh.txt\nnew file mode 100644\n"
+# An added line of text that begins like a header of the next file.
+_MARKED_LINE = (
+    "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1,2 @@\n old\n+++ b/tool.sh\n"
+    "diff --git a/tool.sh b/tool.sh\n--- a/tool.sh\n+++ b/tool.sh\n@@ -1 +1,2 @@\n"
+    " #!/bin/sh\n+more\n"
+)
+# The same link as `_NEW_LINK`, with its mode where Git still reads it: after the file lines,
+# and with a carriage return closing the line.
+_LINK_MODE_LATER = (
+    "diff --git a/link b/link\n--- /dev/null\n+++ b/link\nnew file mode 120000\n"
+    "@@ -0,0 +1 @@\n+a.txt\n\\ No newline at end of file\n"
+)
+_LINK_MODE_RETURN = _NEW_LINK.replace("new file mode 120000\n", "new file mode 120000\r\n")
 _READ = {
     _EDIT: {"a.txt": "new\n"},
     # The refilled path holds its bytes as before; the move's target holds them too.
@@ -48,15 +64,27 @@ _READ = {
     # Git tracks no directory: the deleted file's path reads as absent beside the new file.
     _FILE_TO_DIRECTORY: {"a.txt": None, "a.txt/b.txt": "new\n"},
     _SWAP: {"a.txt": "#!/bin/sh\n", "tool.sh": "old\n"},
+    _EMPTY_DELETED: {"empty.txt": None},
+    _EMPTY_CREATED: {"fresh.txt": ""},
+    _MARKED_LINE: {"a.txt": "old\n++ b/tool.sh\n", "tool.sh": "#!/bin/sh\nmore\n"},
 }
-_IDS = ["edit", "move-and-refill", "file-to-directory", "swap"]
+_IDS = [
+    "edit",
+    "move-and-refill",
+    "file-to-directory",
+    "swap",
+    "empty-deleted",
+    "empty-created",
+    "line-like-a-header",
+]
 
 
 def _repository(tmp_path: Path) -> Path:
     repo = init_git_repo(tmp_path / "repo")
     (repo / "a.txt").write_text("old\n", encoding="utf-8")
     (repo / "tool.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-    commit_fixture(repo, "record two files")
+    (repo / "empty.txt").write_text("", encoding="utf-8")
+    commit_fixture(repo, "record three files")
     return repo
 
 
@@ -87,11 +115,25 @@ def test_a_patch_of_regular_files_is_read_wherever_the_workspace_lies(
     assert _entered(repo, patch) == _READ[patch]
 
 
-@pytest.mark.parametrize("patch", [_NEW_LINK, _NEW_SUBMODULE], ids=["link", "submodule"])
+@pytest.mark.parametrize(
+    "patch",
+    [_NEW_LINK, _NEW_SUBMODULE, _LINK_MODE_LATER, _LINK_MODE_RETURN],
+    ids=["link", "submodule", "mode-after-the-file-lines", "mode-with-a-return"],
+)
 def test_a_patch_that_declares_another_kind_of_entry_is_refused(tmp_path: Path, patch: str) -> None:
-    """The patch's own mode decides, whatever the workspace's Git would write for it."""
+    """Git's own reading of the patch's modes decides, wherever in the header a mode stands."""
     with pytest.raises(ValueError, match="no regular file"):
         _entered(_repository(tmp_path), patch)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symbolic links need a privilege on Windows")
+def test_a_named_path_that_is_a_link_in_the_workspace_is_refused(tmp_path: Path) -> None:
+    """What the workspace holds is observed too: a link's text is not what it names."""
+    target = tmp_path / "link"
+    target.symlink_to(tmp_path / "elsewhere.txt")
+    (tmp_path / "elsewhere.txt").write_text("other\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="no regular file"):
+        owner.postimage_text(target, deleted=False)
 
 
 def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) -> None:

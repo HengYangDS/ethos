@@ -68,16 +68,23 @@ Non-Goals:
    - **Rests on:** the model review: a new link is dangling in the workspace, its postimage
      reads as absent, and the patch is admitted without what the link names being read. The
      release before admitted it the same way.
-   - **Considered:** reading what the link names, which the workspace does not hold; and
-     judging by what Git writes, which is a plain file where Git is told not to make links.
+   - **Considered:** reading what the link names, which the workspace does not hold;
+     judging by what Git writes, which is a plain file where Git is told not to make links;
+     and reading the modes from the patch's text, which two review parts showed to differ
+     from Git's reading (Git reads header lines after the file lines, and ends a line at a
+     line feed alone).
    - **Chosen because:** the admission judges text, and what it cannot read it does not admit.
      The patch's own mode decides, on every platform. The lead's ruling V of 2026-11-16 holds
      it.
-   - **Applies to:** a `new file mode` or `new mode` other than a regular file's two, read in
-     an entry's header alone. A preimage that is not a regular file is refused the same way,
-     and a named path that the apply leaves without its file reads as absent only where the
-     change deletes it. A repository adds a link through the worktree target without a
-     patch, where the staged admission judges the index.
+   - **Applies to:** every mode that Git's own summary of the patch names (`git apply
+--summary`: created, deleted and changed modes) other than a regular file's two. What the
+     workspace then holds is observed too: a preimage or a postimage that is a link is
+     refused, and a named path that the apply leaves without its file reads as absent only
+     where the change deletes it. The reader of a patch's identities takes each entry's
+     path from Git, reads header lines alone and knows a creation or a deletion by its mode
+     line, since Git writes no file lines for an entry without content. A repository adds a
+     link through the worktree target without a patch, where the staged admission judges
+     the index.
 3. **The regression places the temporary directory inside another repository.**
    - **Rests on:** the measured pair of the proposal: one patch, refused outside and admitted
      inside.

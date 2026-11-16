@@ -165,7 +165,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   releases, keep the temporary directory outside every checkout. The admission's workspace is
   now a repository of its own. A patch that declares a symbolic link or a submodule entry, or
   that changes a link, is refused: its postimage read as absent, and it was admitted without
-  what the link names.
+  what the link names. A patch that creates or deletes an empty file is read as that; it was
+  read as an edit of the file.
 - The quality gates of a repository with many code files run on Windows. The check that no code
   subject differs from the commit named every subject on one Git command line, which Windows
   refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing

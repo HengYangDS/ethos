@@ -49,7 +49,7 @@
       their manifest's digest.
 - [x] 3.6 Keep the venue's reading of `CI` equal to the product's other readers of that input.
       Done when an empty `CI` writes `local` and a set one `ci`.
-- [ ] 3.7 Place each stage's directories under the host's temporary directory, outside the
+- [x] 3.7 Place each stage's directories under the host's temporary directory, outside the
       checkout, and remove them when the journey ends. Done when the journey's test finds two
       stage roots, neither under the journey's work directory, and neither left afterwards.
 

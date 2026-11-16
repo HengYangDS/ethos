@@ -124,8 +124,10 @@ def test_a_base_whose_tree_cannot_be_read_is_no_base_and_changes_no_verdict(
     assert format_source(root, check=True)["required_gaps"] == drift
     markdown = gate_tool.markdown_lint_report(root)["native"][0]
     assert (markdown["record_base"], markdown["record_paths"]) == ("unresolved", records)
-    # The repair keeps every record then: its preview rewrites none of them.
-    assert not [path for path in format_source(root)["changed_paths"] if path.startswith(_ROOT)]
+    # The repair keeps every record then: its preview succeeds and rewrites none of them.
+    preview = format_source(root)
+    assert (preview["required_gaps"], preview["record_paths"]) == ([], records)
+    assert not [path for path in preview["changed_paths"] if path.startswith(_ROOT)]
 
 
 def test_the_base_is_named_by_the_paradigm_whatever_the_release_binding_holds(
@@ -135,6 +137,10 @@ def test_the_base_is_named_by_the_paradigm_whatever_the_release_binding_holds(
     root, accepted = _work_branch(tmp_path)
     (root / ".ethos/release.toml").mkdir()
     assert native_inputs.kept_record_files(root) == (accepted, _records("old"))
+    # The verdict judges both records as before, and names the base it would repair from.
+    gate = source_format_report(root)
+    drift = [f"source_format_drift:{path}" for path in _records("new", "old")]
+    assert (gate["required_gaps"], gate["record_base"]) == (drift, accepted)
 
 
 def test_the_apply_rewrites_no_record_that_the_base_holds_unchanged(

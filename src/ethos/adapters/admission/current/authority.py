@@ -54,9 +54,11 @@ class CurrentAuthority:
             ), True
         if self.reason.startswith("invocation_actor_missing:"):
             return ACTOR_STEP, False
-        # A Lease whose coordinates cannot be read names no handoff; the step is the lane's status.
+        # A Lease whose coordinates cannot be read names no handoff; the step is the lane's
+        # status. The generation is the read model's reading, as in the projection below.
+        read = {**self.lease, "generation": integer_value(self.lease.get("generation"))}
         if self.reason.startswith("lease_holder_mismatch:") and (
-            handoff := handoff_step(root, self.branch, self.lease, self.actor)
+            handoff := handoff_step(root, self.branch, read, self.actor)
         ):
             return handoff, True
         return f"ethos lane status --root {root.resolve().as_posix()} --json", False

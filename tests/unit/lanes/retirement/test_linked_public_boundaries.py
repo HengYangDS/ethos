@@ -188,12 +188,22 @@ def test_landed_public_actor_and_lease_state_matrix(
     ]
 
 
-def test_a_foreign_actor_without_a_handoff_keeps_the_lane_status_step(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+_READABLE = {"generation": 3, "expires_at": "2099-01-01T00:00:00Z"}
+
+
+@pytest.mark.parametrize(
+    ("holder", "coordinates"),
+    [("agent:test:holder", _READABLE), ("agent:test:holder", {}), ("", _READABLE)],
+    ids=["readable", "no-coordinates", "no-holder"],
+)
+def test_a_foreign_actor_is_offered_the_handoff_or_keeps_the_lane_status_step(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, holder: str, coordinates: dict[str, object]
 ) -> None:
-    """The refusal of a foreign actor never continues to the retirement that refused it."""
+    """A readable Lease names its handoff; no other continues to the retirement that refused."""
+    lane = _lane(holder=holder)
+    lane["lease"] = {"holder_ref": holder} | coordinates
     _stub_retirement(
-        monkeypatch, worktrees=[_worktree()], lanes={SOURCE: _lane()}, stub_holder_gaps=False
+        monkeypatch, worktrees=[_worktree()], lanes={SOURCE: lane}, stub_holder_gaps=False
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:other")
     kept = LinkedRetirementRequest(
@@ -204,8 +214,17 @@ def test_a_foreign_actor_without_a_handoff_keeps_the_lane_status_step(
 
     foreign = {"foreign_work_lane_retire_authority_required", "lane_retirement_receipt_required"}
     assert foreign <= set(report["required_gaps"])
-    assert report["next_action"] == f"ethos lane status --root {tmp_path.as_posix()} --json"
-    assert report["user_decision_required"] is False
+    offered = bool(holder and coordinates)
+    handoff = (
+        "ethos lane handoff transfer --generation 3 --expires-at 2099-01-01T00:00:00Z"
+        f" --branch {SOURCE} --holder-ref agent:test:holder"
+        f" --target-holder-ref agent:test:other --root /{SOURCE} --json"
+    )
+    status = f"ethos lane status --root {tmp_path.as_posix()} --json"
+    assert (report["next_action"], report["user_decision_required"]) == (
+        handoff if offered else status,
+        offered,
+    )
 
 
 @pytest.mark.parametrize(

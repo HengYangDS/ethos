@@ -122,7 +122,9 @@ Non-Goals:
    - **Applies to:** `lease_holder_mismatch` from the current authority and
      `foreign_work_lane_retire_authority_required` from a linked retirement, each with a valid
      Lease. The step is rooted at the lane, where the transfer runs. A Lease whose generation,
-     expiry or holder cannot be read names nothing to move, so its step is the lane's status.
+     expiry or holder cannot be read names nothing to move, so its step is the lane's status,
+     in both callers; a linked retirement that found no holder or no lane continues there too.
+     The generation is the Lease read model's reading in each caller.
 7. **Continuations keep `--holder-ref` here, and `lane-operations` removes it.**
    - **Rests on:** five lines in four modules that render the flag, and the requests of
      `lane start`, `lane lease reacquire` and `lane handoff transfer`, where the field is

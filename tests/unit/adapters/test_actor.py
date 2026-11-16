@@ -91,3 +91,5 @@ def test_a_lease_without_its_coordinates_renders_no_handoff(missing: dict[str, o
     """A preview that reads `--generation None` cannot be followed, so the caller gets none."""
     lease = {"holder_ref": "agent:a:b:c", "generation": 1, "expires_at": "2099-01-01T00:00:00Z"}
     assert handoff_step(ROOT, "work/example", lease | missing, "agent:a:b:d") == ""
+    # A blank target names nobody to move the Lease to.
+    assert handoff_step(ROOT, "work/example", lease, " ") == ""

@@ -76,7 +76,7 @@
   "src/ethos/adapters/mutation/lane_retirement/content.py::_snapshot": 16,
   "src/ethos/adapters/mutation/lane_retirement/content.py::verify_reviewed_content": 17,
   "src/ethos/adapters/mutation/lane_retirement/effects.py::effect_gaps": 17,
-  "src/ethos/adapters/mutation/lane_retirement/linked.py::_continuation": 18,
+  "src/ethos/adapters/mutation/lane_retirement/linked.py::_continuation": 17,
   "src/ethos/adapters/mutation/lane_retirement/linked.py::retire_linked_work_lane": 22,
   "src/ethos/adapters/mutation/lane_retirement/linked_admission.py::retirement_target": 16,
   "src/ethos/adapters/mutation/lane_retirement/linked_effect.py::linked_retirement_plan": 20,

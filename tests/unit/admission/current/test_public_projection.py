@@ -135,6 +135,17 @@ def test_a_foreign_lease_without_its_coordinates_continues_to_lane_status(
     assert authority.recovery(tmp_path) == (status, False)
 
 
+def test_a_foreign_lease_names_the_generation_that_its_read_model_reads(tmp_path: Path) -> None:
+    """The handoff carries the generation as the Lease read model reads it, also from text."""
+    lease: dict[str, object] = {"lease_state": "valid", "holder_ref": _HOLDER, "generation": "3"}
+    lease |= {"expires_at": "2099-01-01T00:00:00Z"}
+    authority = resolve_current_authority(
+        root=tmp_path, branch="work/feature", lease=lease, actor="agent:a:b:c", current_head=""
+    )
+    step, decision = authority.recovery(tmp_path)
+    assert ("--generation 3 --expires-at" in step, decision) == (True, True)
+
+
 def test_the_actor_a_step_asks_for_is_supplied_by_its_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

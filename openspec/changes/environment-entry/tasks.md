@@ -33,8 +33,10 @@
       continue to the lane's status otherwise, in both callers. Done when the four cases of
       `test_a_lease_without_its_coordinates_renders_no_handoff`, both cases of
       `test_a_foreign_lease_without_its_coordinates_continues_to_lane_status`, the foreign case of
-      `test_landed_public_actor_and_lease_state_matrix` and
-      `test_a_foreign_actor_without_a_handoff_keeps_the_lane_status_step` pass.
+      `test_landed_public_actor_and_lease_state_matrix` and the three cases of
+      `test_a_foreign_actor_is_offered_the_handoff_or_keeps_the_lane_status_step` pass, a
+      blank target renders no step, and a generation given as text is read as the Lease
+      read model reads it.
 - [ ] 2.5 Pin that a step with no value to choose has no `inputs` member. Done when the six cases of
       `test_public_surfaces_preserve_one_current_authority_recovery` pass with that assertion.
 - [ ] 2.6 Build the expected handoff of that test from the held Lease, read by its branch before

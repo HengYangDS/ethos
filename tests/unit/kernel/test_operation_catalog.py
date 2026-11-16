@@ -13,6 +13,7 @@ from typing import get_type_hints
 import pytest
 
 import ethos.application.hook.installation as installation
+from ethos.adapters.actor import ACTOR_FLAG
 from ethos.adapters.admission.control.replacement import CONTROL_PREFIXES
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.hook.rollback import RESTORE_ACTION
@@ -193,10 +194,12 @@ def test_every_operation_parses_and_selects_alike_from_its_example() -> None:
         ("host run --wait 5 -- git --root x", "host.run"),
         ("host run --work render -- git status", "host.run"),
         ("host status --guest-cpus 8", "host.status"),
-        ("host status --actor agent:a:b:c", "host.status"),
-        ("lane status --actor=agent:a:b:c --json", "lane.status"),
-        ("lane status --actor", ""),
-        ("host run git --actor agent:a:b:c status", "host.run"),
+        # The flag is the declared one, so the selection and the CLI cannot drift apart.
+        (f"host status {ACTOR_FLAG} agent:a:b:c", "host.status"),
+        (f"lane status {ACTOR_FLAG}=agent:a:b:c --json", "lane.status"),
+        (f"lane status {ACTOR_FLAG}", ""),
+        # `host run` leaves the flag to its child: there it is a word, also without a value.
+        (f"host run git status {ACTOR_FLAG}", "host.run"),
         ("host run git -C x status --json", "host.run"),
         ("host run --command x y", ""),
         ("release accept --checksums SHA256SUMS --apply", "release.accept.apply"),

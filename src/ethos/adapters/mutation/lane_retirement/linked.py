@@ -221,8 +221,7 @@ def _continuation(
 ) -> dict[str, object]:
     """Return the sole public continuation owned by linked retirement."""
     gaps = tuple(string_sequence(report.get("required_gaps")))
-    holder = effects.holder_ref(authority)
-    if "foreign_work_lane_retire_authority_required" in gaps and holder:
+    if "foreign_work_lane_retire_authority_required" in gaps:
         return _foreign_actor_step(repo, gaps, authority)
     if "lane_retirement_receipt_required" in gaps:
         return _continuation(
@@ -271,13 +270,13 @@ def _foreign_actor_step(
 ) -> dict[str, object]:
     """Return the step of a foreign actor: the handoff, or the refusal's own step without one.
 
-    A Lease whose coordinates cannot be read names no handoff, and the refusal never continues to
-    the retirement that refused it.
+    A Lease whose coordinates or holder cannot be read names no handoff, also where no lane
+    was found, and the refusal never continues to the retirement that refused it.
     """
     handoff = handoff_step(
-        Path(str(authority["path"])),
-        str(authority["branch"]),
-        cast("dict[str, object]", authority["lease"]),
+        Path(str(authority.get("path") or repo)),
+        str(authority.get("branch") or ""),
+        cast("dict[str, object]", authority.get("lease") or {}),
         process_actor(),
     )
     return {

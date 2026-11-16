@@ -45,12 +45,13 @@ def invocation_actor(actor: str | None) -> AbstractContextManager[None]:
 def handoff_step(root: Path, branch: str, lease: Mapping[str, object], target: str) -> str:
     """Render the preview that moves one held Lease generation to the target, in the lane.
 
-    A Lease without a readable generation, expiry or holder names nothing to move, so it has none.
+    A Lease without a readable generation, expiry or holder names nothing to move, and a blank
+    target nobody to move it to: neither has a step.
     """
     generation = integer(lease.get("generation"))
     expires_at = str(lease.get("expires_at") or "").strip()
     holder_ref = str(lease.get("holder_ref") or "").strip()
-    if generation < 1 or not expires_at or not holder_ref:
+    if generation < 1 or not (expires_at and holder_ref and target.strip()):
         return ""
     return shlex.join(
         (

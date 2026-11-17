@@ -199,9 +199,12 @@ let concurrencyGroup = "(\(proposalPush) || github.event_name == 'pull_request')
 //   observation n=926   p99 5.4, longest 21.1, both GitLab npm
 //   aggregate   n=448   p99 0.2, the two jobs it replaces
 // Supply (n=26, longest 4.1), release (n=163, at most 27 on a leg, longest 86.0) and publication
-// (n=33, longest 2.2) have under 100 samples on a leg and stay provisional. The suite class has
-// no sample: it takes the full set's minutes, which are the 120 of the gate whose suite it
-// repeats and the leg's setup margin.
+// (n=33, longest 2.2) have under 100 samples on a leg and stay provisional. The suite class
+// takes the full set's minutes, which are the 120 of the gate whose suite it repeats and the
+// leg's setup margin, and stays provisional too. Its first samples are of run 43991840423 on
+// 2026-11-17: Python 3.12 38.0, Python 3.13 35.9, and the Windows leg 13.0 to its failure,
+// beside 38.7 for the quality gates job of that run. Over the dispatched runs of 2026-11-16
+// and 2026-11-17 the two Linux legs passed 12 times, longest 60.8.
 let timeoutMinutes = {
 	admission:   25
 	conformance: 35

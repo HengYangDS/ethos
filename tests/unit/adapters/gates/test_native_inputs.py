@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -94,15 +95,18 @@ def _marked_repository(tmp_path: Path, marks: str = "") -> tuple[Path, Path]:
     return repo, local
 
 
-@pytest.mark.parametrize("route", ["git-directory", "hidden-worktree-file"])
+@pytest.mark.parametrize(
+    "route", ["git-directory", "hidden-worktree-file", "configured-file", "caller-overlay"]
+)
 def test_a_local_attributes_line_takes_no_document_out_of_the_prose_gate(
-    tmp_path: Path, route: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str
 ) -> None:
     """A committed misspelling blocks as committed, under a local mark and with it removed.
 
     Each time the spelling check names both misspellings of the note's third line. The mark
-    lies in the Git directory's attributes file, or in a `.gitattributes` beside the note that
-    the Git directory's exclude file hides from Git's status.
+    lies in the Git directory's attributes file, in a `.gitattributes` beside the note that the
+    Git directory's exclude file hides from Git's status, or in a file that
+    `core.attributesFile` names in the repository's configuration or in the caller's overlay.
     """
     repo, local = _marked_repository(tmp_path)
     marks = _LOCAL
@@ -110,6 +114,16 @@ def test_a_local_attributes_line_takes_no_document_out_of_the_prose_gate(
         with local.with_name("exclude").open("a", encoding="utf-8") as exclude:
             exclude.write("/docs/.gitattributes\n")
         local, marks = repo / "docs/.gitattributes", "notes.md linguist-generated\n"
+    if route == "configured-file":
+        local = tmp_path / "configured-attributes"
+        git(repo, "config", "core.attributesFile", local.as_posix())
+    if route == "caller-overlay":
+        local = tmp_path / "overlay-attributes"
+        # The overlay gains one entry after those the suite already holds.
+        held = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+        monkeypatch.setenv("GIT_CONFIG_COUNT", str(held + 1))
+        monkeypatch.setenv(f"GIT_CONFIG_KEY_{held}", "core.attributesFile")
+        monkeypatch.setenv(f"GIT_CONFIG_VALUE_{held}", local.as_posix())
     readings = [gate_tool.prose_report(repo)]
     local.write_text(marks, encoding="utf-8")
     readings.append(gate_tool.prose_report(repo))
@@ -156,7 +170,10 @@ def test_the_authored_selection_keeps_the_repository_case_rule(
 ) -> None:
     """A mark whose pattern differs in case counts as the repository's own case rule says.
 
-    A repository without the setting matches by exact case, which is Git's own default.
+    A repository without the setting matches by exact case, which is Git's own default. Git's
+    reading in the repository answers the same, so this guards one thing: that the reading's own
+    Git directory is handed the rule. On a volume that folds case the last two cases can show a
+    rule that is not handed over, and on one that does not, the first.
     """
     repo, _local = _marked_repository(tmp_path, "DOCS/NOTES.md linguist-generated\n")
     git(repo, "config", "core.ignoreCase", "true")

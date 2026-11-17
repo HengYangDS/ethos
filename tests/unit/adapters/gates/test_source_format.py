@@ -240,6 +240,8 @@ def test_received_paths_leave_every_authored_selection(lane: Path) -> None:
     assert all(name in checked["next_action"] for name in ("--apply", *_RECEIVED)), checked
     named = _command(lane, "vendor/font/LICENSE", "--check")[1]["required_gaps"]
     assert named == ["source_format_other_owner:vendor/font/LICENSE"]
+    outside = _command(lane, "../outside.md", "--check")[1]["required_gaps"]
+    assert outside == ["source_format_path_invalid:../outside.md"]
     code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
     assert (code, applied["data"]["changed_paths"]) == (0, ["docs/new.md"]), applied
     assert all((lane / path).read_text() == content for path, content in kept.items())

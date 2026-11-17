@@ -33,6 +33,11 @@ def worktree_received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str
     refusal keeps its own error. Every other reader keeps `received_paths`; their use of local
     state is the subject of the draft Change `local-git-state-binding`.
     """
+    # A name that leaves the tree has no attribute file above it here, and Git refuses to read
+    # it; it receives nothing, so its own caller names it invalid.
+    paths = tuple(
+        name for name in paths if not Path(name).is_absolute() and ".." not in Path(name).parts
+    )
     if not paths:
         return frozenset()
     case = run_git(

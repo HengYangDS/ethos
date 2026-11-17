@@ -46,5 +46,11 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 One function of `adapters/repo/git_patch.py` and its tests. It narrows a refusal, which the law
 freeze admits.
 
-Owner: the release lead. Next action: write the patch test-first and measure it. Read again: at
-the cut of 0.2.0-beta.12.
+Repaired, and this draft is done: the row `postimage-workspace` of the batch that 0.2.0-beta.11
+ships reads a patch's paths from Git and from each entry's header lines alone. A probe with a
+removed line that begins with two hyphens and a space, and with an added line that begins with
+two plus signs and a space, is refused at the release head of 2026-11-16 on both targets and
+admitted at the lane head. The entry of 0.2.0-beta.11 names the repair under Fixed.
+
+Owner: the release lead. Next action: remove this draft; no command retires a draft yet, since a
+prewrite refuses the removal of a Change's own files. Read again: at the cut of 2026-11-26.

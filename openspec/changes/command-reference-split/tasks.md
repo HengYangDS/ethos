@@ -45,5 +45,10 @@
 - [x] 5.1 Build the wheel and the source archive in the lane. Done when the wheel-resource tests
       of `tests/unit/release/test_version_identity.py` pass and the built wheel carries both pages
       byte for byte.
-- [ ] 5.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
-      head and the hosted runs of that head pass.
+- [x] 5.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head and the hosted runs of that head pass. The pre-check (472 impacted test modules, 9,555
+      passed, 5 skipped, no finding) and readiness (28 gates) passed at `4a5029e96` on 2026-11-17,
+      and GitHub's push run 43991816712 and qualification 43991840423 passed there. At `25fec18ea`,
+      which adds one comment of the pipeline model and task files to that head, GitHub's push run
+      44014352341 passed, and so did GitLab's push pipeline 16172 and its qualification 16189 with
+      the 34 gates.

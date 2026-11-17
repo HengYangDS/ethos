@@ -13,6 +13,7 @@ from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_attributes import binary_content_paths
 from ethos.adapters.repo.git_attributes import received_paths
+from ethos.adapters.repo.git_attributes import worktree_received_paths
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.outcome import refusal
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
@@ -87,9 +88,10 @@ def kept_record_files(root: Path, paths: tuple[str, ...] = ()) -> tuple[str, lis
 def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
     """Join authored inputs once, preserving producer, upstream and captured-root ownership.
 
-    A path that Git attributes mark vendored or generated is received, so no consumer selects it.
-    Neither is a path under a root the paradigm captures. A file under a record root that a
-    profile declares is authored input like any other.
+    A path that the worktree's bound `.gitattributes` files mark vendored or generated is
+    received, so no consumer selects it. The Git directory's own attribute sources mark nothing
+    here. Neither is a path under a root the paradigm captures. A file under a record root that
+    a profile declares is authored input like any other.
     """
     profile = load_repository_profile(root)
     if profile.state == "invalid":
@@ -111,7 +113,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
         for pattern in item.paths
     )
     listed = tuple(paths or quality_source_files(root, *patterns))
-    outside = {*foreign, *generated, *received_paths(root, listed)}
+    outside = {*foreign, *generated, *worktree_received_paths(root, listed)}
     captured = load_repository_paradigm().captured_roots
     selected = [
         relative
@@ -129,11 +131,15 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
 
 
 def authored_text_files(root: Path, files: Sequence[str]) -> tuple[str, ...]:
-    """Select declared text of the authored join, preserving binary and byte-bound owners."""
+    """Select declared text of the authored join, preserving binary and byte-bound owners.
+
+    A path that Git's own reading marks received keeps its bytes unread, as before the join
+    read the worktree's marks: a mark that only the Git directory gives adds no refusal.
+    """
     policy = tomllib.loads(canonical_resource(POLICY_PATH.as_posix()).read_text(encoding="utf-8"))
     extensions = {extension for item in policy["format"] for extension in item["extensions"]}
     ownership = format_ownership(root, tuple(files))
-    preserved = {
+    preserved = received_paths(root, tuple(files)) | {
         item["path"]
         for item in ownership["assignments"]
         if item["format_owner"] in {"source-binary", "immutable-carrier"}

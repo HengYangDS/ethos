@@ -7,13 +7,13 @@ what stands behind it: the test that decided each row, the reasons, where the fi
 differed and how each difference was settled, and what nobody proved. The committee's working
 files are local to the releasing checkout; this is their tracked form.
 
-The question came from the release lead on 2026-11-17. Design studies for the batch of
-0.2.0-beta.13 had found the plan's rows larger than the sizes the plan gave them: of nine
-studied rows only a first slice fits its batch, and the first slices alone pass the test
-ceiling. The lead brought the smallest proposal, by the owner's answer of that day: move out
-only the parts that cannot take effect inside the freeze. Five seats answered in three rounds:
-essence (ess), kernel (ker), delivery (del), fleet (fle) and adversary (adv). Four signed the
-second text, the adversary blocked it with two exact changes, and all five signed the third.
+The question came from the release lead on 2026-11-17. Design studies for the batch of 0.2.0-beta.13
+had found the plan's rows larger than the sizes the plan gave them: of nine studied rows only a
+first slice fits its batch, and the first slices alone pass the test ceiling. The lead brought the
+smallest proposal, by the owner's answer of that day: move out only the parts that cannot take
+effect inside the freeze. Five seats answered in three rounds: essence (ess), kernel (ker), delivery
+(del), fleet (written in full) and adversary (adv). Four signed the second text, the adversary
+blocked it with two exact changes, and all five signed the third.
 
 Names below: `S` is DR-0029, `G26` is DR-0026, `P` is the design of the release candidate plan,
 `PDC` is the product design contract and `QS` is the quality specification, each with the line
@@ -37,14 +37,14 @@ numbers read on 2026-11-17. b13 and b14 are the batches of 0.2.0-beta.13 and 0.2
 ### 1. The test that decides a part
 
 A part must land for 0.2.0 when its item's sentence in `G26` is false without it (adv, ker, del),
-or when a governed repository needs it to bump, prove, land, publish or roll back (fle). The
+or when a governed repository needs it to bump, prove, land, publish or roll back (fleet). The
 lead's smallest proposal is the floor and is not enough: a part whose only reader leaves goes
 with that reader, and a remainder that size and time keep out leaves by name. Four seats kept
 the proposal as the floor. The adversary did not accept its wording: what leaves a sentence of
 `G26` false leaves by a named waiver and not as an effect of the freeze.
 
 Not taken: a cut by size. Size and time may be why a remainder cannot land, and they are never
-the written reason (ess, adv). A remainder leaves by name, as a cut of scope (del, fle).
+the written reason (ess, adv). A remainder leaves by name, as a cut of scope (del, fleet).
 
 ### 2. How a remainder leaves
 
@@ -71,13 +71,13 @@ once: every kept part is archived on `dev` under a passed full proof (`S`:49-50)
 Before a semicolon stands b13's part, after it b14's. A remainder may still land when a cut
 measures its patch (ess, del).
 
-- n1. `G26`:67 asks for "a fast behavior tier", and a report runs no test (ker, del, fle, adv).
+- n1. `G26`:67 asks for "a fast behavior tier", and a report runs no test (ker, del, fleet, adv).
   The run is under a host ticket (adv). The row `test-tiers` of the plan is not one of the 43.
 - n2. R8's "or" holds only when the contract states the boundary (`G26`:78-79), so the row's
-  Change amends `PDC`:403-404 and the owner sees the text in the report's batch (ess, ker, fle).
+  Change amends `PDC`:403-404 and the owner sees the text in the report's batch (ess, ker, fleet).
   The cache root is b14's. The state ships one release before its default (ker).
 - n3. R4 "is exercised" (`G26`:63); once every subject declares a pin, the pinned shape is the
-  one in use (ess, fle, adv). The receipt needs 0.2.0-beta.11 published. The entry names the
+  one in use (ess, fleet, adv). The receipt needs 0.2.0-beta.11 published. The entry names the
   landings as not qualified (ess, adv); the fleet seat lowered its blocker: one run by hand lands
   them before the candidate.
 - n4. The second way of the row's study with its second slice, never its first slice alone (ker,
@@ -87,13 +87,13 @@ measures its patch (ess, del).
   nothing, and ETHOS opts in once its pin reads the key (adv, ker).
 - n6. A gate arms on its own record, at a threshold written before any count is read (ess, adv),
   only if its key is closed and it starts no child but Git (ker), with records from three
-  governed repositories (fle), never in the frozen beta (del, fle).
-- n7. R7's budgets report; a refusal for bytes is a new rule (ess, fle; `G26`:74). The 48 hours
+  governed repositories (fleet), never in the frozen beta (del, fleet).
+- n7. R7's budgets report; a refusal for bytes is a new rule (ess, fleet; `G26`:74). The 48 hours
   are two windows of real workload, or a delta changes `QS`:1896-1900 (adv).
 - n8. `G26`:73, "Lanes stop holding gate evidence", needs the registry's move (ker, adv). No tree
   declares `{scratch}` before its pin reads it (ker).
 - n9. An unread row moves no part (ess, ker, adv): its study and size are due at the cut of
-  2026-11-26 (fle).
+  2026-11-26 (fleet).
 
 ### 4. Dates, lines and the bound
 
@@ -115,7 +115,7 @@ measures its patch (ess, del).
 - **Cuts and budgets.** 2026-11-26 for `release-provenance`, 12-03 for b14, 12-10 for the frozen
   beta. A kept part that misses its cut slips by `S`'s rule. The product ceiling goes to the
   owner at the cut of 12-03, on patch sizes (del). Host minutes are declared before each whole
-  check (del, fle).
+  check (del, fleet).
 
 ### 5. Corrections of the plan's words
 
@@ -145,7 +145,7 @@ The archived plan is not edited (ess); the successor record states each correcti
     child inherits the launch environment; 26 of 32 declared command gates start a bare tool.
 12. The selection from recorded facts belongs to `fast-tier`, not to `test-tiers` (adv).
 13. `P`:117 and 325-326: the runner of a detached run starts in the launch environment in
-    0.2.0, and its list follows with the state (fle).
+    0.2.0, and its list follows with the state (fleet).
 
 ### 6. The five asks and the owner's answers
 
@@ -172,23 +172,23 @@ with the recommendation of each.
 1. The smallest proposal: four seats' floor; the adversary not as worded. Kept, with Waiver 4.
 2. Essence let the selection's run, the `status` word and the registry's move leave; four seats
    kept them. Kept.
-3. Rollback: the record (ker, del), the receipt (ess, adv), the revert (fle). The receipt.
-4. The bound receipt: del and fle kept it in b14; ess, ker and adv moved it with its reader.
+3. Rollback: the record (ker, del), the receipt (ess, adv), the revert (fleet). The receipt.
+4. The bound receipt: del and fleet kept it in b14; ess, ker and adv moved it with its reader.
    Moved.
-5. `residue-class`: fle out now; ess, ker and del by a cut; adv never. The fourth ask.
-6. Lines: ess and ker added nothing; del and adv moved them; fle redrew them by the rate. The
+5. `residue-class`: fleet out now; ess, ker and del by a cut; adv never. The fourth ask.
+6. Lines: ess and ker added nothing; del and adv moved them; fleet redrew them by the rate. The
    one added sentence, by vote.
 7. 2027-01-30: del and adv withdrew it; ess kept it by each date. Withdrawn.
-8. The list as a state: adv kept it; ker, del and fle moved it; ess let it leave. The fifth ask.
-9. Record kinds: adv owed all; ker kept the verb's own; ess, del and fle moved three. Three.
-10. A kept part that misses its cut: del had it leave; ess, fle and adv held it. It slips.
+8. The list as a state: adv kept it; ker, del and fleet moved it; ess let it leave. The fifth ask.
+9. Record kinds: adv owed all; ker kept the verb's own; ess, del and fleet moved three. Three.
+10. A kept part that misses its cut: del had it leave; ess, fleet and adv held it. It slips.
 11. A report inside the freeze: no seat wrote the sentence. The second ask.
-12. The frozen beta: fle barred any first effect; del barred arming; ker had a row in it. Arming
+12. The frozen beta: fleet barred any first effect; del barred arming; ker had a row in it. Arming
     is barred.
-13. The 900 seconds: ker in b14, ess by the frozen beta, fle at arming, adv measured. The sixth
+13. The 900 seconds: ker in b14, ess by the frozen beta, fleet at arming, adv measured. The sixth
     correction.
 14. The cut of `residue-class`: del 12-03, ker 12-10. 12-03, its next cut, by vote.
-15. The forecast for 12-05: ker 20 or 21 by its own table; del, fle and adv 22 to 24 by the
+15. The forecast for 12-05: ker 20 or 21 by its own table; del, fleet and adv 22 to 24 by the
     table above. By the table.
 
 ## Risks / Trade-offs

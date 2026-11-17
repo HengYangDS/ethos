@@ -54,21 +54,31 @@
 
 ## 5. Lane, hosted run and owner
 
-- [ ] 5.1 Apply the patch in the Work Lane and pass its pre-check, readiness and
-      `ethos lane project --check`. Done when all three pass at the lane head.
-- [ ] 5.2 Read the push run of the lane head. Done when the three suite jobs are skipped and
-      `hosted checks` succeeds.
-- [ ] 5.3 Dispatch the workflow on the lane's ref with `qualify_head` at its head. Done when the
-      jobs `suite linux-x64 / Python 3.12` and `suite linux-x64 / Python 3.13` succeed, the log
-      of each suite step begins with `Python 3.12.` and `Python 3.13.` and ends with pytest's
-      summary line, each job's artifact holds a JUnit report and a coverage report, and
-      `hosted checks` succeeds.
-- [ ] 5.4 Read the job `suite windows-x64 / Python 3.14` of the same run. Done when its result
-      is recorded with the step it ended in, and the run and `hosted checks` succeed whatever
-      that result is.
-- [ ] 5.5 Record each leg's duration beside the quality gates job's of the same run. Done when
-      the three durations are written where the next editor of the model's timeout table reads
-      them; they are the `suite` class's first samples.
+- [x] 5.1 Apply the patch in the Work Lane and pass its pre-check, readiness and
+      `ethos lane project --check`. Done when all three pass at the lane head. All three passed at
+      `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules (9,555 passed, 5
+      skipped, no finding), readiness with its 28 gates, and the projection check.
+- [x] 5.2 Read the push run of the lane head. Done when the three suite jobs are skipped and
+      `hosted checks` succeeds. Run 43991816712 at `4a5029e96`: the three suite jobs are skipped,
+      the quality gates job passes its 34 gates, and `hosted checks` succeeds.
+- [x] 5.3 Dispatch the workflow on the lane's ref with `qualify_head` at its head. Done when the
+      jobs `suite linux-x64 / Python 3.12` and `suite linux-x64 / Python 3.13` succeed, the log of
+      each suite step names `Python 3.12.` and `Python 3.13.` as the leg's interpreter and shows
+      pytest's summary line, each job's artifact holds a JUnit report and a coverage report, and
+      `hosted checks` succeeds. Run 43991840423 at `4a5029e96`: both jobs succeed, their steps name
+      Python 3.12.16 and Python 3.13.18 and end with `9810 passed, 5 skipped`, each artifact holds
+      `pytest/junit.xml` and `coverage/coverage.xml`, and `hosted checks` succeeds. The run of the
+      head before it, 43978304848, failed the Python 3.12 leg on the defect of task 6.7.
+- [x] 5.4 Read the job `suite windows-x64 / Python 3.14` of the same run. Done when its result is
+      recorded with the step it ended in, and the run and `hosted checks` succeed whatever that
+      result is. In run 43991840423 the job fails in its step
+      `Repeat the suite on this leg and record its coverage`: pytest stops after 4 failures of 70
+      tests, with 65 passed and 1 skipped. The run and `hosted checks` succeed.
+- [x] 5.5 Record each leg's duration beside the quality gates job's of the same run. Done when the
+      three durations are written where the next editor of the model's timeout table reads them;
+      they are the `suite` class's first samples. Written in the comment of the model's timeout
+      table, from run 43991840423: 38.0 minutes on Python 3.12, 35.9 on Python 3.13 and 13.0 on
+      Windows to its failure, beside 38.7 for the quality gates job.
 
 ## 6. Findings of the first run
 
@@ -88,10 +98,12 @@
 - [x] 6.6 Hand a tool its text input with the caller's line endings on every platform, in
       `src/ethos/adapters/process.py`. Done when the regression fails without the change and
       the Windows leg passes `tests/architecture/ci/test_job_identity.py`.
-- [ ] 6.7 Read a command line that names no file as no writer on every interpreter, in
-      `src/ethos/adapters/store/retention/writers.py`. Done when the regression fails without
-      the change at Python 3.12 and at Python 3.13, and the Python 3.12 leg passes
-      `tests/unit/cli/test_hook_record_retirement.py`.
+- [x] 6.7 Read a command line that names no file as no writer on every interpreter, in
+      `src/ethos/adapters/store/retention/writers.py`. Done when the regression fails without the
+      change at Python 3.12 and at Python 3.13, and the Python 3.12 leg passes
+      `tests/unit/cli/test_hook_record_retirement.py`. Without the change 17 tests of the module's
+      importers fail at Python 3.12 and at 3.13; with it all pass at 3.12, 3.13 and 3.14, and both
+      Linux legs of run 43991840423 pass the named module.
 
 ## Workflow follow-up
 
@@ -99,3 +111,8 @@
   the three legs, and `hosted checks` needs the two Linux legs there too.
 - Delivery: set the `suite` class's minutes by the method of the model's timeout table once its
   legs have the samples that the method asks for.
+- Windows leg: of its four failures one is diagnosed, a test that starts `bash`, which is the WSL
+  launcher on the runner. Three are crashes of a test worker in
+  `tests/architecture/ci/test_supply_image_currency.py` and
+  `tests/architecture/test_ci_provider_projections.py`, without a diagnosis. Read again at the cut
+  of 0.2.0-beta.13.

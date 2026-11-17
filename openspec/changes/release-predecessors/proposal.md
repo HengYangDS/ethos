@@ -59,7 +59,8 @@ None.
 
 - `distribution`: the requirement on the releases that a beta's journey starts from defines the
   subject set and the support window, and a new requirement states the record and the operation.
-- `repository-paradigm`: the requirement on the release table's keys admits `upgrade_from`.
+- `repository-paradigm`: the requirement on the release table's keys admits `upgrade_from`,
+  and a new requirement states that a refused record of predecessors is reported and kept.
 
 ## Impact
 

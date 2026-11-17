@@ -1,3 +1,17 @@
+## ADDED Requirements
+
+### Requirement: A refused record of predecessors is reported and kept
+
+The paradigm SHALL report a record of predecessors that its reader refuses as `release-binding`,
+and the repair SHALL leave it.
+
+#### Scenario: A recorded release is misnamed or has another class
+
+- **WHEN** `.ethos/release.toml` declares `upgrade_from` as something other than a table of exact
+  releases, each with the class that release has
+- **THEN** the paradigm reports `release.upgrade_from` as `release-binding`
+- **AND** the repair plans no edit for it
+
 ## RENAMED Requirements
 
 - FROM: `### Requirement: The release table declares only the release mirror`
@@ -11,8 +25,7 @@ The release binding's `[release]` table SHALL declare only the keys that a reade
 whether or not the binding protects release tags: `mirror`, and `upgrade_from`, the releases that
 a release upgrades from. The paradigm SHALL report every other key as `release-binding`, and the
 repair SHALL delete such a key when it sits on a line of its own, and the table once it declares
-nothing. The paradigm SHALL report a record of predecessors that its reader refuses under the
-same obligation, and the repair SHALL leave it.
+nothing.
 
 #### Scenario: A release table restates the version source
 
@@ -32,10 +45,3 @@ same obligation, and the repair SHALL leave it.
 - **WHEN** `.ethos/release.toml` declares `[release.upgrade_from]` and an unread key in `[release]`
 - **THEN** the paradigm reports the unread key alone
 - **AND** the repair deletes that key and keeps the recorded releases
-
-#### Scenario: A recorded release is misnamed or has another class
-
-- **WHEN** `.ethos/release.toml` declares `upgrade_from` as something other than a table of exact
-  releases, each with the class that release has
-- **THEN** the paradigm reports `release.upgrade_from` as `release-binding`
-- **AND** the repair plans no edit for it

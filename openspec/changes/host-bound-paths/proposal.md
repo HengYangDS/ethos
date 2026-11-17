@@ -39,6 +39,10 @@ Candidates for the design, none decided:
   redacted and never rewritten. A synthetic path in a fixture is test data, so a declared
   placeholder form passes. A list of well-known install locations is resolution and no binding
   where an override exists.
+- A tracked symbolic link whose target leaves the repository binds the tree to one host's
+  layout in the same way and joins this rule, as the owner decided on 2026-11-17. A relative
+  link that stays inside the repository does not. Counted on that day with Git's tree
+  listing: the 31 governed checkouts on the releasing host track no symbolic link.
 - A second class of host-bound literal joins only with measured cases of its own.
 
 Under DR-0029 a new rule reports for one release before it refuses, and the law freeze admits no

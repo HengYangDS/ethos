@@ -51,8 +51,10 @@ None.
 
 ### Modified Capabilities
 
-- `repository-governance`: the requirement `Patch admission reports every refused reference`
-  gains one sentence and one scenario. No requirement is added.
+- `repository-governance`: one requirement is added, with four scenarios:
+  `Patch admission reads what a patch does from Git`. It stands beside
+  `Patch admission reports every refused reference`, whose words do not change. OpenSpec bounds
+  a requirement's text at 500 characters, and the two are separate behaviors.
 
 ## Impact
 

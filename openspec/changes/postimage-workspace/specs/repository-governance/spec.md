@@ -1,20 +1,12 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Patch admission reports every refused reference
+### Requirement: Patch admission reads what a patch does from Git
 
-Patch admission SHALL report every product reference of a patch that its baseline does not own,
-in stable order, so that one admission names every declaration the repository lacks. It SHALL
-read the patch's postimage in a workspace that is a repository of its own, wherever the
-process's temporary directory lies. It SHALL take what a patch does at each path, and the kind
-of each entry, from Git's own record of the patch applied in that workspace, and SHALL refuse
-a patch that makes another kind of entry than a regular file. The request of a patch SHALL
-name every path that Git changes, the source of a move among them.
-
-#### Scenario: A patch consumes two unowned references
-
-- **WHEN** a patch adds two references that no baseline owner admits
-- **THEN** the admission names both refusals
-- **AND** the first one remains its reason
+Patch admission SHALL read the patch's postimage in a workspace that is a repository of its own,
+wherever the process's temporary directory lies. It SHALL take what a patch does at each path,
+and the kind of each entry, from Git's own record of the patch applied in that workspace, and
+SHALL refuse a patch that makes another kind of entry than a regular file. The request of a
+patch SHALL name every path that Git changes, the source of a move among them.
 
 #### Scenario: The temporary directory lies inside another checkout
 

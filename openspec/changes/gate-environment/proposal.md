@@ -2,9 +2,16 @@
 
 ## Why
 
-A verdict must depend on its subject alone. Five times in three days a proof's verdict, or what
-it examined, moved with something outside the subject. Each case was measured on the releasing
-host or relayed by the session that met it:
+The archived `rc-plan` design orders this row in its Family 4 (lines 101 to 104):
+"`gate-environment` (working name; R8(c); unsized) follows A7 and precedes A10 and MCP `prove`:
+proof gates run in an allow-listed environment without SSH agent or forge tokens, or the PDC
+states the non-sandbox boundary, and one owner redacts persisted failure output." A7 is
+`environment-entry`, which the base of this Change holds. The committee's resolution of
+2026-11-14 places the row in 0.2.0-beta.13.
+
+A verdict must depend on its subject alone. Seven times a proof's verdict, or what it examined,
+moved with something outside the subject. Each case was measured on the releasing host or relayed
+by the session that met it:
 
 - **The shell that launched it.** The children of the providers dropped `MISE_` variables and
   kept Mise's activation state, so a result depended on the launching shell.
@@ -35,43 +42,71 @@ host or relayed by the session that met it:
   only in the lane that held the build.
 - **The holder.** DR-0029 records that a verdict is not yet free of its holder: the prover of a
   unit is its landing owner.
+- **A variable that a gate needs.** One governed repository's gate needs the path of a browser,
+  which its hosted job declares as an environment variable. Under an empty environment that gate
+  blocks. So the empty environment that cures the third case causes this one.
+- **A rule kept outside the product.** The releasing host launches every proof from an empty
+  environment with a home directory, a system path and a temporary directory. Scripts outside
+  the product keep that rule.
 
 The package cache is also an output that nothing bounds. Lanes, tests and proofs on the
 releasing host build into the one uv cache that every repository of that host shares, while
 the hosted jobs use a cache root of their own. Measured by the session that keeps the host's
 supply: on 2026-11-14 that cache held 287 GB, of which 284 GB were entries that nothing
 referenced, most of them copies of one test fixture and local builds of this product. Trimmed
-to 12 GB, it held 18 GB two days later. By that session's reading of the cache's buckets, the
-growth since the trim is 19 wheels of this product built from a path or URL source, about 340 MB
-each and 6.5 GB together, which stay referenced, so no pruning removes them; 26 editable builds
-of this product; and 495 editable installs of one test fixture, small in bytes. Which command
-wrote each entry is not measured. uv's own pruning cannot run there while long-lived holders
-keep the cache open. The owner asked for the root fix on 2026-11-16, as that session relayed.
+to 12 GB, it held 18 GB two days later. Read again on 2026-11-17 for this design, with the
+bucket's own directory names and `du`: 39 unpacked wheels of this product hold 12.3 GiB of the
+16.9 GiB in the archive bucket, about 324 MiB each, every one a distinct build installed from a
+path or URL; 167 editable builds of this product hold 183 MiB; 8,522 editable installs of one
+test fixture hold 133 MiB. The wheels stay referenced, so no pruning removes them. Which command
+wrote them is not measured. uv's own pruning cannot run there while long-lived holders keep the
+cache open. The owner asked for the root fix on 2026-11-16, as that session relayed.
+
+The design study behind this Change measured both kinds of gate child. A declared command's
+child receives every variable of its launch, credentials included, and the first tool on the
+launch path. A provider's child receives the locked tools and still every credential. The
+design contract already says that declared commands run in the locked toolchain and that failure
+evidence keeps the resolved binary; neither holds for a declared command today. A rule that
+changes what a governed repository's gate receives reports before it blocks, by the committee's
+rule R14. The owner decided on 2026-11-17 that a declared command's child is built from a list by
+a state that each repository declares, that the default state reports and changes no child until
+0.3.0, and that 0.2.0-beta.13 lands the report. This Change is the report.
 
 ## What Changes
 
-Candidates for this row's design, none decided:
+- An executed `ethos prove` result states, in `summary.environment`, what its declared commands
+  inherited from the launch: the mode, the count of variables, the count outside the product's
+  one list of kept names, the classes of credential among them, whether the locked toolchain
+  could be read, the locked tools that the launch path resolves outside their locked install,
+  and the section and variable of each key of the Git configuration overlay. It holds names,
+  classes and counts, never a value. A host observation and a readiness run state the same.
+- The check of each declared command names the executable that the proof started and its
+  supplier: the declaration, the locked toolchain, the host's own command directories or
+  another directory of the launch path. A provider gate's check names neither.
+- The architecture page of the gate runner states the boundary: ETHOS does not confine a
+  declared command, and the result says what it inherited.
+- Nothing that a gate child receives changes. No refusal is added and no exit code changes.
 
-- The proof checks the offline environment in its readiness tier, before it takes a host ticket,
-  and the refusal names the locked sync that refills the cache; or the gate's environment input
-  comes from the repository's own cache root.
-- A command gate runs with the locked toolchain first; or the result states which toolchain
-  supplied each executable; or the proof refuses an executable outside the locked toolchain.
-- A lane's builds and environments use a cache root of the lane, under the disposable tool
-  supply that goes with the lane. To compare in the design, because the behavior gate syncs
-  offline from the shared cache today: a seeded lane cache and what one lane then costs in
-  bytes and minutes; one shared store that is only read, with builds beside it; no cache for
-  the product's own build. The runtime's materialization already runs without a cache.
-- The proof contract says whether a gate's inputs are closed over tracked files.
-- A gate's base is an input that the proof binds, the same in every plane; the record check
-  takes it, so a gate can report older content of a declared record root without refusing it.
-- ETHOS's own gates that refuse on a measure get an invariance test: the verdict holds under
-  changes that do not change the subject, such as where it starts, its order, its path and the
-  clock. As a product check for governed repositories this is a new rule, and it waits for the
-  rule row.
-- An obligation, not a candidate, carried from `environment-entry`: the process's Git
-  configuration overlay reaches local Git only, with the keys and values that this row's design
-  admits and declares, and a result names every key that it dropped.
+Carried by draft Changes that this Change creates, each with the release that reads it again:
+
+- `gate-child-environment` (the cut of 0.2.0-beta.14): a declared command's child is built from
+  the list, the locked toolchain's path and the variables that its gate names, by a state that
+  each repository declares; gate children receive no Git configuration overlay; the product
+  builds the launch that host scripts keep today. The owner decided this form on 2026-11-17.
+- `package-cache-root` (the build in 0.2.0-beta.14): one package cache root for each repository
+  under the Git common directory, the product's own wheel installed without the cache, and the
+  offline sync in the readiness tier. The owner decided this shape on 2026-11-17, and nothing of
+  this Change depends on it.
+- `gate-output-redaction` (the cut after `gate-child-environment` lands): one owner masks
+  persisted output.
+- `git-overlay-keys` (the cut of 0.2.0-beta.14): the obligation carried from
+  `environment-entry`, the keys and values that local Git admits.
+
+Not this row, each with its owner: whether a gate's inputs are closed over tracked files
+(the hosted plane shows it today, and `hosted-observation` gives a landing its reader of that
+plane); a gate's base as an input that the proof binds (`record-roots-one-owner`); invariance
+tests of ETHOS's own measuring gates (the rule row); and a verdict that is free of its holder
+(the successor record of DR-0029).
 
 ## Capabilities
 
@@ -81,13 +116,21 @@ None.
 
 ### Modified Capabilities
 
-None while this Change is a draft, so `skip_specs: true` applies. Its delta arrives with its tasks.
+- `quality`: ADDED `A proof result states the environment its declared commands inherit` and
+  `A declared command's check names its executable and supplier`.
 
 ## Impact
 
-The gate runner, the environment a gate child receives and the proof's readiness tier. Each
-measured case becomes a regression.
+- `src/ethos/adapters/gates/child_environment.py` (new), `src/ethos/adapters/toolchain/mise.py`,
+  `src/ethos/adapters/gates/runner.py`, `src/ethos/application/proof/operation.py`,
+  `src/ethos/application/proof/host.py` and `src/ethos/application/proof/report.py`.
+- `tests/unit/adapters/gates/test_child_environment.py` (new), and cases or assertions in
+  `tests/unit/adapters/toolchain/test_mise_supply.py`, `tests/unit/cli/test_host_gate_proof.py`,
+  `tests/unit/cli/test_proof_command.py` and `tests/unit/gates/test_parallel_proof.py`.
+- `docs/architecture/gate-runner.md`, `CHANGELOG.md` and four draft proposals.
+- The result of every executed proof gains members. Its verdict, its gaps, its exit code and its
+  Attestation do not change.
 
-Owner: the release lead. Next action: converge the design with the five cases as its acceptance.
-Read again: at the cut of 0.2.0-beta.12 for the cache root, which the owner asked for; at the cut
-of 0.2.0-beta.13 for the rest.
+Owner: the release lead. The environment of a declared command's child is the owner's decision
+of 2026-11-17, and `gate-child-environment` builds it. The shape of the cache root is the owner's
+decision of the same day, and `package-cache-root` builds it in 0.2.0-beta.14.

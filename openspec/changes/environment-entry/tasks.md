@@ -57,8 +57,9 @@
 - [x] 4.1 Place the Added and the Breaking entry in the Unreleased section that follows the
       release of the reader. Done when the section that holds them does not also say that no
       command emits `inputs`.
-- [ ] 4.2 Pass the precheck and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 4.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 4.3 Hand the full proof to the landing. Done when the Workflow follow-up states that the full
       proof runs on the archived head and that its receipt is the landing's.
 

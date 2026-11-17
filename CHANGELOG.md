@@ -204,7 +204,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Before the tag, the candidate of this release was read on disposable copies of the 13 governed
   repositories that the releasing host reads: status, the preview of the paradigm repair, the
   format and projection checks and the preview of the proof. New required gaps against
-  0.2.0-beta.10: `generated_projection_drift`, 12, in 6 repositories, from the artifact retention
+  0.2.0-beta.10: `generated_projection_drift`, 14, in 7 repositories, from the artifact retention
   of this release; `ethos lane project --json` previews its repair, applied after the bind and
   before the proof. Every other code: 0. New refusals: 0.
 - The repository paradigm holds 47 obligations: 45 refuse and 2 report, `identifier-source` and

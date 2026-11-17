@@ -3,7 +3,7 @@
 ## Context
 
 See the [proposal](proposal.md) and
-[DR-0031](../../../docs/decisions/dr-0031-test-budget-step-115.md). DR-0028 took the previous test
+DR-0031, the decision record that task 1.2 of this Change writes. DR-0028 took the previous test
 step the same way. Every figure below was read on 2026-11-17: the ceilings from the report of the
 source-budget gate, and each module's delta with the budget tool on this Change's tree.
 

@@ -16,8 +16,9 @@ batch's off-gate row and before `release-provenance`, which has no study yet.
 A census of the batch's tests on 2026-11-17 read 557 files and 3,476 test functions for what four
 mechanical ways could remove. It found no test whose body equals another's, no group of three or
 more tests of one module that differ only in constants, no fixture that nothing requests, and
-three helpers that no test file names, 23 lines together. Not measured: two tests that cover one
-behavior in different words, which needs coverage by test.
+two helpers that nothing uses, 10 lines together. A third helper that no test file names is
+called from code that the tests hand to a child process as text, so it stays. Not measured: two
+tests that cover one behavior in different words, which needs coverage by test.
 
 DR-0010 allows one 5,000 step only after the growing owner retires proved duplication, and the
 owner's rule of 2026-11-01 asks for the removal first. The owner decided on 2026-11-17 that the
@@ -25,7 +26,7 @@ ceiling takes one step, to 115,000.
 
 ## What Changes
 
-- The helpers that no test names are removed, measured by the budget tool.
+- The two helpers that nothing uses are removed, measured by the budget tool.
 - A decision record preserves the review: what was removed first, what needs the space, why
   further removal does not close the gap now, and when to look again.
 - The test ceiling in `.config/checks/format-selection/policy.toml` moves one step, from 110,000
@@ -46,8 +47,8 @@ None. The native source-budget declaration owns the number, so `skip_specs: true
 
 ## Impact
 
-The format-selection policy, one decision record with its line in the index, and the test modules
-that hold the three helpers. The Change stands alone and first in the batch of 0.2.0-beta.13, for
+The format-selection policy, one decision record with its line in the index, and the two test
+modules that hold those helpers. The Change stands alone and first in the batch of 0.2.0-beta.13, for
 the reason that DR-0028 gives against a step inside a row: the other rows would be left without
 space.
 

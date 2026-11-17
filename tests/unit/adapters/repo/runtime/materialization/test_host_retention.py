@@ -164,6 +164,23 @@ def test_a_file_where_a_consumer_keeps_its_state_selects_nothing(tmp_path: Path)
     assert report["retired"] == [runtime.parents[1].as_posix()]
 
 
+def test_a_record_of_a_path_that_no_host_can_be_asked_about_ends_no_cleanup(
+    tmp_path: Path,
+) -> None:
+    """A damaged record is unknown, so its installation stays and the next one is still read."""
+    store = _store(tmp_path)
+    kept, old = _installation(store, "5" * 64), _installation(store, "6" * 64)
+    records = kept.parents[1] / "consumers"
+    records.mkdir(mode=0o700)
+    (records / "damaged").write_text("/repository\0/.git\n", encoding="utf-8")
+    record_consumer(old.parents[1], _consumer(tmp_path / "repository"))
+
+    report = retire_unused_installations(store, in_use=_nothing_in_use)
+
+    assert kept.exists()
+    assert (report["retired"], report["absent"]) == ([old.parents[1].as_posix()], [])
+
+
 def test_unrecorded_installations_are_never_retired(tmp_path: Path) -> None:
     """An installation pinned before consumers were recorded has unknown users and stays."""
     store = _store(tmp_path)

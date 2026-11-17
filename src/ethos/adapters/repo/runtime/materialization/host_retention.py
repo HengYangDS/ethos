@@ -102,7 +102,9 @@ def _consumer_state(
     except (FileNotFoundError, NotADirectoryError):
         # Gone, unless a link that names nothing stands there: it does not say it either.
         return "unknown" if consumer.is_symlink() else "absent"
-    except OSError:
+    except (OSError, ValueError):
+        # A record whose path no host can be asked about, such as one with a null character,
+        # is unknown as well.
         return "unknown"
     try:
         # A held selection lock is a selection in progress, which may be about to name this

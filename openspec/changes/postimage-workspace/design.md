@@ -143,10 +143,18 @@ Non-Goals:
   files alone, so an attributes file counts only when the patch names it, with its content
   before the patch; the preimage check in the repository already reads the same file.
 - A repository that added a link through a patch must add it through the worktree target.
+  The two admissions differ on a link, and the owner decided on 2026-11-17 that both stay as
+  they are and that the reference states the difference: this admission refuses a patch that
+  declares or changes a link, and commit admission admits a link that native Git staged
+  without reading what the link names. A link whose target leaves the repository joins the
+  rule on host-bound paths, which reports from the first batch of 0.3.0
+  (`host-bound-paths`); a relative link inside the repository stays as it is.
 - A deletion written without its `deleted file mode` line (`+++ /dev/null` under a `diff --git`
   line, as a plain unified diff has it) is read as a deletion of its preimage, as in every
   release. Git applies that entry as a move of the file to an empty file at `dev/null`
-  (measured with Git 2.56.1), and neither target reads that file while it is empty. Whether
-  the admission keeps this reading or refuses the form is a question for the cut of
-  2026-11-19; a creation without its `new file mode` line is refused by Git already.
+  (measured with Git 2.56.1), and neither target reads that file while it is empty. The
+  owner decided on 2026-11-17 that the admission keeps this reading and that the reference
+  states it: agents and common tools write this form, the product's own preview writes it,
+  and refusing it or completing it would change what an agent must write or what Git is
+  given. A creation without its `new file mode` line is refused by Git already.
 - Each admission of a patch starts four more Git processes in a repository of a few files.

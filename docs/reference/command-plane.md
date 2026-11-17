@@ -408,6 +408,8 @@ ethos land --json
 
 Scratch objects use the shared store as a read-only alternate and disappear before return. Drift fails closed; split/locked indexes are unknown, and sparse indexes use native cached apply. Preview cannot enforce CAS at later staging; commit admission re-admits actual staged content.
 
+On both targets a patch is read by what Git does with it. A deletion written without its `deleted file mode` line is read as a deletion of its preimage; the empty file that Git then creates at `dev/null` is let be only where that name is free, and a patch that leaves content there is refused. A patch that declares or changes a symbolic link, or declares a submodule entry, is refused. Commit admission differs: it admits a link that native Git staged and does not read what the link names. Request a move by its source and its target.
+
 ### Routine Scoped Execution
 
 Run the repository's original focused tests and formatters first. For a declared

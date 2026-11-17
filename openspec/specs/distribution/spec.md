@@ -318,10 +318,10 @@ exact Git source identity, regardless of checkout role.
 ### Requirement: Accepted release identity is immutable
 
 ETHOS SHALL create an exact release identity only from an explicit release transition and SHALL
-reject rollback, source reuse, or artifact disagreement. A release accepted with its checksum file
-SHALL bind the version, the source commit and tree, that file's digest, and the name and digest of
-every wheel and archive the file lists. Readers SHALL admit an identity recorded without that
-binding.
+reject rollback, source reuse, or artifact disagreement. A release first accepted with its checksum
+file SHALL bind the version, the source commit and tree, that file's digest, and the name and
+digest of every wheel and archive the file lists. Readers SHALL admit an identity recorded
+without that binding, and a version SHALL keep the identity it first recorded.
 
 #### Scenario: Ordinary runtime installation occurs
 
@@ -355,7 +355,8 @@ binding.
 
 #### Scenario: A release is accepted with its checksum file
 
-- **WHEN** an explicit release transition presents the release's `SHA256SUMS` with the wheel
+- **WHEN** an explicit release transition presents the release's `SHA256SUMS` with the wheel, for a
+  version that has no recorded identity
 - **THEN** the accepted identity binds the product version, the source commit and tree, the SHA-256
   of `SHA256SUMS`, and the name and digest of every wheel and archive that file lists
 - **AND** the release Attestation names the checksum file's digest among its evidence
@@ -366,7 +367,7 @@ binding.
 - **WHEN** a release Attestation whose payload carries no checksum file digest is read
 - **THEN** it yields the same accepted identity as before the binding existed
 - **AND** a later acceptance of the same version, source and wheel with its checksum file is
-  admitted beside it.
+  admitted, and the recorded identity stands.
 
 #### Scenario: One version is presented with two checksum files
 
@@ -374,6 +375,29 @@ binding.
   from the one already accepted
 - **THEN** release admission blocks with the version's artifact conflict
 - **AND** no package or Attestation changes.
+
+#### Scenario: A recorded version is accepted again
+
+- **WHEN** an explicit release transition presents the source and wheel of a version whose identity
+  is recorded, and the two identities are equal or differ only in a checksum binding that one of
+  them lacks
+- **THEN** admission answers with the recorded identity and says that the set holds it
+- **AND** the transition completes and returns that identity
+- **AND** the version keeps its one release Attestation, so a checksum file presented after a
+  record without the binding is checked and not recorded.
+
+#### Scenario: The set returns another record than the admitted identity
+
+- **WHEN** the Attestation set answers a transition with a record that is not the identity
+  its admission named, as when another writer recorded the version in between
+- **THEN** the transition refuses with `identity_transition_attestation_mismatch`
+- **AND** it returns no identity that it did not record.
+
+#### Scenario: The wheel changes while it is accepted
+
+- **WHEN** the wheel's bytes change after the transition read them
+- **THEN** the package store receives the bytes whose digest was admitted
+- **AND** no file is stored under a digest that is not its own.
 
 ### Requirement: Content-addressed package publication is host portable
 
@@ -575,7 +599,8 @@ ETHOS SHALL project one accepted product-release version to public channels and 
 tag. Published artifacts SHALL be immutable. Development build identities SHALL remain exact local
 selections, not automatic channel upgrade versions. Pre-release and stable delivery SHALL remain
 distinct. A published file that disagrees with the release's checksum file SHALL refuse the
-acceptance that channels consume.
+acceptance that channels consume. The product's release tag SHALL NOT publish under a release
+policy gap.
 
 #### Scenario: A development archive is proposed for publication
 
@@ -626,6 +651,21 @@ acceptance that channels consume.
 - **THEN** the acceptance refuses with `accepted_release_checksums_invalid` or
   `accepted_release_artifacts_invalid`
 - **AND** no identity binds that file.
+
+#### Scenario: The product's release tag is published under a release policy gap
+
+- **WHEN** `ethos publish` targets a release tag in the repository that declares the ETHOS product
+  profile while the release policy report of its checkout holds a required gap
+- **THEN** the result blocks with that gap among its required gaps
+- **AND** its data carries the report under `release_policy`
+- **AND** its next step names the repair of the first report that has one.
+
+#### Scenario: A governed repository publishes a release tag
+
+- **WHEN** `ethos publish` targets a release tag in a repository that does not declare the ETHOS
+  product profile
+- **THEN** the publication reads no product release policy
+- **AND** its role policy, topology and proof decide as before.
 
 ### Requirement: Curated release notes follow Keep a Changelog
 
@@ -1248,3 +1288,56 @@ empty, lacks a derived release, or gives a release another class than its own.
 - **WHEN** `ethos lane upgrade-from --json` runs
 - **THEN** it selects `lane.upgrade-from`, whose only effect is `read`, and exits 0 on every verdict
 - **AND** its rows come newest bump first and carry no repository's name or path.
+
+### Requirement: The releasing host accepts the release that it installed
+
+The releasing host SHALL accept, once, the release that its invoked installation is.
+
+#### Scenario: The releasing host accepts the release it installed
+
+- **WHEN** `ethos release accept --checksums <SHA256SUMS> --apply` runs in the product repository
+  through an installed release build of the version that the accepted branch commits, built from
+  the commit that the version's tag names
+- **THEN** the transition stores the installed wheel and records the identity bound to the
+  checksum file
+- **AND** the same request without `--apply` writes nothing and names that apply as its next step.
+
+#### Scenario: An accepted release is accepted again
+
+- **WHEN** the request runs after the version's identity is recorded, with the checksum binding
+  or without it
+- **THEN** the result's state is `unchanged`, on a preview and on an apply, and its data carries
+  the recorded identity
+- **AND** neither the package store nor the Attestation set changes.
+
+#### Scenario: The apply cannot write the store or the set
+
+- **WHEN** the apply meets an operating system error after its inputs were read
+- **THEN** it refuses with `release_acceptance_store_unavailable:<error name>`
+- **AND** the refusal's repair names the Git common directory, not the checksum file.
+
+#### Scenario: The invoked installation is not the release to accept
+
+- **WHEN** the invoking `ethos` is a source checkout or a development build, or an installed
+  release older or newer than the version that the accepted branch commits
+- **THEN** the acceptance refuses with `release_installation_absent`,
+  `release_installation_older:<version>` or `release_installation_newer:<version>`
+- **AND** the refusal precedes every effect and names its repair
+- **AND** the two versions are ordered as SemVer texts, so a committed version outside the
+  wheel profile reads as older or newer.
+
+#### Scenario: The release has no tag, or the installation has another source
+
+- **WHEN** the repository holds no tag of the version that the accepted branch commits, or the
+  installed wheel was not built from the commit that the tag names
+- **THEN** the acceptance refuses with `release_tag_missing:v<version>` or
+  `release_wheel_build_identity_stale`
+- **AND** no package or Attestation changes.
+
+#### Scenario: A release is accepted outside the product repository
+
+- **WHEN** the command runs in a repository that does not declare the ETHOS product profile
+- **THEN** it refuses with `release_acceptance_product_only`
+- **AND** that repository records no release identity
+- **AND** a profile that cannot be read refuses with `repository_profile_invalid:<path>`, never
+  as another repository.

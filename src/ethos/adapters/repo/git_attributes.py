@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import PureWindowsPath
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from pathlib import Path
 
 _RECEIVED_ATTRIBUTES = (b"linguist-vendored", b"linguist-generated")
+_ATTRIBUTE_FILES = (":(glob)**/.gitattributes",)
+_SHA256_HEX = 64
 _CHECKOUT_ATTRIBUTES = (b"text", b"eol")
 _BINARY_WORKTREE = b"w/-text"
 
@@ -25,64 +34,45 @@ def received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
 def worktree_received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
     """Return the paths that the worktree's bound `.gitattributes` files mark vendored or generated.
 
-    The authored selection reads its marks here. Bound are the attribute files that Git tracks
-    or would add: a proof binds those, and a commit can carry them. Git resolves the marks in
-    a copy of those files alone, through an empty Git directory of the reading's own. So the
-    repository's `info/attributes`, a configured attributes file and a `.gitattributes` that an
-    exclude rule hides mark nothing. Patterns keep the repository's own case rule, and Git's
-    refusal keeps its own error. Every other reader keeps `received_paths`; their use of local
-    state is the subject of the draft Change `local-git-state-binding`.
+    The authored selection reads its marks here. Bound is what a proof's source binding sees:
+    the head's tree with the worktree's `.gitattributes` files as Git would add them. Git
+    resolves the marks against that tree, by exact case, through an empty Git directory of the
+    reading's own. So the repository's `info/attributes`, a configured attributes file, a
+    `.gitattributes` file that an exclude rule hides and the host's case rule mark nothing, and
+    no attributes file is read from disk here. A name that leaves the tree receives nothing;
+    its own caller names it invalid. Without a head there is no tree, and nothing is received.
+    Git's refusal keeps its own error. Every other reader keeps `received_paths`; their use of
+    local state is the subject of the draft Change `local-git-state-binding`.
     """
-    # A name that leaves the tree has no attribute file above it here, and Git refuses to read
-    # it; it receives nothing, so its own caller names it invalid.
-    paths = tuple(
-        name for name in paths if not Path(name).is_absolute() and ".." not in Path(name).parts
+    inside = tuple(
+        name
+        for name in paths
+        if not PureWindowsPath(name).anchor and ".." not in PureWindowsPath(name).parts
     )
-    if not paths:
+    head = current_tracked_head(root) if inside else ""
+    if not head:
         return frozenset()
-    case = run_git(
-        root,
-        "config",
-        "--type=bool",
-        "--default=false",
-        "--get",
-        "core.ignoreCase",
-        observation=True,
-    ).stdout.strip()
-    bound = run_git(
-        root,
-        "ls-files",
-        "-z",
-        "--cached",
-        "--others",
-        "--exclude-standard",
-        "--",
-        ":(glob)**/.gitattributes",
-        check=False,
-        observation=True,
-    )
-    if bound.returncode:
-        # No listing, as outside a repository: nothing is received, so every name stays judged.
-        return frozenset()
-    with TemporaryDirectory(prefix="ethos-attributes-") as scratch:
-        empty, tree = Path(scratch, "git"), Path(scratch, "tree")
-        tree.mkdir()
-        run_git(root, "init", "--quiet", "--bare", "--template=", str(empty), observation=True)
-        for name in filter(None, bound.stdout.split("\0")):
-            if (source := root / name).is_file() and not source.is_symlink():
-                (tree / name).parent.mkdir(parents=True, exist_ok=True)
-                (tree / name).write_bytes(source.read_bytes())
+    with (
+        observe_worktree_postimage(
+            root, previous=head, include_paths=False, only=_ATTRIBUTE_FILES
+        ) as bound,
+        TemporaryDirectory(prefix="ethos-attributes-") as empty,
+    ):
+        hashing = f"--object-format={'sha256' if len(head) == _SHA256_HEX else 'sha1'}"
+        run_git(root, "init", "--quiet", "--bare", "--template=", hashing, empty, observation=True)
         isolated = (
             "--git-dir",
-            str(empty),
-            "--work-tree",
-            ".",
+            empty,
             "-c",
             f"core.attributesFile={os.devnull}",
             "-c",
-            f"core.ignoreCase={case}",
+            "core.ignoreCase=false",
         )
-        return _marked(_native_attributes(tree, paths, _RECEIVED_ATTRIBUTES, *isolated, check=True))
+        objects = {key: value for key, value in bound.environment.items() if "OBJECT" in key}
+        observed = _native_attributes(
+            root, inside, _RECEIVED_ATTRIBUTES, *isolated, source=bound.tree, objects=objects
+        )
+        return _marked(observed)
 
 
 def checkout_line_endings(root: Path, paths: tuple[str, ...]) -> dict[str, tuple[str, str]] | None:
@@ -144,25 +134,29 @@ def _marked(observed: dict[str, dict[bytes, bytes]] | None) -> frozenset[str]:
 
 
 def _native_attributes(
-    root: Path, paths: tuple[str, ...], names: tuple[bytes, ...], *options: str, check: bool = False
+    root: Path,
+    paths: tuple[str, ...],
+    names: tuple[bytes, ...],
+    *options: str,
+    source: str = "",
+    objects: Mapping[str, str] | None = None,
 ) -> dict[str, dict[bytes, bytes]] | None:
     """Return each path's named attribute values, or None unless Git reports all of them.
 
-    Options for Git itself precede the command; a checked read raises Git's own refusal.
+    Options for Git itself precede the command. A read against a source tree finds its
+    objects where `objects` says, and raises Git's own refusal.
     """
     if not paths:
         return {}
-    completed = run_git(
-        root,
-        *options,
-        "check-attr",
-        "-z",
-        "--stdin",
-        *(name.decode() for name in names),
-        stdin=b"".join(path.encode("utf-8", errors="surrogateescape") + b"\0" for path in paths),
-        check=check,
-        text=False,
-        observation=True,
+    command = (*options, "check-attr", *(("--source", source) if source else ()), "-z", "--stdin")
+    stdin = b"".join(path.encode("utf-8", errors="surrogateescape") + b"\0" for path in paths)
+    attributes = tuple(name.decode() for name in names)
+    completed = (
+        run_git(root, *command, *attributes, stdin=stdin, text=False, env=objects)
+        if source
+        else run_git(
+            root, *command, *attributes, stdin=stdin, check=False, text=False, observation=True
+        )
     )
     fields = completed.stdout.split(b"\0")
     if completed.returncode or fields.pop() != b"" or len(fields) != 3 * len(names) * len(paths):

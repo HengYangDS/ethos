@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -13,6 +14,7 @@ import pytest
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.repo.git_attributes as git_attributes
+from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -158,27 +160,52 @@ def test_the_authored_selection_reads_marks_from_the_worktree_files_alone(
 
 
 @pytest.mark.parametrize(
-    ("rule", "selected"),
-    [
-        (("core.ignoreCase", "true"), []),
-        (("core.ignoreCase", "false"), [_NOTE]),
-        (("--unset", "core.ignoreCase"), [_NOTE]),
-    ],
+    "rule",
+    [("core.ignoreCase", "true"), ("core.ignoreCase", "false"), ("--unset", "core.ignoreCase")],
 )
-def test_the_authored_selection_keeps_the_repository_case_rule(
-    tmp_path: Path, rule: tuple[str, str], selected: list[str]
+def test_a_pattern_in_another_case_marks_nothing_on_any_host(
+    tmp_path: Path, rule: tuple[str, str]
 ) -> None:
-    """A mark whose pattern differs in case counts as the repository's own case rule says.
+    """The marks are read by exact case, whatever the repository's or the volume's case rule.
 
-    A repository without the setting matches by exact case, which is Git's own default. Git's
-    reading in the repository answers the same, so this guards one thing: that the reading's own
-    Git directory is handed the rule. On a volume that folds case the last two cases can show a
-    rule that is not handed over, and on one that does not, the first.
+    Git's own reading follows that rule, so one commit would be judged on one host and left out
+    on another.
     """
     repo, _local = _marked_repository(tmp_path, "DOCS/NOTES.md linguist-generated\n")
     git(repo, "config", "core.ignoreCase", "true")
     git(repo, "config", *rule)
-    assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == selected
+    assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == [_NOTE]
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        "flagged-edit",
+        pytest.param(
+            "linked-parent",
+            marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege"),
+        ),
+    ],
+)
+def test_the_marks_are_those_of_the_tree_that_the_source_binding_sees(
+    tmp_path: Path, state: str
+) -> None:
+    """An edit that Git's status hides counts, and the binding sees it; a link reads no file."""
+    repo, _local = _marked_repository(tmp_path)
+    commit_fixture_file(repo, "docs/.gitattributes", "# no mark\n", "an attributes file")
+    head, mark = git(repo, "rev-parse", "HEAD"), "notes.md linguist-generated\n"
+    tree = git(repo, "rev-parse", f"{head}^{{tree}}")
+    if state == "flagged-edit":
+        git(repo, "update-index", "--skip-worktree", "docs/.gitattributes")
+        (repo / "docs/.gitattributes").write_text(mark, encoding="utf-8")
+        assert git(repo, "status", "--porcelain") == ""
+    else:
+        write_tree(tmp_path / "outside", {".gitattributes": mark, "notes.md": "text\n"})
+        shutil.rmtree(repo / "docs")
+        (repo / "docs").symlink_to(tmp_path / "outside", target_is_directory=True)
+    received = git_attributes.worktree_received_paths(repo, (_NOTE,))
+    assert received == ({_NOTE} if state == "flagged-edit" else set())
+    assert observe_execution_source(repo, head, tree)["worktree"] != tree
 
 
 def test_a_refused_attribute_read_keeps_its_error_and_its_git_directory_is_removed(
@@ -192,7 +219,7 @@ def test_a_refused_attribute_read_keeps_its_error_and_its_git_directory_is_remov
     def refused(root: Path, *args: str, **options: Any) -> subprocess.CompletedProcess[Any]:
         if "check-attr" in args:
             made.append(Path(args[args.index("--git-dir") + 1]))
-            assert made[0].parents[1].resolve() == Path(tempfile.gettempdir()).resolve()
+            assert made[0].parent.resolve() == Path(tempfile.gettempdir()).resolve()
             assert {entry.name for entry in made[0].iterdir()} & _TEMPLATE_ENTRIES == {"HEAD"}
             args = (*args[: args.index("check-attr") + 1], "--no-such-option")
         return native(root, *args, **options)
@@ -200,4 +227,4 @@ def test_a_refused_attribute_read_keeps_its_error_and_its_git_directory_is_remov
     monkeypatch.setattr(git_attributes, "run_git", refused)
     with pytest.raises(subprocess.CalledProcessError):
         native_inputs.authored_source_files(repo, paths=(_NOTE,))
-    assert [directory.parent.exists() for directory in made] == [False]
+    assert [directory.exists() for directory in made] == [False]

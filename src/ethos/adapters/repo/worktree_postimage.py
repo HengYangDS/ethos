@@ -26,9 +26,12 @@ class WorktreePostimage(NamedTuple):
 
 @contextmanager
 def observe_worktree_postimage(
-    root: Path, *, previous: str, include_paths: bool = True
+    root: Path, *, previous: str, include_paths: bool = True, only: tuple[str, ...] = ()
 ) -> Generator[WorktreePostimage]:
-    """Project complete native content; enumerate changed paths only when requested."""
+    """Project complete native content; enumerate changed paths only when requested.
+
+    With `only`, the tree is the previous one with the worktree's content at those pathspecs.
+    """
     common = Path(git_common_dir(root))
     with tempfile.TemporaryDirectory(prefix="ethos-postimage-") as temporary:
         workspace = Path(temporary)
@@ -40,7 +43,8 @@ def observe_worktree_postimage(
             "GIT_ALTERNATE_OBJECT_DIRECTORIES": (common / "objects").as_posix(),
         }
         run_git(root, "read-tree", previous, env=environment)
-        staged = run_git(root, "add", "--all", check=False, env=environment)
+        limited = ("--", *only) if only else ()
+        staged = run_git(root, "add", "--all", *limited, check=False, env=environment)
         if staged.returncode:
             raise ValueError(staged.stderr.strip() or "git_effect_postimage_stage_failed")
         tree = run_git(root, "write-tree", env=environment).stdout.strip()

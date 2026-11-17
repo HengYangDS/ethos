@@ -50,8 +50,9 @@
 
 ## 4. Lane, hosted and owner tasks
 
-- [ ] 4.1 Pass the precheck and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 4.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 4.2 Hand the first bump through the product to the first release that carries `--pin`. Done
       when the Workflow follow-up names the run on a disposable copy of one governed tree that holds
       the `http:ethos` table and the three results it owes.

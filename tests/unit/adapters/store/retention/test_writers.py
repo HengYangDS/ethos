@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
+
+import pytest
 
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.store.retention.writers import running_writers
@@ -11,8 +14,6 @@ from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def _entry(path: Path) -> Path:
@@ -45,6 +46,44 @@ def test_only_a_command_that_starts_from_a_writer_root_counts(tmp_path: Path) ->
 
     assert running_writers(listing, roots) == (generation, environment, installation)
     assert running_writers(f"{reader} {ethos}\nruff server", roots) == ()
+
+
+def test_a_command_line_that_names_no_file_is_no_writer(tmp_path: Path) -> None:
+    """A text that no filesystem can name is no path, and the entry before it still decides.
+
+    A command line is tried as a path up to each of its spaces, so most of what is tried names
+    nothing. Python 3.14 answers that no file lies at a name longer than a path may be; Python
+    3.12 and 3.13 raise there, and a listing that raises is read as an unknown writer, which
+    defers every batch on a host that runs one process with a long command line.
+    """
+    environment = tmp_path / "lane/.venv"
+    ethos = _entry(environment / "bin/ethos")
+    reader = _entry(tmp_path / "bin/cat")
+    words = "x" * 5000
+
+    assert running_writers(f"{reader} {words}", (environment,)) == ()
+    assert running_writers(f"{ethos} lane status {words}", (environment,)) == (environment,)
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
+)
+def test_a_command_below_a_directory_that_cannot_be_searched_is_no_writer(tmp_path: Path) -> None:
+    """Its entry cannot be looked at, as its directory cannot be resolved to find its owner.
+
+    The interpreters before Python 3.14 raise there too, and the listing's other commands are
+    still read.
+    """
+    environment = tmp_path / "lane/.venv"
+    ethos = _entry(environment / "bin/ethos")
+    closed = tmp_path / "closed"
+    tool = _entry(closed / "bin/ethos")
+    closed.chmod(0)
+    try:
+        assert running_writers(f"{tool} status\n{ethos} status", (environment,)) == (environment,)
+    finally:
+        closed.chmod(0o755)
 
 
 def test_the_writer_roots_are_this_repositorys_other_interpreters(

@@ -88,6 +88,10 @@
 - [x] 6.6 Hand a tool its text input with the caller's line endings on every platform, in
       `src/ethos/adapters/process.py`. Done when the regression fails without the change and
       the Windows leg passes `tests/architecture/ci/test_job_identity.py`.
+- [ ] 6.7 Read a command line that names no file as no writer on every interpreter, in
+      `src/ethos/adapters/store/retention/writers.py`. Done when the regression fails without
+      the change at Python 3.12 and at Python 3.13, and the Python 3.12 leg passes
+      `tests/unit/cli/test_hook_record_retirement.py`.
 
 ## Workflow follow-up
 

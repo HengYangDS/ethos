@@ -34,7 +34,13 @@ def _leading_path(text: str) -> tuple[Path, str] | None:
     found: tuple[Path, str] | None = None
     for end in [m.start() for m in re.finditer(r" ", text)] + [len(text)]:
         candidate = Path(text[:end])
-        if candidate.is_file() or candidate.is_symlink():
+        try:
+            exists = candidate.is_file() or candidate.is_symlink()
+        except OSError:
+            # A name that the host does not look at, as one longer than a path may be, is no
+            # file. Python 3.14 answers so by itself; the interpreters before it raise here.
+            exists = False
+        if exists:
             found = (candidate, text[end:].lstrip(" "))
     return found
 

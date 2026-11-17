@@ -187,6 +187,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A command that passes its time bound reports that bound as its timeout on every supported
   interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
   when the wait began, a little less than the bound, where no stream of the command was a pipe.
+- `ethos hook retire-records --apply` no longer defers every batch under Python 3.12 or 3.13
+  while a process with a long command line runs. A command line is tried as a path, and those
+  interpreters raise for a name longer than a path may be, where Python 3.14 answers that no
+  file lies there; the apply read the error as an unknown writer and answered
+  `record_retirement_batch_deferred:<kind>:writer`. The defect is in every release from
+  0.2.0-beta.7 through 0.2.0-beta.11; Python 3.14 is not affected.
 - A full proof that cannot open the host queue, take its place in it or give that place up
   answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
   error itself, in 0.2.0-beta.10 and 0.2.0-beta.11 as well, in place of a gap or an interrupt

@@ -57,8 +57,9 @@
 
 ## 5. Lane only
 
-- [ ] 5.1 Run the precheck and readiness at the lane head, then the full proof. Done when each
-      passes on the committed head.
+- [x] 5.1 Run the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 5.2 Confirm that the shipped format policy still holds `immutable_record_roots` with the
       accepted head's value. Done when a commit and a push of the lane pass the hooks of the
       runtime bound to this repository.
@@ -75,3 +76,5 @@
   `refusal-repairs` draft carries the bullet.
 - Status or the paradigm report shows a profile's declared record roots. No draft carries this
   yet; the release lead decides its row.
+- Landing: the full proof runs on the archived head, where one proof serves every Change of the
+  unit; its receipt is the landing's.

@@ -65,12 +65,17 @@
 
 ## 5. Lane, hosted run and owner
 
-- [ ] 5.1 Lane: run the lane's check and the full proof at the committed head. Done when both
-      pass.
-- [ ] 5.2 Hosted run: with a signed-in CLI, run `ethos publish --observe-hosted --json` once
-      against each forge for a head that has a failed run. Done when each peer's runs and the
-      failed run's jobs are listed with the states the forge shows, or the reader's keys are
-      corrected to the JSON it prints.
+- [x] 5.1 Lane: run the lane's check at the committed head. Done when the precheck and readiness
+      pass. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
+- [x] 5.2 Hosted run: with a signed-in CLI, run `ethos publish --observe-hosted --json` once against
+      each forge for a head that has a failed run. Done when each peer's runs and the failed run's
+      jobs are listed with the states the forge shows, or the reader's keys are corrected to the
+      JSON it prints. Observed on 2026-11-17 with this lane's engine at `4a5029e96`: at `a725a9d6f`
+      the GitHub peer read `failed` with its three runs, and the failed run 43978304848 listed the
+      three jobs that did not pass, as the forge shows them; at `d7131167d` the GitLab peer read
+      `failed` with its one pipeline and its one failed job, and the GitHub peer read `passed` with
+      no job. A peer without a run of the head read `no_run`. No key was corrected.
 - [x] 5.5 Hand the arming of the release ref's refusal to the owner. Done when the Workflow
       follow-up names the owner's decision (the release in which a release ref requires a passing
       observation, no earlier than the release after this one), the three cases of decision 8 that
@@ -92,3 +97,5 @@
   not run for the accepted branch, an SSH remote without the local `forgeRepository` key), then name
   the release that arms the refusal, no earlier than the release after this one; the successor
   Change carries the refusal, its Breaking entry, its repair and the stored record.
+- Landing: the full proof runs on the archived head, where one proof serves every Change of the
+  unit; its receipt is the landing's.

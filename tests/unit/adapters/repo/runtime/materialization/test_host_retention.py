@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from typing import TYPE_CHECKING
 
@@ -79,18 +80,64 @@ def test_a_rollback_supply_keeps_its_installation(tmp_path: Path) -> None:
     assert report["retired"] == []
 
 
-def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(tmp_path: Path) -> None:
-    """A moved repository or an unmounted volume looks like a removed one, so nothing goes."""
+@pytest.mark.parametrize(
+    "left",
+    [
+        "nothing",
+        pytest.param(
+            "link", marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege")
+        ),
+    ],
+)
+def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
+    tmp_path: Path, left: str
+) -> None:
+    """A moved repository or an unmounted volume looks like a removed one, so nothing goes.
+
+    A link left at the consumer's path that names nothing is kept as well and is not called
+    absent: nothing says what it named.
+    """
     store = _store(tmp_path)
     runtime = _installation(store, "d" * 64)
     repository = _consumer(tmp_path / "repository", current=runtime)
     record_consumer(runtime.parents[1], repository)
     shutil.rmtree(tmp_path / "repository")
+    if left == "link":
+        repository.parent.mkdir()
+        repository.symlink_to(tmp_path / "unmounted/.git", target_is_directory=True)
 
     report = retire_unused_installations(store, in_use=_nothing_in_use)
 
     assert runtime.exists()
-    assert (report["retired"], report["absent"]) == ([], [repository.as_posix()])
+    assert report["retired"] == []
+    assert report["absent"] == ([] if left == "link" else [repository.as_posix()])
+    assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
+)
+@pytest.mark.parametrize(
+    "closed", ["", "ethos", "ethos/runtime"], ids=["common", "state", "selectors"]
+)
+def test_a_consumer_whose_selectors_cannot_be_looked_at_keeps_its_installation(
+    tmp_path: Path, closed: str
+) -> None:
+    """A selector below a directory that may not be searched is unknown, never released."""
+    store = _store(tmp_path)
+    runtime = _installation(store, "9" * 64)
+    repository = _consumer(tmp_path / "repository", current=runtime)
+    record_consumer(runtime.parents[1], repository)
+    place = repository / closed
+    place.chmod(0)
+    try:
+        report = retire_unused_installations(store, in_use=_nothing_in_use)
+    finally:
+        place.chmod(0o700)
+
+    assert runtime.exists()
+    assert report["retired"] == []
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 

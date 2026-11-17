@@ -76,9 +76,20 @@
       and holds both refusals. The legs took 261 s on Linux x64 and 254 s on macOS, where the last
       run before this Change (43542619629) took 633 s and 1,140 s; the Linux ARM64 leg of
       `journey-hosts` took 271 s.
-- [ ] 5.4 Decide whether the releasing host runs the journey as a local venue. Done when one
-      local receipt reads `passed`, or the reason it cannot run there is recorded.
+- [x] 5.4 Decide whether the releasing host runs the journey as a local venue. Done when one local
+      receipt reads `passed`, or the reason it cannot run there is recorded. One local run on
+      2026-11-17 at the lane head, under a host ticket: its receipt names `venue` `local` and reads
+      `failed` with `release_journey_release_lookup_failed`. The journey reads its forge token from
+      `GH_TOKEN` alone, and the releasing host's client is signed in through its own store, which
+      acquisition's fresh home does not hold. The host runs no local venue until the owner hands the
+      journey a token for it.
 - [x] 5.5 Give the committee the measured tools size for its decision on the release rehearsal. Done
       when the weekly page states it by file. Stated in the weekly page's hand-kept measures on
       2026-11-17, by file at `4a5029e96` against `dev`: +275.4 line-equivalents of tools in the
       batch, of which this Change's own commits are +242.1.
+
+## Workflow follow-up
+
+- Owner: a local venue needs a forge token in the journey's launch environment. Decide whether the
+  releasing host gives it one for a run, or whether acquisition gains a way to use the host's own
+  sign-in. Read again with `release-rehearsal`.

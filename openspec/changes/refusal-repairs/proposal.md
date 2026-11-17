@@ -18,6 +18,17 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
 
 ## What Changes
 
+The first slice is one class, which the owner named on 2026-11-17 as the one off-gate row of
+0.2.0-beta.13: a check reports every finding that it computed. A check that has computed
+several findings reports one, so each finding costs a run, and under a host queue each run
+costs a wait. Measured by one governed repository's session under 0.2.0-beta.10 on 2026-11-17:
+two gates went from never run to pass in three host tickets, 10,334 seconds in the queue and
+974 seconds of slot, for four findings that one run had computed. Read in this product on the
+same day: the evidence reader builds the whole list of unexercised files and of a static
+report's findings and carries the first, the behavior gap returns one kind and no path, the
+content reader stops at the first target that the tree does not deliver, and the staged size
+check below is one more case. The bullets below stay as named remainders.
+
 - The link gate's gap carries each redirecting URL and its target.
 - The staged size check reports every file over the ceiling in one refusal.
 - The version-source repair proposes a value that the release accepts.
@@ -78,6 +89,10 @@ release lane or by a governed repository's session under 0.2.0-beta.10:
   build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the
   accepted root on 2026-11-16, on a wheel of an earlier layout). The refusal says that the wheel
   is not built from the requested head and names the release build as the next step.
+- The preview of `ethos hook retire-records`, run from a build that the repository does not
+  select, refuses with `record_retirement_runtime_unselected` and names no next step: the
+  result's next action and its instruction are empty. Measured on the accepted root on
+  2026-11-17. The refusal names the selected runtime's own console.
 
 ## Capabilities
 
@@ -94,5 +109,6 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 Four checks' results and one docstring. Each narrows or clarifies a refusal, which the law freeze
 admits; none adds a rule.
 
-Owner: the release lead. Next action: write and measure each patch as its own small Change, or as
-one when they share a file. Read again: at the cut of 0.2.0-beta.12.
+Owner: the release lead. Next action: the design and the measured patch of the first slice for
+the batch of 0.2.0-beta.13; then each remainder as its own small Change, or as one when they
+share a file. Read again: at the cut of 0.2.0-beta.14.

@@ -13,7 +13,9 @@
       paths passes unedited.
       (`e9836b40a`; `tests/unit/adapters/repo/test_git_attributes.py` is as at the release head
       and passes.)
-- [ ] 1.3 Give `authored_text_files` Git's own reading back. Done when every test of 1.1 passes.
+- [x] 1.3 Give `authored_text_files` Git's own reading back. Done when every test of 1.1 passes.
+      (At `8e624f79d` on 2026-11-18 the three modules of the reading pass on Python 3.12, 3.13 and
+      3.14, 35 cases on each.)
 - [x] 1.4 Read the marks against the tree that the source binding's owner builds from the head
       and the worktree's attribute files. Done when a committed misspelling blocks under a hidden
       attributes file beside it, a link in a parent directory reads no file outside, and an edit
@@ -29,20 +31,25 @@
 
 ## 2. The requirement
 
-- [ ] 2.1 Modify the requirement on received paths to name the worktree's files, with one scenario
+- [x] 2.1 Modify the requirement on received paths to name the worktree's files, with one scenario
       for a local line. Done when strict OpenSpec validation of this Change passes.
+      (Strict validation of this Change at `8e624f79d`: valid.)
 
 ## 3. Lane, hosted runs and the owner
 
-- [ ] 3.1 Amend the Fixed item of the 0.2.0-beta.11 entry with the source that counts. Done when
+- [x] 3.1 Amend the Fixed item of the 0.2.0-beta.11 entry with the source that counts. Done when
       the changelog check reports nothing with 0.2.0-beta.11 as its release target.
-- [ ] 3.2 Run `tests/unit/adapters/gates/test_native_inputs.py`,
+      (`changelog_errors` with the target 0.2.0-beta.11 reports nothing at `9479505e9`.)
+- [x] 3.2 Run `tests/unit/adapters/gates/test_native_inputs.py`,
       `tests/unit/adapters/repo/test_git_attributes.py`,
       `tests/unit/adapters/gates/test_source_format.py` and
       `tests/unit/adapters/gates/test_prose.py` on Python 3.12 and 3.13. Done when the four pass
       on each interpreter.
-- [ ] 3.3 Read the Windows legs of the hosted host conformance at the lane head. Done when their
+      (At `8e624f79d` the four pass on Python 3.12 and 3.13, in two groups of 35 and 47 cases.)
+- [x] 3.3 Read the Windows legs of the hosted host conformance at the lane head. Done when their
       install smoke, which runs the format command and a proof, passes on each leg.
+      (GitHub run 44163240940 at `8e624f79d`, which holds the reading's last product code: the
+      four Windows legs pass.)
 - [x] 3.4 Run the release lead's probe of the gate's verdict against the lane head. Done when the
       prose gate blocks in its three states on both routes, the Git directory's attributes file
       and a hidden attributes file of the worktree.

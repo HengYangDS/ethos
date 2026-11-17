@@ -172,7 +172,8 @@ def test_a_record_of_a_path_that_no_host_can_be_asked_about_ends_no_cleanup(
     kept, old = _installation(store, "5" * 64), _installation(store, "6" * 64)
     records = kept.parents[1] / "consumers"
     records.mkdir(mode=0o700)
-    (records / "damaged").write_text("/repository\0/.git\n", encoding="utf-8")
+    damaged = f"{tmp_path.as_posix()}/repository\0/.git\n"
+    (records / "damaged").write_text(damaged, encoding="utf-8")
     record_consumer(old.parents[1], _consumer(tmp_path / "repository"))
 
     report = retire_unused_installations(store, in_use=_nothing_in_use)

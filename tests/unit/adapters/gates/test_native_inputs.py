@@ -14,7 +14,9 @@ import pytest
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.repo.git_attributes as git_attributes
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -230,6 +232,18 @@ def test_a_tree_without_an_attributes_file_marks_nothing(tmp_path: Path, left: s
     received = {_NOTE} if left == "a-new-file" else set()
     assert git_attributes.worktree_received_paths(repo, (_NOTE,)) == received
     assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == sorted({_NOTE} - received)
+
+
+def test_a_pathspec_that_names_nothing_is_not_added_beside_one_that_names_a_file(
+    tmp_path: Path,
+) -> None:
+    """Git refuses a whole add for one pathspec without a file, so each is listed on its own."""
+    repo = init_git_repo(tmp_path / "adopter")
+    write_tree(repo, {"docs/.gitattributes": "notes.md linguist-generated\n"})
+    only, head = (":(glob)**/.gitattributes", "no/such/file"), git(repo, "rev-parse", "HEAD")
+    with observe_worktree_postimage(repo, previous=head, include_paths=False, only=only) as bound:
+        listed = run_git(repo, "ls-tree", "-r", "--name-only", bound.tree, env=bound.environment)
+    assert "docs/.gitattributes" in listed.stdout.splitlines()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="a name that is no text needs an index of bytes")

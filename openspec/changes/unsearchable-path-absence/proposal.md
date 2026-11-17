@@ -61,11 +61,13 @@ Candidates for the design, the first decided by the owner:
   selectors closed, and passes on three interpreters with the repair. Open, the owner's:
   whether this repair enters 0.2.0-beta.11 with its one planned move of the release head,
   or stays here.
-- A finding of the lead's review of the prepared patch, on 2026-11-17: a link that is there
-  and whose target lies below a closed directory must stay unknown also where the link is a
-  directory of the listed path. Asked as a directory, Python 3.14 answers that it is none
-  and the older interpreters raise. The reader asks the host for the path's status there,
-  which raises on every interpreter.
+- A reading of the lead's review of the prepared patch, on 2026-11-17: for a link that is
+  there and whose target lies below a closed directory, the reader's question for a
+  directory answers differently by interpreter, and the walk over a listed path never
+  reaches it for such a link: it asks each name as a last name first, where the strict
+  resolution raises on every interpreter. A case for a name below such a link passes on
+  three interpreters without a change of code, and guards that order. The lead first
+  recorded this here as a defect with a repair, before its case had run; that is corrected.
 - The cases of the three readers run on Python 3.12, 3.13 and 3.14.
 
 The trade-off that the decision accepts: a process that runs from an owned generation whose

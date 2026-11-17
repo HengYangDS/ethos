@@ -39,12 +39,13 @@ Candidates for the design, the first decided by the owner:
   one scenario for this reading. A process listing that cannot be read at all still defers, as
   its scenario states.
 - A third reader of the same class, found on the same day by the study of `store-retention`:
-  the host store's reader of a consumer's state asks whether the consumer's path exists
-  before its guard. Below a directory that may not be searched the call raises under Python
-  3.12 and 3.13, which leaves the reader, and answers no under 3.14, where the reader says
-  `absent`. It takes the same reading on every interpreter: `absent` keeps the record and the
-  installations and only names the consumer. A release of an absent consumer does not rest on
-  that word; `store-retention` reads absence itself for it.
+  the host store's reader of a consumer's state asked whether the consumer's path exists
+  before its guard. Below a directory that may not be searched the call raised under Python
+  3.12 and 3.13, which left the reader, and answered no under 3.14, where the reader said
+  `absent`. The move of the release head of 0.2.0-beta.11 gave it one reading on every
+  interpreter, `unknown`: the plan of legacy supply holds no installation for an absent
+  consumer, and unknown keeps the record and the installation in both plans
+  (`beta-11-head-move`, decision 4). This Change keeps the two readers of a process listing.
 - A defect in that third reader, in every release since 0.2.0-alpha.8, verified by the release
   lead on 2026-11-17 with the product code of `v0.2.0-beta.10` and of the release head of
   0.2.0-beta.11 on three interpreters. Where the consumer's own Git common directory may not be
@@ -55,8 +56,8 @@ Candidates for the design, the first decided by the owner:
   inside the consumer's own Git directory that cannot be looked at reads `unknown` on every
   interpreter. What is lost today is an installation, which an install makes again, and no
   repository's data. On the releasing host, 0 of 31 governed checkouts hold such a directory.
-  The repair is written on that release head and not yet in a lane: each selector's own
-  status is asked of the host before the selector is read. Its case fails first under
+  The repair is in the lane of that move: the selector's one reader asks the host for the
+  selector's status. Its case fails first under
   Python 3.14 in two states, the Git common directory closed and the directory of the
   selectors closed, and passes on three interpreters with the repair. Decided by the
   owner on 2026-11-17: the repair enters 0.2.0-beta.11 with the move of its release head

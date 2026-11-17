@@ -208,25 +208,46 @@ def test_the_marks_are_those_of_the_tree_that_the_source_binding_sees(
     assert observe_execution_source(repo, head, tree)["worktree"] != tree
 
 
-@pytest.mark.parametrize("left", ["no-file", "a-file-that-a-rule-hides"])
+@pytest.mark.parametrize("left", ["no-file", "a-file-that-a-rule-hides", "a-new-file"])
 def test_a_tree_without_an_attributes_file_marks_nothing(tmp_path: Path, left: str) -> None:
     """Where the bound tree holds no attributes file, nothing is received and nothing refused.
 
     Git refuses to add a pathspec that names nothing. A file that an exclude rule hides is no
-    part of the tree that the source binding sees, so its mark does not count.
+    part of the tree that the source binding sees, so its mark does not count; a new file that
+    Git would add is part of it, and its mark counts.
     """
     repo = init_git_repo(tmp_path / "adopter")
     git(repo, "rm", "--quiet", "--", ".gitattributes")
     head = commit_fixture_file(repo, _NOTE, "# Notes\n", "notes and no attributes file")
     assert git(repo, "ls-tree", "-r", "--name-only", head, "--", ".gitattributes") == ""
-    if left != "no-file":
+    if left == "a-file-that-a-rule-hides":
         local = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
         local.parent.mkdir(parents=True, exist_ok=True)
         local.write_text(".gitattributes\n", encoding="utf-8")
+    if left != "no-file":
         write_tree(repo, {".gitattributes": f"{_NOTE} linguist-generated\n"})
-        assert git(repo, "status", "--porcelain") == ""
-    assert git_attributes.worktree_received_paths(repo, (_NOTE,)) == frozenset()
-    assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == [_NOTE]
+        assert (git(repo, "status", "--porcelain") == "") == (left != "a-new-file")
+    received = {_NOTE} if left == "a-new-file" else set()
+    assert git_attributes.worktree_received_paths(repo, (_NOTE,)) == received
+    assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == sorted({_NOTE} - received)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a name that is no text needs an index of bytes")
+def test_an_attributes_file_below_a_name_that_is_no_text_ends_no_selection(tmp_path: Path) -> None:
+    """Git names a path in bytes, and no reading of the marks decodes one."""
+    repo, _local = _marked_repository(tmp_path)
+    stored = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"],
+        cwd=repo,
+        input=b"* linguist-generated\n",
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    entry = b"100644 " + stored + b"\tcaf\xe9/.gitattributes\0"
+    subprocess.run(["git", "update-index", "-z", "--index-info"], cwd=repo, input=entry, check=True)
+    commit = git(repo, "commit-tree", "-p", "HEAD", "-m", "a name", git(repo, "write-tree"))
+    git(repo, "update-ref", "HEAD", commit)
+    assert git_attributes.worktree_received_paths(repo, (_NOTE, _LICENSE)) == {_LICENSE}
 
 
 def test_a_refused_attribute_read_keeps_its_error_and_its_git_directory_is_removed(

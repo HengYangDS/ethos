@@ -31,7 +31,7 @@ def observe_worktree_postimage(
     """Project complete native content; enumerate changed paths only when requested.
 
     With `only`, the tree is the previous one with the worktree's content at those pathspecs;
-    pathspecs that name no file of either leave it as it is.
+    a pathspec that names no file of either adds nothing.
     """
     common = Path(git_common_dir(root))
     with tempfile.TemporaryDirectory(prefix="ethos-postimage-") as temporary:
@@ -44,10 +44,16 @@ def observe_worktree_postimage(
             "GIT_ALTERNATE_OBJECT_DIRECTORIES": (common / "objects").as_posix(),
         }
         run_git(root, "read-tree", previous, env=environment)
-        limited = ("--", *only) if only else ()
-        # Git refuses to add a pathspec that names no file of the tree or of the worktree.
-        named = ("ls-files", "--cached", "--others", "--exclude-standard", "-z", *limited)
-        if not only or run_git(root, *named, env=environment).stdout:
+        # Git refuses to add a pathspec that names no file of the tree or of the worktree, so
+        # each one is listed first. A listed name is bytes, which nothing here decodes.
+        listing = ("ls-files", "--cached", "--others", "--exclude-standard", "-z", "--")
+        named = tuple(
+            pathspec
+            for pathspec in only
+            if run_git(root, *listing, pathspec, text=False, env=environment).stdout
+        )
+        if named or not only:
+            limited = ("--", *named) if named else ()
             staged = run_git(root, "add", "--all", *limited, check=False, env=environment)
             if staged.returncode:
                 raise ValueError(staged.stderr.strip() or "git_effect_postimage_stage_failed")

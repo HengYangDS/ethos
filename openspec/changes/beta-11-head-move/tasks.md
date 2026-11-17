@@ -11,16 +11,20 @@
       2026-11-17 the closed directory fails under Python 3.14 in two states. On 2026-11-18 the
       link, the file and the closed parent fail under the release head's reading of the path,
       and the damaged record fails before `d32673c8b`.)
-- [ ] 1.2 Ask the host for a selector's own status in `named_runtime`, and for the consumer
+- [x] 1.2 Ask the host for a selector's own status in `named_runtime`, and for the consumer
       path's status in the reader of a consumer's state. Done when the module passes on Python
       3.12, 3.13 and 3.14, the tests of the selector's other callers pass, and the guards on
       owned literals and decision density pass.
+      (At `8e624f79d` the module and its two neighbours pass on Python 3.12, 3.13 and 3.14, 47
+      cases on each; the tests of the selector's other callers and the four guards pass on Python
+      3.14.)
 
 ## 2. The entry
 
-- [ ] 2.1 Move each note of the Unreleased section under the heading of its kind in the entry
+- [x] 2.1 Move each note of the Unreleased section under the heading of its kind in the entry
       of 0.2.0-beta.11. Done when the Unreleased section holds no note and the changelog check
       reports nothing with 0.2.0-beta.11 as its release target.
+      (`changelog_errors` with the target 0.2.0-beta.11 reports nothing at `9479505e9`.)
 - [x] 2.2 Read each of the entry's twelve known open defects against the lane head. Done when
       each one that a row repairs has left the list with that row named here, and each one that
       stays is confirmed open at the lane head.
@@ -30,9 +34,10 @@
       admits it at the lane head, on both targets. Nine stay: the audit at the lane head
       reports the two bundled findings, and the code behind the other seven is as at the
       release head or keeps the stated reading.)
-- [ ] 2.3 Amend the Fixed item on vendored and generated paths with the sources that count, and
+- [x] 2.3 Amend the Fixed item on vendored and generated paths with the sources that count, and
       add the Fixed item for the reader of a consumer's state. Done when the prose gate accepts
       the entry.
+      (Readiness at `9479505e9`: 28 gates pass, the prose gate among them.)
 - [x] 2.4 State in the design how the batch's name in the records maps to the release that
       ships it. Done when decision 6 holds the sentence.
 - [x] 2.5 Name the accepted advisory and its three copies among the entry's known open
@@ -40,14 +45,19 @@
       entry names every advisory that the audit at the lane head reports.
       (The audit at the lane head reports GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249 and
       GHSA-fc5q-39xc-vjpf, the last with one approval.)
-- [ ] 2.6 State what the reading of this release's candidate on the copies of the governed
+- [x] 2.6 State what the reading of this release's candidate on the copies of the governed
       repositories found. Done when the entry's sentence holds the counts of a reading of this
       head's product tree.
+      (Read on 2026-11-18 on a candidate built from `d32673c8b`, whose product tree is the lane
+      head's: 13 repositories; `generated_projection_drift`, 14, in 7; every other code 0; no
+      new refusal. The entry holds it at `9479505e9`.)
 
 ## 3. The standing rule
 
-- [ ] 3.1 Show the owner the rule's sentence for the release guide. Done when a page shows the
+- [x] 3.1 Show the owner the rule's sentence for the release guide. Done when a page shows the
       sentence as an ask; a workflow follow-up carries its tracking.
+      (The release lead's page of 2026-11-18 on the two repairs shows the sentence as its third
+      ask.)
 
 ## 4. Lane and release
 
@@ -55,8 +65,11 @@
       Done when the preview's answer is recorded here and, on a refusal, those Changes are
       drafts again.
       (At `f8f00f8e1` the landing's preview names one gap, `proof_not_proven`.)
-- [ ] 4.2 Pass the model review of the lane's code since the reviewed head, the precheck and
+- [x] 4.2 Pass the model review of the lane's code since the reviewed head, the precheck and
       readiness at the lane head. Done when each passes on the committed head.
+      (Five model reviews of the code since `4a5029e96`, 38 comments, each with a verdict; the
+      last product commit is `d32673c8b`, and the fifth review's two comments on tests are in
+      `c6a9c31cc`. The precheck and readiness pass at `9479505e9`.)
 
 ## 5. The accepted advisory
 

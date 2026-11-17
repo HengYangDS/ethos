@@ -208,6 +208,27 @@ def test_the_marks_are_those_of_the_tree_that_the_source_binding_sees(
     assert observe_execution_source(repo, head, tree)["worktree"] != tree
 
 
+@pytest.mark.parametrize("left", ["no-file", "a-file-that-a-rule-hides"])
+def test_a_tree_without_an_attributes_file_marks_nothing(tmp_path: Path, left: str) -> None:
+    """Where the bound tree holds no attributes file, nothing is received and nothing refused.
+
+    Git refuses to add a pathspec that names nothing. A file that an exclude rule hides is no
+    part of the tree that the source binding sees, so its mark does not count.
+    """
+    repo = init_git_repo(tmp_path / "adopter")
+    git(repo, "rm", "--quiet", "--", ".gitattributes")
+    head = commit_fixture_file(repo, _NOTE, "# Notes\n", "notes and no attributes file")
+    assert git(repo, "ls-tree", "-r", "--name-only", head, "--", ".gitattributes") == ""
+    if left != "no-file":
+        local = Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_text(".gitattributes\n", encoding="utf-8")
+        write_tree(repo, {".gitattributes": f"{_NOTE} linguist-generated\n"})
+        assert git(repo, "status", "--porcelain") == ""
+    assert git_attributes.worktree_received_paths(repo, (_NOTE,)) == frozenset()
+    assert native_inputs.authored_source_files(repo, paths=(_NOTE,)) == [_NOTE]
+
+
 def test_a_refused_attribute_read_keeps_its_error_and_its_git_directory_is_removed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

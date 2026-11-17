@@ -84,6 +84,7 @@ def test_a_rollback_supply_keeps_its_installation(tmp_path: Path) -> None:
     "left",
     [
         "nothing",
+        "parent-file",
         "file",
         pytest.param(
             "link", marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege")
@@ -96,14 +97,17 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
     """A moved repository or an unmounted volume looks like a removed one, so nothing goes.
 
     A link that names nothing, or a file that Git left when it moved its directory, is kept as
-    well and is not called absent: neither says what stood there.
+    well and is not called absent: neither says what stood there. A file where the repository
+    stood leaves nothing at the path, on every host.
     """
     store = _store(tmp_path)
     runtime = _installation(store, "d" * 64)
     repository = _consumer(tmp_path / "repository", current=runtime)
     record_consumer(runtime.parents[1], repository)
     shutil.rmtree(tmp_path / "repository")
-    if left != "nothing":
+    if left == "parent-file":
+        repository.parent.write_text("", encoding="utf-8")
+    elif left != "nothing":
         repository.parent.mkdir()
     if left == "link":
         repository.symlink_to(tmp_path / "unmounted/.git", target_is_directory=True)
@@ -114,7 +118,8 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
 
     assert runtime.exists()
     assert report["retired"] == []
-    assert report["absent"] == ([repository.as_posix()] if left == "nothing" else [])
+    gone = left in {"nothing", "parent-file"}
+    assert report["absent"] == ([repository.as_posix()] if gone else [])
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 
@@ -123,17 +128,17 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
     reason="a directory that its owner cannot search needs POSIX modes and no superuser",
 )
 @pytest.mark.parametrize(
-    "closed", ["", "ethos", "ethos/runtime"], ids=["common", "state", "selectors"]
+    "closed", ["..", "", "ethos", "ethos/runtime"], ids=["parent", "common", "state", "selectors"]
 )
 def test_a_consumer_whose_selectors_cannot_be_looked_at_keeps_its_installation(
     tmp_path: Path, closed: str
 ) -> None:
-    """A selector below a directory that may not be searched is unknown, never released."""
+    """A place that may not be searched is unknown: never released, and never called absent."""
     store = _store(tmp_path)
     runtime = _installation(store, "9" * 64)
     repository = _consumer(tmp_path / "repository", current=runtime)
     record_consumer(runtime.parents[1], repository)
-    place = repository / closed
+    place = repository.parent if closed == ".." else repository / closed
     place.chmod(0)
     try:
         report = retire_unused_installations(store, in_use=_nothing_in_use)
@@ -141,8 +146,22 @@ def test_a_consumer_whose_selectors_cannot_be_looked_at_keeps_its_installation(
         place.chmod(0o700)
 
     assert runtime.exists()
-    assert report["retired"] == []
+    assert (report["retired"], report["absent"]) == ([], [])
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
+
+
+def test_a_file_where_a_consumer_keeps_its_state_selects_nothing(tmp_path: Path) -> None:
+    """A selector below a file is not there, on every host, so its installation is released."""
+    store = _store(tmp_path)
+    runtime = _installation(store, "7" * 64)
+    repository = _consumer(tmp_path / "repository", current=runtime)
+    record_consumer(runtime.parents[1], repository)
+    shutil.rmtree(repository / "ethos")
+    (repository / "ethos").write_text("", encoding="utf-8")
+
+    report = retire_unused_installations(store, in_use=_nothing_in_use)
+
+    assert report["retired"] == [runtime.parents[1].as_posix()]
 
 
 def test_unrecorded_installations_are_never_retired(tmp_path: Path) -> None:

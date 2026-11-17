@@ -17,6 +17,7 @@ import contextlib
 import hashlib
 import json
 import os
+import stat
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -93,10 +94,16 @@ def _consumer_state(
     """Say whether a consumer needs the installation; a missing path is never released."""
     if consumer is None:
         return "unknown"
-    if not consumer.is_dir():
-        # Gone, or no longer what was recorded: a link that names nothing and a file left at
-        # the path do not say what stood there.
-        return "unknown" if consumer.exists() or consumer.is_symlink() else "absent"
+    try:
+        # The host's own status is asked, so a path that cannot be looked at is unknown on every
+        # interpreter. A file left at the path does not say what stood there.
+        if not stat.S_ISDIR(consumer.stat().st_mode):
+            return "unknown"
+    except (FileNotFoundError, NotADirectoryError):
+        # Gone, unless a link that names nothing stands there: it does not say it either.
+        return "unknown" if consumer.is_symlink() else "absent"
+    except OSError:
+        return "unknown"
     try:
         # A held selection lock is a selection in progress, which may be about to name this
         # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.

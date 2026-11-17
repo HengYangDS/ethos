@@ -146,14 +146,16 @@ def selected_runtime_path(common: Path) -> Path:
 def named_runtime(common: Path, name: str) -> Path | None:
     """Read one runtime selector in the `CURRENT` encoding; an absent selector names nothing.
 
-    A selector that cannot be looked at raises on every interpreter: the host's own status is
-    asked, where a path question answers no under Python 3.14 below a directory that may not be
-    searched and so read as a selector that names nothing.
+    A selector is absent where the host says that it is not there, also below a file that
+    stands for one of its directories. One that cannot be looked at raises on every
+    interpreter: the host's own status is asked, where a path question answers no under Python
+    3.14 below a directory that may not be searched and so read as a selector that names
+    nothing.
     """
     selector = common / "ethos/runtime" / name
     try:
         linked = stat.S_ISLNK(selector.lstat().st_mode)
-    except FileNotFoundError:
+    except (FileNotFoundError, NotADirectoryError):
         return None
     if linked:
         raise ValueError(name)

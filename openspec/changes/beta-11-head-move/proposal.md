@@ -49,16 +49,24 @@ Decided by the owner on 2026-11-17, the last answer that evening:
   the repair of the regression alone, as first decided, and the batch lands after the tag.
 - The regression is repaired, not listed: the authored selection takes no mark from the Git
   directory's local attributes file. The way that the preparation's study measured as right in
-  every state reads the marks through an empty Git directory of its own. The entry's Fixed item
-  on vendored and generated paths gains one sentence. The older readers of Git attributes keep
-  their answers; they are the subject of `local-git-state-binding`.
-- The host store's reader of a consumer's state is repaired in two places, both measured on
-  three interpreters with a case that fails first. A selector below a directory that may not be
-  searched reads `unknown`: under Python 3.14 it read as a selector that names nothing, and the
-  cleanup deleted an installation that its repository still selected. A consumer whose path is
-  a link that names nothing reads `absent`, as a path that is gone does: on every interpreter it
-  read `released` and lost its record and installation. A second reader tried to refute the
-  first repair and found the second defect.
+  every state reads the marks through an empty Git directory of its own, and its last form
+  reads them against the tree that the source binding's owner builds
+  (`authored-selection-local-attributes`). The entry's Fixed item on vendored and generated
+  paths gains its sentences. The older readers of Git attributes keep their answers; they are
+  the subject of `local-git-state-binding`.
+- The host store's reader of a consumer's state asks the host for a status where it asked a
+  path question, each state measured on three interpreters with a case. A selector below a
+  directory that may not be searched reads `unknown`: under Python 3.14 it read as a selector
+  that names nothing, and the cleanup deleted an installation that its repository still
+  selected. A consumer whose path is a link that names nothing, or a file, reads `unknown`: on
+  every interpreter it read `released` and lost its record and installation. A consumer below
+  a directory that may not be searched reads `unknown`: under Python 3.12 and 3.13 it ended
+  the whole cleanup with an error. A second reader and four model reviews found these states
+  one after another.
+- One advisory is accepted for one artifact. GHSA-fc5q-39xc-vjpf names every picomatch release
+  and has no fix, and since 2026-11-17 the dependency audit blocks the picomatch 2.3.2 of this
+  repository's lock, so no head passes a proof. The owner accepted that artifact on 2026-11-18,
+  for this repository's lock, until 2026-12-02.
 - A standing rule for the release lead: a defect found before a tag is repaired without a
   separate ask, and reported on a page afterwards, when its repair changes one reader and adds
   no refusal, passes on the three supported Python versions, is reviewed, and the whole release
@@ -66,17 +74,15 @@ Decided by the owner on 2026-11-17, the last answer that evening:
   defect is written into the entry and the owner is asked. The tag stays the owner's word. The
   rule's place in a tracked page is shown to the owner with the Change that carries it.
 
-Open:
+Read again for the move:
 
-- The entry's twelve listed defects are read again against the batch; each one that the batch
-  repairs leaves the list.
-- The entry's heading says that no known defect is in a blocking class. With the batch
-  carried, the two Windows items are repaired; what stays is read again when the list is
-  written.
-- Left in the consumer reader and not repaired by the move: under Python 3.12 and 3.13 a
-  consumer whose parent may not be searched ends the whole cleanup with an error, which
-  `unsearchable-path-absence` repairs; under Python 3.12 a selector that names a local runtime
-  which links to itself does the same.
+- The entry's twelve listed defects, against the lane head: three are repaired by rows of the
+  batch and leave the list, nine stay, and the accepted advisory joins them.
+- The entry's heading, which says that no known defect is in a blocking class: it holds for
+  the ten.
+- Left in the consumer reader and not repaired by the move: under Python 3.12 a selector that
+  names a local runtime which links to itself ends the whole cleanup with an error
+  (`unsearchable-path-absence`).
 
 Not measured: a whole proof with a local attributes line, and anything on Windows by the
 release lead.
@@ -91,15 +97,13 @@ None.
 
 ### Modified Capabilities
 
-None while this Change is a draft, so `skip_specs: true` applies. The repair's delta arrives
-with its Change.
+None: no requirement's words change, by decision 5 of the design, so `skip_specs: true`
+applies. The regression's delta is in `authored-selection-local-attributes`.
 
 ## Impact
 
-`CHANGELOG.md` at the release head, the selection of authored files and the release chain. The
-measurements and the drafted items are local to the releasing checkout until the move's Change
-opens from the accepted branch.
+`CHANGELOG.md`, the host store's reader of a consumer's state, the selector's reader, the
+dependency audit's policy and the release chain.
 
-Owner: the release lead. Next action: this draft gains its design, tasks and deltas in the
-batch lane, the repairs enter under it, and the entry is written from the batch's notes.
-Read again: 2026-11-19 12:00, the hour of the way back.
+Owner: the release lead. Next action: the full proof of the archived head, then the copies run
+on its candidate. Read again: 2026-11-19 12:00, the hour of the way back.

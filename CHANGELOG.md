@@ -198,8 +198,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   reporting obligations in one list, which also holds the new `identifier-source`: an obligation
   enters as reporting in the release that first ships it.
 - 0.2.0-beta.11 upgrades directly from 0.2.0-beta.10, the release that every governed repository
-  the releasing host reads selects. Its hosted journey upgrades from it on macOS arm64 and Linux
-  x64. It keeps result schema 3.
+  the releasing host reads selects. Its hosted journey upgrades from it on macOS arm64, Linux x64
+  and Linux arm64; the Linux arm64 leg runs for the first time with this release. It keeps result
+  schema 3.
 - Before the tag, the candidate of this release was read on disposable copies of the 13 governed
   repositories that the releasing host reads: status, the preview of the paradigm repair, the
   format and projection checks and the preview of the proof. New required gaps against
@@ -210,8 +211,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `package-docstring`.
 - Not qualified by this beta:
   - a rollback after the declaration repair, which the journey reports as `not_qualified`;
-  - the adopter journey on Linux arm64, which 0.2.0 declares but no hosted job runs yet; the Linux
-    arm64 runtime is qualified by its release leg's install smoke and inventories;
   - the adopter journey on Windows, which no hosted job runs yet; Windows runtimes are qualified by
     their release legs' install smoke and inventories;
   - interruption recovery and uninstall while a consumer runs, which the journey reports as
@@ -222,6 +221,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
     GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
     reports them and does not block.
+  - GHSA-fc5q-39xc-vjpf (CVE-2026-112366) names every picomatch release through 4.0.7, and no
+    release fixes it. The product ships three copies. ETHOS reports two and does not block:
+    4.0.7, the registry's latest, and the 4.0.5 that npm 12.2.2 bundles. The third, 2.3.2, is
+    what markdownlint-cli2 0.24.1 reaches through micromatch 4.0.8; each of those is its
+    registry's latest, and micromatch takes the 2.x line alone, so no upgrade removes it. The
+    audit blocks it as a finding behind the latest release, and this repository's policy accepts
+    it until 2026-12-02 for its own lock; the acceptance covers no other repository's lock. The
+    Markdown lint gate runs the matcher as a local command over the file names and the lint
+    configuration of the repository that it judges. A pattern there can make that gate slow; the
+    matcher serves no request.
   - Go's GO-2026-6859 (CVE-2026-97054) lets an HTTP/1 server in `net/http` crash; Go 1.26.11 and
     1.27.4 fix it. The bundled `cue` 0.17.1, `vale` 3.27.0 and `shfmt` are built with Go 1.26.5,
     1.27.3 and 1.27.1 and contain the affected code. ETHOS runs them only as local commands over
@@ -235,11 +244,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - An installation that only a moved, unmounted or deleted repository recorded stays in the shared
     store, because no command releases an absent consumer yet; `hook install`'s cleanup report lists
     such consumers under `absent`.
-  - `ethos lane prewrite --target index --patch` refuses a patch that names exactly the requested
-    paths with `prewrite_patch_paths_mismatch` when a removed line begins with two hyphens and a
-    space, or an added line with two plus signs and a space: it reads such a line as a file
-    header. The commit hooks judge the staged tree and are not affected. Stage such a patch with
-    Git once the worktree admission of its paths has passed.
   - The decision-record rule reads a spaced hyphen or an arrow in prose as a command option, and a
     code span of two or more words as a possible invocation, and reports
     `docs_decision_execution_content`. In a decision record, name a command in words.
@@ -416,7 +420,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   what the link names. What a patch does at each path is now read from Git, in that
   workspace's own index, and no longer from the patch's text: a patch that creates or deletes
   an empty file is read as that and not as an edit, the source of a move is read as deleted,
-  and text after an entry without content moves no path of the request. A request for a
+  and text after an entry without content moves no path of the request. A line of content
+  that begins like a file line moves no path either: a patch that removes a line beginning with
+  two hyphens and a space, or adds one beginning with two plus signs and a space, was refused
+  with `prewrite_patch_paths_mismatch`, in 0.2.0-beta.10 as well. A request for a
   patch that moves a file names the move's source too, as the index target already requires:
   a request for the target alone left the source's deletion unjudged and is now refused with
   `prewrite_patch_paths_mismatch`, and the report's `paths` name both. The index target holds
@@ -455,7 +462,9 @@ historical bindings are governed by the [distribution specification](openspec/sp
   The cleanup then removed the record and deleted an installation that the repository still
   selected. Both now read as unknown and keep the record and the installation. Both defects
   are in every release from 0.2.0-alpha.8 through 0.2.0-beta.10; the first shows under Python
-  3.14 alone.
+  3.14 alone. Under Python 3.12 and 3.13 a repository below a directory that may not be
+  searched ended the whole cleanup with an error; it reads as unknown too, and the cleanup
+  goes on.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

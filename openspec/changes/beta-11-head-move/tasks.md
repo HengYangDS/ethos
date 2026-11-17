@@ -3,12 +3,13 @@
 ## 1. The reader of a consumer's state
 
 - [ ] 1.1 Add the case for a consumer whose selectors lie below a directory that may not be
-      searched, in three states, and the case for a consumer whose path is a link that names
-      nothing. Done when, without 1.2, the first fails under Python 3.14 in two states and the
-      second fails under Python 3.14 and 3.12.
-- [ ] 1.2 Ask the host for a selector's own status before it is read, and answer `unknown` for
-      a consumer whose path is a link that names nothing. Done when the module passes on Python
-      3.12, 3.13 and 3.14 and the guards on owned literals and decision density pass.
+      searched, in three states, and the cases for a consumer whose path is a link that names
+      nothing or a file. Done when, without 1.2, the first fails under Python 3.14 in two states
+      and the others fail under Python 3.14 and 3.12.
+- [ ] 1.2 Ask the host for a selector's own status in `named_runtime`, and answer `unknown` for
+      a consumer whose path is no directory and not gone. Done when the module passes on Python
+      3.12, 3.13 and 3.14, the tests of the selector's other callers pass, and the guards on
+      owned literals and decision density pass.
 
 ## 2. The entry
 

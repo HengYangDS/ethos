@@ -334,7 +334,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   The mark counts where a `.gitattributes` file that Git tracks or would add gives it. A line in
   the Git directory's `info/attributes`, in a file that `core.attributesFile` names, or in a
   `.gitattributes` file that an exclude rule hides takes no path out of these checks: no commit
-  carries such a line and a proof does not bind it.
+  carries such a line and a proof does not bind it. A pattern marks by exact case on every
+  host.
 - `ethos hook install` no longer names itself as its next step. When activation holds and
   reclamation is deferred, or when the installation refuses for a reason other than its state
   schema, the result continues to `ethos status --root <root> --json`, whose hook-runtime inspection
@@ -449,7 +450,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The cleanup of the host store at the end of `ethos hook install` keeps an installation whose
   consumer it cannot read. Under Python 3.14 a repository whose Git directory, or the directory
   of its runtime selectors, may not be searched was read as having released the installation.
-  On every interpreter so was a repository whose recorded path is a link that names nothing.
+  On every interpreter so was a repository whose recorded path is a link that names nothing,
+  or a file that Git left when it moved its directory.
   The cleanup then removed the record and deleted an installation that the repository still
   selected. Both now read as unknown and keep the record and the installation. Both defects
   are in every release from 0.2.0-alpha.8 through 0.2.0-beta.10; the first shows under Python

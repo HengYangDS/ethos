@@ -47,31 +47,37 @@ Non-Goals:
      tag.
    - **Applies to:** this lane's order of work; the regression's repair is kept in a form that
      applies to the release head for that case.
-3. **A selector that cannot be looked at reads `unknown`.**
+3. **A selector that cannot be looked at raises in its one reader.**
    - **Rests on:** a case with a recorded consumer in three states of a directory that may not
      be searched. At the release head under Python 3.14 the cleanup deletes the installation
      when the Git common directory or the directory of the selectors is closed; under 3.12 and
-     3.13 it keeps it. The reader asks whether the selector exists, and Python 3.14 answers no
-     where the older interpreters raise.
-   - **Considered:** changing the selector's reader itself, which rollback and the exit also
-     call and whose answers there are not classified; reading such a consumer as `absent`,
-     which the plan of legacy supply releases.
-   - **Chosen because:** the accepted requirement says that unknown liveness prevents deletion.
-     The reader asks the host for the selector's own status first, which raises there on every
-     interpreter, and creates, locks and writes nothing.
-   - **Applies to:** the reader of a consumer's state in the host store's retention. A second
-     reader tried to refute it on three interpreters and did not.
-4. **A consumer whose path is a link that names nothing reads `unknown`.**
-   - **Rests on:** the second reader's probe and a case that fails at the release head on every
-     interpreter: the reader excepted a link from "the path is gone", read on, found no
-     selector and answered `released`, and the cleanup removed the record and the installation.
+     3.13 it keeps it. The selector's reader, `named_runtime`, asks whether the selector
+     exists, and Python 3.14 answers no where the older interpreters raise.
+   - **Considered:** a helper in the host store's reader that asks for the selector's status
+     before it calls the selector's reader. The first form of this repair did that; a model
+     review named it a second owner of the selector's path, and it left the three other callers
+     with the wrong answer under Python 3.14.
+   - **Chosen because:** one behavior has one owner. `named_runtime` asks the host for the
+     selector's own status, which raises there on every interpreter, and answers that no
+     selector is there only where the host says so. Each of its four callers already reads an
+     error as "not read": the host store keeps the installation, the rollback guidance and the
+     rollback's release do nothing, and the upgrade reading answers unread. The accepted
+     requirement says that unknown liveness prevents deletion.
+   - **Applies to:** `named_runtime` and so its four callers. A second reader tried to refute
+     the first form on three interpreters and did not.
+4. **A consumer path that no longer is a directory reads `unknown`.**
+   - **Rests on:** two cases that fail at the release head on every interpreter. A link that
+     names nothing: the reader excepted a link from "the path is gone", read on, found no
+     selector and answered `released`. A file at the path, which Git leaves when it moves its
+     directory: the same. Each time the cleanup removed the record and the installation. The
+     second reader found the first and the model review the second.
    - **Considered:** `absent`, as a path that is gone. The accepted quality specification says
      that a dangling root link is not a genuinely absent consumer directory, and the plan of
      legacy supply does not hold an installation for an absent consumer.
-   - **Chosen because:** nothing says what the link named, so its liveness is unknown, and
-     unknown keeps the record and the installation in both plans.
-   - **Applies to:** the same reader. Found under the owner's standing rule for a repair of one
-     reader that adds no refusal.
+   - **Chosen because:** neither a link that names nothing nor a file says what stood there, so
+     the liveness is unknown, and unknown keeps the record and the installation in both plans.
+   - **Applies to:** the host store's reader of a consumer's state. Found under the owner's
+     standing rule for a repair of one reader that adds no refusal.
 5. **No requirement's words change.**
    - **Rests on:** the accepted requirement "Installed product migration preserves live
      consumers", which states that unknown liveness prevents deletion.
@@ -108,7 +114,11 @@ Non-Goals:
   searched ends the whole cleanup with an error, and under 3.12 so does a selector that names a
   local runtime which links to itself. Both are older than this release, lose nothing, and are
   named in `unsearchable-path-absence`.
+- [A kept consumer is not named] -> the cleanup's report lists a consumer only when it is
+  absent. One that reads `unknown` keeps its installation and appears under no name, so its
+  owner cannot see which path holds the bytes. The report's shape belongs to
+  `store-retention`, whose tasks carry it.
 - [Windows] -> both cases skip there; a directory that its owner cannot search needs POSIX
   modes. The hosted Windows legs run the rest of the module.
-- [The repairs' reviews] -> the first repair has a second reader; the second has the lead
-  alone until the batch's model review reads the lane's code.
+- [The repairs' reviews] -> a second reader and a model review read the first form; the form
+  in decisions 3 and 4 follows the review's comments and is read again before the proof.

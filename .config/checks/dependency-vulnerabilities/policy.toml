@@ -16,3 +16,15 @@ timeout_seconds = 120
 # not blocking: every locked npm artifact that ships it (the bundling package for an
 # inBundle component) already is its registry latest release, or a Python advisory's
 # native fix versions name no newer stable release. Fixable or unobserved findings block.
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-fc5q-39xc-vjpf"
+package = "picomatch"
+version = "2.3.2"
+integrity = "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-11-18:advisory-block-page:picomatch-2.3.2-GHSA-fc5q-39xc-vjpf-production-release-through-2026-12-02"
+rationale = "Accepted by the owner on 2026-11-18. The advisory names every picomatch release through 4.0.7 and no release fixes it. markdownlint-cli2 0.24.1 reaches picomatch 2.3.2 through globby, fast-glob and micromatch 4.0.8, each the registry's latest, and micromatch accepts the 2.x line alone, so no upgrade removes the artifact. The copies of picomatch that are the registry's latest are reported under the same advisory and do not block. The matcher reads this repository's own configuration and file names in local and CI runs and serves no request. Remove this record when a release fixes the advisory or the chain no longer holds the artifact."
+expires_at = 2026-12-03T00:00:00+08:00

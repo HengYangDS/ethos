@@ -2074,16 +2074,22 @@ Active or completed Changes SHALL retain strict status and artifact validation.
 
 ### Requirement: Invocation and editor bindings have distinct remediation
 
-ETHOS SHALL distinguish a missing invocation actor, a different holder, and a
-missing editor-root binding so each condition has one accurate public recovery
-step.
+ETHOS SHALL distinguish a missing invocation actor, a different holder, and a missing editor-root
+binding so each condition has one accurate public recovery step.
 
 #### Scenario: Invocation actor is absent
 
-- **WHEN** a mutation requires the current Lease holder and `ETHOS_ACTOR` is
-  empty
+- **WHEN** a mutation requires the current Lease holder and the invocation names no actor, by
+  `--actor` or by `ETHOS_ACTOR`
 - **THEN** ETHOS reports `invocation_actor_missing` with the expected holder
+- **AND** the recovery step asks for the executor's own identity and never names the holder as it
 - **AND** it does not misreport a different-holder conflict.
+
+#### Scenario: The actor is not the holder
+
+- **WHEN** a mutation requires the current Lease holder and the invocation's actor is another
+- **THEN** ETHOS reports `lease_holder_mismatch`
+- **AND** the recovery step is the handoff preview that moves the Lease to that actor.
 
 #### Scenario: Valid Lease lacks editor-root input
 

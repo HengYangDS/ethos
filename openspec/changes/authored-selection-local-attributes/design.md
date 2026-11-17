@@ -59,23 +59,23 @@ Non-Goals:
      a second reader of Git's pattern, macro and nesting rules.
    - **Chosen because:** Git stays the one reader of attribute syntax, the product opens no
      attributes file, and where the reading differs from Git's it judges more. Accepted: one
-     temporary directory and two more Git processes in each selection.
+     temporary directory and five more Git processes in each selection. Measured on this
+     repository's 1,606 Markdown paths, the least of seven calls: 168.8 ms, where Git's own
+     reading takes 11.3 ms. Most of it is Git's walk of the worktree for attribute files.
    - **Applies to:** `authored_source_files` alone, so the format command and the gates named
      in Context. The five older readers are not covered.
-2. **The repository's case rule is handed to the reading.**
+2. **The marks are read by exact case on every host.**
    - **Rests on:** a measurement: Git writes the case rule of the volume into a directory that
-     it makes, and under the temporary volume's rule a pattern that differs in case from its
-     path marked that path in a repository whose own rule is exact case.
-   - **Considered:** keeping the temporary directory's rule; reading the repository's
-     configuration file in the product.
-   - **Chosen because:** Git's own configuration reader answers `core.ignoreCase` in one
-     process, with Git's default where the repository does not set it, and the answer goes to
-     the reading as a command-line setting. Cost, as means of ten calls on this repository's
-     1,516 listed Markdown paths: 6.5 ms for the case rule's read and 8.4 ms to make and remove
-     the directory, so the selection's reading takes 25.2 ms where Git's took 11.0 ms. One whole
-     selection of the prose gate's inputs took 85 ms at its least before this Change and 87 ms
-     after it, five calls each on a loaded host, which is inside its spread.
-   - **Applies to:** `core.ignoreCase`. No other setting of the repository reaches the reading.
+     it makes, and under that rule a pattern that differs in case from its path marked the
+     path. The repository's own `core.ignoreCase` is local state as well: `git init` sets it by
+     the volume, so one commit was left out on one host and judged on another.
+   - **Considered:** handing the repository's rule to the reading, which the first form of this
+     Change did and which a model review named as one more route for local state; keeping the
+     temporary directory's rule.
+   - **Chosen because:** a proof reads one commit the same on every host. The reading sets
+     `core.ignoreCase=false` on its command line. A pattern in another case than its path marks
+     nothing, so more is judged.
+   - **Applies to:** the reading's own Git call. No setting of the repository reaches it.
 3. **The directory is temporary and bare of a template, and Git's refusal keeps its own error.**
    - **Rests on:** the product's temporary workspaces, which leave through a context manager;
      the four entries that Git makes without a template, none of them a hook, an exclude file
@@ -114,37 +114,43 @@ Non-Goals:
      rule, and a report of local Git state is a subject of its own.
    - **Applies to:** the requirement "Received paths are not authored inputs" and one added
      scenario. The requirements on received names and on code size are unchanged.
-6. **The reading sees only the attribute files that Git tracks or would add.**
-   - **Rests on:** the release lead's probe of the gate's verdict, run at three trees with
-     each tree's own code. With a `.gitattributes` file beside the document that the Git
-     directory's exclude file hides, the prose gate passes at the release head and at the
-     release head with decisions 1 to 5; it blocks at 0.2.0-beta.10. Git's status does not
-     name the file and the source binding holds.
-   - **Considered:** stating that route as a known defect of the release; reading the marks
-     from tracked files alone, which fails the cause's own test, whose attributes file is
-     never staged, and ignores a file that the next commit would carry.
-   - **Chosen because:** a release that still passes a proof on a file it did not read is
-     the defect this Change exists for. The files that Git lists with `--cached --others
---exclude-standard` are those the source binding can see. They are copied, without
-     following a link, into the reading's temporary directory, and Git resolves the marks
-     there; no attributes file is parsed by ETHOS.
-   - **Applies to:** `worktree_received_paths`. Where Git gives no listing, as outside a
-     repository, the reader receives nothing and every name stays judged.
+6. **The marks are read from the tree that the source binding sees.**
+   - **Rests on:** the release lead's probe of the gate's verdict at three trees, each with its
+     own code: with a `.gitattributes` file beside the document that the Git directory's
+     exclude file hides, the prose gate passes at the release head and at the release head
+     with decisions 1 to 5, and blocks at 0.2.0-beta.10. A second form of this Change copied
+     the attribute files that Git lists into a directory and read them there. A model review of
+     it found four more differences from Git: a link in a parent directory read a file outside
+     the repository (a case shows it), a file that Git's status hides by an index flag, a file
+     absent from a sparse checkout, and a directory name that is not UTF-8.
+   - **Considered:** a repair for each of the four, which makes the product a second reader of
+     which attribute files count. Reading the marks from the commit's tree alone, which ignores
+     an attributes file that the author has written and not yet committed, so the format
+     command would rewrite a vendored file in that window.
+   - **Chosen because:** one owner already says what a worktree holds for a proof: the source
+     binding builds a tree from the head and the worktree as Git would add it. The reading
+     asks that owner for the head's tree with the worktree's `.gitattributes` files, and Git
+     reads the marks against that tree with `--source`. So a mark counts exactly where the
+     binding can see its file, no attributes file is read from disk by ETHOS, and the four
+     differences have no place to arise. The owner gains one parameter that limits the paths
+     it adds, so a large tree is not hashed for each selection.
+   - **Applies to:** `worktree_received_paths` and `observe_worktree_postimage`. A name that
+     leaves the tree receives nothing, and its own caller names it invalid. Without a head
+     there is no tree, and nothing is received.
 
 ## Risks / Trade-offs
 
-- An untracked `.gitattributes` file that Git would add still marks, as a tracked one does: a
-  proof's source binding sees it, and the next commit can carry it. One that an exclude rule
-  hides marks nothing since decision 6.
-- A mark in an indexed `.gitattributes` file whose worktree file is deleted is not taken, so
-  its paths are judged. Measured. A proof's source binding refuses that worktree. A sparse
-  checkout that leaves a `.gitattributes` file out is the same case and was not measured.
-- A refused read stops a check that the release head let judge everything. The prose gate
-  already makes a temporary directory in each run; the format gate's own code made none.
-- The reading takes its root as the work tree. Measured at the reader: for a root that is a
-  subdirectory of its repository it reads no `.gitattributes` file above that root, so more is
-  judged; for a root outside every repository it reads that directory's own file, where Git's
-  reading marked nothing. The command line resolves its root to the top level of the worktree,
-  so neither reaches a command or a proof.
-- The reading ran on one Git version, 2.56.1, on macOS and on Python 3.14. It starts processes
-  and makes a directory, so the two older interpreters and Windows need their own runs.
+- An untracked `.gitattributes` file that Git would add marks, as a tracked one does: a proof's
+  source binding sees it, and the next commit can carry it. One that an exclude rule hides
+  marks nothing.
+- An edit of a tracked `.gitattributes` file that an index flag hides from Git's status
+  counts. The source binding sees the same edit, so a proof refuses that worktree. A case
+  holds both readings.
+- A tracked `.gitattributes` file that is absent from the worktree, deleted or left out by a
+  sparse checkout, gives no mark, so its paths are judged. The source binding refuses such a
+  worktree. A sparse checkout was not run.
+- A pattern that differs in case from its path marked the path on a volume that folds case and
+  marks nothing now. A repository that relied on it sees those files judged.
+- A refused read stops a check that the release head let judge everything.
+- `git check-attr --source` needs Git 2.40 or later. The reading ran on Git 2.56.1 on macOS and
+  on Python 3.12, 3.13 and 3.14. Windows and Linux run it in the hosted legs.

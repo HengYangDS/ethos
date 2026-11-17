@@ -50,8 +50,9 @@ None.
 ## Impact
 
 `src/ethos/adapters/repo/git_attributes.py` gains the selection's reader, and
-`src/ethos/adapters/gates/native/inputs.py` uses it. Each authored selection starts three more
-Git processes and makes one temporary directory with a copy of the attribute files that count.
+`src/ethos/adapters/gates/native/inputs.py` uses it. The owner of the source binding,
+`src/ethos/adapters/repo/worktree_postimage.py`, gains one parameter. Each authored selection
+starts five more Git processes and makes one temporary directory. Patterns match by exact case.
 The entry of 0.2.0-beta.11 amends its Fixed item. The release head moves, so its hosted
 qualification, the release build and the build's install smoke run again at the new head
 before the tag.

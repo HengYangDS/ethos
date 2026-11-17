@@ -9,9 +9,11 @@
       tests of 1.1 pass except the text validity check and the release's own test of received
       paths passes unedited.
 - [ ] 1.3 Give `authored_text_files` Git's own reading back. Done when every test of 1.1 passes.
-- [ ] 1.4 Read the marks in a copy of the attribute files that Git tracks or would add. Done
-      when a committed misspelling blocks under a hidden attributes file beside it, a case that
-      fails without this task, and the tests of 1.1 still pass.
+- [ ] 1.4 Read the marks against the tree that the source binding's owner builds from the head
+      and the worktree's attribute files. Done when a committed misspelling blocks under a hidden
+      attributes file beside it, a link in a parent directory reads no file outside, and an edit
+      that an index flag hides counts and is seen by the binding; each case fails without this
+      task.
 
 ## 2. The requirement
 

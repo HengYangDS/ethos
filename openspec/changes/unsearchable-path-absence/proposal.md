@@ -58,9 +58,11 @@ Candidates for the design, the first decided by the owner:
   The repair is written on that release head and not yet in a lane: each selector's own
   status is asked of the host before the selector is read. Its case fails first under
   Python 3.14 in two states, the Git common directory closed and the directory of the
-  selectors closed, and passes on three interpreters with the repair. Open, the owner's:
-  whether this repair enters 0.2.0-beta.11 with its one planned move of the release head,
-  or stays here.
+  selectors closed, and passes on three interpreters with the repair. Decided by the
+  owner on 2026-11-17: the repair enters 0.2.0-beta.11 with the move of its release head
+  (`beta-11-head-move`), and this Change keeps the readers named above. Left for this
+  Change, found by the repair's second reader: under Python 3.12 a selector that names a
+  local runtime which links to itself ends the whole cleanup with an error.
 - A reading of the lead's review of the prepared patch, on 2026-11-17: for a link that is
   there and whose target lies below a closed directory, the reader's question for a
   directory answers differently by interpreter, and the walk over a listed path never

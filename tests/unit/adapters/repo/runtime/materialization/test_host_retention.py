@@ -84,6 +84,7 @@ def test_a_rollback_supply_keeps_its_installation(tmp_path: Path) -> None:
     "left",
     [
         "nothing",
+        "file",
         pytest.param(
             "link", marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege")
         ),
@@ -94,23 +95,26 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
 ) -> None:
     """A moved repository or an unmounted volume looks like a removed one, so nothing goes.
 
-    A link left at the consumer's path that names nothing is kept as well and is not called
-    absent: nothing says what it named.
+    A link that names nothing, or a file that Git left when it moved its directory, is kept as
+    well and is not called absent: neither says what stood there.
     """
     store = _store(tmp_path)
     runtime = _installation(store, "d" * 64)
     repository = _consumer(tmp_path / "repository", current=runtime)
     record_consumer(runtime.parents[1], repository)
     shutil.rmtree(tmp_path / "repository")
-    if left == "link":
+    if left != "nothing":
         repository.parent.mkdir()
+    if left == "link":
         repository.symlink_to(tmp_path / "unmounted/.git", target_is_directory=True)
+    if left == "file":
+        repository.write_text("gitdir: ../moved\n", encoding="utf-8")
 
     report = retire_unused_installations(store, in_use=_nothing_in_use)
 
     assert runtime.exists()
     assert report["retired"] == []
-    assert report["absent"] == ([] if left == "link" else [repository.as_posix()])
+    assert report["absent"] == ([repository.as_posix()] if left == "nothing" else [])
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import platform
 import shlex
+import stat
 import uuid
 from contextlib import contextmanager
 from contextlib import suppress
@@ -143,11 +144,18 @@ def selected_runtime_path(common: Path) -> Path:
 
 
 def named_runtime(common: Path, name: str) -> Path | None:
-    """Read one runtime selector in the `CURRENT` encoding; an absent selector names nothing."""
+    """Read one runtime selector in the `CURRENT` encoding; an absent selector names nothing.
+
+    A selector that cannot be looked at raises on every interpreter: the host's own status is
+    asked, where a path question answers no under Python 3.14 below a directory that may not be
+    searched and so read as a selector that names nothing.
+    """
     selector = common / "ethos/runtime" / name
-    if not selector.exists() and not selector.is_symlink():
+    try:
+        linked = stat.S_ISLNK(selector.lstat().st_mode)
+    except FileNotFoundError:
         return None
-    if selector.is_symlink():
+    if linked:
         raise ValueError(name)
     raw = selector.read_bytes()
     parts = raw.decode("utf-8").removesuffix("\n").split("\n")

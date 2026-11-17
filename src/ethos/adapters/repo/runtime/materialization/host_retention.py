@@ -93,9 +93,10 @@ def _consumer_state(
     """Say whether a consumer needs the installation; a missing path is never released."""
     if consumer is None:
         return "unknown"
-    if not consumer.exists():
-        # A link that names nothing is not known to be gone: nothing says what it named.
-        return "unknown" if consumer.is_symlink() else "absent"
+    if not consumer.is_dir():
+        # Gone, or no longer what was recorded: a link that names nothing and a file left at
+        # the path do not say what stood there.
+        return "unknown" if consumer.exists() or consumer.is_symlink() else "absent"
     try:
         # A held selection lock is a selection in progress, which may be about to name this
         # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.
@@ -103,23 +104,12 @@ def _consumer_state(
         # no selection, is read without one.
         lock = runtime_selection_lock(consumer) if (consumer / "ethos").is_dir() else None
         with lock.acquire(blocking=False) if lock is not None else contextlib.nullcontext():
-            named = [_selector(consumer, name) for name in ("CURRENT", "ROLLBACK")]
+            named = [named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
     except (OSError, UnicodeError, ValueError):
         return "unknown"
     return (
         "needs" if any(path and path.is_relative_to(installation) for path in named) else "released"
     )
-
-
-def _selector(consumer: Path, name: str) -> Path | None:
-    """Read one selector of a consumer; one that cannot be looked at raises on every interpreter.
-
-    Python 3.14 answers a path question below a directory that may not be searched with "no",
-    which would read as a selector that names nothing. The host's own status raises there.
-    """
-    with contextlib.suppress(FileNotFoundError, NotADirectoryError):
-        os.lstat(consumer / "ethos/runtime" / name)
-    return named_runtime(consumer, name)
 
 
 def _index(value: str) -> bool:

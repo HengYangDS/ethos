@@ -60,9 +60,11 @@
 
 ## 4. Acceptance
 
-- [ ] 4.1 Pass the focused gates on the lane head: the test modules that import a changed module,
+- [x] 4.1 Pass the focused gates on the lane head: the test modules that import a changed module,
       Ruff, ty, import-linter, `openspec validate release-predecessors --strict` and Prettier. Done
-      when each reports no finding.
+      when each reports no finding. At `4a5029e96` on 2026-11-17 the pre-check ran the importing
+      test modules among its 472 (9,555 passed), Ruff, import-linter, the strict validation and
+      Prettier, and readiness ran ty as `python-types`; none reports a finding.
 - [x] 4.2 Measure the source budget against the lane base. Done when the three measured figures
       are recorded in this task.
 
@@ -82,9 +84,12 @@
       `journey_previous`, and each leg's receipt names every recorded release as a predecessor.
 - [x] 5.4 Owner: read the text of DR-0030, which the release lead shows before this row lands.
       Done when the owner has accepted the text, or the record carries the owner's corrections.
-- [ ] 5.5 Lane: read the weekly page's measure of pins in by DR-0030's set. Done when its total is
+- [x] 5.5 Lane: read the weekly page's measure of pins in by DR-0030's set. Done when its total is
       the count of the operation's rows inside the window, without the waived repository and without
-      the repositories of the two families under repair, which the page names by shape.
+      the repositories of the two families under repair, which the page names by shape. Read on
+      2026-11-17 with this lane's engine at `4a5029e96`: the operation lists 13 rows inside the
+      window, and the page's total is 10, without the waived repository and one repository of each
+      family under repair. None names 0.2.0-beta.11 before its tag.
 
 ## Workflow follow-up
 

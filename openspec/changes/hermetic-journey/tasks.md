@@ -62,14 +62,23 @@
 
 ## 5. Lane, hosted run and owner
 
-- [ ] 5.1 Apply the patch in the Work Lane and pass its pre-check and readiness. Done when both
-      pass at the lane head.
-- [ ] 5.2 Read the Linux leg of the lane head's hosted run. Done when the two journey test
-      modules pass there; they ran on macOS only during preparation.
-- [ ] 5.3 Dispatch the journey alone for the newest published prerelease and its predecessors.
-      Done when both legs' receipts read `passed`, name `venue` as `ci` and hold both refusals;
-      record each leg's time beside the last run before this Change.
+- [x] 5.1 Apply the patch in the Work Lane and pass its pre-check and readiness. Done when both pass
+      at the lane head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted
+      test modules (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
+- [x] 5.2 Read the Linux leg of the lane head's hosted run. Done when the two journey test modules
+      pass there; they ran on macOS only during preparation. In run 43991840423 at `4a5029e96` both
+      Linux suite legs pass `tests/unit/ci/delivery/test_hermetic_journey.py` (27 tests) and
+      `tests/unit/ci/delivery/test_journey.py` (35 tests).
+- [x] 5.3 Dispatch the journey alone for the newest published prerelease and its predecessors. Done
+      when both legs' receipts read `passed`, name `venue` as `ci` and hold both refusals; record
+      each leg's time beside the last run before this Change. Run 43992039510 at `4a5029e96` for
+      `v0.2.0-beta.10` with `v0.2.0-beta.9` before it: each receipt reads `passed` with `venue` `ci`
+      and holds both refusals. The legs took 261 s on Linux x64 and 254 s on macOS, where the last
+      run before this Change (43542619629) took 633 s and 1,140 s; the Linux ARM64 leg of
+      `journey-hosts` took 271 s.
 - [ ] 5.4 Decide whether the releasing host runs the journey as a local venue. Done when one
       local receipt reads `passed`, or the reason it cannot run there is recorded.
-- [ ] 5.5 Give the committee the measured tools size for its decision on the release rehearsal.
-      Done when the weekly page states it by file.
+- [x] 5.5 Give the committee the measured tools size for its decision on the release rehearsal. Done
+      when the weekly page states it by file. Stated in the weekly page's hand-kept measures on
+      2026-11-17, by file at `4a5029e96` against `dev`: +275.4 line-equivalents of tools in the
+      batch, of which this Change's own commits are +242.1.

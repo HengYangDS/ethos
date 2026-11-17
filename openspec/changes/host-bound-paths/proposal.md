@@ -42,7 +42,8 @@ Candidates for the design, none decided:
 - A second class of host-bound literal joins only with measured cases of its own.
 
 Under DR-0029 a new rule reports for one release before it refuses, and the law freeze admits no
-new rule before 0.2.0. The rule's first release is therefore the owner's to place.
+new rule before 0.2.0. The owner decided on 2026-11-17 that the rule first reports in the first
+batch of 0.3.0, so the freeze holds, and that it may refuse no earlier than the release after.
 
 ## Capabilities
 
@@ -59,5 +60,5 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 The structure rules and their report. In the release that first reports, each governed
 repository reads its own count, and nothing is refused.
 
-Owner: the release lead. Next action: put the rule's first release to the owner, then converge
-the design on the census's three cases. Read again: at the cut of 2026-11-19.
+Owner: the release lead. Next action: converge the design on the census's three cases for the
+first batch of 0.3.0. Read again: when the batches of 0.3.0 are planned.

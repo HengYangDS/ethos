@@ -81,15 +81,20 @@
 
 ## 6. Lane, hosted run and owner only
 
-- [ ] 6.1 Run the precheck and readiness at the lane head, then the full proof. Done when each
-      passes on the committed head.
+- [x] 6.1 Run the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 6.2 Run the prose gate on the changed Markdown. Done when Vale and codespell pass.
 - [ ] 6.3 Prove the place on the workstation: a bare proof behind one holder that outlasts the
       repository's admission bound is admitted after it. Done when its result records a wait
       longer than the bound and the read listed it as `waiting` throughout.
-- [ ] 6.4 Prove mixed engines: an engine of an earlier release waits beside this one. Done when
-      the earlier engine ends at its own total bound, this one keeps its place, and neither
-      changes the other's order.
+- [x] 6.4 Prove mixed engines: an engine of an earlier release waits beside this one. Done when the
+      earlier engine ends at its own total bound, this one keeps its place, and neither changes the
+      other's order. Observed on 2026-11-17: an engine of 0.2.0-beta.10 asked for the host with a
+      total of 150 seconds while a ticket of this engine waited. The read listed it last, behind
+      this engine's ticket, and it ended after 151 seconds with `host_admission_contended`. This
+      engine's ticket kept its place, and the eight tickets stood in the same order before and
+      after.
 - [x] 6.5 Run `ethos host status --guest-cpus <N>` on the reference host with the guests' own count.
       Done when the next action names a value that `host.toml` takes or the guests' sizes.
 - [ ] 6.6 Run one render under `ethos host run --work <name>` on the workstation, and read the
@@ -109,3 +114,5 @@
 - Owner: where the read on the reference host names the guests' sizes (20 virtual CPUs on 18 at the
   reading of 2026-11-15), decide the sizes; the read with the new count then passes or names a value
   to declare.
+- Landing: the full proof runs on the archived head, where one proof serves every Change of the
+  unit; its receipt is the landing's.

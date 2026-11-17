@@ -23,11 +23,16 @@
 
 ## 3. The class and the lane
 
-- [ ] 3.1 Run the whole suite once with the temporary directory inside a work tree. Done when
-      each failure is repaired in this Change or is named in the draft `gate-environment` with
-      its owner.
-- [ ] 3.2 Pass the model review of this Change's code, then the pre-check and readiness at the
-      lane head. Done when the review's triage is beside its record and both checks pass.
+- [x] 3.1 Run the whole suite once with the temporary directory inside a work tree. Done when each
+      failure is repaired in this Change or is named in the draft `gate-environment` with its owner.
+      Run at `a725a9d6f` on 2026-11-17: 9,791 passed and 17 failed. The 17 start a pytest of their
+      own and failed on the run's own option for the base directory; they pass with the temporary
+      directory inside the work tree when the outer pytest alone receives that option. No failure is
+      owed to the directory's place, so none is repaired or named.
+- [x] 3.2 Pass the model review of this Change's code, then the pre-check and readiness at the lane
+      head. Done when the review's triage is beside its record and both checks pass. The review read
+      this Change's code in sixteen parts and ended at `a725a9d6f` with no comment, each part's
+      triage beside its record; the pre-check and readiness passed at `4a5029e96` on 2026-11-17.
 
 ## Workflow follow-up
 

@@ -19,6 +19,7 @@ from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.contracts.digest import is_sha256_hex
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterable
 
 _LAUNCHERS = re.compile(r"(?:ba|z|da|k|fi)?sh|python[0-9.]*(?:\.exe)?", re.IGNORECASE)
@@ -34,15 +35,23 @@ def _leading_path(text: str) -> tuple[Path, str] | None:
     found: tuple[Path, str] | None = None
     for end in [m.start() for m in re.finditer(r" ", text)] + [len(text)]:
         candidate = Path(text[:end])
-        try:
-            exists = candidate.is_file() or candidate.is_symlink()
-        except OSError:
-            # A name that the host does not look at, as one longer than a path may be, is no
-            # file. Python 3.14 answers so by itself; the interpreters before it raise here.
-            exists = False
-        if exists:
+        if _answers(candidate.is_file) or _answers(candidate.is_symlink):
             found = (candidate, text[end:].lstrip(" "))
     return found
+
+
+def _answers(question: Callable[[], bool]) -> bool:
+    """Ask one question of a path; a place that the host does not look at answers no.
+
+    Python 3.14 answers so by itself, to each question apart. The interpreters before it raise
+    for a name longer than a path may be and for a place below a directory that cannot be
+    searched, so each question is guarded by itself: a link that can be looked at is one where
+    the file that it names cannot.
+    """
+    try:
+        return question()
+    except OSError:
+        return False
 
 
 def _owner(path: Path, roots: Iterable[Path]) -> Path | None:

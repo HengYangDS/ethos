@@ -65,10 +65,13 @@ def test_a_command_line_that_names_no_file_is_no_writer(tmp_path: Path) -> None:
     assert running_writers(f"{ethos} lane status {words}", (environment,)) == (environment,)
 
 
-@pytest.mark.skipif(
+_NEEDS_A_CLOSED_DIRECTORY = pytest.mark.skipif(
     os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
     reason="a directory that its owner cannot search needs POSIX modes and no superuser",
 )
+
+
+@_NEEDS_A_CLOSED_DIRECTORY
 def test_a_command_below_a_directory_that_cannot_be_searched_is_no_writer(tmp_path: Path) -> None:
     """Its entry cannot be looked at, as its directory cannot be resolved to find its owner.
 
@@ -82,6 +85,26 @@ def test_a_command_below_a_directory_that_cannot_be_searched_is_no_writer(tmp_pa
     closed.chmod(0)
     try:
         assert running_writers(f"{tool} status\n{ethos} status", (environment,)) == (environment,)
+    finally:
+        closed.chmod(0o755)
+
+
+@_NEEDS_A_CLOSED_DIRECTORY
+def test_a_link_to_an_interpreter_that_cannot_be_looked_at_is_a_writer(tmp_path: Path) -> None:
+    """The link lies in the writer root and can be looked at; only what it names cannot.
+
+    Whether a file lies there and whether a link lies there are two questions. The interpreters
+    before Python 3.14 raise at the first, and the second still finds the entry.
+    """
+    environment = tmp_path / "lane/.venv"
+    closed = tmp_path / "closed"
+    interpreter = _entry(closed / "python3")
+    link = environment / "bin/python"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(interpreter)
+    closed.chmod(0)
+    try:
+        assert running_writers(f"{link} -m ethos.cli status", (environment,)) == (environment,)
     finally:
         closed.chmod(0o755)
 

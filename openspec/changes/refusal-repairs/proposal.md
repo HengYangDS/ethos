@@ -53,6 +53,11 @@ check below is one more case. The bullets below stay as named remainders.
   and in neither its message nor its next action; the refusal names it. Reported by one governed
   repository's session on 2026-11-16: on a host east of UTC the two days differ in the first
   hours of its day.
+- `ethos lane start` with a name that carries a date is refused with `work_lane_name_dated`,
+  and its next action is the start under the undated name without the `--base` that the
+  refused command named. Followed as printed, it starts the lane from the candidate and not
+  from the named commit. The next action keeps every argument that the request gave.
+  Measured by the release lane on 2026-11-17 in a preview.
 - A refused rename of a retained topic names `ethos lane repair-paradigm --apply --json` as its
   next action, which is the request that was just refused; under `--pin` it names the same
   apply with `--pin`. The rename's own report is the owner: its step names what removes the

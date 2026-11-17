@@ -59,9 +59,10 @@ Non-Goals:
      a second reader of Git's pattern, macro and nesting rules.
    - **Chosen because:** Git stays the one reader of attribute syntax, the product opens no
      attributes file, and where the reading differs from Git's it judges more. Accepted: one
-     temporary directory and five more Git processes in each selection. Measured on this
-     repository's 1,606 Markdown paths, the least of seven calls: 168.8 ms, where Git's own
-     reading takes 11.3 ms. Most of it is Git's walk of the worktree for attribute files.
+     temporary directory and several more Git processes in each selection. Measured at the
+     lane head on this repository's 1,606 Markdown paths, the least of seven calls on a loaded
+     host: 225.6 ms, where Git's own reading takes 13.7 ms; the listing of decision 6 is 28.5 ms
+     of it. Before that listing, on a calmer host: 168.8 ms and 11.3 ms.
    - **Applies to:** `authored_source_files` alone, so the format command and the gates named
      in Context. The five older readers are not covered.
 2. **The marks are read by exact case on every host.**
@@ -136,7 +137,12 @@ Non-Goals:
      it adds, so a large tree is not hashed for each selection.
    - **Applies to:** `worktree_received_paths` and `observe_worktree_postimage`. A name that
      leaves the tree receives nothing, and its own caller names it invalid. Without a head
-     there is no tree, and nothing is received.
+     there is no tree, and nothing is received. Git refuses to add a pathspec that names no
+     file, so the owner lists each pathspec first, as bytes, and adds only those that name one:
+     a repository without an attributes file marks nothing and is refused nothing. The form
+     before that listing ended every authored selection of such a repository with Git's error,
+     which a third model review found and a case showed; a fourth found that the listing
+     decoded a name that is not UTF-8.
 
 ## Risks / Trade-offs
 
@@ -154,3 +160,8 @@ Non-Goals:
 - A refused read stops a check that the release head let judge everything.
 - `git check-attr --source` needs Git 2.40 or later. The reading ran on Git 2.56.1 on macOS and
   on Python 3.12, 3.13 and 3.14. Windows and Linux run it in the hosted legs.
+- A name that is not UTF-8 ran as an index entry on macOS, whose file system takes no such
+  name. A file of that name on Linux was not run.
+- Four model reviews each found a state that the cases did not hold, and a case showed each
+  before its repair. A state that no review named may remain; the reading fails closed where
+  Git refuses, and judges more where it differs from Git's own.

@@ -52,7 +52,9 @@ None.
 `src/ethos/adapters/repo/git_attributes.py` gains the selection's reader, and
 `src/ethos/adapters/gates/native/inputs.py` uses it. The owner of the source binding,
 `src/ethos/adapters/repo/worktree_postimage.py`, gains one parameter. Each authored selection
-starts five more Git processes and makes one temporary directory. Patterns match by exact case.
+makes one temporary directory and starts several more Git processes: about 0.2 seconds on this
+repository's 1,606 Markdown paths, where Git's own reading takes about 0.01. Patterns match by
+exact case.
 The entry of 0.2.0-beta.11 amends its Fixed item. The release head moves, so its hosted
 qualification, the release build and the build's install smoke run again at the new head
 before the tag.

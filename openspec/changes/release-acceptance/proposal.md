@@ -50,7 +50,9 @@ None.
 ### Modified Capabilities
 
 - `distribution`: MODIFIED requirements `Accepted release identity is immutable` and
-  `Public channels consume explicitly accepted release artifacts`.
+  `Public channels consume explicitly accepted release artifacts`, and one ADDED requirement,
+  `The releasing host accepts the release that it installed`, which holds the host's
+  acceptance and its six scenarios as a behavior of its own.
 
 ## Impact
 

@@ -1,3 +1,58 @@
+## ADDED Requirements
+
+### Requirement: The releasing host accepts the release that it installed
+
+The releasing host SHALL accept, once, the release that its invoked installation is.
+
+#### Scenario: The releasing host accepts the release it installed
+
+- **WHEN** `ethos release accept --checksums <SHA256SUMS> --apply` runs in the product repository
+  through an installed release build of the version that the accepted branch commits, built from
+  the commit that the version's tag names
+- **THEN** the transition stores the installed wheel and records the identity bound to the
+  checksum file
+- **AND** the same request without `--apply` writes nothing and names that apply as its next step.
+
+#### Scenario: An accepted release is accepted again
+
+- **WHEN** the request runs after the version's identity is recorded, with the checksum binding
+  or without it
+- **THEN** the result's state is `unchanged`, on a preview and on an apply, and its data carries
+  the recorded identity
+- **AND** neither the package store nor the Attestation set changes.
+
+#### Scenario: The apply cannot write the store or the set
+
+- **WHEN** the apply meets an operating system error after its inputs were read
+- **THEN** it refuses with `release_acceptance_store_unavailable:<error name>`
+- **AND** the refusal's repair names the Git common directory, not the checksum file.
+
+#### Scenario: The invoked installation is not the release to accept
+
+- **WHEN** the invoking `ethos` is a source checkout or a development build, or an installed
+  release older or newer than the version that the accepted branch commits
+- **THEN** the acceptance refuses with `release_installation_absent`,
+  `release_installation_older:<version>` or `release_installation_newer:<version>`
+- **AND** the refusal precedes every effect and names its repair
+- **AND** the two versions are ordered as SemVer texts, so a committed version outside the
+  wheel profile reads as older or newer.
+
+#### Scenario: The release has no tag, or the installation has another source
+
+- **WHEN** the repository holds no tag of the version that the accepted branch commits, or the
+  installed wheel was not built from the commit that the tag names
+- **THEN** the acceptance refuses with `release_tag_missing:v<version>` or
+  `release_wheel_build_identity_stale`
+- **AND** no package or Attestation changes.
+
+#### Scenario: A release is accepted outside the product repository
+
+- **WHEN** the command runs in a repository that does not declare the ETHOS product profile
+- **THEN** it refuses with `release_acceptance_product_only`
+- **AND** that repository records no release identity
+- **AND** a profile that cannot be read refuses with `repository_profile_invalid:<path>`, never
+  as another repository.
+
 ## MODIFIED Requirements
 
 ### Requirement: Accepted release identity is immutable
@@ -6,8 +61,7 @@ ETHOS SHALL create an exact release identity only from an explicit release trans
 reject rollback, source reuse, or artifact disagreement. A release first accepted with its checksum
 file SHALL bind the version, the source commit and tree, that file's digest, and the name and
 digest of every wheel and archive the file lists. Readers SHALL admit an identity recorded
-without that binding, and a version SHALL keep the identity it first recorded. The releasing
-host SHALL accept, once, the release that its invoked installation is.
+without that binding, and a version SHALL keep the identity it first recorded.
 
 #### Scenario: Ordinary runtime installation occurs
 
@@ -84,55 +138,6 @@ host SHALL accept, once, the release that its invoked installation is.
 - **WHEN** the wheel's bytes change after the transition read them
 - **THEN** the package store receives the bytes whose digest was admitted
 - **AND** no file is stored under a digest that is not its own.
-
-#### Scenario: The releasing host accepts the release it installed
-
-- **WHEN** `ethos release accept --checksums <SHA256SUMS> --apply` runs in the product repository
-  through an installed release build of the version that the accepted branch commits, built from
-  the commit that the version's tag names
-- **THEN** the transition stores the installed wheel and records the identity bound to the
-  checksum file
-- **AND** the same request without `--apply` writes nothing and names that apply as its next step.
-
-#### Scenario: An accepted release is accepted again
-
-- **WHEN** the request runs after the version's identity is recorded, with the checksum binding
-  or without it
-- **THEN** the result's state is `unchanged`, on a preview and on an apply, and its data carries
-  the recorded identity
-- **AND** neither the package store nor the Attestation set changes.
-
-#### Scenario: The apply cannot write the store or the set
-
-- **WHEN** the apply meets an operating system error after its inputs were read
-- **THEN** it refuses with `release_acceptance_store_unavailable:<error name>`
-- **AND** the refusal's repair names the Git common directory, not the checksum file.
-
-#### Scenario: The invoked installation is not the release to accept
-
-- **WHEN** the invoking `ethos` is a source checkout or a development build, or an installed
-  release older or newer than the version that the accepted branch commits
-- **THEN** the acceptance refuses with `release_installation_absent`,
-  `release_installation_older:<version>` or `release_installation_newer:<version>`
-- **AND** the refusal precedes every effect and names its repair
-- **AND** the two versions are ordered as SemVer texts, so a committed version outside the
-  wheel profile reads as older or newer.
-
-#### Scenario: The release has no tag, or the installation has another source
-
-- **WHEN** the repository holds no tag of the version that the accepted branch commits, or the
-  installed wheel was not built from the commit that the tag names
-- **THEN** the acceptance refuses with `release_tag_missing:v<version>` or
-  `release_wheel_build_identity_stale`
-- **AND** no package or Attestation changes.
-
-#### Scenario: A release is accepted outside the product repository
-
-- **WHEN** the command runs in a repository that does not declare the ETHOS product profile
-- **THEN** it refuses with `release_acceptance_product_only`
-- **AND** that repository records no release identity
-- **AND** a profile that cannot be read refuses with `repository_profile_invalid:<path>`, never
-  as another repository.
 
 ### Requirement: Public channels consume explicitly accepted release artifacts
 

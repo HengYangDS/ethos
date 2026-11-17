@@ -48,9 +48,9 @@ None. The native source-budget declaration owns the number, so `skip_specs: true
 ## Impact
 
 The format-selection policy, one decision record with its line in the index, and the two test
-modules that hold those helpers. The Change stands alone and first in the batch of 0.2.0-beta.13, for
-the reason that DR-0028 gives against a step inside a row: the other rows would be left without
-space.
+modules that hold those helpers. The Change stands alone and first in the batch of
+0.2.0-beta.13, for the reason that DR-0028 gives against a step inside a row: the other rows
+would be left without space.
 
 Owner: the release lead. Next action: the design, the tasks and the measured removal when the
 batch lane of 0.2.0-beta.13 opens. Read again: at the cut of 2026-11-19.

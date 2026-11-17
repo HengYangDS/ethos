@@ -12,8 +12,44 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.11] - 2026-11-21
+
 ### Added
 
+- Readers accept `next.inputs`: one entry for each value that only the agent can choose for the
+  next step, with the request field's `name`, its `flag` and its `description`.
+  `EthosResult.from_payload` keeps a carried `inputs` and re-derives the rest of the step, and the
+  result schema admits the member. No command emits it in this release; the commands that do
+  follow one release later, so a build one release older still reads their results.
+- A release run attests `SHA256SUMS` with the archives, wheels and inventories it publishes. An
+  accepted release identity can bind that file's digest and the name and digest of every wheel and
+  archive it lists; identities recorded without the binding read as before, and a published file
+  that disagrees with the checksum file refuses with `accepted_release_checksum_mismatch`.
+- Where the accepted branch declares the exact GitHub pin, `ethos hook install`, `ethos lane start`
+  and `ethos adopt --select-runtime` follow it forward only: they select the pinned release's
+  install when it is newer than `CURRENT`, and otherwise keep `CURRENT` and name the state
+  (`runtime_pin_behind_current`, `runtime_pin_unattested`, `runtime_pin_not_installed` or
+  `runtime_selection_open`). `ethos hook install --runtime <R> --reason <text>` from a Work Lane
+  records a `successor` or `rollback` receipt that holds `CURRENT` on R until the accepted pin
+  changes or the lane retires. A cutover holds `ROLLBACK` only for a predecessor that an install of
+  the repository can admit, and `ethos status` reports a held rollback that none can, with its
+  repair. A repository without the pin behaves as before and reports `runtime_pin_absent`.
+- `ethos hook bind-trust` binds the commit trust that a CI job's operator supplies to the
+  checkout's local `gpg.ssh.allowedSignersFile`, so a job needs no ETHOS source checkout before
+  `ethos hook commit-range`. It previews by default and writes with `--apply`. Its one input is a
+  protected file named by `--anchor <path>` or `ETHOS_COMMIT_TRUST_ANCHOR`, or the public material
+  in `ETHOS_COMMIT_ALLOWED_SIGNERS`; two inputs refuse with `ci_commit_trust_inputs_ambiguous`, and
+  without one it binds nothing.
+- `ethos host status --json` reads this host's declaration, its 1-minute load and every live ticket
+  in arrival order with `holding` or `waiting`; `--guest-cpus <n>` checks the guests' virtual CPUs
+  against `reserved_cpus`.
+- A foreground host proof holds the host ticket while its test and package gates run, with the
+  ticket's token and worker cap exported, and its result records the wait in `data.admission`.
+- `docs/guides/ci-guest-host.md` covers a host that also runs CI guests.
+- Every gap code the product raises is registered in one packaged table, with its owning package
+  and, where the name does not say it, its meaning and fixed repair; a static test and the shared
+  CLI test runner refuse an unregistered code. `ethos --help --json` prints one exit table, and
+  every CLI exit reads its number from it by kind.
 - `ethos host run --work <name>` claims `build/runtime/work/<name>/` for the run: before it queues,
   it writes `.ethos-owner.json` there with the actor the run declares, its operation and the time.
   A directory keeps its first mark. Another owner's mark, or one that cannot be read, refuses the
@@ -89,155 +125,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The release journey gains its Linux arm64 leg. A release run and a journey dispatch run the
   adopter journey on Linux x64, Linux arm64 and macOS arm64, the three hosts whose journey 0.2.0
   declares, each on a runner of its own architecture.
-
-### Changed
-
-- The command reference splits by reader question, and five of its sections move with unchanged
-  text and anchors. `docs/reference/integration-and-release.md` holds what was
-  `docs/reference/command-plane.md#native-merge-continuation`,
-  `#retained-candidate-materialization` and `#accepted-release-selection`;
-  `docs/reference/ci-operations.md` holds what was `#native-ci-projection` and
-  `#exact-ref-observation-for-ci`. The command reference keeps each heading with a pointer to the
-  new place, so an old anchor still resolves, and the wheel and the source archive carry both new
-  pages.
-- **Breaking:** a wait for the host queue no longer ends at `timeout.admission_seconds`. A run or
-  a proof keeps its place behind tickets whose holders live, however long they run, and its wait
-  ends at the admission ceiling: the parameter's declared maximum, 36,000 seconds. A run without
-  `--wait`, a host proof and a full proof waited at most the repository's bound before, 3,600
-  seconds by default. A repository that declares a lower `timeout.admission_seconds` no longer
-  shortens the wait of `ethos host run` or of a host proof for the host queue.
-  `ethos host run --wait <seconds>` stays the caller's own total, now at most the ceiling, and
-  `--wait 0` still asks once. A `--wait` that is no number ends at the ceiling; it waited without
-  end before. `timeout.admission_seconds` still bounds, as one total, a full proof's waits for
-  its repository's slot and for calm load, without the time it spent behind a live holder of the
-  host slot. A caller that needs a shorter total for a proof keeps its own deadline, or runs the
-  proof under `ethos host run --wait`.
-- On a host that declares more than one slot, the worker cap is one slot's share of the CPUs that
-  `reserved_cpus` leaves, at least one, so the slots can run at once. A host of one slot keeps its
-  cap.
-- The next action of `host_reservation_exceeded` names the value of `reserved_cpus` to declare. On
-  a host whose guests hold as many virtual CPUs as it has, or more, it names the guests' sizes: no
-  declaration reserves every CPU, and the earlier text asked for a value that none satisfies.
-- **Breaking:** no continuation renders `export ETHOS_ACTOR=<holder>`. A result without an actor
-  continues to the instruction `rerun the command with --actor <your own identity>`. A result whose
-  actor is not the holder (`lease_holder_mismatch`, or `foreign_work_lane_retire_authority_required`
-  at a retirement) continues to the `ethos lane handoff transfer` preview with the Lease's exact
-  coordinates, as a decision for a person. Repair: a caller that ran or parsed the `export` line
-  passes its own identity with `--actor`, or keeps `ETHOS_ACTOR` set, and takes the handoff to the
-  holder. A reader of 0.2.0-beta.11 reads these results.
-- The release journey runs in two stages, and one owner gives the children of each a fresh
-  environment: a new home and temporary directory, Git without system or global configuration,
-  system attributes or templates, and a path of links to the declared executables. Acquisition,
-  the only stage that reaches the network, verifies each release, proves its pin and writes a
-  manifest of the archives it verified. Qualification reads the manifest alone, checks its
-  environment before its first child, hashes each archive again and installs it offline, with
-  the manifest's digest as the checksum that Mise checks. Every journey step runs on that
-  offline install; the pin's own installation is checked for its console in acquisition and
-  then removed, where 0.2.0-beta.11 ran the steps on it. The
-  forge token reaches the forge's client and Mise's pin calls and no other child, and the journey
-  runs the Mise executable that the repository binds by digest. New refusals are
-  `journey_environment_not_hermetic:<what>`, `release_journey_archive_tampered:<archive>` and
-  `release_journey_manifest_invalid`; the receipt gains `venue`. A host that runs the journey
-  needs `gh` and `curl` on its path.
-- One record set serves every reader: the paradigm's immutable roots plus a profile's
-  `record_roots`. `ethos lane format`, in its preview and apply forms, no longer rewrites a file
-  under a declared record root that the merge base with the local accepted branch holds
-  unchanged, and rewrites none of them when that base does not resolve; a record that the request
-  names is repaired as before. The format gates and `ethos lane format --check` judge every
-  record file as before, in every checkout. The format reports name the base as `record_base`,
-  `unresolved` without one, and the kept files as `record_paths`. The source budget counts a
-  carrier under a declared record root as a record. The paradigm declares `docs/archive/` and
-  `evidence/` as its retained roots, which stay outside every authored input and outside
-  redaction as before. The format policy's `immutable_record_roots` key is no longer read; the
-  shipped policy keeps it for this release, and a policy without it is valid.
-- A `source_format_drift` refusal of `ethos lane format --check` names its next step: the apply,
-  the naming of a path under `record_paths`, or marking a third-party or generated path
-  `linguist-vendored` or `linguist-generated` in `.gitattributes`. The refusal named no next step.
-
-### Fixed
-
-- `ethos lane prewrite --patch` reads a patch's postimage wherever the process's temporary
-  directory lies. With that directory inside a Git work tree, Git skipped every path of the
-  patch in the admission's temporary workspace and reported success, so the admission judged the
-  unchanged files: it admitted a patch whose undeclared reference or deleted input it must
-  refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
-  defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10 and is in 0.2.0-beta.11; with those
-  releases, keep the temporary directory outside every checkout. The admission's workspace is
-  now a repository of its own. A patch that declares a symbolic link or a submodule entry, or
-  that changes a link, is refused: its postimage read as absent, and it was admitted without
-  what the link names. What a patch does at each path is now read from Git, in that
-  workspace's own index, and no longer from the patch's text: a patch that creates or deletes
-  an empty file is read as that and not as an edit, the source of a move is read as deleted,
-  and text after an entry without content moves no path of the request. A request for a
-  patch that moves a file names the move's source too, as the index target already requires:
-  a request for the target alone left the source's deletion unjudged and is now refused with
-  `prewrite_patch_paths_mismatch`, and the report's `paths` name both. The index target holds
-  its request against the paths that Git changed in the candidate index as well. A patch
-  whose target is the null path and whose hunk leaves content was admitted as a deletion on
-  both targets while Git wrote that content to a file; both refuse it now.
-- The quality gates of a repository with many code files run on Windows. The check that no code
-  subject differs from the commit named every subject on one Git command line, which Windows
-  refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing
-  paths and compares them itself. The defect is in every release through 0.2.0-beta.11.
-- Text that ETHOS hands a native tool on its standard input keeps its line endings on Windows.
-  The text went through a stream that wrote each newline as CRLF there, so the CUE compiler
-  refused the pipeline model with `cue_compilation_failed`, and any other tool that reads text
-  this way received other bytes than its caller sent. The defect is in every release through
-  0.2.0-beta.11.
-- A command that passes its time bound reports that bound as its timeout on every supported
-  interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
-  when the wait began, a little less than the bound, where no stream of the command was a pipe.
-- `ethos hook retire-records --apply` no longer defers every batch under Python 3.12 or 3.13
-  while a process with a long command line runs. A command line is tried as a path, and those
-  interpreters raise for a name longer than a path may be, where Python 3.14 answers that no
-  file lies there; the apply read the error as an unknown writer and answered
-  `record_retirement_batch_deferred:<kind>:writer`. The defect is in every release from
-  0.2.0-beta.7 through 0.2.0-beta.11; Python 3.14 is not affected.
-- A full proof that cannot open the host queue, take its place in it or give that place up
-  answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
-  error itself, in 0.2.0-beta.10 and 0.2.0-beta.11 as well, in place of a gap or an interrupt
-  already in flight, and a place that could not be given up left the slot held until the process
-  ended. A ticket whose record cannot be removed no longer keeps its lock, which held its place
-  in the host queue until its process ended.
-
-## [0.2.0-beta.11] - 2026-11-21
-
-### Added
-
-- Readers accept `next.inputs`: one entry for each value that only the agent can choose for the
-  next step, with the request field's `name`, its `flag` and its `description`.
-  `EthosResult.from_payload` keeps a carried `inputs` and re-derives the rest of the step, and the
-  result schema admits the member. No command emits it in this release; the commands that do
-  follow one release later, so a build one release older still reads their results.
-- A release run attests `SHA256SUMS` with the archives, wheels and inventories it publishes. An
-  accepted release identity can bind that file's digest and the name and digest of every wheel and
-  archive it lists; identities recorded without the binding read as before, and a published file
-  that disagrees with the checksum file refuses with `accepted_release_checksum_mismatch`.
-- Where the accepted branch declares the exact GitHub pin, `ethos hook install`, `ethos lane start`
-  and `ethos adopt --select-runtime` follow it forward only: they select the pinned release's
-  install when it is newer than `CURRENT`, and otherwise keep `CURRENT` and name the state
-  (`runtime_pin_behind_current`, `runtime_pin_unattested`, `runtime_pin_not_installed` or
-  `runtime_selection_open`). `ethos hook install --runtime <R> --reason <text>` from a Work Lane
-  records a `successor` or `rollback` receipt that holds `CURRENT` on R until the accepted pin
-  changes or the lane retires. A cutover holds `ROLLBACK` only for a predecessor that an install of
-  the repository can admit, and `ethos status` reports a held rollback that none can, with its
-  repair. A repository without the pin behaves as before and reports `runtime_pin_absent`.
-- `ethos hook bind-trust` binds the commit trust that a CI job's operator supplies to the
-  checkout's local `gpg.ssh.allowedSignersFile`, so a job needs no ETHOS source checkout before
-  `ethos hook commit-range`. It previews by default and writes with `--apply`. Its one input is a
-  protected file named by `--anchor <path>` or `ETHOS_COMMIT_TRUST_ANCHOR`, or the public material
-  in `ETHOS_COMMIT_ALLOWED_SIGNERS`; two inputs refuse with `ci_commit_trust_inputs_ambiguous`, and
-  without one it binds nothing.
-- `ethos host status --json` reads this host's declaration, its 1-minute load and every live ticket
-  in arrival order with `holding` or `waiting`; `--guest-cpus <n>` checks the guests' virtual CPUs
-  against `reserved_cpus`.
-- A foreground host proof holds the host ticket while its test and package gates run, with the
-  ticket's token and worker cap exported, and its result records the wait in `data.admission`.
-- `docs/guides/ci-guest-host.md` covers a host that also runs CI guests.
-- Every gap code the product raises is registered in one packaged table, with its owning package
-  and, where the name does not say it, its meaning and fixed repair; a static test and the shared
-  CLI test runner refuse an unregistered code. `ethos --help --json` prints one exit table, and
-  every CLI exit reads its number from it by kind.
 
 ### Changed
 
@@ -367,20 +254,6 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - The release journey counts any failed install of a rebound lock as Mise's refusal. It does
     not yet require the refusal to name its cause, so a failed download would read as a refusal.
     The journey's receipt records each refusal's text under `refusals`.
-  - `ethos lane prewrite --patch` judges the files as they were when the process's temporary
-    directory lies inside a Git work tree. Git skips every path of the patch in the admission's
-    temporary workspace and reports success, so the admission admits a patch that it must
-    refuse, for example one that adds an undeclared reference or deletes a file that another
-    still reads, and refuses the move of a dated Change with `prewrite_patch_postimage_failed`.
-    The default temporary directory of macOS and of Linux is not inside a checkout and is not
-    affected. Keep `TMPDIR` outside every checkout. The defect is in 0.2.0-beta.9 and
-    0.2.0-beta.10 as well.
-  - A full proof that cannot open the host queue, take its place in it or give that place up
-    raises the operating system's error itself, in place of a gap or of an interrupt already in
-    flight. A place that cannot be given up leaves the repository's proof slot held, and a
-    ticket whose record cannot be removed keeps its place in the host queue, until the process
-    ends. End that process and run the proof again once the queue can be read and written. The
-    defect is in 0.2.0-beta.10 as well.
   - A gate that a repository declares as a command receives the environment of the shell that
     launched the proof, so its verdict can follow that shell. Measured on one governed
     repository, under this release and under 0.2.0-beta.10 alike: from a shell whose Mise
@@ -389,6 +262,67 @@ historical bindings are governed by the [distribution specification](openspec/sp
     proof failed; from a clean environment it passed. Launch a local proof from the shell as it
     is, or under `env -i` with `HOME`, a system `PATH` and `TMPDIR`, and do not remove Mise's
     activation variables alone.
+- The command reference splits by reader question, and five of its sections move with unchanged
+  text and anchors. `docs/reference/integration-and-release.md` holds what was
+  `docs/reference/command-plane.md#native-merge-continuation`,
+  `#retained-candidate-materialization` and `#accepted-release-selection`;
+  `docs/reference/ci-operations.md` holds what was `#native-ci-projection` and
+  `#exact-ref-observation-for-ci`. The command reference keeps each heading with a pointer to the
+  new place, so an old anchor still resolves, and the wheel and the source archive carry both new
+  pages.
+- **Breaking:** a wait for the host queue no longer ends at `timeout.admission_seconds`. A run or
+  a proof keeps its place behind tickets whose holders live, however long they run, and its wait
+  ends at the admission ceiling: the parameter's declared maximum, 36,000 seconds. A run without
+  `--wait`, a host proof and a full proof waited at most the repository's bound before, 3,600
+  seconds by default. A repository that declares a lower `timeout.admission_seconds` no longer
+  shortens the wait of `ethos host run` or of a host proof for the host queue.
+  `ethos host run --wait <seconds>` stays the caller's own total, now at most the ceiling, and
+  `--wait 0` still asks once. A `--wait` that is no number ends at the ceiling; it waited without
+  end before. `timeout.admission_seconds` still bounds, as one total, a full proof's waits for
+  its repository's slot and for calm load, without the time it spent behind a live holder of the
+  host slot. A caller that needs a shorter total for a proof keeps its own deadline, or runs the
+  proof under `ethos host run --wait`.
+- On a host that declares more than one slot, the worker cap is one slot's share of the CPUs that
+  `reserved_cpus` leaves, at least one, so the slots can run at once. A host of one slot keeps its
+  cap.
+- The next action of `host_reservation_exceeded` names the value of `reserved_cpus` to declare. On
+  a host whose guests hold as many virtual CPUs as it has, or more, it names the guests' sizes: no
+  declaration reserves every CPU, and the earlier text asked for a value that none satisfies.
+- **Breaking:** no continuation renders `export ETHOS_ACTOR=<holder>`. A result without an actor
+  continues to the instruction `rerun the command with --actor <your own identity>`. A result whose
+  actor is not the holder (`lease_holder_mismatch`, or `foreign_work_lane_retire_authority_required`
+  at a retirement) continues to the `ethos lane handoff transfer` preview with the Lease's exact
+  coordinates, as a decision for a person. Repair: a caller that ran or parsed the `export` line
+  passes its own identity with `--actor`, or keeps `ETHOS_ACTOR` set, and takes the handoff to the
+  holder. A reader of 0.2.0-beta.11 reads these results.
+- The release journey runs in two stages, and one owner gives the children of each a fresh
+  environment: a new home and temporary directory, Git without system or global configuration,
+  system attributes or templates, and a path of links to the declared executables. Acquisition,
+  the only stage that reaches the network, verifies each release, proves its pin and writes a
+  manifest of the archives it verified. Qualification reads the manifest alone, checks its
+  environment before its first child, hashes each archive again and installs it offline, with
+  the manifest's digest as the checksum that Mise checks. Every journey step runs on that
+  offline install; the pin's own installation is checked for its console in acquisition and
+  then removed, where 0.2.0-beta.10 ran the steps on it. The
+  forge token reaches the forge's client and Mise's pin calls and no other child, and the journey
+  runs the Mise executable that the repository binds by digest. New refusals are
+  `journey_environment_not_hermetic:<what>`, `release_journey_archive_tampered:<archive>` and
+  `release_journey_manifest_invalid`; the receipt gains `venue`. A host that runs the journey
+  needs `gh` and `curl` on its path.
+- One record set serves every reader: the paradigm's immutable roots plus a profile's
+  `record_roots`. `ethos lane format`, in its preview and apply forms, no longer rewrites a file
+  under a declared record root that the merge base with the local accepted branch holds
+  unchanged, and rewrites none of them when that base does not resolve; a record that the request
+  names is repaired as before. The format gates and `ethos lane format --check` judge every
+  record file as before, in every checkout. The format reports name the base as `record_base`,
+  `unresolved` without one, and the kept files as `record_paths`. The source budget counts a
+  carrier under a declared record root as a record. The paradigm declares `docs/archive/` and
+  `evidence/` as its retained roots, which stay outside every authored input and outside
+  redaction as before. The format policy's `immutable_record_roots` key is no longer read; the
+  shipped policy keeps it for this release, and a policy without it is valid.
+- A `source_format_drift` refusal of `ethos lane format --check` names its next step: the apply,
+  the naming of a path under `record_paths`, or marking a third-party or generated path
+  `linguist-vendored` or `linguist-generated` in `.gitattributes`. The refusal named no next step.
 
 ### Fixed
 
@@ -397,6 +331,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   license in a vendored tree, and `--apply` rewrote it. The Markdown, prose, link and configuration
   gates leave such a path alone too, and a format request that names one refuses
   `source_format_other_owner`.
+  The mark counts where a `.gitattributes` file that Git tracks or would add gives it. A line in
+  the Git directory's `info/attributes`, in a file that `core.attributesFile` names, or in a
+  `.gitattributes` file that an exclude rule hides takes no path out of these checks: no commit
+  carries such a line and a proof does not bind it.
 - `ethos hook install` no longer names itself as its next step. When activation holds and
   reclamation is deferred, or when the installation refuses for a reason other than its state
   schema, the result continues to `ethos status --root <root> --json`, whose hook-runtime inspection
@@ -465,6 +403,57 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `runtime_pin_unattested`, and refuses by that name when nothing is selected.
 - The shared conformance of the CLI, SDK and MCP surfaces requires exactly the files an adoption
   plans: its two bindings, and the pin only from a release build. It accepted any superset.
+- `ethos lane prewrite --patch` reads a patch's postimage wherever the process's temporary
+  directory lies. With that directory inside a Git work tree, Git skipped every path of the
+  patch in the admission's temporary workspace and reported success, so the admission judged the
+  unchanged files: it admitted a patch whose undeclared reference or deleted input it must
+  refuse, and refused the move of a dated Change with `prewrite_patch_postimage_failed`. The
+  defect was measured in 0.2.0-beta.9 and 0.2.0-beta.10; with those releases, keep the
+  temporary directory outside every checkout. The admission's workspace is
+  now a repository of its own. A patch that declares a symbolic link or a submodule entry, or
+  that changes a link, is refused: its postimage read as absent, and it was admitted without
+  what the link names. What a patch does at each path is now read from Git, in that
+  workspace's own index, and no longer from the patch's text: a patch that creates or deletes
+  an empty file is read as that and not as an edit, the source of a move is read as deleted,
+  and text after an entry without content moves no path of the request. A request for a
+  patch that moves a file names the move's source too, as the index target already requires:
+  a request for the target alone left the source's deletion unjudged and is now refused with
+  `prewrite_patch_paths_mismatch`, and the report's `paths` name both. The index target holds
+  its request against the paths that Git changed in the candidate index as well. A patch
+  whose target is the null path and whose hunk leaves content was admitted as a deletion on
+  both targets while Git wrote that content to a file; both refuse it now.
+- The quality gates of a repository with many code files run on Windows. The check that no code
+  subject differs from the commit named every subject on one Git command line, which Windows
+  refuses past 32,767 characters with `git_process_spawn_failed`; it now reads the differing
+  paths and compares them itself. The defect is in every release through 0.2.0-beta.10.
+- Text that ETHOS hands a native tool on its standard input keeps its line endings on Windows.
+  The text went through a stream that wrote each newline as CRLF there, so the CUE compiler
+  refused the pipeline model with `cue_compilation_failed`, and any other tool that reads text
+  this way received other bytes than its caller sent. The defect is in every release through
+  0.2.0-beta.10.
+- A command that passes its time bound reports that bound as its timeout on every supported
+  interpreter. Under Python 3.12 the refusal's `timeout_seconds` held the time that was left
+  when the wait began, a little less than the bound, where no stream of the command was a pipe.
+- `ethos hook retire-records --apply` no longer defers every batch under Python 3.12 or 3.13
+  while a process with a long command line runs. A command line is tried as a path, and those
+  interpreters raise for a name longer than a path may be, where Python 3.14 answers that no
+  file lies there; the apply read the error as an unknown writer and answered
+  `record_retirement_batch_deferred:<kind>:writer`. The defect is in every release from
+  0.2.0-beta.7 through 0.2.0-beta.10; Python 3.14 is not affected.
+- A full proof that cannot open the host queue, take its place in it or give that place up
+  answers `host_admission_unavailable` and frees its repository's proof slot. It raised the OS
+  error itself, in 0.2.0-beta.10 as well, in place of a gap or an interrupt
+  already in flight, and a place that could not be given up left the slot held until the process
+  ended. A ticket whose record cannot be removed no longer keeps its lock, which held its place
+  in the host queue until its process ended.
+- The cleanup of the host store at the end of `ethos hook install` keeps an installation whose
+  consumer it cannot read. Under Python 3.14 a repository whose Git directory, or the directory
+  of its runtime selectors, may not be searched was read as having released the installation.
+  On every interpreter so was a repository whose recorded path is a link that names nothing.
+  The cleanup then removed the record and deleted an installation that the repository still
+  selected. Both now read as unknown and keep the record and the installation. Both defects
+  are in every release from 0.2.0-alpha.8 through 0.2.0-beta.10; the first shows under Python
+  3.14 alone.
 
 ## [0.2.0-beta.10] - 2026-11-14
 

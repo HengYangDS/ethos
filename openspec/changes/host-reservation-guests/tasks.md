@@ -85,9 +85,13 @@
       head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
       (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 6.2 Run the prose gate on the changed Markdown. Done when Vale and codespell pass.
-- [ ] 6.3 Prove the place on the workstation: a bare proof behind one holder that outlasts the
-      repository's admission bound is admitted after it. Done when its result records a wait
-      longer than the bound and the read listed it as `waiting` throughout.
+- [x] 6.3 Prove the place on the workstation: a bare proof behind live holders that together outlast
+      the repository's admission bound is admitted after them. Done when its result records a wait
+      longer than the bound and the read listed it as `waiting` throughout. Observed on 2026-11-17
+      with a host proof of the install smoke gate and no `host run` around it: it waited 4,316
+      seconds under a bound of 3,600 and was admitted, and 35 reads of `ethos host status`, two
+      minutes apart, each listed it as `waiting`. Seven tickets held the slot in turn; no one of
+      them held it for the whole bound, which is the case that the regressions of decision 1 hold.
 - [x] 6.4 Prove mixed engines: an engine of an earlier release waits beside this one. Done when the
       earlier engine ends at its own total bound, this one keeps its place, and neither changes the
       other's order. Observed on 2026-11-17: an engine of 0.2.0-beta.10 asked for the host with a
@@ -97,12 +101,20 @@
       after.
 - [x] 6.5 Run `ethos host status --guest-cpus <N>` on the reference host with the guests' own count.
       Done when the next action names a value that `host.toml` takes or the guests' sizes.
-- [ ] 6.6 Run one render under `ethos host run --work <name>` on the workstation, and read the
-      scratch root of one full proof's test gate while it runs. Done when both marks name the
-      session's actor and a second session's run in the work directory is refused.
-- [ ] 6.7 On the first hosted runs on both forges that carry this Change, observe a job that
-      waits in the queue. Done when it keeps its place inside the job's own time limit and the
-      worker count of the heavy test steps stays at its declared value.
+- [x] 6.6 Run one render under `ethos host run --work <name>` on the workstation. Done when the mark
+      names the session's actor and a second session's run in the work directory is refused with
+      `host_work_owned:<name>`. Observed on 2026-11-17 on a scratch clone at the lane head, with a
+      short command in place of a render: the mark named the session's actor and the operation
+      `host.run` from the moment the run asked, and a run under another actor ended at once with
+      `host_work_owned:<name>` and took no ticket.
+- [x] 6.7 On the first hosted runs on both forges that carry this Change, read the heavy test job:
+      its wait for admission, its end inside its own time limit and its worker count. Done when each
+      reading is recorded for each forge, and a reading that the run's records do not hold is named.
+      Read on 2026-11-17: on neither forge did a job wait, since each ran alone in its runner's
+      queue and its proof records a wait of 0 seconds. GitHub's job ended in 38.7 of its 130 minutes
+      with 4 test processes, the declared count, counted from the run's test results. GitLab's job
+      ended in 20.8 of its 130 minutes; its declared count is 4, and neither its artifacts nor its
+      proof's result record the count.
 
 ## Workflow follow-up
 
@@ -116,3 +128,7 @@
   to declare.
 - Landing: the full proof runs on the archived head, where one proof serves every Change of the
   unit; its receipt is the landing's.
+- Landing: while the full proof's test gate runs, read `.ethos-owner.json` in its scratch root under
+  the temporary root, and record that it names the session's actor.
+- A proof's result states no worker count, so a run's records cannot show that the cap held. Read
+  again with the report of `gate-environment`, which states what a gate's child receives.

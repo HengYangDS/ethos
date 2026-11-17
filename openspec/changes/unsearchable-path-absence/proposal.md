@@ -55,8 +55,17 @@ Candidates for the design, the first decided by the owner:
   inside the consumer's own Git directory that cannot be looked at reads `unknown` on every
   interpreter. What is lost today is an installation, which an install makes again, and no
   repository's data. On the releasing host, 0 of 31 governed checkouts hold such a directory.
-  Open, the owner's: whether this repair enters 0.2.0-beta.11 with its one planned move of the
-  release head, or stays here.
+  The repair is written on that release head and not yet in a lane: each selector's own
+  status is asked of the host before the selector is read. Its case fails first under
+  Python 3.14 in two states, the Git common directory closed and the directory of the
+  selectors closed, and passes on three interpreters with the repair. Open, the owner's:
+  whether this repair enters 0.2.0-beta.11 with its one planned move of the release head,
+  or stays here.
+- A finding of the lead's review of the prepared patch, on 2026-11-17: a link that is there
+  and whose target lies below a closed directory must stay unknown also where the link is a
+  directory of the listed path. Asked as a directory, Python 3.14 answers that it is none
+  and the older interpreters raise. The reader asks the host for the path's status there,
+  which raises on every interpreter.
 - The cases of the three readers run on Python 3.12, 3.13 and 3.14.
 
 The trade-off that the decision accepts: a process that runs from an owned generation whose

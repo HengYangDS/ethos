@@ -37,37 +37,51 @@ not landed.
 
 ## What Changes
 
-Decided by the owner:
+Decided by the owner on 2026-11-17, the last answer that evening:
 
-- One move of the release head after the cut of 2026-11-19. Its lane holds the entry's new items
-  and the repair of the regression; one proof, one landing, and the whole chain before the
-  owner is asked for the tag of 2026-11-21.
+- The one move of the release head carries the whole batch of 0.2.0-beta.12: its nine rows of
+  the gate, reviewed and green on both forges, with the repairs below. The seven defects above
+  are then repaired by the release and are not listed. One lane, one proof, one landing, and
+  the whole release chain before the owner is asked for the tag of 2026-11-21. This changes
+  the earlier answer of the same day, by which the move held the entry alone.
+- The way back, bound by the release lead's words on the page: if the batch's whole
+  verification has not passed by 2026-11-19 12:00, the move holds the entry's seven items and
+  the repair of the regression alone, as first decided, and the batch lands after the tag.
 - The regression is repaired, not listed: the authored selection takes no mark from the Git
-  directory's local attributes file. The repair is prepared outside the lanes; the way that the
-  preparation's study measured as right in every state reads the marks through an empty Git
-  directory of its own. The entry's Fixed item on vendored and generated paths gains one
-  sentence. The older readers of Git attributes keep their answers; they are the subject of
-  `local-git-state-binding`.
-- The entry's list of known open defects gains the seven, each with what to do until a release
-  repairs it, as measured: run ETHOS on Python 3.14 for the retirement; read a time bound from
-  the configuration; for a move, content at the null path and an empty file's deletion the
-  commit hooks judge the staged tree; end a patch at its last entry; and no step is known for a
-  symbolic link.
+  directory's local attributes file. The way that the preparation's study measured as right in
+  every state reads the marks through an empty Git directory of its own. The entry's Fixed item
+  on vendored and generated paths gains one sentence. The older readers of Git attributes keep
+  their answers; they are the subject of `local-git-state-binding`.
+- The host store's reader of a consumer's state is repaired in two places, both measured on
+  three interpreters with a case that fails first. A selector below a directory that may not be
+  searched reads `unknown`: under Python 3.14 it read as a selector that names nothing, and the
+  cleanup deleted an installation that its repository still selected. A consumer whose path is
+  a link that names nothing reads `absent`, as a path that is gone does: on every interpreter it
+  read `released` and lost its record and installation. A second reader tried to refute the
+  first repair and found the second defect.
+- A standing rule for the release lead: a defect found before a tag is repaired without a
+  separate ask, and reported on a page afterwards, when its repair changes one reader and adds
+  no refusal, passes on the three supported Python versions, is reviewed, and the whole release
+  chain ends before the page that asks for the tag. Where one of the four does not hold, the
+  defect is written into the entry and the owner is asked. The tag stays the owner's word. The
+  rule's place in a tracked page is shown to the owner with the Change that carries it.
 
-Open, the owner's, asked on 2026-11-17:
+Open:
 
-- Whether the move carries the whole batch of 0.2.0-beta.12 and so repairs the seven instead of
-  listing them.
-- Whether it carries the repair of the deletion that `unsearchable-path-absence` states for
-  Python 3.14.
-- The entry's heading says that no known defect is in a blocking class. The two Windows items
-  stop a gate there, and the entry already names the Windows adopter journey as not qualified;
-  the lead reads them under that journey. The wrong admissions admit a write and no proof.
+- The entry's twelve listed defects are read again against the batch; each one that the batch
+  repairs leaves the list.
+- The entry's heading says that no known defect is in a blocking class. With the batch
+  carried, the two Windows items are repaired; what stays is read again when the list is
+  written.
+- Left in the consumer reader and not repaired by the move: under Python 3.12 and 3.13 a
+  consumer whose parent may not be searched ends the whole cleanup with an error, which
+  `unsearchable-path-absence` repairs; under Python 3.12 a selector that names a local runtime
+  which links to itself does the same.
 
-Not measured: advice for an empty file's creation, a whole proof with a local attributes line,
-and anything on Windows by the release lead.
+Not measured: a whole proof with a local attributes line, and anything on Windows by the
+release lead.
 
-Not breaking: the entry is text, and the repair returns the predecessor's answer.
+Not breaking: the repairs return the predecessor's answer or keep what was deleted.
 
 ## Capabilities
 
@@ -86,6 +100,6 @@ with its Change.
 measurements and the drafted items are local to the releasing checkout until the move's Change
 opens from the accepted branch.
 
-Owner: the release lead. Next action: freeze the items at the cut and open the move's Change
-from the accepted branch, or fold both into the batch if the owner so decides. Read again: at
-the cut of 2026-11-19.
+Owner: the release lead. Next action: this draft gains its design, tasks and deltas in the
+batch lane, the repairs enter under it, and the entry is written from the batch's notes.
+Read again: 2026-11-19 12:00, the hour of the way back.

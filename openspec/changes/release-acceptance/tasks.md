@@ -71,8 +71,9 @@
       reason. Done when the figures are in this task.
 - [x] 4.3 Run the prose gate on the changed pages and the Change documents. Done when Vale and
       codespell pass.
-- [ ] 4.4 Pass readiness and the precheck at the lane head. Done when each passes on the committed
-      head.
+- [x] 4.4 Pass readiness and the precheck at the lane head. Done when each passes on the committed
+      head. Both passed at `4a5029e96` on 2026-11-17: the pre-check with 472 impacted test modules
+      (9,555 passed, 5 skipped, no finding) and readiness with its 28 gates.
 - [x] 4.5 Hand the operation's first real run to the release Change of this batch. Done when the
       Workflow follow-up names it: after the release's journey passes, the releasing host installs
       the release as the global `ethos`, verifies the attestation of `SHA256SUMS`, runs the preview

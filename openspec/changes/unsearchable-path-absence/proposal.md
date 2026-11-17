@@ -38,7 +38,14 @@ Candidates for the design, the first decided by the owner:
 - The requirement "Generation reclamation uses fresh operational facts" gains one sentence and
   one scenario for this reading. A process listing that cannot be read at all still defers, as
   its scenario states.
-- The cases of both readers run on Python 3.12, 3.13 and 3.14.
+- A third reader of the same class, found on the same day by the study of `store-retention`:
+  the host store's reader of a consumer's state asks whether the consumer's path exists
+  before its guard. Below a directory that may not be searched the call raises under Python
+  3.12 and 3.13, which leaves the reader, and answers no under 3.14, where the reader says
+  `absent`. It takes the same reading on every interpreter: `absent` keeps the record and the
+  installations and only names the consumer. A release of an absent consumer does not rest on
+  that word; `store-retention` reads absence itself for it.
+- The cases of the three readers run on Python 3.12, 3.13 and 3.14.
 
 The trade-off that the decision accepts: a process that runs from an owned generation whose
 directory was made unsearchable is not seen as that generation's consumer. On the releasing
@@ -56,7 +63,9 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 
 ## Impact
 
-`src/ethos/adapters/repo/runtime/retirement.py` and its tests. Not measured: a Linux host that
+`src/ethos/adapters/repo/runtime/retirement.py`,
+`src/ethos/adapters/repo/runtime/materialization/host_retention.py` and their tests. Not
+measured: a Linux host that
 other users' processes share, where such places are more common, and the other callers of the
 same path predicates in the product, which this draft does not classify.
 

@@ -2,14 +2,16 @@
 
 ## Why
 
-A proof binds the commit: its working content and its index equal the commit's tree before and
-after its gates. It does not bind the repository's local Git state. Measured on 2026-11-17, at the
-release head of 0.2.0-beta.11 and at the head of the batch of 0.2.0-beta.12, with one probe in a
-scratch repository: a line in the Git directory's local attributes file that marks a tracked
-document `linguist-generated` keeps the source binding true and takes the document out of the
-selection of authored files. Read in the code and not run end to end: the Markdown, prose, link,
-configuration and source-format gates, the paradigm audit, `ethos status` and the commit hook's
-staged checks read that selection, so none of them then reads the document.
+A proof binds the commit: its working content and its index equal the commit's tree before and after
+its gates. It does not bind the repository's local Git state. Measured on 2026-11-17, at the release
+head of 0.2.0-beta.11 and at the head of the batch of 0.2.0-beta.12, with one probe in a scratch
+repository: a line in the Git directory's local attributes file that marks a tracked document
+`linguist-generated` keeps the source binding true and takes the document out of the selection of
+authored files. Measured on the same day at the release head, with the prose gate's own provider on
+a scratch clone that holds a committed document with two misspellings: the gate blocks as committed,
+passes with that one line while the source binding stays true, and blocks again with the line
+removed. Read in the code and not run: the Markdown, link, configuration and source-format gates,
+the paradigm audit, `ethos status` and the commit hook's staged checks read the same selection.
 
 Two more measures of the same day, from the design study of `gate-reuse`, go in the safe
 direction: an ignored cache directory at the root blocks the generated-artifact check, and a
@@ -49,8 +51,8 @@ None while this Change is a draft, so `skip_specs: true` applies. Its delta arri
 ## Impact
 
 The selection of authored files (`src/ethos/adapters/repo/git_attributes.py` and its callers) and
-a proof's result. Not measured: a proof that passes wrongly end to end, any release before
-0.2.0-beta.11, Linux and Windows, and a governed repository's own proof.
+a proof's result. Not measured: a whole proof run with such a line (one gate's verdict is measured),
+any release before 0.2.0-beta.11, Linux and Windows, and a governed repository's own proof.
 
-Owner: the release lead. Next action: the end-to-end measure, then the design with the batches of
-0.3.0. Read again: when the batches of 0.3.0 are planned.
+Owner: the release lead. Next action: the design with the batches of 0.3.0. Read again: when the
+batches of 0.3.0 are planned.

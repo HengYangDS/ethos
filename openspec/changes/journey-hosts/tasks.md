@@ -18,13 +18,17 @@
 
 ## 3. Lane, hosted run and owner
 
-- [ ] 3.1 Apply the patch in the Work Lane, after the hermetic journey where the batch lands
-      both, and pass its pre-check, readiness and `ethos lane project --check`. Done when all
-      three pass at the lane head.
-- [ ] 3.2 Dispatch the journey alone on the lane's ref for the newest published prerelease. Done
+- [x] 3.1 Apply the patch in the Work Lane, after the hermetic journey where the batch lands both,
+      and pass its pre-check, readiness and `ethos lane project --check`. Done when all three pass
+      at the lane head. All three passed at `4a5029e96` on 2026-11-17: the pre-check with 472
+      impacted test modules (9,555 passed, 5 skipped, no finding), readiness with its 28 gates, and
+      the projection check.
+- [x] 3.2 Dispatch the journey alone on the lane's ref for the newest published prerelease. Done
       when the job `release journey linux-arm64` succeeds, its artifact
-      `release-journey-linux-arm64` holds a receipt whose platform is `linux-arm64` and whose
-      state is `passed`, and the two other legs pass as before.
+      `release-journey-linux-arm64` holds a receipt whose platform is `linux-arm64` and whose state
+      is `passed`, and the two other legs pass as before. Run 43992039510 at `4a5029e96` for
+      `v0.2.0-beta.10`: the job succeeded in 271 s, its receipt reads `linux-arm64` and `passed`,
+      and the Linux x64 and macOS legs passed.
 - [x] 3.3 Hand the release entry's line on the Linux arm64 journey to the release Change of this
       batch. Done when the Workflow follow-up names the item: the entry no longer lists the Linux
       arm64 journey among what the beta does not qualify, once the leg of task 3.2 has passed.

@@ -36,7 +36,7 @@ Non-Goals:
      rule applied where an excluded file is left alone.
    - **Chosen because:** the answer comes from the tool that owns the rule, and an excluded
      file keeps exactly the treatment it had: its bytes are its postimage.
-   - **Applies to:** `prettier_ignored.mjs` and `_repository_ignored`.
+   - **Applies to:** `prettier-ignored.mjs` and `_repository_ignored`.
 3. **`markdown-lint` takes its format verdict from the format gate's bulk path.**
    - **Rests on:** both gates select the same Markdown files by the same ownership.
    - **Considered:** dropping the format part of `markdown-lint`. Its dimension

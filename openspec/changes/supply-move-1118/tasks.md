@@ -26,6 +26,10 @@
 - [ ] 1.8 Move the supply image's base to the uv 0.13.9 image by digest, then rebuild and bind
       the image again. Done when the bound digest names the commit that holds every moved lock
       and the CI projection check passes.
+- [ ] 1.9 Add the dispositions for the three findings that npm 12.2.3 bundles. Done when the
+      audit at the lane head passes with four approvals, the product's decision on the saved
+      evidence passes with a newer npm as the registry's latest, and the test that holds the
+      records' digest against the committed lock passes.
 
 ## 2. Acceptance
 

@@ -59,7 +59,11 @@ so a release of the same day is admitted.
   this lane's proposal ref and bound, since the locks are its manifest inputs.
 - The one disposition of the audit policy, for picomatch 2.3.2, names the new lock's digest. Its
   artifact is the same entry with the same integrity.
-- The entry of 0.2.0-beta.11 records the move, and its known open defects name npm 12.2.3.
+- Three more dispositions accept, until 2026-12-02 and for this repository's lock alone, the
+  findings that npm 12.2.3 bundles, by the owner's answer of 2026-11-18, so that a newer npm
+  release does not stop a release of ETHOS.
+- The entry of 0.2.0-beta.11 records the move, and its known open defects name npm 12.2.3 and
+  the acceptance.
 
 Held, each for its recorded reason: the OpenSpec CLI at 2.0.0 (above), `complexipy` below 9 (the
 decision-density baseline is pinned to 8.x scores), Python 3.15 (outside `requires-python`), and

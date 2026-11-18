@@ -23,9 +23,6 @@ Non-Goals:
 - The OpenSpec CLI 2.1, whose adoption needs product code (decision 6).
 - `complexipy` 9, Python 3.15 and any prerelease channel, as the move of 2026-11-14 held them.
 - The supply of the governed repositories, which each moves in a lane of its own.
-- A disposition for the three bundled findings. Whether the owner accepts them for a limited
-  time, so that a later npm release before the tag does not block again, is the owner's
-  decision and is asked on a page; this Change does not depend on the answer.
 
 ## Decisions
 
@@ -103,6 +100,22 @@ Non-Goals:
      `node.exe`; it does not yet.
    - **Chosen because:** the test that names the locked Syft exists to force this reading.
    - **Applies to:** `tests/unit/ci/delivery/test_release_node_declaration.py`.
+9. **The three findings that npm bundles are accepted until 2026-12-02 for this repository's lock.**
+   - **Rests on:** the owner's answer of 2026-11-18 04:31 UTC to the page that reported this
+     move (accept until 2026-12-02, for this repository's own lock alone), and a re-evaluation
+     of the saved audit evidence by the product's own decision with a newer npm as the
+     registry's latest: without the records it blocks on exactly these three subjects, with
+     them it passes, and after their last day it blocks again.
+   - **Considered:** no acceptance, which lets every npm release before the tag stop the proof,
+     the hosted qualification or the release's own audit, each time at the price of a new head
+     and its whole acceptance; an acceptance without the lock's digest, which the product's
+     policy would carry to every governed repository.
+   - **Chosen because:** the upgrade is taken already and repairs no advisory, so the acceptance
+     only keeps today's verdict when a newer npm appears. Each record names the bundling npm's
+     integrity, as the policy asks for a bundled node, and this lock's digest, so it stops
+     matching when the locked npm or the lock changes.
+   - **Applies to:** `.config/checks/dependency-vulnerabilities/policy.toml`; the entry's known
+     open defects state the acceptance and its last day.
 
 ## Risks / Trade-offs
 
@@ -116,9 +129,9 @@ Non-Goals:
   Change with its reason.
 - [`min_version` 2026.11.9 refuses a host whose Mise is older] -> this host's Mise is 2026.11.9;
   CI jobs install the bound executable by digest.
-- [A later npm release before the tag blocks again] -> the same move again, or the owner's
-  disposition for the three bundled findings; the release kit's audit before the tag would
-  show it.
+- [A later npm release before the tag blocks again] -> the three records of decision 9 hold
+  until 2026-12-02. After that day, or once the lock changes, the audit reads the findings
+  again, and a supply move or a new acceptance decides.
 - [The reading of the release's candidate on the governed copies used the earlier npm] -> the
   reading exercises ETHOS's own commands and no npm; the session that keeps the governed
   repositories reads the final candidate again beside the executed run.

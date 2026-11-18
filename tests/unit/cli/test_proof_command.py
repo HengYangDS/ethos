@@ -492,17 +492,22 @@ def test_a_full_proof_admits_its_tests_only_after_readiness(monkeypatch, tmp_pat
     order: list[str] = []
 
     @contextmanager
-    def admitted(_root, *, head):
+    def admitted(_root, *, head, earlier):
+        received.append(earlier)
         order.append(f"admitted:{head}")
         yield SlotAdmission(waited_seconds=4.0, load=3.0, limit=9.0)
         order.append("released")
 
     def gates(*, admission, **_kwargs):
+        sampled.append(len(order))
         order.append("readiness")
         with admission():
             order.append("gates")
         return [_check()], True
 
+    sampled: list[int] = []
+    received: list[tuple[float, float | None]] = []
+    monkeypatch.setattr(proof_operation, "host_load", lambda: sampled.append(-1) or 3.0)
     monkeypatch.setattr(proof_operation, "admitted_full_proof", admitted)
     monkeypatch.setattr(proof_operation, "run_plan_checks", gates)
     monkeypatch.setattr(
@@ -518,6 +523,8 @@ def test_a_full_proof_admits_its_tests_only_after_readiness(monkeypatch, tmp_pat
     with repository_parameters(binding):
         _prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
+    assert sampled == [-1, 0], "the load is read once, before the readiness gates start"
+    assert [load for _at, load in received] == [3.0], "admission gets that one sample"
     assert order == ["readiness", f"admitted:{'a' * 40}", "gates", "released"]
     assert emitted[-1].data["admission"] == {"waited_seconds": 4.0, "load": 3.0, "limit": 9.0}
     (deviation,) = emitted[-1].data["parameter_deviations"]

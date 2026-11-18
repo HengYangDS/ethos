@@ -148,8 +148,14 @@ def admitted_full_proof(
     sleep: Callable[[float], None] = time.sleep,
     seconds: float | None = None,
     report: Callable[[dict[str, object]], None] = report_event,
+    earlier: tuple[float, float | None] | None = None,
 ) -> Generator[SlotAdmission]:
-    """Hold the repository's proof slot once host load allows; release it when the proof ends."""
+    """Hold the repository's proof slot once host load allows; release it when the proof ends.
+
+    ``earlier`` is a load sample with its clock time, taken by the caller before the proof's
+    readiness gates. A calm one that is at least one poll interval old is the first of the two
+    calm samples, so a proof that meets a quiet host and a free slot does not wait an interval.
+    """
     admitted_limit, limit_source = limit()
     seconds = parameters.seconds("admission", seconds)
     base_current = current or candidate_current(root, head=head)
@@ -162,7 +168,14 @@ def admitted_full_proof(
     bound = AdmissionBound(clock)
     acquired = False
     reason = ""
-    calm = 0
+    # Any wait for a slot or a busy sample below ends this run of calm samples.
+    calm = int(
+        earlier is not None
+        and admitted_limit is not None
+        and earlier[1] is not None
+        and earlier[1] <= admitted_limit
+        and started - earlier[0] >= _POLL_SECONDS
+    )
     with ExitStack() as releases:
         # The last exit pushed runs first: the host place goes, then the repository's slot,
         # which an OS error while leaving the queue must not keep.

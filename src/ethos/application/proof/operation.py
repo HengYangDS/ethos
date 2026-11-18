@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from collections.abc import Mapping
 from contextlib import contextmanager
 from contextlib import nullcontext
@@ -20,6 +21,7 @@ from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
+from ethos.adapters.gates.proof_slot import host_load
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import readiness_tier
@@ -396,10 +398,12 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
     # A full proof runs its readiness gates first, then waits for its repository's slot and host
     # capacity before its test and package gates.
     granted: list[SlotAdmission] = []
+    # The host's load before the readiness gates is the first of the two samples that admit.
+    sampled = (time.monotonic(), host_load()) if options.execute and options.full else None
 
     @contextmanager
     def admission() -> Generator[None]:
-        with admitted_full_proof(repo, head=current_head) as slot:
+        with admitted_full_proof(repo, head=current_head, earlier=sampled) as slot:
             granted.append(slot)
             yield
 

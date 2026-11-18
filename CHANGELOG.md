@@ -21,6 +21,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   the three gates took 140 seconds and started 3,162 commands; they take 9 seconds and start 75.
   Every verdict and postimage is unchanged. When a formatter refuses a file, `markdown-lint`
   reports that refusal alone.
+- A full proof on a host that declares a load limit no longer waits one sampling interval, 15
+  seconds, between its readiness gates and its first test or package gate when the host is quiet
+  and both slots are free. The proof reads the host's load before its readiness gates, and that
+  sample counts as the first of the two calm samples when it is at least one interval old. A
+  wait for a slot or a busy sample still asks for two fresh calm samples.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

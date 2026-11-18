@@ -199,7 +199,9 @@ def test_decision_records_preserve_complete_cross_change_rationale() -> None:
         path = ROOT / entry["path"]
         metadata = front_matter(path)
         text = path.read_text(encoding="utf-8")
-        assert re.search(r"(?m)^Date: \d{4}-\d{2}-\d{2}", text), path
+        # The front matter is the one carrier of a record's date and status.
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(metadata["date"])), path
+        assert not re.search(r"(?m)^(Status|Date):", text), path
         assert "current_owner" in metadata["relations"], path
 
 

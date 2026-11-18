@@ -8,8 +8,11 @@ relations:
 
 # Decisions
 
-The decision records of this repository, one row for each number. The form and the rules are in
-the documentation contract that `ethos status --json` names.
+Purpose: find choices whose alternatives and revisit conditions remain useful across Changes, one
+row for each number.
+
+See also: [Documentation Root](../README.md) and the form and rules of a record in the
+[Docs Registry](../governance/docs-registry.md#decision-records).
 
 | Record                                                                                                                                                                                                        | Status                                                                  | Date       |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------- |

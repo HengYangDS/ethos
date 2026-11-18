@@ -344,11 +344,11 @@ departs from it where the table says so.
   executable procedures belong to their producing Change, how-to or native record. Invocation
   inspection parses syntax without executing it; ambiguous inline execution is refused rather
   than reported as proved absent.
-- **Index.** `docs/decisions/README.md` holds one sentence on what the directory is, a pointer
-  to this contract, one table and one legend line. The table has three columns (the record's
-  number and title, linked; its status; its date) and one row for each number from 1 to the
-  highest. A number without a file has a row that says why. The legend is the same line in
-  every repository. The index holds no rule text.
+- **Index.** `docs/decisions/README.md` holds a `Purpose:` sentence on what the directory is, a
+  pointer to this contract in a `See also:` sentence, one table and one legend line. The table has
+  three columns (the record's number and title, linked; its status; its date) and one row for
+  each number from 1 to the highest. A number without a file has a row that says why. The
+  legend is the same line in every repository. The index holds no rule text.
 
 A record in force:
 

@@ -25,7 +25,7 @@ dependencies = [
   "shfmt-py>=4.2.0",
   "semver>=3.1.2",
   "tomli-w>=1.2.0",
-  "uv>=0.13.9",
+  "uv>=0.13.8",
   "yamllint>=1.38.0",
 ]
 
@@ -37,7 +37,10 @@ prerelease = "disallow"
 # complexipy 9 scores cognitive complexity differently, and the decision-density baseline is pinned
 # to 8.x scores. The resolution stays below 9 until that baseline is measured again; the direct
 # requirement keeps its one lower bound, which the dependency gate requires.
-constraint-dependencies = ["complexipy<9"]
+# uv 0.13.9's Windows executable carries no dependency data (no `.dep-v0` section, which 0.13.8
+# has), so the release inventory cannot name uv's components in a Windows runtime. The
+# resolution stays below 0.13.9 until a uv release for Windows carries that data again.
+constraint-dependencies = ["complexipy<9", "uv<0.13.9"]
 
 [dependency-groups]
 dev = [
@@ -59,7 +62,7 @@ dev = [
   "pytest-xdist>=3.8.0",
   "shellcheck-py>=0.11.0.1",
   "ty>=0.0.105",
-  "uv>=0.13.9",
+  "uv>=0.13.8",
 ]
 
 [build-system]

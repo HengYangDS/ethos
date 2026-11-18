@@ -143,11 +143,14 @@ historical bindings are governed by the [distribution specification](openspec/sp
   audit reads the findings that the locked npm bundles as fixable and blocks on them.
 - The supply moves again on 2026-11-18, to the stable releases of that day's lock step. Mise
   moves to 2026.11.9 (the floor and the CI bootstrap with its six executable digests), and its
-  lock takes uv 0.13.9, Syft 1.57.2 and Grype 0.122.0. The `minimatch` override moves to 11.0.9.
-  The Python lock moves 17 packages, among them `cyclopts` 5.5.2, `fastmcp` and `fastmcp-slim`
-  4.2.1, `filelock` 4.2.12, `platformdirs` 4.14.7, `semver` 3.1.2, `ty` 0.0.105 and `uv` 0.13.9,
-  and the floors of the moved direct dependencies rise to their locked versions. The CI supply
-  image's base moves to the uv 0.13.9 image.
+  lock takes Syft 1.57.2 and Grype 0.122.0. The `minimatch` override moves to 11.0.9. The Python
+  lock moves 16 packages, among them `cyclopts` 5.5.2, `fastmcp` and `fastmcp-slim` 4.2.1,
+  `filelock` 4.2.12, `platformdirs` 4.14.7, `semver` 3.1.2 and `ty` 0.0.105, and the floors of
+  the moved direct dependencies rise to their locked versions.
+- uv stays at 0.13.8. The Windows executable of uv 0.13.9 carries no dependency data, which
+  0.13.8 has and the Linux and macOS executables of both have, so the release inventory cannot
+  name uv's components in a Windows runtime. The pin, the Python lock and the CI supply image's
+  base move together when a uv release for Windows carries that data again.
 - The OpenSpec CLI stays at 2.0.0. Its release 2.1.0 removes an internal that ETHOS's OpenSpec
   configuration reader imports, and with it the reader refuses every configuration, so the pin
   moves together with the reader in a later release.

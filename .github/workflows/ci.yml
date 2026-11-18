@@ -77,7 +77,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.12"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.12
@@ -129,7 +129,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.13"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.13
@@ -182,7 +182,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.14
@@ -262,7 +262,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.14
@@ -303,7 +303,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: ${{ matrix.python }}
       - name: Provision native Python image supply
         run: uv python install --no-bin ${{ matrix.python }}
@@ -351,7 +351,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.14
@@ -403,7 +403,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.14
@@ -501,7 +501,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: ${{ matrix.python }}
       - name: Provision native Python image supply
         run: uv python install --no-bin ${{ matrix.python }}
@@ -553,7 +553,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -593,7 +593,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: "3.14"
       - name: Provision native Python image supply
         run: uv python install --no-bin 3.14
@@ -662,7 +662,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
-          version: 0.13.9
+          version: 0.13.8
           python-version: ${{ matrix.python }}
       - name: Provision native Python image supply
         run: uv python install --no-bin ${{ matrix.python }}

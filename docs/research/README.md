@@ -20,3 +20,5 @@ See also: [Documentation Root](../README.md),
 - [Foundation topics](foundations/README.md) route directly to supply, execution, effects, semantics, verification, adoption, interfaces, and documentation.
 - [Direction carriers](direction-carriers/README.md) hold the fleet census and the practice
   study behind the design of a repository's roadmap, intake, proposals and research.
+- [Change surfaces](change-surfaces/README.md) hold the studies of branch names, issue forms,
+  change descriptions and authorship marks, with what coding agents add and what peers do.

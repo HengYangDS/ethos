@@ -12,6 +12,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Added
+
+- The result of `ethos prove --readiness --execute` gains `data.unexamined`, which names what the
+  run did not examine and refuses nothing. `gates` repeats the gates not run. On a Work Lane,
+  `tests` maps each Python test that reads a path committed since the candidate branch to its
+  reason: the test changed, a changed `conftest.py` is above it, it imports a changed file or a
+  file that imports one, its text names a changed path, or it stages the package and the wheel's
+  `force-include` table carries the path. `unread_paths` lists the changed paths that no test
+  reads. `forge_only_sessions` lists each Nox session that a step of the pipeline files asks for
+  and no planned gate's command does, with its jobs. A part that cannot be read is named under
+  `unavailable`. The selection is a lower bound read from tracked text; ETHOS runs none of the
+  tests, and a passing readiness run is neither the full proof's pass nor the Forges' pass.
+
 ### Fixed
 
 - The `source-format`, `markdown-lint` and `config-quality` gates start each native tool a fixed

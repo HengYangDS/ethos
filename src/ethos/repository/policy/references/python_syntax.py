@@ -485,16 +485,24 @@ def deleted_python_input_gaps(
         if tree is None:
             unknown.append(f"deleted_input_observation_unknown:{path}:import")
             continue
-        imported = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                imported.update(alias.name for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                parent = import_module(path, node)
-                imported.add(parent)
-                imported.update(f"{parent}.{alias.name}" for alias in node.names)
         gaps.extend(
             f"deleted_input:{retired[module]}:{path}:import"
-            for module in sorted(imported & retired.keys())
+            for module in sorted(imported_modules(path, tree) & retired.keys())
         )
     return gaps, unknown
+
+
+def imported_modules(path: str, tree: ast.AST) -> set[str]:
+    """Return each module that a parsed file's import statements name, relative ones resolved.
+
+    A from-import names its origin and, because an imported name may be a module, each name.
+    """
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            parent = import_module(path, node)
+            imported.add(parent)
+            imported.update(f"{parent}.{alias.name}" for alias in node.names)
+    return imported

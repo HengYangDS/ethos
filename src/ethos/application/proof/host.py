@@ -19,6 +19,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
+from ethos.application.proof.unexamined import readiness_unexamined
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.outcome import gate_outcome
@@ -236,6 +237,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
     checks: list[dict[str, object]] = []
     not_run: list[str] = []
     source: dict[str, str] = {}
+    unexamined: dict[str, object] = {}
     digest = ""
     failure = Outcome()
     try:
@@ -250,6 +252,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
                 execution_source_gaps({"tree": tree, "values": {"execution_source": source}})
             )
             if not gaps:
+                unexamined = readiness_unexamined(repo, policy)
                 results = run_gate_graph(
                     LocalGateRunner(),
                     tuple(node for node in policy.nodes if node.id in tier),
@@ -290,6 +293,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
             "boundary": "readiness",
             "checks": checks,
             "not_run": not_run,
+            "unexamined": {"gates": not_run, **unexamined},
             "attestation": {},
         },
     )

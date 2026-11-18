@@ -295,7 +295,6 @@
   "src/ethos/repository/policy/references/python_syntax.py::_Bindings::bound": 27,
   "src/ethos/repository/policy/references/python_syntax.py::_Bindings::values": 20,
   "src/ethos/repository/policy/references/python_syntax.py::cyclopts_prefixes": 37,
-  "src/ethos/repository/policy/references/python_syntax.py::deleted_python_input_gaps": 27,
   "src/ethos/repository/registry/docs/decisions.py::_execution_violation": 23,
   "src/ethos/repository/registry/docs/decisions.py::_rationale_gaps": 22,
   "src/ethos/repository/registry/docs/health.py::_normative_route_gaps": 19,

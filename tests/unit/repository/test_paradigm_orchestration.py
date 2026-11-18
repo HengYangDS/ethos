@@ -11,6 +11,7 @@ import pytest
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.orchestration import CiStep
 from ethos.repository.paradigm.orchestration import ci_steps
+from ethos.repository.paradigm.orchestration import forge_only_sessions
 from ethos.repository.paradigm.orchestration import inline_shell
 from ethos.repository.paradigm.orchestration import orchestration_gaps
 from tests.support.governed_repository import write_tree
@@ -374,3 +375,47 @@ def test_a_step_running_a_tracked_script_is_not_retained(tmp_path: Path) -> None
         "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0].windows",
         "repository_paradigm_shell_orchestration:.gitlab-ci.yml:windows.script[0]",
     ]
+
+
+_SESSION_FILES = {
+    ".github/workflows/ci.yml": (
+        "jobs:\n  quality:\n    steps:\n"
+        "      - run: uv run python -m nox -s lint\n"
+        "      - run: uv run python -m nox -s hosted_verification\n"
+        "  legs:\n    steps:\n"
+        "      - run: uv run nox --sessions suite_leg journey -- 600\n"
+        "      - run: |\n          nox -s scan \\\n            -- --tag v1\n"
+        "          nox -s lint && nox -s after\n"
+    ),
+    ".gitlab-ci.yml": "verify:\n  script:\n    - python -m nox -s hosted_verification\n"
+    "    - mise run check -s unrelated\n",
+}
+
+
+def test_a_session_that_only_a_forge_job_asks_for_is_listed_with_its_jobs(tmp_path: Path) -> None:
+    """The pipeline files say which runner sessions no planned gate runs; no second list does."""
+    write_tree(tmp_path, _SESSION_FILES)
+    planned = ["/venv/bin/python -m nox -s lint", "ethos prove --full"]
+    read = forge_only_sessions(
+        load_repository_paradigm(), tmp_path, frozenset(_SESSION_FILES), planned
+    )
+    assert read == (
+        3,
+        {
+            "after": ["github:legs"],
+            "hosted_verification": ["github:quality", "gitlab:verify"],
+            "journey": ["github:legs"],
+            "scan": ["github:legs"],
+            "suite_leg": ["github:legs"],
+        },
+    )
+
+
+def test_forge_sessions_are_none_without_a_pipeline_and_refuse_an_unreadable_one(
+    tmp_path: Path,
+) -> None:
+    """No pipeline file reads as no job; a tracked pipeline file that is gone is never empty."""
+    paradigm = load_repository_paradigm()
+    assert forge_only_sessions(paradigm, tmp_path, frozenset({"README.md"}), []) == (0, {})
+    with pytest.raises(ValueError, match=r"\.gitlab-ci\.yml"):
+        forge_only_sessions(paradigm, tmp_path, frozenset({".gitlab-ci.yml"}), [])

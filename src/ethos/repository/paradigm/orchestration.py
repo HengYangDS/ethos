@@ -31,6 +31,7 @@ from ethos.repository.paradigm.scripts import is_script
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Iterator
     from collections.abc import Mapping
     from pathlib import Path
@@ -53,6 +54,9 @@ _RECORD_FIELDS = (
     "evidence",
 )
 _DIGEST = re.compile(r"[0-9a-f]{64}")
+# The sessions that one line asks nox for, the task runner behind the paradigm's Python runner
+# entry: the names after its session flag, up to the first word that is not a name.
+_SESSIONS = re.compile(r"(?<![\w.-])nox\b.*?\s(?:-s|--sessions?)((?:[ \t]+[A-Za-z_][\w.-]*)+)")
 
 
 class CiStep(NamedTuple):
@@ -126,6 +130,35 @@ def ci_steps(forge: str, path: str, text: str) -> list[CiStep]:
     if reader is None or not isinstance(document, dict):
         return []
     return list(reader(path, document))
+
+
+def runner_sessions(command: str) -> set[str]:
+    """Return the sessions that each line of one command asks the Python task runner for."""
+    asked = _SESSIONS.findall(command.replace("\\\n", " "))
+    return {name for names in asked for name in names.split()}
+
+
+def forge_only_sessions(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str], planned: Iterable[str]
+) -> tuple[int, dict[str, list[str]]]:
+    """Return how many Forge jobs were read, and each session that only a job asks for.
+
+    A session is listed with its jobs when a step of a pipeline file asks the task runner for it
+    and none of the `planned` gate commands does. A step that runs anything else is not judged.
+    """
+    local = {name for command in planned for name in runner_sessions(command)}
+    jobs: set[str] = set()
+    hosted: dict[str, set[str]] = {}
+    for forge, path in forge_pipeline_files(paradigm, tracked):
+        text = tracked_text(root, path, tracked)
+        if text is None:
+            message = f"the pipeline file {path} cannot be read"
+            raise ValueError(message)
+        for step in ci_steps(forge, path, text):
+            jobs.add(f"{forge}:{step.job}")
+            for name in runner_sessions(step.command) - local:
+                hosted.setdefault(name, set()).add(f"{forge}:{step.job}")
+    return len(jobs), {name: sorted(hosted[name]) for name in sorted(hosted)}
 
 
 def _inline_repair(record: str) -> str:

@@ -341,6 +341,21 @@ execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
 
+`ethos prove --readiness --execute --json` runs the readiness gates of the full plan alone and
+writes no Attestation. Its `data.unexamined` names what the run did not examine, and it refuses
+nothing: `gates` are the planned gates it did not run. On a Work Lane, `tests` maps each test
+that reads a path committed since `base`, the candidate branch, to its reason (`changed`,
+`conftest`, `imports`, `names` or `stages`), and `unread_paths` lists the changed paths that no
+test reads; any other role has an empty `base` and no selection. `forge_only_sessions` maps each
+task-runner session that a step of the pipeline files asks for, and no planned gate's command
+does, to its jobs, and `forge_jobs` counts the jobs whose commands were read. `unavailable` names
+a part that could not be read, with the error. A bounded result keeps the field's scalar members,
+and the detail that `bound.detail` names holds the rest. The selection is read from tracked text
+and is a lower bound: a deleted file selects no test that imported it, and stays under
+`unread_paths` unless a test names it. A path of one word also selects every test whose text
+holds that word. The caller runs the tests with the native runner. A passing readiness run is
+not the full proof's pass and not the Forges' pass.
+
 Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and the host slot, and waits for two consecutive 1-minute load samples within the limit before its test and package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else `load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, which names the load, the limit and its source, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots

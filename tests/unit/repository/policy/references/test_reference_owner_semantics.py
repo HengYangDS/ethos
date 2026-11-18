@@ -15,6 +15,7 @@ from ethos.repository.policy.references.declarations import native_owned_referen
 from ethos.repository.policy.references.observation import installed_distribution_modules
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.policy.references.python_syntax import complete_python_tree
+from ethos.repository.policy.references.python_syntax import deleted_python_input_gaps
 from tests.support.governed_repository import git
 
 if TYPE_CHECKING:
@@ -233,6 +234,29 @@ def test_patch_admission_reports_every_refused_reference(tmp_path: Path) -> None
         "product_reference_not_admitted_at_baseline:executable:frobnicate",
         "product_reference_not_admitted_at_baseline:executable:quux",
     ]
+
+
+def test_the_deleted_input_join_names_each_importer_of_a_deleted_module() -> None:
+    """Each form of import of a deleted module is its gap; an unparsable file is unknown."""
+    files = {
+        "src/pkg/user.py": "from pkg import gone\n",
+        "src/pkg/sibling.py": "from . import gone\n",
+        "src/pkg/direct.py": "import pkg.gone\n",
+        "src/pkg/other.py": "import os\n",
+        "src/pkg/broken.py": "def (\n",
+        "docs/page.md": "from pkg import gone\n",
+    }
+
+    gaps, unknown = deleted_python_input_gaps(files, frozenset({"src/pkg/gone.py"}))
+
+    assert gaps == [
+        f"deleted_input:src/pkg/gone.py:src/pkg/{name}.py:import"
+        for name in ("user", "sibling", "direct")
+    ]
+    assert unknown == ["deleted_input_observation_unknown:src/pkg/broken.py:import"]
+    # A deleted document, or a module that a file of the same name replaces, retires nothing.
+    assert deleted_python_input_gaps(files, frozenset({"docs/old.md"})) == ([], [])
+    assert deleted_python_input_gaps(files, frozenset({"src/pkg/user.py"})) == ([], [])
 
 
 def test_a_syntax_warning_does_not_make_valid_python_unparsable() -> None:

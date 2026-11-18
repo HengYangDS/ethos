@@ -43,6 +43,15 @@ Non-Goals:
      `markdown-format` is declared, and a repository may run the gate alone.
    - **Chosen because:** one path prepares a postimage, so the two gates cannot disagree.
    - **Applies to:** `markdown_lint_report` and the new `source_postimages`.
+4. **The native check runs are a module of their own.**
+   - **Rests on:** the per-file ceiling of 500 effective lines, which the format module passed
+     at 532 with the first three decisions, and the commit hook's refusal of it.
+   - **Considered:** raising nothing and trimming lines. The module then stays at its ceiling
+     and the next change meets the same refusal.
+   - **Chosen because:** the format module holds two things: one file's postimage, which several
+     callers use, and the question which files a native check vouches for. The second has two
+     entry points and no caller outside the gate, so it is the seam.
+   - **Applies to:** `format_checks.py` (168 effective lines) and the format module (383).
 
 ## Risks / Trade-offs
 

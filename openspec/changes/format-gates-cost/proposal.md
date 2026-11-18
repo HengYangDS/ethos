@@ -48,5 +48,6 @@ lists the repository equally often.
 
 ## Impact
 
-`src/ethos/adapters/gates/formatting.py`, `tool.py`, `native/inputs.py`, a new script
+`src/ethos/adapters/gates/formatting.py`, `tool.py`, `native/inputs.py`, a new module
+`format_checks.py` that takes the format module's native check runs, a new script
 `prettier-ignored.mjs` beside the Markdown adapter, and two test modules.

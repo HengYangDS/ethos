@@ -78,7 +78,9 @@
       queue, under a host ticket. Done when each module of the report's list passes.
       (At `9e0d470d5`, under a host ticket: the 351 test modules that the lane's changes reach pass,
       6,991 cases and 3 skipped.)
-- [ ] 5.3 Run the tests of sections 1 to 3 on Python 3.12 and 3.13. Done when they pass on both:
+- [x] 5.3 Run the tests of sections 1 to 3 on Python 3.12 and 3.13. Done when they pass on both:
       the report adds one Git call and reads files, which the 3.14 run alone does not cover.
+      (At `11d01d8b0` the three modules of sections 1 to 3 and the module with the join's direct
+      case pass under Python 3.12 and under 3.13, 90 cases each.)
 - [ ] 5.4 Pass the lane's pre-check, the full proof and the hosted runs on both Forges. Done when
       each passes at the lane head.

@@ -234,7 +234,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - Known open defects, none in a blocking class:
   - npm 12.2.3, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
     GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
-    reports them and does not block.
+    reports them and does not block. Once a newer npm exists the audit reads them, and the
+    picomatch 4.0.5 that npm bundles, as findings behind the latest release. This repository's
+    policy accepts the three until 2026-12-02 for its own lock, so that such a release does not
+    stop a release of ETHOS; the acceptance covers no other repository's lock.
   - GHSA-fc5q-39xc-vjpf (CVE-2026-112366) names every picomatch release through 4.0.7, and no
     release fixes it. The product ships three copies. ETHOS reports two and does not block:
     4.0.7, the registry's latest, and the 4.0.5 that npm 12.2.3 bundles. The third, 2.3.2, is

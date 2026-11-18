@@ -23,6 +23,15 @@ and most of it is still kept outside the product. Measured on the releasing host
   it enters. `host-reservation-guests` measured four tickets of one session at once.
 - A brief pointed a preparation agent at the rules' file, which only its owner may read. The
   agent opened it. A rule that lives in a private file cannot be cited by a tracked document.
+- Heavy work that must outlive the session that started it has no ETHOS form: `ethos host run`
+  holds a ticket only while its parent lives. An application quit on 2026-11-13 ended four
+  detached chains of two sessions, and a restart on 2026-11-17 ended every background process.
+  Two sessions wrote two private launchers for the one need. A candidate: a ticketed run detached
+  from its caller, whose unit belongs to the host's service manager, with a record in the host's
+  store that `ethos host status` reads.
+- A capped suite's start below the load bound rests on each session's own wrapper. On 2026-11-19
+  one session's test runner went around its wrapper four times in a night, and the fourth run
+  started above the bound; the runner now refuses to start outside the wrapper or a ticket.
 
 Where each rule's subject stands in ETHOS today:
 

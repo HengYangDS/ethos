@@ -88,7 +88,11 @@ check below is one more case. The bullets below stay as named remainders.
   store, so its validation fails as a mismatch of coordinates. The rule that such a ref leaves
   only while a Work Lane or a closed review retains its tip is never reached. Measured on
   2026-11-16 on the proposal ref of an abandoned lane. The same question is asked for absorbed
-  proposals, for the retirement of an absorbed ref and for the admission of a ref move.
+  proposals, for the retirement of an absorbed ref and for the admission of a ref move. Met again
+  on 2026-11-19 on two proposal refs whose head a base refresh had rewritten: the refusal names
+  coordinates where the source is absent, although the repair's creation already has a code for
+  an unavailable source. Why the source can be absent, and how a repair keeps it, is the draft
+  `repair-source-retention`.
 - The release build's install smoke takes the one wheel under the release artifacts, which only
   the release build writes. Run without that build, it read a wheel that an earlier release
   build had left and refused with `hook_runtime_wheel_build_identity_invalid` (measured on the

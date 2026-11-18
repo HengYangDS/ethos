@@ -28,13 +28,13 @@ needs those roots computed before each observation and holds the most code.
 
 ## What Changes
 
-Candidates for the design, the first decided by the owner:
+The first item is the owner's decision; the design states the others.
 
 - The reclamation reader answers a listed path below a directory that it may not search as an
   observed absence on every supported interpreter. Behavior changes under Python 3.12 and 3.13
   and stays under 3.14. No refusal is added.
 - A link that is present and whose target cannot be looked at stays an unknown observation and
-  defers, as a dangling link does today (the lead's condition, for the design to confirm).
+  defers, as a dangling link does today (design decision 2).
 - The requirement "Generation reclamation uses fresh operational facts" gains one sentence and
   one scenario for this reading. A process listing that cannot be read at all still defers, as
   its scenario states.
@@ -85,15 +85,14 @@ None.
 
 ### Modified Capabilities
 
-None while this Change is a draft, so `skip_specs: true` applies. Its delta arrives with its tasks.
+- `repository-governance`: the requirement "Generation reclamation uses fresh operational facts"
+  gains one sentence and one scenario.
 
 ## Impact
 
-`src/ethos/adapters/repo/runtime/retirement.py`,
-`src/ethos/adapters/repo/runtime/materialization/host_retention.py` and their tests. Not
-measured: a Linux host that
-other users' processes share, where such places are more common, and the other callers of the
-same path predicates in the product, which this draft does not classify.
-
-Owner: the release lead. Next action: design, delta and tasks for the batch of 0.2.0-beta.13.
-Read again: at the cut of 2026-11-19.
+`src/ethos/adapters/repo/runtime/retirement.py` and its tests. The consumer reader in
+`src/ethos/adapters/repo/runtime/materialization/host_retention.py` was repaired by the move of
+the release head of 0.2.0-beta.11 and is no part of this Change, except for the link that names
+itself, which stays an open task here. Not measured: a Linux host that other users' processes
+share, where such places are more common, and the other callers of the same path predicates in
+the product, which this Change does not classify.

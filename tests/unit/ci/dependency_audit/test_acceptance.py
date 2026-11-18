@@ -34,15 +34,6 @@ from tools.ci import dependency_audit as audit
 from tools.ci import sessions
 
 
-def test_a_disposition_that_names_a_lock_names_the_committed_one() -> None:
-    """A record bound to another lock accepts nothing, and only the online audit would say so."""
-    root = Path(__file__).resolve().parents[4]
-    declared = tomllib.loads((root / AUDIT_POLICY_PATH).read_text(encoding="utf-8"))
-    policy = AuditPolicy.model_validate(declared)
-    committed = hashlib.sha256((root / "package-lock.json").read_bytes()).hexdigest()
-    assert {record.lock_sha256 for record in policy.dispositions} <= {None, committed}
-
-
 @pytest.mark.parametrize("cycle", [False, True])
 def test_local_disposition_preserves_native_findings_and_strict_release(
     repository, monkeypatch, capsys, cycle

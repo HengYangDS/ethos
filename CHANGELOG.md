@@ -140,8 +140,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The locked npm moves to 12.2.3, the registry's latest since 2026-11-18. It bundles the same
   glob 13.0.6, minimatch 10.2.5 and picomatch 4.0.5 as npm 12.2.2, so no advisory leaves the
   known open defects. The move is needed all the same: once a newer npm exists, the dependency
-  audit reads the findings that the locked npm bundles as fixable and blocks on them. The lock
-  moves npm and seven of its bundled packages alone.
+  audit reads the findings that the locked npm bundles as fixable and blocks on them.
+- The supply moves again on 2026-11-18, to the stable releases of that day's lock step. Mise
+  moves to 2026.11.9 (the floor and the CI bootstrap with its six executable digests), and its
+  lock takes uv 0.13.9, Syft 1.57.2 and Grype 0.122.0. The `minimatch` override moves to 11.0.9.
+  The Python lock moves 17 packages, among them `cyclopts` 5.5.2, `fastmcp` and `fastmcp-slim`
+  4.2.1, `filelock` 4.2.12, `platformdirs` 4.14.7, `semver` 3.1.2, `ty` 0.0.105 and `uv` 0.13.9,
+  and the floors of the moved direct dependencies rise to their locked versions. The CI supply
+  image's base moves to the uv 0.13.9 image.
+- The OpenSpec CLI stays at 2.0.0. Its release 2.1.0 removes an internal that ETHOS's OpenSpec
+  configuration reader imports, and with it the reader refuses every configuration, so the pin
+  moves together with the reader in a later release.
 - Prettier 3.10.1 puts a `yield` operand that spans lines in parentheses, which changes one
   tracked file, the JavaScript test reporter. A repository whose `ethos lane format --check` names
   files after the move formats them once.

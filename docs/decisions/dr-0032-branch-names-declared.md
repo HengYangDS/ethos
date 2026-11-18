@@ -18,7 +18,8 @@ repository may declare, whose declaration governs, and what stays the paradigm's
 See also: [DR-0012: Repository paradigm](dr-0012-repository-paradigm.md), whose item on branch
 conventions this record updates; the [product design
 contract](../governance/product-design-contract.md), which already says that a repository maps
-physical names to roles; and the [study of branch names](../research/change-surfaces/branch-names.md).
+physical names to roles; and the [study of branch
+names](../research/change-surfaces/branch-names.md).
 
 ## Context
 

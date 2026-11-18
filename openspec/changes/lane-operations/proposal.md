@@ -27,12 +27,24 @@ each met by a session between 2026-11-14 and 2026-11-15:
   accepted branch. The refusal does not say that the peer joins at the landing and that review
   runs on the existing peer.
 
+Two further gaps of lane verbs were met on 2026-11-18. They are of another kind and stand here so
+that the row's design places them:
+
+- No command retires a draft. A prewrite under the draft's own selector refuses the removal of
+  its files with `openspec_requested_change_missing`, and under another Change the paths do not
+  match (`openspec_change_path_mismatch`). A draft whose matter is done stays in the tree with a
+  note.
+- Relayed by a governed repository's session and not yet measured here: the preview of
+  `ethos lane archive-change` passed while three repository files still linked the Change's old
+  directory, and the proof's link gate failed after the archive.
+
 ## What Changes
 
 - The first gap of a refusal is its cause, and its next action is the step that removes it: the
   handoff, the missing heading or artifact, the accepted form of the runtime argument, the commit
   that the projection waits for, the landing that admits the peer.
 - A regression for each of the six.
+- The design says where the two further gaps go: into this row, or into rows of their own.
 - Carried from `environment-entry`: no continuation renders `--holder-ref`, because a lane verb
   takes its holder from the invocation's actor, and the flag stays accepted for one support window.
 

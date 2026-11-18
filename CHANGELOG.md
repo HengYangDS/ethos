@@ -233,15 +233,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
     channel, which 0.2.0 does not qualify.
 - Known open defects, none in a blocking class:
   - npm 12.2.3, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
-    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
-    reports them and does not block. Once a newer npm exists the audit reads them, and the
-    picomatch 4.0.5 that npm bundles, as findings behind the latest release. This repository's
-    policy accepts the three until 2026-12-02 for its own lock, so that such a release does not
-    stop a release of ETHOS; the acceptance covers no other repository's lock.
+    GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. Their ranges end at glob 14.0.1 and below
+    minimatch 11.0.1, and the product's own copies, glob 14.0.6 and minimatch 11.0.9, are fixed
+    releases; but no npm release bundles a fixed version yet. Without an acceptance the audit
+    reports the bundled copies while npm 12.2.3 is the registry's latest, and blocks on them
+    once a newer npm exists, although that npm may bundle the same versions. This repository's
+    policy therefore accepts them, and the picomatch 4.0.5 that npm bundles, until 2026-12-02
+    for its own lock; the acceptance covers no other repository's lock.
   - GHSA-fc5q-39xc-vjpf (CVE-2026-112366) names every picomatch release through 4.0.7, and no
-    release fixes it. The product ships three copies. ETHOS reports two and does not block:
-    4.0.7, the registry's latest, and the 4.0.5 that npm 12.2.3 bundles. The third, 2.3.2, is
-    what markdownlint-cli2 0.24.1 reaches through micromatch 4.0.8; each of those is its
+    release fixes it. The product ships three copies. ETHOS reports one and does not block:
+    4.0.7, the registry's latest. The 4.0.5 that npm 12.2.3 bundles is accepted with the two
+    findings above. The third, 2.3.2, is what markdownlint-cli2 0.24.1 reaches through
+    micromatch 4.0.8; each of those is its
     registry's latest, and micromatch takes the 2.x line alone, so no upgrade removes it. The
     audit blocks it as a finding behind the latest release, and this repository's policy accepts
     it until 2026-12-02 for its own lock; the acceptance covers no other repository's lock. The

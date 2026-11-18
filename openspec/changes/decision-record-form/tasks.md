@@ -15,9 +15,10 @@
 - [ ] 2.1 Bring every record under `docs/decisions/` to the form's first step with the
       first-step tool, and add DR-0032. Done when a second run of the tool changes nothing and
       the tool lists nothing for a person.
-- [ ] 2.2 Declare the eight updates and mark each replaced or extended sentence or list item in
-      the older record. Done when each pair carries `updates` and `updated_by`, no sentence or
-      list item carries two marks, and the second reader has read each pair.
+- [ ] 2.2 Declare each update among the records and mark each replaced or extended sentence or
+      list item in the older record. Done when a reader other than the lead has prepared each
+      pair from the two records, each pair carries `updates` and `updated_by`, and no sentence
+      or list item carries two marks.
 - [ ] 2.3 Write the index as the form's table. Done when every number from 1 to the highest has
       a row, each removed number's row names where Git holds it, and the README holds no rule
       text.

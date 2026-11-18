@@ -26,8 +26,8 @@ older ones without any mark in the older record.
   changed ruling a new record and names the one form. The adopter scenario of "Singular
   Documentation Entrypoint" no longer leaves the decisions directory to each repository.
 - ETHOS's own records take the first step: the date in the front matter, bodies without status
-  and date lines, the relations and marks of its eight updates, and the index as one table with
-  a row for each number.
+  and date lines, the relations and marks of the updates among them, and the index as one
+  table with a row for each number.
 
 Not breaking: no command, schema or check changes. A released engine accepts every byte of the
 first step. The statuses other than accepted, the banners and the return of the seven removed

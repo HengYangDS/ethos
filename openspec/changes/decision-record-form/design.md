@@ -44,14 +44,16 @@ Non-Goals:
      its two scenarios: in the existing requirement its text would pass the specification's
      bound of 500 characters, which the archive's validation refuses.
    - **Applies to:** the delta of `repository-governance`.
-3. **ETHOS's first step is the tool's output plus the marks of its eight updates.**
+3. **ETHOS's first step is the tool's output plus the marks of the updates among its records.**
    - **Rests on:** the first-step tool, which is idempotent and leaves every judgement to a
      person; and the rule that a sentence or a list item carries at most one mark.
    - **Considered:** leaving ETHOS's records until the engine change. The fleet would then
      migrate from a text whose own repository does not follow it.
    - **Chosen because:** the form's author goes first, and reading ETHOS's own records for
-     their marks already corrected the form once: the unit of a mark is a sentence, not a
-     paragraph.
+     their marks corrected the form three times: the unit of a mark is a sentence, not a
+     paragraph; the updates are the pairs that the records' own words name, fourteen where
+     memory had counted eight; and a sentence that two records had changed before the form
+     carries one mark that names both.
    - **Applies to:** every file under `docs/decisions/`.
 4. **The index's rows for the seven removed records name where Git holds each.**
    - **Rests on:** the form's rule that a number without a file has a row that says why.
@@ -67,7 +69,8 @@ Non-Goals:
   report outside the product is read at each weekly cut until the registry reports it.
 - Old text stays in every tree and a search by meaning returns it. Before the engine change a
   superseded record cannot yet say so in its status; ETHOS has none in that state today.
-- The marks of the eight updates are a reading of two records each. A wrong mark misleads more
-  than a missing one, so the second reader reads each pair.
+- The marks are a reading of two records each. A wrong mark misleads more than a missing one,
+  so readers other than the lead prepared each pair, and the lead ruled where they doubted.
+  A pair that no word search found stays unmarked until someone reads it.
 - The first-step tool reads front matter by its own small reader, not a YAML library; it
   refuses a file it cannot read and lists it for a person.

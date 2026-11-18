@@ -137,6 +137,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `pydantic-settings` 2.16.3, `ruff` 0.17.5, `ty` 0.0.104 and `uv` 0.13.8, and the floors of the
   moved direct dependencies rise to their locked versions. The CI supply image's base moves to the
   uv 0.13.8 image that matches the uv pin.
+- The locked npm moves to 12.2.3, the registry's latest since 2026-11-18. It bundles the same
+  glob 13.0.6, minimatch 10.2.5 and picomatch 4.0.5 as npm 12.2.2, so no advisory leaves the
+  known open defects. The move is needed all the same: once a newer npm exists, the dependency
+  audit reads the findings that the locked npm bundles as fixable and blocks on them. The lock
+  moves npm and seven of its bundled packages alone.
 - Prettier 3.10.1 puts a `yield` operand that spans lines in parentheses, which changes one
   tracked file, the JavaScript test reporter. A repository whose `ethos lane format --check` names
   files after the move formats them once.
@@ -218,12 +223,12 @@ historical bindings are governed by the [distribution specification](openspec/sp
   - GitLab-hosted CI and GitLab publication, which are not 0.2.0 preconditions, and the Homebrew
     channel, which 0.2.0 does not qualify.
 - Known open defects, none in a blocking class:
-  - npm 12.2.2, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
+  - npm 12.2.3, the registry's latest, still bundles glob 13.0.6 and minimatch 10.2.5, which
     GHSA-3g3m-2fjr-6pw4 and GHSA-g3hv-75wg-m249 name. No npm release fixes them yet, so ETHOS
     reports them and does not block.
   - GHSA-fc5q-39xc-vjpf (CVE-2026-112366) names every picomatch release through 4.0.7, and no
     release fixes it. The product ships three copies. ETHOS reports two and does not block:
-    4.0.7, the registry's latest, and the 4.0.5 that npm 12.2.2 bundles. The third, 2.3.2, is
+    4.0.7, the registry's latest, and the 4.0.5 that npm 12.2.3 bundles. The third, 2.3.2, is
     what markdownlint-cli2 0.24.1 reaches through micromatch 4.0.8; each of those is its
     registry's latest, and micromatch takes the 2.x line alone, so no upgrade removes it. The
     audit blocks it as a finding behind the latest release, and this repository's policy accepts

@@ -4,16 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0017
 decision_status: accepted
+date: 2026-10-28
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
 ---
 
 # DR-0017: One Obligation, One Owner
-
-Status: canonical rationale. The quality and repository paradigm specifications own current
-behavior.
-
-Date: 2026-10-28.
 
 Purpose: preserve why each obligation has one owner across ETHOS and every governed repository, and
 why ETHOS judges its own tree by the obligations it ships for every repository.

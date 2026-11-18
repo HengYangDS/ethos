@@ -4,15 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0022
 decision_status: accepted
+date: 2026-11-05
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updates: DR-0015
 ---
 
 # DR-0022: From 0.3.0, Builds Are Immutable and Stages Are Evidence-Gated Channels
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-11-05.
 
 Purpose: preserve why 0.3.0 separates a build's identity from its qualification, and why a declared
 local clean-room venue counts once the journey is hermetic.

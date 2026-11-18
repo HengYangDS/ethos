@@ -4,15 +4,14 @@ role: decision
 state: canonical
 decision_id: DR-0029
 decision_status: accepted
+date: 2026-11-15
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updates: DR-0026
+  updated_by: DR-0030
 ---
 
 # DR-0029: The Release Candidate Gate Gains the Law, and Its Dates Become Earliest Dates
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-11-15.
 
 Purpose: preserve what the committee of 2026-11-14 changed in the gate that DR-0026 records: the
 one item the gate lacked, the dates it withdrew, the rules a batch now lands by, the slip rule, the
@@ -65,12 +64,13 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
   rule, or a supply move that adds a gap, does not. The gate's pin rows are the named exceptions,
   each only in a release whose product ships its repair.
 - **Tags and dates.** Five weekly tags: 2026-11-21, 11-28, 12-05 and 12-12, and a frozen beta on
-  12-19 after which no row lands. The candidate is 2026-12-26 at the earliest and the stable
-  release 2027-01-02 at the earliest: the candidate needs every item's acceptance to hold or be
-  waived, every subject bumped to the frozen beta and 72 hours since the last bump; the stable
-  release needs seven days since the last bump to the candidate. 2026-12-19 is withdrawn as the
-  candidate date. The bound that assumes nothing unmeasured, 34 rows at half a row a day, is
-  2027-01-30, and it is stated beside each date.
+  12-19 after which no row lands. The candidate is 2026-12-26 at the earliest and the stable release
+  2027-01-02 at the earliest: the candidate needs every item's acceptance to hold or be waived,
+  every subject bumped to the frozen beta and 72 hours since the last bump; the stable release needs
+  seven days since the last bump to the candidate. (Added to by
+  [DR-0030](dr-0030-candidate-subject-set.md).) 2026-12-19 is withdrawn as the candidate date. The
+  bound that assumes nothing unmeasured, 34 rows at half a row a day, is 2027-01-30, and it is
+  stated beside each date.
 - **Lines on `dev`.** At most 33, 24, 15, 6 and 0 rows left on the five tag days.
 - **The slip rule.** A row that misses a cut moves one batch by a line on the weekly page, and no
   tag moves. On a tag day when `dev` reads over its line, the next step of the slip order is
@@ -86,12 +86,13 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
   order. A row that leaves is a line of a successor record.
 - **Homebrew.** The one attempt that DR-0021 allows leaves 0.2.0. The candidate names Homebrew as
   not qualified, without condition.
-- **Moves.** The adopter bump moves to the second batch in the owner's full scope, with the
-  handler for the older selector form. The retirement of that form lands in the batch after the
-  last pin of the derived subject set, and never in the frozen batch. `structure-report` follows
-  0.2.0. So does the move of reclamation out of the hook installation: the candidate does not
-  claim that installing the hook deletes nothing. One-time repair code gets its own budget
-  category and deletion condition before the stable release, by a successor of DR-0010.
+- **Moves.** The adopter bump moves to the second batch in the owner's full scope, with the handler
+  for the older selector form. The retirement of that form lands in the batch after the last pin of
+  the derived subject set, and never in the frozen batch. (Added to by
+  [DR-0030](dr-0030-candidate-subject-set.md).) `structure-report` follows 0.2.0. So does the move
+  of reclamation out of the hook installation: the candidate does not claim that installing the hook
+  deletes nothing. One-time repair code gets its own budget category and deletion condition before
+  the stable release, by a successor of DR-0010.
 - **The weekly page.** On each tag day one page states fifteen measures by command from `dev` at a
   named commit: rows left by reading, rows by state, the landing rate, the free lines under the
   three ceilings, whole checks and proofs of the stack, host minutes declared against used, the

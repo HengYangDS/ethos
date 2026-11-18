@@ -4,16 +4,15 @@ role: decision
 state: canonical
 decision_id: DR-0011
 decision_status: accepted
+date: 2026-09-02
 relations:
   current_owner: ../governance/docs-registry.md
+  updated_by:
+    - DR-0027
+    - DR-0031
 ---
 
 # DR-0011: Documentation Portability
-
-Status: canonical rationale. The Docs Registry and each repository's profile
-own current behavior.
-
-Date: 2026-09-02.
 
 Purpose: preserve why portable documentation governance standardizes meaning
 and discovery without standardizing every repository's physical tree.
@@ -37,11 +36,12 @@ semantic discovery, not a cloned directory tree.
 
 ## Decision
 
-Portable documentation governance consists of one profile-declared docs root
-plus the `subject`, `role`, `state`, and `relations` metadata understood by the
-Docs Registry. Each repository chooses the physical structure that truthfully
-expresses its own subject domains. ETHOS may therefore retain a
-`docs/decisions/` boundary without requiring an adopter to copy it.
+Portable documentation governance consists of one profile-declared docs root plus the `subject`,
+`role`, `state`, and `relations` metadata understood by the Docs Registry. Each repository chooses
+the physical structure that truthfully expresses its own subject domains. (Added to by
+[DR-0027](dr-0027-common-semantic-structure.md).) ETHOS may therefore retain a `docs/decisions/`
+boundary without requiring an adopter to copy it. (Replaced by
+[DR-0031](dr-0031-decision-record-form.md).)
 
 Lifecycle state is metadata, not a `current/` or `future/` directory. A README
 exists only when it owns real navigation or a directory boundary; it is not a
@@ -61,10 +61,10 @@ while the portable registry audits adopter meaning and discoverability.
 
 - A repository can reorganize documents without changing their semantic
   identities, provided the profile root, metadata, and links remain coherent.
-- ETHOS cannot reject an adopter merely because it lacks ETHOS-specific roots
-  such as `architecture/` or `decisions/`.
-- Physical-layout regressions in ETHOS remain valid product defects, but they do
-  not silently become adopter requirements.
+- ETHOS cannot reject an adopter merely because it lacks ETHOS-specific roots such as
+  `architecture/` or `decisions/`. (Added to by [DR-0027](dr-0027-common-semantic-structure.md).)
+- Physical-layout regressions in ETHOS remain valid product defects, but they do not silently become
+  adopter requirements. (Added to by [DR-0027](dr-0027-common-semantic-structure.md).)
 - Empty directories, duplicate indexes, and marker-only READMEs have no
   portability value and are deleted.
 

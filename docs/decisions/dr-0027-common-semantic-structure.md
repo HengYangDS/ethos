@@ -4,16 +4,15 @@ role: decision
 state: canonical
 decision_id: DR-0027
 decision_status: accepted
+date: 2026-11-14
 relations:
   current_owner: ../../openspec/specs/repository-paradigm/spec.md
+  updates:
+    - DR-0011
+    - DR-0012
 ---
 
 # DR-0027: Common Semantic Structure
-
-Status: canonical rationale. The repository paradigm specification owns current behavior, and no
-rule of this record is part of it until the Change that carries the rule lands.
-
-Date: 2026-11-14.
 
 Purpose: preserve why every governed repository follows one semantic structure, which three
 invariants and seven rules state it, what the owner decided for the two rules that follow from no

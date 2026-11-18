@@ -4,15 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0014
 decision_status: accepted
+date: 2026-10-18
 relations:
   current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0014: Comparative Correction
-
-Status: canonical rationale. The repository-governance specification owns current behavior.
-
-Date: 2026-10-18.
 
 Purpose: preserve why a replacement may drop an incumbent finding that evidence outside the
 candidate shows false, and why that correction never weakens the non-regression rule.

@@ -4,15 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0020
 decision_status: accepted
+date: 2026-11-07
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
+  updated_by: DR-0025
 ---
 
 # DR-0020: The Product Ceiling Moves to 80,000 for the RC Work
-
-Status: canonical rationale. The native source-budget declaration owns the number.
-
-Date: 2026-11-07.
 
 Purpose: preserve the necessity review that moved the product ceiling one 5,000 step, what was
 removed first, and when to look again.
@@ -45,6 +43,7 @@ superseded mechanics, and the owner's 2026-11-01 rule lets the agent take that s
   reader uses the structured next step. They are 0.3.0 work in the catalog design; doing them before
   the RC would re-architect the product under release pressure.
 - **The step.** The product ceiling moves one step, from 75,000 to 80,000 line-equivalents.
+  (Replaced by [DR-0025](dr-0025-product-budget-step-85.md).)
 
 ## Alternatives Rejected
 
@@ -64,4 +63,4 @@ superseded mechanics, and the owner's 2026-11-01 rule lets the agent take that s
 Measurements: the lane's source-budget report before and after the removal (`product-budget-step`
 tasks). Revisit when the RC families land with more than 2,000 line-equivalents to spare, so the
 ceiling can return toward the measured size, or when the product reaches 78,000 before the 0.3.0
-reductions.
+reductions. (Replaced by [DR-0025](dr-0025-product-budget-step-85.md).)

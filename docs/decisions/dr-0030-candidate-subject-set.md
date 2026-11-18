@@ -4,15 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0030
 decision_status: accepted
+date: 2026-11-15
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updates: DR-0029
 ---
 
 # DR-0030: The Candidate's Subject Set Is Read From Trees, and a Frozen Repository Is a Waiver
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-11-15.
 
 Purpose: preserve which governed repositories the release candidate's condition counts, why that
 count is never a number in a record, and the one waiver the owner granted with the set.

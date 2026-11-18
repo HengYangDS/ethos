@@ -4,15 +4,14 @@ role: decision
 state: canonical
 decision_id: DR-0021
 decision_status: accepted
+date: 2026-11-07
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updates: DR-0015
+  updated_by: DR-0026
 ---
 
 # DR-0021: Release 0.2.0 Declares Three Journeys and Narrows DR-0015's Hosts
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-11-07.
 
 Purpose: preserve why 0.2.0 declares macOS arm64, Linux x64 and Linux arm64 journeys, why Windows
 x64 and the Homebrew channel are conditional or deferred, and which of DR-0015 stays in force.
@@ -50,10 +49,11 @@ This record supersedes DR-0015's declared journeys for 0.2.0 and nothing else.
   fixes land after the release candidate.
 - **The GitLab CI component is not qualified for 0.2.0.** GitLab publication stays undeclared.
 - **The release candidate gate applies.** It requires the release-candidate items of the committee
-  resolution, and the 72 hours run on one frozen beta. They start only after that beta's journeys
-  pass on every declared host and its golden-path journey passes, and they count from the last
-  landed adopter bump. During the soak only exceptions that D19 admits land: a defect that blocks
-  a landing, corrupts an installation or admits a wrong proof.
+  resolution, and the 72 hours run on one frozen beta. (Added to by
+  [DR-0026](dr-0026-release-candidate-gate.md).) They start only after that beta's journeys pass on
+  every declared host and its golden-path journey passes, and they count from the last landed
+  adopter bump. During the soak only exceptions that D19 admits land: a defect that blocks a
+  landing, corrupts an installation or admits a wrong proof.
 - **Releases batch weekly under D19.** Every engine release waits for the weekly batch unless it is
   such a defect fix.
 - **In force from DR-0015:** the stage rule (alpha, beta, release candidate, stable and their

@@ -4,16 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0013
 decision_status: accepted
+date: 2026-10-17
 relations:
   current_owner: ../../src/ethos/adapters/repo/commit/signature.py
 ---
 
 # DR-0013: Historical Repair Evidence Reads Its Own Policy Location
-
-Status: canonical rationale. The signature-repair validation in the current source owns current
-behavior.
-
-Date: 2026-10-17.
 
 Purpose: preserve why a repair record must be validated against the policy location that its exact
 source commit declared, and why moving a policy field is not retroactive.

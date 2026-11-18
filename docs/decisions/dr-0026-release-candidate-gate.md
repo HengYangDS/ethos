@@ -4,15 +4,16 @@ role: decision
 state: canonical
 decision_id: DR-0026
 decision_status: accepted
+date: 2026-11-14
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updates: DR-0021
+  updated_by:
+    - DR-0029
+    - DR-0031
 ---
 
 # DR-0026: The 0.2.0 Release Candidate Gate Is Recorded With Three Waivers
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-11-14.
 
 Purpose: preserve what the release candidate of 0.2.0 requires, which three requirements the owner
 waived and what stands in for each, which work leaves 0.2.0, and why the list was not cut further.
@@ -111,22 +112,27 @@ answered every finding, and the owner decided on it on 2026-11-14.
   disposable copies of the governed repositories, and the result joins the release evidence. Once
   the bump operation exists, this check is an acceptance of its preview.
 - **Rows without gate text.** Three leave 0.2.0: the Skill install operation, the CI carriers and
-  the install smoke's check of an absent predecessor. One is kept, the single owner of record
-  roots, because it lowers the cost of the bump from which the soak counts. Homebrew keeps the one
-  attempt that DR-0021 allows, in the frozen batch. The second landing of the history rebuild
+  the install smoke's check of an absent predecessor. One is kept, the single owner of record roots,
+  because it lowers the cost of the bump from which the soak counts. Homebrew keeps the one attempt
+  that DR-0021 allows, in the frozen batch. (Replaced by
+  [DR-0029](dr-0029-release-candidate-gate-successor.md).) The second landing of the history rebuild
   follows 0.2.0 as its first Change; DR-0024 states that it gates no candidate, and the owner
   confirmed the order knowing that two adopters' rewrites wait with it.
 - **What the candidate names not qualified.** MCP, the SDK, the Skill, the CI carriers, Windows x64,
-  and Homebrew if its attempt fails.
-- **Order and dates.** Four weekly batches end in a frozen beta on 2026-12-12. The breaking changes
-  and the agent path land one batch earlier, so agents use them for a week before the freeze. The
-  candidate follows on 2026-12-19, or on 2026-12-26 if one batch slips, and the stable release
-  seven days after it. When a week slips, the rows that only lower a cost leave first; then the
-  release time budget and R11's diagnoses, each by a recorded waiver; then Homebrew, which
-  DR-0021 already lets move.
-- **The measure.** Progress is the number of gate rows left, 42 on 2026-11-14: 39 required and
-  three that lower a measured cost. Each weekly batch reports it, and a session other than the
-  author's reads it. The number of closed Changes is not the measure.
+  and Homebrew if its attempt fails. (Added to by
+  [DR-0029](dr-0029-release-candidate-gate-successor.md).)
+- **Order and dates.** Four weekly batches end in a frozen beta on 2026-12-12. (Replaced by
+  [DR-0029](dr-0029-release-candidate-gate-successor.md).) The breaking changes and the agent path
+  land one batch earlier, so agents use them for a week before the freeze. The candidate follows on
+  2026-12-19, or on 2026-12-26 if one batch slips, and the stable release seven days after it.
+  (Replaced by [DR-0029](dr-0029-release-candidate-gate-successor.md).) When a week slips, the rows
+  that only lower a cost leave first; then the release time budget and R11's diagnoses, each by a
+  recorded waiver; then Homebrew, which DR-0021 already lets move. (Replaced by
+  [DR-0029](dr-0029-release-candidate-gate-successor.md).)
+- **The measure.** Progress is the number of gate rows left, 42 on 2026-11-14: 39 required and three
+  that lower a measured cost. (Added to by [DR-0029](dr-0029-release-candidate-gate-successor.md).)
+  Each weekly batch reports it, and a session other than the author's reads it. The number of closed
+  Changes is not the measure.
 
 ## Alternatives Rejected
 
@@ -159,7 +165,7 @@ answered every finding, and the owner decided on it on 2026-11-14.
   2026-11-08. Preparing each row as a patch in parallel, with the lane landing three to five per
   proof, is the method meant to give that rate; it is not yet measured.
 - A later waiver, or a row that leaves, is a successor record that names this one. Records are not
-  edited after acceptance.
+  edited after acceptance. (Replaced by [DR-0031](dr-0031-decision-record-form.md).)
 - This record adds no checker. The weekly order lives in the `rc-scope-plan` design, and the
   terminal plan points to both.
 

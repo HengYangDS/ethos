@@ -8,66 +8,44 @@ relations:
 
 # Decisions
 
-Status: canonical navigation; records retain rationale, not current executable authority.
+The decision records of this repository, one row for each number. The form and the rules are in
+the documentation contract that `ethos status --json` names.
 
-Purpose: find choices whose alternatives and revisit conditions remain useful across Changes.
+| Record                                                                                                                                                                                                        | Status                                                                  | Date       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------- |
+| DR-0001: Generated Artifact Topology Contract (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0001-generated-artifact-topology-contract.md`)                                     | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0002: Documentation Topology Isomorphism Contract (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0002-documentation-topology-isomorphism-contract.md`)                       | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0003: Proof Scope Compatibility Contract (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0003-proof-scope-compatibility-contract.md`)                                         | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0004: Minimal Semantic Documentation Topology Contract (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0004-native-documentation-topology-contract.md`)                       | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0005: Declarative Lifecycle Spine (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0005-declarative-lifecycle-spine.md`)                                                       | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| [DR-0006: Proof Trust Boundary](dr-0006-proof-trust-boundary.md)                                                                                                                                              | Accepted                                                                | 2026-07-10 |
+| DR-0007: Docs Kernel Form-Invariance and Adopter-Parity Evidence Locus (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0007-docs-kernel-invariance-and-adopter-parity-locus.md`) | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0008: Metric-Domain Budget Contract (Git holds it at `dbf01234fa195b84088aa6c3d4ec9d53f8c197c0:docs/decisions/DR-0008-metric-domain-budget-contract.md`)                                                   | Removed on 2026-08-15; it returns with the engine that reads its status |            |
+| DR-0009: Budget contract version 2 calibration: named on 2026-07-19 and never written; DR-0010 rejected the language it would have calibrated                                                                 |                                                                         | 2026-07-19 |
+| [DR-0010: Source Budget Non-Compensation](dr-0010-source-budget-non-compensation.md)                                                                                                                          | Accepted, updated by DR-0019                                            | 2026-09-02 |
+| [DR-0011: Documentation Portability](dr-0011-documentation-portability.md)                                                                                                                                    | Accepted, updated by DR-0027, DR-0031                                   | 2026-09-02 |
+| [DR-0012: Repository Paradigm](dr-0012-repository-paradigm.md)                                                                                                                                                | Accepted, updated by DR-0027, DR-0032                                   | 2026-10-14 |
+| [DR-0013: Historical Repair Evidence Reads Its Own Policy Location](dr-0013-historical-repair-policy-location.md)                                                                                             | Accepted                                                                | 2026-10-17 |
+| [DR-0014: Comparative Correction](dr-0014-comparative-correction.md)                                                                                                                                          | Accepted                                                                | 2026-10-18 |
+| [DR-0015: Release Stages Follow a Declared Journey Scope](dr-0015-release-stage-scope.md)                                                                                                                     | Accepted, updated by DR-0021, DR-0022                                   | 2026-10-24 |
+| [DR-0016: Changes Close on Their Delivered Scope](dr-0016-change-closure-scope.md)                                                                                                                            | Accepted                                                                | 2026-10-24 |
+| [DR-0017: One Obligation, One Owner](dr-0017-one-obligation-one-owner.md)                                                                                                                                     | Accepted                                                                | 2026-10-28 |
+| [DR-0018: A Historical Artifact Is Judged by the Attestation Made When It Was Produced](dr-0018-historical-artifact-attestation.md)                                                                           | Accepted                                                                | 2026-11-05 |
+| [DR-0019: The Source Budget Counts Code, Not Layout](dr-0019-layout-invariant-source-budget.md)                                                                                                               | Accepted, updated by DR-0023                                            | 2026-11-07 |
+| [DR-0020: The Product Ceiling Moves to 80,000 for the RC Work](dr-0020-product-budget-step.md)                                                                                                                | Accepted, updated by DR-0025                                            | 2026-11-07 |
+| [DR-0021: Release 0.2.0 Declares Three Journeys and Narrows DR-0015's Hosts](dr-0021-release-scope-0-2-0.md)                                                                                                  | Accepted, updated by DR-0026                                            | 2026-11-07 |
+| [DR-0022: From 0.3.0, Builds Are Immutable and Stages Are Evidence-Gated Channels](dr-0022-release-channels-0-3-0.md)                                                                                         | Accepted                                                                | 2026-11-05 |
+| [DR-0023: The Test Ceiling Moves to 105,000 for the beta.8 Work](dr-0023-test-budget-step.md)                                                                                                                 | Accepted, updated by DR-0028                                            | 2026-11-11 |
+| [DR-0024: History Is Rebuilt Once, Under One Change-Local Record, With Originals Held Locally](dr-0024-history-rebuild-map.md)                                                                                | Accepted                                                                | 2026-11-12 |
+| [DR-0025: The Product Ceiling Moves to 85,000 for the Common Rules](dr-0025-product-budget-step-85.md)                                                                                                        | Accepted                                                                | 2026-11-12 |
+| [DR-0026: The 0.2.0 Release Candidate Gate Is Recorded With Three Waivers](dr-0026-release-candidate-gate.md)                                                                                                 | Accepted, updated by DR-0029, DR-0031                                   | 2026-11-14 |
+| [DR-0027: Common Semantic Structure](dr-0027-common-semantic-structure.md)                                                                                                                                    | Accepted                                                                | 2026-11-14 |
+| [DR-0028: The Test Ceiling Moves to 110,000 for the beta.12 Work](dr-0028-test-budget-step-110.md)                                                                                                            | Accepted                                                                | 2026-11-15 |
+| [DR-0029: The Release Candidate Gate Gains the Law, and Its Dates Become Earliest Dates](dr-0029-release-candidate-gate-successor.md)                                                                         | Accepted, updated by DR-0030                                            | 2026-11-15 |
+| [DR-0030: The Candidate's Subject Set Is Read From Trees, and a Frozen Repository Is a Waiver](dr-0030-candidate-subject-set.md)                                                                              | Accepted                                                                | 2026-11-15 |
+| [DR-0031: Decision Records Have One Form, and a Record Is Kept and Marked](dr-0031-decision-record-form.md)                                                                                                   | Accepted                                                                | 2026-11-18 |
+| [DR-0032: Branch Roles Are Fixed; Their Names Are a Repository's Declaration](dr-0032-branch-names-declared.md)                                                                                               | Accepted                                                                | 2026-11-18 |
 
-See also: [Documentation Root](../README.md) and
-[Docs Registry](../governance/docs-registry.md#directory-entrypoint-rule).
-
-Records use `dr-<four-digit-id>-<semantic-topic>.md`. The number is a stable
-decision identity, never reused or renumbered; the topic remains readable.
-This README is the only navigation, not a second decision registry. It lists
-every number in order: a current record is a link, and every other number is one
-line with its MADR status beside the record's own word, its decision date, its
-successor and the commit where its record last existed. Git keeps those records'
-bytes. The linked Docs Registry owns the shared metadata, rationale and
-five-section form; this entrance does not maintain another template or rule set.
-
-- DR-0001: Generated artifact topology contract (2026-07-07). Superseded (own word: "superseded by `model-promotion`"); its rules now live in the PDC's [Model Promotion](../governance/product-design-contract.md#model-promotion), the topology declaration `src/ethos/contracts/artifacts/topology.toml` and the quality specification's "Generated Artifact Boundary"; [Generated Artifact Topology](../architecture/generated-artifact-topology.md) explains them. Record: `374d49d94^`.
-- DR-0002: Documentation topology isomorphism contract (2026-07-07). Superseded (own word: superseded) by DR-0004. Record: `374d49d94^`.
-- DR-0003: Proof scope compatibility contract (2026-07-08). Superseded (own word: accepted, until its deletion on 2026-08-15) by the current contract: known proof scopes and the `unknown_proof_scope` gap in `src/ethos/application/proof/report.py`, and host execution that mints no proof in [Command Plane](../reference/command-plane.md#routine-scoped-execution). Record: `374d49d94^`.
-- DR-0004: Minimal semantic documentation topology contract (2026-07-08). Deprecated (own word: retired); the [Docs Registry](../governance/docs-registry.md) now owns its subject, and no replacement record was created; historical carrier [docs topology contract](../history/docs-topology-contract-20260708.md). Record: `374d49d94^`.
-- DR-0005: Declarative lifecycle spine (2026-07-10). Superseded (own word: accepted, until its deletion on 2026-08-15) by the current owner of the spine, the [Declarative Lifecycle Rules](../../rules/declarative-lifecycle.md); [Declarative Governance Compiler](../architecture/declarative-governance-compiler.md#spine) explains it. Record: `374d49d94^`.
-- [DR-0006: Proof trust boundary](dr-0006-proof-trust-boundary.md): why local proof and independent assurance are separate claims.
-- DR-0007: Docs kernel form-invariance and adopter-parity evidence locus (2026-07-12). Superseded (own word: superseded) by DR-0004. Record: `374d49d94^`.
-- DR-0008: Metric-domain budget contract (2026-07-19). Deprecated (own word: retired by the terminal owned-source contract and the quality specification); succeeded by DR-0010. Record: `374d49d94^`.
-- DR-0009: Budget contract version 2 calibration (named 2026-07-19). Rejected (own word: reserved and not reassigned); DR-0008's text in `13864eb4f` named it as a record to create, it was never written, and DR-0010 rejected the metric language it would have calibrated.
-- [DR-0010: Source-budget non-compensation](dr-0010-source-budget-non-compensation.md): why unrelated source classes cannot subsidize each other's growth.
-- [DR-0011: Documentation portability](dr-0011-documentation-portability.md): why semantic discovery does not mandate one physical tree.
-- [DR-0012: Repository paradigm](dr-0012-repository-paradigm.md): why every governed repository follows one common repository contract and which structure stays repository-owned.
-- [DR-0013: Historical repair evidence reads its own policy location](dr-0013-historical-repair-policy-location.md): why moving a policy field does not reinterpret an earlier repair record.
-- [DR-0014: Comparative correction](dr-0014-comparative-correction.md): why a replacement may drop an incumbent finding only when evidence outside the candidate shows it false.
-- [DR-0015: Release stages follow a declared journey scope](dr-0015-release-stage-scope.md): why a prerelease advances by evidence on its declared journeys and an adopter's environment is not a release precondition. Its 0.2.0 host list is superseded by DR-0021.
-- [DR-0016: Changes close on their delivered scope](dr-0016-change-closure-scope.md): why a Change archives with the tasks it delivered and how a withdrawn task stays visible until a new Change restores it.
-- [DR-0017: One obligation, one owner](dr-0017-one-obligation-one-owner.md): why each obligation has one owner across ETHOS and every governed repository, and why ETHOS judges its own tree by the obligations it ships.
-- [DR-0018: A historical artifact is judged by the attestation made when it was produced](dr-0018-historical-artifact-attestation.md): why a release tag publishes on the proof its own release record bound, and why a later runtime never re-judges it under its own policy.
-- [DR-0019: The source budget counts code, not layout](dr-0019-layout-invariant-source-budget.md): why the Python ceilings count layout-invariant code tokens in line-equivalents, where the conversion came from, and why the test ceiling moved one step.
-- [DR-0020: The product ceiling moves to 80,000 for the RC work](dr-0020-product-budget-step.md): the necessity review that took one 5,000 step after the proved duplication was removed.
-- [DR-0021: Release 0.2.0 declares three journeys and narrows DR-0015's hosts](dr-0021-release-scope-0-2-0.md): why 0.2.0 drops Windows x64, conditions Homebrew and leaves the GitLab CI component unqualified, and which of DR-0015 stays in force.
-- [DR-0022: From 0.3.0, builds are immutable and stages are evidence-gated channels](dr-0022-release-channels-0-3-0.md): why build identity and qualification separate, and why a declared hermetic local venue counts.
-- [DR-0023: The test ceiling moves to 105,000 for the beta.8 work](dr-0023-test-budget-step.md): the necessity review that took one 5,000 test step after the proved duplication was removed.
-- [DR-0024: History is rebuilt once, under one Change-local record, with originals held locally](dr-0024-history-rebuild-map.md): why one landed record authorizes a history rebuild, why the originals stay in a local side repository and only readiness and the apply read the key, and why the work lands in two landings.
-- [DR-0025: The product ceiling moves to 85,000 for the common
-  rules](dr-0025-product-budget-step-85.md): the necessity review that took one more 5,000 step
-  after the staged checks merged and the dead definition went.
-- [DR-0026: The 0.2.0 release candidate gate is recorded with three
-  waivers](dr-0026-release-candidate-gate.md): what the gate that DR-0021 applies requires, which
-  three requirements the owner waived and what stands in for each, and which work leaves 0.2.0.
-- [DR-0027: Common semantic structure](dr-0027-common-semantic-structure.md): why every governed
-  repository follows one semantic structure from three invariants, why it is reported before it
-  refuses or blocks, and what the owner decided for width and names. It succeeds DR-0012's clause on
-  repository-owned structure and narrows DR-0011 inside documentation homes.
-- [DR-0028: The test ceiling moves to 110,000 for the beta.12
-  work](dr-0028-test-budget-step-110.md): the review at DR-0023's revisit point, which took one more
-  5,000 test step after four measured removals, and why two prepared removals no longer count.
-- [DR-0029: The release candidate gate gains the law, and its dates become earliest
-  dates](dr-0029-release-candidate-gate-successor.md): what the committee of 2026-11-14 changed in
-  the gate that DR-0026 records: the item it lacked, a declared state for every rule that can
-  block; five weekly tags and earliest dates in place of the withdrawn candidate date; the rules a
-  batch lands by, the slip rule and the weekly measures. It succeeds DR-0026 and does not edit it.
-- [DR-0030: The candidate's subject set is read from trees, and a frozen repository is a
-  waiver](dr-0030-candidate-subject-set.md): which governed repositories the release candidate's
-  condition counts, why the count is a reading of trees and never a number in a record, and the
-  one waiver, named by a shape and a runtime. It follows DR-0029's rule for a later waiver and
-  does not edit it.
+Accepted: in force. Superseded: a later record replaced it whole. Deprecated: no longer in force,
+with no successor. Rejected: a ruling not to adopt, in force. A record that updates another
+replaces or adds to a marked part of it.

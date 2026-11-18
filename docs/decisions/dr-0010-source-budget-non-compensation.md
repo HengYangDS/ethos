@@ -4,16 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0010
 decision_status: accepted
+date: 2026-09-02
 relations:
   current_owner: ../../.config/checks/format-selection/policy.toml
+  updated_by: DR-0019
 ---
 
 # DR-0010: Source Budget Non-Compensation
-
-Status: canonical rationale. Executable thresholds are owned by quality
-configuration.
-
-Date: 2026-09-02 (record established); revised 2026-11-02 and 2026-11-16.
 
 Purpose: preserve why unrelated source classes cannot compensate for one
 another and why size remains a tripwire rather than a design target.
@@ -36,28 +33,27 @@ carrier is necessary.
 
 ## Decision
 
-Measure owned source deterministically by carrier and Python role, enforce the
-explicitly declared ceilings, and cross-check measurements independently.
-Python product and test ceilings are required and independent. Other categories
-and the heterogeneous global total remain observations unless explicitly bounded;
-the September 8 user decision removes the previous mandatory aggregate ceiling.
-Structural duplication, competing owners, and semantic overlap decide deletion;
-line count alone does not.
+Measure owned source deterministically by carrier and Python role, enforce the explicitly declared
+ceilings, and cross-check measurements independently. (Added to by
+[DR-0019](dr-0019-layout-invariant-source-budget.md).) Python product and test ceilings are required
+and independent. Other categories and the heterogeneous global total remain observations unless
+explicitly bounded; the September 8 user decision removes the previous mandatory aggregate ceiling.
+Structural duplication, competing owners, and semantic overlap decide deletion; line count alone
+does not.
 
 Budgets are non-compensating: a surplus in tests, documentation, or one source
 role cannot pay for excess in another. Per-file limits remain readability
 tripwires. A breach triggers semantic review—delete, absorb, rename, or split by
 real ownership—not mechanical file fragmentation.
 
-An enforced aggregate ELOC ceiling may increase by exactly 5,000 in one reviewed
-step only when further meaningful simplification cannot preserve the necessary
-complexity. The growing owner must first retire proved duplication and
-superseded mechanics, reject zero-benefit abstractions, and identify the
-remaining behavior or acceptance boundaries that require the space. This is a
-source-policy change, never automatic growth admission or evidence that the
-repository is globally minimal. Each later step requires a fresh necessity
-judgment. Independent role accounting, the 500-ELOC per-file limit, measurement,
-coverage and all other quality obligations remain unchanged.
+An enforced aggregate ELOC ceiling may increase by exactly 5,000 in one reviewed step only when
+further meaningful simplification cannot preserve the necessary complexity. (Added to by
+[DR-0019](dr-0019-layout-invariant-source-budget.md).) The growing owner must first retire proved
+duplication and superseded mechanics, reject zero-benefit abstractions, and identify the remaining
+behavior or acceptance boundaries that require the space. This is a source-policy change, never
+automatic growth admission or evidence that the repository is globally minimal. Each later step
+requires a fresh necessity judgment. Independent role accounting, the 500-ELOC per-file limit,
+measurement, coverage and all other quality obligations remain unchanged.
 
 ## Alternatives Rejected
 

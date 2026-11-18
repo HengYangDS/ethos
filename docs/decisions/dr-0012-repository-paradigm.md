@@ -4,15 +4,15 @@ role: decision
 state: canonical
 decision_id: DR-0012
 decision_status: accepted
+date: 2026-10-14
 relations:
   current_owner: ../../openspec/specs/repository-paradigm/spec.md
+  updated_by:
+    - DR-0027
+    - DR-0032
 ---
 
 # DR-0012: Repository Paradigm
-
-Status: canonical rationale. The repository paradigm specification and its packaged contract own current behavior.
-
-Date: 2026-10-14.
 
 Purpose: preserve why every ETHOS-governed repository follows one common repository contract, and which structure that contract deliberately leaves to each repository.
 
@@ -47,7 +47,7 @@ The paradigm standardizes carriers that every governed repository actually has:
 - root protocol entries;
 - the configuration plane, grouped by consuming tool;
 - the binding file set;
-- commit, branch and release conventions;
+- commit, branch and release conventions; (Added to by [DR-0032](dr-0032-branch-names-declared.md).)
 - document metadata and decision-record names;
 - formatters and text normalization;
 - the toolchain owner and its `bootstrap`, `fix` and `check` verbs;
@@ -55,7 +55,10 @@ The paradigm standardizes carriers that every governed repository actually has:
 - the CI model for several Forges;
 - names.
 
-It never requires an empty carrier. Product and domain structure, test organization, documentation subject layout and provider shape remain repository-owned. A repository cannot declare an exception. Changing an obligation is an ETHOS Change.
+It never requires an empty carrier. Product and domain structure, test organization, documentation
+subject layout and provider shape remain repository-owned. (Replaced by
+[DR-0027](dr-0027-common-semantic-structure.md).) A repository cannot declare an exception. Changing
+an obligation is an ETHOS Change.
 
 ## Alternatives Rejected
 
@@ -73,7 +76,9 @@ It never requires an empty carrier. Product and domain structure, test organizat
 - Markdown blank lines are what the shared Prettier formatter writes for its declared inputs. The paradigm adds no layout rule of its own: an earlier rule that tightened one-block list items and laid out carriers outside those inputs was retired, because it rejected formatter-accepted layout and changed rendered list meaning.
 - Bare tool invocations at a repository root no longer discover project policy. The verbs and documented editor settings carry the explicit paths.
 - Compatibility readers for superseded carriers, comment-wrapped document metadata and legacy branch role names, stay until the last adopter that uses them migrates through its own Change; retiring one earlier would turn that adopter's accepted documents or refs into gaps.
-- DR-0011 remains valid for documentation subject layout. This record only adds the metadata syntax and the decision-record name grammar.
+- DR-0011 remains valid for documentation subject layout. (Replaced by
+  [DR-0027](dr-0027-common-semantic-structure.md).) This record only adds the metadata syntax and
+  the decision-record name grammar.
 
 ## Evidence and Revisit
 

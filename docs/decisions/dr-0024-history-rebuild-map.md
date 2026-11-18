@@ -4,16 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0024
 decision_status: accepted
+date: 2026-11-12
 relations:
   current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0024: History Is Rebuilt Once, Under One Change-Local Record, With Originals Held Locally
-
-Status: canonical rationale. The repository-governance, repository-paradigm and command-plane
-specifications own current behavior.
-
-Date: 2026-11-12.
 
 Purpose: preserve why ETHOS rebuilds an adopter's published history once under a landed record, why
 the originals stay in a local side repository until the owner deletes it, why only readiness and the

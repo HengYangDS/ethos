@@ -4,15 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0006
 decision_status: accepted
+date: 2026-07-10
 relations:
   current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0006: Proof Trust Boundary
-
-Status: canonical rationale. Proof contracts and adapters own current behavior.
-
-Date: 2026-07-10; concise record restored 2026-09-02.
 
 Purpose: preserve why exact local proof and independent anti-forgery assurance
 are separate evidence planes rather than stronger names for the same claim.

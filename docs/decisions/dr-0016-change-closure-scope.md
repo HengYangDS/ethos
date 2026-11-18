@@ -4,15 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0016
 decision_status: accepted
+date: 2026-10-24
 relations:
   current_owner: ../../openspec/config.yaml
 ---
 
 # DR-0016: Changes Close on Their Delivered Scope
-
-Status: canonical rationale. The OpenSpec configuration owns current behavior.
-
-Date: 2026-10-24.
 
 Purpose: preserve why the 13 Changes open for 0.2.0 were archived with only the tasks they
 delivered, how each withdrawn task stays visible in its Change, and when it returns.

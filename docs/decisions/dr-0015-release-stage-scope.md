@@ -4,15 +4,15 @@ role: decision
 state: canonical
 decision_id: DR-0015
 decision_status: accepted
+date: 2026-10-24
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
+  updated_by:
+    - DR-0021
+    - DR-0022
 ---
 
 # DR-0015: Release Stages Follow a Declared Journey Scope
-
-Status: canonical rationale. The distribution specification owns current behavior.
-
-Date: 2026-10-24.
 
 Purpose: preserve why a prerelease advances by evidence on the journeys its target declares, and
 why an adopter's own environment is not an ETHOS release precondition.
@@ -39,17 +39,19 @@ longer select it. A stage rule has to catch such defects before a promotion, not
 A product-release target declares the journeys it supports. Alpha covers any accepted increment.
 Beta needs hosted verification on every supported platform, the declared adopter journey from the
 published artifacts on macOS and Linux, and no known defect that corrupts an installation, blocks a
-landing or admits a wrong proof. A release candidate is a beta that adopters used for 72 hours
-without a new blocking defect, after which only fixes land; stable follows 7 such days of the
-release candidate.
+landing or admits a wrong proof. (Added to by [DR-0022](dr-0022-release-channels-0-3-0.md).) A
+release candidate is a beta that adopters used for 72 hours without a new blocking defect, after
+which only fixes land; stable follows 7 such days of the release candidate. (Added to by
+[DR-0022](dr-0022-release-channels-0-3-0.md) and [DR-0021](dr-0021-release-scope-0-2-0.md).)
 
 A journey that the target does not declare, or whose environment is unavailable, is named in the
 release entry as not qualified instead of blocking the release. An adopter's adoption of a release
 is that adopter's acceptance, tracked where the adopter tracks its work.
 
 For 0.2.0 the declared journeys run from installation through Mise from the GitHub release to
-release on macOS arm64, Linux x64 and arm64, and Windows x64. GitLab-hosted CI, GitLab publication
-and the Homebrew channel are not declared for 0.2.0.
+release on macOS arm64, Linux x64 and arm64, and Windows x64. (Replaced by
+[DR-0021](dr-0021-release-scope-0-2-0.md).) GitLab-hosted CI, GitLab publication and the Homebrew
+channel are not declared for 0.2.0. (Replaced by [DR-0021](dr-0021-release-scope-0-2-0.md).)
 
 ## Alternatives Rejected
 

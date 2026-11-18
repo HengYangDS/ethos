@@ -4,15 +4,14 @@ role: decision
 state: canonical
 decision_id: DR-0019
 decision_status: accepted
+date: 2026-11-07
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
+  updates: DR-0010
+  updated_by: DR-0023
 ---
 
 # DR-0019: The Source Budget Counts Code, Not Layout
-
-Status: canonical rationale. The quality specification owns current behavior.
-
-Date: 2026-11-07.
 
 Purpose: preserve why the Python source-budget ceilings count layout-invariant code tokens in
 line-equivalents, where the conversion came from, and why the test ceiling moved one step.
@@ -51,6 +50,7 @@ its first RC-blocking resolution (R3).
   none. The remaining space is the acceptance the committee made RC-blocking. The next reduction is
   structural: a Git port with an in-memory adapter to replace patch-based tests (resolution R2,
   0.3.0), not more compression. The test ceiling therefore moves one 5,000 step to 100,000.
+  (Replaced by [DR-0023](dr-0023-test-budget-step.md).)
 - `tools/`, which holds the release harness where release-time failures recur, gets its first
   ceiling: 10,000 line-equivalents, the first 5,000 boundary above its 8,300.
 - `product-budget-densify` is rejected: a formatter-only collapse of 192 product modules, proven

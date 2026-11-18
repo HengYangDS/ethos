@@ -4,15 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0028
 decision_status: accepted
+date: 2026-11-15
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
+  updates: DR-0023
 ---
 
 # DR-0028: The Test Ceiling Moves to 110,000 for the beta.12 Work
-
-Status: canonical rationale. The native source-budget declaration owns the number.
-
-Date: 2026-11-15.
 
 Purpose: preserve the review that DR-0023's revisit point required, what was removed first, why the
 test ceiling moved one more 5,000 step, and when to look again.

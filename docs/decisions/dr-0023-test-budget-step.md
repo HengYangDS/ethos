@@ -4,15 +4,14 @@ role: decision
 state: canonical
 decision_id: DR-0023
 decision_status: accepted
+date: 2026-11-11
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
+  updates: DR-0019
+  updated_by: DR-0028
 ---
 
 # DR-0023: The Test Ceiling Moves to 105,000 for the beta.8 Work
-
-Status: canonical rationale. The native source-budget declaration owns the number.
-
-Date: 2026-11-11.
 
 Purpose: preserve the necessity review that moved the test ceiling one 5,000 step, what was removed
 first, and when to look again.
@@ -45,7 +44,8 @@ that step with evidence.
   lifecycle, proof and gates, budget) are estimated at 5 to 40 each, at most about 160 together,
   far short of the history rebuild's need. They continue as their own steps and each must hold its
   delta at or below 0.
-- **The step.** The test ceiling moves one step, from 100,000 to 105,000 line-equivalents.
+- **The step.** The test ceiling moves one step, from 100,000 to 105,000 line-equivalents. (Replaced
+  by [DR-0028](dr-0028-test-budget-step-110.md).)
 
 ## Alternatives Rejected
 
@@ -65,4 +65,5 @@ that step with evidence.
 Measurements: the lanes' source-budget reports recorded in the `test-parallel-implementations`,
 `fixture-signer-owner`, `catalog-groups` and `repository-spec` tasks, and this Change's own report
 at its lane head. Revisit when both consumers land with more than 2,000 line-equivalents to spare,
-so the ceiling can return toward the measured size, or when the tests reach 103,000.
+so the ceiling can return toward the measured size, or when the tests reach 103,000. (Replaced by
+[DR-0028](dr-0028-test-budget-step-110.md).)

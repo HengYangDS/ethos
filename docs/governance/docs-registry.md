@@ -284,42 +284,180 @@ do not. If a README contains the only
 unique navigation or boundary meaning, absorb that meaning into the owning
 document before deleting it.
 
-A Decision Record is admitted only when a choice among alternatives, its
-consequences, and its revisit or retirement condition remain useful across more
-than one Change and cannot be expressed clearly by the current contract or
-source. It is not a feedback receipt, status page, task list, or archive index.
-Its filename is `dr-<four-digit-id>-<semantic-topic>.md`: the stable positive
-number is never reused for another ruling, while the topic stays legible. The
-Docs Registry rejects missing or duplicate current IDs without adding a
-decision database. Each `role: decision` record declares `decision_id`, matching
-its filename and sole top-level `DR-####: Topic` title, plus
-`decision_status: accepted` and `state: canonical`. Decision disposition is not
-document currentness, implementation acceptance, or effect authorization. Preserve
-known decision dates and provenance; a structural migration cannot invent them.
+## Decision records
 
-After the title, a record has exactly five document-level sections in this order:
-Context; Decision; Alternatives Rejected; Consequences and Boundary; Evidence and
-Revisit. Every section contains readable rationale. Evidence references support
-the choice; they do not prove present delivery. Plain prose, rationale lists,
-quotations, tables, bare identifiers and evidence paths remain valid. Task
-checkboxes, code blocks, embedded HTML and executable procedures belong to their
-producing Change, how-to or native record, not a DR. Invocation inspection parses
-syntax without executing it; ambiguous inline execution is refused rather than
-reported as proved absent. Mechanical validation does not decide whether a
+A decision record keeps WHY: a choice among alternatives, its consequences and the condition
+under which it is looked at again. It is written only when that reason remains useful across
+more than one Change and the current contract or source cannot say it. It never owns current
+behavior: it names the current owner that does. It is not a feedback receipt, a status page, a
+task list or an archive index. A record enters the tree decided, through an accepted Change; a
+proposal lives in OpenSpec and is no record. Mechanical validation does not decide whether a
 choice is sound or worth preserving.
 
-A record names a Change by writing the Change's identifier in inline code. A
-record that names an active Change binds it: the Change cites the record, by its
-`DR-####` identity or its file name, in one of its artifacts before it archives,
-and archive readiness otherwise refuses it with `openspec_decision_uncited`. A
-mention in prose names nothing.
+Every governed repository writes its decision records in this one form. The form follows the
+architecture decision record of its common template (a directory of numbered records, numbers
+never used twice, a status and a date in the front matter, an old record kept and marked) and
+departs from it where the table says so.
 
-Its directory README navigates records and lists every number in order: a number
-without a current record keeps one line with its status, date, successor and Git
-origin. It does not become a second decision register. Adopters need not copy
-ETHOS's directory shape; their decision records
-use this same contract within the selected documentation root. Non-decision roles
-retain the common metadata floor without DR-specific fields or sections.
+| The common template                                                  | This form                                                                                 | Why it departs                                                                     |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| directory `docs/decisions`                                           | `docs/decisions`                                                                          | the same                                                                           |
+| file `NNNN-title.md`                                                 | `dr-NNNN-<topic>.md`                                                                      | the prefix is this fleet's accepted name grammar                                   |
+| key `status`                                                         | key `decision_status`                                                                     | every released engine requires this key; the values are the template's             |
+| proposed, rejected, accepted, deprecated, superseded                 | accepted, superseded, deprecated, rejected                                                | a record enters the tree decided; OpenSpec holds proposals                         |
+| `date`: when the decision was last updated                           | `date`: the day of the decision                                                           | a record is fixed at acceptance, and the day it stopped governing is in its banner |
+| decision-makers, consulted, informed                                 | named by role in "Evidence and Revisit"                                                   | rules bind roles, not persons                                                      |
+| no other key                                                         | `subject`, `role`, `state`, `decision_id`, `relations`                                    | the metadata that every document of this registry carries                          |
+| one relation, superseded by                                          | `supersedes` and `updates`, each with its reverse                                         | the template has no word for a record that replaces a part                         |
+| context, drivers, options, outcome, consequences, confirmation, more | Context; Decision; Alternatives Rejected; Consequences and Boundary; Evidence and Revisit | the fleet's five sections hold the same matter and are already checked             |
+
+### Where and what
+
+- **Directory.** `docs/decisions/`: the directory `decisions` directly under the documentation
+  home, which is `docs` unless the profile declares another, in every repository that has a
+  record. It holds the records
+  and one `README.md`, and nothing else: no directory inside it, no template, no companion page
+  and no second series. A repository without a record has no such directory.
+- **File.** `dr-NNNN-<topic>.md`: four digits and a lower-case kebab-case topic. The number is
+  the highest in the directory plus one, taken when the record is committed in its lane. No
+  number is reserved. When two lanes take the same number, the one that lands second takes the
+  next. A number is never used twice and no record is ever removed.
+- **Front matter.** These keys, in this order, and no other:
+
+  | Key               | Value                                                                                                                                                                                                                                                                                 |
+  | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `subject`         | `<repository>:decision:<topic>`, with the file's topic                                                                                                                                                                                                                                |
+  | `role`            | `decision`                                                                                                                                                                                                                                                                            |
+  | `state`           | `canonical`, always: the file is the one carrier of its record, whatever became of the decision                                                                                                                                                                                       |
+  | `decision_id`     | `DR-NNNN`, the file's number                                                                                                                                                                                                                                                          |
+  | `decision_status` | `accepted`, `superseded`, `deprecated` or `rejected`                                                                                                                                                                                                                                  |
+  | `date`            | `YYYY-MM-DD`, the day of the decision                                                                                                                                                                                                                                                 |
+  | `relations`       | `current_owner`, always: the contract, specification or source that owns current behavior. Where they hold: `supersedes`, `superseded_by`, `updates`, `updated_by` (each one record or a list), `formerly` (an identity in an older series) and `restored_from` (a commit and a path) |
+
+- **Body.** The title `# DR-NNNN: Title`. Then, only in a record that no longer governs, one
+  banner as a quotation, and the same banner again under each section heading. Then free text.
+  Then exactly five sections in this order, each with readable rationale: Context; Decision;
+  Alternatives Rejected; Consequences and Boundary; Evidence and Revisit. "Evidence and
+  Revisit" names who decided, by role. No record writes a status or a date line in its body:
+  the front matter is their one carrier. Plain prose, rationale lists, quotations, tables, bare
+  identifiers and evidence paths are valid. Task checkboxes, code blocks, embedded HTML and
+  executable procedures belong to their producing Change, how-to or native record. Invocation
+  inspection parses syntax without executing it; ambiguous inline execution is refused rather
+  than reported as proved absent.
+- **Index.** `docs/decisions/README.md` holds one sentence on what the directory is, a pointer
+  to this contract, one table and one legend line. The table has three columns (the record's
+  number and title, linked; its status; its date) and one row for each number from 1 to the
+  highest. A number without a file has a row that says why. The legend is the same line in
+  every repository. The index holds no rule text.
+
+A record in force:
+
+```yaml
+---
+subject: example:decision:storage-engine
+role: decision
+state: canonical
+decision_id: DR-0004
+decision_status: accepted
+date: 2026-03-02
+relations:
+  current_owner: ../../openspec/specs/storage/spec.md
+---
+```
+
+The record that superseded it, and the old record after it:
+
+```yaml
+decision_id: DR-0009
+decision_status: accepted
+date: 2026-09-14
+relations:
+  current_owner: ../../openspec/specs/storage/spec.md
+  supersedes: DR-0004
+```
+
+```yaml
+decision_id: DR-0004
+decision_status: superseded
+date: 2026-03-02
+relations:
+  current_owner: ../../openspec/specs/storage/spec.md
+  superseded_by: DR-0009
+```
+
+```markdown
+# DR-0004: One Storage Engine
+
+> Superseded by [DR-0009](dr-0009-two-storage-engines.md) on 2026-09-14. This record no longer
+> governs.
+```
+
+The index:
+
+```markdown
+| Record                                                   | Status                       | Date       |
+| -------------------------------------------------------- | ---------------------------- | ---------- |
+| DR-0003: reserved and never written                      |                              |            |
+| [DR-0004: One storage engine](dr-0004-storage-engine.md) | Superseded by DR-0009        | 2026-03-02 |
+| [DR-0005: Retries are bounded](dr-0005-retries.md)       | Accepted, updated by DR-0011 | 2026-04-20 |
+
+Accepted: in force. Superseded: a later record replaced it whole. Deprecated: no longer in force,
+with no successor. Rejected: a ruling not to adopt, in force. A record that updates another
+replaces or adds to a marked part of it.
+```
+
+### The life of a record
+
+1. **Fixed at acceptance.** The whole file. Afterwards it changes only by a repair with no
+   change of meaning (a path, a link, a renamed term, spelling, layout); by a change of the topic
+   in its name, with its `subject` and the links; by the marks below; and once, in the Change
+   that brings a repository to this form, by its front matter brought to the keys above, its
+   body's status and date lines taken out, and a record in force rewritten into the five
+   sections without a change of its ruling. A record with no date of its own takes the day its
+   file was first committed on the accepted branch.
+2. **A changed ruling is a new record,** which declares one of two relations. The test is asked
+   of the old record: once the new one is accepted, does the old record still say something in
+   force that the new one does not carry? No: the new record `supersedes` it. Yes: it `updates`
+   it.
+3. **Updated in part.** The old record stays accepted. It gains `updated_by` and, right after
+   each sentence or list item that the new record replaces or adds to, the words "(Replaced by
+   DR-M.)" or "(Added to by DR-M.)" with the link. A sentence or list item carries at most one
+   such mark: its next change is a record that restates and supersedes. Where two records had
+   changed one sentence before a repository took this form, its one mark names both, the
+   earlier first.
+4. **Superseded.** The new record can be used alone: it restates what it keeps, lists what
+   differs, and its "Alternatives Rejected" carries the old ruling and each alternative that the
+   old record rejected and that stays rejected. The old record stays in the directory with the
+   status `superseded`, `superseded_by` and the banner. A record that only updated it and cannot
+   be read without it is superseded with it.
+5. **Deprecated.** No successor: the subject is gone, or the reason now lives with the current
+   owner. The banner says which: "Deprecated on DATE: REASON. This record no longer governs."
+6. **Rejected.** A ruling not to adopt something, kept so that it is not proposed again. It
+   enters the tree with that status and is in force until a later record supersedes it, so it
+   has no banner. A proposal that is simply dropped leaves no record.
+7. **Nothing leaves.** A record is never removed. A record that was once on the accepted branch
+   and was removed before this form comes back as it last was, with its front matter brought to
+   the keys above, `restored_from`, and the banner, whose date is the day it stopped governing.
+8. **The five sections bind a record in force,** accepted or rejected. A record that no longer
+   governs keeps the sections it was written in.
+
+A record names a Change by writing the Change's identifier in inline code. A record that names
+an active Change binds it: the Change cites the record, by its `DR-NNNN` identity or its file
+name, in one of its artifacts before it archives, and archive readiness otherwise refuses it
+with `openspec_decision_uncited`. A mention in prose names nothing.
+
+### Until an engine reads the four statuses
+
+A released engine before that change refuses every status but `accepted`. So that no file ever
+contradicts itself, a repository on such an engine does everything that leaves a status alone:
+the directory's content, the name, the keys and their order, `date`, `current_owner`, bodies
+without status and date lines, the index's table, and the updates with their marks. A record
+that is superseded, deprecated or rejected, and a record that comes back, takes its status, its
+relation and its banner together, in one Change, once the repository's engine reads them; until
+then it stays as it is and its index row says "returns with the engine that reads its status"
+where the file is absent. Once a repository has written a status other than `accepted`, its
+engine pin does not go back below that release. Non-decision roles retain the common metadata
+floor without these fields or sections.
 
 ## Markdown list structure
 

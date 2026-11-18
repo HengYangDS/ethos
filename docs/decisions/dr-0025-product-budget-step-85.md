@@ -4,15 +4,13 @@ role: decision
 state: canonical
 decision_id: DR-0025
 decision_status: accepted
+date: 2026-11-12
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
+  updates: DR-0020
 ---
 
 # DR-0025: The Product Ceiling Moves to 85,000 for the Common Rules
-
-Status: canonical rationale. The native source-budget declaration owns the number.
-
-Date: 2026-11-12.
 
 Purpose: preserve the necessity review that moved the product ceiling one more 5,000 step, what
 was removed first, and when to look again.

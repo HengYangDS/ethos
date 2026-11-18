@@ -4,15 +4,12 @@ role: decision
 state: canonical
 decision_id: DR-0018
 decision_status: accepted
+date: 2026-11-05
 relations:
   current_owner: ../../openspec/specs/repository-governance/spec.md
 ---
 
 # DR-0018: A Historical Artifact Is Judged by the Attestation Made When It Was Produced
-
-Status: canonical rationale. The repository governance specification owns current behavior.
-
-Date: 2026-11-05.
 
 Purpose: preserve why ETHOS publishes a release tag on the qualification its own release record
 bound, and why a later runtime never re-judges that qualification under its own policy.

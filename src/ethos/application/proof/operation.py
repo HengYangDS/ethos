@@ -352,6 +352,11 @@ def prove_on_host(root: Path, request: ProofRequest) -> EthosResult:
         )
 
 
+def _early_sample(options: ProofRequest) -> tuple[float, float | None] | None:
+    """Read the host's load and its clock time before a full proof's readiness gates."""
+    return (time.monotonic(), host_load()) if options.execute and options.full else None
+
+
 def _prove(repo: Path, options: ProofRequest) -> EthosResult:
     preflight = _proof_preflight(options=options)
     if preflight is not None:
@@ -399,7 +404,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
     # capacity before its test and package gates.
     granted: list[SlotAdmission] = []
     # The host's load before the readiness gates is the first of the two samples that admit.
-    sampled = (time.monotonic(), host_load()) if options.execute and options.full else None
+    sampled = _early_sample(options)
 
     @contextmanager
     def admission() -> Generator[None]:

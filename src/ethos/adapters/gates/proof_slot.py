@@ -136,6 +136,15 @@ def _release(slot: FileLock, holder: Path) -> None:
         slot.release()
 
 
+def _earlier_calm(
+    earlier: tuple[float, float | None] | None, limit: float | None, started: float
+) -> int:
+    """Count a caller's sample as the first calm one: within the limit and one interval old."""
+    if earlier is None or limit is None or earlier[1] is None:
+        return 0
+    return int(earlier[1] <= limit and started - earlier[0] >= _POLL_SECONDS)
+
+
 @contextmanager
 def admitted_full_proof(
     root: Path,
@@ -169,13 +178,7 @@ def admitted_full_proof(
     acquired = False
     reason = ""
     # Any wait for a slot or a busy sample below ends this run of calm samples.
-    calm = int(
-        earlier is not None
-        and admitted_limit is not None
-        and earlier[1] is not None
-        and earlier[1] <= admitted_limit
-        and started - earlier[0] >= _POLL_SECONDS
-    )
+    calm = _earlier_calm(earlier, admitted_limit, started)
     with ExitStack() as releases:
         # The last exit pushed runs first: the host place goes, then the repository's slot,
         # which an OS error while leaving the queue must not keep.

@@ -21,6 +21,7 @@ Non-Goals:
 - The rule's gap: a finding behind the latest release blocks although the latest release holds
   it too. It is the subject of the draft `audit-latest-named`, which gains this case.
 - The OpenSpec CLI 2.1, whose adoption needs product code (decision 6).
+- uv 0.13.9, whose Windows executable the release inventory cannot read (decision 10).
 - `complexipy` 9, Python 3.15 and any prerelease channel, as the move of 2026-11-14 held them.
 - The supply of the governed repositories, which each moves in a lane of its own.
 
@@ -116,13 +117,30 @@ Non-Goals:
      matching when the locked npm or the lock changes.
    - **Applies to:** `.config/checks/dependency-vulnerabilities/policy.toml`; the entry's known
      open defects state the acceptance and its last day.
+10. **uv stays at 0.13.8 in every pin.**
+    - **Rests on:** the hosted Windows job of `6b71a52fc`, which stopped at the release
+      inventory with `release_inventory_component_missing:rust:uv@0.13.9`, and a scan of the
+      locked uv executables on the release lead's host: Syft 1.57.1 and 1.57.2 each find 545
+      components in the Windows executable of uv 0.13.8 and one in that of 0.13.9, and 532 in
+      the Linux executable of either. The section table of the 0.13.9 Windows executable has no
+      `.dep-v0`; that of 0.13.8 has it.
+    - **Considered:** holding the Python distribution alone and keeping the Mise tool and the
+      image base at 0.13.9, which leaves the uv that CI runs and the uv that the runtime ships
+      at different versions for the first time; declaring uv in the inventory as the Node of a
+      Windows runtime is declared, which is tool code and gives up the component list that the
+      inventory exists to hold.
+    - **Chosen because:** the three pins return together to the combination that every earlier
+      head proved, and the hold is one resolver constraint with its reason beside it, as
+      `complexipy`'s is.
+    - **Applies to:** `pyproject.toml`, `uv.lock`, `.config/mise/config.toml`, its lock and
+      `.config/ci/supply/Dockerfile`, until a uv release for Windows carries the data again.
 
 ## Risks / Trade-offs
 
 - [npm 12.2.3 and the other moved releases are hours or days old] -> ETHOS's declared release
   age is 0 hours. The suite, the hosted runs on three platforms and the full proof run with
   them before the head lands.
-- [A moved tool changes a verdict: ty 0.0.105, Grype 0.122.0, 17 Python packages] -> in a
+- [A moved tool changes a verdict: ty 0.0.105, Grype 0.122.0, 16 Python packages] -> in a
   scratch clone the type check, the audit, the dependency declarations, the JavaScript, Markdown,
   prose and configuration sessions and seven test modules passed before the lane received the
   move; the proof and the hosted runs are the acceptance. A regression is fixed or held in this

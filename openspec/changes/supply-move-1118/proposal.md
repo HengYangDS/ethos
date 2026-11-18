@@ -49,14 +49,13 @@ so a release of the same day is admitted.
 - `package-lock.json` moves npm with seven of its bundled packages, the override, and two
   packages that the resolution moves with it (`dompurify`, and `ignore` below `globby`). The
   lock holds 555 entries before and after.
-- `uv.lock` moves 17 packages, and `pyproject.toml` moves the floors of the seven direct
-  requirements among them (`cyclopts`, `fastmcp`, `filelock`, `platformdirs`, `semver`, `ty`,
-  `uv`).
-- `.config/mise/config.toml` and its lock move uv to 0.13.9, Syft to 1.57.2 and Grype to
-  0.122.0, and the floor of Mise to 2026.11.9. The CI projection policy binds the six
-  executables of Mise 2026.11.9 by the digests of its `SHASUMS256.txt`.
-- The supply image's base moves to the uv 0.13.9 image by digest. The image is rebuilt from
-  this lane's proposal ref and bound, since the locks are its manifest inputs.
+- `uv.lock` moves 16 packages, and `pyproject.toml` moves the floors of the six direct
+  requirements among them (`cyclopts`, `fastmcp`, `filelock`, `platformdirs`, `semver`, `ty`).
+- `.config/mise/config.toml` and its lock move Syft to 1.57.2 and Grype to 0.122.0, and the
+  floor of Mise to 2026.11.9. The CI projection policy binds the six executables of Mise
+  2026.11.9 by the digests of its `SHASUMS256.txt`.
+- The supply image is rebuilt from this lane's proposal ref and bound, since the locks are its
+  manifest inputs. Its base stays the uv 0.13.8 image.
 - The one disposition of the audit policy, for picomatch 2.3.2, names the new lock's digest. Its
   artifact is the same entry with the same integrity.
 - Three more dispositions accept, until 2026-12-02 and for this repository's lock alone, the
@@ -65,9 +64,11 @@ so a release of the same day is admitted.
 - The entry of 0.2.0-beta.11 records the move, and its known open defects name npm 12.2.3 and
   the acceptance.
 
-Held, each for its recorded reason: the OpenSpec CLI at 2.0.0 (above), `complexipy` below 9 (the
-decision-density baseline is pinned to 8.x scores), Python 3.15 (outside `requires-python`), and
-every prerelease channel.
+Held, each for its recorded reason: the OpenSpec CLI at 2.0.0 (above); uv at 0.13.8, because
+the Windows executable of 0.13.9 carries no dependency data and the release inventory then
+cannot name uv's components in a Windows runtime (the hosted Windows job refused it);
+`complexipy` below 9 (the decision-density baseline is pinned to 8.x scores); Python 3.15
+(outside `requires-python`); and every prerelease channel.
 
 ## Capabilities
 
@@ -83,7 +84,7 @@ None. A supply move changes no requirement, so `skip_specs: true` applies.
 
 `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`, `.config/mise/config.toml`,
 `.config/mise/mise.lock`, `.config/checks/ci-projection/policy.toml`,
-`.config/ci/supply/Dockerfile`, `.config/checks/dependency-vulnerabilities/policy.toml`,
+`.config/checks/dependency-vulnerabilities/policy.toml`,
 `.config/ci/pipeline.cue` with its generated pipelines, one test that names the locked Syft, and
 `CHANGELOG.md`. The npm lock ships in the wheel as `ethos/resources/package-lock.json`; npm
 12.2.3 and the moved Python packages ship in the product's runtime.

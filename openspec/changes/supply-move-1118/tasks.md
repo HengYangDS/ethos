@@ -30,6 +30,10 @@
       audit at the lane head passes with four approvals, the product's decision on the saved
       evidence passes with a newer npm as the registry's latest, and the test that holds the
       records' digest against the committed lock passes.
+- [ ] 1.10 Return uv to 0.13.8 in the Python lock, the Mise declaration and the supply image's
+      base, with a resolver hold, then rebuild and bind the image. Done when the uv entry of
+      each lock equals the one of `7913f66bc`, the hosted Windows job passes the release
+      inventory, and the CI projection check passes.
 
 ## 2. Acceptance
 

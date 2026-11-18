@@ -33,8 +33,10 @@ None.
 
 ### Modified Capabilities
 
-- `quality`: the requirement "Full proofs and nested work share the host admission" gains the
-  sentence on an earlier sample and two scenarios.
+- `quality`: a new requirement, "A load sample from before the readiness gates counts once",
+  with two scenarios. It stands beside "Full proofs and nested work share the host admission",
+  whose text is at the specification's bound of 500 characters and keeps every word: the two
+  samples stay consecutive, and the new requirement says when the first of them may be older.
 
 ## Impact
 

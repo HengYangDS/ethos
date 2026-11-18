@@ -39,6 +39,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   and both slots are free. The proof reads the host's load before its readiness gates, and that
   sample counts as the first of the two calm samples when it is at least one interval old. A
   wait for a slot or a busy sample still asks for two fresh calm samples.
+- The reclamation of a runtime generation reads a listed path below a directory that it may not
+  search as absent on Python 3.12 and 3.13 too, where it deferred with the permission error;
+  Python 3.14 already answered so. A listed link that is there and whose target cannot be looked
+  at still defers the reclamation.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

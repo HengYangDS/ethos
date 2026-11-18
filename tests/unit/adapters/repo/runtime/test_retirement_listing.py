@@ -14,6 +14,7 @@ import pytest
 import ethos.adapters.process as process
 import ethos.adapters.repo.runtime.retirement as retirement
 from tests.support.runtime_scenarios import fixture_runtime_generation
+from tests.unit.adapters.repo.runtime.support import NEEDS_A_CLOSED_DIRECTORY
 from tests.unit.adapters.repo.runtime.support import generation_tree
 
 
@@ -90,26 +91,56 @@ def test_listed_path_deleted_while_observed_is_an_observed_absence(
     repo, hooks, runtime = generation_tree(tmp_path)
     obsolete = fixture_runtime_generation(runtime, "history")
     listed = tmp_path / "listed"
-    if listing == "deleted":
+    deleted = listing == "deleted"
+    if deleted:
         listed.mkdir()
     else:
         listed.symlink_to(tmp_path / "absent")
-    exists = Path.exists
+    present = os.path.lexists
 
-    def deleted_after_check(path: Path, *args, **kwargs) -> bool:
-        found = exists(path, *args, **kwargs)
-        if found and path == listed:
+    def deleted_after_check(path: Path) -> bool:
+        found = present(path)
+        if found and deleted and path == listed:
             listed.rmdir()
         return found
 
-    monkeypatch.setattr(Path, "exists", deleted_after_check)
+    monkeypatch.setattr(os.path, "lexists", deleted_after_check)
     monkeypatch.setattr(retirement, "process_commands", lambda _root: f"git -C {listed} status")
 
     result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
 
-    deleted = listing == "deleted"
     assert result["state"] == ("complete" if deleted else "deferred"), result
     assert obsolete.exists() is not deleted
+    assert present(listed) is not deleted
+
+
+@NEEDS_A_CLOSED_DIRECTORY
+@pytest.mark.parametrize("listing", ["below", "alias", "link", "generation"])
+def test_a_listed_path_that_cannot_be_looked_at_is_an_observed_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, listing: str
+) -> None:
+    """A name below a closed directory is absent, an alias of a generation too; a link is unknown.
+
+    A generation that is closed itself is still retained: the walk records it before its inside.
+    """
+    repo, hooks, runtime = generation_tree(tmp_path)
+    candidate = fixture_runtime_generation(runtime, "b" * 64)
+    closed = candidate if listing == "generation" else tmp_path / "closed"
+    (closed / "bin").mkdir(parents=True)
+    (closed / "alias").symlink_to(candidate)
+    link = tmp_path / "link"
+    link.symlink_to(closed / "bin")
+    listed = {"link": link, "alias": closed / "alias/payload"}.get(listing, closed / "bin/tool")
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: f"{listed} status")
+    closed.chmod(0)
+    try:
+        result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+    finally:
+        closed.chmod(0o755)
+
+    assert result["state"] == ("deferred" if listing == "link" else "complete"), result
+    assert candidate.exists() is (listing in {"link", "generation"})
+    assert (candidate.as_posix() in result["retained"]) is (listing == "generation")
 
 
 def test_process_references_read_windows_separators(

@@ -211,9 +211,15 @@ def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
 
 
 def _native_path(path: Path, *, directory: bool = False) -> Path | None:
-    """Resolve an observed path; an invalid suffix or one deleted since its check is absent."""
+    """Resolve an observed path; an invalid suffix or one deleted since its check is absent.
+
+    So is a name that the host does not let the observer look at, on every interpreter: the
+    first question is asked of the name itself and answers no for it. Python 3.14 answers so
+    to each question of a path; the interpreters before it raise below a directory that may
+    not be searched. A link that is there and cannot be resolved stays unknown.
+    """
     try:
-        if path.is_dir() if directory else path.exists() or path.is_symlink():
+        if os.path.lexists(path) and (not directory or path.is_dir()):
             return path.resolve(strict=True)
     except OSError as failure:
         # A path deleted after its check is an observed absence; a dangling link stays unknown.

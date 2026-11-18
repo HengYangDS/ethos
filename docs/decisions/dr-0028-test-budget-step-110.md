@@ -8,6 +8,7 @@ date: 2026-11-15
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
   updates: DR-0023
+  updated_by: DR-0033
 ---
 
 # DR-0028: The Test Ceiling Moves to 110,000 for the beta.12 Work
@@ -55,7 +56,8 @@ step with evidence.
   for the pinned repair fixture measured 0.4 and is not taken. The larger reduction stays
   structural, as DR-0019 found: a Git port with an in-memory adapter that replaces patch-based
   tests, which is 0.3.0 work.
-- **The step.** The test ceiling moves one step, from 105,000 to 110,000 line-equivalents.
+- **The step.** The test ceiling moves one step, from 105,000 to 110,000 line-equivalents. (Replaced
+  by [DR-0033](dr-0033-test-budget-step-115.md).)
 
 ## Alternatives Rejected
 
@@ -81,6 +83,7 @@ step with evidence.
 ## Evidence and Revisit
 
 Measurements: the ceiling reading of the landed tree and of this Change's tree, the budget tool's
-delta for each of the four test modules, and the preparation reports of the three measured rows,
-as the `test-budget-step-110` tasks record them at the lane head. Revisit when the tests reach
-108,000, when 0.2.0-beta.12 is tagged, or when the 0.3.0 reduction lands, whichever comes first.
+delta for each of the four test modules, and the preparation reports of the three measured rows, as
+the `test-budget-step-110` tasks record them at the lane head. Revisit when the tests reach 108,000,
+when 0.2.0-beta.12 is tagged, or when the 0.3.0 reduction lands, whichever comes first. (Replaced by
+[DR-0033](dr-0033-test-budget-step-115.md).)

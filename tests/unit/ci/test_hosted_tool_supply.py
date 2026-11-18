@@ -249,15 +249,6 @@ def _bootstrap_source(root: Path, payload: bytes = b"", version: str = "2026.9.1
     )
 
 
-def _serve_mise(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> None:
-    """Answer the official executable download with one payload."""
-
-    def download(command: tuple[str, ...], **_options: object) -> None:
-        Path(command[command.index("--output") + 1]).write_bytes(payload)
-
-    monkeypatch.setattr(native, "download_tool", download)
-
-
 def test_mise_version_observation_disables_nonsemantic_update_notices(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

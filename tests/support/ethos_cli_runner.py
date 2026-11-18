@@ -106,11 +106,6 @@ def commit_policy_capability(repo: Path) -> tuple[dict[str, Any], CommitPolicyEn
     )
 
 
-def _externalized(payload: object) -> bool:
-    """Every command's result is bounded; tests that read detail read the bound artifact."""
-    return isinstance(payload, dict) and isinstance(payload.get("bound"), dict)
-
-
 def full_result(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     """Parse one CLI run's JSON result, reading the full result a bounded payload references."""
     return expand_result(json.loads(completed.stdout))

@@ -252,12 +252,16 @@ def quality_inventory_failure(
     }
 
 
-def native_repository_configuration(root: Path, tool: str) -> Path | None:
+def native_repository_configuration(
+    root: Path, tool: str, *, files: tuple[str, ...] | None = None
+) -> Path | None:
     """Return the repository's own native configuration at its paradigm carrier, if any.
 
     The tool reads its carrier from the worktree, so an indexed path deleted there is absent.
+    A caller that asks once for each of many files passes ``files``, that listing made once.
     """
-    if (selected := native_tool_configuration(tuple(quality_source_files(root)), tool)) is None:
+    listed = tuple(quality_source_files(root)) if files is None else files
+    if (selected := native_tool_configuration(listed, tool)) is None:
         return None
     path = root / selected
     if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
@@ -266,10 +270,12 @@ def native_repository_configuration(root: Path, tool: str) -> Path | None:
     return path
 
 
-def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
+def native_configurations(
+    root: Path, tool: str, shared: str, *, files: tuple[str, ...] | None = None
+) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = shipped_resource(shared)
-    path = native_repository_configuration(root, tool)
+    path = native_repository_configuration(root, tool, files=files)
     if path is not None and path.resolve() != common.resolve():
         return str(common), str(path)
     return (str(common),)

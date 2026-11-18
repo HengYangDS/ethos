@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import stat
 import subprocess
 import sys
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 from ruff import find_ruff_bin
 
+import ethos.adapters.gates.native.inputs as native_inputs
+from ethos.adapters.gates.format_checks import checked_clean
+from ethos.adapters.gates.format_checks import repository_ignored
 from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import authored_text_files
 from ethos.adapters.gates.native.inputs import authored_text_gaps
@@ -56,13 +57,6 @@ _NODE_FORMATTERS = frozenset({"prettier", "taplo", "svgo"})
 # The repository owns the layout of text that no native formatter owns.
 CANONICAL_TEXT = "repository-canonical-text"
 _FORMATTED = frozenset({"native-formatter", "canonical-text"})
-# A named path that a formatter could read as a pattern is rendered alone.
-_PATTERN_CHARACTERS = frozenset("*?[]{}")
-_PRETTIER_SKIPPED_DIRECTORIES = frozenset({".git", ".hg", ".jj", ".sl", ".svn", "node_modules"})
-# Paths per native check run stay far below the Windows command-line limit.
-_CHECK_ARGUMENT_BUDGET = 6000
-_TAPLO_COLLECTED = re.compile(rb"found files total=(\d+) excluded=(\d+)")
-_ANSI_ESCAPE = re.compile(rb"\x1b\[[0-9;]*m")
 
 
 @dataclass(frozen=True)
@@ -155,13 +149,23 @@ def _run(
 
 
 def _prettier(
-    root: Path, relative: str, content: bytes, *, repository_policy: bool, node: str | None
+    root: Path,
+    relative: str,
+    content: bytes,
+    *,
+    repository_policy: bool,
+    node: str | None,
+    files: tuple[str, ...] | None,
 ) -> tuple[bytes, bool]:
     binary = (
         node or str(resolve_node_runtime().executable),
         str(product_node_module("prettier") / "bin/prettier.cjs"),
     )
-    ignore = native_repository_configuration(root, "prettier-ignore") if repository_policy else None
+    ignore = (
+        native_repository_configuration(root, "prettier-ignore", files=files)
+        if repository_policy
+        else None
+    )
     ignored = (
         repository_policy
         and json.loads(
@@ -180,7 +184,9 @@ def _prettier(
     if ignored:
         return content, True
     configurations = (
-        native_configurations(root, "prettier", ".config/checks/prettier/prettier.toml")
+        native_configurations(
+            root, "prettier", ".config/checks/prettier/prettier.toml", files=files
+        )
         if repository_policy
         else (str(canonical_resource(".config/checks/prettier/prettier.toml")),)
     )
@@ -225,13 +231,22 @@ def render_source_content(
     *,
     repository_policy: bool = True,
     node: str | None = None,
+    source_files: tuple[str, ...] | None = None,
 ) -> tuple[bytes, bool]:
     """Render one original native postimage for authored checks or owned projections.
 
-    Callers that render many files pass ``node``, one resolved Node executable.
+    Callers that render many files pass ``node``, one resolved Node executable, and
+    ``source_files``, the repository's source files listed once.
     """
     if owner == "prettier":
-        return _prettier(root, relative, content, repository_policy=repository_policy, node=node)
+        return _prettier(
+            root,
+            relative,
+            content,
+            repository_policy=repository_policy,
+            node=node,
+            files=source_files,
+        )
     scripts = runtime_scripts(Path(sys.prefix))
     if owner == "ruff":
         rendered = tuple(
@@ -250,7 +265,9 @@ def render_source_content(
                 ),
                 content,
             )
-            for config in native_configurations(root, "ruff", ".config/checks/ruff/ruff.toml")
+            for config in native_configurations(
+                root, "ruff", ".config/checks/ruff/ruff.toml", files=source_files
+            )
         )
         if any(value != rendered[0] for value in rendered[1:]):
             message = f"native_formatter_policy_conflict:{relative}"
@@ -276,7 +293,9 @@ def render_source_content(
                 ),
                 content,
             )
-            for config in native_configurations(root, "taplo", ".config/checks/taplo/taplo.toml")
+            for config in native_configurations(
+                root, "taplo", ".config/checks/taplo/taplo.toml", files=source_files
+            )
         )
         if any(value != rendered[0] for value in rendered[1:]):
             message = f"native_formatter_policy_conflict:{relative}"
@@ -327,169 +346,46 @@ def prepare_source_format(
     return _postimages(root, selected)
 
 
-def _postimages(root: Path, selected: tuple[tuple[str, str], ...]) -> tuple[FormattedFile, ...]:
+def source_postimages(
+    root: Path, selected: tuple[tuple[str, str], ...], *, node: str | None = None
+) -> tuple[FormattedFile, ...]:
+    """Prepare the postimages of files whose formatter owners the caller has resolved.
+
+    A caller that has resolved the Node executable passes it as ``node``.
+    """
+    return _postimages(root, selected, node)
+
+
+def _postimages(
+    root: Path, selected: tuple[tuple[str, str], ...], node: str | None = None
+) -> tuple[FormattedFile, ...]:
     prepared = []
-    node = (
+    # One listing of the repository serves every file: a configuration is a fact of the tree.
+    files = tuple(native_inputs.quality_source_files(root))
+    node = node or (
         str(resolve_node_runtime().executable)
         if any(owner in _NODE_FORMATTERS for _relative, owner in selected)
         else None
     )
-    clean = _checked_clean(root, selected, node)
+    excluded = repository_ignored(root, selected, node, files)
+    clean = checked_clean(root, selected, node, files, excluded)
     for relative, owner in selected:
         path = root / relative
         before, mode = path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
         if owner == CANONICAL_TEXT:
             after, ignored = canonical_text(before.decode("utf-8")).encode("utf-8"), False
+        elif excluded is not None and owner == "prettier" and relative in excluded:
+            after, ignored = before, True
         else:
             after, ignored = (
                 (list_spacing(relative, before) if owner == "prettier" else before, False)
                 if relative in clean
-                else render_source_content(root, relative, owner, before, node=node)
+                else render_source_content(
+                    root, relative, owner, before, node=node, source_files=files
+                )
             )
         prepared.append(FormattedFile(relative, before, after, mode, ignored))
     return tuple(prepared)
-
-
-def _checked_clean(
-    root: Path, selected: tuple[tuple[str, str], ...], node: str | None
-) -> frozenset[str]:
-    """Return the paths that every configuration's native check run leaves unchanged.
-
-    Each formatter checks its files in as few native runs as a command line allows. A run that
-    reports drift, warns or fails leaves its files to the per-file rendering, so every postimage,
-    conflict and diagnostic stays the one the native formatter gives for that file alone.
-    """
-    clean: set[str] = set()
-    for owner in sorted({owner for _relative, owner in selected}):
-        checks = _native_checks(root, owner, node)
-        files = [
-            relative
-            for relative, candidate in selected
-            if candidate == owner and checks and _checkable(root, owner, relative)
-        ]
-        for chunk in _chunks(files):
-            passed = set(chunk)
-            for check in checks:
-                passed &= _checked_paths(root, owner, (*check, *chunk), chunk)
-            clean.update(passed)
-    return frozenset(clean)
-
-
-def _native_checks(root: Path, owner: str, node: str | None) -> tuple[tuple[str, ...], ...]:
-    """Return one native check command per configuration, or none when files must render alone."""
-    if owner == "prettier":
-        prettier = (
-            node or str(resolve_node_runtime().executable),
-            str(product_node_module("prettier") / "bin/prettier.cjs"),
-        )
-        return tuple(
-            (
-                *prettier,
-                "--list-different",
-                "--config",
-                config,
-                "--no-editorconfig",
-                "--prose-wrap",
-                "preserve",
-                "--ignore-path",
-                os.devnull,
-            )
-            for config in native_configurations(
-                root, "prettier", ".config/checks/prettier/prettier.toml"
-            )
-        )
-    if owner == "ruff":
-        return tuple(
-            (
-                str(find_ruff_bin()),
-                "format",
-                "--check",
-                "--no-cache",
-                "--no-respect-gitignore",
-                "--config",
-                config,
-                "--",
-            )
-            for config in native_configurations(root, "ruff", ".config/checks/ruff/ruff.toml")
-        )
-    if owner == "taplo":
-        configurations = native_configurations(root, "taplo", ".config/checks/taplo/taplo.toml")
-        # Taplo filters named files by include and exclude, and matches rules against their
-        # full paths, which stdin rendering by a relative path does not; such policies render alone.
-        if any(_selects_paths(config) for config in configurations):
-            return ()
-        taplo = (
-            node or str(resolve_node_runtime().executable),
-            str(product_node_module("@taplo/cli") / "dist/cli.js"),
-        )
-        return tuple(
-            (*taplo, "format", "--check", "--config", config, "--no-auto-config")
-            for config in configurations
-        )
-    return ()
-
-
-def _selects_paths(config: str) -> bool:
-    policy = tomllib.loads(Path(config).read_text(encoding="utf-8"))
-    return any(key in policy for key in ("include", "exclude", "rule"))
-
-
-def _checkable(root: Path, owner: str, relative: str) -> bool:
-    """Return whether a named path reaches the native check exactly as it reaches rendering."""
-    if _PATTERN_CHARACTERS & set(relative):
-        return False
-    if owner != "prettier":
-        return True
-    # Prettier's check skips these directories, and its ignore decision needs the per-file query.
-    parts = {*Path(relative).parts, *(root / relative).resolve().parts}
-    return (
-        native_repository_configuration(root, "prettier-ignore") is None
-        and not parts & _PRETTIER_SKIPPED_DIRECTORIES
-    )
-
-
-def _chunks(paths: list[str]) -> list[tuple[str, ...]]:
-    chunks: list[tuple[str, ...]] = []
-    current: list[str] = []
-    size = 0
-    for path in paths:
-        if current and size + len(path) + 1 > _CHECK_ARGUMENT_BUDGET:
-            chunks.append(tuple(current))
-            current, size = [], 0
-        current.append(path)
-        size += len(path) + 1
-    return [*chunks, tuple(current)] if current else chunks
-
-
-def _checked_paths(
-    root: Path, owner: str, command: tuple[str, ...], chunk: tuple[str, ...]
-) -> set[str]:
-    """Return the paths of one chunk that its native check run leaves unchanged."""
-    try:
-        completed = run_command(
-            root,
-            command,
-            text=False,
-            timeout=seconds("tool"),
-            env={"NODE_DISABLE_COMPILE_CACHE": "1"},
-            remove_env=("NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
-        )
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return set()
-    if owner == "taplo":
-        # Taplo exits cleanly when it collects no file, so its run vouches only for a chunk it
-        # reports collecting whole. It globs each named path, so a name holding a backslash, and
-        # on Windows hosted conformance every name, reaches no file.
-        collected = _TAPLO_COLLECTED.findall(_ANSI_ESCAPE.sub(b"", completed.stderr))
-        whole = [(str(len(chunk)).encode(), b"0")]
-        return set(chunk) if completed.returncode == 0 and collected == whole else set()
-    if owner != "prettier":
-        return set(chunk) if completed.returncode == 0 else set()
-    # Prettier lists each drifting path on stdout and warns on stderr, which rendering refuses.
-    listed = {line.strip().replace("\\", "/") for line in completed.stdout.decode().splitlines()}
-    if completed.stderr or completed.returncode not in (0, 1) or not listed <= set(chunk) | {""}:
-        return set()
-    return set(chunk) - listed
 
 
 def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:

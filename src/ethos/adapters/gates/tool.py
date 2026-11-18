@@ -22,7 +22,7 @@ from urllib.request import url2pathname
 from markdown_it import MarkdownIt
 
 import ethos.adapters.gates.native.inputs as native_inputs
-from ethos.adapters.gates.formatting import render_source_content
+from ethos.adapters.gates.formatting import source_postimages
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
@@ -479,11 +479,11 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
     formatted: tuple[tuple[str, str], ...] = ()
     try:
         formatted = _native_formatter_owners(root, files)
-        for relative, owner in formatted:
-            content = (root / relative).read_bytes()
-            rendered, _ignored = render_source_content(root, relative, owner, content, node=node)
-            if rendered != content:
-                format_gaps.append(f"source_format_drift:{relative}")
+        format_gaps.extend(
+            f"source_format_drift:{item.path}"
+            for item in source_postimages(root, formatted, node=node)
+            if item.before != item.after
+        )
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
         format_gaps.append(str(error))
     format_report: dict[str, object] = {

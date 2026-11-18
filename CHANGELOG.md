@@ -12,6 +12,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+### Fixed
+
+- The `source-format`, `markdown-lint` and `config-quality` gates start each native tool a fixed
+  number of times, however many files a repository holds. They listed the whole repository once
+  or four times for each file, and in a repository with its own Prettier ignore file they
+  rendered every Prettier file in processes of its own. On one governed repository of 195 files
+  the three gates took 140 seconds and started 3,162 commands; they take 9 seconds and start 75.
+  Every verdict and postimage is unchanged. When a formatter refuses a file, `markdown-lint`
+  reports that refusal alone.
+
 ## [0.2.0-beta.11] - 2026-11-21
 
 ### Added

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from markdown_it import MarkdownIt
 
+import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -83,13 +84,13 @@ def test_common_markdown_policy_accepts_native_formatter_container_layout(
     refused = gate_tool.markdown_lint_report(tmp_path)
     assert refused["verdict"] == "block"
     assert document.read_bytes() == accepted.rstrip(b"\n")
-    fixed, _ignored = gate_tool.render_source_content(
+    fixed, _ignored = formatting_gate.render_source_content(
         tmp_path, "README.md", "prettier", document.read_bytes()
     )
     document.write_bytes(fixed)
     assert document.read_bytes() == accepted
     assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "pass"
-    repeated, _ignored = gate_tool.render_source_content(
+    repeated, _ignored = formatting_gate.render_source_content(
         tmp_path, "README.md", "prettier", document.read_bytes()
     )
     document.write_bytes(repeated)
@@ -113,8 +114,12 @@ def test_the_markdown_format_tightens_a_list_of_one_paragraph_items(
     assert "markdown_list_spacing:README.md:5" in refused["required_gaps"]
     assert document.read_bytes() == authored
 
-    first, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", authored)
-    second, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", first)
+    first, _ignored = formatting_gate.render_source_content(
+        tmp_path, "README.md", "prettier", authored
+    )
+    second, _ignored = formatting_gate.render_source_content(
+        tmp_path, "README.md", "prettier", first
+    )
 
     assert first == second == b"# Steps\n\n- First.\n- Second.\n- Third.\n"
     render = MarkdownIt("commonmark").render

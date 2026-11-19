@@ -24,6 +24,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   and no planned gate's command does, with its jobs. A part that cannot be read is named under
   `unavailable`. The selection is a lower bound read from tracked text; ETHOS runs none of the
   tests, and a passing readiness run is neither the full proof's pass nor the Forges' pass.
+- An executed `ethos prove` result states what its declared commands inherited from the launch,
+  in `summary.environment`: the mode `inherited`, the count of variables, the count beside the
+  product's list of kept names, the classes of credential among them, whether the locked
+  toolchain was read, the locked tools that the launch path resolves outside their locked
+  install, and the section and variable of each key of the Git configuration overlay. It holds
+  names, classes and counts, and no value. Each check of a declared command names its
+  `executable` and its `supplier`: `declared`, `locked`, `host-baseline`, `launch-path` or
+  `unresolved`. No gate child's environment changes, and no verdict, gap, exit code or
+  Attestation. The product design contract now states that ETHOS does not confine a declared
+  command.
 
 ### Fixed
 

@@ -492,13 +492,30 @@ def _require_contained_environment(
 ) -> None:
     """Refuse an environment whose PATH would run another tool's executable for a declared tool."""
     search = os.pathsep.join(str(path) for path in paths)
+    if gaps := _search_gaps(supply, search):
+        raise _supply_refusal(gaps, root, files, executable)
+
+
+def _search_gaps(supply: Mapping[str, list[dict[str, object]]], search: str) -> tuple[str, ...]:
+    """Name each declared tool whose executable one search path resolves outside its install."""
     resolved = {
         name: Path(found)
         for name in {_own_executable(tool) for tool in supply}
         if (found := shutil.which(name, path=search))
     }
-    if gaps := supply_gaps(supply, resolved):
-        raise _supply_refusal(gaps, root, files, executable)
+    return supply_gaps(supply, resolved)
+
+
+def launch_supply(
+    root: Path, files: Mapping[str, str], search: str
+) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+    """Read a launch path against the lock: the tools it resolves elsewhere, and the installs.
+
+    It refuses nothing: a caller that reports what a launch would run reads both from one query.
+    """
+    supply = _locked_supply(run_mise(root, _CURRENT, files=files, offline=True), root, None)
+    installs = (_install_path(row) for versions in supply.values() for row in versions)
+    return _search_gaps(supply, search), tuple(path for path in installs if path)
 
 
 # Git for Windows' bin directory also holds a shell; its cmd directory holds only launchers.

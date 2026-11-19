@@ -148,6 +148,7 @@ def test_the_readiness_run_executes_only_the_tier_and_names_the_rest_not_run(
     assert list(result.data["unexamined"]["gates"]) == ["tests"]
     assert list(result.summary["not_run"]) == ["tests"]
     assert result.summary["proof_attestation_issued"] is False
+    assert "environment" in result.summary
     assert result.data["attestation"] == {}
     assert [check["action_id"] for check in result.data["checks"]] == ["lint"]
 

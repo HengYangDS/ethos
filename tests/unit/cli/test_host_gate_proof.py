@@ -6,6 +6,7 @@ import json
 import sys
 from functools import partial
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 import dataclasses
 
+import ethos.adapters.gates.child_environment as child_environment
 import ethos.adapters.gates.host_admission as host_admission
 import ethos.application.proof.host as gate_execution
 import ethos.application.proof.operation as proof_operation
@@ -57,6 +59,8 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
             "stderr": "exact-provider-error" if verdict == "block" else "",
         },
     )
+    unread = Mock(side_effect=ValueError("locked_toolchain_missing"))
+    monkeypatch.setattr(child_environment, "repository_mise_files", unread)
 
     completed = _host(repo, head, "--gate", "docs-registry")
 
@@ -66,9 +70,12 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     assert payload["state"] == ("observed" if verdict == "pass" else "gapped")
     summary = dict(payload["summary"])
     assert summary.pop("runtime")["source_commit"]
+    # A lock that cannot be read is a state of the report; the verdict stays the provider's own.
+    assert summary.pop("environment")["locked_toolchain"] == "unread:locked_toolchain_missing"
     assert summary == {"boundary": "host", "gate_count": 1, "proof_attestation_issued": False}
     assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
     assert payload["data"]["checks"][0]["action_id"] == "docs-registry"
+    assert not payload["data"]["checks"][0]["supplier"]
     assert payload["data"]["checks"][0]["duration_seconds"] >= 0
     if verdict == "block":
         report = json.loads(payload["data"]["checks"][0]["stdout"])
@@ -146,6 +153,7 @@ def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, 
     assert (report["verdict"], result.returncode) == ("block", 1)
     assert report["data"]["checks"] == []
     assert report["data"]["executed"] is False
+    assert "environment" not in report["summary"]
     if missing:
         assert report["required_gaps"] == ["gate_policy_source_missing:check:tools/check.sh"]
     else:

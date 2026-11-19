@@ -14,13 +14,17 @@ from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
+from functools import cache
 from functools import partial
 from graphlib import TopologicalSorter
 from pathlib import Path
+from threading import Lock
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.gates.child_environment import command_origin
+from ethos.adapters.gates.child_environment import locked_toolchain
 from ethos.adapters.gates.javascript.execution import prepare_command
 from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.gates.native.attempt import gate_attempt
@@ -69,6 +73,9 @@ class ActionRunResult:
     duration_seconds: float | None = None
     timeout_seconds: int | None = None
     timeout_source: str | None = None
+    # What a declared command started and its supplier; a provider gate names neither.
+    executable: str = ""
+    supplier: str = ""
 
 
 class DryRunRunner:
@@ -87,6 +94,8 @@ class LocalGateRunner:
 
     def __init__(self, *, candidate: bool = False) -> None:
         self.candidate = candidate
+        # One runner reads a repository's lock once, however many commands start together.
+        self.locked, self.reading = cache(locked_toolchain), Lock()
 
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         result = None
@@ -142,6 +151,9 @@ class LocalGateRunner:
         execution_command = (
             (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
+        with self.reading:
+            installs = self.locked(root)[2]
+        origin = command_origin(command[0], executable, installs)
         native_evidence = None
         node_attempt = None
         if set(provider_spellings("provider.code-behavior")).intersection(
@@ -184,6 +196,7 @@ class LocalGateRunner:
                 exit_code=124,
                 stdout=stdout,
                 stderr=stderr,
+                **origin,
                 diagnostics=(
                     {
                         "kind": "gate_timeout",
@@ -204,6 +217,7 @@ class LocalGateRunner:
                 verdict="unknown",
                 exit_code=127,
                 stderr=str(exc.__cause__),
+                **origin,
                 diagnostics=(
                     {
                         "kind": "command_not_found",
@@ -249,6 +263,7 @@ class LocalGateRunner:
             stdout=completed.stdout,
             stderr=completed.stderr,
             diagnostics=diagnostics,
+            **origin,
         )
         native = gate_execution(
             root,

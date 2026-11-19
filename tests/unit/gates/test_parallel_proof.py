@@ -15,6 +15,7 @@ import pytest
 import ethos.adapters.gates.runner as gate_runner
 import ethos.application.proof.operation as proof_operation
 from ethos.adapters.gates.runner import ActionRunResult
+from ethos.application.proof.report import summarize_checks
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
@@ -90,7 +91,7 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
                 # A gate's own error is that gate's refusal; only an interrupt stops the run.
                 message = "late gate did not complete"
                 raise KeyboardInterrupt(message)
-            return ActionRunResult(node.id, node.command, "pass", 0)
+            return ActionRunResult(node.id, node.command, "pass", 0, supplier="declared")
 
     monkeypatch.setattr(
         proof_operation, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
@@ -106,6 +107,9 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         )
         assert passed is True
         assert [check["action_id"] for check in checks] == ["a", "b"]
+        # A check and its summary carry what the runner named; a planned check names nothing.
+        named = "declared" if mode == "parallel" else ""
+        assert [check["supplier"] for check in summarize_checks(checks)] == [named, named]
     captured = capsys.readouterr()
     assert captured.out == ""
     events = [json.loads(line) for line in captured.err.splitlines()]

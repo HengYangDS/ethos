@@ -19,6 +19,7 @@ import ethos.domain.status as status_domain
 from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.gates.child_environment import inherited_environment
 from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
 from ethos.adapters.gates.proof_slot import host_load
@@ -211,6 +212,8 @@ def run_plan_checks(
                 ),
                 "started_after_seconds": run_result.started_after_seconds,
                 "duration_seconds": run_result.duration_seconds,
+                "executable": run_result.executable,
+                "supplier": run_result.supplier,
             }
         )
     if execute:
@@ -510,6 +513,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
             "boundary": boundary,
             "attestation_id": attestation.id if attestation is not None else "",
             "gate_count": len(checks),
+            **inherited_environment(repo, executed=options.execute),
         },
         required_gaps=required_gaps,
         diagnostics=assessed.causes,

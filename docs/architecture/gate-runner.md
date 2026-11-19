@@ -68,6 +68,38 @@ Provider gates call their declared Python owner. Adapter gates invoke their
 declared command. Results retain identity, verdict, exit code, diagnostics,
 stdout and stderr; they do not infer success from missing evidence.
 
+## The Environment Of A Declared Command
+
+ETHOS does not confine a declared command. Its child receives the environment of the process that
+launched the proof, credentials included, and its first word is the first match on the launch
+path unless the declaration names a path. A provider's children get the locked tools and the
+host's own command directories as their path, and still the other variables of the launch. So the
+verdict of a declared command can follow its launch. A result that executed gates says by how
+much, in names, classes and counts and never in a value:
+
+- `summary.environment.mode` is `inherited`. `names` counts the variables of the process that
+  ran the proof, the Change and the actor that the invocation itself sets among them, and
+  `outside_allow_list` those beside the product's list of kept names: `HOME`, `LOGNAME`, `PATH`,
+  `TMPDIR`, `USER` and the system names that Windows needs.
+- `credential_classes` holds `ssh-agent`, `forge-token`, `cloud-credential` or `credential` when
+  the name of a variable has that shape. A secret under a plain name is counted and not classed.
+- `locked_toolchain` is `declared`, `undeclared`, or `unread:` with the Mise adapter's code, or
+  with the class of an error that carries none. `outside_lock` holds that adapter's own codes for
+  the locked tools that the launch path resolves outside their locked install. A lock that cannot
+  be read changes no verdict.
+- `git_overlay_keys` holds the section and the variable of each key that the launch sets through
+  the indexed Git configuration variables. A key's subsection can hold a URL, so it is left out.
+- Each check of a declared command names its `executable` and its `supplier`: `declared` for a
+  path that the declaration names, `locked` for a locked install, `host-baseline` for the host's
+  own command directories, `launch-path` for any other directory, and `unresolved`. A provider's
+  check names neither. A Mise shim on the launch path reads `launch-path` and is named in
+  `outside_lock`: the shim chooses the tool only when it runs.
+
+A launch that holds only the kept names, with a path of the locked tools, reports zero names outside
+the list and an empty `outside_lock`. The proof Attestation carries none of these members.
+`inherited` is the only mode: a repository cannot yet declare that its commands start in an
+environment built from that list.
+
 ## Local Fallback Evidence
 
 When no peer is reachable, `ethos publish` falls back to the proof Attestation

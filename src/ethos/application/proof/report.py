@@ -39,6 +39,8 @@ def summarize_checks(checks: list[dict[str, object]]) -> list[dict[str, object]]
             "diagnostic_count": len(cast("list[object]", check["diagnostics"])),
             "started_after_seconds": check.get("started_after_seconds"),
             "duration_seconds": check.get("duration_seconds"),
+            "executable": check.get("executable", ""),
+            "supplier": check.get("supplier", ""),
         }
         for check in checks
     ]

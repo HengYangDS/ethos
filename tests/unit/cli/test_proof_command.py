@@ -313,6 +313,7 @@ def test_prove_result_matrix(monkeypatch, tmp_path, case, options, check, expect
     _prove(options, root=tmp_path, json_output=True)
     result = emitted[-1]
     assert result.state == ("gapped" if expected_gap else "ready")
+    assert ("environment" in result.summary) is options.execute
     assert (expected_gap in result.required_gaps) is bool(expected_gap)
     assert result.next_action == (
         "ethos plan --changed --json" if expected_gap else "ethos prove --execute"

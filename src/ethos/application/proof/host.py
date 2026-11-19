@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.actor import process_actor
+from ethos.adapters.gates.child_environment import inherited_environment
 from ethos.adapters.gates.host_admission import admitted_host_work
 from ethos.adapters.gates.host_admission import exported
 from ethos.adapters.gates.runner import ActionRunResult
@@ -204,6 +205,7 @@ def host_gate_observation(
             "boundary": "host",
             "gate_count": len(checks),
             "proof_attestation_issued": False,
+            **inherited_environment(repo, executed=bool(checks)),
         },
         diagnostics=tuple(observed["diagnostics"]),
         required_gaps=required_gaps,
@@ -280,6 +282,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
             "gate_count": len(checks),
             "not_run": not_run,
             "proof_attestation_issued": False,
+            **inherited_environment(repo, executed=bool(checks)),
         },
         diagnostics=tuple(observed.causes),
         required_gaps=tuple(observed.gaps),

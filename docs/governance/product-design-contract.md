@@ -400,12 +400,12 @@ failure remain distinct; an observation failure never invites replay of a
 possibly completed mutation. CLI examples use named arguments wherever a
 positional value could be parsed as an option.
 
-Repository-declared commands execute inside the repository's selected locked
-toolchain, not ambient `PATH`. Failure evidence preserves the resolved binary,
-argv, cwd, redacted effective path, actor, exit status, stdout, stderr, and
-receipt path. Automated operation never opens an interactive password or
-credential prompt; unavailable non-interactive authority blocks before effect
-and returns one actionable command.
+ETHOS starts a repository-declared command without confining it: the launch path
+resolves its first word, and its child inherits the launch environment. Failure
+evidence preserves the resolved binary, argv, cwd, redacted effective path,
+actor, exit status, stdout, stderr, and receipt path. Automated operation never
+opens an interactive password or credential prompt; unavailable non-interactive
+authority blocks before effect and returns one actionable command.
 
 ### Runtime And State Authority
 

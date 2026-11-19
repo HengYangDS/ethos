@@ -365,11 +365,11 @@ has stated limits. Not read: a session named through a Forge expression or in qu
 name after such a name, and a session flag that follows an expression holding `||` or `&&`. Read
 as a session though no job runs it: a name after `--`, the first component of a path, and the
 argument of another command's `-e` on a line that names the runner. A GitLab `default` section
-or hidden template that holds a script counts as a job of its own name. `unavailable` names a part that could not
-be read, with the error: a tracked Python file that is no text, or a pipeline file that cannot
-be parsed, makes its part unavailable. A bounded result keeps the field's scalar members,
-and the detail that `bound.detail` names holds the rest. The selection is read from tracked text
-and is a lower bound: a deleted file selects no test that imported it, and stays under
+or hidden template that holds a script counts as a job of its own name. `unavailable` names a
+part that could not be read, with the error: a tracked Python file that is no text, or a pipeline
+file that cannot be parsed, makes its part unavailable. A bounded result keeps the field's scalar
+members, and the detail that `bound.detail` names holds the rest. The selection is read from
+tracked text and is a lower bound: a deleted file selects no test that imported it, and stays under
 `unread_paths` unless a test names it. A path of one word also selects every test whose text
 holds that word. The caller runs the tests with the native runner. A passing readiness run is
 not the full proof's pass and not the Forges' pass.

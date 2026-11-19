@@ -92,7 +92,7 @@ def test_a_release_that_fails_in_the_middle_names_what_it_released(
 
     refused = run_ethos_blocked(*approve[1:])
 
-    assert refused["required_gaps"] == ["[Errno 13] denied"]
+    assert refused["required_gaps"] == ["PermissionError: [Errno 13] denied"]
     assert (len(refused["data"]["released"]), refused["summary"]["released"]) == (1, 1)
     assert list(installation_consumers(installation) or {}) == [denied]
     assert shlex.split(refused["next_action"])[:3] == ["ethos", "hook", "install"]

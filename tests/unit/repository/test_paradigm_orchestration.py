@@ -435,6 +435,24 @@ def test_a_session_is_a_whole_name_after_the_runner_s_own_flag(
     assert runner_sessions(command) == sessions
 
 
+@pytest.mark.parametrize(
+    ("command", "sessions"),
+    [
+        ("nox -s tests-${{ matrix.python }} lint", set()),
+        ('nox -s "lint"', set()),
+        ("nox --python ${{ matrix.python || '3.12' }} -s tests", set()),
+        ("nox -t ci -- -s lint", {"lint"}),
+        ("nox -s tests/unit", {"tests"}),
+        ("pip install nox -e pkgdir", {"pkgdir"}),
+    ],
+)
+def test_the_reader_s_stated_misreadings_are_the_ones_it_has(
+    command: str, sessions: set[str]
+) -> None:
+    """Three forms miss a session and three list one that no job runs; the reference says so."""
+    assert runner_sessions(command) == sessions
+
+
 def test_jobs_of_one_name_in_two_workflows_are_two_jobs(tmp_path: Path) -> None:
     """A job is named by its pipeline file, so two workflows keep their own `build`."""
     step = "jobs:\n  build:\n    steps:\n      - run: nox -s {}\n"

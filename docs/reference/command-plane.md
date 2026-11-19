@@ -360,9 +360,12 @@ that reads a path committed since `base`, the candidate branch, to its reason (`
 test reads; any other role has an empty `base` and no selection. A renamed file counts as its two
 paths. `forge_only_sessions` maps each task-runner session that a step of the pipeline files asks
 for, and no planned gate's command does, to its jobs, each named `<pipeline file>:<job>`, and
-`forge_jobs` counts the jobs whose commands were read. A session that a step names through a
-Forge expression or in quotes is not read, and a GitLab `default` section or hidden template
-that holds a script counts as a job of its own name. `unavailable` names a part that could not
+`forge_jobs` counts the jobs whose commands were read. The reading is a pattern over one line and
+has stated limits. Not read: a session named through a Forge expression or in quotes, a plain
+name after such a name, and a session flag that follows an expression holding `||` or `&&`. Read
+as a session though no job runs it: a name after `--`, the first component of a path, and the
+argument of another command's `-e` on a line that names the runner. A GitLab `default` section
+or hidden template that holds a script counts as a job of its own name. `unavailable` names a part that could not
 be read, with the error: a tracked Python file that is no text, or a pipeline file that cannot
 be parsed, makes its part unavailable. A bounded result keeps the field's scalar members,
 and the detail that `bound.detail` names holds the rest. The selection is read from tracked text

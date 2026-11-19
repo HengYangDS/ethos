@@ -15,6 +15,22 @@ otherwise follows 0.2.0.
 
 - The refresh reads the declared release age.
 - `status` shows it.
+- Relayed on 2026-11-19 by the session that keeps the governed repositories, as the owner's
+  words to it, and to confirm with the owner first-hand before a design rests on them:
+  - The age is 24 hours. Each repository writes its own; one that writes none takes the default
+    of the common base, which ETHOS holds once, as configuration.
+  - Two exemptions are a mechanism and not hand-written lines: a fix for an advisory, and the
+    owner's own sources. It lands before 0.2.0, and its design and its release are this
+    repository's to place.
+- That session's inventory of the same day: one host line exempts one source by hand; no
+  governed repository declares an exemption; two repositories let advisory fixes skip the age
+  through Renovate's own setting, the one mechanized case.
+- Corrected by the owner the same day, relayed: the base declares nothing about whose sources
+  are whose, since that would make the base depend on the repositories it governs. ETHOS gives
+  the mechanism of an exemption list alone; each repository writes its own list in its own
+  configuration. Candidates for the mechanism, none decided: the one list projected into each
+  resolver's native exemption; a check that a fix's exclusion names an advisory which affects
+  the locked version and which the target fixes; a report of drift from the declared list.
 
 ## Capabilities
 

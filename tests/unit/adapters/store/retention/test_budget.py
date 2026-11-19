@@ -16,6 +16,7 @@ from ethos.adapters.store.retention.budget import store_report
 from ethos.adapters.store.retention.budget import tree_bytes
 from ethos.adapters.store.retention.kinds import owned_directories
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import OutcomeError
 from ethos.contracts.outcome import refused_gaps
 from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.ethos_cli_runner import full_result
@@ -108,12 +109,13 @@ def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
     try:
         row = owned_budget(tmp_path, 16)
         # The report reads past the refusal; a retirement's own readers are told of it.
-        with pytest.raises(ValueError, match="Permission denied") as refused:
+        with pytest.raises(OutcomeError, match="Permission denied") as refused:
             owned_directories(tmp_path)
     finally:
         (tmp_path / closed).chmod(0o700)
+    gaps = refused_gaps(refused.value)
     assert row == {"bytes": held, "budget_bytes": 16, "state": "unread", "unread": unread}
-    assert len(refused_gaps(refused.value)) == unread
+    assert (len(gaps), all(closed in gap for gap in gaps)) == (unread, True), gaps
     assert isinstance(refused.value.__cause__, PermissionError)
     assert owned_budget(tmp_path, 16) == {
         "bytes": 12,
@@ -123,8 +125,9 @@ def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
     }
 
 
+@pytest.mark.parametrize("gone", [FileNotFoundError, NotADirectoryError])
 def test_a_junction_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gone: type[OSError]
 ) -> None:
     """A junction is left out as a link is; nothing at a listing is nothing, as at a status."""
     for name in ("artifacts", "gate-results", "operations/lane-retirement"):
@@ -133,7 +136,7 @@ def test_a_junction_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
 
     def went(path: Path) -> object:
         if path == tmp_path / "operations/lane-retirement":
-            raise FileNotFoundError(path)
+            raise gone(path)
         return listing(path)
 
     monkeypatch.setattr(kinds, "is_junction", lambda path: path == tmp_path / "artifacts")
@@ -155,11 +158,14 @@ def test_a_row_is_over_only_above_its_budget_and_never_within_on_an_incomplete_r
 
 
 @NEEDS_A_CLOSED_DIRECTORY
-def test_the_preview_refuses_an_owned_place_that_the_host_will_not_answer_for(repo: Path) -> None:
-    """A closed owned place blocks the retirement's preview; it is never read as an empty one."""
+@pytest.mark.parametrize(("place", "gaps"), [("operations/lane-retirement", 1), ("requests", 2)])
+def test_the_preview_refuses_an_owned_place_that_the_host_will_not_answer_for(
+    repo: Path, place: str, gaps: int
+) -> None:
+    """A closed owned place blocks the retirement's preview with a gap for each such place."""
     store = local_state_root(repo)
-    closed = store / "operations/lane-retirement"
-    closed.mkdir(parents=True)
+    closed = store / place
+    closed.mkdir(parents=True, exist_ok=True)
     closed.chmod(0)
     try:
         refused = retention.preview_record_retirement(repo)
@@ -168,7 +174,8 @@ def test_the_preview_refuses_an_owned_place_that_the_host_will_not_answer_for(re
     answered = retention.preview_record_retirement(repo)
 
     assert (refused.verdict, refused.state) == ("block", "blocked")
-    assert "Permission denied" in refused.required_gaps[0]
+    assert len(refused.required_gaps) == gaps, refused.required_gaps
+    assert all("Permission denied" in gap for gap in refused.required_gaps)
     assert (answered.verdict, answered.state) == ("pass", "planned")
 
 

@@ -33,6 +33,10 @@ The design of `gate-environment` (Decisions 4 and 6) measured what the build cha
   checkouts names a variable.
 - The releasing host launches every proof from an empty environment with a home directory, a
   system path and a temporary directory, by scripts outside the product.
+- Three launches in three days gave a wrong result for this cause, as the session that keeps
+  the governed repositories reported on 2026-11-19: its own cell on 2026-11-16; the copies run
+  of 2026-11-18, where one repository's declared command met the host's npm 11.20.0 in place of
+  its declared 12.2.2 and another's proof timed out; and a launchd helper the same evening.
 
 ## What Changes
 

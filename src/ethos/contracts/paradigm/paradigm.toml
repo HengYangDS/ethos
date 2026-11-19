@@ -197,8 +197,10 @@ bound = 36000
 
 # Store retention. The floors keep a record at least this long after its newest write, grace for
 # proof and gate artifacts and record for operation records; they only rise. The decode bounds
-# limit how deep and how large a kept carrier is read for the digests that keep other records, and
-# status_bytes is the store size above which status suggests a retention preview.
+# limit how deep and how large a kept carrier is read for the digests that keep other records.
+# status_bytes is the budget of the directories that record retirement owns in a repository's
+# store, and host_bytes the budget of the host store's installations: the retention previews
+# report each as within or over, and no command refuses for bytes.
 [[parameter]]
 group = "retention"
 key = "grace_seconds"
@@ -233,6 +235,13 @@ bound = 17179869184
 group = "retention"
 key = "status_bytes"
 default = 1073741824
+unit = "bytes"
+bound = 1099511627776
+
+[[parameter]]
+group = "retention"
+key = "host_bytes"
+default = 4294967296
 unit = "bytes"
 bound = 1099511627776
 

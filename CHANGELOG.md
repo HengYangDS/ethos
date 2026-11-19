@@ -43,6 +43,23 @@ historical bindings are governed by the [distribution specification](openspec/sp
   The record also names the committed files that a stated provider opened outside its statement
   and the count of effective lines in the Git directory's local attributes file.
   `ethos hook retire-records` retires these records under the record floor.
+- The preview of `ethos hook retire-records` reports what the store holds. `data.store` gives,
+  for each top-level name of the Git-common store, the regular files, their bytes and the
+  directories it could not read, with the time of the read; no link is followed.
+  `summary.budget` gives the bytes of the directories that record retirement owns against
+  `retention.status_bytes` (1 GiB), as `within` or `over`. The preview of
+  `ethos hook retire-supply` reports the host store's installations the same way against the new
+  parameter `retention.host_bytes` (4 GiB). A budget only reports: a row that is over changes no
+  verdict, exit, required gap or next action, and no command refuses for bytes.
+- `ethos hook retire-supply --scan <root> --release-absent --json` previews the consumer records
+  of the host store whose repository path is absent, with the installation each one holds and its
+  bytes. Only `--expect-plan <digest> --apply --authorize` releases them. The release unlinks
+  records and removes no installation; its result names `ethos hook install`, whose cleanup
+  retires an installation that no record needs. Only the host's answer that no entry exists counts
+  as absence: a place it cannot look at is never planned. A repository at a scanned root that
+  names an installation is recorded as its consumer first, so a moved repository keeps what it
+  selects. This closes the known open defect of 0.2.0-beta.11 that no command releases an absent
+  consumer. Without the switch the command plans and applies what it did.
 
 ### Fixed
 

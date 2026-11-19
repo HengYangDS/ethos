@@ -66,6 +66,17 @@ read, that a running process uses, or that changed within `--grace-days`
 plan's digest; only `--expect-plan <digest> --apply --authorize`, a user
 decision, records the naming repositories and retires exactly that plan.
 
+A recorded repository whose path is gone keeps its record and its installations: a moved
+repository and an unmounted volume look the same as a removed one, and the cleanup only names
+it. `ethos hook retire-supply --scan <root> --release-absent --root <repository> --json` previews
+those records, each with its installation and the bytes it holds. It plans a record only when the
+host answers that no entry exists at the path, never for a place it cannot look at, and none of
+an installation while a scanned repository cannot say whether it names it. Under
+`--expect-plan <digest> --apply --authorize` it first records each scanned repository that names
+an installation, so a moved repository keeps what it selects, and then unlinks exactly the planned
+records, each read absent again. It removes no installation: the next `host_store_cleanup`
+retires one that no record needs.
+
 A cutover names its predecessor in `ROLLBACK` only when an install of the root can admit it. Where
 the accepted source names the one expected build, as in the product's own repository, a predecessor
 of another build is reported under `rollback_supply` as `unrunnable` and is neither pinned nor held.
@@ -108,6 +119,14 @@ repository runs, and unlinks under the custody lock only what the refreshed root
 do not name. Every run first restores the tombstones that an interrupted one
 left, and each apply writes its receipt to
 `receipts/record-retirement/<digest>.json`.
+
+The preview also reports what the store holds: for each top-level name the regular files, their
+bytes and the directories it could not read, with the time of the read, following no link. Its
+summary carries one budget row, the bytes of the directories that record retirement owns against
+`retention.status_bytes`, and the preview of `ethos hook retire-supply` carries the row of the
+host store's installations against `retention.host_bytes`. A row is `within` or `over`. A budget
+reports and refuses nothing: a row that is over changes no verdict, exit, required gap or next
+action. Sizes are the sizes of files, so a file system that shares blocks holds fewer bytes.
 
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a

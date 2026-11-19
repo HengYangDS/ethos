@@ -184,11 +184,17 @@ rollback selection, and a failed cutover restores the exact damaged selector byt
 compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
 
 `ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
-records; only `--expect-plan <digest> --apply --authorize` retires that plan.
+records; only `--expect-plan <digest> --apply --authorize` retires that plan. With
+`--release-absent` it previews the consumer records whose repository path is absent, and the same
+three words release exactly that plan's records; it removes no installation. A release that
+fails in the middle is blocked, and its result still names the records it released.
 
 `ethos hook retire-records --json` previews which Git-common store records may retire and writes the
 plan of every owned, unnamed record older than its floor; the selected runtime alone runs it, and
 only `--expect-plan <digest> --apply --authorize` deletes what that plan and a fresh scan select.
+Both previews report bytes against a declared budget in `summary.budget`, as `within` or `over`:
+the directories that record retirement owns against `retention.status_bytes`, and the host
+store's installations against `retention.host_bytes`. A row that is over refuses nothing.
 
 ## Accepted Release Selection
 

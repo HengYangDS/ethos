@@ -207,6 +207,131 @@ def _idle_reason(installation: Path, references: frozenset[Path], grace_seconds:
     return "recent" if time.time() - installation.stat().st_mtime < grace_seconds else ""
 
 
+def path_absent(path: Path) -> bool | None:
+    """Say whether nothing is at a path; None when the host does not answer.
+
+    Only the host's own answer that no entry exists counts. A directory that may not be searched,
+    or any other failure, leaves the answer unknown, alike on every supported interpreter.
+    """
+    try:
+        os.lstat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return True
+    except (OSError, ValueError):
+        return None
+    return False
+
+
+def _directory(path: Path) -> bool:
+    """Say whether a path is a directory and no link; a place the host cannot look at is none."""
+    try:
+        return stat.S_ISDIR(os.lstat(path).st_mode)
+    except (OSError, ValueError):
+        return False
+
+
+def absent_consumers(
+    store: Path, *, consumers: tuple[Path, ...], apply: bool, expected_plan: str | None = None
+) -> dict[str, object]:
+    """Plan, and on apply release, the consumer records whose repository path is absent.
+
+    A record is planned only when the host answers that nothing is at its path, and none of an
+    installation is planned while a scanned repository cannot say whether it names it. Apply
+    checks the previewed plan first, records each scanned repository that names an installation,
+    so a moved repository keeps what it selects, and unlinks exactly the planned records, each
+    read absent again. It removes no installation: the cleanup that ends `hook install` retires
+    one that no record needs. A failure in the middle is named in the report beside the records
+    released before it.
+    """
+    released: list[str] = []
+    if not _directory(store):
+        return _absent_report([], [], released)
+    with FileLock(
+        store / "install.lock",
+        timeout=seconds("lock"),
+        fallback_to_soft=False,
+        preserve_lock_file=True,
+    ):
+        rows, kept = _absent_rows(store, consumers)
+        report = _absent_report(rows, kept, released)
+        if apply:
+            if expected_plan != report["plan_digest"]:
+                message = "host_store_plan_changed"
+                raise ValueError(message)
+            try:
+                for installation, record, consumer, named in rows:
+                    for common in named:
+                        record_consumer(installation, common)
+                    if path_absent(consumer):
+                        record.unlink(missing_ok=True)
+                        released.append(consumer.as_posix())
+            except OSError as error:
+                # The result is the only account of the records that were already released.
+                report["failed"] = str(error).strip() or type(error).__name__
+    return report
+
+
+type _AbsentRow = tuple[Path, Path, Path, list[Path]]
+
+
+def _absent_rows(store: Path, consumers: tuple[Path, ...]) -> tuple[list[_AbsentRow], list[Path]]:
+    """Return a row for each absent record, and the installations whose records are all kept.
+
+    A row holds the installation, the record, its consumer and the scanned repositories that
+    name the installation; one scanned repository of unknown state keeps the installation's
+    records out.
+    """
+    rows: list[_AbsentRow] = []
+    kept: list[Path] = []
+    for installation in sorted(store.iterdir()):
+        absent = _absent_records(installation)
+        if not absent:
+            continue
+        states = {common: _consumer_state(common, installation) for common in consumers}
+        if "unknown" in states.values():
+            kept.append(installation)
+            continue
+        named = [common for common, state in states.items() if state == "needs"]
+        rows.extend((installation, record, consumer, named) for record, consumer in absent)
+    return rows, kept
+
+
+def _absent_records(installation: Path) -> list[tuple[Path, Path]]:
+    """Return an installation's records whose consumer path the host answers is absent."""
+    if not _index(installation.name) or not _directory(installation):
+        return []
+    return [
+        (record, consumer)
+        for record, consumer in (installation_consumers(installation) or {}).items()
+        if consumer is not None and path_absent(consumer)
+    ]
+
+
+def _absent_report(
+    rows: list[_AbsentRow], kept: list[Path], released: list[str]
+) -> dict[str, object]:
+    sizes = {installation: _size(installation) for installation, *_row in rows}
+    planned = [
+        {
+            "installation": installation.as_posix(),
+            "record": record.name,
+            "consumer": consumer.as_posix(),
+            "named_by": [common.as_posix() for common in named],
+        }
+        for installation, record, consumer, named in rows
+    ]
+    return {
+        "plan_digest": hashlib.sha256(json.dumps(planned, sort_keys=True).encode()).hexdigest(),
+        "absent": [
+            row | {"bytes": sizes[installation]}
+            for row, (installation, *_rest) in zip(planned, rows, strict=True)
+        ],
+        "held_bytes": sum(sizes.values()),
+        "kept": [{"installation": path.as_posix(), "reason": "uncertain"} for path in kept],
+        "released": released,
+    }
+
+
 def repository_common_dirs(roots: tuple[Path, ...]) -> tuple[Path, ...]:
     """Find the Git common directory of each repository at a scanned root or directly under it."""
     commons: set[Path] = set()

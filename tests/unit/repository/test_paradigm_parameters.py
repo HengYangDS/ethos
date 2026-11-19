@@ -38,8 +38,9 @@ def test_an_invocation_reads_its_repository_values_and_otherwise_the_defaults(
         ("record_seconds = 86400\n", 1_209_600, ["retention-declaration"]),
         ("record_seconds = 40000000\n", 1_209_600, ["retention-declaration"]),
         ("decode_depth = 3\n", 3, []),
+        ("host_bytes = 1024\n", 1024, []),
     ],
-    ids=["floor-raised", "floor-lowered", "floor-beyond-bound", "ordinary-lowered"],
+    ids=["floor-raised", "floor-lowered", "floor-beyond-bound", "ordinary-lowered", "host-budget"],
 )
 def test_a_retention_floor_rises_without_a_reason_and_never_falls(
     declared: str, applied: int, gaps: list[str]

@@ -96,6 +96,7 @@ class RetireSupplyRequest(CommandRequest):
     scan: tuple[str, ...] = described((), "A root of repositories that may name an installation.")
     expect_plan: str = described("", _PLAN)
     grace_days: int = described(7, "The days an installation stays after it last changed.")
+    release_absent: bool = switch("Plan the consumer records whose repository path is absent.")
     apply: Apply = False
     authorize: Authorize = False
 
@@ -196,7 +197,7 @@ RETIRE_SUPPLY = Command(
         "hook.retire-supply",
         "Plan the retirement of the installations that nothing scanned still needs.",
         "Retire exactly the planned installations, recording each consumer that names one.",
-        request="scan expect_plan grace_days",
+        request="scan expect_plan grace_days release_absent",
         authorization="authorize",
         destructive=True,
         preview_exit="verdict",

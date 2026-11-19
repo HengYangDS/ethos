@@ -27,6 +27,8 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.store.retention.apply import Apply
 from ethos.adapters.store.retention.apply import hold_proof_slot
 from ethos.adapters.store.retention.apply import try_hold
+from ethos.adapters.store.retention.budget import owned_budget
+from ethos.adapters.store.retention.budget import store_report
 from ethos.adapters.store.retention.closure import Closure
 from ethos.adapters.store.retention.kinds import StoreItem
 from ethos.adapters.store.retention.kinds import classify_store
@@ -269,8 +271,13 @@ def _preview(
         "candidates": counts,
         "candidate_bytes": sizes,
         "unowned_bytes": sum(size for _path, size in reported),
+        "budget": owned_budget(store, values["status_bytes"]),
     }
-    data = {"plan": plan, "unowned": [{"path": path, "bytes": size} for path, size in reported]}
+    data = {
+        "plan": plan,
+        "unowned": [{"path": path, "bytes": size} for path, size in reported],
+        "store": store_report(store),
+    }
     return summary, data, str(plan["sha256"]) if candidates else ""
 
 

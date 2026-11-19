@@ -17,12 +17,16 @@ from ethos.adapters.repo.hook.activation import HookActivationError
 from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.rollback import RollbackRefusalError
 from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.adapters.repo.runtime.materialization.host_retention import absent_consumers
 from ethos.adapters.repo.runtime.materialization.host_retention import legacy_supply
 from ethos.adapters.repo.runtime.materialization.host_retention import repository_common_dirs
 from ethos.adapters.repo.runtime.retirement import operational_reference_paths
+from ethos.adapters.store.retention.budget import budget_row
+from ethos.adapters.store.retention.budget import tree_bytes
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.operations.hook import InstallRequest
 from ethos.contracts.operations.hook import RetireSupplyRequest
+from ethos.repository.paradigm.parameters import parameter
 from ethos.result import EthosResult
 
 _DAY_SECONDS = 24 * 3600
@@ -162,6 +166,14 @@ def _install_recovery(repo: Path, gap: str, request: InstallRequest) -> str:
     return _status(repo)
 
 
+def _host_budget(store: Path | None, request: RetireSupplyRequest) -> dict[str, object]:
+    """Return a preview's row of the host store's installations against their declared budget."""
+    if store is None or request.apply:
+        return {}
+    held = tree_bytes(store / "installations")["bytes"]
+    return {"budget": budget_row(held, parameter("retention", "host_bytes"))}
+
+
 def retire_host_supply(root: Path, request: RetireSupplyRequest) -> EthosResult:
     """Preview host installations pinned before consumers were recorded; retire an approved plan."""
     roots = tuple(Path(path).resolve() for path in request.scan)
@@ -179,35 +191,74 @@ def retire_host_supply(root: Path, request: RetireSupplyRequest) -> EthosResult:
     report: dict[str, object] = {"scanned_repositories": [path.as_posix() for path in consumers]}
     if not gaps and store is not None:
         try:
-            report |= legacy_supply(
-                store / "installations",
-                consumers=consumers,
-                in_use=lambda: operational_reference_paths(root),
-                grace_seconds=request.grace_days * _DAY_SECONDS,
-                apply=request.apply,
-                expected_plan=request.expect_plan or None,
-            )
+            report |= _supply_plan(store / "installations", root, request, consumers)
         except (OSError, ValueError, Timeout) as error:
             gaps.append(str(error).strip() or error.__class__.__name__)
+    gaps.extend(_failure(report))
+    planned, done, held, selection = _supply_words(request)
     counts = {
         key: len(value) if isinstance(value := report.get(key), list) else 0
-        for key in ("retirable", "kept", "retired")
+        for key in (planned, "kept", done)
     }
-    decision = not request.apply and not gaps and counts["retirable"] > 0
+    decision = not request.apply and not gaps and counts[planned] > 0
     scans = [part for path in roots for part in ("--scan", path.as_posix())]
     approve = (
         *scans,
-        *("--grace-days", str(request.grace_days)),
+        *selection,
         *("--expect-plan", str(report.get("plan_digest"))),
         *("--apply", "--authorize", "--root", root.as_posix(), "--json"),
     )
     return EthosResult(
         command="hook retire-supply",
         verdict="block" if gaps else "pass",
-        state="blocked" if gaps else "retired" if request.apply else "planned",
-        summary={**counts, "retirable_bytes": report.get("retirable_bytes", 0)},
+        state="blocked" if gaps else done if request.apply else "planned",
+        summary={**counts, held: report.get(held, 0), **_host_budget(store, request)},
         required_gaps=tuple(gaps),
         user_decision_required=decision,
-        next_action=shlex.join(("ethos", "hook", "retire-supply", *approve)) if decision else "",
+        next_action=shlex.join(("ethos", "hook", "retire-supply", *approve))
+        if decision
+        else _cleanup_step(root, request, released=counts[done]),
         data=report,
     )
+
+
+def _failure(report: dict[str, object]) -> list[str]:
+    """Return what stopped a release in the middle; its report keeps what it released."""
+    failed = report.get("failed")
+    return [str(failed)] if failed else []
+
+
+def _cleanup_step(root: Path, request: RetireSupplyRequest, *, released: int) -> str:
+    """Name the cleanup that follows a release; nothing follows any other outcome.
+
+    A release frees records alone, and the cleanup that ends `hook install` retires what they
+    held. A release refused before it began reports none released; one that failed in the middle
+    names what it released, and the cleanup follows those.
+    """
+    if not (request.release_absent and request.apply and released):
+        return ""
+    return shlex.join(("ethos", "hook", "install", "--root", root.as_posix(), "--json"))
+
+
+def _supply_plan(
+    store: Path, root: Path, request: RetireSupplyRequest, consumers: tuple[Path, ...]
+) -> dict[str, object]:
+    """Plan, and on apply carry out, the retirement that the request selects."""
+    plan = request.expect_plan or None
+    if request.release_absent:
+        return absent_consumers(store, consumers=consumers, apply=request.apply, expected_plan=plan)
+    return legacy_supply(
+        store,
+        consumers=consumers,
+        in_use=lambda: operational_reference_paths(root),
+        grace_seconds=request.grace_days * _DAY_SECONDS,
+        apply=request.apply,
+        expected_plan=plan,
+    )
+
+
+def _supply_words(request: RetireSupplyRequest) -> tuple[str, str, str, tuple[str, ...]]:
+    """Name what a request plans, what its apply does, the bytes it sums and its own flags."""
+    if request.release_absent:
+        return "absent", "released", "held_bytes", ("--release-absent",)
+    return "retirable", "retired", "retirable_bytes", ("--grace-days", str(request.grace_days))

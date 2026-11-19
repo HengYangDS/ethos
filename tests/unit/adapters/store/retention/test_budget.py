@@ -13,6 +13,7 @@ from ethos.adapters.store.retention.budget import budget_row
 from ethos.adapters.store.retention.budget import owned_budget
 from ethos.adapters.store.retention.budget import store_report
 from ethos.adapters.store.retention.budget import tree_bytes
+from ethos.adapters.store.retention.kinds import owned_directories
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.ethos_cli_runner import full_result
@@ -92,7 +93,7 @@ def test_a_file_whose_status_cannot_be_read_is_counted_and_the_row_says_unread(
 def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
     tmp_path: Path, closed: str
 ) -> None:
-    """A candidate under a closed parent, or one that cannot be listed, leaves the row `unread`."""
+    """Such a candidate leaves the row `unread`, and the owned directories refuse to be listed."""
     (tmp_path / "operations/lane-retirement/unit").mkdir(parents=True)
     (tmp_path / "operations/lane-retirement/unit/kept").write_bytes(b"x" * 7)
     (tmp_path / "artifacts").mkdir()
@@ -100,9 +101,13 @@ def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
     (tmp_path / closed).chmod(0)
     try:
         row = owned_budget(tmp_path, 16)
+        # The report reads past the refusal; a retirement's own readers are told of it.
+        with pytest.raises(OSError, match="Permission denied") as refused:
+            owned_directories(tmp_path)
     finally:
         (tmp_path / closed).chmod(0o700)
     assert row == {"bytes": 5, "budget_bytes": 16, "state": "unread", "unread": 1}
+    assert isinstance(refused.value, PermissionError)
     assert owned_budget(tmp_path, 16) == {
         "bytes": 12,
         "budget_bytes": 16,
@@ -121,6 +126,24 @@ def test_a_row_is_over_only_above_its_budget_and_never_within_on_an_incomplete_r
     """A missed place can only add bytes: counted bytes above the budget stay `over`."""
     row = {"bytes": held, "budget_bytes": 16, "state": state, "unread": unread}
     assert budget_row(held, 16, unread) == row
+
+
+@NEEDS_A_CLOSED_DIRECTORY
+def test_the_preview_refuses_an_owned_place_that_the_host_will_not_answer_for(repo: Path) -> None:
+    """A closed owned place blocks the retirement's preview; it is never read as an empty one."""
+    store = local_state_root(repo)
+    closed = store / "operations/lane-retirement"
+    closed.mkdir(parents=True)
+    closed.chmod(0)
+    try:
+        refused = retention.preview_record_retirement(repo)
+    finally:
+        closed.chmod(0o700)
+    answered = retention.preview_record_retirement(repo)
+
+    assert (refused.verdict, refused.state) == ("block", "blocked")
+    assert "Permission denied" in refused.required_gaps[0]
+    assert (answered.verdict, answered.state) == ("pass", "planned")
 
 
 def test_a_row_that_is_over_changes_nothing_else_in_the_preview(repo: Path) -> None:
@@ -161,10 +184,10 @@ def test_the_supply_preview_reports_the_host_installations(
     (repository / ".ethos").mkdir(exist_ok=True)
     (repository / ".ethos/rules.toml").write_text("[paradigm.retention]\nhost_bytes = 1024\n")
     completed = run_ethos_process(*words, "--root", str(repository), "--json")
+    assert completed.returncode == 0, completed.stderr or completed.stdout
     lowered = full_result(completed)
 
     row = {"bytes": 2048, "unread": 0}
-    assert completed.returncode == 0, completed.stderr
     assert default["summary"]["budget"] == row | {"budget_bytes": 4 * 2**30, "state": "within"}
     assert lowered["summary"]["budget"] == row | {"budget_bytes": 1024, "state": "over"}
     assert (lowered["verdict"], lowered["state"]) == (default["verdict"], default["state"])

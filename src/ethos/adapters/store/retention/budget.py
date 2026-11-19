@@ -86,6 +86,5 @@ def owned_budget(store: Path, budget: int) -> dict[str, object]:
     """Return the row of the directories that record retirement owns in a Git-common store."""
     directories, refused = owned_places(store)
     read = [tree_bytes(directory) for directory in directories]
-    return budget_row(
-        sum(item["bytes"] for item in read), budget, refused + sum(item["unread"] for item in read)
-    )
+    unread = len(refused) + sum(item["unread"] for item in read)
+    return budget_row(sum(item["bytes"] for item in read), budget, unread)

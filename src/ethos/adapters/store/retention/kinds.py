@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from zipfile import BadZipFile
 from zipfile import ZipFile
 
+from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.semantic import canonical_json_bytes
 
 if TYPE_CHECKING:
@@ -64,42 +65,49 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
 
 
 def owned_directories(store: Path) -> tuple[Path, ...]:
-    """Return the directories that owned writers alone fill, each a directory and no link."""
-    return owned_places(store)[0]
+    """Return the directories that owned writers alone fill, each a directory and no link.
+
+    A candidate that the host will not answer for is no absent one: its refusal is raised, alike
+    on every supported interpreter, so a retirement never reads a closed place as an empty one.
+    """
+    found, refused = owned_places(store)
+    if refused:
+        raise refused[0]
+    return found
 
 
-def owned_places(store: Path) -> tuple[tuple[Path, ...], int]:
-    """Return the owned directories, and how many candidates the host would not answer for.
+def owned_places(store: Path) -> tuple[tuple[Path, ...], tuple[OSError, ...]]:
+    """Return the owned directories, and the host's refusal for each candidate it left out.
 
-    A candidate whose status or listing the host refuses is counted and left out, alike on
-    every supported interpreter; one that is not there is neither.
+    A candidate whose status or listing the host refuses is left out with its error; one that
+    is not there is neither. Only a report that refuses nothing reads past a refusal.
     """
     operations = store / "operations" / "lane-retirement"
     candidates = [store / name for name in _OWNED]
-    refused = 0
+    refused: list[OSError] = []
     try:
         if _real(store, operations):
             candidates.extend(sorted(operations.iterdir()))
-    except OSError:
-        refused += 1
+    except OSError as error:
+        refused.append(error)
     found: list[Path] = []
     for path in candidates:
         try:
             found.extend([path] if _real(store, path) else [])
-        except OSError:
-            refused += 1
-    return tuple(found), refused
+        except OSError as error:
+            refused.append(error)
+    return tuple(found), tuple(refused)
 
 
 def _real(store: Path, directory: Path) -> bool:
     """Return whether a directory and each parent below the store are directories, not links.
 
-    Each entry's own status is read, so a link is no directory; nothing at a path is False, and
-    any other refusal of the host is the caller's to count.
+    Each entry's own status is read, so a link or a junction is no directory; nothing at a path
+    is False, and any other refusal of the host is the caller's to count.
     """
     try:
         return all(
-            stat.S_ISDIR(path.lstat().st_mode)
+            stat.S_ISDIR(path.lstat().st_mode) and not is_junction(path)
             for path in (directory, *directory.parents)
             if path.is_relative_to(store) and path != store
         )

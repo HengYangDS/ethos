@@ -30,15 +30,17 @@ relayed, and decided its shape on 2026-11-17.
 Decided by the owner on 2026-11-17, and built in 0.2.0-beta.14:
 
 - One package cache root for each repository, under the Git common directory.
-- The product's own wheel is installed without the cache.
-- The behavior gate's offline sync runs in the readiness tier, before the host ticket.
 
-Designed here, around that decision:
+Designed here, around that decision. The page that the owner answered showed the root alone, with
+the estimate below and the note that nothing is filled in advance:
 
+- The product's own wheel is installed without the cache, and the behavior gate's offline sync
+  runs in the readiness tier, before the host ticket. The study recommended both with the root.
 - The root lies beside the native tool cache, and an explicit `UV_CACHE_DIR` still wins, as the
   hosted jobs set it.
 - A proof fails until its repository's root is filled once by an online locked sync, and
-  readiness names that sync.
+  readiness names that sync. No wheel is copied into a lane, which is what the page's note meant;
+  this one sync was not on the page.
 - The first task measures which command writes the product's unpacked wheels.
 - A dry run of the offline sync passes on an empty cache, so the readiness check is the real
   sync into the attempt's scratch.

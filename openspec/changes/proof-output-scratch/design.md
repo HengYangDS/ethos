@@ -178,6 +178,14 @@ Non-Goals:
   removes it until the release of a dead owner's scratch lands.
 - The root ends when its runner is released. A reference that outlives the run, such as a held
   traceback in a long-lived server, delays the removal to the end of the process at the latest.
+- A removal that fails is not reported. The removal runs when the runner is released, and
+  Python writes such a failure to standard error and raises it to no caller, so no result, gap
+  or diagnostic carries it; the footprint does not see it either, since the root lies outside
+  the lane. A descendant that still writes after a gate's deadline is the likely case. The
+  release of a dead owner's scratch (task 5.5) finds the root by its mark.
+- The root lies under the launch's temporary root, so it is outside the lane only where that
+  root is. Nothing checks that: a temporary root set inside the working tree puts the scratch
+  in the lane.
 - The sizes are estimates, and the root's is the least certain: it travels as a parameter
   through six call chains. One of the six makers lives in a module of 492 effective lines, the
   runner has 457 and the proof operation 449, against the limit of 500 (the product's own

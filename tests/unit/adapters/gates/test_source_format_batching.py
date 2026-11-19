@@ -209,3 +209,43 @@ def test_an_ignore_query_warning_refuses_nothing_and_a_failure_carries_its_text(
     report = formatting_gate.source_format_report(lane, paths=("docs/page.md",))
     assert (report["verdict"] == "pass") is (status == 0), report
     assert ("Warning: stub" in str(report["required_gaps"])) is (status == 1), report
+
+
+def test_one_file_refusing_its_postimage_keeps_the_drift_the_earlier_files_showed(
+    lane: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refusal no longer hides the gaps that the files prepared before it already computed."""
+    write_tree(
+        lane,
+        {
+            ".config/checks/prettier/prettierignore": "",
+            "docs/a.md": "# A\n",
+            "docs/b.md": "# B\n",
+        },
+    )
+    render = formatting_gate.render_source_content
+    refused: set[str] = set()
+
+    def stub(
+        root: Path, relative: str, owner: str, content: bytes, **options: Any
+    ) -> tuple[bytes, bool]:
+        if refused:
+            message = f"policy conflict in {relative}"
+            raise ValueError(message)
+        refused.add(relative)
+        # The first file's postimage differs from its source, so it holds a drift to report.
+        drifted = render(root, relative, owner, content, **options)[0] + b"\n"
+        return drifted, False
+
+    monkeypatch.setattr(formatting_gate, "render_source_content", stub)
+
+    def nobody_is_clean(*_args: object, **_options: object) -> frozenset[str]:
+        return frozenset()
+
+    monkeypatch.setattr(formatting_gate, "checked_clean", nobody_is_clean)
+    report = gate_tool.markdown_lint_report(lane)
+    format_report = next(item for item in report["native"] if item["id"] == "markdown-format")
+    gaps = format_report["required_gaps"]
+    drifted = [gap for gap in gaps if str(gap).startswith("source_format_drift:")]
+    assert len(drifted) == 1, format_report
+    assert any("policy conflict in" in str(gap) for gap in gaps), format_report

@@ -8,14 +8,14 @@ let named = "";
 for await (const chunk of process.stdin) {
   named += chunk;
 }
-const ignored = [];
-for (const relative of JSON.parse(named)) {
-  const info = await prettier.getFileInfo(path.join(root, relative), {
-    ignorePath,
-    resolveConfig: false,
-  });
-  if (info.ignored) {
-    ignored.push(relative);
-  }
-}
+const asked = JSON.parse(named);
+const infos = await Promise.all(
+  asked.map((relative) =>
+    prettier.getFileInfo(path.join(root, relative), {
+      ignorePath,
+      resolveConfig: false,
+    }),
+  ),
+);
+const ignored = asked.filter((_relative, index) => infos[index].ignored);
 process.stdout.write(JSON.stringify(ignored));

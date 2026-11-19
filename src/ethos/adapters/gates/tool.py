@@ -22,6 +22,7 @@ from urllib.request import url2pathname
 from markdown_it import MarkdownIt
 
 import ethos.adapters.gates.native.inputs as native_inputs
+from ethos.adapters.gates.formatting import PostimageRefusalError
 from ethos.adapters.gates.formatting import source_postimages
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
@@ -484,6 +485,14 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
             for item in source_postimages(root, formatted, node=node)
             if item.before != item.after
         )
+    except PostimageRefusalError as refusal:
+        # One file's refusal does not hide the drift that the files before it already showed.
+        format_gaps.extend(
+            f"source_format_drift:{item.path}"
+            for item in refusal.prepared
+            if item.before != item.after
+        )
+        format_gaps.append(str(refusal))
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
         format_gaps.append(str(error))
     format_report: dict[str, object] = {

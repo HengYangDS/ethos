@@ -9,6 +9,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruff import find_ruff_bin
 
@@ -34,6 +35,9 @@ from ethos.repository.paradigm.text_layout import canonical_text
 from ethos.repository.policy.quality.format_selection import POLICY_PATH
 from ethos.repository.policy.quality.format_selection import canonical_text_paths
 from ethos.repository.release.resources import canonical_resource
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 _SUFFIXES = frozenset(
     {
@@ -334,7 +338,12 @@ def prepare_source_format(
     selected = tuple(item for item in _selected_files(root, paths, authored) if item[0] not in held)
     if invalid := authored_text_gaps(root, authored_text_files(root, authored)):
         raise ValueError(invalid[0])
-    return _postimages(root, selected)
+    try:
+        return _postimages(root, selected)
+    except PostimageRefusalError as refusal:
+        # A repair applies nothing on any refusal: the native command's own failure stays the
+        # one its caller catches, and no partial postimage escapes.
+        raise refusal.refusal or refusal from refusal
 
 
 def source_postimages(
@@ -350,7 +359,24 @@ def source_postimages(
 def _postimages(
     root: Path, selected: tuple[tuple[str, str], ...], node: str | None = None
 ) -> tuple[FormattedFile, ...]:
-    prepared = []
+    """Prepare each file's postimage; a refusal carries the ones prepared before it.
+
+    A refusal anywhere in the selection keeps the postimages already prepared, so a caller that
+    reports drift names those files beside the refusal instead of the refusal alone.
+    """
+    prepared: list[FormattedFile] = []
+    try:
+        prepared.extend(_each_postimage(root, selected, node))
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
+        if not prepared:
+            raise
+        raise PostimageRefusalError(str(error), tuple(prepared)) from error
+    return tuple(prepared)
+
+
+def _each_postimage(
+    root: Path, selected: tuple[tuple[str, str], ...], node: str | None
+) -> Iterator[FormattedFile]:
     # One listing of the repository serves every file: a configuration is a fact of the tree.
     files = tuple(native_inputs.quality_source_files(root))
     node = node or (
@@ -375,8 +401,20 @@ def _postimages(
                     root, relative, owner, before, node=node, source_files=files
                 )
             )
-        prepared.append(FormattedFile(relative, before, after, mode, ignored))
-    return tuple(prepared)
+        yield FormattedFile(relative, before, after, mode, ignored)
+
+
+class PostimageRefusalError(ValueError):
+    """A postimage preparation refused after some files were prepared; their results survive."""
+
+    def __init__(self, reason: str, prepared: tuple[FormattedFile, ...]) -> None:
+        super().__init__(reason)
+        self.prepared = prepared
+
+    @property
+    def refusal(self) -> Exception | None:
+        """The error that stopped the preparation; its own report keeps the diagnostics."""
+        return self.__cause__ if isinstance(self.__cause__, Exception) else None
 
 
 def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:
@@ -410,6 +448,9 @@ def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
 
 def source_format_failure(root: Path, error: Exception) -> dict[str, object]:
     """Project unavailable native input distinctly from known format or policy refusal."""
+    if isinstance(error, PostimageRefusalError) and error.refusal is not None:
+        # The cause's own report is the one with the diagnostics; the wrapper only carries it.
+        error = error.refusal
     result = {
         "id": "source-format",
         "verdict": "unknown" if isinstance(error, FileNotFoundError) else "block",

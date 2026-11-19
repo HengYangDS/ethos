@@ -61,6 +61,11 @@ prose rule can leave the host's file:
 - The declaration gains the conduct's values (a session's light share, the cap of tickets, the
   bound of a shared ticket), so that the prose file restates none of them.
 - `ethos host status` names what the rules ask a session to check before it enters.
+- `ethos host run` prints one line when its command is admitted, so that a caller's log tells
+  queued from admitted. Two sessions built that line themselves on 2026-11-19, and one built
+  three readers of the queue before it found `ethos host status --json`.
+- The cap of a session's tickets is enforced by the queue, by the ticket's owner. Each session
+  counts its own tickets today; one session's counter had a race on 2026-11-18.
 
 Not here: the cap's own design and the declared CPU share (`host-reservation-guests`), and the
 guest pipeline's resource (`guest-pipeline-admission`). This draft names the rest and the order

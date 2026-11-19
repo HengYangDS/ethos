@@ -6,6 +6,7 @@ import gc
 import json
 import sys
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -14,6 +15,7 @@ from ethos.adapters.actor import ACTOR_VARIABLE
 from ethos.adapters.gates.host_admission import ADMISSION_ENV
 from ethos.adapters.gates.host_work import work_owner
 from ethos.adapters.gates.native.attempt import gate_attempt
+from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.native.evidence import native_report
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import LocalGateRunner
@@ -105,26 +107,22 @@ def test_two_attempts_of_one_gate_have_equal_identities(tmp_path: Path) -> None:
     assert first.stdout != second.stdout
 
 
-def test_a_command_without_the_placeholder_is_launched_as_before(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_command_without_the_placeholder_is_launched_as_before(tmp_path: Path) -> None:
     """Its arguments, working directory and environment names are the launcher's own."""
     repo = init_git_repo(tmp_path / "repo")
-    gate = _gate("show", _SHOW, "plain")
-    monkeypatch.setattr(scratch, "mkdtemp", lambda **_options: pytest.fail("a scratch was made"))
+    gate, runner = _gate("show", _SHOW, "plain"), LocalGateRunner()
     direct, _evidence = gate_attempt(repo, gate, gate.command, timeout=30)
 
-    result = _attempt(repo, LocalGateRunner(), gate)["show"]
+    result = _attempt(repo, runner, gate)["show"]
 
+    assert scratch.bind_scratch(runner, gate.command) == (gate.command, "")
     arguments, directory, names = json.loads(result.stdout)
     assert [arguments, names] == [["plain"], json.loads(direct.stdout)[2]]
     assert Path(directory).resolve() == repo.resolve()
 
 
-@pytest.mark.parametrize("recorded", ["made", "other"])
-def test_native_evidence_binds_the_scratch_of_its_launch(tmp_path: Path, recorded: str) -> None:
-    """The custody check reads the launched arguments with the attempt's scratch in place."""
-    repo = init_git_repo(tmp_path / "repo")
+def _native(repo: Path, recorded: str, launched: str) -> NativeExecution:
+    """Return a native execution whose evidence records one scratch and whose launch named one."""
     gate = Gate(
         id="native",
         kind="test",
@@ -144,21 +142,50 @@ def test_native_evidence_binds_the_scratch_of_its_launch(tmp_path: Path, recorde
         artifact="artifact",
         scratch=recorded,
     )
-    execution = NativeExecution(
-        gate_execution_identity(gate),
-        ("tool", "made/in", "out/report.xml"),
-        repo.resolve(),
-        0,
-        "",
-        "",
-        executable="tool",
-        evidence=evidence,
+    argv = ("tool", f"{launched}/in", "out/report.xml")
+    identity = gate_execution_identity(gate)
+    return NativeExecution(
+        identity, argv, repo.resolve(), 0, "", "", executable="tool", evidence=evidence
     )
+
+
+@pytest.mark.parametrize("recorded", ["{0}/made", "{0}/other", "", "made"])
+def test_native_evidence_binds_the_scratch_of_its_launch(tmp_path: Path, recorded: str) -> None:
+    """Custody accepts the recorded absolute scratch in the placeholder's place, nothing else."""
+    repo = init_git_repo(tmp_path / "repo")
+    launched = recorded.replace("other", "made").format(tmp_path)
+    execution = _native(repo, recorded.format(tmp_path), launched)
 
     with pytest.raises((ValueError, ProcessExecutionError)) as refused:
         native_report(repo, execution, "behavior", language="javascript")
 
-    assert ("native_selection_invalid" in str(refused.value)) is (recorded != "made")
+    assert ("native_selection_invalid" in str(refused.value)) is (recorded != "{0}/made")
+
+
+def test_the_retained_receipt_records_the_scratch_of_its_launch(tmp_path: Path) -> None:
+    """The receipt keeps the scratch beside the output root that the launched arguments name."""
+    kept = retained_execution(_native(init_git_repo(tmp_path / "repo"), "made", "made")).evidence
+
+    assert kept is not None
+    with ZipFile(kept.artifact) as archive:
+        receipt = json.loads(archive.read("execution.json"))
+    assert (receipt["scratch"], receipt["output_root"]) == ("made", "out")
+
+
+def test_the_owner_mark_reaches_a_scratch_first_named_before_the_ticket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A readiness gate names the scratch before the run holds its ticket; a later one marks it."""
+    monkeypatch.delenv(ADMISSION_ENV, raising=False)
+    monkeypatch.setenv(ACTOR_VARIABLE, "agent/scratch")
+    runner = LocalGateRunner()
+    first = Path(scratch.bind_scratch(runner, ("tool", "{scratch}"))[1])
+    assert work_owner(first.parent) == ""
+    monkeypatch.setenv(ADMISSION_ENV, "ticket")
+
+    second = Path(scratch.bind_scratch(runner, ("tool", "{scratch}"))[1])
+
+    assert (second, work_owner(second.parent)) == (first, "agent/scratch")
 
 
 def test_the_gate_schema_admits_a_command_that_names_the_scratch() -> None:

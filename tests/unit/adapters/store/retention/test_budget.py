@@ -10,11 +10,14 @@ import pytest
 
 import ethos.application.retention as retention
 from ethos.adapters.store.retention.budget import budget_row
+from ethos.adapters.store.retention.budget import owned_budget
 from ethos.adapters.store.retention.budget import store_report
 from ethos.adapters.store.retention.budget import tree_bytes
 from ethos.adapters.store.state.schema import local_state_root
-from ethos.repository.paradigm.parameters import repository_parameters
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
+from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_process
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 from tests.support.retention_store import proof_check
@@ -47,10 +50,7 @@ def test_the_report_counts_regular_files_by_name_and_follows_no_link(tmp_path: P
     assert (absent["names"], absent["unread"]) == ({}, 0)
 
 
-@pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_directory_that_cannot_be_read_is_counted_and_the_rest_is_reported(
     tmp_path: Path,
 ) -> None:
@@ -68,9 +68,34 @@ def test_a_directory_that_cannot_be_read_is_counted_and_the_rest_is_reported(
     assert (shut["names"], shut["unread"]) == ({}, 1)
 
 
-@pytest.mark.parametrize(("held", "state"), [(16, "within"), (17, "over")])
-def test_a_row_is_over_only_above_its_budget(held: int, state: str) -> None:
-    assert budget_row(held, 16) == {"bytes": held, "budget_bytes": 16, "state": state}
+@NEEDS_A_CLOSED_DIRECTORY
+def test_a_file_whose_status_cannot_be_read_is_counted_and_the_row_says_unread(
+    tmp_path: Path,
+) -> None:
+    """A listed name that cannot be read is a place not read; nothing at a path is none."""
+    listed = tmp_path / "artifacts"
+    listed.mkdir()
+    (listed / "kept").write_bytes(b"x" * 7)
+    listed.chmod(0o400)
+    try:
+        assert tree_bytes(listed) == {"files": 0, "bytes": 0, "unread": 1}
+        row = owned_budget(tmp_path, 16)
+    finally:
+        listed.chmod(0o700)
+    assert row == {"bytes": 0, "budget_bytes": 16, "state": "unread", "unread": 1}
+    assert tree_bytes(tmp_path / "absent") == {"files": 0, "bytes": 0, "unread": 0}
+    assert tree_bytes(listed / "kept/below") == {"files": 0, "bytes": 0, "unread": 0}
+
+
+@pytest.mark.parametrize(
+    ("held", "unread", "state"),
+    [(16, 0, "within"), (17, 0, "over"), (16, 2, "unread"), (17, 2, "unread")],
+)
+def test_a_row_is_over_only_above_its_budget_and_never_within_on_an_incomplete_read(
+    held: int, unread: int, state: str
+) -> None:
+    row = {"bytes": held, "budget_bytes": 16, "state": state, "unread": unread}
+    assert budget_row(held, 16, unread) == row
 
 
 def test_a_row_that_is_over_changes_nothing_else_in_the_preview(repo: Path) -> None:
@@ -85,8 +110,9 @@ def test_a_row_that_is_over_changes_nothing_else_in_the_preview(repo: Path) -> N
     over = retention.preview_record_retirement(repo)
 
     kept = {"verdict", "state", "required_gaps", "next_action"}
-    assert within.summary["budget"] == {"bytes": held, "budget_bytes": 2**30, "state": "within"}
-    assert over.summary["budget"] == {"bytes": held, "budget_bytes": 1, "state": "over"}
+    row = {"bytes": held, "unread": 0}
+    assert within.summary["budget"] == row | {"budget_bytes": 2**30, "state": "within"}
+    assert over.summary["budget"] == row | {"budget_bytes": 1, "state": "over"}
     assert over.model_dump(include=kept) == within.model_dump(include=kept)
     assert over.data["store"]["names"]["artifacts"] == {"files": 1, "bytes": held, "unread": 0}
 
@@ -97,7 +123,8 @@ def test_the_supply_preview_reports_the_host_installations(
 ) -> None:
     """With and without the switch the summary holds the row; a lower declared value is over.
 
-    The console binds the repository's parameters to an invocation; the test binds them itself.
+    The lowered case runs the console in a fresh process, which binds the parameters of the
+    repository that `--root` names.
     """
     installation = Path(os.environ["XDG_DATA_HOME"]) / "ethos/installations" / ("9" * 16)
     (installation / "runtime").mkdir(parents=True)
@@ -108,13 +135,27 @@ def test_the_supply_preview_reports_the_host_installations(
     default = run_ethos(*words, "--root", str(repository), "--json")
     (repository / ".ethos").mkdir(exist_ok=True)
     (repository / ".ethos/rules.toml").write_text("[paradigm.retention]\nhost_bytes = 1024\n")
-    with repository_parameters(repository):
-        lowered = run_ethos(*words, "--root", str(repository), "--json")
+    lowered = full_result(run_ethos_process(*words, "--root", str(repository), "--json"))
 
-    assert default["summary"]["budget"] == {
-        "bytes": 2048,
-        "budget_bytes": 4 * 2**30,
-        "state": "within",
-    }
-    assert lowered["summary"]["budget"] == {"bytes": 2048, "budget_bytes": 1024, "state": "over"}
+    row = {"bytes": 2048, "unread": 0}
+    assert default["summary"]["budget"] == row | {"budget_bytes": 4 * 2**30, "state": "within"}
+    assert lowered["summary"]["budget"] == row | {"budget_bytes": 1024, "state": "over"}
     assert (lowered["verdict"], lowered["state"]) == (default["verdict"], default["state"])
+
+
+@NEEDS_A_CLOSED_DIRECTORY
+def test_the_supply_row_says_unread_when_an_installation_cannot_be_read(tmp_path: Path) -> None:
+    """The preview's row carries the places it could not read, and its verdict stays."""
+    runtime = Path(os.environ["XDG_DATA_HOME"]) / "ethos/installations" / ("9" * 16) / "runtime"
+    runtime.mkdir(parents=True)
+    (runtime / "payload").write_bytes(b"x" * 2048)
+    repository = init_git_repo(tmp_path / "projects/repository")
+    words = ("hook", "retire-supply", "--scan", str(tmp_path / "projects"))
+    runtime.chmod(0o400)
+    try:
+        preview = run_ethos(*words, "--root", str(repository), "--json")
+    finally:
+        runtime.chmod(0o700)
+
+    row = {"bytes": 0, "budget_bytes": 4 * 2**30, "state": "unread", "unread": 1}
+    assert (preview["summary"]["budget"], preview["verdict"]) == (row, "pass")

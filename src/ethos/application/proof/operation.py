@@ -22,6 +22,7 @@ from ethos.adapters.admission.current.resolution import resolve_current_resoluti
 from ethos.adapters.gates.child_environment import inherited_environment
 from ethos.adapters.gates.footprint import footprint_entry
 from ethos.adapters.gates.footprint import lane_before
+from ethos.adapters.gates.input_key import forget_opened
 from ethos.adapters.gates.input_key import gate_inputs
 from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
     from contextlib import AbstractContextManager
     from pathlib import Path
 
+    from ethos.adapters.gates.footprint import LaneObservation
     from ethos.adapters.gates.proof_slot import SlotAdmission
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos.contracts.plan import PlanNode
@@ -285,6 +287,13 @@ def _gap_remedy(gaps: tuple[str, ...]) -> str:
     return next((str(hint["next_action"]) for hint in remediation.remediation_for_gaps(gaps)), "")
 
 
+def _with_footprint(
+    result: EthosResult, repo: Path, observed: LaneObservation | None
+) -> EthosResult:
+    """Return a result that ends a run early with the footprint of the gates that ran."""
+    return result.replace(data={**result.data, **footprint_entry(repo, observed)})
+
+
 def _proof_gap(error: ValueError, *, head: str = "") -> EthosResult:
     """Project one proof failure with its carried verdict, causes and evidence, and no claim."""
     outcome = outcome_of(error)
@@ -427,7 +436,8 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
             admission=admission if options.execute and options.full else None,
         )
     except ValueError as exc:
-        return _proof_gap(exc, head=current_head)
+        forget_opened(repo)
+        return _with_footprint(_proof_gap(exc, head=current_head), repo, observed)
     inputs = gate_inputs(
         repo,
         head=current_head,
@@ -473,7 +483,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
         required_gaps=required_gaps,
     )
     if stop is not None:
-        return stop
+        return _with_footprint(stop, repo, observed)
     result_state = (
         "proven"
         if verdict == "pass" and options.execute

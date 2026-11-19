@@ -16,6 +16,7 @@ from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.runtime_scenarios import materialized_activation_case
 
 if TYPE_CHECKING:
@@ -123,10 +124,7 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 
-@pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
+@NEEDS_A_CLOSED_DIRECTORY
 @pytest.mark.parametrize(
     "closed", ["..", "", "ethos", "ethos/runtime"], ids=["parent", "common", "state", "selectors"]
 )

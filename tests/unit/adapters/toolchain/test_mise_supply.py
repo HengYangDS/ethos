@@ -155,17 +155,23 @@ def test_a_complete_supply_resolves_an_undeclared_executable(
 def test_a_launch_path_is_read_against_the_lock_without_a_refusal(
     tmp_path, monkeypatch, supply
 ) -> None:
-    """A path that finds a locked tool in another tool's install names it, beside the installs."""
+    """A path that finds a locked tool in another tool's install names it, beside the supply."""
     rows = {tool: _row(path, "1") for tool, path in supply.items()}
     monkeypatch.setattr(mise, "run_mise", _Mise(rows, supply["npm"], ()))
-    installs = tuple(path.resolve() for path in supply.values())
 
     outside, inside = (
         mise.launch_supply(tmp_path, _files(), str(supply[tool] / "bin")) for tool in supply
     )
 
-    assert outside == (("mise_executable_outside_tool:npm",), installs)
-    assert inside == ((), installs)
+    assert outside == (("mise_executable_outside_tool:npm",), rows)
+    assert inside == ((), rows)
+    # A word is the lock's own only from the install of the tool named after it; a word that no
+    # declared tool names, as Node's npx, is the lock's from any install, and from no other place.
+    places = ("node/26.13.0/bin/npm", "npm/12.2.1/bin/npm", "node/26.13.0/bin/npx", "bin/npx")
+    assert [
+        mise.lock_supplies(rows, place.rpartition("/")[2], tmp_path / "installs" / place)
+        for place in places
+    ] == [False, True, True, False]
 
 
 @pytest.mark.parametrize(

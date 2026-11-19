@@ -124,9 +124,11 @@ The preview also reports what the store holds: for each top-level name the regul
 bytes and the directories it could not read, with the time of the read, following no link. Its
 summary carries one budget row, the bytes of the directories that record retirement owns against
 `retention.status_bytes`, and the preview of `ethos hook retire-supply` carries the row of the
-host store's installations against `retention.host_bytes`. A row is `within` or `over`. A budget
-reports and refuses nothing: a row that is over changes no verdict, exit, required gap or next
-action. Sizes are the sizes of files, so a file system that shares blocks holds fewer bytes.
+host store's installations against `retention.host_bytes`. A row is `within` or `over`; a row
+whose read could not reach a place is `unread`, with the count of those places, and never
+`within`. A budget reports and refuses nothing: a row that is over or unread changes no verdict,
+exit, required gap or next action. Sizes are the sizes of files, so a file system that shares
+blocks holds fewer bytes.
 
 Tracked `.ethos/` paths are repository declarations, never mutable runtime
 storage. All state readers and writers resolve the same Git-common owner; a

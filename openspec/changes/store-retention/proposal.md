@@ -41,7 +41,7 @@ At the base the first is held and the other two are not:
   record is released, so a moved repository keeps what it selects.
 - The preview of `ethos hook retire-records` reports the files and bytes under each top-level name
   of the store, the time of the read, and one budget row: the bytes of the owned kinds against
-  `retention.status_bytes`, as `within` or `over`.
+  `retention.status_bytes`, as `within` or `over`, or `unread` where the read was incomplete.
 - The paradigm gains `retention.host_bytes`, the budget of the host store's installations, and the
   preview of `hook retire-supply` reports that row.
 - A budget only reports. No verdict, exit or required gap changes, and no command refuses for

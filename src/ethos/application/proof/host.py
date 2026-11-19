@@ -13,6 +13,7 @@ from ethos.adapters.gates.child_environment import inherited_environment
 from ethos.adapters.gates.host_admission import admitted_host_work
 from ethos.adapters.gates.host_admission import exported
 from ethos.adapters.gates.input_key import GateInputs
+from ethos.adapters.gates.input_key import forget_opened
 from ethos.adapters.gates.input_key import gate_inputs
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import LocalGateRunner
@@ -107,6 +108,8 @@ def observe_gate_execution(
     except ValueError as error:
         failure = outcome_of(error)
         checks, not_run = _kept(error, checks)
+    finally:
+        forget_opened(root)
     observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), after, failure)
     return {
         "verdict": observed.verdict,
@@ -283,6 +286,8 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
                 )
     except ValueError as error:
         failure = outcome_of(error)
+    finally:
+        forget_opened(repo)
     observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), failure)
     verdict = observed.verdict
     return EthosResult(

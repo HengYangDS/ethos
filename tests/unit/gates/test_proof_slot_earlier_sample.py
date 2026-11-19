@@ -5,9 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from filelock import FileLock
 
 import ethos.adapters.gates.proof_slot as proof_slot
+from ethos.adapters.store.state.schema import local_state_root
 from tests.support.clock import FakeClock
+from tests.support.clock import ReleasingClock
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
@@ -16,9 +19,14 @@ if TYPE_CHECKING:
 _HEAD = "a" * 40
 
 
-def _sleeps(repo: Path, loads: list[float], earlier: tuple[float, float | None] | None) -> list:
+def _sleeps(
+    repo: Path,
+    loads: list[float],
+    earlier: tuple[float, float | None] | None,
+    clock: FakeClock | None = None,
+) -> list:
     """Admit a proof one minute into a fake clock and return the sleeps its admission took."""
-    clock = FakeClock()
+    clock = clock or FakeClock()
     clock.now = 60.0
     with proof_slot.admitted_full_proof(
         repo,
@@ -59,3 +67,15 @@ def test_a_calm_sample_before_the_readiness_gates_counts_once(
 ) -> None:
     """Two calm samples one interval apart admit; the readiness gates' own time is that interval."""
     assert _sleeps(init_git_repo(tmp_path / "repo"), loads, earlier) == sleeps
+
+
+def test_a_wait_for_the_slot_ends_the_run_of_calm_samples(tmp_path: Path) -> None:
+    """A calm, old earlier sample counts for nothing once the proof has waited for its slot."""
+    repo = init_git_repo(tmp_path / "repo")
+    state = local_state_root(repo)
+    state.mkdir(parents=True, exist_ok=True)
+    running = FileLock(state / "proof-slot.lock")
+    running.acquire()
+    # The running proof leaves during the first sleep; two fresh calm samples follow it.
+    clock = ReleasingClock(0.0, running.release)
+    assert _sleeps(repo, [5.0], (0.0, 4.0), clock) == [15.0, 15.0]

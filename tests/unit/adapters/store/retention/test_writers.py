@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
-
-import pytest
 
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.store.retention.writers import running_writers
 from ethos.adapters.store.retention.writers import writer_roots
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 
 def _entry(path: Path) -> Path:
@@ -65,13 +65,7 @@ def test_a_command_line_that_names_no_file_is_no_writer(tmp_path: Path) -> None:
     assert running_writers(f"{ethos} lane status {words}", (environment,)) == (environment,)
 
 
-_NEEDS_A_CLOSED_DIRECTORY = pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
-
-
-@_NEEDS_A_CLOSED_DIRECTORY
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_command_below_a_directory_that_cannot_be_searched_is_no_writer(tmp_path: Path) -> None:
     """Its entry cannot be looked at, as its directory cannot be resolved to find its owner.
 
@@ -89,7 +83,7 @@ def test_a_command_below_a_directory_that_cannot_be_searched_is_no_writer(tmp_pa
         closed.chmod(0o755)
 
 
-@_NEEDS_A_CLOSED_DIRECTORY
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_link_to_an_interpreter_that_cannot_be_looked_at_is_a_writer(tmp_path: Path) -> None:
     """The link lies in the writer root and can be looked at; only what it names cannot.
 

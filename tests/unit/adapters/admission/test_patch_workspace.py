@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.admission.patch_workspace as owner
 import ethos.adapters.repo.git_patch as reader
 from ethos.adapters.repo.git_patch import unified_patch_changes
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
@@ -277,10 +278,7 @@ def test_the_null_path_is_free_under_a_real_directory(tmp_path: Path) -> None:
     assert _entered(repo, _DELETE_WITHOUT_MODE) == {"a.txt": (None, "delete")}
 
 
-@pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_place_that_cannot_be_looked_at_is_no_absence(tmp_path: Path) -> None:
     """A directory above the null path that cannot be searched is an error, on every interpreter."""
     repo = _repository(tmp_path)

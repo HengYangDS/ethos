@@ -234,6 +234,39 @@ def test_an_observation_records_what_its_stated_provider_opened(
     assert [[row["opened"] for row in rows] for rows in recorded] == [[["lib/one.py"]]]
 
 
+def test_a_run_that_fails_after_its_gates_drops_the_names_they_opened(
+    repository: Path, monkeypatch
+) -> None:
+    """A refusal raised after the gates ran reaches no record call; the names still go."""
+
+    def provider(root):
+        (root / "lib/one.py").read_bytes()
+        return {"verdict": "pass", "state": "clean", "required_gaps": []}
+
+    observe, calls = host.observe_execution_source, []
+
+    def fail_the_second_reading(*arguments: object) -> object:
+        calls.append(arguments)
+        if len(calls) > 1:
+            message = "the source could not be read"
+            raise ValueError(message)
+        return observe(*arguments)
+
+    monkeypatch.setattr(DOCS_REGISTRY_PROVIDER.replace(":", "."), provider)
+    monkeypatch.setattr(host, "observe_execution_source", fail_the_second_reading)
+    head = current_tracked_head(repository)
+
+    observed = host.observe_gate_execution(
+        repository, gate_ids=("docs-registry",), expect_head=head
+    )
+
+    run = input_key.run_inputs(repository, current_tree(repository), _OTHER)
+    gate = _GATE | {"id": "docs-registry"}
+    assert (len(calls), observed["verdict"]) == (2, "block")
+    assert "gate_inputs" not in observed
+    assert input_key.opened_outside(repository, gate, run) == []
+
+
 def test_a_held_gate_has_no_row_and_the_record_holds_no_environment_name_or_value(
     repository: Path, monkeypatch
 ) -> None:

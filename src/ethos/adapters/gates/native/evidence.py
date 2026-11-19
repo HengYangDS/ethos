@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.gates.native.python import nox_sessions
 from ethos.adapters.gates.native.python import runtime_scopes
+from ethos.adapters.gates.scratch import PLACEHOLDER
 from ethos.adapters.gates.scratch import with_scratch
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
@@ -19,14 +21,23 @@ from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.adapters.gates.verification import NativeEvidence
     from ethos.adapters.gates.verification import NativeExecution
     from ethos.contracts.gates import NativeOutput
     from ethos.repository.policy.code_subjects import CodeSubject
 
 _COVERAGE = frozenset({"cobertura-xml", "lcov"})
+
+
+def _declared_arguments(evidence: NativeEvidence) -> tuple[str, ...]:
+    """Return the declared arguments with the recorded scratch and output root in their places."""
+    declared = evidence.gate.command[1:]
+    if any(PLACEHOLDER in item for item in declared) and not Path(evidence.scratch).is_absolute():
+        # The placeholder stands for the absolute directory that the run recorded, or nothing.
+        msg = "native_selection_invalid"
+        raise ValueError(msg)
+    bound = with_scratch(declared, evidence.scratch)
+    return tuple(item.replace("{native_output}", evidence.output_root) for item in bound)
 
 
 def _custody(
@@ -43,10 +54,7 @@ def _custody(
     if execution.cwd != root.resolve() or not evidence.artifact:
         msg = "native_custody_missing"
         raise ValueError(msg)
-    expected_argv = tuple(
-        item.replace("{native_output}", evidence.output_root)
-        for item in with_scratch(evidence.gate.command[1:], evidence.scratch)
-    )
+    expected_argv = _declared_arguments(evidence)
     if (
         execution.declared_identity != gate_execution_identity(evidence.gate)
         or execution.argv[1:] != expected_argv

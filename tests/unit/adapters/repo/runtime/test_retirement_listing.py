@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import subprocess
@@ -13,8 +14,8 @@ import pytest
 
 import ethos.adapters.process as process
 import ethos.adapters.repo.runtime.retirement as retirement
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.runtime_scenarios import fixture_runtime_generation
-from tests.unit.adapters.repo.runtime.support import NEEDS_A_CLOSED_DIRECTORY
 from tests.unit.adapters.repo.runtime.support import generation_tree
 
 
@@ -96,22 +97,22 @@ def test_listed_path_deleted_while_observed_is_an_observed_absence(
         listed.mkdir()
     else:
         listed.symlink_to(tmp_path / "absent")
-    present = os.path.lexists
+    ask = os.lstat
 
-    def deleted_after_check(path: Path) -> bool:
-        found = present(path)
-        if found and deleted and path == listed:
+    def deleted_after_check(path: str | Path, **options: object) -> os.stat_result:
+        found = ask(path, **options)
+        if deleted and Path(path) == listed and listed.is_dir():
             listed.rmdir()
         return found
 
-    monkeypatch.setattr(os.path, "lexists", deleted_after_check)
+    monkeypatch.setattr(os, "lstat", deleted_after_check)
     monkeypatch.setattr(retirement, "process_commands", lambda _root: f"git -C {listed} status")
 
     result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
 
     assert result["state"] == ("complete" if deleted else "deferred"), result
     assert obsolete.exists() is not deleted
-    assert present(listed) is not deleted
+    assert os.path.lexists(listed) is not deleted
 
 
 @NEEDS_A_CLOSED_DIRECTORY
@@ -141,6 +142,31 @@ def test_a_listed_path_that_cannot_be_looked_at_is_an_observed_absence(
     assert result["state"] == ("deferred" if listing == "link" else "complete"), result
     assert candidate.exists() is (listing in {"link", "generation"})
     assert (candidate.as_posix() in result["retained"]) is (listing == "generation")
+    assert result["unproven_removals"] == []
+
+
+def test_a_host_failure_at_a_listed_name_leaves_the_observation_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only no entry and no permission mean absent: an input error defers the reclamation."""
+    repo, hooks, runtime = generation_tree(tmp_path)
+    obsolete = fixture_runtime_generation(runtime, "history")
+    listed = tmp_path / "listed"
+    listed.mkdir()
+    ask = os.lstat
+
+    def failing(path: str | Path, **options: object) -> os.stat_result:
+        if Path(path) == listed:
+            raise OSError(errno.EIO, os.strerror(errno.EIO))
+        return ask(path, **options)
+
+    monkeypatch.setattr(os, "lstat", failing)
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: f"git -C {listed} status")
+
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert result["state"] == "deferred", result
+    assert obsolete.exists()
 
 
 def test_process_references_read_windows_separators(

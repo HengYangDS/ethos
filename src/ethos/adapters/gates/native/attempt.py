@@ -89,6 +89,7 @@ def _retain(root: Path, execution: NativeExecution) -> str:
                     "policy_digest": canonical_json_digest(evidence.gate.to_dict()),
                     "gate": evidence.gate.to_dict(),
                     "output_root": evidence.output_root,
+                    "scratch": evidence.scratch,
                     "observer_requirement": evidence.observer_requirement,
                     "gaps": evidence.gaps,
                     "dependency_checks": [

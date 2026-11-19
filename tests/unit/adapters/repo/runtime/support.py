@@ -2,18 +2,10 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-
-import pytest
 
 from ethos.adapters.repo.git import git_common_dir
 from tests.support.governed_repository import init_git_repo
-
-NEEDS_A_CLOSED_DIRECTORY = pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
 
 
 def generation_tree(tmp_path: Path) -> tuple[Path, Path, Path]:

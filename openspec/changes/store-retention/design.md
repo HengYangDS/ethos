@@ -170,9 +170,11 @@ Non-Goals:
      refusal to a tree that passed its predecessor.
    - **Considered:** a required gap for a row that is over; a proof that stops over budget; an
      apply that starts by itself, against the plan's rule that no other command runs the verb.
-   - **Chosen because:** a row is `within` or `over` in a summary. Verdict, exit, gaps and next
-     step stay what they are: the preview already names the apply when it has candidates. A row
-     that is over with no candidate says so, and the repair is time or a higher value.
+   - **Chosen because:** a row is `within` or `over` in a summary, or `unread` with a count
+     where a place could not be read, so that an incomplete read never says `within`. Verdict,
+     exit, gaps and next step stay what they are: the preview already names the apply when
+     it has candidates. A row that is over with no candidate says so, and the repair is
+     time or a higher value.
    - **Applies to:** every release through 0.2.0. A blocking state would be a new rule with its
      own record.
 9. **The 48-hour observation is three previews' results, read by a second session.**

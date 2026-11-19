@@ -21,6 +21,7 @@ from ethos.adapters.store.retention.tombstones import retire
 from ethos.adapters.store.retention.tombstones import tombstone_of
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.governed_repository import commit_fixture
+from tests.support.retention_store import gate_result
 from tests.support.retention_store import lane_unit
 from tests.support.retention_store import merge_preimage
 from tests.support.retention_store import native_attempt
@@ -50,7 +51,7 @@ def test_an_apply_deletes_its_plan_once_and_receipts_the_run(repo: Path) -> None
         put(store, "artifacts", proof_check(), ".json", age_days=30),
         put(store, "artifacts", native_attempt(), ".zip", age_days=30),
         put(store, "artifacts", merge_preimage(), ".json", age_days=30),
-        put(store, "gate-results", b'{"schema": 1, "results": []}', ".json", age_days=30),
+        put(store, "gate-results", gate_result(), ".json", age_days=30),
         *unit.values(),
         operation,
     ]

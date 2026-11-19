@@ -3,23 +3,23 @@
 An observation reads Git's listing of nontracked paths, collapsed to directories; the files of
 the homes that the artifact topology keeps a run's output in, by name, size and modification
 time; and the names directly under the work home. The report names what appeared or changed
-between two observations. It decides nothing: a lane that cannot be observed reports why, and
-the report is empty when nothing appeared. A write inside a root that Git lists whole, such as
-an environment or a tool cache, is not seen.
+between two observations. It decides nothing: a lane that cannot be observed reports why, a
+path of a home that cannot be read is counted as unread, and the report is empty when nothing
+appeared and all was read. A write inside a root that Git lists whole, such as an environment
+or a tool cache, is not seen.
 """
 
 from __future__ import annotations
 
 import os
 from collections import Counter
-from contextlib import suppress
 from dataclasses import dataclass
 from dataclasses import field
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates.host_work import WORK_HOME
-from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 
@@ -37,6 +37,7 @@ class LaneObservation:
     files: Mapping[str, _Files] = field(default_factory=dict)
     work: frozenset[str] = frozenset()
     unavailable: str = ""
+    unread: frozenset[str] = frozenset()
 
 
 def _kept_homes() -> tuple[tuple[str, str], ...]:
@@ -47,14 +48,23 @@ def _kept_homes() -> tuple[tuple[str, str], ...]:
     )
 
 
-def _files(home: Path) -> _Files:
+def _unread(unread: set[str], error: OSError) -> None:
+    """Note a path that the host refused to read; one that is not there is only absent."""
+    if not isinstance(error, (FileNotFoundError, NotADirectoryError)):
+        unread.add(str(error.filename))
+
+
+def _files(home: Path, unread: set[str]) -> _Files:
     """Return the size and modification time of each file under a home; a link is not followed."""
     found: _Files = {}
-    for parent, _directories, names in os.walk(home):
+    for parent, _directories, names in os.walk(home, onerror=partial(_unread, unread)):
         for name in names:
             path = Path(parent, name)
-            with suppress(OSError):
+            try:
                 status = path.lstat()
+            except OSError as error:
+                _unread(unread, error)
+            else:
                 found[path.relative_to(home).as_posix()] = (status.st_size, status.st_mtime_ns)
     return found
 
@@ -68,18 +78,21 @@ def _names(directory: Path) -> frozenset[str]:
 
 
 def observe_lane(root: Path) -> LaneObservation:
-    """Observe one lane; a listing that fails or a home that cannot be read names itself."""
+    """Observe one lane and never raise; a listing or a read that fails names itself."""
+    unread: set[str] = set()
     try:
         listed = run_git(
             root, "ls-files", "-z", "--others", "--directory", check=False, observation=True
         )
         if listed.returncode:
             return LaneObservation(unavailable="git_listing")
-        files = {home: _files(root / home) for _kind, home in _kept_homes()}
+        files = {home: _files(root / home, unread) for _kind, home in _kept_homes()}
         work = _names(root / WORK_HOME)
-    except (OSError, ProcessExecutionError) as error:
+    except (OSError, ValueError) as error:
+        # A process failure, a name that is not UTF-8 and an invalid declaration are value errors.
         return LaneObservation(unavailable=type(error).__name__)
-    return LaneObservation(frozenset(filter(None, listed.stdout.split("\0"))), files, work)
+    roots = frozenset(filter(None, listed.stdout.split("\0")))
+    return LaneObservation(roots, files, work, unread=frozenset(unread))
 
 
 def lane_before(root: Path, *, execute: bool) -> LaneObservation | None:
@@ -100,8 +113,9 @@ def _changed(before: _Files, after: _Files) -> dict[str, int]:
 def footprint_report(root: Path, before: LaneObservation) -> dict[str, object]:
     """Return what appeared or changed in a lane since an observation; empty when nothing did.
 
-    Its scalar members count each lifecycle class's files and bytes, the new work names and the
-    new nontracked roots, so a bounded result keeps them while the paths move to its detail.
+    Its scalar members count each lifecycle class's files and bytes, the new work names, the
+    new nontracked roots and the paths that either observation could not read, so a bounded
+    result keeps them while the paths move to its detail.
     """
     after = observe_lane(root)
     if before.unavailable or after.unavailable:
@@ -116,5 +130,6 @@ def footprint_report(root: Path, before: LaneObservation) -> dict[str, object]:
             counts.update({f"{kind}_files": len(changed), f"{kind}_bytes": size})
     work, roots = sorted(after.work - before.work), sorted(after.roots - before.roots)
     counts.update(work_names=len(work), new_roots=len(roots))
+    counts.update(unread=len(before.unread | after.unread))
     listed: dict[str, object] = {"homes": homes, "work": work, "roots": roots}
     return {name: value for name, value in {**counts, **listed}.items() if value}

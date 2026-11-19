@@ -55,7 +55,9 @@ def _selection(
     roles = load_branch_role_policy(repo)
     lane = roles.role_for_branch(current_branch(repo)) == ROLE_WORK_LANE
     base = roles.candidate_branch if lane else ""
-    listed = git_stdout_checked(repo, "diff", "--name-only", "-z", f"{base}...HEAD") if base else ""
+    # A rename is listed as its two paths: a test that names the old one reads the change too.
+    span = ("--no-renames", f"refs/heads/{base}...HEAD")
+    listed = git_stdout_checked(repo, "diff", "--name-only", "-z", *span) if base else ""
     changed = [path for path in listed.split("\0") if path]
     subjects = [
         subject
@@ -64,18 +66,24 @@ def _selection(
         )
         if subject.language == "python"
     ]
-    files = {
-        subject.path: text
-        for subject in subjects
-        if (text := tracked_text(repo, subject.path, tracked)) is not None
-    }
+    files = _tracked_texts(repo, tracked, [subject.path for subject in subjects])
+    manifest = _tracked_texts(repo, tracked, [_PYTHON_MANIFEST])
     tests, unread = select_tests(
         changed,
         files,
         frozenset(subject.path for subject in subjects if subject.is_test),
-        carried_paths(tracked_text(repo, _PYTHON_MANIFEST, tracked) or ""),
+        carried_paths(manifest.get(_PYTHON_MANIFEST, "")),
     )
     return {"base": base, "changed_paths": len(changed), "tests": tests, "unread_paths": unread}
+
+
+def _tracked_texts(repo: Path, tracked: frozenset[str], paths: list[str]) -> dict[str, str]:
+    """Read the tracked ones of some paths as text; one that cannot be read is an error."""
+    texts = {path: tracked_text(repo, path, tracked) for path in paths if path in tracked}
+    if unreadable := sorted(path for path, text in texts.items() if text is None):
+        message = f"tracked files cannot be read as text: {', '.join(unreadable)}"
+        raise ValueError(message)
+    return {path: text for path, text in texts.items() if text is not None}
 
 
 def _forge_sessions(

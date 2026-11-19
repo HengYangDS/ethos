@@ -14,12 +14,15 @@ _FILES = {
     "src/pkg/near.py": "from pkg import core\n",
     "src/pkg/far.py": "from pkg.near import core\n",
     "src/pkg/sub/leaf.py": "from .. import core\n",
+    "src/pkg/torn.py": "def torn(:\n",
     "tests/test_core.py": "import pkg.core\n",
     "tests/test_near.py": "from pkg.near import core\n",
     "tests/test_far.py": "import pkg.far\n",
+    "tests/test_gone.py": "import pkg.gone\n",
     "tests/test_leaf.py": "from pkg.sub import leaf\n",
     "tests/test_doc.py": "PAGE = 'docs/guide.md'\n",
     "tests/test_package.py": "TABLE = 'force-include'\n",
+    "tests/test_torn.py": "import pkg.torn\n",
     "tests/unit/conftest.py": "",
     "tests/unit/test_broken.py": "def broken(:\n    'docs/guide.md'\n",
 }
@@ -40,6 +43,7 @@ _IMPORTING = dict.fromkeys(
         (["src/pkg/core.py"], _IMPORTING, []),
         (["src/pkg/far.py"], {"tests/test_far.py": "imports"}, []),
         (["src/pkg/gone.py"], {}, ["src/pkg/gone.py"]),
+        (["src/pkg/torn.py"], {}, ["src/pkg/torn.py"]),
         (["tests/test_far.py"], {"tests/test_far.py": "changed"}, []),
         (
             ["tests/unit/conftest.py"],
@@ -56,17 +60,24 @@ _IMPORTING = dict.fromkeys(
             },
             ["docs/other.md"],
         ),
+        (
+            ["tests/test_core.py", "src/pkg/core.py"],
+            {**_IMPORTING, "tests/test_core.py": "changed"},
+            [],
+        ),
     ],
     ids=[
         "named-and-carried-document",
         "under-a-carried-directory",
         "no-reader",
         "module-and-its-direct-importers",
-        "two-imports-away-is-not-selected",
+        "module-with-only-a-direct-importer",
         "deleted-module",
+        "unparsable-module-selects-no-importer",
         "changed-test",
         "conftest-selects-its-directory",
         "union-keeps-the-strongest-reason",
+        "union-keeps-the-strongest-reason-given-first",
     ],
 )
 def test_a_change_selects_its_readers_and_names_the_paths_without_one(
@@ -74,6 +85,14 @@ def test_a_change_selects_its_readers_and_names_the_paths_without_one(
 ) -> None:
     """Each reason is read from tracked text: the change itself, an import, a name, the package."""
     assert select_tests(changed, _FILES, _TESTS, _CARRIED) == (selected, unread)
+
+
+def test_a_test_three_imports_from_a_change_is_not_selected() -> None:
+    """`test_far` imports `far`, which imports `near`, which imports `core`: one file too far."""
+    near, _ = select_tests(["src/pkg/near.py"], _FILES, _TESTS)
+    core, _ = select_tests(["src/pkg/core.py"], _FILES, _TESTS)
+    assert near["tests/test_far.py"] == "imports"
+    assert "tests/test_far.py" not in core
 
 
 def test_a_root_conftest_selects_every_test() -> None:
@@ -93,9 +112,11 @@ def test_a_root_conftest_selects_every_test() -> None:
         ),
         ('[project]\nname = "p"\n', ()),
         ("[tool.hatch.build.targets.wheel]\nforce-include = 3\n", ()),
+        ('[tool.hatch.build.targets.wheel]\nforce-include = "docs"\n', ()),
+        ("[tool.hatch.build.targets.wheel]\nforce-include = [1]\n", ()),
         ("", ()),
     ],
-    ids=["declared", "no-table", "not-a-table", "no-manifest"],
+    ids=["declared", "no-table", "not-a-table", "a-string", "an-array", "no-manifest"],
 )
 def test_the_carried_paths_come_from_the_wheel_table_or_are_none(
     manifest: str, carried: tuple[str, ...]

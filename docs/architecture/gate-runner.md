@@ -50,10 +50,12 @@ An executed proof observes its lane before its first gate and after its last, an
 difference as `data.footprint`: for the evidence and artifact homes of the
 [artifact topology](generated-artifact-topology.md) the files and bytes that appeared or changed,
 the new names directly under the work home, and each new nontracked root of Git's listing. The
-report is empty when nothing appeared. It decides nothing: no verdict, exit or required gap reads
-it, and a lane that cannot be listed reports why. A bounded result keeps the counts and moves the
-paths to its detail. A write inside a root that Git lists whole, such as an environment or a tool
-cache, is not seen, so an empty report does not say that the lane is unchanged.
+report is empty when nothing appeared. A path of those homes that cannot be read is counted as
+`unread`, so a reading that is not whole never says that nothing appeared. It decides nothing: no
+verdict, exit or required gap reads it, and a lane that cannot be observed reports why and raises
+nothing. A bounded result keeps the counts and moves the paths to its detail. A write inside a root
+that Git lists whole, such as an environment or a tool cache, is not seen, so an empty report does
+not say that the lane is unchanged.
 
 ## Forge Projections
 
@@ -143,15 +145,16 @@ Git directory's local attributes file.
 
 ## Command Scratch
 
-A declared command names the scratch directory of its run of gates with `{scratch}` in an
-argument, as it names the interpreter with `{python}` and the root of its declared native outputs
-with `{native_output}`. The first command of a run that names it makes one directory under the
-temporary root, marked with the run's owner where the run holds a host ticket. Every later command
-of that run receives the same directory, so one command's output can be another's input, and the
-directory ends with the run. The gate's identity keeps the placeholder. A command that does not
-name it is launched as it is declared, and nothing is made. A runtime that does not read the
-placeholder passes the word through as it is, so a registry names it only once every runtime that
-proves the repository reads it.
+A declared command names the scratch directory of its run of gates with `{scratch}` in an argument,
+as it names the interpreter with `{python}` and the root of its declared native outputs with
+`{native_output}`. The first command of a run that names it makes one directory under the temporary
+root, marked with the run's owner once the run holds a host ticket. The scratch lies under the
+launch's temporary root (`TMPDIR`, `TEMP` or `TMP`), so it is outside the lane only where that root
+is, and nothing checks that. Every later command of that run receives the same directory, so one
+command's output can be another's input, and the directory ends with the run. The gate's identity
+keeps the placeholder. A command that does not name it is launched as it is declared, and nothing is
+made. A runtime that does not read the placeholder passes the word through as it is, so a registry
+names it only once every runtime that proves the repository reads it.
 
 ## Local Fallback Evidence
 

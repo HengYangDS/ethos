@@ -71,7 +71,8 @@ _LANE_FILES = {
     "tests/test_other.py": "",
     ".github/workflows/ci.yml": "jobs:\n  hosted:\n    steps:\n      - run: nox -s conformance\n",
 }
-_FORGE = {"forge_jobs": 1, "forge_only_sessions": {"conformance": ["github:hosted"]}}
+_HOSTED = ".github/workflows/ci.yml:hosted"
+_FORGE = {"forge_jobs": 1, "forge_only_sessions": {"conformance": [_HOSTED]}}
 
 
 @pytest.mark.parametrize(
@@ -120,6 +121,35 @@ def test_the_readiness_result_names_what_it_did_not_examine(
     assert result.verdict == "pass"
     assert unexamined == {"gates": ["tests"], **(selection or {}), **_FORGE}
     assert list(unavailable) == ([] if selection else ["selection"])
+
+
+@pytest.mark.parametrize("change", ["renamed", "unreadable"])
+def test_a_rename_selects_its_old_readers_and_an_unreadable_test_is_named(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, change: str
+) -> None:
+    """A rename is a deletion and an addition; a tracked file that cannot be read is no silence."""
+    repo = committed_source_repo(tmp_path, _LANE_FILES)
+    git(repo, "branch", "candidate/dev")
+    git(repo, "switch", "-c", "work/change")
+    if change == "renamed":
+        git(repo, "mv", "docs/page.md", "docs/moved.md")
+    else:
+        (repo / "tests/test_other.py").write_bytes(b"\xff\xfe")
+    commit_fixture(repo, "docs: change the tree")
+    _stub_policy(monkeypatch, repo, _Passing)
+
+    result = host.readiness_observation(repo=repo, expect_head=None)
+
+    unexamined = result.to_dict()["data"]["unexamined"]
+    assert result.verdict == "pass"
+    if change == "renamed":
+        assert (unexamined["changed_paths"], unexamined["tests"]) == (
+            2,
+            {"tests/test_page.py": "names"},
+        )
+    else:
+        assert "tests/test_other.py" in unexamined["unavailable"]["selection"]
+        assert "tests" not in unexamined
 
 
 @pytest.mark.parametrize("lint", ["pass", "block"])

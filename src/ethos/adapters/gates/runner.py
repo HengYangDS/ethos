@@ -99,6 +99,11 @@ class LocalGateRunner:
         # One runner reads a repository's lock once, however many commands start together.
         self.locked, self.reading = cache(locked_toolchain), Lock()
 
+    def _supply(self, word: str, root: Path) -> dict[str, list[dict[str, object]]]:
+        """Read a repository's lock once a runner, and never for a first word that is a path."""
+        with self.reading:
+            return self.locked(root)[2] if Path(word).name == word else {}
+
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         result = None
         try:
@@ -126,7 +131,6 @@ class LocalGateRunner:
     def _run(
         self, node: PlanNode, gate: Gate, *, root: Path, attempt_scope: ExitStack
     ) -> ActionRunResult:
-        deadline = monotonic() + gate_timeout(gate)[0]
         if node.command != gate_execution_identity(gate):
             return ActionRunResult(
                 action_id=node.id,
@@ -153,9 +157,9 @@ class LocalGateRunner:
         execution_command = (
             (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
-        with self.reading:
-            installs = self.locked(root)[2]
-        origin = command_origin(command[0], executable, installs)
+        # The lock is read before the deadline starts: a slow read takes no time from a command.
+        origin = command_origin(command[0], executable, self._supply(command[0], root))
+        deadline = monotonic() + gate_timeout(gate)[0]
         native_evidence = None
         node_attempt = None
         if set(provider_spellings("provider.code-behavior")).intersection(

@@ -26,6 +26,7 @@ from typing import Literal
 from filelock import FileLock
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
@@ -223,11 +224,22 @@ def path_absent(path: Path) -> bool | None:
 
 
 def _directory(path: Path) -> bool:
-    """Say whether a path is a directory and no link; a place the host cannot look at is none."""
+    """Say whether a path is a directory, no link and no junction; an unseen place is none."""
     try:
-        return stat.S_ISDIR(os.lstat(path).st_mode)
+        return stat.S_ISDIR(os.lstat(path).st_mode) and not is_junction(path)
     except (OSError, ValueError):
         return False
+
+
+def _store_there(store: Path) -> bool:
+    """Say whether a store is a directory; one the host cannot look at refuses, not being absent."""
+    try:
+        os.lstat(store)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except (OSError, ValueError) as error:
+        raise ValueError(str(error).strip() or type(error).__name__) from error
+    return _directory(store)
 
 
 def absent_consumers(
@@ -241,11 +253,13 @@ def absent_consumers(
     so a moved repository keeps what it selects, and unlinks exactly the planned records, each
     read absent again. It removes no installation: the cleanup that ends `hook install` retires
     one that no record needs. A failure in the middle is named in the report beside the records
-    released before it.
+    released before it, and so is each planned record that was not read absent again. A store
+    that the host cannot look at is no absent store: it refuses, and nothing is planned.
     """
     released: list[str] = []
-    if not _directory(store):
-        return _absent_report([], [], released)
+    skipped: list[dict[str, str]] = []
+    if not _store_there(store):
+        return _absent_report([], [], released, skipped)
     with FileLock(
         store / "install.lock",
         timeout=seconds("lock"),
@@ -253,25 +267,38 @@ def absent_consumers(
         preserve_lock_file=True,
     ):
         rows, kept = _absent_rows(store, consumers)
-        report = _absent_report(rows, kept, released)
+        report = _absent_report(rows, kept, released, skipped)
         if apply:
             if expected_plan != report["plan_digest"]:
                 message = "host_store_plan_changed"
                 raise ValueError(message)
-            try:
-                for installation, record, consumer, named in rows:
-                    for common in named:
-                        record_consumer(installation, common)
-                    if path_absent(consumer):
-                        record.unlink(missing_ok=True)
-                        released.append(consumer.as_posix())
-            except OSError as error:
-                # The result is the only account of the records that were already released.
-                report["failed"] = str(error).strip() or type(error).__name__
+            failed = _release(rows, released, skipped)
+            if failed:
+                report["failed"] = failed
     return report
 
 
 type _AbsentRow = tuple[Path, Path, Path, list[Path]]
+
+
+def _release(rows: list[_AbsentRow], released: list[str], skipped: list[dict[str, str]]) -> str:
+    """Release each planned record read absent again, name the others, and return a failure."""
+    try:
+        for installation, record, consumer, named in rows:
+            for common in named:
+                record_consumer(installation, common)
+            again = path_absent(consumer)
+            if again:
+                record.unlink(missing_ok=True)
+                released.append(consumer.as_posix())
+                continue
+            reason = "unknown" if again is None else "present"
+            row = {"installation": installation.as_posix(), "record": record.name}
+            skipped.append(row | {"consumer": consumer.as_posix(), "reason": reason})
+    except (OSError, ValueError, RuntimeError) as error:
+        # The result is the only account of the records that were already released.
+        return str(error).strip() or type(error).__name__
+    return ""
 
 
 def _absent_rows(store: Path, consumers: tuple[Path, ...]) -> tuple[list[_AbsentRow], list[Path]]:
@@ -308,7 +335,7 @@ def _absent_records(installation: Path) -> list[tuple[Path, Path]]:
 
 
 def _absent_report(
-    rows: list[_AbsentRow], kept: list[Path], released: list[str]
+    rows: list[_AbsentRow], kept: list[Path], released: list[str], skipped: list[dict[str, str]]
 ) -> dict[str, object]:
     sizes = {installation: _size(installation) for installation, *_row in rows}
     planned = [
@@ -329,6 +356,7 @@ def _absent_report(
         "held_bytes": sum(sizes.values()),
         "kept": [{"installation": path.as_posix(), "reason": "uncertain"} for path in kept],
         "released": released,
+        "not_released": skipped,
     }
 
 

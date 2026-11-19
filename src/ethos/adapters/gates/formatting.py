@@ -14,6 +14,7 @@ from ruff import find_ruff_bin
 
 import ethos.adapters.gates.native.inputs as native_inputs
 from ethos.adapters.gates.format_checks import checked_clean
+from ethos.adapters.gates.format_checks import native_run
 from ethos.adapters.gates.format_checks import repository_ignored
 from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import authored_text_files
@@ -24,13 +25,11 @@ from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import command_outcome
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.paradigm.markdown_spacing import canonical_spacing
-from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.paradigm.text_layout import canonical_text
 from ethos.repository.policy.quality.format_selection import POLICY_PATH
 from ethos.repository.policy.quality.format_selection import canonical_text_paths
@@ -132,15 +131,7 @@ def _run(
     *,
     reject_diagnostics: bool = False,
 ) -> bytes:
-    completed = run_command(
-        root,
-        command,
-        stdin=content,
-        text=False,
-        timeout=seconds("tool"),
-        env={"NODE_DISABLE_COMPILE_CACHE": "1"},
-        remove_env=("NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
-    )
+    completed = native_run(root, command, content)
     if completed.returncode or (reject_diagnostics and completed.stderr):
         raise subprocess.CalledProcessError(
             completed.returncode, command, completed.stdout, completed.stderr

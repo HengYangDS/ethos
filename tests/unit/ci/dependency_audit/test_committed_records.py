@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import tomllib
+from datetime import UTC
+from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -36,11 +38,11 @@ def _nodes(record: AuditDisposition, packages: dict[str, Any]) -> list[str]:
     )
 
 
-def _observation(policy: AuditPolicy, lock: bytes) -> dict[str, Any]:
+def _observation(records: list[AuditDisposition], lock: bytes) -> dict[str, Any]:
     """Build the native report npm would give for exactly the findings the records name."""
     packages = json.loads(lock)["packages"]
     aggregates: dict[str, dict[str, Any]] = {}
-    for record in policy.dispositions:
+    for record in records:
         finding = aggregates.setdefault(
             record.package, {"name": record.package, "via": [], "nodes": []}
         )
@@ -97,21 +99,25 @@ def test_each_committed_record_names_an_artifact_of_the_committed_lock() -> None
 def test_the_committed_records_cover_their_findings_until_their_last_day() -> None:
     """The product's own decision admits every record before its end and none from it."""
     policy, lock = _committed()
-    ends = [record.expires_at for record in policy.dispositions if record.expires_at is not None]
-    if not ends:
+    # This release context admits no local-development record, so those are left out here.
+    records = [record for record in policy.dispositions if record.scope == "production-release"]
+    if not records:
         return
-    payload = _observation(policy, lock)
+    ends = [record.expires_at for record in records if record.expires_at is not None]
+    payload = _observation(records, lock)
     context = {"lock_source": lock, "scope": "production-release", "host": "any-host", "ci": True}
 
-    before = evaluate_dependency_acceptance(
-        policy, payload, now=min(ends) - timedelta(seconds=1), **context
-    )
+    # A record without an end is in force at any moment, so a fixed one serves where none ends.
+    start = min(ends) - timedelta(seconds=1) if ends else datetime(2026, 1, 1, tzinfo=UTC)
+    before = evaluate_dependency_acceptance(policy, payload, now=start, **context)
     assert (before["verdict"], before["reason"]) == ("pass", "authorized_findings"), before
     # Every record matched a finding whose version and integrity the lock itself supplied.
-    assert len(before["approvals"]) == len(policy.dispositions)
+    assert len(before["approvals"]) == len(records)
+    if not ends:
+        return
 
     after = evaluate_dependency_acceptance(policy, payload, now=max(ends), **context)
     assert (after["verdict"], after["reason"]) == ("block", "unapproved_or_expired_findings")
     assert sorted(after["expired_approvals"]) == sorted(
-        record.approval_ref for record in policy.dispositions if record.expires_at is not None
+        record.approval_ref for record in records if record.expires_at is not None
     )

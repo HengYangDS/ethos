@@ -54,9 +54,14 @@ _RECORD_FIELDS = (
     "evidence",
 )
 _DIGEST = re.compile(r"[0-9a-f]{64}")
-# The sessions that one line asks nox for, the task runner behind the paradigm's Python runner
-# entry: the names after its session flag, up to the first word that is not a name.
-_SESSIONS = re.compile(r"(?<![\w.-])nox\b.*?\s(?:-s|--sessions?)((?:[ \t]+[A-Za-z_][\w.-]*)+)")
+# The sessions that one command of a line asks nox for, the task runner behind the paradigm's
+# Python runner entry: the whole names after its session flag, up to the first word that is not
+# one. A name that ends in a Forge expression or stands in quotes is not a name and is not read.
+_SESSION = r"[A-Za-z_][\w.-]*(?![\w.\-${])"
+_SESSIONS = re.compile(
+    r"(?<![\w.-])nox\b[^\n;&|]*?[ \t](?:-[se]|--sessions?)(?:=|[ \t]+)"
+    rf"({_SESSION}(?:[ \t]+{_SESSION})*)"
+)
 
 
 class CiStep(NamedTuple):
@@ -120,12 +125,18 @@ def orchestration_gaps(
                 )
 
 
-def ci_steps(forge: str, path: str, text: str) -> list[CiStep]:
-    """Return each CI step of one Forge's pipeline file with its job and position."""
+def ci_steps(forge: str, path: str, text: str, *, strict: bool = False) -> list[CiStep]:
+    """Return each CI step of one Forge's pipeline file with its job and position.
+
+    A file that cannot be parsed holds no step; a `strict` reader is told so by an error.
+    """
     reader = _STEP_READERS.get(forge)
     try:
         document = yaml.load(text, Loader=_ForgeLoader)
     except yaml.YAMLError:
+        if strict:
+            message = f"the pipeline file {path} cannot be parsed"
+            raise ValueError(message) from None
         return []
     if reader is None or not isinstance(document, dict):
         return []
@@ -145,6 +156,8 @@ def forge_only_sessions(
 
     A session is listed with its jobs when a step of a pipeline file asks the task runner for it
     and none of the `planned` gate commands does. A step that runs anything else is not judged.
+    A job is named by its pipeline file and its key there, and a pipeline file that cannot be
+    read or parsed is an error, never an empty one.
     """
     local = {name for command in planned for name in runner_sessions(command)}
     jobs: set[str] = set()
@@ -154,10 +167,10 @@ def forge_only_sessions(
         if text is None:
             message = f"the pipeline file {path} cannot be read"
             raise ValueError(message)
-        for step in ci_steps(forge, path, text):
-            jobs.add(f"{forge}:{step.job}")
+        for step in ci_steps(forge, path, text, strict=True):
+            jobs.add(job := f"{path}:{step.job}")
             for name in runner_sessions(step.command) - local:
-                hosted.setdefault(name, set()).add(f"{forge}:{step.job}")
+                hosted.setdefault(name, set()).add(job)
     return len(jobs), {name: sorted(hosted[name]) for name in sorted(hosted)}
 
 

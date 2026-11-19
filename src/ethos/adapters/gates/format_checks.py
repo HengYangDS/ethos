@@ -13,12 +13,14 @@ import re
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import override
 
 from ruff import find_ruff_bin
 
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.process import run_command
+from ethos.adapters.process import stream_text
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.paradigm.parameters import seconds
@@ -32,10 +34,18 @@ _TAPLO_COLLECTED = re.compile(rb"found files total=(\d+) excluded=(\d+)")
 _ANSI_ESCAPE = re.compile(rb"\x1b\[[0-9;]*m")
 
 
-def _native(
+class _IgnoreQueryError(subprocess.CalledProcessError):
+    """A failed ignore query, whose text carries what the tool wrote to standard error."""
+
+    @override
+    def __str__(self) -> str:
+        return f"{super().__str__()} {stream_text(self.stderr)}".strip()
+
+
+def native_run(
     root: Path, command: tuple[str, ...], content: bytes | None = None
 ) -> subprocess.CompletedProcess[bytes]:
-    """Run one native check with the environment that every such run shares."""
+    """Run one native command with the environment that every such run shares."""
     return run_command(
         root,
         command,
@@ -55,9 +65,11 @@ def repository_ignored(
     One native run asks Prettier's own API about every file, where each file's rendering asks
     about itself alone.
     """
-    ignore = native_repository_configuration(root, "prettier-ignore", files=files)
     named = [relative for relative, owner in selected if owner == "prettier"]
-    if ignore is None or not named or node is None:
+    if not named:
+        return None
+    ignore = native_repository_configuration(root, "prettier-ignore", files=files)
+    if ignore is None or node is None:
         return None
     command = (
         node,
@@ -66,11 +78,9 @@ def repository_ignored(
         str(ignore),
         str(root),
     )
-    listed = _native(root, command, json.dumps(named).encode("utf-8"))
-    if listed.returncode or listed.stderr:
-        raise subprocess.CalledProcessError(
-            listed.returncode, command, listed.stdout, listed.stderr
-        )
+    listed = native_run(root, command, json.dumps(named).encode("utf-8"))
+    if listed.returncode:
+        raise _IgnoreQueryError(listed.returncode, command, listed.stdout, listed.stderr)
     return frozenset(json.loads(listed.stdout))
 
 
@@ -203,7 +213,7 @@ def _checked_paths(
 ) -> set[str]:
     """Return the paths of one chunk that its native check run leaves unchanged."""
     try:
-        completed = _native(root, command)
+        completed = native_run(root, command)
     except (OSError, ValueError, subprocess.SubprocessError):
         return set()
     if owner == "taplo":

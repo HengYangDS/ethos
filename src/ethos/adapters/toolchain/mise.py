@@ -371,6 +371,15 @@ def _install_path(row: Mapping[str, object]) -> Path | None:
     return Path(path).resolve()
 
 
+def lock_supplies(
+    supply: Mapping[str, list[dict[str, object]]], name: str, executable: Path
+) -> bool:
+    """Whether an executable lies in an install of the tool named after it, or of any if none is."""
+    owned = [tool for tool in supply if _own_executable(tool) == name] or list(supply)
+    installs = (_install_path(row) for tool in owned for row in supply[tool])
+    return any(path and executable.resolve().is_relative_to(path) for path in installs)
+
+
 def _missing_supply(supply: Mapping[str, list[dict[str, object]]]) -> tuple[str, ...]:
     """Name every declared tool version that native mise reports without its install."""
     return tuple(
@@ -398,10 +407,7 @@ def supply_gaps(
         if missing := _missing_supply(owned):
             gaps.extend(missing)
             continue
-        owners = [
-            path for versions in owned.values() for row in versions if (path := _install_path(row))
-        ]
-        if owners and not any(executable.resolve().is_relative_to(owner) for owner in owners):
+        if any(owned.values()) and not lock_supplies(owned, name, executable):
             gaps.append(f"mise_executable_outside_tool:{name}")
     return tuple(gaps)
 
@@ -508,14 +514,14 @@ def _search_gaps(supply: Mapping[str, list[dict[str, object]]], search: str) -> 
 
 def launch_supply(
     root: Path, files: Mapping[str, str], search: str
-) -> tuple[tuple[str, ...], tuple[Path, ...]]:
-    """Read a launch path against the lock: the tools it resolves elsewhere, and the installs.
+) -> tuple[tuple[str, ...], dict[str, list[dict[str, object]]]]:
+    """Read a launch path against the lock: the tools it resolves elsewhere, and the supply.
 
-    It refuses nothing: a caller that reports what a launch would run reads both from one query.
+    It refuses nothing: a caller that reports what a launch would run reads both from one query,
+    and asks `lock_supplies` whether a word it starts is the lock's own.
     """
     supply = _locked_supply(run_mise(root, _CURRENT, files=files, offline=True), root, None)
-    installs = (_install_path(row) for versions in supply.values() for row in versions)
-    return _search_gaps(supply, search), tuple(path for path in installs if path)
+    return _search_gaps(supply, search), supply
 
 
 # Git for Windows' bin directory also holds a shell; its cmd directory holds only launchers.

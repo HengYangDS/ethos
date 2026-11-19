@@ -71,7 +71,12 @@ def test_host_focused_gate_executes_without_lease_or_proof_attestation(
     summary = dict(payload["summary"])
     assert summary.pop("runtime")["source_commit"]
     # A lock that cannot be read is a state of the report; the verdict stays the provider's own.
-    assert summary.pop("environment")["locked_toolchain"] == "unread:locked_toolchain_missing"
+    environment = summary.pop("environment")
+    assert environment["locked_toolchain"] == "unread:locked_toolchain_missing"
+    # An unread lock names no tool, and the member holds its seven declared names and no other.
+    assert (environment["mode"], environment["outside_lock"]) == ("inherited", [])
+    names = "mode names outside_allow_list credential_classes locked_toolchain outside_lock"
+    assert set(environment) == {*names.split(), "git_overlay_keys"}
     assert summary == {"boundary": "host", "gate_count": 1, "proof_attestation_issued": False}
     assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
     assert payload["data"]["checks"][0]["action_id"] == "docs-registry"

@@ -5,8 +5,8 @@
 The preview of `ethos hook retire-records` SHALL report the files and bytes under each top-level
 name of the Git-common store, the time of the read, and the owned kinds' bytes against
 `retention.status_bytes`. The preview of `ethos hook retire-supply` SHALL report the host store's
-installations against `retention.host_bytes`. A budget row SHALL be `within` or `over`, and a row
-that is over SHALL NOT change a verdict, an exit, a required gap or a next action.
+installations against `retention.host_bytes`. A budget row SHALL be `within`, `over`, or `unread`
+with a count, and SHALL NOT be `within` on an incomplete read.
 
 #### Scenario: A store is within its budget
 
@@ -19,6 +19,12 @@ that is over SHALL NOT change a verdict, an exit, a required gap or a next actio
 - **THEN** the row reports `over`
 - **AND** the preview's verdict, state, required gaps and next action equal those of the same
   store under a higher budget
+
+#### Scenario: A place of the store cannot be read
+
+- **WHEN** the read cannot reach a directory or a file's status below an owned directory
+- **THEN** the row reports `unread` and the count of such places, and never `within`
+- **AND** the preview's verdict, state, required gaps and next action stay what they were
 
 #### Scenario: A binding declares its own value
 

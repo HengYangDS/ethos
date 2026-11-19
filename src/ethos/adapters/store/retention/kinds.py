@@ -54,9 +54,7 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
         else:
             items.append(StoreItem(kind, "artifact", (path,), frozenset({path.stem})))
     for path in _files(store / "gate-results"):
-        data = path.read_bytes()
-        document = _decoded(data) if _digest(data) == path.stem else None
-        if isinstance(document, dict) and document.get("schema") == 1 and "results" in document:
+        if _gate_result(path):
             items.append(StoreItem("gate-result", "record", (path,), frozenset({path.stem})))
         else:
             unowned.append(path)
@@ -79,6 +77,19 @@ def _real(store: Path, directory: Path) -> bool:
         not path.is_symlink() and path.is_dir()
         for path in (directory, *directory.parents)
         if path.is_relative_to(store) and path != store
+    )
+
+
+def _gate_result(path: Path) -> bool:
+    """Return whether a file has the form that the run record's one writer gives it."""
+    data = path.read_bytes()
+    document = _decoded(data) if path.suffix == ".json" and _digest(data) == path.stem else None
+    return (
+        isinstance(document, dict)
+        and type(document.get("schema")) is int
+        and document["schema"] == 1
+        and {"head", "tree"} <= set(document)
+        and isinstance(document.get("results"), list)
     )
 
 

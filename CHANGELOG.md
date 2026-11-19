@@ -47,10 +47,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   for each top-level name of the Git-common store, the regular files, their bytes and the
   directories it could not read, with the time of the read; no link is followed.
   `summary.budget` gives the bytes of the directories that record retirement owns against
-  `retention.status_bytes` (1 GiB), as `within` or `over`. The preview of
-  `ethos hook retire-supply` reports the host store's installations the same way against the new
-  parameter `retention.host_bytes` (4 GiB). A budget only reports: a row that is over changes no
-  verdict, exit, required gap or next action, and no command refuses for bytes.
+  `retention.status_bytes` (1 GiB), as `within` or `over`, or as `unread` with the count of the
+  places that the read could not reach. The preview of `ethos hook retire-supply` reports the
+  host store's installations the same way against the new parameter `retention.host_bytes`
+  (4 GiB). A budget only reports: a row that is over or unread changes no verdict, exit,
+  required gap or next action, and no command refuses for bytes.
 - `ethos hook retire-supply --scan <root> --release-absent --json` previews the consumer records
   of the host store whose repository path is absent, with the installation each one holds and its
   bytes. Only `--expect-plan <digest> --apply --authorize` releases them. The release unlinks

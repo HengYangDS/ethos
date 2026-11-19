@@ -80,21 +80,21 @@ def test_a_release_that_fails_in_the_middle_names_what_it_released(
     words, installation, _consumer = _case(tmp_path)
     record_consumer(installation, (tmp_path / "also-gone/.git").resolve())
     approve = shlex.split(run_ethos(*words, "--release-absent")["next_action"])
-    unlink, calls = Path.unlink, []
+    unlink = Path.unlink
+    _first, denied = sorted(installation_consumers(installation) or {})
 
-    def fail_the_second(path: Path, *, missing_ok: bool = False) -> None:
-        calls.append(path)
-        if len(calls) == 2:
+    def fail_the_second_record(path: Path, *, missing_ok: bool = False) -> None:
+        if path == denied:
             raise PermissionError(13, "denied")
         unlink(path, missing_ok=missing_ok)
 
-    monkeypatch.setattr(Path, "unlink", fail_the_second)
+    monkeypatch.setattr(Path, "unlink", fail_the_second_record)
 
     refused = run_ethos_blocked(*approve[1:])
 
     assert refused["required_gaps"] == ["[Errno 13] denied"]
     assert (len(refused["data"]["released"]), refused["summary"]["released"]) == (1, 1)
-    assert len(installation_consumers(installation) or {}) == 1
+    assert list(installation_consumers(installation) or {}) == [denied]
     assert shlex.split(refused["next_action"])[:3] == ["ethos", "hook", "install"]
 
 

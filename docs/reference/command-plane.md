@@ -186,15 +186,19 @@ compare-and-swap. Package-manager upgrade/uninstall qualification is separate.
 `ethos hook retire-supply --scan <root> --json` previews host installations pinned before consumer
 records; only `--expect-plan <digest> --apply --authorize` retires that plan. With
 `--release-absent` it previews the consumer records whose repository path is absent, and the same
-three words release exactly that plan's records; it removes no installation. A release that
-fails in the middle is blocked, and its result still names the records it released.
+three words release exactly that plan's records; it removes no installation. With
+`--release-absent` the grace period is not read. A release that fails in the middle is blocked,
+and its result still names the records it released; a planned record whose path was not read
+absent again stays, named in `data.not_released` with the reason `present` or `unknown`. A store
+that the host cannot look at is a required gap, not an empty plan.
 
 `ethos hook retire-records --json` previews which Git-common store records may retire and writes the
 plan of every owned, unnamed record older than its floor; the selected runtime alone runs it, and
 only `--expect-plan <digest> --apply --authorize` deletes what that plan and a fresh scan select.
 Both previews report bytes against a declared budget in `summary.budget`, as `within` or `over`:
 the directories that record retirement owns against `retention.status_bytes`, and the host
-store's installations against `retention.host_bytes`. A row that is over refuses nothing.
+store's installations against `retention.host_bytes`. A row whose read missed a place is `unread`
+and carries the count in `unread`. A row that is over or unread refuses nothing.
 
 ## Accepted Release Selection
 
@@ -352,10 +356,14 @@ writes no Attestation. Its `data.unexamined` names what the run did not examine,
 nothing: `gates` are the planned gates it did not run. On a Work Lane, `tests` maps each test
 that reads a path committed since `base`, the candidate branch, to its reason (`changed`,
 `conftest`, `imports`, `names` or `stages`), and `unread_paths` lists the changed paths that no
-test reads; any other role has an empty `base` and no selection. `forge_only_sessions` maps each
-task-runner session that a step of the pipeline files asks for, and no planned gate's command
-does, to its jobs, and `forge_jobs` counts the jobs whose commands were read. `unavailable` names
-a part that could not be read, with the error. A bounded result keeps the field's scalar members,
+test reads; any other role has an empty `base` and no selection. A renamed file counts as its two
+paths. `forge_only_sessions` maps each task-runner session that a step of the pipeline files asks
+for, and no planned gate's command does, to its jobs, each named `<pipeline file>:<job>`, and
+`forge_jobs` counts the jobs whose commands were read. A session that a step names through a
+Forge expression or in quotes is not read, and a GitLab `default` section or hidden template
+that holds a script counts as a job of its own name. `unavailable` names a part that could not
+be read, with the error: a tracked Python file that is no text, or a pipeline file that cannot
+be parsed, makes its part unavailable. A bounded result keeps the field's scalar members,
 and the detail that `bound.detail` names holds the rest. The selection is read from tracked text
 and is a lower bound: a deleted file selects no test that imported it, and stays under
 `unread_paths` unless a test names it. A path of one word also selects every test whose text

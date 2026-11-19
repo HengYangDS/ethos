@@ -257,6 +257,9 @@ def test_the_deleted_input_join_names_each_importer_of_a_deleted_module() -> Non
     # A deleted document, or a module that a file of the same name replaces, retires nothing.
     assert deleted_python_input_gaps(files, frozenset({"docs/old.md"})) == ([], [])
     assert deleted_python_input_gaps(files, frozenset({"src/pkg/user.py"})) == ([], [])
+    # `gone.py` became the package `gone/__init__.py`: the module remains for its importer.
+    replaced = {"src/pkg/gone/__init__.py": "", "src/pkg/user.py": "from pkg import gone\n"}
+    assert deleted_python_input_gaps(replaced, frozenset({"src/pkg/gone.py"})) == ([], [])
 
 
 def test_a_syntax_warning_does_not_make_valid_python_unparsable() -> None:

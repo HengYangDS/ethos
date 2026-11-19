@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -22,13 +23,12 @@ if TYPE_CHECKING:
 def _recorded_launches(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
     """Record every native run that the format gate and its bulk checks start."""
     launched: list[tuple[str, ...]] = []
-    native = formatting_gate.run_command
+    native = format_checks.run_command
 
     def recorded(root: Path, command: tuple[str, ...], **options: Any) -> Any:
         launched.append(command)
         return native(root, command, **options)
 
-    monkeypatch.setattr(formatting_gate, "run_command", recorded)
     monkeypatch.setattr(format_checks, "run_command", recorded)
     return launched
 
@@ -175,3 +175,37 @@ def test_a_toml_path_taplo_does_not_collect_still_renders_alone(lane: Path) -> N
     write_tree(lane, sources)
     report = formatting_gate.source_format_report(lane, paths=tuple(sources))
     assert report["changed_paths"] == ["settings/back\\slash.toml"], report
+
+
+def test_a_selection_without_a_prettier_file_leaves_the_ignore_carrier_unread(
+    lane: Path, tmp_path: Path
+) -> None:
+    """A linked Prettier ignore carrier refuses only a selection that holds a Prettier file."""
+    write_tree(lane, {"src/module.py": "VALUE = 1\n"})
+    (tmp_path / "linked-prettierignore").write_text("", encoding="utf-8")
+    carrier = lane / ".config/checks/prettier/prettierignore"
+    carrier.parent.mkdir(parents=True, exist_ok=True)
+    carrier.symlink_to(tmp_path / "linked-prettierignore")
+    report = formatting_gate.source_format_report(lane, paths=("src/module.py",))
+    assert (report["verdict"], report["required_gaps"]) == ("pass", []), report
+
+
+@pytest.mark.parametrize("status", [0, 1])
+def test_an_ignore_query_warning_refuses_nothing_and_a_failure_carries_its_text(
+    lane: Path, monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    """A warning on standard error refuses no selection; a failed query's gap says it whole."""
+    native = format_checks.run_command
+
+    def stub(root: Path, command: tuple[str, ...], **options: Any) -> Any:
+        completed = native(root, command, **options)
+        if not command[1].endswith("prettier-ignored.mjs"):
+            return completed
+        warning = b"(node:7) Warning: stub\n"
+        return subprocess.CompletedProcess(command, status, completed.stdout, warning)
+
+    monkeypatch.setattr(format_checks, "run_command", stub)
+    write_tree(lane, {".config/checks/prettier/prettierignore": "", "docs/page.md": "# Page\n"})
+    report = formatting_gate.source_format_report(lane, paths=("docs/page.md",))
+    assert (report["verdict"] == "pass") is (status == 0), report
+    assert ("Warning: stub" in str(report["required_gaps"])) is (status == 1), report

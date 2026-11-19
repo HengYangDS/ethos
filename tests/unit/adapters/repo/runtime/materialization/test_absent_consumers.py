@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -14,15 +13,11 @@ from ethos.adapters.repo.runtime.materialization.host_retention import absent_co
 from ethos.adapters.repo.runtime.materialization.host_retention import path_absent
 from ethos.adapters.repo.runtime.materialization.host_retention import retire_unused_installations
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
-
-_NEEDS_A_CLOSED_DIRECTORY = pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
 
 
 class _Host:
@@ -81,7 +76,7 @@ def test_only_a_missing_entry_is_absence(tmp_path: Path, relative: str) -> None:
     assert path_absent(tmp_path / relative) is (relative != "file")
 
 
-@_NEEDS_A_CLOSED_DIRECTORY
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_place_the_host_cannot_look_at_is_unknown_and_is_never_planned(
     tmp_path: Path, closed: Path
 ) -> None:
@@ -96,7 +91,9 @@ def test_a_place_the_host_cannot_look_at_is_unknown_and_is_never_planned(
     assert path_absent(closed / "inside/.git") is None
     assert path_absent(closed / "none/.git") is None
     assert host.plan()["absent"] == []
-    assert absent_consumers(closed / "inside", consumers=(), apply=False)["absent"] == []
+    assert absent_consumers(tmp_path / "no-store", consumers=(), apply=False)["absent"] == []
+    with pytest.raises(ValueError, match="Permission denied"):
+        absent_consumers(closed / "inside", consumers=(), apply=False)
     with pytest.raises(ValueError, match="host_store_plan_changed"):
         host.plan(apply=True, expect="0" * 64)
     assert len(installation_consumers(installation) or {}) == 2
@@ -148,7 +145,7 @@ def test_an_applied_plan_releases_the_records_and_removes_no_installation(tmp_pa
     applied = host.plan(after, apply=True, expect=str(preview["plan_digest"]))
 
     assert applied["released"] == [host.gone().as_posix(), host.gone("before").as_posix()]
-    assert applied["absent"] == preview["absent"]
+    assert (applied["absent"], applied["not_released"]) == (preview["absent"], [])
     assert freed.is_dir()
     assert installation_consumers(freed) == {}
     assert list((installation_consumers(moved) or {}).values()) == [after]
@@ -169,17 +166,38 @@ def test_a_changed_plan_releases_nothing(tmp_path: Path) -> None:
     assert list((installation_consumers(installation) or {}).values()) == [host.gone()]
 
 
-def test_a_path_that_came_back_during_the_apply_keeps_its_record(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("reason", ["present", "unknown"])
+def test_a_path_not_read_absent_again_at_the_apply_keeps_its_record_and_is_named(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: str
 ) -> None:
-    """Each record's path is read again before its unlink."""
+    """Each record's path is read again before its unlink; one not released says why."""
     host = _Host(tmp_path)
     installation = host.installation("1", host.gone())
     preview = host.plan()
-    answers = iter((True, False))
+    (planned,) = preview["absent"]
+    answers = iter((True, False if reason == "present" else None))
     monkeypatch.setattr(host_retention, "path_absent", lambda _path: next(answers))
 
     applied = host.plan(apply=True, expect=str(preview["plan_digest"]))
 
-    assert applied["released"] == []
+    named = {key: planned[key] for key in ("installation", "record", "consumer")}
+    assert (applied["released"], applied["not_released"]) == ([], [named | {"reason": reason}])
     assert list((installation_consumers(installation) or {}).values()) == [host.gone()]
+
+
+def test_a_failure_of_another_kind_in_the_middle_keeps_what_was_released(tmp_path: Path) -> None:
+    """A naming repository's record that cannot be decoded stops the release, which is named."""
+    host = _Host(tmp_path)
+    host.installation("1", host.gone())
+    moved = host.installation("2", host.gone("before"))
+    after = host.repository("after", selected=moved)
+    record_consumer(moved, after)
+    records = installation_consumers(moved) or {}
+    next(record for record, common in records.items() if common == after).write_bytes(b"\xff\n")
+    preview = host.plan(after)
+
+    applied = host.plan(after, apply=True, expect=str(preview["plan_digest"]))
+
+    assert "utf-8" in applied["failed"]
+    assert applied["released"] == [host.gone().as_posix()]
+    assert len(installation_consumers(moved) or {}) == 2

@@ -1,7 +1,7 @@
 """The scratch directory that the declared commands of one run of gates share.
 
 A command names it with `{scratch}` in an argument. The first command that does makes one
-directory under the temporary root for its runner, marked with its owner where the run holds a
+directory under the temporary root for its runner, marked with its owner once the run holds a
 host ticket, and every later command of that runner receives the same one. The directory ends
 with the runner, or with the process at the latest. A command that does not name it is launched
 as it is declared, and nothing is made.
@@ -16,6 +16,7 @@ from weakref import WeakKeyDictionary
 from weakref import finalize
 
 from ethos.adapters.gates.host_work import mark_ticket_scratch
+from ethos.adapters.gates.host_work import work_owner
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 
 PLACEHOLDER = "{scratch}"
@@ -35,9 +36,11 @@ def bind_scratch(attempt: object, command: tuple[str, ...]) -> tuple[tuple[str, 
         if directory is None:
             root = Path(mkdtemp(prefix="ethos-proof-scratch-"))
             finalize(attempt, remove_owned_path, root)
-            mark_ticket_scratch(root, operation="proof.scratch")
             (root / "commands").mkdir()
             _DIRECTORIES[attempt] = directory = str(root / "commands")
+        if not work_owner(made := Path(directory).parent):
+            # A scratch first named before the run held its ticket is marked once it does.
+            mark_ticket_scratch(made, operation="proof.scratch")
     return with_scratch(command, directory), directory
 
 

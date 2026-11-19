@@ -14,6 +14,7 @@ from ethos.repository.paradigm.orchestration import ci_steps
 from ethos.repository.paradigm.orchestration import forge_only_sessions
 from ethos.repository.paradigm.orchestration import inline_shell
 from ethos.repository.paradigm.orchestration import orchestration_gaps
+from ethos.repository.paradigm.orchestration import runner_sessions
 from tests.support.governed_repository import write_tree
 
 if TYPE_CHECKING:
@@ -399,15 +400,48 @@ def test_a_session_that_only_a_forge_job_asks_for_is_listed_with_its_jobs(tmp_pa
     read = forge_only_sessions(
         load_repository_paradigm(), tmp_path, frozenset(_SESSION_FILES), planned
     )
+    legs, quality = (f".github/workflows/ci.yml:{job}" for job in ("legs", "quality"))
     assert read == (
         3,
         {
-            "after": ["github:legs"],
-            "hosted_verification": ["github:quality", "gitlab:verify"],
-            "journey": ["github:legs"],
-            "scan": ["github:legs"],
-            "suite_leg": ["github:legs"],
+            "after": [legs],
+            "hosted_verification": [quality, ".gitlab-ci.yml:verify"],
+            "journey": [legs],
+            "scan": [legs],
+            "suite_leg": [legs],
         },
+    )
+
+
+@pytest.mark.parametrize(
+    ("command", "sessions"),
+    [
+        ("nox -e lint", {"lint"}),
+        ("nox --session=lint", {"lint"}),
+        ("nox -s lint tests -- -x", {"lint", "tests"}),
+        ("nox -s tests-${{ matrix.python }}", set()),
+        ("pip install nox && pytest -s tests/unit", set()),
+        ("nox\n-s lint", set()),
+    ],
+)
+def test_a_session_is_a_whole_name_after_the_runner_s_own_flag(
+    command: str, sessions: set[str]
+) -> None:
+    """No part of a Forge expression, and no flag of another command, reads as a session."""
+    assert runner_sessions(command) == sessions
+
+
+def test_jobs_of_one_name_in_two_workflows_are_two_jobs(tmp_path: Path) -> None:
+    """A job is named by its pipeline file, so two workflows keep their own `build`."""
+    step = "jobs:\n  build:\n    steps:\n      - run: nox -s {}\n"
+    files = {f".github/workflows/{name}.yml": step.format(name) for name in ("ci", "release")}
+    write_tree(tmp_path, files)
+
+    read = forge_only_sessions(load_repository_paradigm(), tmp_path, frozenset(files), [])
+
+    assert read == (
+        2,
+        {name: [f".github/workflows/{name}.yml:build"] for name in ("ci", "release")},
     )
 
 
@@ -418,4 +452,7 @@ def test_forge_sessions_are_none_without_a_pipeline_and_refuse_an_unreadable_one
     paradigm = load_repository_paradigm()
     assert forge_only_sessions(paradigm, tmp_path, frozenset({"README.md"}), []) == (0, {})
     with pytest.raises(ValueError, match=r"\.gitlab-ci\.yml"):
+        forge_only_sessions(paradigm, tmp_path, frozenset({".gitlab-ci.yml"}), [])
+    (tmp_path / ".gitlab-ci.yml").write_text("verify: [unclosed\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"\.gitlab-ci\.yml cannot be parsed"):
         forge_only_sessions(paradigm, tmp_path, frozenset({".gitlab-ci.yml"}), [])

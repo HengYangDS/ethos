@@ -170,8 +170,9 @@ def _host_budget(store: Path | None, request: RetireSupplyRequest) -> dict[str, 
     """Return a preview's row of the host store's installations against their declared budget."""
     if store is None or request.apply:
         return {}
-    held = tree_bytes(store / "installations")["bytes"]
-    return {"budget": budget_row(held, parameter("retention", "host_bytes"))}
+    read = tree_bytes(store / "installations")
+    budget = parameter("retention", "host_bytes")
+    return {"budget": budget_row(read["bytes"], budget, read["unread"])}
 
 
 def retire_host_supply(root: Path, request: RetireSupplyRequest) -> EthosResult:

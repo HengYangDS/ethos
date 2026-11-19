@@ -39,6 +39,12 @@ def merge_preimage(mention: str = "") -> bytes:
     return canonical_json_bytes(document)
 
 
+def gate_result(tree: str = "t") -> bytes:
+    """Return a run record of gate results in its writer's encoding and with its writer's keys."""
+    document = {"schema": 1, "head": "h", "tree": tree, "results": []}
+    return json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+
+
 def archive(members: dict[str, bytes]) -> bytes:
     """Return a zip archive holding the named members."""
     payload = io.BytesIO()

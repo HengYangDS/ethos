@@ -3,7 +3,9 @@
 A selection says which tests to run first. It is a lower bound and never a proof: a test that
 reads a file through a function and names neither the file nor its module is not found, a
 deleted file has no text and so selects no importer, and only the full suite examines every
-test. A name is matched as text, so a path of one word also selects each test that holds it.
+test. A file that does not parse is read as importing nothing, so a changed module that does
+not parse selects no importer. A name is matched as text, so a path of one word also selects
+each test that holds it.
 """
 
 from __future__ import annotations
@@ -30,13 +32,15 @@ _REASONS = ("stages", "names", "imports", "conftest", "changed")
 def carried_paths(manifest: str) -> tuple[str, ...]:
     """Return the files and directories that the Python manifest's wheel table carries.
 
-    A manifest without that table carries nothing; one that cannot be parsed raises its error.
+    A manifest without that table, or with another value in its place, carries nothing; one
+    that cannot be parsed raises its error.
     """
+    document = tomllib.loads(manifest)
     try:
-        wheel = tomllib.loads(manifest)["tool"]["hatch"]["build"]["targets"]["wheel"]
-        return tuple(wheel[_CARRIED_TABLE])
+        table = document["tool"]["hatch"]["build"]["targets"]["wheel"][_CARRIED_TABLE]
     except (KeyError, TypeError):
         return ()
+    return tuple(table) if isinstance(table, dict) else ()
 
 
 def select_tests(

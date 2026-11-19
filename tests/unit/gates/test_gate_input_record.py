@@ -75,6 +75,7 @@ def test_each_exact_source_run_is_recorded_and_compared_by_the_next(repository: 
     assert "f" * 40 in runs[3]["diagnostics"][0]["message"]
     assert all(run["data"]["attestation"] for run in runs[2:])
     assert rows[0]["key"] not in artifact
+    assert '"executable"' not in artifact
     assert "gate_input_mismatch" not in artifact
 
 
@@ -107,6 +108,7 @@ def test_a_run_whose_source_changed_under_its_gates_records_nothing(
     assert (repository / "README.md").read_text(encoding="utf-8") == "# another source\n"
     assert result["required_gaps"][0] == "proof_execution_source_changed"
     assert "gate_inputs" not in result["data"]
+    assert ("footprint" in result["data"]) is (plane == ())
     assert not (local_state_root(repository) / "gate-results").exists()
 
 

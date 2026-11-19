@@ -204,7 +204,7 @@ def gate_inputs(
     fails changes nothing of the proof: the result names the record as unavailable.
     """
     if not (kept and tree):
-        _OPENED.pop(str(root), None)
+        forget_opened(root)
         return GateInputs({})
     try:
         bound: Any = getattr(policy, "projection", policy)
@@ -243,6 +243,8 @@ def gate_inputs(
         record = record_results(store, document).name
     except _FAILURES as error:
         return GateInputs({"gate_inputs": {"record": "", "unavailable": type(error).__name__}})
+    finally:
+        forget_opened(root)
     notes = tuple(
         {
             "severity": "note",
@@ -253,6 +255,11 @@ def gate_inputs(
         if row["comparison"]["state"] == "mismatch"
     )
     return GateInputs({"gate_inputs": {"record": record, **local}}, notes)
+
+
+def forget_opened(root: Path) -> None:
+    """Drop every name that a root's watched gates opened; a run's names never outlive it."""
+    _OPENED.pop(str(root), None)
 
 
 def opened_outside(root: Path, gate: Mapping[str, Any], run: RunInputs) -> list[str]:

@@ -156,6 +156,31 @@ test("markdown lint judges exact content by the explicit native policy", (t) => 
   assert.match(broken.stderr, /broken\.md:1(?::\d+)? error MD018/);
 });
 
+test("the ignore query names the files that a Prettier ignore file excludes", (t) => {
+  const directory = scratch(t);
+  write(directory, {
+    ".prettierignore": "ignored.md\nvendor/\n",
+    "ignored.md": "# Ignored\n",
+    "kept.md": "# Kept\n",
+    "vendor/page.md": "# Vendored\n",
+  });
+  const ask = (input) =>
+    helper(
+      "gates/prettier-ignored.mjs",
+      [join(SUPPLY, "prettier/index.mjs"), join(directory, ".prettierignore"), directory],
+      { input },
+    );
+  const asked = ask(JSON.stringify(["ignored.md", "kept.md", "vendor/page.md"]));
+  assert.equal(asked.status, 0, asked.stderr);
+  assert.deepEqual(JSON.parse(asked.stdout), ["ignored.md", "vendor/page.md"]);
+  const none = ask("[]");
+  assert.deepEqual([none.status, none.stdout], [0, "[]"]);
+  // The product's caller reads a failed query by its status, so unreadable names must fail.
+  const unreadable = ask("not a list of names");
+  assert.notEqual(unreadable.status, 0);
+  assert.equal(unreadable.stdout, "");
+});
+
 test("archive observation matches exact member bytes in a locked tarball", (t) => {
   const directory = scratch(t);
   const manifest = '{"name":"sample","version":"1.0.0"}\n';

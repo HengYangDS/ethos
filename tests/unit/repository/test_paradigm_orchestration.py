@@ -421,18 +421,17 @@ def test_a_session_that_only_a_forge_job_asks_for_is_listed_with_its_jobs(tmp_pa
         ("nox --session=lint", {"lint"}),
         ("nox -s lint tests -- -x", {"lint", "tests"}),
         ("nox -s tests-${{ matrix.python }}", set()),
-        ("nox -s tests-${{ matrix.python }} lint", {"lint"}),
-        ("nox -s \"lint\" 'tests-3.12'", {"lint", "tests-3.12"}),
-        ("nox -t ci -- -s tests/unit", set()),
-        ("nox -s tests/unit", set()),
         ("pip install nox && pytest -s tests/unit", set()),
         ("nox\n-s lint", set()),
+        ("nox -s lint  # run the lint session", {"lint"}),
+        ("nox -s lint > out.log", {"lint"}),
+        ("(cd docs && nox -s lint)", {"lint"}),
     ],
 )
 def test_a_session_is_a_whole_name_after_the_runner_s_own_flag(
     command: str, sessions: set[str]
 ) -> None:
-    """No Forge expression, path, argument after `--` or other command's flag is a session."""
+    """No part of an expression, comment or redirection, and no other command's flag, is one."""
     assert runner_sessions(command) == sessions
 
 
@@ -489,3 +488,5 @@ def test_forge_sessions_are_none_without_a_pipeline_and_refuse_an_unreadable_one
     (tmp_path / ".gitlab-ci.yml").write_text("- verify\n", encoding="utf-8")
     with pytest.raises(ValueError, match=r"cannot be read as a gitlab pipeline"):
         forge_only_sessions(paradigm, tmp_path, frozenset({".gitlab-ci.yml"}), [])
+    with pytest.raises(ValueError, match=r"cannot be read as a forgejo pipeline"):
+        ci_steps("forgejo", ".forgejo/workflows/ci.yml", "jobs: {}\n", strict=True)

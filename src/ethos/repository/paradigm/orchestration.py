@@ -55,16 +55,12 @@ _RECORD_FIELDS = (
 )
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 # The sessions that one command of a line asks nox for, the task runner behind the paradigm's
-# Python runner entry: each whole name among the words after its session flag, up to the next
-# flag. The runner's own arguments end at `--`, a quoted name is its name, and a word that holds
-# a Forge expression or a path is no name. A line that names nox as another command's argument
-# and then gives that command such a flag is read as asking for a session.
-_EXPRESSION = re.compile(r"\$\{\{.*?\}\}")
-_NAME = re.compile(r"[A-Za-z_][\w.-]*")
-_WORD = r"[^\s;&|-][^\s;&|]*"
+# Python runner entry: the whole names after its session flag, up to the first word that is not
+# one. A name that ends in a Forge expression or stands in quotes is not a name and is not read.
+_SESSION = r"[A-Za-z_][\w.-]*(?![\w.\-${])"
 _SESSIONS = re.compile(
-    r"(?<![\w.-])nox\b(?:(?![ \t]--[ \t])[^\n;&|])*?[ \t](?:-[se]|--sessions?)(?:=|[ \t]+)"
-    rf"({_WORD}(?:[ \t]+{_WORD})*)"
+    r"(?<![\w.-])nox\b[^\n;&|]*?[ \t](?:-[se]|--sessions?)(?:=|[ \t]+)"
+    rf"({_SESSION}(?:[ \t]+{_SESSION})*)"
 )
 
 
@@ -155,9 +151,8 @@ def ci_steps(forge: str, path: str, text: str, *, strict: bool = False) -> list[
 
 def runner_sessions(command: str) -> set[str]:
     """Return the sessions that each line of one command asks the Python task runner for."""
-    asked = _SESSIONS.findall(_EXPRESSION.sub("$", command.replace("\\\n", " ")))
-    words = (word.strip("\"'") for names in asked for word in names.split())
-    return {word for word in words if _NAME.fullmatch(word)}
+    asked = _SESSIONS.findall(command.replace("\\\n", " "))
+    return {name for names in asked for name in names.split()}
 
 
 def forge_only_sessions(

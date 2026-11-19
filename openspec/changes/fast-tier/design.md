@@ -149,7 +149,14 @@ Non-Goals:
   only when a changed path is one of them.
 - [The session pattern reads a command it does not understand] → It reads one line at a time and
   takes the names after Nox's session flag. A step that composes its command elsewhere is not
-  read, and the count of jobs stands beside the list.
+  read, and the count of jobs stands beside the list. Its known misreadings, each measured on
+  2026-11-20: a plain name after a name that ends in a Forge expression is not read, and a
+  quoted name is not read (both miss a session); a name after `--`, the first component of a
+  path, and the argument of another command's `-e` on a line that names Nox are read as
+  sessions (each lists one that no job runs). A rewrite that read every word after the flag
+  repaired those and broke three more common forms (a trailing comment, a redirection, a name
+  before a closing parenthesis), so it was taken back; a reader of shell words, not a pattern,
+  is the repair, and this Change does not build it.
 - [The import reader moved] → The deleted-input join and the selection now share
   `imported_modules`; the join's own tests keep its behavior.
 - [The result's bound shortens the field] → A readiness result with 28 checks passes the bound of

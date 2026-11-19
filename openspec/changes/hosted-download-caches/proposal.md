@@ -16,10 +16,22 @@ and return here:
 - Not a task of that Change: every regular run uploads the `python-distributions` artifact and no
   job reads it.
 
+The common CI model has the same gap for a governed repository: it generates no cache block for
+either forge. The session that keeps the governed repositories reported on 2026-11-19, from the
+job traces of one repository's latest successful pipeline, which were not read again here:
+`mise install --locked` took 90 to 106 seconds in each of its three guest jobs, more than the
+proof itself at 15 to 87 seconds. That repository's verification declaration keeps Mise's data
+and cache under each job's own build directory, because a Windows runner could not write the
+runner's shared profile, so every job downloads every tool. Other governed repositories, whose
+jobs keep Mise's data in the guest's own store, bootstrap in 9 to 25 seconds.
+
 ## What Changes
 
 - The requirement `Hosted download caches have one writer` returns with the cache steps.
 - The unread artifact stops being uploaded, or gains its reader.
+- Candidate, not decided: the common CI model can generate a job cache keyed by the tool lock and
+  the platform, so that a repository with job-local tool data keeps its isolation and does not
+  download every tool in every job.
 
 ## Capabilities
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.store.retention.kinds as kinds
 import ethos.application.retention as retention
 from ethos.adapters.store.retention.budget import budget_row
 from ethos.adapters.store.retention.budget import owned_budget
@@ -15,6 +16,7 @@ from ethos.adapters.store.retention.budget import store_report
 from ethos.adapters.store.retention.budget import tree_bytes
 from ethos.adapters.store.retention.kinds import owned_directories
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.outcome import refused_gaps
 from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.ethos_cli_runner import full_result
 from tests.support.ethos_cli_runner import run_ethos
@@ -89,31 +91,55 @@ def test_a_file_whose_status_cannot_be_read_is_counted_and_the_row_says_unread(
 
 
 @NEEDS_A_CLOSED_DIRECTORY
-@pytest.mark.parametrize("closed", ["operations", "operations/lane-retirement"])
+@pytest.mark.parametrize(
+    ("closed", "held", "unread"),
+    [("operations", 5, 1), ("operations/lane-retirement", 5, 1), ("requests", 12, 2)],
+)
 def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
-    tmp_path: Path, closed: str
+    tmp_path: Path, closed: str, held: int, unread: int
 ) -> None:
-    """Such a candidate leaves the row `unread`, and the owned directories refuse to be listed."""
+    """Such a place leaves the row `unread`, and one refusal of the owned directories names each."""
     (tmp_path / "operations/lane-retirement/unit").mkdir(parents=True)
     (tmp_path / "operations/lane-retirement/unit/kept").write_bytes(b"x" * 7)
+    (tmp_path / "requests/lane-retirement").mkdir(parents=True)
     (tmp_path / "artifacts").mkdir()
     (tmp_path / "artifacts/kept").write_bytes(b"x" * 5)
     (tmp_path / closed).chmod(0)
     try:
         row = owned_budget(tmp_path, 16)
         # The report reads past the refusal; a retirement's own readers are told of it.
-        with pytest.raises(OSError, match="Permission denied") as refused:
+        with pytest.raises(ValueError, match="Permission denied") as refused:
             owned_directories(tmp_path)
     finally:
         (tmp_path / closed).chmod(0o700)
-    assert row == {"bytes": 5, "budget_bytes": 16, "state": "unread", "unread": 1}
-    assert isinstance(refused.value, PermissionError)
+    assert row == {"bytes": held, "budget_bytes": 16, "state": "unread", "unread": unread}
+    assert len(refused_gaps(refused.value)) == unread
+    assert isinstance(refused.value.__cause__, PermissionError)
     assert owned_budget(tmp_path, 16) == {
         "bytes": 12,
         "budget_bytes": 16,
         "state": "within",
         "unread": 0,
     }
+
+
+def test_a_junction_or_a_place_that_went_is_no_owned_directory_and_no_refusal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A junction is left out as a link is; nothing at a listing is nothing, as at a status."""
+    for name in ("artifacts", "gate-results", "operations/lane-retirement"):
+        (tmp_path / name).mkdir(parents=True)
+    listing = Path.iterdir
+
+    def went(path: Path) -> object:
+        if path == tmp_path / "operations/lane-retirement":
+            raise FileNotFoundError(path)
+        return listing(path)
+
+    monkeypatch.setattr(kinds, "is_junction", lambda path: path == tmp_path / "artifacts")
+    monkeypatch.setattr(Path, "iterdir", went)
+
+    assert owned_directories(tmp_path) == (tmp_path / "gate-results",)
 
 
 @pytest.mark.parametrize(

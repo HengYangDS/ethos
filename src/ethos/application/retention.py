@@ -46,6 +46,7 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.operations.hook import RetireRecordsRequest
 from ethos.contracts.outcome import refuse
+from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.parameters import parameter_resolution
 from ethos.result import EthosResult
@@ -154,7 +155,7 @@ def _blocked(error: Exception) -> EthosResult:
         command=_COMMAND,
         verdict="block",
         state="blocked",
-        required_gaps=(str(error) or error.__class__.__name__,),
+        required_gaps=refused_gaps(error),
     )
 
 

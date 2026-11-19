@@ -17,6 +17,7 @@ from zipfile import BadZipFile
 from zipfile import ZipFile
 
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.contracts.outcome import refuse
 from ethos.contracts.semantic import canonical_json_bytes
 
 if TYPE_CHECKING:
@@ -67,12 +68,13 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
 def owned_directories(store: Path) -> tuple[Path, ...]:
     """Return the directories that owned writers alone fill, each a directory and no link.
 
-    A candidate that the host will not answer for is no absent one: its refusal is raised, alike
-    on every supported interpreter, so a retirement never reads a closed place as an empty one.
+    A candidate that the host will not answer for is no absent one: one refusal names every such
+    place, alike on every supported interpreter, so a retirement never reads a closed place as
+    an empty one.
     """
     found, refused = owned_places(store)
     if refused:
-        raise refused[0]
+        refuse(*(str(error) for error in refused), cause=refused[0])
     return found
 
 
@@ -85,11 +87,16 @@ def owned_places(store: Path) -> tuple[tuple[Path, ...], tuple[OSError, ...]]:
     operations = store / "operations" / "lane-retirement"
     candidates = [store / name for name in _OWNED]
     refused: list[OSError] = []
+    units: list[Path] = []
     try:
         if _real(store, operations):
-            candidates.extend(sorted(operations.iterdir()))
+            units = sorted(operations.iterdir())
+    except (FileNotFoundError, NotADirectoryError):
+        # It went between its status and its listing: nothing is there, as `_real` reads it.
+        units = []
     except OSError as error:
         refused.append(error)
+    candidates.extend(units)
     found: list[Path] = []
     for path in candidates:
         try:

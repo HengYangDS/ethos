@@ -25,6 +25,7 @@ from typing import Any
 
 from ethos.adapters.gates.child_environment import command_origin
 from ethos.adapters.gates.child_environment import locked_toolchain
+from ethos.adapters.gates.child_environment import names_a_path
 from ethos.adapters.gates.input_key import watching
 from ethos.adapters.gates.javascript.execution import prepare_command
 from ethos.adapters.gates.javascript.execution import retain_attempt
@@ -101,8 +102,10 @@ class LocalGateRunner:
 
     def _supply(self, word: str, root: Path) -> dict[str, list[dict[str, object]]]:
         """Read a repository's lock once a runner, and never for a first word that is a path."""
+        if names_a_path(word):
+            return {}
         with self.reading:
-            return self.locked(root)[2] if Path(word).name == word else {}
+            return self.locked(root)[2]
 
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
         result = None

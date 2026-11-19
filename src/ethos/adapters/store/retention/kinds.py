@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import re
+import stat
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from zipfile import BadZipFile
@@ -64,20 +65,46 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
 
 def owned_directories(store: Path) -> tuple[Path, ...]:
     """Return the directories that owned writers alone fill, each a directory and no link."""
+    return owned_places(store)[0]
+
+
+def owned_places(store: Path) -> tuple[tuple[Path, ...], int]:
+    """Return the owned directories, and how many candidates the host would not answer for.
+
+    A candidate whose status or listing the host refuses is counted and left out, alike on
+    every supported interpreter; one that is not there is neither.
+    """
     operations = store / "operations" / "lane-retirement"
-    found = [store / name for name in _OWNED]
-    if _real(store, operations):
-        found.extend(path for path in sorted(operations.iterdir()) if path.is_dir())
-    return tuple(path for path in found if _real(store, path))
+    candidates = [store / name for name in _OWNED]
+    refused = 0
+    try:
+        if _real(store, operations):
+            candidates.extend(sorted(operations.iterdir()))
+    except OSError:
+        refused += 1
+    found: list[Path] = []
+    for path in candidates:
+        try:
+            found.extend([path] if _real(store, path) else [])
+        except OSError:
+            refused += 1
+    return tuple(found), refused
 
 
 def _real(store: Path, directory: Path) -> bool:
-    """Return whether a directory and each parent below the store are directories, not links."""
-    return all(
-        not path.is_symlink() and path.is_dir()
-        for path in (directory, *directory.parents)
-        if path.is_relative_to(store) and path != store
-    )
+    """Return whether a directory and each parent below the store are directories, not links.
+
+    Each entry's own status is read, so a link is no directory; nothing at a path is False, and
+    any other refusal of the host is the caller's to count.
+    """
+    try:
+        return all(
+            stat.S_ISDIR(path.lstat().st_mode)
+            for path in (directory, *directory.parents)
+            if path.is_relative_to(store) and path != store
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        return False
 
 
 def _gate_result(path: Path) -> bool:

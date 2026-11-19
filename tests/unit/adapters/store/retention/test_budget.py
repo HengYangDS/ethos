@@ -87,13 +87,38 @@ def test_a_file_whose_status_cannot_be_read_is_counted_and_the_row_says_unread(
     assert tree_bytes(listed / "kept/below") == {"files": 0, "bytes": 0, "unread": 0}
 
 
+@NEEDS_A_CLOSED_DIRECTORY
+@pytest.mark.parametrize("closed", ["operations", "operations/lane-retirement"])
+def test_an_owned_place_that_the_host_will_not_answer_for_is_a_place_not_read(
+    tmp_path: Path, closed: str
+) -> None:
+    """A candidate under a closed parent, or one that cannot be listed, leaves the row `unread`."""
+    (tmp_path / "operations/lane-retirement/unit").mkdir(parents=True)
+    (tmp_path / "operations/lane-retirement/unit/kept").write_bytes(b"x" * 7)
+    (tmp_path / "artifacts").mkdir()
+    (tmp_path / "artifacts/kept").write_bytes(b"x" * 5)
+    (tmp_path / closed).chmod(0)
+    try:
+        row = owned_budget(tmp_path, 16)
+    finally:
+        (tmp_path / closed).chmod(0o700)
+    assert row == {"bytes": 5, "budget_bytes": 16, "state": "unread", "unread": 1}
+    assert owned_budget(tmp_path, 16) == {
+        "bytes": 12,
+        "budget_bytes": 16,
+        "state": "within",
+        "unread": 0,
+    }
+
+
 @pytest.mark.parametrize(
     ("held", "unread", "state"),
-    [(16, 0, "within"), (17, 0, "over"), (16, 2, "unread"), (17, 2, "unread")],
+    [(16, 0, "within"), (17, 0, "over"), (16, 2, "unread"), (17, 2, "over")],
 )
 def test_a_row_is_over_only_above_its_budget_and_never_within_on_an_incomplete_read(
     held: int, unread: int, state: str
 ) -> None:
+    """A missed place can only add bytes: counted bytes above the budget stay `over`."""
     row = {"bytes": held, "budget_bytes": 16, "state": state, "unread": unread}
     assert budget_row(held, 16, unread) == row
 
@@ -135,9 +160,11 @@ def test_the_supply_preview_reports_the_host_installations(
     default = run_ethos(*words, "--root", str(repository), "--json")
     (repository / ".ethos").mkdir(exist_ok=True)
     (repository / ".ethos/rules.toml").write_text("[paradigm.retention]\nhost_bytes = 1024\n")
-    lowered = full_result(run_ethos_process(*words, "--root", str(repository), "--json"))
+    completed = run_ethos_process(*words, "--root", str(repository), "--json")
+    lowered = full_result(completed)
 
     row = {"bytes": 2048, "unread": 0}
+    assert completed.returncode == 0, completed.stderr
     assert default["summary"]["budget"] == row | {"budget_bytes": 4 * 2**30, "state": "within"}
     assert lowered["summary"]["budget"] == row | {"budget_bytes": 1024, "state": "over"}
     assert (lowered["verdict"], lowered["state"]) == (default["verdict"], default["state"])

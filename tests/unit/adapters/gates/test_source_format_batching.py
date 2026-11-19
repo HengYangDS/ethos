@@ -212,40 +212,29 @@ def test_an_ignore_query_warning_refuses_nothing_and_a_failure_carries_its_text(
 
 
 def test_one_file_refusing_its_postimage_keeps_the_drift_the_earlier_files_showed(
-    lane: Path, monkeypatch: pytest.MonkeyPatch
+    lane: Path,
 ) -> None:
-    """A refusal no longer hides the gaps that the files prepared before it already computed."""
+    """A refusal hides no drift that an earlier file showed; other callers get the native one."""
+    pages = ("docs/a.md", "docs/b.md")
     write_tree(
         lane,
         {
-            ".config/checks/prettier/prettierignore": "",
-            "docs/a.md": "# A\n",
-            "docs/b.md": "# B\n",
+            # The increment renders embedded code at another width, so the two configurations
+            # conflict on the second page alone; the first page drifts alike under both.
+            ".config/checks/prettier/prettier.toml": "tabWidth = 4\n",
+            "docs/a.md": "# A\n\ntext   \n",
+            "docs/b.md": '# B\n\n```json\n{"nested":{"value":"' + "x" * 100 + '"}}\n```\n',
         },
     )
-    render = formatting_gate.render_source_content
-    refused: set[str] = set()
+    conflict = "native_formatter_policy_conflict:docs/b.md"
 
-    def stub(
-        root: Path, relative: str, owner: str, content: bytes, **options: Any
-    ) -> tuple[bytes, bool]:
-        if refused:
-            message = f"policy conflict in {relative}"
-            raise ValueError(message)
-        refused.add(relative)
-        # The first file's postimage differs from its source, so it holds a drift to report.
-        drifted = render(root, relative, owner, content, **options)[0] + b"\n"
-        return drifted, False
-
-    monkeypatch.setattr(formatting_gate, "render_source_content", stub)
-
-    def nobody_is_clean(*_args: object, **_options: object) -> frozenset[str]:
-        return frozenset()
-
-    monkeypatch.setattr(formatting_gate, "checked_clean", nobody_is_clean)
-    report = gate_tool.markdown_lint_report(lane)
-    format_report = next(item for item in report["native"] if item["id"] == "markdown-format")
-    gaps = format_report["required_gaps"]
-    drifted = [gap for gap in gaps if str(gap).startswith("source_format_drift:")]
-    assert len(drifted) == 1, format_report
-    assert any("policy conflict in" in str(gap) for gap in gaps), format_report
+    lint = gate_tool.markdown_lint_report(lane)
+    format_report = next(item for item in lint["native"] if item["id"] == "markdown-format")
+    assert format_report["required_gaps"] == ["source_format_drift:docs/a.md", conflict], lint
+    # The check reports the native refusal alone, and a fix applies nothing: it raises the
+    # native error itself, with the cause that error came with.
+    report = formatting_gate.source_format_report(lane, paths=pages)
+    assert (report["verdict"], report["required_gaps"]) == ("block", [conflict]), report
+    with pytest.raises(ValueError, match=conflict) as refused:
+        prepare_source_format(lane, paths=pages)
+    assert (type(refused.value), refused.value.__cause__) == (ValueError, None)

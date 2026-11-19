@@ -1,7 +1,8 @@
 """The bytes that a store holds, against the budget its paradigm declares.
 
 A budget reports and never refuses: a row is `within` or `over`, or `unread` when a place under
-it could not be read, and no verdict reads it. Sizes are the sizes of regular files, read without
+it could not be read and the bytes that were counted do not already exceed it, and no verdict
+reads it. Sizes are the sizes of regular files, read without
 following a link or a junction, so a file system that shares blocks holds fewer bytes than a row
 says. A place that cannot be read is counted and skipped; every reading asks the host for an
 entry's own status, which answers alike on every supported interpreter.
@@ -17,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.runtime.filesystem import is_junction
-from ethos.adapters.store.retention.kinds import owned_directories
+from ethos.adapters.store.retention.kinds import owned_places
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -71,15 +72,20 @@ def store_report(store: Path) -> dict[str, object]:
     }
 
 
-def budget_row(held: int, budget: int, unread: int = 0) -> dict[str, object]:
-    """Return one budget row; a read that missed a place is `unread`, never `within` or `over`."""
-    state = "unread" if unread else "over" if held > budget else "within"
+def budget_row(held: int, budget: int, unread: int) -> dict[str, object]:
+    """Return one budget row; a read that missed a place is never `within`.
+
+    A place that was not read can only add bytes, so counted bytes above the budget are `over`
+    whatever was missed; below it, a missed place leaves the row `unread`.
+    """
+    state = "over" if held > budget else "unread" if unread else "within"
     return {"bytes": held, "budget_bytes": budget, "state": state, "unread": unread}
 
 
 def owned_budget(store: Path, budget: int) -> dict[str, object]:
     """Return the row of the directories that record retirement owns in a Git-common store."""
-    read = [tree_bytes(directory) for directory in owned_directories(store)]
+    directories, refused = owned_places(store)
+    read = [tree_bytes(directory) for directory in directories]
     return budget_row(
-        sum(item["bytes"] for item in read), budget, sum(item["unread"] for item in read)
+        sum(item["bytes"] for item in read), budget, refused + sum(item["unread"] for item in read)
     )

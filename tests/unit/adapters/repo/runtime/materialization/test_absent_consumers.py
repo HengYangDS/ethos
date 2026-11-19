@@ -198,6 +198,7 @@ def test_a_failure_of_another_kind_in_the_middle_keeps_what_was_released(tmp_pat
 
     applied = host.plan(after, apply=True, expect=str(preview["plan_digest"]))
 
+    assert applied["failed"].startswith("UnicodeDecodeError: ")
     assert "utf-8" in applied["failed"]
     assert applied["released"] == [host.gone().as_posix()]
     assert len(installation_consumers(moved) or {}) == 2

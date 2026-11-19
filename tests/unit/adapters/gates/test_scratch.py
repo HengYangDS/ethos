@@ -5,6 +5,7 @@ from __future__ import annotations
 import gc
 import json
 import sys
+import tempfile
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -107,14 +108,22 @@ def test_two_attempts_of_one_gate_have_equal_identities(tmp_path: Path) -> None:
     assert first.stdout != second.stdout
 
 
-def test_a_command_without_the_placeholder_is_launched_as_before(tmp_path: Path) -> None:
+def test_a_command_without_the_placeholder_is_launched_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Its arguments, working directory and environment names are the launcher's own."""
     repo = init_git_repo(tmp_path / "repo")
     gate, runner = _gate("show", _SHOW, "plain"), LocalGateRunner()
+    # Every temporary directory of the two attempts is made under this root, so its listing
+    # shows whether the run made a scratch, however the product makes one.
+    made = tmp_path / "temporary"
+    made.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(made))
     direct, _evidence = gate_attempt(repo, gate, gate.command, timeout=30)
 
     result = _attempt(repo, runner, gate)["show"]
 
+    assert not list(made.glob("ethos-proof-scratch-*"))
     assert scratch.bind_scratch(runner, gate.command) == (gate.command, "")
     arguments, directory, names = json.loads(result.stdout)
     assert [arguments, names] == [["plain"], json.loads(direct.stdout)[2]]

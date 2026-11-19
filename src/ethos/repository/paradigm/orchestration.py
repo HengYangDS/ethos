@@ -55,12 +55,16 @@ _RECORD_FIELDS = (
 )
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 # The sessions that one command of a line asks nox for, the task runner behind the paradigm's
-# Python runner entry: the whole names after its session flag, up to the first word that is not
-# one. A name that ends in a Forge expression or stands in quotes is not a name and is not read.
-_SESSION = r"[A-Za-z_][\w.-]*(?![\w.\-${])"
+# Python runner entry: each whole name among the words after its session flag, up to the next
+# flag. The runner's own arguments end at `--`, a quoted name is its name, and a word that holds
+# a Forge expression or a path is no name. A line that names nox as another command's argument
+# and then gives that command such a flag is read as asking for a session.
+_EXPRESSION = re.compile(r"\$\{\{.*?\}\}")
+_NAME = re.compile(r"[A-Za-z_][\w.-]*")
+_WORD = r"[^\s;&|-][^\s;&|]*"
 _SESSIONS = re.compile(
-    r"(?<![\w.-])nox\b[^\n;&|]*?[ \t](?:-[se]|--sessions?)(?:=|[ \t]+)"
-    rf"({_SESSION}(?:[ \t]+{_SESSION})*)"
+    r"(?<![\w.-])nox\b(?:(?![ \t]--[ \t])[^\n;&|])*?[ \t](?:-[se]|--sessions?)(?:=|[ \t]+)"
+    rf"({_WORD}(?:[ \t]+{_WORD})*)"
 )
 
 
@@ -128,25 +132,32 @@ def orchestration_gaps(
 def ci_steps(forge: str, path: str, text: str, *, strict: bool = False) -> list[CiStep]:
     """Return each CI step of one Forge's pipeline file with its job and position.
 
-    A file that cannot be parsed holds no step; a `strict` reader is told so by an error.
+    A file that cannot be parsed, or that holds no mapping for its Forge's reader, holds no
+    step; a `strict` reader is told so by an error that names the place of a parse failure.
     """
     reader = _STEP_READERS.get(forge)
     try:
         document = yaml.load(text, Loader=_ForgeLoader)
-    except yaml.YAMLError:
+    except yaml.YAMLError as error:
         if strict:
-            message = f"the pipeline file {path} cannot be parsed"
-            raise ValueError(message) from None
+            mark = getattr(error, "problem_mark", None)
+            place = f" at line {mark.line + 1}, column {mark.column + 1}" if mark else ""
+            message = f"the pipeline file {path} cannot be parsed{place}"
+            raise ValueError(message) from error
         return []
     if reader is None or not isinstance(document, dict):
+        if strict:
+            message = f"the pipeline file {path} cannot be read as a {forge} pipeline"
+            raise ValueError(message)
         return []
     return list(reader(path, document))
 
 
 def runner_sessions(command: str) -> set[str]:
     """Return the sessions that each line of one command asks the Python task runner for."""
-    asked = _SESSIONS.findall(command.replace("\\\n", " "))
-    return {name for names in asked for name in names.split()}
+    asked = _SESSIONS.findall(_EXPRESSION.sub("$", command.replace("\\\n", " ")))
+    words = (word.strip("\"'") for names in asked for word in names.split())
+    return {word for word in words if _NAME.fullmatch(word)}
 
 
 def forge_only_sessions(
@@ -157,7 +168,8 @@ def forge_only_sessions(
     A session is listed with its jobs when a step of a pipeline file asks the task runner for it
     and none of the `planned` gate commands does. A step that runs anything else is not judged.
     A job is named by its pipeline file and its key there, and a pipeline file that cannot be
-    read or parsed is an error, never an empty one.
+    read, parsed or taken as its Forge's mapping is an error, never an empty one. A mapping
+    whose jobs have another shape than the Forge runs holds no job, as on the Forge.
     """
     local = {name for command in planned for name in runner_sessions(command)}
     jobs: set[str] = set()

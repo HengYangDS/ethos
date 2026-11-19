@@ -197,8 +197,9 @@ plan of every owned, unnamed record older than its floor; the selected runtime a
 only `--expect-plan <digest> --apply --authorize` deletes what that plan and a fresh scan select.
 Both previews report bytes against a declared budget in `summary.budget`, as `within` or `over`:
 the directories that record retirement owns against `retention.status_bytes`, and the host
-store's installations against `retention.host_bytes`. A row whose read missed a place is `unread`
-and carries the count in `unread`. A row that is over or unread refuses nothing.
+store's installations against `retention.host_bytes`. A row whose read missed a place carries the
+count in `unread` and is never `within`: it is `over` when the bytes that were counted already
+exceed the budget, and `unread` otherwise. A row that is over or unread refuses nothing.
 
 ## Accepted Release Selection
 
@@ -359,9 +360,10 @@ that reads a path committed since `base`, the candidate branch, to its reason (`
 test reads; any other role has an empty `base` and no selection. A renamed file counts as its two
 paths. `forge_only_sessions` maps each task-runner session that a step of the pipeline files asks
 for, and no planned gate's command does, to its jobs, each named `<pipeline file>:<job>`, and
-`forge_jobs` counts the jobs whose commands were read. A session that a step names through a
-Forge expression or in quotes is not read, and a GitLab `default` section or hidden template
-that holds a script counts as a job of its own name. `unavailable` names a part that could not
+`forge_jobs` counts the jobs whose commands were read. Each whole name after the runner's session
+flag is a session, up to the next flag; a word that holds a Forge expression is no name and is
+not read. A GitLab `default` section or hidden template that holds a script counts as a job of
+its own name. `unavailable` names a part that could not
 be read, with the error: a tracked Python file that is no text, or a pipeline file that cannot
 be parsed, makes its part unavailable. A bounded result keeps the field's scalar members,
 and the detail that `bound.detail` names holds the rest. The selection is read from tracked text

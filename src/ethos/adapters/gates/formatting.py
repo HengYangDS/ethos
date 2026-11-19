@@ -343,7 +343,11 @@ def prepare_source_format(
     except PostimageRefusalError as refusal:
         # A repair applies nothing on any refusal: the native command's own failure stays the
         # one its caller catches, and no partial postimage escapes.
-        raise refusal.refusal or refusal from refusal
+        native = refusal.refusal
+        if native is None:
+            raise
+    # Raised outside the handler, so the native failure keeps the cause it came with.
+    raise native
 
 
 def source_postimages(

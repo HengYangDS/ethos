@@ -22,8 +22,9 @@ with a count, and SHALL NOT be `within` on an incomplete read.
 
 #### Scenario: A place of the store cannot be read
 
-- **WHEN** the read cannot reach a directory or a file's status below an owned directory
-- **THEN** the row reports `unread` and the count of such places, and never `within`
+- **WHEN** the read cannot reach an owned directory, or a directory or a file's status below one
+- **THEN** the row reports the count of such places and is never `within`: it is `over` when the
+  bytes that were counted already exceed the budget, and `unread` otherwise
 - **AND** the preview's verdict, state, required gaps and next action stay what they were
 
 #### Scenario: A binding declares its own value

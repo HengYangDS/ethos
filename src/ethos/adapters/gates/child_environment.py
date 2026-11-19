@@ -105,6 +105,11 @@ def inherited_environment(root: Path, *, executed: bool) -> dict[str, object]:
     }
 
 
+def names_a_path(word: str) -> bool:
+    """Whether a command's first word is a path: it is declared, and no lock supplies it."""
+    return Path(word).name != word
+
+
 def command_origin(word: str, found: str | None, supply: Supply) -> CommandOrigin:
     """Name the executable that a declared command starts, and what supplied it."""
     started = Path(found).absolute() if found else None
@@ -113,7 +118,7 @@ def command_origin(word: str, found: str | None, supply: Supply) -> CommandOrigi
     )
     supplier = (
         "declared"
-        if Path(word).name != word
+        if names_a_path(word)
         else "unresolved"
         if started is None
         else "locked"

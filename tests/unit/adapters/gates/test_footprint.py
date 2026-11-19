@@ -2,26 +2,20 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
-
-import pytest
 
 from ethos.adapters.gates.footprint import footprint_report
 from ethos.adapters.gates.footprint import observe_lane
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+from tests.support.closed_directory import NEEDS_A_CLOSED_DIRECTORY
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-_CLOSED = pytest.mark.skipif(
-    os.name == "nt" or not hasattr(os, "geteuid") or os.geteuid() == 0,
-    reason="a directory that its owner cannot search needs POSIX modes and no superuser",
-)
+    import pytest
 
 
 def test_an_observation_reads_the_roots_the_kept_homes_and_the_work_names(tmp_path: Path) -> None:
@@ -98,7 +92,7 @@ def test_an_observation_that_fails_with_a_value_error_names_itself_and_raises_no
     assert footprint_report(lane, before) == {"unavailable": "ValueError"}
 
 
-@_CLOSED
+@NEEDS_A_CLOSED_DIRECTORY
 def test_a_directory_that_cannot_be_read_is_counted_as_unread(tmp_path: Path) -> None:
     """A closed directory under a kept home is one unread path of the report."""
     lane = init_git_repo(tmp_path / "lane")

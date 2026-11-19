@@ -256,10 +256,8 @@ def absent_consumers(
     released before it, and so is each planned record that was not read absent again. A store
     that the host cannot look at is no absent store: it refuses, and nothing is planned.
     """
-    released: list[str] = []
-    skipped: list[dict[str, str]] = []
     if not _store_there(store):
-        return _absent_report([], [], released, skipped)
+        return _absent_report([], [])
     with FileLock(
         store / "install.lock",
         timeout=seconds("lock"),
@@ -267,12 +265,12 @@ def absent_consumers(
         preserve_lock_file=True,
     ):
         rows, kept = _absent_rows(store, consumers)
-        report = _absent_report(rows, kept, released, skipped)
+        report = _absent_report(rows, kept)
         if apply:
             if expected_plan != report["plan_digest"]:
                 message = "host_store_plan_changed"
                 raise ValueError(message)
-            failed = _release(rows, released, skipped)
+            report["released"], report["not_released"], failed = _release(rows)
             if failed:
                 report["failed"] = failed
     return report
@@ -281,8 +279,10 @@ def absent_consumers(
 type _AbsentRow = tuple[Path, Path, Path, list[Path]]
 
 
-def _release(rows: list[_AbsentRow], released: list[str], skipped: list[dict[str, str]]) -> str:
-    """Release each planned record read absent again, name the others, and return a failure."""
+def _release(rows: list[_AbsentRow]) -> tuple[list[str], list[dict[str, str]], str]:
+    """Release each planned record read absent again; return those, the others and a failure."""
+    released: list[str] = []
+    skipped: list[dict[str, str]] = []
     try:
         for installation, record, consumer, named in rows:
             for common in named:
@@ -296,9 +296,11 @@ def _release(rows: list[_AbsentRow], released: list[str], skipped: list[dict[str
             row = {"installation": installation.as_posix(), "record": record.name}
             skipped.append(row | {"consumer": consumer.as_posix(), "reason": reason})
     except (OSError, ValueError, RuntimeError) as error:
-        # The result is the only account of the records that were already released.
-        return str(error).strip() or type(error).__name__
-    return ""
+        # The result is the only account of the records that were already released, so a failure
+        # of any of these kinds ends the release as text, which names the failure's class.
+        named = filter(None, (type(error).__name__, f"{error}".strip()))
+        return released, skipped, ": ".join(named)
+    return released, skipped, ""
 
 
 def _absent_rows(store: Path, consumers: tuple[Path, ...]) -> tuple[list[_AbsentRow], list[Path]]:
@@ -334,9 +336,7 @@ def _absent_records(installation: Path) -> list[tuple[Path, Path]]:
     ]
 
 
-def _absent_report(
-    rows: list[_AbsentRow], kept: list[Path], released: list[str], skipped: list[dict[str, str]]
-) -> dict[str, object]:
+def _absent_report(rows: list[_AbsentRow], kept: list[Path]) -> dict[str, object]:
     sizes = {installation: _size(installation) for installation, *_row in rows}
     planned = [
         {
@@ -355,8 +355,8 @@ def _absent_report(
         ],
         "held_bytes": sum(sizes.values()),
         "kept": [{"installation": path.as_posix(), "reason": "uncertain"} for path in kept],
-        "released": released,
-        "not_released": skipped,
+        "released": [],
+        "not_released": [],
     }
 
 

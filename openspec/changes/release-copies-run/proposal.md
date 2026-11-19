@@ -54,6 +54,12 @@ Candidates for a design; none is decided.
   reader and what was not run. The release's tag condition reads that record in place of a file
   that the release lead writes by hand.
 - The first regression is the two runs' own records: the same trees, the same counts.
+- What the command owns, from the run of 2026-11-18, which four hand-written drivers, two alarm
+  loops and a ticket counter carried: the list of trees, an atomic claim of each tree, the
+  declared launch form, the admission of each session's tickets, and one summary for each tree
+  that states its launch form. Of that run's defects four were shell dialect, one a count that
+  was not atomic and one the launch form; 2 of its 11 first results were artifacts of the
+  launch, and the 8 reruns took 44 minutes of checks beside 42 for the 11 first runs.
 
 ## Capabilities
 

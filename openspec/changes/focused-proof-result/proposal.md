@@ -34,9 +34,9 @@ source on `dev` at `d98081605` and both met by governed repositories' sessions:
   0.2.0-beta.10: a focused run of its static gate alone was refused before any gate, the session
   read that as "this gate cannot run before a proof", and a full proof then waited 3,228 seconds
   in the host queue for a refusal that the static gate gave in 41 seconds. The readiness run
-  existed and held that gate. So the refusal's next action names `ethos prove --readiness
-  --execute`, and the readiness answer names where the list of gates that ran is kept when the
-  answer is bounded.
+  existed and held that gate. So the refusal's next action names
+  `ethos prove --readiness --execute`, and the readiness answer names where the list of gates
+  that ran is kept when the answer is bounded.
 
 ## Capabilities
 

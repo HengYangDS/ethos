@@ -367,6 +367,20 @@ def prove_on_host(root: Path, request: ProofRequest) -> EthosResult:
         )
 
 
+@contextmanager
+def _forgetting_on_failure(repo: Path) -> Generator[None]:
+    """Drop the names that a root's gates opened when the block fails in any way.
+
+    A refusal of the proof's own kind and a failure of any other kind both leave the gates' run
+    without a record; the names kept for that record go with them.
+    """
+    try:
+        yield
+    except BaseException:
+        forget_opened(repo)
+        raise
+
+
 def _early_sample(options: ProofRequest) -> tuple[float, float | None] | None:
     """Read the host's load and its clock time before a full proof's readiness gates."""
     return (time.monotonic(), host_load()) if options.execute and options.full else None
@@ -429,14 +443,14 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
 
     observed = lane_before(repo, execute=options.execute)
     try:
-        checks, runs_ok = run_plan_checks(
-            repo=repo,
-            plan=plan,
-            execute=options.execute,
-            admission=admission if options.execute and options.full else None,
-        )
+        with _forgetting_on_failure(repo):
+            checks, runs_ok = run_plan_checks(
+                repo=repo,
+                plan=plan,
+                execute=options.execute,
+                admission=admission if options.execute and options.full else None,
+            )
     except ValueError as exc:
-        forget_opened(repo)
         return _with_footprint(_proof_gap(exc, head=current_head), repo, observed)
     inputs = gate_inputs(
         repo,

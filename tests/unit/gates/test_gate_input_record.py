@@ -8,7 +8,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.input_key as input_key
+import ethos.application.proof.operation as proof_operation
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.repository.release.identity import BuildIdentity
 from ethos.result import expand_result
 from tests.support.ethos_cli_runner import ROOT
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -110,6 +113,32 @@ def test_a_run_whose_source_changed_under_its_gates_records_nothing(
     assert "gate_inputs" not in result["data"]
     assert ("footprint" in result["data"]) is (plane == ())
     assert not (local_state_root(repository) / "gate-results").exists()
+
+
+def test_a_governed_run_that_another_failure_ends_keeps_no_name_its_gates_opened(
+    repository: Path, monkeypatch
+) -> None:
+    """The governed plane drops the opened names when its gates end in no refusal of its own."""
+    docs = ["provider", "provider.docs-registry"]
+    seen: list[Path] = []
+
+    def torn(*, repo: Path, **_arguments: object) -> None:
+        seen.append(repo)
+        # A committed file that the documentation registry's statement does not select.
+        with input_key.watching(repo, "docs-registry", docs):
+            (repo / "VERSION").read_bytes()
+        message = "the gates' run was torn"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(proof_operation, "run_plan_checks", torn)
+    with pytest.raises(RuntimeError, match="torn"):
+        _prove(repository)
+
+    gate = {"id": "docs-registry", "execution_identity": docs, "sources": []}
+    product = BuildIdentity("1", "1", "c" * 40, "d" * 40)
+    run = input_key.run_inputs(seen[0], current_tree(seen[0]), product)
+    assert len(seen) == 1
+    assert input_key.opened_outside(seen[0], gate, run) == []
 
 
 def test_a_governed_run_of_an_edited_tree_ends_before_its_gates_and_any_record(

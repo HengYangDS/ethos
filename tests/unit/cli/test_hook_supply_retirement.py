@@ -9,6 +9,8 @@ from pathlib import Path
 
 from ethos.adapters.repo.runtime.host_store import installation_consumers
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.application.hook.installation import retire_host_supply
+from ethos.contracts.operations.hook import RetireSupplyRequest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
@@ -72,6 +74,23 @@ def test_the_previewed_command_retires_exactly_its_plan(tmp_path: Path) -> None:
     assert not unused.exists()
     assert selected.exists()
     assert installation_consumers(selected.parents[1]) is not None
+
+
+def test_an_applied_retirement_carries_no_budget_row_and_names_no_cleanup(tmp_path: Path) -> None:
+    """The budget row is a preview's, and only a release of records is followed by a cleanup."""
+    projects, repository, _selected, unused = _case(tmp_path)
+    scan = (str(projects),)
+
+    preview = retire_host_supply(repository, RetireSupplyRequest(scan=scan))
+    plan = str(preview.data["plan_digest"])
+    applied = retire_host_supply(
+        repository, RetireSupplyRequest(scan=scan, expect_plan=plan, apply=True, authorize=True)
+    )
+
+    assert preview.summary["budget"]["state"] == "within"
+    assert (applied.verdict, applied.state, applied.next_action) == ("pass", "retired", "")
+    assert "budget" not in applied.summary
+    assert not unused.exists()
 
 
 def test_retirement_needs_authorization_and_an_existing_scan_root(tmp_path: Path) -> None:

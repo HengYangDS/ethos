@@ -445,6 +445,30 @@ def test_jobs_of_one_name_in_two_workflows_are_two_jobs(tmp_path: Path) -> None:
     )
 
 
+def test_a_place_that_jobs_inherit_from_counts_as_a_job_of_its_own_name(
+    tmp_path: Path,
+) -> None:
+    """GitLab's `default` and a hidden template are read as jobs: no inheritance is resolved."""
+    files = {
+        ".gitlab-ci.yml": "default:\n  before_script: [nox -s bootstrap]\n"
+        ".template:\n  script: [nox -s shared]\n"
+        "verify:\n  script: [nox -s lint]\n",
+        ".github/workflows/ci.yml": "jobs:\n  default:\n    steps:\n      - run: nox -s lint\n",
+    }
+    write_tree(tmp_path, files)
+
+    read = forge_only_sessions(load_repository_paradigm(), tmp_path, frozenset(files), [])
+
+    assert read == (
+        4,
+        {
+            "bootstrap": [".gitlab-ci.yml:default"],
+            "lint": [".github/workflows/ci.yml:default", ".gitlab-ci.yml:verify"],
+            "shared": [".gitlab-ci.yml:.template"],
+        },
+    )
+
+
 def test_forge_sessions_are_none_without_a_pipeline_and_refuse_an_unreadable_one(
     tmp_path: Path,
 ) -> None:

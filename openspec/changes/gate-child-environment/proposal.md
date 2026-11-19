@@ -36,11 +36,16 @@ The design of `gate-environment` (Decisions 4 and 6) measured what the build cha
 
 ## What Changes
 
-Decided by the owner, and designed here:
+Decided by the owner:
 
-- A repository's profile declares the state of its gate children: `report`, which changes no child
-  and is the default in the release that ships the state, or `allow-listed`, which becomes the
-  default one release later.
+- Each repository declares the state of its gate children. The default state reports and changes
+  no child. Under the other state a declared command's child is built from a list, and the
+  repository names the variables that its gates need.
+- The state ships in the first release after 0.2.0 and becomes the default one release later.
+
+Designed here, around that decision:
+
+- The profile carries the state: `report` or `allow-listed`.
 - Under `allow-listed`, a declared command's child receives the product's list of kept names,
   the locked toolchain's environment with a path of the locked tools and the host's own command
   directories, and the variables that its gate names. It receives no Git configuration overlay

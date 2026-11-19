@@ -38,8 +38,8 @@ This is the first slice: keys, the record and the comparison. No task lets a pro
       and not a comment, of the Git directory's local attributes file, found through Git's own
       path for it; never a pattern. Done when a test of a repository with one such line reports
       1, and without the file 0.
-      (At `20cd42dfb` the test of task 1.4 reads 0, 0 and 1 for three runs, and the test of a held
-      gate reads 0 from the result's data.)
+      (At `20cd42dfb` the test of task 1.4 reads 0, 0, 1 and 1 for its four runs, and the test of a
+      held gate reads 0 from the result's data.)
 
 ## 2. The record and the comparison
 
@@ -125,7 +125,7 @@ This is the first slice: keys, the record and the comparison. No task lets a pro
       `tests/unit/adapters/gates/test_markdown_links.py` pass.
       (At `20cd42dfb`: Markdown lint and the prose gate pass on the three pages and the changelog,
       and both refuse a control; the documentation registry reports no gap; 22 local links resolve;
-      the context module passes 18 cases and the links module 1.)
+      the context module passes 18 cases and the links module 52.)
 - [x] 5.2 Name the record's kind and its floor in `docs/architecture/local-state.md`, which
       describes the record retirement, and add one changelog bullet that says no gate is
       skipped. Done when both pass the same checks.

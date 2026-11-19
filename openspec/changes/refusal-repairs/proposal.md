@@ -102,6 +102,22 @@ check below is one more case. The bullets below stay as named remainders.
   select, refuses with `record_retirement_runtime_unselected` and names no next step: the
   result's next action and its instruction are empty. Measured on the accepted root on
   2026-11-17. The refusal names the selected runtime's own console.
+- A repair of the accepted specification tree is admitted for the worktree and refused at its
+  commit. The worktree admission marks a profile's added metadata declaration and the move of a
+  supporting file as repairs, each with a scope of its own while the tree holds other gaps. The
+  staged admission, which `lane prewrite --target index` and the commit hook use, marks neither,
+  so a commit passes only when its staged tree holds no gap of `openspec/specs` at all. Met by a
+  governed repository's session under 0.2.0-beta.10 on 2026-11-19 and measured in a fixture on
+  this lane's code the same day: the profile repair passes for the worktree and is blocked
+  staged, and one commit that leaves no gap passes. Each admission names the same repairs.
+- `ethos lane repair-signature` refuses a commit inside a Work Lane's unpublished range with
+  `signature_repair_accepted_head_stale` and names its own apply as the next action; no command
+  repairs an unsigned commit of a lane's own range. Measured by a governed repository's session
+  on 2026-11-18 under 0.2.0-beta.10, on three such commits of one lane.
+- The paradigm's commit grammar admits ten types and not `style`, which the Conventional Commits
+  common set holds; the same session met eight signed commits of one lane refused for it. Why
+  the type is absent is read before a change; the list is the one grammar of every governed
+  repository, so adding to it is the owner's decision.
 
 ## Capabilities
 

@@ -37,7 +37,7 @@ see [commit integrity](docs/reference/command-plane.md#commit-integrity-and-acce
 <type>(<scope>): <description>
 ```
 
-- `type` identifies the kind of change: `feat`, `fix`, `docs`, `test`,
+- `type` identifies the kind of change: `feat`, `fix`, `docs`, `style`, `test`,
   `refactor`, `perf`, `build`, `ci`, `chore` or `revert`.
 - `scope` is optional. When present, keep the literal parentheses and name the
   affected semantic area, such as `proof`, `lanes` or `cli`. The current policy

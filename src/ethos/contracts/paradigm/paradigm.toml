@@ -389,7 +389,7 @@ platforms = ["darwin", "linux", "windows"]
 # repository may restrict scopes to a declared list; the type set does not vary, and
 # every commit carries an SSH signature.
 [commit]
-types = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "test"]
+types = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test"]
 scope = '[a-z0-9]+(?:-[a-z0-9]+)*'
 breaking_marker = "!"
 signature = "ssh"

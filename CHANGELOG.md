@@ -75,6 +75,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
   place. A runtime that does not read the placeholder passes the word through, so a registry
   names it only once every runtime that proves the repository reads it.
 
+### Changed
+
+- The commit grammar admits the type `style`. The paradigm's types are now the eleven of the
+  configuration that Conventional Commits 1.0.0 names: build, chore, ci, docs, feat, fix, perf,
+  refactor, revert, style and test. Where the paradigm's grammar judges a commit, one that was
+  refused for this type alone is accepted once the repository binds this release. No other type
+  joins. A repository's own `subject_pattern` stays in force and is still reported as a restated
+  grammar; one that restates the former ten types is no longer removed by the paradigm repair,
+  so that repository refuses `style` until the field is removed by hand.
+
 ### Fixed
 
 - The `source-format`, `markdown-lint` and `config-quality` gates start each native tool a fixed

@@ -9,8 +9,13 @@ import pytest
 import ethos.repository.policy.commit as commit_policy
 
 ROOT = Path(__file__).resolve().parents[4]
-_SHARED = ("feat(cli)!: drop the legacy flag", "fix: repair", "refactor(relay-core): split")
-_FOREIGN = ("style: reformat", "spec(cli): add", "fix(Cli): repair", "fix:repair")
+_SHARED = (
+    "feat(cli)!: drop the legacy flag",
+    "fix: repair",
+    "refactor(relay-core): split",
+    "style: reformat",
+)
+_FOREIGN = ("spec: add", "spec(cli): add", "fix(Cli): repair", "fix:repair")
 
 
 def _write_workspace(root: Path, text: str) -> None:
@@ -110,8 +115,8 @@ def test_present_commit_policy_fails_closed(tmp_path: Path, old: str, new: str, 
         ("", _SHARED, _FOREIGN),
         (
             'scopes = ["cli", "relay"]\n',
-            ("fix(cli): repair", "feat(relay)!: rename", "docs: explain"),
-            ("fix(other): repair", "style(cli): reformat"),
+            ("fix(cli): repair", "feat(relay)!: rename", "docs: explain", "style(cli): reformat"),
+            ("fix(other): repair", "spec(cli): add"),
         ),
     ],
     ids=["shared-grammar", "declared-scopes"],

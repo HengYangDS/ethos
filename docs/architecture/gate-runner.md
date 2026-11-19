@@ -100,6 +100,36 @@ the list and an empty `outside_lock`. The proof Attestation carries none of thes
 `inherited` is the only mode: a repository cannot yet declare that its commands start in an
 environment built from that list.
 
+## Input Keys And The Result Record
+
+An executed run whose source still equals its commit after the gates gives each gate that
+executed an input key: a digest of the gate as the policy binds it, the committed paths its
+statement selects and the run's named inputs. The product's table
+[`gate-inputs.toml`](../../src/ethos/contracts/gate-inputs.toml) states by provider ID what a
+product provider reads. A command gate and a provider outside the table are keyed by every
+committed path, and a provider that reads outside the committed tree is marked open. The named
+inputs are the running product, the interpreter, the platform, Git's version, Git's attribute
+classification of the committed paths and the names of the entries Git ignores; they are read
+after the gates. Where the running product was built from the proved tree itself, the committed
+files its wheel is built from are paths of every statement instead. No value of an environment
+variable enters a key.
+
+No gate is skipped. Every gate runs, and its decided verdict, pass or block, is compared with
+the earlier decided results of the same key. The run is then written as one content-addressed
+file under `gate-results/` in the Git-common store, with its head, its tree, its named inputs
+and a digest of the names of the launch environment. The command's result names the record and
+counts the comparisons by state; the rows stay in the record, so a result does not grow with
+the gates. A differing earlier result is a note of the command's result, `gate_input_mismatch`,
+outside every check: the verdict, the required
+gaps, the proof artifact and the Attestation are those of a run without any record. A gate that
+an unmet prerequisite held did not execute and has no row. A store that cannot be read or
+written, or statements that cannot be read, leave every gate and the proof as they are, and the
+result names the record as unavailable.
+
+The record also names each committed file that a stated provider opened outside its statement,
+seen in the provider's own process and not in a child, and the count of effective lines in the
+Git directory's local attributes file.
+
 ## Local Fallback Evidence
 
 When no peer is reachable, `ethos publish` falls back to the proof Attestation

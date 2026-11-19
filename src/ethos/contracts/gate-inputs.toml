@@ -1,0 +1,25 @@
+# What each product-owned provider reads from the committed tree, as path patterns. A provider
+# that this table does not name, and every command gate, is keyed by the whole tree. `open` names
+# the providers that read state outside the committed tree: their results are recorded and never
+# reused. The link check is not stated: it reads every committed file that a document links to.
+
+open = [
+  "provider.commit-ranges",
+  "provider.generated-artifacts",
+  "provider.product-audit",
+  "provider.product-boundary",
+  "provider.python-behavior",
+  "provider.python-types",
+  "provider.repository-audit",
+]
+
+[inputs]
+"provider.code-static" = ["*.py", "*.pyi", "*.js", "*.mjs", "*.cjs", "package.json", "package-lock.json", "pyproject.toml", ".config/mise/**", ".gitattributes"]
+"provider.configuration" = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg", ".gitattributes"]
+"provider.docs-registry" = ["*.md", "docs/_meta/**", ".config/checks/*/policy.toml"]
+"provider.markdown-lint" = ["*.md", "docs/_meta/**", ".config/checks/markdownlint-cli2/**", ".config/checks/prettier/**", ".config/checks/*/policy.toml", ".gitattributes"]
+"provider.module-layout" = ["*.py", "*.pyi", ".config/checks/module-layout/**"]
+"provider.openspec" = ["openspec/**", "package.json", "package-lock.json"]
+"provider.prose" = ["*.md", "docs/_meta/**", ".config/checks/codespell/**", ".config/checks/vale/**", ".config/checks/*/policy.toml", ".gitattributes"]
+"provider.schemas" = ["*.md", "system/**", ".agents/**", "docs/_meta/**", ".config/checks/*/policy.toml"]
+"provider.skill-portfolio" = [".agents/**", "system/**"]

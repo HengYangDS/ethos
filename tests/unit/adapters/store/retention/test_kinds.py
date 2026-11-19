@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.gates.input_key import record_results
 from ethos.adapters.store.retention.kinds import classify_store
+from ethos.adapters.store.retention.kinds import owned_directories
 from tests.support.retention_store import javascript_attempt
 from tests.support.retention_store import lane_unit
 from tests.support.retention_store import manifest
@@ -77,3 +79,20 @@ def test_records_another_producer_wrote_are_kept_as_unowned(tmp_path: Path) -> N
 
     assert items == ()
     assert unowned == tuple(sorted((misnamed, not_json, listed, damaged, a_list)))
+
+
+def test_a_run_record_of_gate_results_is_owned_and_another_form_beside_it_is_not(
+    tmp_path: Path,
+) -> None:
+    """The record retires as a record, under the record floor; any other file there stays."""
+    store = tmp_path / "store"
+    record = record_results(store, {"schema": 1, "head": "h", "tree": "t", "results": []})
+    other = put(store, "gate-results", b'{"schema": 2, "results": []}', ".json", age_days=30)
+
+    items, unowned = classify_store(store)
+
+    assert [(item.kind, item.state, item.paths) for item in items] == [
+        ("gate-result", "record", (record,))
+    ]
+    assert unowned == (other,)
+    assert record.parent in owned_directories(store)

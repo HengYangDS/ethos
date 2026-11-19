@@ -12,6 +12,8 @@ from ethos.adapters.actor import process_actor
 from ethos.adapters.gates.child_environment import inherited_environment
 from ethos.adapters.gates.host_admission import admitted_host_work
 from ethos.adapters.gates.host_admission import exported
+from ethos.adapters.gates.input_key import GateInputs
+from ethos.adapters.gates.input_key import gate_inputs
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import readiness_tier
@@ -68,6 +70,7 @@ def observe_gate_execution(
     policy = None
     admission: dict[str, object] | None = None
     not_run: list[str] = []
+    inputs = GateInputs({})
 
     def resolve() -> ResolvedGatePolicy:
         return resolve_gate_policy(
@@ -98,6 +101,9 @@ def observe_gate_execution(
                 or resolve().digest != policy.digest
             ):
                 gaps.append("proof_execution_source_changed")
+            inputs = gate_inputs(
+                root, head=head, tree=tree, policy=policy, checks=checks, kept=not gaps
+            )
     except ValueError as error:
         failure = outcome_of(error)
         checks, not_run = _kept(error, checks)
@@ -111,8 +117,9 @@ def observe_gate_execution(
         "checks": checks,
         "not_run": not_run,
         "required_gaps": list(observed.gaps),
-        "diagnostics": list(observed.causes),
+        "diagnostics": [*observed.causes, *inputs.notes],
         **({"admission": admission} if admission is not None else {}),
+        **inputs.data,
     }
 
 
@@ -219,6 +226,7 @@ def host_gate_observation(
             "checks": checks,
             **({"admission": observed["admission"]} if "admission" in observed else {}),
             **({"not_run": observed["not_run"]} if observed["not_run"] else {}),
+            **({"gate_inputs": observed["gate_inputs"]} if "gate_inputs" in observed else {}),
             "attestation": {},
             "expected_head": {
                 "expected": expect_head or "",
@@ -242,6 +250,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
     unexamined: dict[str, object] = {}
     digest = ""
     failure = Outcome()
+    inputs = GateInputs({})
     try:
         if not gaps:
             policy = resolve_gate_policy(repo, tree_ref=head, full=True)
@@ -269,6 +278,9 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
                     or observe_execution_source(repo, head, tree) != source
                 ):
                     gaps.append("proof_execution_source_changed")
+                inputs = gate_inputs(
+                    repo, head=head, tree=tree, policy=policy, checks=checks, kept=not gaps
+                )
     except ValueError as error:
         failure = outcome_of(error)
     observed = Outcome.of("pass", *gaps).combine(gate_outcome(checks), failure)
@@ -284,7 +296,7 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
             "proof_attestation_issued": False,
             **inherited_environment(repo, executed=bool(checks)),
         },
-        diagnostics=tuple(observed.causes),
+        diagnostics=(*observed.causes, *inputs.notes),
         required_gaps=tuple(observed.gaps),
         next_action="repair the failed readiness gate"
         if observed.gaps
@@ -298,5 +310,6 @@ def readiness_observation(*, repo: Path, expect_head: str | None) -> EthosResult
             "not_run": not_run,
             "unexamined": {"gates": not_run, **unexamined},
             "attestation": {},
+            **inputs.data,
         },
     )

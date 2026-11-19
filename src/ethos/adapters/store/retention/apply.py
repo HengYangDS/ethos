@@ -48,6 +48,7 @@ BATCHES = (
     "javascript-attempt",
     "merge-preimage",
     "lane-retirement",
+    "gate-result",
 )
 _PER_HOLD = 200
 _HOLDS = 3

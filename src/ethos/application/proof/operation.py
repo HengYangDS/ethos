@@ -20,6 +20,7 @@ from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.child_environment import inherited_environment
+from ethos.adapters.gates.input_key import gate_inputs
 from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
 from ethos.adapters.gates.proof_slot import host_load
@@ -424,6 +425,14 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
         )
     except ValueError as exc:
         return _proof_gap(exc, head=current_head)
+    inputs = gate_inputs(
+        repo,
+        head=current_head,
+        tree=plan.facts.get("tree", ""),
+        policy=plan.policy,
+        checks=checks,
+        kept=options.execute,
+    )
     scope_binding, host_probe = (
         proof_scope_binding(options.scope),
         host_probe_boundary(host=options.host, probe=options.probe),
@@ -481,6 +490,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
         "attestation": attestation.model_dump(mode="json") if attestation is not None else {},
         "artifact_reference": dict(artifact) if isinstance(artifact, Mapping) else {},
         "checks": check_summaries,
+        **inputs.data,
         "parameter_deviations": list(active_resolution().deviations),
         "expected_head": {
             "expected": options.expect_head or "",
@@ -516,7 +526,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
             **inherited_environment(repo, executed=options.execute),
         },
         required_gaps=required_gaps,
-        diagnostics=assessed.causes,
+        diagnostics=(*assessed.causes, *inputs.notes),
         next_action=_proof_next_action(
             options=options, result_state=result_state, gaps=required_gaps
         ),

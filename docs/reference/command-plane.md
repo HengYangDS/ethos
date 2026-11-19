@@ -358,6 +358,18 @@ not the full proof's pass and not the Forges' pass.
 
 Full proof first runs its readiness gates, every gate that is not a test or package gate and depends on none, and ends without waiting when one fails. It then holds the repository's shared slot and the host slot, and waits for two consecutive 1-minute load samples within the limit before its test and package gates. The limit is the run's `ETHOS_PROOF_HOST_LOAD_LIMIT` (`0` skips load checks), else `load_limit` in `host.toml`, else half the CPUs. Waiting reports on stderr and stops after one hour with `proof_admission_contended`, which names the load, the limit and its source, before those gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
+An executed proof run with a frozen source reports `data.gate_inputs`: `record`, the file of
+this run under `gate-results/` in the Git-common store; `compared`, the count of its gates by
+the state of their comparison (`agree`, `mismatch`, `open` or `none`); and `attribute_lines`, the
+count of effective lines in the Git directory's local attributes file. The record holds the
+run's named inputs, where `product` is `tree` when the running product was built from the
+proved tree, and for each gate that executed its input `key`, its `statement` (`declared`, `tree`
+or `open`), the `comparison` of its verdict with the earlier results of that key and the
+committed files that a stated provider `opened` outside its statement. Every gate still runs. A
+differing earlier result adds the diagnostic `gate_input_mismatch` at severity `note`, which
+names the gate, the key and the earlier result's tree, and changes no verdict; `unavailable`
+names the error when the record could not be read or written.
+
 ## Hidden Operational Roots
 
 [Operational Roots](operational-roots.md) describes the hidden operational roots `ethos lane`,

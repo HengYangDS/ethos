@@ -96,7 +96,8 @@ Records in the Git-common store retire only through `ethos hook retire-records`,
 which the selected runtime runs. Its preview reads the age floors
 `retention.grace_seconds` and `retention.record_seconds` from the accepted
 branch's binding, classifies proof-check documents, merge preimages, gate attempt
-archives and terminal lane retirement units by their writers' forms, keeps every
+archives, the run records of gate results under `gate-results/`, which retire under the record
+floor, and terminal lane retirement units by their writers' forms, keeps every
 record that a live Attestation member, another kept store file or the accepted
 tree names, read through zip, gzip, tar and base64 content, and writes the plan
 of the rest to `requests/record-retirement/<digest>.json`. Only

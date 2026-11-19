@@ -50,6 +50,7 @@ def test_an_apply_deletes_its_plan_once_and_receipts_the_run(repo: Path) -> None
         put(store, "artifacts", proof_check(), ".json", age_days=30),
         put(store, "artifacts", native_attempt(), ".zip", age_days=30),
         put(store, "artifacts", merge_preimage(), ".json", age_days=30),
+        put(store, "gate-results", b'{"schema": 1, "results": []}', ".json", age_days=30),
         *unit.values(),
         operation,
     ]
@@ -64,7 +65,7 @@ def test_an_apply_deletes_its_plan_once_and_receipts_the_run(repo: Path) -> None
     assert young.exists()
     kinds = result.data["kinds"]
     assert {kind: tally["deleted"] for kind, tally in kinds.items()} == dict.fromkeys(
-        ("proof-check", "native-attempt", "merge-preimage", "lane-retirement"), 1
+        ("proof-check", "native-attempt", "merge-preimage", "lane-retirement", "gate-result"), 1
     )
     assert kinds["proof-check"]["deleted_bytes"] == len(proof_check())
     receipt = json.loads(Path(result.data["receipt"]["path"]).read_bytes())

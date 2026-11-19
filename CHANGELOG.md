@@ -34,6 +34,15 @@ historical bindings are governed by the [distribution specification](openspec/sp
   `unresolved`. No gate child's environment changes, and no verdict, gap, exit code or
   Attestation. The product design contract now states that ETHOS does not confine a declared
   command.
+- An executed proof run with a frozen source gives each gate that executed an input key and
+  records the run under `gate-results/` in the Git-common store. No gate is skipped: every gate
+  still runs, and its verdict is compared with the earlier results of the same key. The result
+  names the record and counts the comparisons in `data.gate_inputs`, and a differing earlier
+  result is the note `gate_input_mismatch`, which changes no verdict, required gap, proof
+  artifact or Attestation.
+  The record also names the committed files that a stated provider opened outside its statement
+  and the count of effective lines in the Git directory's local attributes file.
+  `ethos hook retire-records` retires these records under the record floor.
 
 ### Fixed
 

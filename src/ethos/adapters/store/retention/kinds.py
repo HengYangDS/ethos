@@ -25,6 +25,7 @@ _NATIVE_MEMBERS = frozenset({"execution.json", "stdout.txt", "stderr.txt"})
 _MANIFEST_REFERENCE = re.compile(rb'"manifest":\{"sha256":"([0-9a-f]{64})"')
 _OWNED = (
     "artifacts",
+    "gate-results",
     "requests/lane-retirement",
     "receipts/lane-retirement",
     "requests/lane-retirement-manifest",
@@ -52,6 +53,13 @@ def classify_store(store: Path) -> tuple[tuple[StoreItem, ...], tuple[Path, ...]
             unowned.append(path)
         else:
             items.append(StoreItem(kind, "artifact", (path,), frozenset({path.stem})))
+    for path in _files(store / "gate-results"):
+        data = path.read_bytes()
+        document = _decoded(data) if _digest(data) == path.stem else None
+        if isinstance(document, dict) and document.get("schema") == 1 and "results" in document:
+            items.append(StoreItem("gate-result", "record", (path,), frozenset({path.stem})))
+        else:
+            unowned.append(path)
     units, foreign = _lane_units(store)
     return (*items, *units), tuple(sorted((*unowned, *foreign)))
 

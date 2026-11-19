@@ -25,6 +25,7 @@ from typing import Any
 
 from ethos.adapters.gates.child_environment import command_origin
 from ethos.adapters.gates.child_environment import locked_toolchain
+from ethos.adapters.gates.input_key import watching
 from ethos.adapters.gates.javascript.execution import prepare_command
 from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.gates.native.attempt import gate_attempt
@@ -506,9 +507,14 @@ def gate_timeout(gate: Gate) -> tuple[float, str]:
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path, *, candidate: bool) -> ActionRunResult:
-    reports, verdict, diagnostics = provider_reports(
-        gate.id, gate.providers, root, timeout_seconds=gate_timeout(gate)[0], candidate=candidate
-    )
+    with watching(root, gate.id, ("provider", *gate.providers)):
+        reports, verdict, diagnostics = provider_reports(
+            gate.id,
+            gate.providers,
+            root,
+            timeout_seconds=gate_timeout(gate)[0],
+            candidate=candidate,
+        )
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,

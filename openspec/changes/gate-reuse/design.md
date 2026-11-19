@@ -116,12 +116,14 @@ Non-Goals:
      repository, which asks every governed repository to describe the product's own code.
    - **Chosen because:** the product owns its providers and is the only party that can keep the
      statement true to them. No repository declares anything and no digest changes.
-   - **Applies to:** nine providers: the static code check, configuration, the documentation
-     registry, Markdown lint, module layout, OpenSpec, prose, schemas and the skill portfolio.
-     The link check is not stated: on the product's own tree its process opened the committed
-     target of a link, a file outside its traced statement, so it is keyed by the whole tree.
-     Patterns have the form of `required_for_paths`. Every statement also holds the profile and
-     the gate declarations.
+   - **Applies to:** eight providers: configuration, the documentation registry, Markdown lint,
+     module layout, OpenSpec, prose, schemas and the skill portfolio. The link check is not
+     stated: on the product's own tree its process opened the committed target of a link, a file
+     outside its traced statement, so it is keyed by the whole tree. The static code check was
+     stated until the review of 2026-11-20 and is not: it judges Go modules and the scripts that
+     a profile declares by path, and reads the repository's own linter configuration, none of
+     which its statement selected, and a declared script is no pattern. Patterns have the form
+     of `required_for_paths`. Every statement also holds the profile and the gate declarations.
 4. **A gate without a statement is keyed by every committed path, and a provider that reads
    outside the tree is marked open.**
    - **Rests on:** the study's 11 gates that read outside the tree and the three results it
@@ -235,7 +237,7 @@ Non-Goals:
       differ.
     - **Chosen because:** an input that cannot be named cannot be keyed.
     - **Applies to:** the arming Change. It excludes the 16 command gates, which run as a child
-      of the proof, and every provider with a tool child. Of the nine stated providers, four
+      of the proof, and every provider with a tool child. Of the eight stated providers, four
       start no child or only Git and have no quality axis: `skills`, `docs-registry`, `schemas`
       and `module-layout`. They are the first candidates and hold almost none of a proof's time.
 11. **A hosted run executes every gate.**
@@ -299,7 +301,13 @@ Non-Goals:
 - A statement that is too wide only loses a hit. A statement that is too narrow is the wrong
   hit, and the record of opened files cannot see a child's read or a read of the environment:
   product code reads 19 environment names by literal. The arming Change lists the names that a
-  candidate provider can reach.
+  candidate provider can reach. The review of 2026-11-20 found that unseen kind twice: the
+  static code check's statement, and the configuration check's, which lacked the Vale
+  vocabularies that its tool compiles. It also found two providers that read outside the
+  committed tree and were not marked open, the external link check and the code behavior
+  check. The table is corrected for the four. The statements of Markdown lint, prose and
+  OpenSpec, the three other providers with a tool child, were not read against their tools
+  again; decision 10 keeps every provider with a tool child out of arming.
 - The record is local state. Deleting it loses comparisons and no verdict. A process that can
   write the store can write a record; that is the store's existing boundary, and it matters
   only from arming on.

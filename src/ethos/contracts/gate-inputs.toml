@@ -2,9 +2,14 @@
 # that this table does not name, and every command gate, is keyed by the whole tree. `open` names
 # the providers that read state outside the committed tree: their results are recorded and never
 # reused. The link check is not stated: it reads every committed file that a document links to.
+# The static code check is not stated either: it judges Go modules and the scripts that a profile
+# declares by path, and it reads the repository's own linter configuration; no pattern here
+# selects a declared script. A statement names every path that the provider's own tools read.
 
 open = [
+  "provider.code-behavior",
   "provider.commit-ranges",
+  "provider.external-links",
   "provider.generated-artifacts",
   "provider.product-audit",
   "provider.product-boundary",
@@ -14,8 +19,7 @@ open = [
 ]
 
 [inputs]
-"provider.code-static" = ["*.py", "*.pyi", "*.js", "*.mjs", "*.cjs", "package.json", "package-lock.json", "pyproject.toml", ".config/mise/**", ".gitattributes"]
-"provider.configuration" = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg", ".gitattributes"]
+"provider.configuration" = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg", ".config/checks/vale/**", ".gitattributes"]
 "provider.docs-registry" = ["*.md", "docs/_meta/**", ".config/checks/*/policy.toml"]
 "provider.markdown-lint" = ["*.md", "docs/_meta/**", ".config/checks/markdownlint-cli2/**", ".config/checks/prettier/**", ".config/checks/*/policy.toml", ".gitattributes"]
 "provider.module-layout" = ["*.py", "*.pyi", ".config/checks/module-layout/**"]

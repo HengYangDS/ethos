@@ -5,10 +5,11 @@ This is the first slice: keys, the record and the comparison. No task lets a pro
 ## 1. Statements and the key
 
 - [x] 1.1 Add the packaged table `src/ethos/contracts/gate-inputs.toml`: the path patterns of the
-      nine stated providers and the list of open providers. Done when a test loads it, every name
-      in it is an ID of the provider catalog, and no provider is both stated and open.
+      stated providers and the list of open providers. Done when a test loads it, every name in
+      it is an ID of the provider catalog, and no provider is both stated and open.
       (At `20cd42dfb` `test_the_packaged_table_names_catalog_providers_and_none_twice` passes: nine
-      stated and seven open providers.)
+      stated and seven open providers. After the review of 2026-11-20: eight stated and nine
+      open.)
 - [x] 1.2 Add `src/ethos/adapters/gates/input_key.py` with the statement of a gate: stated,
       whole tree or open. Done when one parametrized test gives the kind for a stated provider, a
       provider outside the table, a command gate, an open provider and a gate that joins a
@@ -110,11 +111,12 @@ This is the first slice: keys, the record and the comparison. No task lets a pro
       (At `20cd42dfb` `test_an_open_belongs_to_the_stated_provider_whose_context_made_it` and
       `test_an_observation_records_what_its_stated_provider_opened` pass. A run that is not kept
       drops its root's names; with that line removed in a disposable clone the first test fails.)
-- [x] 4.2 Run the nine stated providers on the product's own tree in one bounded test for each
-      and require no opened file outside its statement. Done when the nine cases pass, one
+- [x] 4.2 Run each stated provider on the product's own tree in one bounded test and require
+      its report and no opened file outside its statement. Done when each case passes, one
       provider a case.
       (At `20cd42dfb` `test_no_stated_provider_opens_a_committed_file_outside_its_statement` passes
-      its 9 cases.)
+      its 9 cases. After the review of 2026-11-20 it has 8 cases, and each also requires that the
+      provider produced its report.)
 
 ## 5. Documents
 

@@ -62,6 +62,11 @@ def test_the_packaged_table_names_catalog_providers_and_none_twice() -> None:
         (("python", "-m", "nox", "-s", "unit"), "tree"),
         (("provider", "provider.repository-audit"), "open"),
         ((*_DOCS, "provider.repository-audit"), "open"),
+        # It judges declared scripts and Go modules, which no pattern selects.
+        (("provider", "provider.code-static"), "tree"),
+        # Remote servers and a test run's environment are state outside the committed tree.
+        (("provider", "provider.external-links"), "open"),
+        (("provider", "provider.code-behavior"), "open"),
     ],
 )
 def test_a_gate_is_stated_keyed_by_the_whole_tree_or_open(identity, kind) -> None:
@@ -305,7 +310,11 @@ def test_no_stated_provider_opens_a_committed_file_outside_its_statement(provide
     tree = current_tree(ROOT)
     gate = {"id": provider, "execution_identity": ["provider", provider]}
     with input_key.watching(ROOT, provider, gate["execution_identity"]):
-        provider_reports(provider, (provider,), ROOT, candidate=True)
+        reports, _verdict, diagnostics = provider_reports(
+            provider, (provider,), ROOT, candidate=True
+        )
     run = input_key.run_inputs(ROOT, tree, _OTHER._replace(source_tree=tree))
 
+    # A provider that failed before its work opened nothing, and would show nothing here.
+    assert [item["provider"] for item in reports] == [provider], diagnostics
     assert input_key.opened_outside(ROOT, gate, run) == []

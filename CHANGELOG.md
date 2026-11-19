@@ -60,6 +60,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
   names an installation is recorded as its consumer first, so a moved repository keeps what it
   selects. This closes the known open defect of 0.2.0-beta.11 that no command releases an absent
   consumer. Without the switch the command plans and applies what it did.
+- `ethos prove --execute` reports what its gates left in the lane as `data.footprint`: the files
+  and bytes that appeared or changed under the evidence and artifact homes of the artifact
+  topology, the new names under `build/runtime/work`, and each new nontracked root, read before
+  the first gate and after the last. It is empty when nothing appeared, and a lane that cannot be
+  listed reports why. The report changes no verdict, exit or required gap. It does not see a
+  write inside a root that Git lists whole, such as an environment or a tool cache.
+- A gate's declared command may name `{scratch}` in an argument: the scratch directory of its run
+  of gates. The first command that names it makes the directory under the temporary root, every
+  command of the run receives the same one, and it is removed with the run. The gate's identity
+  keeps the placeholder, and a command that does not name it is launched as before. A command
+  that already held the literal text `{scratch}` in an argument now receives the directory in its
+  place. A runtime that does not read the placeholder passes the word through, so a registry
+  names it only once every runtime that proves the repository reads it.
 
 ### Fixed
 

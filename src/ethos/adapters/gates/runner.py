@@ -30,6 +30,7 @@ from ethos.adapters.gates.javascript.execution import prepare_command
 from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.gates.native.attempt import gate_attempt
 from ethos.adapters.gates.native.attempt import gate_execution
+from ethos.adapters.gates.scratch import bind_scratch
 from ethos.adapters.gates.verification import assert_provider_execution_source
 from ethos.adapters.gates.verification import classify_action_result
 from ethos.adapters.gates.verification import failure_evidence
@@ -141,7 +142,7 @@ class LocalGateRunner:
             )
         if gate.providers:
             return _run_providers(node, gate, root, candidate=self.candidate)
-        command = gate.command
+        command, scratch = bind_scratch(self, gate.command)
         invoked = Path(command[0])
         executable = (
             str(invoked if invoked.is_absolute() else root / invoked)
@@ -171,6 +172,7 @@ class LocalGateRunner:
                 remove_env=("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE")
                 if node_attempt is not None
                 else (),
+                scratch=scratch,
             )
         except subprocess.TimeoutExpired as exc:
             stdout, stderr = stream_text(exc.stdout), stream_text(exc.stderr)

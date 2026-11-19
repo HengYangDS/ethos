@@ -119,6 +119,7 @@ def native_attempt(
     timeout: float | None,
     env: Mapping[str, str] | None = None,
     remove_env: tuple[str, ...] = (),
+    scratch: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], NativeEvidence]:
     """Bind reports before the sole launch; never select ambient or latest evidence."""
     tree, subjects = observe_quality_subjects(root)
@@ -191,6 +192,7 @@ def native_attempt(
             artifact="",
             dependency_checks=tuple(checks),
             observer_requirement=requirement,
+            scratch=scratch,
         )
         return completed, evidence
 
@@ -211,10 +213,13 @@ def gate_attempt(
     timeout: float | None,
     env: Mapping[str, str] | None = None,
     remove_env: tuple[str, ...] = (),
+    scratch: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], NativeEvidence | None]:
     """Run one gate command; declared native outputs come from that same attempt."""
     if gate.native_outputs:
-        return native_attempt(root, gate, command, timeout=timeout, env=env, remove_env=remove_env)
+        return native_attempt(
+            root, gate, command, timeout=timeout, env=env, remove_env=remove_env, scratch=scratch
+        )
     # A gate without declared outputs gets no output root, so an enclosing attempt's root and
     # observer stay with that attempt.
     removed = (*remove_env, "ETHOS_NATIVE_OUTPUT_DIR", OBSERVER_REQUIREMENT)

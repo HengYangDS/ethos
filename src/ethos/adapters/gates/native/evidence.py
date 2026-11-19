@@ -7,6 +7,7 @@ from typing import cast
 
 from ethos.adapters.gates.native.python import nox_sessions
 from ethos.adapters.gates.native.python import runtime_scopes
+from ethos.adapters.gates.scratch import with_scratch
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
@@ -43,7 +44,8 @@ def _custody(
         msg = "native_custody_missing"
         raise ValueError(msg)
     expected_argv = tuple(
-        item.replace("{native_output}", evidence.output_root) for item in evidence.gate.command[1:]
+        item.replace("{native_output}", evidence.output_root)
+        for item in with_scratch(evidence.gate.command[1:], evidence.scratch)
     )
     if (
         execution.declared_identity != gate_execution_identity(evidence.gate)

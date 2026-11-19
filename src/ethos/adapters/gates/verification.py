@@ -57,6 +57,8 @@ class NativeEvidence:
     dependency_checks: tuple[tuple[NativeOutput, bytes], ...] = ()
     # The exact wheel supplied to this attempt's observers; a source checkout supplies none.
     observer_requirement: str | None = None
+    # The attempt's scratch directory that the launched command names; empty when it names none.
+    scratch: str = ""
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,6 +20,8 @@ from ethos.adapters.actor import process_issuer
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.child_environment import inherited_environment
+from ethos.adapters.gates.footprint import footprint_entry
+from ethos.adapters.gates.footprint import lane_before
 from ethos.adapters.gates.input_key import gate_inputs
 from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
@@ -416,6 +418,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
             granted.append(slot)
             yield
 
+    observed = lane_before(repo, execute=options.execute)
     try:
         checks, runs_ok = run_plan_checks(
             repo=repo,
@@ -500,6 +503,7 @@ def _prove(repo: Path, options: ProofRequest) -> EthosResult:
     }
     if granted:
         data["admission"] = asdict(granted[0])
+    data.update(footprint_entry(repo, observed))
     if detailed:
         data.update(
             governance_context=audit["governance_context"],

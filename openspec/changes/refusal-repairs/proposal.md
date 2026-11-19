@@ -114,10 +114,10 @@ check below is one more case. The bullets below stay as named remainders.
   `signature_repair_accepted_head_stale` and names its own apply as the next action; no command
   repairs an unsigned commit of a lane's own range. Measured by a governed repository's session
   on 2026-11-18 under 0.2.0-beta.10, on three such commits of one lane.
-- The paradigm's commit grammar admits ten types and not `style`, which the Conventional Commits
-  common set holds; the same session met eight signed commits of one lane refused for it. Why
-  the type is absent is read before a change; the list is the one grammar of every governed
-  repository, so adding to it is the owner's decision.
+- The paradigm's commit grammar admitted ten types and not `style`, which the Conventional
+  Commits common set holds; the same session met eight signed commits of one lane refused for
+  it. The owner decided on 2026-11-19 that the type joins, and the Change `commit-type-style`
+  carries it; this Change keeps nothing of it.
 
 ## Capabilities
 

@@ -19,6 +19,27 @@ overlay carries `core.fsmonitor`, `maintenance.auto` and, for each test, `init.t
 one of those keys can name a program. The adapter's module holds 490 of its 500 effective lines,
 so the declaration needs that module split first.
 
+The same scope decides whose name an object carries. The Git adapter runs every Git command
+without the system and the global configuration. An identity that only the global configuration
+holds, or a file that it includes for a directory, is therefore not read. Where the repository's
+own configuration names no `user.email`, Git derives an address from the host's user name and
+host name, and an object that the product makes carries it: an archive commit, a release tag. A
+commit that a person makes with plain Git in the same lane carries the configured address. One
+governed repository's session reported it on 2026-11-18: ten commits and one tag with a derived
+address are public there.
+
+Measured on 2026-11-19 with Git 2.56.1 in a scratch repository whose global configuration
+includes the identity for that directory: plain Git gives the configured address, the product's
+scope gives the derived one, and under `user.useConfigOnly` Git refuses to make the object and
+says that no address was given. A fixture commit through the product's own commit maker,
+without the identity variables that the suite binds for each test, carried the derived address,
+and the configured one once the repository named it; the tag maker was read and not run.
+
+Read in the product: a commit policy that declares an author or a committer refuses the derived
+address, because the product reads the identity in the same scope before it makes the commit; a
+policy without that declaration admits it. Until a repair, a repository names `user.name` and
+`user.email` in its own configuration.
+
 ## What Changes
 
 Candidates for this row's design, none decided:
@@ -31,6 +52,9 @@ Candidates for this row's design, none decided:
 - Signing receives no overlay.
 - How the suite keeps its isolation: its three keys are declared, or the suite sets them by
   another carrier.
+- No object that the product makes carries an identity that Git derived from the host: the
+  product's Git sets `user.useConfigOnly`, and the refusal names the repository's own setting;
+  or `status` reports the state for one release first, as the law freeze asks of a new refusal.
 
 Estimated at 40 product and 80 test line-equivalents, without a spike and before the split.
 

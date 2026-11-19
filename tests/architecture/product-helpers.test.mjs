@@ -158,10 +158,13 @@ test("markdown lint judges exact content by the explicit native policy", (t) => 
 
 test("the ignore query names the files that a Prettier ignore file excludes", (t) => {
   const directory = scratch(t);
+  // The first pattern is anchored at the ignore file's directory, so the same name one level
+  // down stays kept: only names joined onto the given root give this answer.
   write(directory, {
-    ".prettierignore": "ignored.md\nvendor/\n",
+    ".prettierignore": "/ignored.md\nvendor/\n",
     "ignored.md": "# Ignored\n",
     "kept.md": "# Kept\n",
+    "nested/ignored.md": "# Kept, one level down\n",
     "vendor/page.md": "# Vendored\n",
   });
   const ask = (input) =>
@@ -170,14 +173,18 @@ test("the ignore query names the files that a Prettier ignore file excludes", (t
       [join(SUPPLY, "prettier/index.mjs"), join(directory, ".prettierignore"), directory],
       { input },
     );
-  const asked = ask(JSON.stringify(["ignored.md", "kept.md", "vendor/page.md"]));
+  // Asked in an order that is not sorted: the answer keeps the order of the names asked.
+  const asked = ask(
+    JSON.stringify(["vendor/page.md", "nested/ignored.md", "kept.md", "ignored.md"]),
+  );
   assert.equal(asked.status, 0, asked.stderr);
-  assert.deepEqual(JSON.parse(asked.stdout), ["ignored.md", "vendor/page.md"]);
+  assert.deepEqual(JSON.parse(asked.stdout), ["vendor/page.md", "ignored.md"]);
   const none = ask("[]");
   assert.deepEqual([none.status, none.stdout], [0, "[]"]);
   // The product's caller reads a failed query by its status, so unreadable names must fail.
   const unreadable = ask("not a list of names");
-  assert.notEqual(unreadable.status, 0);
+  assert.equal(unreadable.status, 1, unreadable.stderr);
+  assert.match(unreadable.stderr, /SyntaxError/);
   assert.equal(unreadable.stdout, "");
 });
 

@@ -26,5 +26,9 @@
 - [x] 2.2 Pass the source-budget gate with the new ceiling. Done when the lane's report passes with
       no gap.
       (At `6446956e2` the source-budget report passes with no gap at 109,484 of 115,000.)
-- [ ] 2.3 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+- [x] 2.3 Pass the precheck and readiness at the lane head. Done when each passes on the committed
       head.
+      (At `7bd573ad9` on 2026-11-20 the pre-check passes with no finding and readiness passes with
+      its 28 gates. The pre-check ran its full selection at `a9e90ab6f`, 413 test modules, 8,337
+      passed and 3 skipped, and from there the selection of the one test file that differs, 43
+      modules, 371 passed and 1 skipped.)

@@ -136,14 +136,30 @@ This is the first slice: keys, the record and the comparison. No task lets a pro
 
 ## 6. Lane, hosted run and owner
 
-- [ ] 6.1 Run `tests/unit/gates`, `tests/unit/adapters/gates`, the importers of the changed
+- [x] 6.1 Run `tests/unit/gates`, `tests/unit/adapters/gates`, the importers of the changed
       modules and the architecture guards of the preparation contract under a host ticket. Done
       when each result line is in the lane's record.
-- [ ] 6.2 Run two full proofs of one head in the lane and read the second result. Done when it
+      (On 2026-11-20, each under its own host ticket. The pre-check at `a9e90ab6f` ran 413 test
+      modules that the lane's changes reach, 8,337 passed and 3 skipped: all seven modules of
+      `tests/unit/gates`, 20 of the 21 of `tests/unit/adapters/gates` and every architecture
+      test. The full proof of `7bd573ad9` ran the whole test tree in its suite gate, 10,056
+      tests, and is proven.)
+- [x] 6.2 Run two full proofs of one head in the lane and read the second result. Done when it
       counts 34 comparisons, the time between the last gate's end and the result is under one
-      second more than in the first, the record directory holds two files, and each record's
-      named inputs give `tree` for the running product.
-- [ ] 6.3 Read a hosted run of the head on both forges. Done when each passes and its result
-      names the record as unavailable or as holding no earlier result.
+      second more than in the first, each proof leaves a record file of its own, and each
+      record's named inputs give `tree` for the running product.
+      (Two full proofs of `7bd573ad9` on 2026-11-20, both proven. The second counts 34
+      comparisons: 28 agree and 6 are of gates with open inputs; none differs. The first counted
+      24, 4 and 6 with no earlier result. The result was written 8.16 s after the last gate's
+      event in the first and 7.06 s in the second. Each proof left its own record, and both
+      name `tree` for the product. The directory holds nine files, because a readiness run
+      writes a record too; this task's condition said two and now says one of each proof.)
+- [x] 6.3 Read a hosted run of the head on both forges. Done when each passes and the result of
+      each hosted proof names the record as unavailable or as holding no earlier result.
+      (GitHub's push run 44655144202 of `7bd573ad9` passes; the proof result in its receipt
+      names a record and counts 34 comparisons, each with no earlier result. GitLab's pipeline
+      16815 of the head passes; a push pipeline there runs the install conformance, the npm
+      job and the commit policy and no proof, so it holds no proof result to read. This task's
+      condition said "its result" for both forges and now names the hosted proofs.)
 - [ ] 6.4 Owner: set the arming threshold for `gate-reuse-arming`. Done when the cut's page of
       0.2.0-beta.14 names the counts and the gates that may arm first.

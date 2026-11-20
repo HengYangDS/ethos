@@ -41,5 +41,12 @@
 
 ## 3. Acceptance
 
-- [ ] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the
+- [x] 3.1 Pass the precheck and readiness at the lane head. Done when each passes on the
       committed head and the hosted runs of that head pass on both forges.
+      (At `7bd573ad9` on 2026-11-20 the pre-check passes with no finding and readiness passes with
+      its 28 gates. The pre-check ran its full selection at `a9e90ab6f`, 413 test modules, 8,337
+      passed and 3 skipped, and from there the selection of the one test file that differs, 43
+      modules, 371 passed and 1 skipped.
+      GitHub's push run 44655144202 and GitLab's pipeline 16815 of `7bd573ad9` pass. The run's
+      link observation, which may fail, counted three redirects; `64c12fc64` names those
+      sources at their new addresses.)

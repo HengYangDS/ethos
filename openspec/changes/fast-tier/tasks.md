@@ -82,5 +82,13 @@
       the report adds one Git call and reads files, which the 3.14 run alone does not cover.
       (At `11d01d8b0` the three modules of sections 1 to 3 and the module with the join's direct
       case pass under Python 3.12 and under 3.13, 90 cases each.)
-- [ ] 5.4 Pass the lane's pre-check, the full proof and the hosted runs on both Forges. Done when
+- [x] 5.4 Pass the lane's pre-check, the full proof and the hosted runs on both Forges. Done when
       each passes at the lane head.
+      (At `7bd573ad9` on 2026-11-20 the pre-check passes with no finding and readiness passes with
+      its 28 gates. The pre-check ran its full selection at `a9e90ab6f`, 413 test modules, 8,337
+      passed and 3 skipped, and from there the selection of the one test file that differs, 43
+      modules, 371 passed and 1 skipped.
+      The full proof of `7bd573ad9` is proven with its 34 gates.
+      GitHub's push run 44655144202 and GitLab's pipeline 16815 of `7bd573ad9` pass. The run's
+      link observation, which may fail, counted three redirects; `64c12fc64` names those
+      sources at their new addresses.)

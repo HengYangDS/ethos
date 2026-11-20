@@ -45,7 +45,7 @@ GitHub's page on issue forms says that they are "in public preview". A form's an
 - **An issue for an agent.** GitHub's guide to its coding agent: "A clear description of the
   problem", "Complete acceptance criteria on what a good solution looks like", "Directions about
   which files need to be changed"; "think of the issue you assign to Copilot as a prompt"
-  (<https://docs.github.com/en/copilot/tutorials/coding-agent/get-the-best-results>).
+  (<https://docs.github.com/en/copilot/tutorials/cloud-agent/get-the-best-results>).
 - **Instructions for agents.** AGENTS.md is "a dedicated, predictable place" for them, the
   nearest file wins, and it is "stewarded by the Agentic AI Foundation under the Linux
   Foundation"; GitHub's agent reads `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and its own files
@@ -111,7 +111,7 @@ Sections of a change template, in the words of the files:
 
 Sources: the repositories' files under `.github/`, `AGENTS.md`, `CONTRIBUTING.md` and
 `AI_POLICY.md` at <https://github.com/kubernetes/kubernetes>, <https://github.com/github/spec-kit>,
-<https://github.com/cli/cli>, <https://github.com/All-Hands-AI/OpenHands>,
+<https://github.com/cli/cli>, <https://github.com/OpenHands/OpenHands>,
 <https://github.com/Fission-AI/OpenSpec>, <https://github.com/ghostty-org/ghostty>,
 <https://github.com/zed-industries/zed>, <https://github.com/astral-sh/uv>,
 <https://github.com/bmad-code-org/BMAD-METHOD>, <https://github.com/google-gemini/gemini-cli>.

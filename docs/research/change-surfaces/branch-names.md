@@ -37,7 +37,7 @@ Sources: `git help check-ref-format` and `git help workflows` (Git 2.56.1, local
 <https://nvie.com/posts/a-successful-git-branching-model/>;
 <https://docs.github.com/en/get-started/using-github/github-flow>;
 <https://trunkbaseddevelopment.com/branch-for-release/>;
-<https://learn.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance>;
+<https://learn.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops>;
 <https://docs.gitlab.com/user/project/repository/branches/>; <https://conventionalbranch.org/>;
 <https://www.conventionalcommits.org/en/v1.0.0/>;
 <https://gerrit-review.googlesource.com/Documentation/concept-refs-for-namespace.html>.

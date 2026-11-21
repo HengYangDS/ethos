@@ -130,6 +130,47 @@ def _profile_identity(profile: RepositoryProfile) -> str:
     return f"repository:{profile.declaration.profile_id}"
 
 
+def adoption_classification(
+    root: Path, revision: str, *, accepted_head: str, environment: Mapping[str, str] | None = None
+) -> str:
+    """Classify a revision whose profile cannot be read, from committed history alone.
+
+    "adopted": no commit of its history carries the profile path and the accepted head descends
+    from it. "dropped": its history once carried the profile. "unshared": neither.
+    """
+    if not revision or revision in {"0" * 40, "0" * 64} or not accepted_head:
+        return "unshared"
+    carried = run_git(
+        root,
+        "log",
+        "-1",
+        "--format=%H",
+        revision,
+        "--",
+        binding_path("profile"),
+        check=False,
+        env=environment,
+    )
+    if carried.returncode or carried.stdout.strip():
+        return "dropped"
+    descended = run_git(
+        root, "merge-base", "--is-ancestor", revision, accepted_head, check=False, env=environment
+    )
+    return "adopted" if descended.returncode == 0 else "unshared"
+
+
+def predates_adoption(
+    root: Path, revision: str, *, accepted_head: str, environment: Mapping[str, str] | None = None
+) -> bool:
+    """Whether a revision belongs to the adopted line without ever carrying a profile."""
+    return (
+        adoption_classification(
+            root, revision, accepted_head=accepted_head, environment=environment
+        )
+        == "adopted"
+    )
+
+
 def historical_repository_identity(
     root: Path,
     *,

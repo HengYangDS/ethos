@@ -16,15 +16,18 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.adapters.repo.profile import predates_adoption
 from ethos.adapters.repo.profile import repository_identities
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.admission import RepositoryIdentityTransition
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
@@ -65,6 +68,59 @@ def observe_git_effect(
             for name, update in effect.updates.items()
         },
         "assertions": {name: selected[name] for name in effect.assertions},
+    }
+
+
+def _effect_identities(
+    root: Path,
+    revisions: set[str],
+    produced: set[str],
+    expected: set[str],
+    before: Mapping[str, object],
+    *,
+    environment: Mapping[str, str] | None,
+    allow_absent_prestate: bool,
+) -> dict[str, str]:
+    """Read every revision's identity, lending the accepted one to a pre-adoption pre-state.
+
+    The extra questions are asked only after a historical read fails, so an effect whose
+    identities all resolve keeps its read budget; every other failure keeps today's refusal.
+    """
+
+    def read(selected: set[str]) -> dict[str, str]:
+        return repository_identities(
+            root,
+            tuple(selected),
+            environment=environment,
+            historical=frozenset(selected - produced),
+            optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+        )
+
+    try:
+        return read(revisions)
+    except ValueError:
+        shared = _pre_adoption_prestates(root, expected, before, environment=environment)
+        if not shared:
+            raise
+        return read(revisions - shared)
+
+
+def _pre_adoption_prestates(
+    root: Path,
+    expected: set[str],
+    before: Mapping[str, object],
+    *,
+    environment: Mapping[str, str] | None,
+) -> set[str]:
+    """Expected pre-states that belong to the adopted line without a profile of their own."""
+    if not expected:
+        return set()
+    accepted = ref_head(root, f"refs/heads/{load_branch_role_policy(root).accepted_branch}")
+    accepted_head = accepted or str(before["head"])
+    return {
+        revision
+        for revision in expected - _ZERO_OIDS
+        if predates_adoption(root, revision, accepted_head=accepted_head, environment=environment)
     }
 
 
@@ -112,12 +168,14 @@ def resolve_git_effect_repository(
         if historical_identity
         else revisions & {update.desired for update in effect.updates.values()}
     )
-    identities = repository_identities(
+    identities = _effect_identities(
         root,
-        tuple(revisions),
+        revisions,
+        produced,
+        expected,
+        before,
         environment=environment,
-        historical=frozenset(revisions - produced),
-        optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+        allow_absent_prestate=allow_absent_prestate,
     )
     if plan is not None and "repository_identity_transitions" in plan.policy:
         return _transition_identity(

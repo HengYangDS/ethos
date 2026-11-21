@@ -14,7 +14,6 @@ from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
 from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
-from ethos.adapters.open_files import OpenFileBoundary
 from ethos.adapters.open_files import observe_open_files
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
@@ -29,6 +28,7 @@ from ethos.repository.openspec.identifiers import parse_archived_change_root
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
+    from ethos.contracts.retirement import OpenFileBoundary
     from ethos.contracts.retirement import RetirementOperation
 
 

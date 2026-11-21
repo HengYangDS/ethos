@@ -399,18 +399,25 @@ def test_a_root_s_own_table_protects_and_renames_nothing_without_an_accepted_lin
 
 
 def test_no_accepted_line_names_no_head_and_selects_no_policy(tmp_path: Path) -> None:
-    """A repository whose accepted ref is missing lends no line and no default policy."""
+    """Only a readable table that names an accepted ref which exists lends a line."""
     repo, _candidate, _head, places = _shape(tmp_path)
     git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
+    table = repo / ".ethos/workspace.toml"
 
     assert accepted_line_head(repo) == ""
     assert accepted_line_head(repo, places["before"]) == ""
     gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
     assert gaps == ["ref_move_policy_unavailable"]
 
-    (repo / ".ethos/workspace.toml").write_text("[branch_roles]\nrelease_branch = 5\n", "utf-8")
+    table.write_text(_TABLE.replace('"dev"', '"elsewhere"'), encoding="utf-8")
+    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: name the accepted branch that exists")
+    assert accepted_line_head(repo) == git(repo, "rev-parse", "HEAD")
+
+    table.write_text("[branch_roles]\nrelease_branch = 5\n", encoding="utf-8")
     git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table")
     assert accepted_line_head(repo) == ""
+    gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
+    assert gaps == ["ref_move_policy_unavailable"]
 
 
 def test_the_issuing_checkout_s_head_is_never_lent_an_identity(tmp_path: Path) -> None:

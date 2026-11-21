@@ -26,6 +26,11 @@
       persisted, and a persisted operation whose deletion now refuses removes no worktree.
 - [x] 2.3 Read the accepted table at the accepted ref's head, not at the asking root's HEAD. Done
       when a root checked out before the table gets `legacy_role_ref_protected` for `master`.
+- [x] 2.4 Apply the model review of 2026-11-21 to the retirement repair: a release binding that
+      cannot be honored keeps the refusal; each legacy table is read on its own; the accepted
+      table comes from the accepted line, never from a root's own HEAD; the derivation and the
+      apply ask one function. Done when the cases of the module and of the two retirement test
+      modules pass, the stubs of the deletion predicate asserting the ref and head they were asked.
 
 ## 3. The rename repair
 
@@ -42,11 +47,17 @@
 - [x] 3.3 Test the identity reader itself, which every Git effect passes. Done when it returns the
       accepted identity for a pre-state the accepted head descends from and refuses an unshared
       one with `repository_historical_identity_invalid:`.
+- [x] 3.4 Count no revision for a ref that an effect creates at the commit the same effect deletes
+      (the owner approved the sentence on 2026-11-21), and lend the accepted identity to pre-states
+      only. Done when a legacy ref at a retired-schema profile renames, a rename onto a
+      pre-adoption commit resolves the accepted identity, and a move or a rewind of another ref
+      onto that commit blocks with `repository_profile_invalid`.
+- [x] 3.5 Classify from complete history: walk every parent of a merge, and answer `dropped` in a
+      shallow repository. Done when the classification's cases pass.
 
 ## 4. Specifications and documents
 
-- [x] 4.1 State the deltas for what is built; the rule for a ref created at the commit the same
-      effect deletes is not in this Change. Done when `openspec validate --strict` passes and
+- [x] 4.1 State the deltas for what is built. Done when `openspec validate --strict` passes and
       every scenario of the deltas has a case.
 - [x] 4.2 Add two Fixed entries to the Unreleased section of `CHANGELOG.md`, one for each repair
       (`9c42d4ca6`). Done when the commit's Markdown checks pass on the changelog.
@@ -56,6 +67,7 @@
 - [x] 5.1 Run the chain in the fixture of the reported shape: retire the `submit/` ref, rename,
       land with `accepted_ff`, closeout; and a release from a pre-adoption previous head. Done when
       every step passes and `candidate/dev`, `dev` and `main` read the landed head.
-- [ ] 5.2 Pass the review of the lane's product code, the pre-check, readiness and one full proof
-      at the lane head, and the hosted runs of that head on both forges. Done when each passes
+- [ ] 5.2 Pass a second model review of the lane's product code at its head (the first, at
+      `063fc595b`, gave 14 comments, applied in tasks 2.4, 3.4 and 3.5), the pre-check, readiness
+      and one full proof, and the hosted runs of that head on both forges. Done when each passes
       before the cut of 2026-11-26.

@@ -30,19 +30,21 @@ repositories in this shape; the code paths are general.
   paradigm's default policy, for a claimed retirement only (hand deletions stay refused). In the
   same change, the legacy role protection also reads the accepted head's committed table, as the
   accepted scenario "A protected legacy role ref" says, so a pre-adoption legacy release ref is
-  protected before its rename, from every root of the repository.
+  protected before its rename, also from a root that has an older commit checked out.
 - A lane abandonment asks the hook's deletion predicate before it persists an operation, and its
   apply asks again before it removes anything; a refusal comes before any worktree is removed.
-- A pre-state revision in whose history no commit carries the repository profile, and from which
-  the accepted branch's head descends, is read under the accepted head's identity.
+- A pre-state revision in whose complete history no commit carries the repository profile, and
+  from which the accepted branch's head descends, is read under the accepted head's identity. A
+  ref that an effect creates at the commit the same effect deletes produces no revision, so a
+  rename reads that commit as a pre-state; a move of another ref onto it is still a produced
+  revision under today's schema.
 - The rename refuses a legacy role ref with no profile in its history and no shared history with
   the accepted head by name, `legacy_role_rename_history_unshared:<branch>`; the hook's shape
   check reads the deleted commits and the accepted head.
 
-Not in this Change: a legacy role ref at a commit whose profile is of a retired schema. Its
-rename needs a rule for a ref that an effect creates at the commit the same effect deletes, which
-changes a sentence of the identity requirement; that rule waits for the owner's answer (asked
-2026-11-21) and takes a Change of its own.
+The owner approved the sentence on a rename's revision on 2026-11-21 (「其他都按照你建议的方式推进」).
+The model review of the same evening showed that the rename needs it: without it the reader
+could admit a pre-adoption commit only by exempting it in every role, a moved ref included.
 
 Not breaking for a repository that has no legacy table. One added refusal: the protection of a
 legacy release ref before its rename, which is the accepted scenario's own text (a ruled defect
@@ -58,9 +60,11 @@ None.
 
 - `repository-governance`: the one exception to "Historical effect identity survives profile
   schema evolution" is a requirement of its own, "A pre-adoption pre-state is read under the
-  accepted identity", which also carries the sentence on current effects; the scenario
+  accepted identity", which also carries the sentences on current effects and on a rename; the
+  scenario
   "Historical identity cannot be guessed" narrows accordingly. "Absorbed-ref retirement previews
-  agree with the prepared hook" gains three scenarios.
+  agree with the prepared hook" gains three scenarios, and one narrows to refuse an unreadable
+  release binding.
 - `repository-paradigm`: "Accepted closeout renames legacy role refs" also triggers on a legacy
   release name alone; the refusal of the unshared case is a requirement of its own, "An unrelated
   legacy role ref is never renamed".

@@ -93,7 +93,7 @@ removes anything.
 #### Scenario: No strict policy governs the deletion
 
 - **WHEN** neither the deleted commit nor the accepted head carries a release binding or a valid
-  profile
+  profile, or the accepted head carries a release binding that cannot be honored
 - **THEN** the preview blocks with `ref_move_policy_unavailable`
 - **AND** it emits no apply command.
 
@@ -116,16 +116,19 @@ removes anything.
   accepted head's committed table names, at a commit that holds no table
 - **THEN** the preview blocks with `legacy_role_ref_protected` and names the
   accepted closeout
-- **AND** a root that has an older commit checked out gets the same answer.
+- **AND** a root that has an older commit checked out gets the same answer
+- **AND** a table that cannot be read takes nothing from the other table's answer.
 
 ## ADDED Requirements
 
 ### Requirement: A pre-adoption pre-state is read under the accepted identity
 
-A pre-state revision in whose history no commit carries the repository profile,
-and from which the accepted branch's head descends, SHALL be read under the
-accepted head's identity. Current effects SHALL still require the strict current
-profile in every other checkout and every revision they produce.
+A pre-state revision in whose complete history no commit carries the repository
+profile, and from which the accepted branch's head descends, SHALL be read under
+the accepted head's identity, which SHALL agree with every other revision of the
+effect. Current effects SHALL still require the strict current profile in every
+other checkout and every revision they produce; a ref that an effect creates at
+the commit the same effect deletes produces no revision.
 
 #### Scenario: A pre-state that predates the adoption
 
@@ -134,5 +137,15 @@ profile in every other checkout and every revision they produce.
 - **WHEN** an accepted closeout renames that ref, a later closeout fast-forwards
   the release mirror from it, or a release names it as the previous release head
 - **THEN** its pre-state is read under the accepted head's identity
-- **AND THEN** the same commit after a later deletion of its profile, or a commit
-  that the accepted head does not descend from, still blocks.
+- **AND THEN** the same commit after a later deletion of its profile, a commit
+  that the accepted head does not descend from, or a history too shallow to show
+  that it never carried a profile, still blocks.
+
+#### Scenario: A rename creates no revision
+
+- **WHEN** a legacy role ref stands at a commit that carries no profile, or one
+  whose profile carries a field removed from the current schema
+- **THEN** closeout renames it, and the standard ref it creates at that commit
+  is not read under the current schema
+- **AND** an effect that moves another ref onto that commit still reads it
+  under the current schema and blocks.

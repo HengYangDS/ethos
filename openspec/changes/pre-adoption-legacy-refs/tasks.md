@@ -65,6 +65,10 @@
       the answer; a head that is given and empty names no accepted line. An empty release binding
       stays a binding and keeps the refusal. Done when the two regressions that failed on
       `692d56f35` pass.
+- [x] 3.8 Apply the fourth model review (one comment): the head of the checkout that issues an
+      effect is never lent an identity, and an anchor that cannot lend keeps the refusal. Give a
+      case to each added line that the first pre-check found without a direct test. Done when the
+      case that failed on `dd1b4619c` passes and the module runs those lines.
 
 ## 4. Specifications and documents
 
@@ -81,3 +85,5 @@
 - [ ] 5.2 Pass the pre-check, readiness and one full proof at the lane's head, with the model
       reviews of its product code triaged (three so far: 14, 10 and 4 comments), and the hosted
       runs of that head on both forges. Done when each passes before the cut of 2026-11-26.
+      The first pre-check (2026-11-22, at `dd1b4619c`) found five added lines without a direct
+      test; task 3.8 gives them cases.

@@ -99,7 +99,9 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
   lends its identity, so the effect must agree with the accepted identity; a recorded effect is
   read by its own revisions and its recorded head lends the identity, because today's accepted
   head may carry a later one. The pre-state stays in the answer with the lent identity, so an
-  identity transition still counts its edge. An effect whose identities all resolve
+  identity transition still counts its edge. The head of the checkout that issues the effect is
+  never lent an identity, and an anchor that cannot lend keeps the refusal. An effect whose
+  identities all resolve
   spends no extra read, which the read-budget tests of `test_historical_profile_identity.py`
   hold. Every other failure, and a refusal with no such pre-state, is raised unchanged.
   `_validate_historical_source` (`commit/signature.py`) is NOT a c1 site and is not touched.

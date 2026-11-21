@@ -62,11 +62,12 @@ def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
     }
 
 
-def _accepted_table_head(repo: Path) -> str:
-    """The commit whose table names a legacy role ref that stands before the table.
+def _protecting_table_head(repo: Path) -> str:
+    """The commit whose table protects a legacy role ref that stands before the table.
 
     The accepted line's head answers alike from every root that can name the line. Where no
-    accepted line can be named, the asking root's own HEAD keeps its table's protection.
+    accepted line can be named, the asking root's own HEAD keeps its table's protection; it
+    protects only, and never justifies the shape of a rename.
     """
     return accepted_line_head(repo) or git_stdout(repo, "rev-parse", "HEAD")
 
@@ -166,7 +167,7 @@ def legacy_role_ref_protected(repo: Path, ref_name: str, old_value: str, new_val
     # the accepted table covers a ref that stands before it. Each is read on its own: a table
     # that cannot be read names nothing and takes nothing from the other's answer.
     renames: dict[str, tuple[str, str]] = {}
-    for head in (old_value, _accepted_table_head(repo)):
+    for head in (old_value, _protecting_table_head(repo)):
         try:
             renames |= legacy_role_renames(repo, head)
         except (TypeError, ValueError):
@@ -185,8 +186,9 @@ def _rename_shape_gaps(repo: Path, intents: tuple[tuple[str, str, str], ...]) ->
         expected = {
             legacy: target
             # The deleted commits cover a ref that stands after the table was committed; the
-            # accepted table covers a ref that stands before it.
-            for value in {*deleted.values(), _accepted_table_head(repo)}
+            # accepted line's table covers a ref that stands before it. No root's own HEAD
+            # stands in: a rename runs from the accepted root, which can name the line.
+            for value in {*deleted.values(), accepted_line_head(repo)}
             for legacy, target in legacy_role_renames(repo, value).items()
             if deleted.get(legacy) == target[1]
         }

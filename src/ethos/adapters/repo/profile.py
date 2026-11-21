@@ -139,19 +139,21 @@ def historical_identity_refusal() -> str:
 
 
 def accepted_line_head(
-    root: Path, head: str = "", *, environment: Mapping[str, str] | None = None
+    root: Path, head: str | None = None, *, environment: Mapping[str, str] | None = None
 ) -> str:
     """Resolve the accepted line's head, or '' when the repository names none.
 
     The standard accepted ref answers when it exists. Before the accepted role is renamed it
     does not, and the table committed at `head` (the asking root's HEAD when none is given)
     names the legacy accepted ref. Neither a HEAD nor a caller's revision stands in for the
-    line, and HEAD is read only when the standard ref is missing.
+    line, HEAD is read only when the standard ref is missing, and a head that is given and
+    empty names no line.
     """
     accepted = BranchRolePolicy().accepted_branch
     if standard := ref_head(root, f"refs/heads/{accepted}", environment=environment):
         return standard
-    head = head or ref_head(root, "HEAD", environment=environment)
+    if head is None:
+        head = ref_head(root, "HEAD", environment=environment)
     if not head:
         return ""
     table = run_git(

@@ -101,10 +101,12 @@ def _effect_identities(
 
     The extra questions are asked only after a historical read refuses, so an effect whose
     identities all resolve keeps its read budget. Such a pre-state has no identity of its own
-    and leaves the read; for a current effect the accepted line's head joins it, so the effect
-    still has to agree with the accepted identity. A recorded effect is read by its own
-    revisions: today's accepted head may carry a later identity. A revision that the effect
-    produces is never lent one, and every other failure keeps its refusal.
+    and leaves the read. For a current effect the accepted line's head joins the read and lends
+    its identity, so the effect still has to agree with the accepted identity. A recorded
+    effect is read by its own revisions and its recorded head lends the identity: today's
+    accepted head may carry a later one. A lent pre-state stays in the answer, so that an
+    identity transition still counts its edge. A revision that the effect produces is never
+    lent an identity, and every other failure keeps its refusal.
     """
 
     def read(selected: set[str]) -> dict[str, str]:
@@ -129,7 +131,11 @@ def _effect_identities(
         }
         if not lent:
             raise
-        return read(revisions - lent if recorded else (revisions - lent) | {accepted})
+        anchor = str(before["head"]) if recorded else accepted
+        identities = read(revisions - lent if recorded else (revisions - lent) | {accepted})
+        if anchor in identities:
+            identities |= dict.fromkeys(lent, identities[anchor])
+        return identities
 
 
 def resolve_git_effect_repository(

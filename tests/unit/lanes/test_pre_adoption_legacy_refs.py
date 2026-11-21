@@ -13,14 +13,19 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
+from ethos.adapters.admission.ref_intent import write_ref_intent
 from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
+from ethos.adapters.admission.role_rename import ROLE_RENAME_OPERATION
+from ethos.adapters.admission.role_rename import role_rename_ref_report
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.profile import accepted_line_head
 from ethos.adapters.repo.profile import adoption_classification
 from ethos.adapters.repo.profile import repository_identities
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.semantic import canonical_json_digest
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.git_effect import plan
 from tests.support.governed_repository import git
@@ -211,7 +216,9 @@ def test_a_receipt_cannot_remove_a_worktree_for_a_deletion_that_now_refuses(
     assert asked == [(f"refs/heads/{_REF}", _heads(repo)[_REF])]
 
 
-@pytest.mark.parametrize("fault", ["no profile", "a release binding that cannot be honored"])
+@pytest.mark.parametrize(
+    "fault", ["no profile", "a release binding that cannot be honored", "an empty release binding"]
+)
 def test_a_deletion_stays_refused_without_a_policy_at_the_accepted_head(
     tmp_path: Path, fault: str
 ) -> None:
@@ -219,6 +226,9 @@ def test_a_deletion_stays_refused_without_a_policy_at_the_accepted_head(
     repo, _candidate, _head, _places = _shape(tmp_path)
     if fault == "no profile":
         git(repo, *_PLAIN, "rm", "-q", ".ethos/profile.toml")
+    elif fault == "an empty release binding":
+        (repo / ".ethos/release.toml").write_text("", encoding="utf-8")
+        git(repo, "add", ".ethos/release.toml")
     else:
         write_release_mirror(repo, "sideways")
         git(repo, "add", ".ethos/release.toml")
@@ -280,6 +290,9 @@ def test_closeout_renames_a_pre_adoption_release_ref_beside_a_legacy_accepted_na
     git(candidate, "reset", "--hard", head)
     git(repo, *_PLAIN, "update-ref", "refs/heads/master", first)
     install_hook_launchers(repo)
+    # The committed table names the accepted line; a head that is given and empty names none.
+    assert accepted_line_head(repo) == head
+    assert accepted_line_head(repo, "") == ""
 
     preview = _closeout(repo, head)
     applied = _closeout(repo, head, "--apply", "--authorize")
@@ -357,14 +370,30 @@ def test_a_history_that_may_have_carried_the_profile_is_not_adopted(
     assert adoption_classification(root, revision, accepted_head=accepted) == "dropped"
 
 
-def test_the_accepted_table_protects_where_no_accepted_line_can_be_named(tmp_path: Path) -> None:
-    """With no accepted ref, the asking root's own table keeps its protection."""
+def test_a_root_s_own_table_protects_and_renames_nothing_without_an_accepted_line(
+    tmp_path: Path,
+) -> None:
+    """With no accepted ref, the asking root's table still protects and justifies no rename."""
     repo, _candidate, _head, places = _shape(tmp_path)
     git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
+    old, zero = places["before"], "0" * 40
+    for ref, update in (
+        ("refs/heads/master", GitRefUpdate(expected=old, desired=zero)),
+        ("refs/heads/main", GitRefUpdate(expected=zero, desired=old)),
+    ):
+        write_ref_intent(
+            root=repo,
+            ref_name=ref,
+            update=update,
+            operation=ROLE_RENAME_OPERATION,
+            plan_digest=canonical_json_digest({"rename": "from a root on no accepted line"}),
+        )
 
-    gaps = prepared_deletion_gaps(repo, "refs/heads/master", places["before"])
+    renamed = role_rename_ref_report(repo, "refs/heads/master", old, zero)
 
-    assert gaps == ["legacy_role_ref_protected"]
+    assert prepared_deletion_gaps(repo, "refs/heads/master", old) == ["legacy_role_ref_protected"]
+    assert renamed is not None
+    assert renamed["required_gaps"] == ["legacy_role_rename_shape_invalid"]
 
 
 def test_a_recorded_rename_is_read_without_today_s_accepted_head(tmp_path: Path) -> None:

@@ -399,7 +399,7 @@ def test_a_root_s_own_table_protects_and_renames_nothing_without_an_accepted_lin
 
 
 def test_no_accepted_line_names_no_head_and_selects_no_policy(tmp_path: Path) -> None:
-    """Only a readable table that names an accepted ref which exists lends a line."""
+    """Only a readable table that names an accepted ref which exists lends that ref's head."""
     repo, _candidate, _head, places = _shape(tmp_path)
     git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
     table = repo / ".ethos/workspace.toml"
@@ -409,15 +409,19 @@ def test_no_accepted_line_names_no_head_and_selects_no_policy(tmp_path: Path) ->
     gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
     assert gaps == ["ref_move_policy_unavailable"]
 
-    table.write_text(_TABLE.replace('"dev"', '"elsewhere"'), encoding="utf-8")
-    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: name the accepted branch that exists")
-    assert accepted_line_head(repo) == git(repo, "rev-parse", "HEAD")
+    # HEAD leaves the branch that the table will name, so that branch's head and HEAD differ.
+    named = git(repo, "rev-parse", "elsewhere")
+    git(repo, *_PLAIN, "checkout", "-q", "--detach")
+    for accepted, lent in (("elsewhere", named), ("nowhere", "")):
+        table.write_text(_TABLE.replace('"dev"', f'"{accepted}"'), encoding="utf-8")
+        git(repo, *_PLAIN, "commit", "-q", "-am", f"chore: name {accepted} as the accepted branch")
+        assert accepted_line_head(repo) == lent
 
-    table.write_text("[branch_roles]\nrelease_branch = 5\n", encoding="utf-8")
-    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table")
+    # The table still names the branch that exists; one unknown field makes it unreadable.
+    broken = _TABLE.replace('"dev"', '"elsewhere"') + "unknown_field = 1\n"
+    table.write_text(broken, encoding="utf-8")
+    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table that names elsewhere")
     assert accepted_line_head(repo) == ""
-    gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
-    assert gaps == ["ref_move_policy_unavailable"]
 
 
 def test_the_issuing_checkout_s_head_is_never_lent_an_identity(tmp_path: Path) -> None:

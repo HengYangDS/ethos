@@ -372,7 +372,7 @@ def rename_legacy_roles(
             classed = adoption_classification(root, legacy_head, accepted_head=current_head)
             if classed == "dropped":
                 disowned.add(str(refusal))
-            elif classed == "unshared":
+            elif classed != "adopted":
                 unshared.add(legacy)
     retired = {
         declared.get(field, getattr(standard, field))

@@ -16,6 +16,7 @@ from ethos.adapters.repo.commit.signature import validate_signature_result
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.adapters.store.state.schema import local_state_root
@@ -296,9 +297,12 @@ def _unbound_policy(repo: Path, accepted_head: str) -> BranchRolePolicy | None:
     """The paradigm's default policy for an accepted head adopted before its release binding.
 
     Such a head carries no release binding and a valid repository profile. A binding that is
-    there and cannot be honored selects nothing.
+    there and cannot be honored, or a tree that cannot be listed, selects nothing.
     """
-    if not accepted_head or committed_file_text(repo, accepted_head, binding_path("release")):
+    if not accepted_head:
+        return None
+    listed = run_git(repo, "ls-tree", accepted_head, "--", binding_path("release"), check=False)
+    if listed.returncode or listed.stdout.strip():
         return None
     profile = load_committed_repository_profile(repo, accepted_head)
     valid = profile.state == "valid" and profile.declaration is not None

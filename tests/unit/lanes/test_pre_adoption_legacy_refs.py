@@ -22,6 +22,7 @@ from ethos.adapters.repo.profile import repository_identities
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.git_effect import plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_publication_topology
@@ -219,7 +220,7 @@ def test_a_deletion_stays_refused_without_a_policy_at_the_accepted_head(
     if fault == "no profile":
         git(repo, *_PLAIN, "rm", "-q", ".ethos/profile.toml")
     else:
-        (repo / ".ethos/release.toml").write_text('[release]\nmirror = "sideways"\n', "utf-8")
+        write_release_mirror(repo, "sideways")
         git(repo, "add", ".ethos/release.toml")
     git(repo, *_PLAIN, "commit", "-q", "-m", "chore: leave the accepted head without a policy")
 
@@ -356,15 +357,58 @@ def test_a_history_that_may_have_carried_the_profile_is_not_adopted(
     assert adoption_classification(root, revision, accepted_head=accepted) == "dropped"
 
 
-@pytest.mark.parametrize("shape", ["rename", "move onto it", "rewind onto it"])
+def test_the_accepted_table_protects_where_no_accepted_line_can_be_named(tmp_path: Path) -> None:
+    """With no accepted ref, the asking root's own table keeps its protection."""
+    repo, _candidate, _head, places = _shape(tmp_path)
+    git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
+
+    gaps = prepared_deletion_gaps(repo, "refs/heads/master", places["before"])
+
+    assert gaps == ["legacy_role_ref_protected"]
+
+
+def test_a_recorded_rename_is_read_without_today_s_accepted_head(tmp_path: Path) -> None:
+    """A later identity of the accepted line does not unbind a rename recorded before it."""
+    repo, _candidate, head, places = _shape(tmp_path)
+    old, zero = places["before"], "0" * 40
+    effect = GitEffect(
+        updates={
+            "refs/heads/master": GitRefUpdate(expected=old, desired=zero),
+            "refs/heads/main": GitRefUpdate(expected=zero, desired=old),
+        },
+        assertions={"refs/heads/dev": head},
+    )
+    recorded, former = plan(repo, effect), repository_identities(repo, (head,))[head]
+    profile = repo / ".ethos/profile.toml"
+    text = profile.read_text(encoding="utf-8")
+    profile.write_text(text.replace('profile_id = "', 'profile_id = "later-', 1), encoding="utf-8")
+    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: give the repository a later identity")
+    later = git(repo, "rev-parse", "HEAD")
+    assert repository_identities(repo, (later,))[later] != former
+
+    resolved = resolve_git_effect_repository(
+        repo, effect, {"head": head}, plan=recorded, historical_identity=True
+    )
+
+    assert resolved == former
+
+
+@pytest.mark.parametrize(
+    "shape", ["rename", "rename and a second creation", "move onto it", "rewind onto it"]
+)
 def test_only_a_rename_puts_a_ref_on_a_pre_adoption_commit(tmp_path: Path, shape: str) -> None:
-    """A ref created at the commit the same effect deletes produces nothing; a move does."""
+    """One creation for one deletion at a commit produces nothing; any further ref there does."""
     repo, _candidate, head, places = _shape(tmp_path)
     old, zero = places["before"], "0" * 40
     updates = {
         "rename": {
             "refs/heads/master": GitRefUpdate(expected=old, desired=zero),
             "refs/heads/main": GitRefUpdate(expected=zero, desired=old),
+        },
+        "rename and a second creation": {
+            "refs/heads/master": GitRefUpdate(expected=old, desired=zero),
+            "refs/heads/main": GitRefUpdate(expected=zero, desired=old),
+            "refs/heads/extra": GitRefUpdate(expected=zero, desired=old),
         },
         "move onto it": {
             "refs/heads/master": GitRefUpdate(expected=old, desired=head),

@@ -65,10 +65,10 @@ def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
 def _accepted_table_head(repo: Path) -> str:
     """The commit whose table names a legacy role ref that stands before the table.
 
-    The accepted line's head answers alike from every root that can name the line. A root whose
-    checked-out commit names no accepted ref gets no accepted table, never its own.
+    The accepted line's head answers alike from every root that can name the line. Where no
+    accepted line can be named, the asking root's own HEAD keeps its table's protection.
     """
-    return accepted_line_head(repo, git_stdout(repo, "rev-parse", "HEAD"))
+    return accepted_line_head(repo) or git_stdout(repo, "rev-parse", "HEAD")
 
 
 def retained_topic_target(root: Path, branch: str, head: str) -> str:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
@@ -75,15 +76,14 @@ def _produced(effect: GitEffect) -> set[str]:
     """Revisions that an effect's updates move a ref onto.
 
     A ref that an effect creates at the commit the same effect deletes is a rename: it produces
-    no revision, and that commit stays a pre-state.
+    no revision, and that commit stays a pre-state. Each creation needs a deletion of its own:
+    a commit with more creations than deletions is produced.
     """
-    updates = effect.updates.values()
-    deleted = {update.expected for update in updates if update.desired in _ZERO_OIDS}
-    return {
-        update.desired
-        for update in updates
-        if not (update.expected in _ZERO_OIDS and update.desired in deleted)
-    }
+    updates = list(effect.updates.values())
+    created = Counter(update.desired for update in updates if update.expected in _ZERO_OIDS)
+    deleted = Counter(update.expected for update in updates if update.desired in _ZERO_OIDS)
+    moved = {update.desired for update in updates if update.expected not in _ZERO_OIDS}
+    return moved | {revision for revision, count in created.items() if count > deleted[revision]}
 
 
 def _effect_identities(
@@ -95,12 +95,15 @@ def _effect_identities(
     *,
     environment: Mapping[str, str] | None,
     allow_absent_prestate: bool,
+    recorded: bool,
 ) -> dict[str, str]:
     """Read every revision's identity, lending the accepted one to a pre-adoption pre-state.
 
     The extra questions are asked only after a historical read refuses, so an effect whose
-    identities all resolve keeps its read budget. A pre-state is lent the accepted line's own
-    identity and still has to agree with every other revision; a revision that the effect
+    identities all resolve keeps its read budget. Such a pre-state has no identity of its own
+    and leaves the read; for a current effect the accepted line's head joins it, so the effect
+    still has to agree with the accepted identity. A recorded effect is read by its own
+    revisions: today's accepted head may carry a later identity. A revision that the effect
     produces is never lent one, and every other failure keeps its refusal.
     """
 
@@ -126,8 +129,7 @@ def _effect_identities(
         }
         if not lent:
             raise
-        identities = read((revisions - lent) | {accepted})
-        return identities | dict.fromkeys(lent, identities[accepted])
+        return read(revisions - lent if recorded else (revisions - lent) | {accepted})
 
 
 def resolve_git_effect_repository(
@@ -178,6 +180,7 @@ def resolve_git_effect_repository(
         before,
         environment=environment,
         allow_absent_prestate=allow_absent_prestate,
+        recorded=historical_identity,
     )
     if plan is not None and "repository_identity_transitions" in plan.policy:
         return _transition_identity(

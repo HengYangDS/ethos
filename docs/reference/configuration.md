@@ -98,6 +98,17 @@ configuration plane, not a truth center.
   source Nox projection use one installed owner over exact authored copies,
   rejecting source writes and ambient policy; local policy only adds checks.
   Codespell does not replace repository-owned Vale styles or terminology rules.
+- `.config/checks/sqlfluff/.sqlfluff` is the carrier of a repository's sqlfluff policy. The file
+  keeps the tool's own name because sqlfluff reads a file given by path as INI unless its base name
+  is `pyproject.toml`. A repository binds it with `--ignore-local-config --config <carrier>`, so no
+  file found beside the linted SQL adds to it. ETHOS runs no sqlfluff gate: the row only admits the
+  carrier.
+- A tool resolves the relative paths of an explicit configuration file in its own way, and moving a
+  policy under `.config/` moves the base for some of them. Ruff resolves them against the working
+  directory when the file is passed with `--config`. sqlfluff resolves the values of keys that end
+  in `_path` or `_dir`, and of its three comma-separated path keys, against the directory of the
+  configuration file. coverage.py resolves `data_file` and the report directories against the
+  working directory.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
   `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
   sole Python distribution and its locked supply. The runner passes the declared

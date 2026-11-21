@@ -239,9 +239,10 @@ def _absorbed_ref_transition_policy(
     """Resolve accepted policy for exact retirement of an older local topic.
 
     The accepted head's committed release binding governs when it carries a strict policy.
-    A repository adopted before that binding exists carries a valid repository profile at its
-    accepted head, and the paradigm's default policy governs; with neither, the deletion
-    stays refused.
+    A repository adopted before that binding exists carries no release binding and a valid
+    repository profile at its accepted head, and the paradigm's default policy governs. A
+    release binding that is there and cannot be honored, or no valid profile, keeps the
+    deletion refused.
     """
     deleting = new_value in _ZERO_OIDS and old_value not in _ZERO_OIDS
     compensating = old_value in _ZERO_OIDS and new_value not in _ZERO_OIDS
@@ -249,13 +250,9 @@ def _absorbed_ref_transition_policy(
         return None
     current_policy = load_branch_role_policy(repo)
     accepted_head = git_stdout(repo, "rev-parse", current_policy.accepted_branch)
-    accepted_policy = _strict_ref_policy(repo, accepted_head)
-    if accepted_policy is None and accepted_head:
-        # A repository adopted before the release binding exists carries a valid profile at its
-        # accepted head; the paradigm's default policy then governs a claimed retirement.
-        profile = load_committed_repository_profile(repo, accepted_head)
-        if profile.state == "valid" and profile.declaration is not None:
-            accepted_policy = BranchRolePolicy()
+    accepted_policy = _strict_ref_policy(repo, accepted_head) or _unbound_policy(
+        repo, accepted_head
+    )
     if (
         accepted_policy is None
         or git_stdout(repo, "rev-parse", "HEAD") != accepted_head
@@ -293,6 +290,19 @@ def prepared_deletion_gaps(repo: Path, ref_name: str, old_value: str) -> list[st
     except (TypeError, ValueError):
         return ["ref_move_policy_unavailable"]
     return []
+
+
+def _unbound_policy(repo: Path, accepted_head: str) -> BranchRolePolicy | None:
+    """The paradigm's default policy for an accepted head adopted before its release binding.
+
+    Such a head carries no release binding and a valid repository profile. A binding that is
+    there and cannot be honored selects nothing.
+    """
+    if not accepted_head or committed_file_text(repo, accepted_head, binding_path("release")):
+        return None
+    profile = load_committed_repository_profile(repo, accepted_head)
+    valid = profile.state == "valid" and profile.declaration is not None
+    return BranchRolePolicy() if valid else None
 
 
 def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:

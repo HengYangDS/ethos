@@ -142,9 +142,9 @@ def admit_deletion(repo: Path, branch: str, head: str) -> None:
     """Ask the reference-transaction hook's deletion predicate before anything is removed.
 
     A receipt derived while the ref was unprotected must not take a worktree down for a deletion
-    that the hook would refuse now.
+    that the hook would refuse now. A detached path names no branch and has no ref to delete.
     """
-    if gaps := prepared_deletion_gaps(repo, f"refs/heads/{branch}", head):
+    if branch and (gaps := prepared_deletion_gaps(repo, f"refs/heads/{branch}", head)):
         refuse(*gaps)
 
 

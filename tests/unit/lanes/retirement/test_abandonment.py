@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.content as content
+import ethos.adapters.mutation.lane_retirement.effects as effects
 import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.open_files import OpenFileObservation
 from ethos.adapters.repo.git import GitExecutionError
@@ -110,7 +111,7 @@ def test_reviewed_disposal_reports_the_boundary_of_its_removing_admission(
         boundary = uninspectable if len(admissions) > 1 else ()
         return OpenFileObservation(frozenset(), OpenFileBoundary(uninspectable_processes=boundary))
 
-    monkeypatch.setattr(operation, "observe_open_files", observe)
+    monkeypatch.setattr(effects, "observe_open_files", observe)
     result = apply_retirement_receipt(repo, derived["receipt"])
 
     assert result["state"] == "retired", _failure(result)
@@ -309,7 +310,7 @@ def test_reviewed_retirement_observes_only_surviving_file_identities(
     elif consumer == "removed-file":
         selected.unlink()
     observation = OpenFileObservation(identity, OpenFileBoundary(uninspectable_processes=()))
-    monkeypatch.setattr(operation, "observe_open_files", lambda _root, **_scope: observation)
+    monkeypatch.setattr(effects, "observe_open_files", lambda _root, **_scope: observation)
     before = (git(repo, "show-ref"), index.read_bytes())
 
     result = operation.execute_retirement_operation(

@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.content as content
+import ethos.adapters.mutation.lane_retirement.effects as effects
 import ethos.adapters.mutation.lane_retirement.operation as operation
 import ethos.adapters.repo.worktree_effects as worktree_effects
 from ethos.adapters.open_files import OpenFileObservation
@@ -300,7 +301,7 @@ def test_reviewed_retirement_rejects_unknown_process_references(
     def unavailable(_root, **_scope):
         raise error
 
-    monkeypatch.setattr(operation, "observe_open_files", unavailable)
+    monkeypatch.setattr(effects, "observe_open_files", unavailable)
     result = apply_retirement_receipt(repo, receipt)
 
     assert result["required_gaps"] == ["native_process_observer_unavailable"], result
@@ -418,7 +419,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
 ):
     """Isolate authority/content races; live-process and unknown scans have dedicated cases."""
     observation = OpenFileObservation(frozenset(), OpenFileBoundary(uninspectable_processes=()))
-    monkeypatch.setattr(operation, "observe_open_files", lambda _root, **_scope: observation)
+    monkeypatch.setattr(effects, "observe_open_files", lambda _root, **_scope: observation)
     repo, lane = divergent_lane
     if detached:
         git(lane, "switch", "--detach")
@@ -436,15 +437,20 @@ def test_retirement_rechecks_after_native_worktree_observation(
         record = native_observation(*args, **kwargs)
         monkeypatch.setattr(worktree_effects, "worktree_record", native_observation)
         if drift in {"process-scan", "git-admission"}:
-            observer = "observe_open_files" if drift == "process-scan" else "admit_git_effect"
-            native_admission_observation = getattr(operation, observer)
+            # Each observation is replaced where its owner looks it up.
+            owner, observer = (
+                (effects, "observe_open_files")
+                if drift == "process-scan"
+                else (operation, "admit_git_effect")
+            )
+            native_admission_observation = getattr(owner, observer)
 
             def observe_then_write(*args, **kwargs):
                 observed = native_admission_observation(*args, **kwargs)
                 (lane / "residual.txt").write_text("new unreviewed ignored data\n")
                 return observed
 
-            monkeypatch.setattr(operation, observer, observe_then_write)
+            monkeypatch.setattr(owner, observer, observe_then_write)
         elif drift in {"ignored", "unreviewed"}:
             (lane / "residual.txt").write_text("new unreviewed ignored data\n")
         elif drift == "actor":

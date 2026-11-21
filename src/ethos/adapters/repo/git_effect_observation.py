@@ -16,9 +16,10 @@ from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import resolve_revisions
+from ethos.adapters.repo.profile import accepted_line_head
+from ethos.adapters.repo.profile import historical_identity_refusal
 from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import predates_adoption
 from ethos.adapters.repo.profile import repository_identities
@@ -27,7 +28,6 @@ from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.admission import RepositoryIdentityTransition
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Facts
@@ -71,6 +71,21 @@ def observe_git_effect(
     }
 
 
+def _produced(effect: GitEffect) -> set[str]:
+    """Revisions that an effect's updates move a ref onto.
+
+    A ref that an effect creates at the commit the same effect deletes is a rename: it produces
+    no revision, and that commit stays a pre-state.
+    """
+    updates = effect.updates.values()
+    deleted = {update.expected for update in updates if update.desired in _ZERO_OIDS}
+    return {
+        update.desired
+        for update in updates
+        if not (update.expected in _ZERO_OIDS and update.desired in deleted)
+    }
+
+
 def _effect_identities(
     root: Path,
     revisions: set[str],
@@ -83,8 +98,10 @@ def _effect_identities(
 ) -> dict[str, str]:
     """Read every revision's identity, lending the accepted one to a pre-adoption pre-state.
 
-    The extra questions are asked only after a historical read fails, so an effect whose
-    identities all resolve keeps its read budget; every other failure keeps today's refusal.
+    The extra questions are asked only after a historical read refuses, so an effect whose
+    identities all resolve keeps its read budget. A pre-state is lent the accepted line's own
+    identity and still has to agree with every other revision; a revision that the effect
+    produces is never lent one, and every other failure keeps its refusal.
     """
 
     def read(selected: set[str]) -> dict[str, str]:
@@ -98,30 +115,19 @@ def _effect_identities(
 
     try:
         return read(revisions)
-    except ValueError:
-        shared = _pre_adoption_prestates(root, expected, before, environment=environment)
-        if not shared:
+    except ValueError as error:
+        if str(error) != historical_identity_refusal():
             raise
-        return read(revisions - shared)
-
-
-def _pre_adoption_prestates(
-    root: Path,
-    expected: set[str],
-    before: Mapping[str, object],
-    *,
-    environment: Mapping[str, str] | None,
-) -> set[str]:
-    """Expected pre-states that belong to the adopted line without a profile of their own."""
-    if not expected:
-        return set()
-    accepted = ref_head(root, f"refs/heads/{load_branch_role_policy(root).accepted_branch}")
-    accepted_head = accepted or str(before["head"])
-    return {
-        revision
-        for revision in expected - _ZERO_OIDS
-        if predates_adoption(root, revision, accepted_head=accepted_head, environment=environment)
-    }
+        accepted = accepted_line_head(root, str(before["head"]), environment=environment)
+        lent = {
+            revision
+            for revision in expected - produced - _ZERO_OIDS
+            if predates_adoption(root, revision, accepted_head=accepted, environment=environment)
+        }
+        if not lent:
+            raise
+        identities = read((revisions - lent) | {accepted})
+        return identities | dict.fromkeys(lent, identities[accepted])
 
 
 def resolve_git_effect_repository(
@@ -163,11 +169,7 @@ def resolve_git_effect_repository(
             )
         }
         expected |= retained
-    produced = (
-        set()
-        if historical_identity
-        else revisions & {update.desired for update in effect.updates.values()}
-    )
+    produced = set() if historical_identity else revisions & _produced(effect)
     identities = _effect_identities(
         root,
         revisions,

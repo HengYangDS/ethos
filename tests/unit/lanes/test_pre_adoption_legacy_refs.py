@@ -12,12 +12,12 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.profile import adoption_classification
 from ethos.adapters.repo.profile import repository_identities
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -39,6 +39,7 @@ _TABLE = (
     'proposal_branch_prefix = "submit/"\n'
 )
 _PLAIN = ("-c", "core.hooksPath=/dev/null")
+_RETIRED_SCHEMA = '\n[retired]\nformat = "ruff-json"\n'
 _REF = "submit/pre-adoption"
 _ABANDON = (
     "lane",
@@ -71,6 +72,14 @@ def _shape(tmp_path: Path, master_at: str = "before") -> tuple[Path, Path, str, 
     first = git(repo, "rev-list", "--max-parents=0", "HEAD")
     adopted = git(repo, "rev-parse", "HEAD")
     places = {"before": first, "profile": adopted}
+    if master_at == "retired-schema":
+        profile = repo / ".ethos/profile.toml"
+        current = profile.read_text(encoding="utf-8")
+        profile.write_text(current + _RETIRED_SCHEMA, encoding="utf-8")
+        git(repo, "commit", "-am", "chore: accept a profile of a retired schema")
+        places["retired-schema"] = git(repo, "rev-parse", "HEAD")
+        profile.write_text(current, encoding="utf-8")
+        git(repo, "commit", "-am", "chore: migrate the profile schema")
     if master_at == "deleted":
         git(repo, "rm", "-q", ".ethos/profile.toml")
         git(repo, "commit", "-m", "chore: drop the profile")
@@ -99,6 +108,16 @@ def _step(result: dict[str, object]) -> list[str]:
     return [str(word) for word in step.get("argv") or [] if word != "--json"][1:]
 
 
+def _refusing(asked: list[tuple[str, str]], gap: str):
+    """A deletion predicate that refuses with one gap and records what it was asked."""
+
+    def ask(_root: Path, ref: str, head: str) -> list[str]:
+        asked.append((ref, head))
+        return [gap]
+
+    return ask
+
+
 def _abandon(repo: Path) -> dict[str, object]:
     preview = _run(repo, *_ABANDON)
     words = _step(preview)
@@ -123,8 +142,9 @@ def test_a_refused_deletion_blocks_the_abandonment_before_any_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _candidate, _head, _places = _shape(tmp_path)
+    asked: list[tuple[str, str]] = []
     monkeypatch.setattr(
-        abandonment, "prepared_deletion_gaps", lambda *_args: ["ref_move_policy_unavailable"]
+        effects, "prepared_deletion_gaps", _refusing(asked, "ref_move_policy_unavailable")
     )
 
     blocked = _run(repo, *_ABANDON)
@@ -132,6 +152,7 @@ def test_a_refused_deletion_blocks_the_abandonment_before_any_effect(
     assert blocked["verdict"] == "block"
     assert "ref_move_policy_unavailable" in blocked["required_gaps"]
     assert not _step(blocked)
+    assert asked == [(f"refs/heads/{_REF}", _heads(repo)[_REF])]
     assert (tmp_path / "old-proposal").exists()
     assert _REF in _heads(repo)
 
@@ -176,8 +197,9 @@ def test_a_receipt_cannot_remove_a_worktree_for_a_deletion_that_now_refuses(
     repo, _candidate, _head, _places = _shape(tmp_path)
     words = _step(_run(repo, *_ABANDON))
     assert words
+    asked: list[tuple[str, str]] = []
     monkeypatch.setattr(
-        effects, "prepared_deletion_gaps", lambda *_args: ["legacy_role_ref_protected"]
+        effects, "prepared_deletion_gaps", _refusing(asked, "legacy_role_ref_protected")
     )
 
     refused = _run(repo, *words)
@@ -185,21 +207,40 @@ def test_a_receipt_cannot_remove_a_worktree_for_a_deletion_that_now_refuses(
     assert refused["verdict"] == "block"
     assert "legacy_role_ref_protected" in refused["required_gaps"]
     assert (tmp_path / "old-proposal").exists()
-    assert _REF in _heads(repo)
+    assert asked == [(f"refs/heads/{_REF}", _heads(repo)[_REF])]
 
 
-def test_a_deletion_stays_refused_where_the_accepted_head_holds_no_profile(tmp_path: Path) -> None:
-    """Neither a release binding nor a valid profile: no policy governs the deletion."""
+@pytest.mark.parametrize("fault", ["no profile", "a release binding that cannot be honored"])
+def test_a_deletion_stays_refused_without_a_policy_at_the_accepted_head(
+    tmp_path: Path, fault: str
+) -> None:
+    """Only an accepted head with no release binding and a valid profile selects the default."""
     repo, _candidate, _head, _places = _shape(tmp_path)
-    git(repo, *_PLAIN, "rm", "-q", ".ethos/profile.toml")
-    git(repo, *_PLAIN, "commit", "-q", "-m", "chore: drop the profile")
+    if fault == "no profile":
+        git(repo, *_PLAIN, "rm", "-q", ".ethos/profile.toml")
+    else:
+        (repo / ".ethos/release.toml").write_text('[release]\nmirror = "sideways"\n', "utf-8")
+        git(repo, "add", ".ethos/release.toml")
+    git(repo, *_PLAIN, "commit", "-q", "-m", "chore: leave the accepted head without a policy")
 
     gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
 
     assert gaps == ["ref_move_policy_unavailable"]
 
 
-@pytest.mark.parametrize("master_at", ["before", "profile"])
+def test_an_unreadable_accepted_table_keeps_the_deleted_commit_s_protection(
+    tmp_path: Path,
+) -> None:
+    """Each table is read on its own: one that cannot be read takes nothing from the other."""
+    repo, _candidate, head, _places = _shape(tmp_path)
+    git(repo, *_PLAIN, "update-ref", "refs/heads/master", head)
+    (repo / ".ethos/workspace.toml").write_text("[branch_roles]\nrelease_branch = 5\n", "utf-8")
+    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the accepted table")
+
+    assert prepared_deletion_gaps(repo, "refs/heads/master", head) == ["legacy_role_ref_protected"]
+
+
+@pytest.mark.parametrize("master_at", ["before", "profile", "retired-schema"])
 def test_closeout_renames_a_legacy_release_ref_that_predates_the_table(
     tmp_path: Path, master_at: str
 ) -> None:
@@ -291,6 +332,55 @@ def test_an_effect_lends_the_accepted_identity_only_on_the_accepted_line(
         return
     accepted = repository_identities(repo, (head,))[head]
     assert resolve_git_effect_repository(repo, effect, before) == accepted
+
+
+@pytest.mark.parametrize("history", ["a merge that kept no profile", "a shallow clone"])
+def test_a_history_that_may_have_carried_the_profile_is_not_adopted(
+    tmp_path: Path, history: str
+) -> None:
+    """Only a complete history with no profile in it belongs to the adopted line."""
+    repo, _candidate, head, places = _shape(tmp_path)
+    first, old = places["before"], _heads(repo)[_REF]
+    if history == "a shallow clone":
+        root = tmp_path / "shallow"
+        git(repo, "clone", "-q", "--depth", "1", "--branch", _REF, repo.as_uri(), root.as_posix())
+        revision = accepted = old
+    else:
+        root, accepted = repo, head
+        carried = git(repo, "commit-tree", f"{head}^{{tree}}", "-p", first, "-m", "feat: a side")
+        bare = git(repo, "rev-parse", f"{first}^{{tree}}")
+        revision = git(repo, "commit-tree", bare, "-p", first, "-p", carried, "-m", "merge: ours")
+
+    assert adoption_classification(repo, old, accepted_head=head) == "unshared"
+    assert adoption_classification(repo, first, accepted_head=head) == "adopted"
+    assert adoption_classification(root, revision, accepted_head=accepted) == "dropped"
+
+
+@pytest.mark.parametrize("shape", ["rename", "move onto it", "rewind onto it"])
+def test_only_a_rename_puts_a_ref_on_a_pre_adoption_commit(tmp_path: Path, shape: str) -> None:
+    """A ref created at the commit the same effect deletes produces nothing; a move does."""
+    repo, _candidate, head, places = _shape(tmp_path)
+    old, zero = places["before"], "0" * 40
+    updates = {
+        "rename": {
+            "refs/heads/master": GitRefUpdate(expected=old, desired=zero),
+            "refs/heads/main": GitRefUpdate(expected=zero, desired=old),
+        },
+        "move onto it": {
+            "refs/heads/master": GitRefUpdate(expected=old, desired=head),
+            "refs/heads/other": GitRefUpdate(expected=head, desired=old),
+        },
+        "rewind onto it": {"refs/heads/dev": GitRefUpdate(expected=head, desired=old)},
+    }[shape]
+    effect = GitEffect(updates=updates, assertions={"refs/heads/candidate/dev": head})
+    before = observe_git_effect(repo, effect)
+
+    if shape == "rename":
+        accepted = repository_identities(repo, (head,))[head]
+        assert resolve_git_effect_repository(repo, effect, before) == accepted
+        return
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
+        resolve_git_effect_repository(repo, effect, before)
 
 
 def test_the_release_mirror_advances_from_a_pre_adoption_commit(

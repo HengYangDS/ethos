@@ -363,16 +363,17 @@ def rename_legacy_roles(
     # the adopted line by the one shared predicate: no commit of its history carries the profile
     # and the accepted head descends from it. A profile that existed and was dropped keeps the
     # existing refusal; no shared history is refused by its own name.
-    unidentified: set[str] = set()
     disowned: set[str] = set()
     unshared: set[str] = set()
     for legacy, (_target, legacy_head) in renames.items():
         try:
             historical_repository_identity(root, tree_ref=legacy_head)
-        except ValueError:
+        except ValueError as refusal:
             classed = adoption_classification(root, legacy_head, accepted_head=current_head)
-            bucket = {"adopted": unidentified, "dropped": disowned}.get(classed, unshared)
-            bucket.add(legacy)
+            if classed == "dropped":
+                disowned.add(str(refusal))
+            elif classed == "unshared":
+                unshared.add(legacy)
     retired = {
         declared.get(field, getattr(standard, field))
         for field in ("work_branch_prefix", "proposal_branch_prefix")
@@ -386,11 +387,7 @@ def rename_legacy_roles(
             for target, _head in renames.values()
             if ref_head(root, target)
         ),
-        *(
-            [f"repository_historical_identity_invalid:{binding_path('profile')}"]
-            if disowned
-            else []
-        ),
+        *sorted(disowned),
         *(
             f"legacy_role_rename_history_unshared:{legacy.removeprefix('refs/heads/')}"
             for legacy in sorted(unshared)

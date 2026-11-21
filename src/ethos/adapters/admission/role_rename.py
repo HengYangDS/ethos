@@ -18,6 +18,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.profile import accepted_line_head
 from ethos.adapters.repo.worktree_list import raw_worktree_records
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -64,12 +65,10 @@ def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
 def _accepted_table_head(repo: Path) -> str:
     """The commit whose table names a legacy role ref that stands before the table.
 
-    The accepted ref's head answers alike from every root of the repository. Before the accepted
-    role itself is renamed that ref does not exist, and the asking root's HEAD, the accepted
-    root's at closeout, stands in for it.
+    The accepted line's head answers alike from every root that can name the line. A root whose
+    checked-out commit names no accepted ref gets no accepted table, never its own.
     """
-    accepted = ref_head(repo, f"refs/heads/{BranchRolePolicy().accepted_branch}")
-    return accepted or git_stdout(repo, "rev-parse", "HEAD")
+    return accepted_line_head(repo, git_stdout(repo, "rev-parse", "HEAD"))
 
 
 def retained_topic_target(root: Path, branch: str, head: str) -> str:
@@ -163,14 +162,15 @@ def legacy_role_ref_protected(repo: Path, ref_name: str, old_value: str, new_val
     """
     if old_value in _ZERO_OIDS:
         return False
-    try:
-        # The deleted commit's own table covers a ref that stands after the table was
-        # committed; the accepted table covers a ref that stands before it.
-        renames = legacy_role_renames(repo, old_value) | legacy_role_renames(
-            repo, _accepted_table_head(repo)
-        )
-    except (TypeError, ValueError):
-        return False
+    # The deleted commit's own table covers a ref that stands after the table was committed;
+    # the accepted table covers a ref that stands before it. Each is read on its own: a table
+    # that cannot be read names nothing and takes nothing from the other's answer.
+    renames: dict[str, tuple[str, str]] = {}
+    for head in (old_value, _accepted_table_head(repo)):
+        try:
+            renames |= legacy_role_renames(repo, head)
+        except (TypeError, ValueError):
+            continue
     if ref_name not in renames:
         return False
     successor, _value = renames[ref_name]

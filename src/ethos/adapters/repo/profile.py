@@ -6,9 +6,12 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
+from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import resolve_revisions
+from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.branch.roles import declared_role_names
 from ethos.contracts.paradigm.declaration import binding_path
 from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -130,20 +133,55 @@ def _profile_identity(profile: RepositoryProfile) -> str:
     return f"repository:{profile.declaration.profile_id}"
 
 
+def historical_identity_refusal() -> str:
+    """The refusal of a past tree whose stable identity cannot be read."""
+    return f"repository_historical_identity_invalid:{binding_path('profile')}"
+
+
+def accepted_line_head(
+    root: Path, head: str, *, environment: Mapping[str, str] | None = None
+) -> str:
+    """Resolve the accepted line's head, or '' when the repository names none.
+
+    The standard accepted ref answers when it exists. Before the accepted role is renamed it
+    does not, and the table committed at `head` names the legacy accepted ref. Neither a HEAD
+    nor a caller's revision stands in for the line.
+    """
+    accepted = BranchRolePolicy().accepted_branch
+    if standard := ref_head(root, f"refs/heads/{accepted}", environment=environment):
+        return standard
+    table = run_git(
+        root, "show", f"{head}:{binding_path('workspace')}", check=False, env=environment
+    )
+    if not head or table.returncode:
+        return ""
+    try:
+        legacy = declared_role_names(table.stdout).get("accepted_branch", "")
+    except (TypeError, ValueError):
+        return ""
+    if not legacy or legacy == accepted:
+        return ""
+    return ref_head(root, f"refs/heads/{legacy}", environment=environment)
+
+
 def adoption_classification(
     root: Path, revision: str, *, accepted_head: str, environment: Mapping[str, str] | None = None
 ) -> str:
     """Classify a revision whose profile cannot be read, from committed history alone.
 
     "adopted": no commit of its history carries the profile path and the accepted head descends
-    from it. "dropped": its history once carried the profile. "unshared": neither.
+    from it. "dropped": its history carried the profile, or is too shallow to show that it never
+    did. "unshared": neither.
     """
     if not revision or revision in {"0" * 40, "0" * 64} or not accepted_head:
         return "unshared"
+    # Every parent of a merge is walked: a merge that kept no profile must not hide a side that
+    # carried one.
     carried = run_git(
         root,
         "log",
         "-1",
+        "--full-history",
         "--format=%H",
         revision,
         "--",
@@ -151,7 +189,8 @@ def adoption_classification(
         check=False,
         env=environment,
     )
-    if carried.returncode or carried.stdout.strip():
+    shallow = run_git(root, "rev-parse", "--is-shallow-repository", check=False, env=environment)
+    if carried.returncode or carried.stdout.strip() or shallow.stdout.strip() != "false":
         return "dropped"
     descended = run_git(
         root, "merge-base", "--is-ancestor", revision, accepted_head, check=False, env=environment
@@ -186,9 +225,8 @@ def historical_repository_identity(
         env=environment,
         text=False,
     )
-    message = f"repository_historical_identity_invalid:{binding_path('profile')}"
     if result.returncode:
-        raise ValueError(message)
+        raise ValueError(historical_identity_refusal())
     return _historical_identity(result.stdout)
 
 
@@ -223,7 +261,7 @@ def historical_verification_policy(
 
 
 def _historical_identity(payload: bytes) -> str:
-    message = f"repository_historical_identity_invalid:{binding_path('profile')}"
+    message = historical_identity_refusal()
     try:
         values = tomllib.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:

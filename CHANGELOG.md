@@ -109,16 +109,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
   deletion no longer removes the worktree first and leaves the repository in
   `partial_transition`. The hook's legacy role protection reads the accepted head's committed
   table as well as the table at the deleted commit, so a legacy release ref that stands before
-  the table's commit is protected before its rename, from every root. An absorbed retirement
+  the table's commit is protected before its rename. An absorbed retirement
   of a topic ref at an accepted head whose profile is valid and that carries no release binding
-  is governed by the paradigm's default policy; a deletion with neither still refuses.
+  is governed by the paradigm's default policy; a release binding that cannot be honored, or no
+  valid profile, still refuses.
 - Accepted closeout renames a legacy release ref that stands at a commit made before the
-  adoption: a pre-state revision in whose history no commit carries the repository profile, and
-  from which the accepted head descends, is read under the accepted head's identity, for the
-  rename, the release mirror's fast-forward and the release. A legacy role ref with no profile
-  in its history that the accepted head does not descend from is refused by name,
-  `legacy_role_rename_history_unshared:<branch>`. A legacy role ref whose history once carried
-  the profile, and whose identity cannot be read now, keeps
+  adoption, or at a commit whose profile is of a retired schema: a pre-state revision in whose
+  complete history no commit carries the repository profile, and from which the accepted head
+  descends, is read under the accepted head's identity, for the rename, the release mirror's
+  fast-forward and the release, and a ref that an effect creates at the commit the same effect
+  deletes produces no revision. A move of another ref onto such a commit is still read under
+  today's schema. A legacy role ref with no profile in its history that the accepted head does
+  not descend from is refused by name, `legacy_role_rename_history_unshared:<branch>`. A legacy
+  role ref whose history once carried the profile, and whose identity cannot be read now, keeps
   `repository_historical_identity_invalid`, whether or not it shares history.
 
 ## [0.2.0-beta.11] - 2026-11-21

@@ -80,7 +80,8 @@ hook's legacy role protection and ref-move policy resolution through the hook's
 own predicates, without claiming the retirement's intent. A deletion that the
 hook would refuse for either reason SHALL block the preview with the hook's gap,
 and the preview SHALL NOT emit an apply command for it. A lane abandonment SHALL
-ask the same deletion predicate before it persists an operation.
+ask the same predicate before it persists an operation and before its apply
+removes anything.
 
 #### Scenario: A protected legacy role ref
 
@@ -102,12 +103,20 @@ ask the same deletion predicate before it persists an operation.
 - **THEN** its derivation blocks with the hook's gap before any worktree is removed
 - **AND** it persists no operation.
 
+#### Scenario: A receipt whose deletion now refuses
+
+- **WHEN** an abandonment's persisted operation is applied after the hook's
+  answer for its ref deletion has changed to a refusal
+- **THEN** the apply blocks with the hook's gap
+- **AND** it removes no worktree and deletes no ref.
+
 #### Scenario: A legacy release ref before its rename
 
 - **WHEN** an absorbed-ref retirement selects the legacy release ref that the
-  accepted root's committed table names, at a commit that holds no table
+  accepted head's committed table names, at a commit that holds no table
 - **THEN** the preview blocks with `legacy_role_ref_protected` and names the
-  accepted closeout.
+  accepted closeout
+- **AND** a root that has an older commit checked out gets the same answer.
 
 ## ADDED Requirements
 
@@ -116,8 +125,7 @@ ask the same deletion predicate before it persists an operation.
 A pre-state revision in whose history no commit carries the repository profile,
 and from which the accepted branch's head descends, SHALL be read under the
 accepted head's identity. Current effects SHALL still require the strict current
-profile in every other checkout and every revision they produce; a ref that an
-effect creates at the commit the same effect deletes produces no revision.
+profile in every other checkout and every revision they produce.
 
 #### Scenario: A pre-state that predates the adoption
 
@@ -128,10 +136,3 @@ effect creates at the commit the same effect deletes produces no revision.
 - **THEN** its pre-state is read under the accepted head's identity
 - **AND THEN** the same commit after a later deletion of its profile, or a commit
   that the accepted head does not descend from, still blocks.
-
-#### Scenario: A rename creates no revision
-
-- **WHEN** a legacy role ref stands at a commit whose profile carries a field
-  removed from the current schema
-- **THEN** closeout renames it, and the standard ref it creates at that commit
-  is not read under the current schema.

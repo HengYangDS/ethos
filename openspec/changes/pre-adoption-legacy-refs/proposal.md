@@ -28,17 +28,21 @@ repositories in this shape; the code paths are general.
 
 - A deletion's policy: an accepted head with a valid profile and no release binding selects the
   paradigm's default policy, for a claimed retirement only (hand deletions stay refused). In the
-  same change, the legacy role protection also reads the accepted root's committed table, as the
+  same change, the legacy role protection also reads the accepted head's committed table, as the
   accepted scenario "A protected legacy role ref" says, so a pre-adoption legacy release ref is
-  protected before its rename.
-- A lane abandonment asks the hook's deletion predicate before it persists an operation; a
-  refusal comes before any worktree is removed.
+  protected before its rename, from every root of the repository.
+- A lane abandonment asks the hook's deletion predicate before it persists an operation, and its
+  apply asks again before it removes anything; a refusal comes before any worktree is removed.
 - A pre-state revision in whose history no commit carries the repository profile, and from which
-  the accepted branch's head descends, is read under the accepted head's identity. A ref an effect
-  creates at the commit the same effect deletes produces no revision.
+  the accepted branch's head descends, is read under the accepted head's identity.
 - The rename refuses a legacy role ref with no profile in its history and no shared history with
   the accepted head by name, `legacy_role_rename_history_unshared:<branch>`; the hook's shape
-  check reads the deleted commits and the accepted root's head.
+  check reads the deleted commits and the accepted head.
+
+Not in this Change: a legacy role ref at a commit whose profile is of a retired schema. Its
+rename needs a rule for a ref that an effect creates at the commit the same effect deletes, which
+changes a sentence of the identity requirement; that rule waits for the owner's answer (asked
+2026-11-21) and takes a Change of its own.
 
 Not breaking for a repository that has no legacy table. One added refusal: the protection of a
 legacy release ref before its rename, which is the accepted scenario's own text (a ruled defect
@@ -52,16 +56,19 @@ None.
 
 ### Modified Capabilities
 
-- `repository-governance`: "Historical effect identity survives profile schema evolution" gains
-  its one exception and the produced-revision sentence; its scenario "Historical identity cannot
-  be guessed" narrows accordingly. "Absorbed-ref retirement previews agree with the prepared
-  hook" gains two scenarios.
+- `repository-governance`: the one exception to "Historical effect identity survives profile
+  schema evolution" is a requirement of its own, "A pre-adoption pre-state is read under the
+  accepted identity", which also carries the sentence on current effects; the scenario
+  "Historical identity cannot be guessed" narrows accordingly. "Absorbed-ref retirement previews
+  agree with the prepared hook" gains three scenarios.
 - `repository-paradigm`: "Accepted closeout renames legacy role refs" also triggers on a legacy
-  release name alone, and refuses the unshared case.
+  release name alone; the refusal of the unshared case is a requirement of its own, "An unrelated
+  legacy role ref is never renamed".
 
 ## Impact
 
 `src/ethos/adapters/admission/ref_move_policy.py`, `adapters/admission/role_rename.py`,
-`adapters/mutation/lane_retirement/abandonment.py`, `adapters/repo/git_effect_observation.py`,
+`adapters/mutation/lane_retirement/abandonment.py`, `effects.py` and `operation.py` there,
+`adapters/repo/git_effect_observation.py`, `adapters/repo/profile.py`,
 `adapters/mutation/branch_roles.py`, `contracts/codes/gaps.toml`, their tests. The forge
 retirement of published legacy refs is not changed (the owner, 2026-11-20: deleted by hand).

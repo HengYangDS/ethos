@@ -399,29 +399,40 @@ def test_a_root_s_own_table_protects_and_renames_nothing_without_an_accepted_lin
 
 
 def test_no_accepted_line_names_no_head_and_selects_no_policy(tmp_path: Path) -> None:
-    """Only a readable table that names an accepted ref which exists lends that ref's head."""
+    """Only a readable table that names an accepted branch which exists lends that branch's head."""
     repo, _candidate, _head, places = _shape(tmp_path)
     git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
     table = repo / ".ethos/workspace.toml"
+    deletion = (repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
 
     assert accepted_line_head(repo) == ""
     assert accepted_line_head(repo, places["before"]) == ""
-    gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
-    assert gaps == ["ref_move_policy_unavailable"]
+    assert prepared_deletion_gaps(*deletion) == ["ref_move_policy_unavailable"]
 
     # HEAD leaves the branch that the table will name, so that branch's head and HEAD differ.
     named = git(repo, "rev-parse", "elsewhere")
     git(repo, *_PLAIN, "checkout", "-q", "--detach")
+    # A tag of the absent branch's name: only a branch of that name may lend a head.
+    git(repo, *_PLAIN, "update-ref", "refs/tags/nowhere", named)
+    tables = {}
     for accepted, lent in (("elsewhere", named), ("nowhere", "")):
         table.write_text(_TABLE.replace('"dev"', f'"{accepted}"'), encoding="utf-8")
         git(repo, *_PLAIN, "commit", "-q", "-am", f"chore: name {accepted} as the accepted branch")
+        tables[accepted] = git(repo, "rev-parse", "HEAD")
         assert accepted_line_head(repo) == lent
+    # The table is the one committed at the head that is given, not HEAD's and not the checkout's.
+    assert accepted_line_head(repo, tables["elsewhere"]) == named
 
-    # The table still names the branch that exists; one unknown field makes it unreadable.
-    broken = _TABLE.replace('"dev"', '"elsewhere"') + "unknown_field = 1\n"
-    table.write_text(broken, encoding="utf-8")
-    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table that names elsewhere")
-    assert accepted_line_head(repo) == ""
+    # Each table still names the branch that exists; one fault makes it unreadable.
+    names_elsewhere = _TABLE.replace('"dev"', '"elsewhere"')
+    for broken in (
+        names_elsewhere + "unknown_field = 1\n",
+        names_elsewhere.replace('release_branch = "master"', "release_branch = 5"),
+    ):
+        table.write_text(broken, encoding="utf-8")
+        git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table that names elsewhere")
+        assert accepted_line_head(repo) == ""
+        assert prepared_deletion_gaps(*deletion) == ["ref_move_policy_unavailable"]
 
 
 def test_the_issuing_checkout_s_head_is_never_lent_an_identity(tmp_path: Path) -> None:

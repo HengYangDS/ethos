@@ -13,8 +13,14 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
+import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
+from ethos.adapters.repo.git_effect_observation import observe_git_effect
+from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.hook.activation import install_hook_launchers
+from ethos.adapters.repo.profile import repository_identities
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
@@ -33,7 +39,6 @@ _TABLE = (
     'proposal_branch_prefix = "submit/"\n'
 )
 _PLAIN = ("-c", "core.hooksPath=/dev/null")
-_RETIRED_SCHEMA = '\n[retired]\nformat = "ruff-json"\n'
 _REF = "submit/pre-adoption"
 _ABANDON = (
     "lane",
@@ -66,14 +71,6 @@ def _shape(tmp_path: Path, master_at: str = "before") -> tuple[Path, Path, str, 
     first = git(repo, "rev-list", "--max-parents=0", "HEAD")
     adopted = git(repo, "rev-parse", "HEAD")
     places = {"before": first, "profile": adopted}
-    if master_at == "retired-schema":
-        profile = repo / ".ethos/profile.toml"
-        current = profile.read_text(encoding="utf-8")
-        profile.write_text(current + _RETIRED_SCHEMA, encoding="utf-8")
-        git(repo, "commit", "-am", "chore: accept a profile of a retired schema")
-        places["retired-schema"] = git(repo, "rev-parse", "HEAD")
-        profile.write_text(current, encoding="utf-8")
-        git(repo, "commit", "-am", "chore: migrate the profile schema")
     if master_at == "deleted":
         git(repo, "rm", "-q", ".ethos/profile.toml")
         git(repo, "commit", "-m", "chore: drop the profile")
@@ -96,10 +93,15 @@ def _shape(tmp_path: Path, master_at: str = "before") -> tuple[Path, Path, str, 
     return repo, candidate, head, places
 
 
+def _step(result: dict[str, object]) -> list[str]:
+    """The words of a result's own next step, without the program name and the JSON flag."""
+    step = result.get("next") if isinstance(result.get("next"), dict) else {}
+    return [str(word) for word in step.get("argv") or [] if word != "--json"][1:]
+
+
 def _abandon(repo: Path) -> dict[str, object]:
     preview = _run(repo, *_ABANDON)
-    step = preview.get("next") if isinstance(preview.get("next"), dict) else {}
-    words = [str(word) for word in step.get("argv") or [] if word != "--json"][1:]
+    words = _step(preview)
     return _run(repo, *words) if words else preview
 
 
@@ -129,8 +131,7 @@ def test_a_refused_deletion_blocks_the_abandonment_before_any_effect(
 
     assert blocked["verdict"] == "block"
     assert "ref_move_policy_unavailable" in blocked["required_gaps"]
-    step = blocked.get("next") if isinstance(blocked.get("next"), dict) else {}
-    assert not step.get("argv")
+    assert not _step(blocked)
     assert (tmp_path / "old-proposal").exists()
     assert _REF in _heads(repo)
 
@@ -138,9 +139,7 @@ def test_a_refused_deletion_blocks_the_abandonment_before_any_effect(
 def test_a_half_done_abandonment_is_finished_by_its_own_step(tmp_path: Path) -> None:
     """The reported state: the worktree is gone and the ref stays; the same step ends it."""
     repo, _candidate, _head, _places = _shape(tmp_path)
-    preview = _run(repo, *_ABANDON)
-    step = preview.get("next") if isinstance(preview.get("next"), dict) else {}
-    words = [str(word) for word in step.get("argv") or [] if word != "--json"][1:]
+    words = _step(_run(repo, *_ABANDON))
     assert words
     lock = Path(git(repo, "rev-parse", "--git-common-dir")) / f"refs/heads/{_REF}.lock"
     lock = lock if lock.is_absolute() else repo / lock
@@ -159,16 +158,47 @@ def test_a_half_done_abandonment_is_finished_by_its_own_step(tmp_path: Path) -> 
     assert not (tmp_path / "old-proposal").exists()
 
 
-def test_a_legacy_release_ref_is_protected_before_its_rename(tmp_path: Path) -> None:
+@pytest.mark.parametrize("asking", ["the accepted root", "a root checked out before the table"])
+def test_a_legacy_release_ref_is_protected_before_its_rename(tmp_path: Path, asking: str) -> None:
+    """The accepted table protects the ref from every root, whatever that root has checked out."""
     repo, _candidate, _head, places = _shape(tmp_path)
+    root = repo if asking == "the accepted root" else tmp_path / "old-proposal"
 
-    gaps = prepared_deletion_gaps(repo, "refs/heads/master", places["before"])
+    gaps = prepared_deletion_gaps(root, "refs/heads/master", places["before"])
 
     assert gaps == ["legacy_role_ref_protected"]
 
 
-# "retired-schema" waits for the owner's answer on the identity requirement's second
-# sentence (rule b1): this case is the one that needs it, so it stays out until then.
+def test_a_receipt_cannot_remove_a_worktree_for_a_deletion_that_now_refuses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A receipt derived while the deletion was admitted is asked again before any removal."""
+    repo, _candidate, _head, _places = _shape(tmp_path)
+    words = _step(_run(repo, *_ABANDON))
+    assert words
+    monkeypatch.setattr(
+        effects, "prepared_deletion_gaps", lambda *_args: ["legacy_role_ref_protected"]
+    )
+
+    refused = _run(repo, *words)
+
+    assert refused["verdict"] == "block"
+    assert "legacy_role_ref_protected" in refused["required_gaps"]
+    assert (tmp_path / "old-proposal").exists()
+    assert _REF in _heads(repo)
+
+
+def test_a_deletion_stays_refused_where_the_accepted_head_holds_no_profile(tmp_path: Path) -> None:
+    """Neither a release binding nor a valid profile: no policy governs the deletion."""
+    repo, _candidate, _head, _places = _shape(tmp_path)
+    git(repo, *_PLAIN, "rm", "-q", ".ethos/profile.toml")
+    git(repo, *_PLAIN, "commit", "-q", "-m", "chore: drop the profile")
+
+    gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
+
+    assert gaps == ["ref_move_policy_unavailable"]
+
+
 @pytest.mark.parametrize("master_at", ["before", "profile"])
 def test_closeout_renames_a_legacy_release_ref_that_predates_the_table(
     tmp_path: Path, master_at: str
@@ -243,6 +273,26 @@ def test_closeout_refuses_a_legacy_ref_outside_the_accepted_line(
     assert "main" not in _heads(repo)
 
 
+@pytest.mark.parametrize("place", ["before", "unrelated"])
+def test_an_effect_lends_the_accepted_identity_only_on_the_accepted_line(
+    tmp_path: Path, place: str
+) -> None:
+    """Every Git effect resolves its identity here; only a pre-state the head descends from."""
+    repo, _candidate, head, places = _shape(tmp_path, place)
+    effect = GitEffect(
+        updates={"refs/heads/master": GitRefUpdate(expected=places[place], desired=head)},
+        assertions={"refs/heads/dev": head},
+    )
+    before = observe_git_effect(repo, effect)
+
+    if place == "unrelated":
+        with pytest.raises(ValueError, match="repository_historical_identity_invalid:"):
+            resolve_git_effect_repository(repo, effect, before)
+        return
+    accepted = repository_identities(repo, (head,))[head]
+    assert resolve_git_effect_repository(repo, effect, before) == accepted
+
+
 def test_the_release_mirror_advances_from_a_pre_adoption_commit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -264,7 +314,8 @@ def test_the_release_mirror_advances_from_a_pre_adoption_commit(
     mirrored = _closeout(repo, landed, "--apply", "--authorize")
 
     assert (mirrored["verdict"], mirrored["state"]) == ("pass", "accepted_current")
-    assert _heads(repo)["main"] == landed
+    heads = _heads(repo)
+    assert (heads["candidate/dev"], heads["dev"], heads["main"]) == (landed, landed, landed)
 
 
 def test_a_release_advances_the_release_ref_from_a_pre_adoption_commit(

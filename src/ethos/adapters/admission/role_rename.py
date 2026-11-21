@@ -61,6 +61,17 @@ def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
     }
 
 
+def _accepted_table_head(repo: Path) -> str:
+    """The commit whose table names a legacy role ref that stands before the table.
+
+    The accepted ref's head answers alike from every root of the repository. Before the accepted
+    role itself is renamed that ref does not exist, and the asking root's HEAD, the accepted
+    root's at closeout, stands in for it.
+    """
+    accepted = ref_head(repo, f"refs/heads/{BranchRolePolicy().accepted_branch}")
+    return accepted or git_stdout(repo, "rev-parse", "HEAD")
+
+
 def retained_topic_target(root: Path, branch: str, head: str) -> str:
     """Derive one retained Work Lane's fixed name from its committed declaration."""
     declared = declared_role_names(committed_file_text(root, head, binding_path("workspace")))
@@ -145,7 +156,7 @@ def role_rename_ref_report(
 def legacy_role_ref_protected(repo: Path, ref_name: str, old_value: str, new_value: str) -> bool:
     """Whether a move of one ref waits for its legacy role rename.
 
-    The committed table at the ref's old value and the one at HEAD name the legacy role refs;
+    The committed table at the ref's old value and the accepted one name the legacy role refs;
     any move of one is the closeout rename's alone. A legacy ref whose standard successor
     already holds its exact commit carries nothing that ref lacks, so deleting it alone stays
     admitted.
@@ -154,9 +165,9 @@ def legacy_role_ref_protected(repo: Path, ref_name: str, old_value: str, new_val
         return False
     try:
         # The deleted commit's own table covers a ref that stands after the table was
-        # committed; the accepted root's HEAD table covers a ref that stands before it.
+        # committed; the accepted table covers a ref that stands before it.
         renames = legacy_role_renames(repo, old_value) | legacy_role_renames(
-            repo, git_stdout(repo, "rev-parse", "HEAD")
+            repo, _accepted_table_head(repo)
         )
     except (TypeError, ValueError):
         return False
@@ -174,8 +185,8 @@ def _rename_shape_gaps(repo: Path, intents: tuple[tuple[str, str, str], ...]) ->
         expected = {
             legacy: target
             # The deleted commits cover a ref that stands after the table was committed; the
-            # accepted root's HEAD covers a ref that stands before it.
-            for value in {*deleted.values(), git_stdout(repo, "rev-parse", "HEAD")}
+            # accepted table covers a ref that stands before it.
+            for value in {*deleted.values(), _accepted_table_head(repo)}
             for legacy, target in legacy_role_renames(repo, value).items()
             if deleted.get(legacy) == target[1]
         }

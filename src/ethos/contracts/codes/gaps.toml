@@ -709,6 +709,7 @@ lease_takeover_generation_drift = { owner = "adapters.mutation" }
 lease_takeover_lease_unknown = { owner = "adapters.mutation" }
 lease_unknown = { owner = "adapters.store", detail = "the value that follows the colon" }
 legacy_role_ref_protected = { owner = "adapters.admission" }
+legacy_role_rename_history_unshared = { owner = "adapters.mutation", detail = "the value that follows the colon" }
 legacy_role_rename_policy_unavailable = { owner = "adapters.admission" }
 legacy_role_rename_shape_invalid = { owner = "adapters.admission" }
 legacy_role_rename_target_exists = { owner = "adapters.mutation", detail = "the value that follows the colon" }

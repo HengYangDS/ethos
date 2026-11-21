@@ -34,6 +34,8 @@ from ethos.adapters.repo.git_effect_observation import compile_observed_git_effe
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.adapters.repo.profile import adoption_classification
+from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.worktree_list import listed_worktrees
 from ethos.adapters.store.state.lease.lifecycle.effects import migrate_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -357,6 +359,20 @@ def rename_legacy_roles(
     if not renames or current_branch(root) != accepted:
         return None
     targets = {legacy: target for legacy, (target, _head) in renames.items()}
+    # A legacy ref whose commit carries no readable identity is renamed only when it belongs to
+    # the adopted line by the one shared predicate: no commit of its history carries the profile
+    # and the accepted head descends from it. A profile that existed and was dropped keeps the
+    # existing refusal; no shared history is refused by its own name.
+    unidentified: set[str] = set()
+    disowned: set[str] = set()
+    unshared: set[str] = set()
+    for legacy, (_target, legacy_head) in renames.items():
+        try:
+            historical_repository_identity(root, tree_ref=legacy_head)
+        except ValueError:
+            classed = adoption_classification(root, legacy_head, accepted_head=current_head)
+            bucket = {"adopted": unidentified, "dropped": disowned}.get(classed, unshared)
+            bucket.add(legacy)
     retired = {
         declared.get(field, getattr(standard, field))
         for field in ("work_branch_prefix", "proposal_branch_prefix")
@@ -369,6 +385,15 @@ def rename_legacy_roles(
             f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
             for target, _head in renames.values()
             if ref_head(root, target)
+        ),
+        *(
+            [f"repository_historical_identity_invalid:{binding_path('profile')}"]
+            if disowned
+            else []
+        ),
+        *(
+            f"legacy_role_rename_history_unshared:{legacy.removeprefix('refs/heads/')}"
+            for legacy in sorted(unshared)
         ),
         *(
             f"legacy_role_rename_topic_refs_present:{prefix}"

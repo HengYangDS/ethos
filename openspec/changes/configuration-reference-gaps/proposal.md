@@ -2,7 +2,7 @@
 
 ## Why
 
-Governed repositories met three rules of configuration that no reference page states:
+Governed repositories met two rules of configuration that no reference page states:
 
 - **The carrier role.** A Git attribute, `ethos-role`, gives a tracked carrier one of nine roles,
   and only an unset role, `code` and `generated` owe behavior evidence. No page under `docs/`
@@ -13,11 +13,8 @@ Governed repositories met three rules of configuration that no reference page st
   modules import under paths that hold parent segments. The ruling of 2026-11-14: such a carrier
   declares no `pythonpath`, the environment owns the import path, and commands run from the root.
   One repository measured 3,904 equal node identities under it.
-- **Relative paths of an explicit tool configuration.** The reference states the base for two
-  tools. Ruff resolves them against the working directory, and coverage.py makes them absolute
-  against it.
 
-A fourth is a procedure: renaming a release branch runs through the native rename inside a
+A third is a procedure: renaming a release branch runs through the native rename inside a
 landing; the new name is protected on a peer before its first push, and the old name leaves the
 forge last.
 
@@ -25,8 +22,7 @@ forge last.
 
 - The configuration reference states the carrier role, its nine values and which of them owe
   behavior evidence.
-- It states the import-path rule for a test carrier outside the root and the base of relative
-  paths for each catalogued tool.
+- It states the import-path rule for a test carrier outside the root.
 - The release guide states the order of a release branch's rename.
 - ETHOS's own pytest carrier drops its `pythonpath` only after a whole-suite run shows equal node
   identities and import paths.

@@ -104,6 +104,21 @@ historical bindings are governed by the [distribution specification](openspec/sp
   search as absent on Python 3.12 and 3.13 too, where it deferred with the permission error;
   Python 3.14 already answered so. A listed link that is there and whose target cannot be looked
   at still defers the reclamation.
+- A lane abandonment asks the reference-transaction hook's own deletion predicate before it
+  persists an operation, so a refused deletion no longer removes the worktree first and leaves
+  the repository in `partial_transition`. The hook's legacy role protection reads the accepted
+  root's committed table as well as the table at the deleted commit, so a legacy release ref
+  that stands before the table's commit is protected before its rename. An absorbed retirement
+  of a topic ref at an accepted head whose profile is valid and that carries no release binding
+  is governed by the paradigm's default policy; a deletion with neither still refuses.
+- Accepted closeout renames a legacy release ref that stands at a commit made before the
+  adoption: a pre-state revision in whose history no commit carries the repository profile, and
+  from which the accepted head descends, is read under the accepted head's identity, for the
+  rename, the release mirror's fast-forward and the release. A legacy role ref with no profile
+  in its history that the accepted head does not descend from is refused by name,
+  `legacy_role_rename_history_unshared:<branch>`. A legacy role ref whose history once carried
+  the profile, and whose identity cannot be read now, keeps
+  `repository_historical_identity_invalid`, whether or not it shares history.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

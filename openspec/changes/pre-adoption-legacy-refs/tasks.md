@@ -82,8 +82,22 @@
 - [x] 5.1 Run the chain in the fixture of the reported shape: retire the `submit/` ref, rename,
       land with `accepted_ff`, closeout; and a release from a pre-adoption previous head. Done when
       every step passes and `candidate/dev`, `dev` and `main` read the landed head.
-- [ ] 5.2 Pass the pre-check, readiness and one full proof at the lane's head, with the model
-      reviews of its product code triaged (three so far: 14, 10 and 4 comments), and the hosted
-      runs of that head on both forges. Done when each passes before the cut of 2026-11-26.
-      The first pre-check (2026-11-22, at `dd1b4619c`) found five added lines without a direct
-      test; task 3.8 gives them cases.
+- [x] 5.2 Pass the precheck and readiness at the lane head, with every model review of the lane's
+      code triaged. Done when each passes on the committed head and each review has its triage.
+      (The pre-check ran its full selection at `fc462d7ec` on 2026-11-22, 211 test modules, 3,932
+      passed and 1 skipped, with no finding, and readiness passed with its 28 gates. The full
+      selection ran again at `47e56c9b2` after three commits that changed one test file: 211 test
+      modules, 3,932 passed and 1 skipped, with no finding, and readiness passed again with its 28
+      gates. An earlier full run, at `dd1b4619c`, found five added lines without a direct test; task
+      3.8 gives them cases. Nine model reviews read the lane: 40 comments over eight complete
+      ranges, each range with its triage.)
+- [x] 5.3 Hand the full proof and the hosted runs to the landing. Done when the Workflow follow-up
+      states that the full proof runs on the archived head, that its receipt is the landing's, and
+      that the hosted runs of that head are read before the landing.
+      (The Workflow follow-up below states it.)
+
+## Workflow follow-up
+
+- Landing: the full proof runs on the archived head, and its receipt is the landing's. The hosted
+  runs of that head on both forges start with the proposal's publication and are read before the
+  landing. The cut is 2026-11-26.

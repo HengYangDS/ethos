@@ -146,6 +146,11 @@ _CARRIER_GAPS = {
         "repository_paradigm_configuration_carrier:.config/checks/ci-projection/templates.toml",
         "or .config/checks/ci-projection/policy.toml",
     ),
+    "configuration-beside-an-ini-carrier": (
+        {".config/checks/sqlfluff/config.ini": "[sqlfluff]\ndialect = ansi\n"},
+        "repository_paradigm_configuration_carrier:.config/checks/sqlfluff/config.ini",
+        "or .config/checks/sqlfluff/policy.toml",
+    ),
     "configuration-nested": (
         {".config/checks/coverage/nested/coverage.toml": ""},
         "repository_paradigm_configuration_owner:.config/checks/coverage/nested/coverage.toml",
@@ -194,6 +199,14 @@ def test_paradigm_gap_names_carrier_obligation_and_repair(
     assert repair in detail["repair"]
     repairable = gap.startswith("repository_paradigm_text_normalization:")
     assert report["next_action"] == (REPAIR_PREVIEW if repairable else detail["repair"])
+
+
+def test_a_tool_whose_native_file_is_not_toml_keeps_its_catalogued_carrier(tmp_path: Path) -> None:
+    """The sqlfluff row admits its INI carrier, which keeps the tool's own file name."""
+    carrier = ".config/checks/sqlfluff/.sqlfluff"
+    assert load_repository_paradigm().native_carrier(".sqlfluff") == carrier
+    report = paradigm_report(tmp_path, {**CONFORMING, carrier: "[sqlfluff]\ndialect = ansi\n"})
+    assert report["verdict"] == "pass", report["required_gaps"]
 
 
 _TYPESCRIPT = ".config/checks/typescript/tsconfig.json"

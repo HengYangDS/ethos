@@ -563,6 +563,10 @@ carrier = ".config/checks/vulture/vulture.toml"
 manifest_tables = ["vulture"]
 
 [[tool]]
+id = "sqlfluff"
+carrier = ".config/checks/sqlfluff/.sqlfluff"
+
+[[tool]]
 id = "prettier"
 carrier = ".config/checks/prettier/prettier.toml"
 root_names = [

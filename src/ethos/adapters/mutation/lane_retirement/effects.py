@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
 from ethos.adapters.actor import process_actor
+from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
+from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
+from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.mutation.lane_retirement.linked_effect import linked_retirement_plan
+from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
+from ethos.adapters.open_files import OpenFileBoundary
+from ethos.adapters.open_files import observe_open_files
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -16,11 +23,13 @@ from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.outcome import refuse
 from ethos.repository.openspec.identifiers import OPEN_SPEC_ARCHIVE_ROOT
 from ethos.repository.openspec.identifiers import parse_archived_change_root
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
+    from ethos.contracts.retirement import RetirementOperation
 
 
 def output(root: Path, *args: str) -> str | None:
@@ -107,6 +116,36 @@ def _archive_roots(repo: Path, accepted_head: str, change: str) -> tuple[str, ..
         if archives.returncode == 0
         else ()
     )
+
+
+def admit_reviewed_content(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
+    """Require no nontracked content, or the exact reviewed preimage no inspected process holds."""
+    expected = request.reviewed_content
+    if not expected:
+        if os.path.lexists(request.worktree_path) and unreviewed_content(
+            Path(request.worktree_path)
+        ):
+            refuse("retirement_content_review_required")
+        return None
+    observation = observe_open_files(
+        root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
+    )
+    verify_reviewed_content(
+        Path(request.worktree_path),
+        expanded_content(root, expected),
+        open_identities=observation.identities,
+    )
+    return observation.boundary
+
+
+def admit_deletion(repo: Path, branch: str, head: str) -> None:
+    """Ask the reference-transaction hook's deletion predicate before anything is removed.
+
+    A receipt derived while the ref was unprotected must not take a worktree down for a deletion
+    that the hook would refuse now.
+    """
+    if gaps := prepared_deletion_gaps(repo, f"refs/heads/{branch}", head):
+        refuse(*gaps)
 
 
 def control_root(worktrees: list[dict[str, object]], default: Path) -> Path | None:

@@ -10,6 +10,7 @@ from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.actor import process_actor
+from ethos.adapters.admission.ref_move_policy import prepared_deletion_gaps
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
@@ -90,6 +91,17 @@ def _review_summary(request: RetirementOperation) -> dict[str, object]:
     }
 
 
+def _refuse_unadmitted_deletion(control_root: Path, branch: str, head: str) -> None:
+    """Ask the hook's own deletion predicate before any operation is persisted.
+
+    A refusal must leave the worktree and the ref untouched; the hook asks it again for itself.
+    """
+    if not (branch and head):
+        return
+    if gaps := prepared_deletion_gaps(control_root, f"refs/heads/{branch}", head):
+        refuse(*gaps)
+
+
 def derive_lane_abandonment(
     *,
     root: Path,
@@ -145,6 +157,7 @@ def derive_lane_abandonment(
         }
         if gaps := effects.holder_gaps(lane):
             refuse(*gaps)
+        _refuse_unadmitted_deletion(control_root, branch, head)
         request = compile_retirement_operation(
             control_root,
             mode="abandon",

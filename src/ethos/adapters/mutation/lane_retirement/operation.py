@@ -16,14 +16,12 @@ from typing import cast
 from filelock import FileLock
 from filelock import Timeout
 
+import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.actor import process_actor
 from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_content
-from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
-from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import retirement_continuation
 from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
 from ethos.adapters.mutation.lane_retirement.manifest import release_manifest
-from ethos.adapters.open_files import observe_open_files
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import run_git
@@ -312,26 +310,6 @@ def _git_plan(request: RetirementOperation) -> TransitionPlan:
     return TransitionPlan.model_validate(mutable_json(request.git_plan))
 
 
-def _admit_content(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
-    """Require no nontracked content, or the exact reviewed preimage no inspected process holds."""
-    expected = request.reviewed_content
-    if not expected:
-        if os.path.lexists(request.worktree_path) and unreviewed_content(
-            Path(request.worktree_path)
-        ):
-            refuse("retirement_content_review_required")
-        return None
-    observation = observe_open_files(
-        root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
-    )
-    verify_reviewed_content(
-        Path(request.worktree_path),
-        expanded_content(root, expected),
-        open_identities=observation.identities,
-    )
-    return observation.boundary
-
-
 def preflight_operation(root: Path, request: RetirementOperation) -> RetirementProgress:
     """Return observed progress after validating process and authority coordinates."""
     if not _current_actor(request):
@@ -368,9 +346,10 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
     progress = reduce_progress(request, observe_operation(root, request))
     _require_accepted_coordinate(progress)
     if "delete_ref" in progress.remaining_effects:
+        effects.admit_deletion(execution_root, request.branch, request.head)
         admit_git_effect(execution_root, _git_plan(request))
     if "remove_worktree" in progress.remaining_effects:
-        observation = _admit_content(control, request)
+        observation = effects.admit_reviewed_content(control, request)
         progress = progress.model_copy(update={"open_file_observation": observation})
     return progress
 

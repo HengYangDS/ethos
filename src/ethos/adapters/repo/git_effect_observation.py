@@ -106,7 +106,8 @@ def _effect_identities(
     effect is read by its own revisions and its recorded head lends the identity: today's
     accepted head may carry a later one. A lent pre-state stays in the answer, so that an
     identity transition still counts its edge. A revision that the effect produces is never
-    lent an identity, and every other failure keeps its refusal.
+    lent an identity, nor is the head of the checkout that issues the effect; an anchor that
+    cannot lend, and every other failure, keeps the refusal.
     """
 
     def read(selected: set[str]) -> dict[str, str]:
@@ -126,16 +127,16 @@ def _effect_identities(
         accepted = accepted_line_head(root, str(before["head"]), environment=environment)
         lent = {
             revision
-            for revision in expected - produced - _ZERO_OIDS
+            for revision in expected - produced - _ZERO_OIDS - {str(before["head"])}
             if predates_adoption(root, revision, accepted_head=accepted, environment=environment)
         }
         if not lent:
             raise
         anchor = str(before["head"]) if recorded else accepted
         identities = read(revisions - lent if recorded else (revisions - lent) | {accepted})
-        if anchor in identities:
-            identities |= dict.fromkeys(lent, identities[anchor])
-        return identities
+        if anchor not in identities:
+            raise
+        return identities | dict.fromkeys(lent, identities[anchor])
 
 
 def resolve_git_effect_repository(

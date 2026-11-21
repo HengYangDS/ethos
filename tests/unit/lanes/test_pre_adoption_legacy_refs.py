@@ -366,6 +366,8 @@ def test_a_history_that_may_have_carried_the_profile_is_not_adopted(
         revision = git(repo, "commit-tree", bare, "-p", first, "-p", carried, "-m", "merge: ours")
 
     assert adoption_classification(repo, old, accepted_head=head) == "unshared"
+    assert adoption_classification(repo, "", accepted_head=head) == "unshared"
+    assert adoption_classification(repo, first, accepted_head="") == "unshared"
     assert adoption_classification(repo, first, accepted_head=head) == "adopted"
     assert adoption_classification(root, revision, accepted_head=accepted) == "dropped"
 
@@ -394,6 +396,39 @@ def test_a_root_s_own_table_protects_and_renames_nothing_without_an_accepted_lin
     assert prepared_deletion_gaps(repo, "refs/heads/master", old) == ["legacy_role_ref_protected"]
     assert renamed is not None
     assert renamed["required_gaps"] == ["legacy_role_rename_shape_invalid"]
+
+
+def test_no_accepted_line_names_no_head_and_selects_no_policy(tmp_path: Path) -> None:
+    """A repository whose accepted ref is missing lends no line and no default policy."""
+    repo, _candidate, _head, places = _shape(tmp_path)
+    git(repo, *_PLAIN, "branch", "-m", "dev", "elsewhere")
+
+    assert accepted_line_head(repo) == ""
+    assert accepted_line_head(repo, places["before"]) == ""
+    gaps = prepared_deletion_gaps(repo, f"refs/heads/{_REF}", _heads(repo)[_REF])
+    assert gaps == ["ref_move_policy_unavailable"]
+
+    (repo / ".ethos/workspace.toml").write_text("[branch_roles]\nrelease_branch = 5\n", "utf-8")
+    git(repo, *_PLAIN, "commit", "-q", "-am", "chore: break the table")
+    assert accepted_line_head(repo) == ""
+
+
+def test_the_issuing_checkout_s_head_is_never_lent_an_identity(tmp_path: Path) -> None:
+    """An effect recorded from a head that predates the adoption keeps the refusal."""
+    repo, _candidate, head, places = _shape(tmp_path)
+    old, zero = places["before"], "0" * 40
+    effect = GitEffect(
+        updates={
+            "refs/heads/master": GitRefUpdate(expected=old, desired=zero),
+            "refs/heads/main": GitRefUpdate(expected=zero, desired=old),
+        },
+        assertions={"refs/heads/dev": head},
+    )
+
+    with pytest.raises(ValueError, match="repository_historical_identity_invalid:"):
+        resolve_git_effect_repository(
+            repo, effect, {"head": old}, plan=plan(repo, effect), historical_identity=True
+        )
 
 
 def test_a_recorded_rename_is_read_without_today_s_accepted_head(tmp_path: Path) -> None:

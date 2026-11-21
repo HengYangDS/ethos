@@ -54,6 +54,12 @@
       onto that commit blocks with `repository_profile_invalid`.
 - [x] 3.5 Classify from complete history: walk every parent of a merge, and answer `dropped` in a
       shallow repository. Done when the classification's cases pass.
+- [x] 3.6 Apply the second model review (`063fc595b..a0c1cfe00`, 10 comments): one creation for
+      one deletion is a rename; a recorded effect is read without today's accepted head; HEAD is
+      read only where the standard accepted ref is missing, and keeps its table's protection where
+      no accepted line can be named; a release binding's absence is read from the tree; only the
+      one admitted classification passes. Done when the three regressions that failed on
+      `a0c1cfe00` pass.
 
 ## 4. Specifications and documents
 
@@ -67,7 +73,6 @@
 - [x] 5.1 Run the chain in the fixture of the reported shape: retire the `submit/` ref, rename,
       land with `accepted_ff`, closeout; and a release from a pre-adoption previous head. Done when
       every step passes and `candidate/dev`, `dev` and `main` read the landed head.
-- [ ] 5.2 Pass a second model review of the lane's product code at its head (the first, at
-      `063fc595b`, gave 14 comments, applied in tasks 2.4, 3.4 and 3.5), the pre-check, readiness
-      and one full proof, and the hosted runs of that head on both forges. Done when each passes
-      before the cut of 2026-11-26.
+- [ ] 5.2 Pass the pre-check, readiness and one full proof at the lane's head, with the model
+      reviews of its product code triaged (two so far, 14 and 10 comments), and the hosted runs of
+      that head on both forges. Done when each passes before the cut of 2026-11-26.

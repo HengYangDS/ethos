@@ -139,7 +139,9 @@ the commit the same effect deletes produces no revision.
 - **THEN** its pre-state is read under the accepted head's identity
 - **AND THEN** the same commit after a later deletion of its profile, a commit
   that the accepted head does not descend from, or a history too shallow to show
-  that it never carried a profile, still blocks.
+  that it never carried a profile, still blocks
+- **AND THEN** the recorded effect stays verifiable after the accepted line's
+  identity changes.
 
 #### Scenario: A rename creates no revision
 
@@ -147,5 +149,5 @@ the commit the same effect deletes produces no revision.
   whose profile carries a field removed from the current schema
 - **THEN** closeout renames it, and the standard ref it creates at that commit
   is not read under the current schema
-- **AND** an effect that moves another ref onto that commit still reads it
-  under the current schema and blocks.
+- **AND** an effect that moves another ref onto that commit, or creates more
+  refs there than it deletes, still reads it under the current schema and blocks.

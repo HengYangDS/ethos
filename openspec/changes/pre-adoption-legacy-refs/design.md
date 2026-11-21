@@ -33,10 +33,10 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
   strict policy (`:246`), HEAD is not the accepted branch (`:249`), the branch is not a topic
   (`:250`), or a compensating contribution fails (`:251-254`); `resolve_ref_move_policy` turns
   `None` into `ref_move_policy_unavailable` (`:222-224`).
-- Built: in `_absorbed_ref_transition_policy`, when the accepted head carries NO release binding
-  and `load_committed_repository_profile(repo, accepted_head)` is valid with a declaration, the
-  policy is `BranchRolePolicy()`. A release binding that is there and cannot be honored, or no
-  valid profile, keeps the refusal. Signatures unchanged.
+- Built: `_unbound_policy`. When the accepted head's tree lists NO release binding and
+  `load_committed_repository_profile(repo, accepted_head)` is valid with a declaration, the policy
+  is `BranchRolePolicy()`. A release binding that is there and cannot be honored, a tree that
+  cannot be listed, or no valid profile, keeps the refusal. Signatures unchanged.
 - Reuse: `load_committed_repository_profile` (`profile.py:25-52`, already used at `:216`),
   `BranchRolePolicy()` (`contracts/branch/roles.py:78-85`), `load_branch_role_policy`
   (`roles.py:231-236`), `git_stdout`, `accepted_contribution`/`report_verdict`.
@@ -54,7 +54,9 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
 - Built: `legacy_role_ref_protected` and the hook's shape check `_rename_shape_gaps` union the
   deleted commit's table with the accepted one, read at the accepted line's head
   (`accepted_line_head` in `adapters/repo/profile.py`): the standard accepted ref, or, while the
-  accepted role has a legacy name, the ref that the asking root's committed table names. The
+  accepted role has a legacy name, the ref that the asking root's committed table names. HEAD is
+  read only when the standard ref is missing, so the common path spends no extra read. Where no
+  accepted line can be named, the asking root's own HEAD keeps its table's protection. The
   protection reads each table on its own, so a table that cannot be read takes nothing from the
   other's answer. The successor exemption applies to the union. Signatures are unchanged
   (`legacy_role_ref_protected(repo, ref_name, old_value, new_value)`,
@@ -91,9 +93,11 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
   `repository_profile_invalid`.
 - Built: `_effect_identities` reads every revision as before. Only when that read refuses with
   the historical-identity refusal does it ask which expected pre-states, never a produced
-  revision, belong to the adopted line without a profile. It then reads the rest together with
-  the accepted line's head and gives those pre-states the accepted identity, so that the
-  agreement check of the resolver still covers them. An effect whose identities all resolve
+  revision, belong to the adopted line without a profile. Such a pre-state has no identity of
+  its own and leaves the read. For a current effect the accepted line's head joins the read, so
+  the effect must agree with the accepted identity; a recorded effect is read by its own
+  revisions, because today's accepted head may carry a later identity. An effect whose
+  identities all resolve
   spends no extra read, which the read-budget tests of `test_historical_profile_identity.py`
   hold. Every other failure, and a refusal with no such pre-state, is raised unchanged.
   `_validate_historical_source` (`commit/signature.py`) is NOT a c1 site and is not touched.
@@ -105,8 +109,9 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
   resolver.
 - Today: `git_effect_observation.py:110-114` classifies `produced = revisions & {update.desired}`;
   a rename's OID is both expected and desired, so the legacy commit is read under today's reader.
-- Built: `_produced(effect)` leaves out the desired value of an update that creates a ref at a
-  commit which the same effect deletes; any other update onto that commit keeps it produced. The
+- Built: `_produced(effect)` leaves out a commit at which the effect creates no more refs than
+  it deletes and onto which it moves none: one creation for one deletion is a rename. A second
+  creation there, or any move onto it, keeps the commit produced. The
   owner approved the requirement's sentence on 2026-11-21. Without this rule c1 could admit the
   rename only by exempting the pre-adoption commit in every role, which also admitted a moved
   ref (the model review's finding of 2026-11-21).
@@ -137,9 +142,10 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
 3. After a1, the reported `submit/` ref is not a legacy role ref and `prepared_deletion_gaps`
    returns `[]` for it; a2 closes the class, not that case alone.
 4. c2 reads the accepted line's head. While the accepted role has a legacy name, the line is
-   named only by the committed table, so a root checked out before the table cannot name it and
-   gets no accepted table: a deletion asked there is judged by the deleted commit's own table
-   alone. The closeout runs from the accepted root, whose table names the line.
+   named only by the committed table, so a root checked out before the table cannot name it: a
+   deletion asked there is judged by the deleted commit's table and that root's own HEAD table.
+   The closeout runs from the accepted root, whose table names the line. The identity reader
+   (c1) never takes such a stand-in: with no accepted line it lends nothing.
 5. The profile's history is read at its current path. A repository that moved its profile path
    would read as having carried none; no governed repository has moved it, and the paradigm
    fixes the path.

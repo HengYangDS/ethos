@@ -236,7 +236,13 @@ def resolve_ref_move_policy(
 def _absorbed_ref_transition_policy(
     repo: Path, branch: str, old_value: str, new_value: str, *, claim: bool
 ) -> BranchRolePolicy | None:
-    """Resolve accepted policy for exact retirement of an older local topic."""
+    """Resolve accepted policy for exact retirement of an older local topic.
+
+    The accepted head's committed release binding governs when it carries a strict policy.
+    A repository adopted before that binding exists carries a valid repository profile at its
+    accepted head, and the paradigm's default policy governs; with neither, the deletion
+    stays refused.
+    """
     deleting = new_value in _ZERO_OIDS and old_value not in _ZERO_OIDS
     compensating = old_value in _ZERO_OIDS and new_value not in _ZERO_OIDS
     if not (deleting or compensating):
@@ -244,6 +250,12 @@ def _absorbed_ref_transition_policy(
     current_policy = load_branch_role_policy(repo)
     accepted_head = git_stdout(repo, "rev-parse", current_policy.accepted_branch)
     accepted_policy = _strict_ref_policy(repo, accepted_head)
+    if accepted_policy is None and accepted_head:
+        # A repository adopted before the release binding exists carries a valid profile at its
+        # accepted head; the paradigm's default policy then governs a claimed retirement.
+        profile = load_committed_repository_profile(repo, accepted_head)
+        if profile.state == "valid" and profile.declaration is not None:
+            accepted_policy = BranchRolePolicy()
     if (
         accepted_policy is None
         or git_stdout(repo, "rev-parse", "HEAD") != accepted_head

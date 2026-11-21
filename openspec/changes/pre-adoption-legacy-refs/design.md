@@ -56,7 +56,8 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
   (`accepted_line_head` in `adapters/repo/profile.py`): the standard accepted ref, or, while the
   accepted role has a legacy name, the ref that the asking root's committed table names. HEAD is
   read only when the standard ref is missing, so the common path spends no extra read. Where no
-  accepted line can be named, the asking root's own HEAD keeps its table's protection. The
+  accepted line can be named, the asking root's own HEAD keeps its table's protection; it
+  protects only, and the hook's shape check takes no table from it. The
   protection reads each table on its own, so a table that cannot be read takes nothing from the
   other's answer. The successor exemption applies to the union. Signatures are unchanged
   (`legacy_role_ref_protected(repo, ref_name, old_value, new_value)`,
@@ -94,10 +95,11 @@ Six repairs at five sites. Line numbers in the call chains are those of the base
 - Built: `_effect_identities` reads every revision as before. Only when that read refuses with
   the historical-identity refusal does it ask which expected pre-states, never a produced
   revision, belong to the adopted line without a profile. Such a pre-state has no identity of
-  its own and leaves the read. For a current effect the accepted line's head joins the read, so
-  the effect must agree with the accepted identity; a recorded effect is read by its own
-  revisions, because today's accepted head may carry a later identity. An effect whose
-  identities all resolve
+  its own and leaves the read. For a current effect the accepted line's head joins the read and
+  lends its identity, so the effect must agree with the accepted identity; a recorded effect is
+  read by its own revisions and its recorded head lends the identity, because today's accepted
+  head may carry a later one. The pre-state stays in the answer with the lent identity, so an
+  identity transition still counts its edge. An effect whose identities all resolve
   spends no extra read, which the read-budget tests of `test_historical_profile_identity.py`
   hold. Every other failure, and a refusal with no such pre-state, is raised unchanged.
   `_validate_historical_source` (`commit/signature.py`) is NOT a c1 site and is not touched.

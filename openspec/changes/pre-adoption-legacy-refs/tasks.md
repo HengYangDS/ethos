@@ -60,6 +60,11 @@
       no accepted line can be named; a release binding's absence is read from the tree; only the
       one admitted classification passes. Done when the three regressions that failed on
       `a0c1cfe00` pass.
+- [x] 3.7 Apply the third model review (`a0c1cfe00..692d56f35`, 4 comments): a root's own HEAD
+      table protects and never justifies a rename's shape; a lent pre-state keeps its place in
+      the answer; a head that is given and empty names no accepted line. An empty release binding
+      stays a binding and keeps the refusal. Done when the two regressions that failed on
+      `692d56f35` pass.
 
 ## 4. Specifications and documents
 
@@ -74,5 +79,5 @@
       land with `accepted_ff`, closeout; and a release from a pre-adoption previous head. Done when
       every step passes and `candidate/dev`, `dev` and `main` read the landed head.
 - [ ] 5.2 Pass the pre-check, readiness and one full proof at the lane's head, with the model
-      reviews of its product code triaged (two so far, 14 and 10 comments), and the hosted runs of
-      that head on both forges. Done when each passes before the cut of 2026-11-26.
+      reviews of its product code triaged (three so far: 14, 10 and 4 comments), and the hosted
+      runs of that head on both forges. Done when each passes before the cut of 2026-11-26.

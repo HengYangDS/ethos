@@ -40,7 +40,9 @@ def test_an_authored_name_outside_kebab_case_names_its_kebab_form(
     assert report["required_gaps"] == [f"repository_paradigm_authored_name:{carrier}"], report
     assert report["next_action"] == (
         f"rename {carrier} to {kebab} and update its references, or mark it linguist-vendored "
-        "or linguist-generated in .gitattributes if it is third-party or generated"
+        "or linguist-generated in .gitattributes if it is third-party or generated, or declare "
+        "the tracked manifest that repeats it under identifier_sources in .ethos/profile.toml "
+        "if an upstream contract fixes the name"
     )
 
 

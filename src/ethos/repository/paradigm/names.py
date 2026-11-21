@@ -165,7 +165,9 @@ def _gap(carrier: str) -> ParadigmGap:
         "authored-name",
         carrier,
         f"rename {carrier} to {renamed} and update its references, or mark it linguist-vendored "
-        "or linguist-generated in .gitattributes if it is third-party or generated",
+        "or linguist-generated in .gitattributes if it is third-party or generated, or declare the "
+        f"tracked manifest that repeats it under identifier_sources in {binding_path('profile')} "
+        "if an upstream contract fixes the name",
     )
 
 

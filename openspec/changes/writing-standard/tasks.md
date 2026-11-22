@@ -8,9 +8,16 @@
       30 cases; on a copy of the document with one changed word of the definition it fails. The
       digest equals that of the owner's shared rules at their commit `56db9f0`.)
 - [x] 1.2 Replace the contract's gloss with the citation. Done when the contract holds the link,
-      keeps its clause on visual appeal, and stays within the document ceiling. (At `684d73f2b` the
-      contract's one paragraph on the standard holds the link and the clause on visual appeal, and
-      the page has 500 non-blank lines.)
+      keeps its clause on visual appeal, and stays within the document ceiling. (The owner approved
+      the paragraph's wording on 2026-11-22, owner-words D-16: it keeps "accessible and navigable",
+      names the standard, hands the definition to this document and keeps the contract's rule on
+      visual appeal. The architecture test pins it word for word; the page has 500 non-blank
+      lines.)
+- [x] 1.3 Make the Docs Registry's passage on documentation quality cite the standard and name its
+      three terms. Done when the passage links to the Writing Standard, names fidelity, clarity and
+      elegance, and keeps its own requirements for documentation. (The passage's Elegance bullet
+      now links to the Writing Standard instead of restating the contract's definition; its three
+      bullets still read Fidelity, Intelligibility and Elegance, and carry their own requirements.)
 
 ## 2. Documents repaired against it
 

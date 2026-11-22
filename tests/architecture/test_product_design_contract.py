@@ -49,13 +49,15 @@ WRITING_STANDARD = (
     "and never change the meaning to make a sentence read better.",
     "6d8d691eb73d41ef3bfef2fbf679e0885fea1604a8674be95984b74ca5a16253",
 )
-# The contract's one paragraph on the standard, word for word: it names the standard, hands its
-# definition to that document and keeps the contract's own rule on visual appeal.
+# The contract's one paragraph on the standard, word for word: it keeps accessibility and
+# navigation, names the standard, hands its definition to that document and keeps the contract's
+# own rule on visual appeal. The owner approved this wording on 2026-11-22 (owner-words D-16).
 WRITING_STANDARD_CITATION = (
     "Public prose, examples, diagrams, architecture projections, and brand assets are views of "
-    "the same source meaning and answer to one standard of writing, fidelity, clarity and "
-    "elegance (`信、达、雅`), which the [Writing Standard](writing-standard.md) defines. Visual "
-    "appeal never permits a second ontology or an unverified completion claim."
+    "the same source meaning. They are accessible and navigable, and they answer to one standard "
+    "of writing, fidelity, clarity and elegance (`信、达、雅`), which the "
+    "[Writing Standard](writing-standard.md) defines. Visual appeal never permits a second "
+    "ontology or an unverified completion claim."
 )
 
 

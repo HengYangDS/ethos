@@ -216,8 +216,8 @@ exercise. Quality follows fidelity, intelligibility and elegance, in that order.
 - Intelligibility: organize around reader questions, explain prerequisites and
   exceptions, and make current meaning discoverable through progressive detail.
   Human reading and agent retrieval must reach consistent supported conclusions.
-- Elegance: `雅` as the [Product Design Contract](product-design-contract.md#evidence-planes-and-completion-claims)
-  defines it, judged in the rendered whole. Precise terminology, cohesive structure and restrained
+- Elegance: `雅`, as the [Writing Standard](writing-standard.md) defines it, judged in the rendered
+  whole. Precise terminology, cohesive structure and restrained
   expression support it; remove redundancy and incidental complexity without sacrificing necessary
   meaning. Shortness, symmetry and metadata volume are not quality goals.
 

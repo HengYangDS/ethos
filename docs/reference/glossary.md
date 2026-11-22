@@ -90,8 +90,9 @@ The coordination checkout that should remain clean in routine work.
 ## Work Lane
 
 A branch under the configured work prefix, bound to its own linked worktree and held through one
-Lease, in which tracked files are changed. It starts from the candidate branch; the
-[Runner And Mutation Boundary](../architecture/runner-and-mutation.md) describes its lifecycle.
+Lease, in which tracked files are changed. It starts from the candidate branch; its lifecycle is
+described in the [source document of the runner and mutation
+boundary](../architecture/runner-and-mutation.md "source-only").
 
 ## Lease
 

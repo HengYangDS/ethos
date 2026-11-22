@@ -334,12 +334,16 @@ def test_every_tracked_skill_is_internal_to_skills_sh_discovery() -> None:
 
 
 def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
-    """A change of one word in the copied definition fails; a new line wrap does not."""
+    """A changed or added word in the definition's section fails; a new line wrap does not."""
     first, last, digest = WRITING_STANDARD
     standard = (ROOT / "docs/governance/writing-standard.md").read_text(encoding="utf-8")
-    words = " ".join(standard.split())
-    assert words.count(first) == 1
-    block = words[words.index(first) : words.index(last) + len(last)]
-    assert hashlib.sha256(block.encode()).hexdigest() == digest
+    section = standard.split("\n## The Definition\n", 1)[1].split("\n## ", 1)[0]
+    words = " ".join(section.split())
+    assert words.startswith(first)
+    assert words.endswith(last)
+    assert hashlib.sha256(words.encode()).hexdigest() == digest
     contract = (ROOT / "docs/governance/product-design-contract.md").read_text(encoding="utf-8")
-    assert "(writing-standard.md)" in contract
+    cited = " ".join(contract.split())
+    assert cited.count("信、达、雅") == 1
+    link = r"信、达、雅[^.]*\[Writing Standard\]\(writing-standard\.md(#[\w-]+)?\)"
+    assert re.search(link, cited)

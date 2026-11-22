@@ -339,11 +339,12 @@ def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
     standard = (ROOT / "docs/governance/writing-standard.md").read_text(encoding="utf-8")
     section = standard.split("\n## The Definition\n", 1)[1].split("\n## ", 1)[0]
     words = " ".join(section.split())
+    assert " ".join(standard.split()).count(first) == 1
     assert words.startswith(first)
     assert words.endswith(last)
     assert hashlib.sha256(words.encode()).hexdigest() == digest
     contract = (ROOT / "docs/governance/product-design-contract.md").read_text(encoding="utf-8")
-    cited = " ".join(contract.split())
-    assert cited.count("信、达、雅") == 1
-    link = r"信、达、雅[^.]*\[Writing Standard\]\(writing-standard\.md(#[\w-]+)?\)"
-    assert re.search(link, cited)
+    assert contract.count("信、达、雅") == 1
+    [paragraph] = [block for block in re.split(r"\n\s*\n", contract) if "信、达、雅" in block]
+    link = r"信、达、雅[^.!?。]*\[Writing Standard\]\(writing-standard\.md(#the-definition)?\)"
+    assert re.search(link, " ".join(paragraph.split()))

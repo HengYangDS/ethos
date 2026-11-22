@@ -136,6 +136,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
   plan exceeds the bound, its own record is refused, so such a head cannot be proven there after
   a rollback. Each issued record writes its plan file, about 1.2 MB at 1,404 changed paths; an
   earlier release keeps those files and never reads or retires them.
+- A staged admission is judged by its staged tree. The index-target preview of
+  `ethos lane prewrite` and the commit's admission read the working files for OpenSpec. A landing
+  whose patch was whole was refused at the preview, and at the commit until the working files
+  held the same content; a commit whose own content was whole was refused for a fault in the
+  working files outside it. Both moments now evaluate a projection of the staged tree, and its
+  answer stands when it passes; a pass decided by the tree names it as `openspec.observed_tree`.
+  The obligation `staged-openspec-tree` enters as reporting: a staged tree that does not pass,
+  that cannot be observed or whose evaluation fails leaves the verdict to the working files, as
+  before, and its gaps are returned as `reported_gaps`, a key that every prewrite answer reaching
+  the evaluation now carries. The `pre-commit` hook prints one note for an admission that passes
+  with reported gaps. A later release arms the obligation; such a tree is then refused. The
+  preview without an index target, the worktree preview and a merge continuation are unchanged.
 
 ## [0.2.0-beta.11] - 2026-11-21
 

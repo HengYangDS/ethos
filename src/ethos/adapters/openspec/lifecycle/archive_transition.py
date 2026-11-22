@@ -212,8 +212,12 @@ def lease_bound_archive_scope_report(
     requested_change: str | None = None,
     completion_artifacts: tuple[str, ...] = (),
     preserved_archive: tuple[str, str] | None = None,
+    profile_root: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Project a committed archive diff from official OpenSpec and Git facts."""
+    """Project a committed archive diff from official OpenSpec and Git facts.
+
+    `profile_root` names where the profile is read when it is not the repository's worktree.
+    """
     head = git_stdout(root, "rev-parse", "HEAD")
     parent = git_stdout(root, "rev-parse", f"{head}^")
     if not parent:
@@ -246,6 +250,7 @@ def lease_bound_archive_scope_report(
         tree=current_tree(root, head),
         changed_paths=paths,
         completion_artifacts=completion_artifacts,
+        profile_root=profile_root,
     )
     if observed is None:
         return None
@@ -292,6 +297,7 @@ def _archive_scope(
     completion_artifacts: tuple[str, ...] = (),
     environment: Mapping[str, str] | None = None,
     allow_pending_projection: bool = False,
+    profile_root: Path | None = None,
 ) -> dict[str, Any] | None:
     active_root = active_change_root(change)
     source_tree = _object_id(root, f"{source_head}:{active_root}", environment=environment)
@@ -341,7 +347,7 @@ def _archive_scope(
     if source_artifacts is None:
         return None
     completed = completion_artifacts or source_artifacts
-    profile = load_repository_profile(root)
+    profile = load_repository_profile(profile_root or root)
     if (
         profile.state == "invalid"
         or profile.declaration is None

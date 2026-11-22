@@ -53,8 +53,13 @@ def openspec_governance_report(
     lifecycle: bool = False,
     changed_paths: tuple[str, ...] = (),
     require_workspace: bool = True,
+    repository: Path | None = None,
 ) -> dict[str, Any]:
-    """Return the ETHOS OpenSpec governance report for one repository root."""
+    """Return the ETHOS OpenSpec governance report for one repository root.
+
+    Files are read through `root`. `repository` names where Git is read when `root` holds only
+    the files of another tree; it is `root` otherwise.
+    """
     if not openspec_profile_enabled(root):
         request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
         report = lifecycle_report(root, request=request, list_payload={})
@@ -98,6 +103,7 @@ def openspec_governance_report(
         root,
         request=request,
         base_command=base_command,
+        repository=repository or root,
     )
 
 
@@ -137,9 +143,12 @@ def _openspec_governance_report(
     *,
     request: OpenSpecRequest,
     base_command: tuple[str, ...] | None,
+    repository: Path,
 ) -> dict[str, Any]:
     official_config = official_config_report(root)
-    branch_intent = governed_branch_intent_report(root, current_branch=current_branch(root))
+    branch_intent = governed_branch_intent_report(
+        root, current_branch=current_branch(repository), repository=repository
+    )
     advisory_gaps = [str(gap) for gap in cast("list[object]", branch_intent["advisory_gaps"])]
     scope_binding = lifecycle_report(
         root,
@@ -211,7 +220,7 @@ def _openspec_governance_report(
         )
     rows = official_change_rows(list_result["json"])
     selection = (
-        resolve_change_selection(rows, request.change, root=root)
+        resolve_change_selection(rows, request.change, root=repository)
         if rows is not None
         else (None, "openspec_list_unreadable")
     )
@@ -240,10 +249,11 @@ def _openspec_governance_report(
     }
     archive_scope = (
         lease_bound_archive_scope_report(
-            root,
+            repository,
             changed_paths=(),
             requested_change=request.change,
             completion_artifacts=artifact_output_paths(root, status.get("json", {})),
+            profile_root=root,
         )
         if rows is not None and current_change is None
         else None

@@ -48,6 +48,7 @@ def test_archived_change_admits_only_stale_markdown_link_consumers(tmp_path, mon
         official_artifact_paths=(),
         requested_paths=("docs/guide.md",),
         archived=None,
+        repository=root,
     )
 
     options = ("--editor-root", str(root), "--require-editor-root", "--json")

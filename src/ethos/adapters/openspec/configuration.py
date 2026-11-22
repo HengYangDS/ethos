@@ -17,7 +17,7 @@ from ethos.repository.openspec.audit import configuration_policy_gaps
 from ethos.repository.paradigm.parameters import seconds
 
 # Where OpenSpec 2 records which shared skills are its own.
-_OPENSPEC_SKILL_RECORD = Path(".agents/skills/.openspec-target")
+OPENSPEC_SKILL_RECORD = Path(".agents/skills/.openspec-target")
 
 
 def official_config_report(root: Path, *, initialize: bool = False) -> dict[str, object]:
@@ -100,6 +100,6 @@ def openspec_owned_skills(root: Path) -> frozenset[str]:
     Without the record OpenSpec owns none, and OpenSpec is not asked. An unavailable or refused
     observation names none, so every such package stays unrouted.
     """
-    if not (root / _OPENSPEC_SKILL_RECORD).is_file():
+    if not (root / OPENSPEC_SKILL_RECORD).is_file():
         return frozenset()
     return frozenset(string_sequence(official_config_report(root).get("openspec_skills")))

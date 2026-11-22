@@ -17,6 +17,7 @@ from ethos.adapters.admission.patch_admission import profile_repair_scope
 from ethos.adapters.admission.patch_admission import revalidate_staged_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.adapters.admission.paths import check_write_paths
+from ethos.adapters.admission.staged_tree import staged_tree_scope
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_relocation_scope
 from ethos.adapters.openspec.relocation import active_change_relocation_scope
@@ -167,14 +168,23 @@ def _prewrite_guard(
         )
     if origin_gap:
         patch_report.update(verdict="unknown", reason=origin_gap)
-    scope, official, profile_invalid = _prewrite_material_scope(
+    # A commit and an index-target preview are judged by their staged tree; a merge continuation
+    # resolves in the working files, which it requires.
+    scope, official, profile_invalid = staged_tree_scope(
         root,
-        effective=effective,
-        requested=requested,
-        current_authority=current_authority,
-        patch_report=patch_report,
-        index_env=index_env,
-        require_workspace=require_workspace,
+        patch_report.get("index_tree"),
+        index_env,
+        lambda files: _prewrite_material_scope(
+            root,
+            files,
+            effective=effective,
+            requested=requested,
+            current_authority=current_authority,
+            patch_report=patch_report,
+            index_env=index_env,
+            require_workspace=require_workspace,
+        ),
+        working_files=require_workspace,
     )
     current_authority = (
         _revalidate_staged_authority(root, current_authority) if staged else current_authority
@@ -248,6 +258,7 @@ def _prewrite_guard(
         "request_binding": decision.subject.model_dump(mode="json"),
         "decision": decision.to_payload(),
         "required_gaps": gaps,
+        "reported_gaps": scope.get("reported_gaps", []),
         "next_action": next_action,
         "user_decision_required": user_decision_required,
     }
@@ -280,6 +291,7 @@ def _revalidate_staged_authority(root: Path, earlier: CurrentAuthority) -> Curre
 
 def _prewrite_material_scope(
     root: Path,
+    files: Path | None = None,
     *,
     effective: dict[str, str],
     requested: tuple[str, ...],
@@ -288,9 +300,12 @@ def _prewrite_material_scope(
     index_env: Mapping[str, str] | None = None,
     require_workspace: bool,
 ) -> tuple[dict[str, object], dict[str, object], bool]:
-    """Resolve current intent or an exact native carrier recovery."""
+    """Resolve current intent or an exact native carrier recovery.
+
+    `files` holds the files of another tree: every file is then read there, not at `root`.
+    """
     try:
-        profile_enabled = openspec_profile_enabled(root)
+        profile_enabled = openspec_profile_enabled(files or root)
     except ValueError as error:
         if str(error) != INVALID_PROFILE_ERROR:
             raise
@@ -321,6 +336,7 @@ def _prewrite_material_scope(
         staged_tree_ref=str(patch_report["index_tree"]) if patch_report.get("index_tree") else None,
         staged_environment=index_env,
         require_workspace=require_workspace,
+        files_root=files,
     )
     scope = resolution.scope_report(requested)
     if patch_report.get("profile_metadata_repair") is True and resolution.required_gaps:

@@ -31,12 +31,17 @@ def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
     return active_change_names_from_paths(ref, paths)
 
 
-def governed_branch_intent_report(root: Path, *, current_branch: str) -> dict[str, object]:
-    """Observe configured role refs without classifying active intent as residue."""
+def governed_branch_intent_report(
+    root: Path, *, current_branch: str, repository: Path | None = None
+) -> dict[str, object]:
+    """Observe configured role refs without classifying active intent as residue.
+
+    `repository` names where Git is read when `root` holds only the files of another tree.
+    """
     policy = load_branch_role_policy(root)
     branches = (policy.release_branch, policy.accepted_branch, policy.candidate_branch)
     observations = {
-        branch: _branch_observation(root, branch)
+        branch: _branch_observation(repository or root, branch)
         for branch in branches
         if branch and branch != current_branch
     }

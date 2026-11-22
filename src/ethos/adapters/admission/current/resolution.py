@@ -284,6 +284,11 @@ def _info_authoring_scope(
     return {}
 
 
+def _files(root: Path, files_root: Path | None) -> Path:
+    """Return where files are read: another tree's projection when one is given, else the root."""
+    return root if files_root is None else files_root
+
+
 def resolve_current_resolution(
     root: Path,
     *,
@@ -296,9 +301,14 @@ def resolve_current_resolution(
     staged_tree_ref: str | None = None,
     staged_environment: Mapping[str, str] | None = None,
     require_workspace: bool = False,
+    files_root: Path | None = None,
 ) -> CurrentResolution:
-    """Resolve current authority, official intent, paths, gap, and action once."""
-    change = requested_change(change)
+    """Resolve current authority, official intent, paths, gap, and action once.
+
+    `files_root` holds the files of another tree: every file is then read there, and Git, the
+    Lease and the evidence set are still read at `root`.
+    """
+    files, change = _files(root, files_root), requested_change(change)
     resolved = _resolve_without_workspace_intent(
         root,
         status=status,
@@ -311,7 +321,7 @@ def resolve_current_resolution(
     observed_paths = prewrite_paths or (
         change_scope_paths_from_status(root, status) if changed else ()
     )
-    change = change if change is not None else artifact_path_change(root, prewrite_paths)
+    change = change if change is not None else artifact_path_change(files, prewrite_paths)
     prospective_scope = (
         prospective_change_scope_report(
             prewrite_paths,
@@ -324,11 +334,12 @@ def resolve_current_resolution(
         else {}
     )
     official = openspec_governance_report(
-        root,
+        files,
         change=change,
         lifecycle=True,
         changed_paths=observed_paths,
         require_workspace=require_workspace,
+        repository=root,
     )
     official_verdict = report_verdict(official)
     official_gaps, info_capabilities = (
@@ -368,21 +379,22 @@ def resolve_current_resolution(
         else None
     )
     repair_scope = official_validation_repair_scope_report(
-        root=root,
+        root=files,
         head=str(status.get("head") or ""),
         official=official,
         official_artifact_paths=artifact_output_paths(
-            root,
+            files,
             status_payload if isinstance(status_payload, dict) else {},
         ),
         requested_paths=prewrite_paths,
         archived=archived,
+        repository=root,
     )
     bootstrap_scope = (
         {}
         if repair_scope
         else official_change_bootstrap_scope_report(
-            root=root,
+            root=files,
             official=official,
             requested_paths=prewrite_paths,
             requested_change=change,
@@ -436,7 +448,7 @@ def resolve_current_resolution(
             (g for g in official_gaps if g.startswith("openspec_active_change_ambiguous:")), ""
         )
         repair_action = canonical_repair_action(
-            root,
+            files,
             official,
             change=change or str(official.get("change") or ""),
             archived=repair_archive,
@@ -468,7 +480,7 @@ def resolve_current_resolution(
             commitment = (
                 Commitment.model_validate(projected)
                 if isinstance(projected, dict) and projected
-                else load_profile_commitment(root, change_id=change)
+                else load_profile_commitment(files, change_id=change)
             )
     except ValueError as error:
         gap = str(error)

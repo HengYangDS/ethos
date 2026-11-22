@@ -165,8 +165,12 @@ def official_validation_repair_scope_report(
     official_artifact_paths: tuple[str, ...],
     requested_paths: tuple[str, ...],
     archived: tuple[Commitment, dict[str, object]] | None = None,
+    repository: Path,
 ) -> dict[str, object]:
-    """Admit exact official files named by current strict validation or template failures."""
+    """Admit exact official files named by current strict validation or template failures.
+
+    `repository` names where Git is read; `root` may hold only the files of another tree.
+    """
     paths = tuple(dict.fromkeys(filter(None, requested_paths)))
     if not paths or not _official_observation_available(official):
         return {}
@@ -179,7 +183,12 @@ def official_validation_repair_scope_report(
     repair_paths = canonical_repair_paths(root, official, change=change, archived=archived)
     if not repair_paths and archived is not None:
         reference_repair = _archived_reference_repair_scope_report(
-            root, head=head, official=official, change=change, archived=archived, paths=paths
+            repository,
+            head=head,
+            official=official,
+            change=change,
+            archived=archived,
+            paths=paths,
         )
         if reference_repair:
             return reference_repair

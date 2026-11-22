@@ -137,8 +137,8 @@ def test_a_proof_between_a_third_and_half_of_the_bound_is_cited(tmp_path: Path) 
 
     record = _issue(fixture.worktree, head, plan=plan)
 
-    carried = _size(proof_carrying_plan(record, plan))
-    assert _MIB // 3 < carried <= _MIB // 2
+    carried, limit = _size(proof_carrying_plan(record, plan)), attestation_set.MEMBER_BYTES_LIMIT
+    assert limit // 3 < carried <= limit // 2
     assert (record.predicate, _size(record) < 2_000) == (PROOF_CITED, True)
     assert plan_from_statement(record, fixture.worktree) == plan
 
@@ -146,7 +146,12 @@ def test_a_proof_between_a_third_and_half_of_the_bound_is_cited(tmp_path: Path) 
 def test_the_writer_checks_the_record_that_it_returns(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A cited record that fails its structural check is refused at issuance."""
+    """A cited record that fails its structural check is refused at issuance.
+
+    No public input yields a fault of the cited form alone, so the writer's choice of form is
+    replaced at the name the writer calls it by; a refactoring that moves the check or that
+    name fails this test loudly and is no regression.
+    """
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
 
@@ -155,7 +160,7 @@ def test_the_writer_checks_the_record_that_it_returns(
         return reissue_attestation(cited, body=cited.payload.body | {"plan": {}})
 
     monkeypatch.setattr(proof_module, "cited_when_large", cited_with_its_plan)
-    with pytest.raises(ValueError, match="model_gap"):
+    with pytest.raises(ValueError, match=r"^model_gap$"):
         _issue(repo, head, plan=plan)
 
 

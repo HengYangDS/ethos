@@ -30,7 +30,9 @@ numbers read on 2026-11-17. b13 and b14 are the batches of 0.2.0-beta.13 and 0.2
 **Non-Goals:**
 
 - No tag date changes and none is restated. No refusal arms and no default flips before 0.2.0.
-- DR-0026, DR-0029 and the archived plan are not edited; the record succeeds them.
+- No word of DR-0026, DR-0029 or the archived plan changes. The two records gain the relation
+  and the marks of the decision-record form, by sentence as DR-0026 already carries them, and
+  the record succeeds them.
 
 ## Decisions
 

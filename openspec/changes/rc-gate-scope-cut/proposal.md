@@ -17,8 +17,9 @@ slip rule moves the freeze one week.
 
 ## What Changes
 
-A decision record that succeeds DR-0029 for the points below and edits neither it nor DR-0026.
-Its text, as the five seats signed it and the owner approved it:
+A decision record that succeeds DR-0029 for the points below and changes no word of it or of
+DR-0026: each gains the relation and the marks that the decision-record form asks for. Its text,
+as the five seats signed it and the owner approved it:
 
 - **DR-0029 stands except as written here.** R14, done, the cut, the copies run, the freeze, the
   tags and the slip order are unchanged. The measure stays 43 rows and no slice is a row. This
@@ -95,15 +96,13 @@ None.
 
 ### Modified Capabilities
 
-None while this Change is a draft, so `skip_specs: true` applies. The record is a decision and
-carries no delta; the parts it names arrive with their own Changes.
+None. The record is a decision and carries no delta, so `skip_specs: true` applies; the parts it
+names arrive with their own Changes.
 
 ## Impact
 
-One decision record with its line in the index, and the weekly page's measures. The Change of
-`gate-environment` amends the product design contract's sentence on how a declared command is
-launched, and the owner sees that sentence before it lands.
-
-Owner: the release lead. Next action: the decision record with the text above, its index line and
-its tasks, in the batch that lands after the tag of 2026-11-21. Read again: at the cut of
-2026-11-26.
+One decision record with its row in the index, and the relation and marks in the two records
+that it updates. The weekly page is a local page of the releasing checkout and takes its measures
+from the record on the next tag day. The Change of `gate-environment`, landed on 2026-11-21, amended
+the product design contract's sentence on how a declared command is launched with the sentence
+that the owner approved.

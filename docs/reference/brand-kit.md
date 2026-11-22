@@ -35,8 +35,8 @@ See also: [Product Design Contract](../governance/product-design-contract.md),
 **ETHOS enables reliable repository evolution for people and interchangeable Agents.**
 
 The product connects observed problems, research and intent alignment to capability
-composition, collaboration and exploration, verification and delivery, actual
-outcomes, feedback, recovery and exit. Its small trust kernel supports that full
+composition, collaboration and execution, verification and delivery, actual
+outcomes, feedback, learning and exit. Its small trust kernel supports that full
 path; a fixed CLI sequence is not the product definition.
 
 The poster and social preview describe terminal design intent, not implemented

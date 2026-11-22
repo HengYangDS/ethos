@@ -105,6 +105,7 @@ named private repositories or personal work history as product authority.
 
 Status: see front matter.
 
-Purpose: explain the repository truth represented by this ETHOS document.
+Purpose: explain how the installed product reaches a host, what the distribution boundary owns,
+and how versions and the Node build toolchain are selected.
 
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

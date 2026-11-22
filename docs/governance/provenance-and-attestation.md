@@ -98,6 +98,7 @@ correctness.
 
 Status: see front matter.
 
-Purpose: explain the repository truth represented by this ETHOS document.
+Purpose: explain what a proof Attestation binds, how a release's files are attested and checked,
+and how stored Attestations are read as current.
 
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

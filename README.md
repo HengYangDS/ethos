@@ -8,8 +8,6 @@
   <em>Evidence-grounded Trust for Human-Agent Operational Stewardship</em>
 </p>
 
-ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.
-
 See the [Brand Kit](docs/reference/brand-kit.md) for repository-owned public identity and presentation assets.
 
 Design status: projection. The canonical semantic owner is the

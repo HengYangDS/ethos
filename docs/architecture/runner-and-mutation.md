@@ -48,6 +48,7 @@ accepted root diverge before accepted-root closeout, closeout reports
 `candidate_diverged_from_accepted` and points to
 `ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <head> --json`
 so the train can be reset deliberately before the Work Lane is replayed.
+
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
 release_root -> accepted_root -> candidate -> work_lane. A `proposal/*` ref is a governed remote review projection, not a local authoring role.
@@ -55,6 +56,7 @@ Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
+
 Foreign Work Lanes appear once in `foreign_work_lanes`; unbound refs appear in
 `unbound_work_lane_refs`, and derived contention appears in `coordination_gaps`.
 No coordination package persists duplicate counts or lifecycle state. Presence
@@ -65,19 +67,24 @@ unknown scope and same-file/ancestor-scope overlap are surfaced as advisory
 `coordination_gap:*` contention, leaving Git's fast-forward land as the final
 mutation arbiter without serializing unrelated agents that merely share a
 directory.
+
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
-cannot be created from ambiguous local candidate state. Proof Attestations and
-their artifacts live in the Git common directory, so every worktree reads the
-same proof: the candidate head that a Work Lane lands is admitted by the proof
-of that exact commit, and landing copies no proof record.
+cannot be created from ambiguous local candidate state.
+
+Proof Attestations and their artifacts live in the Git common directory, so
+every worktree reads the same proof: the candidate head that a Work Lane lands
+is admitted by the proof of that exact commit, and landing copies no proof
+record.
+
 The standard Work Lane lifecycle starts from an official OpenSpec Change and a
 fresh Git observation. ETHOS compiles the official projection into the
 three-field Commitment and records only the four-field Lease relation. It then
 derives exact source and target ref intent; missing, ambiguous, stale, or
-conflicting facts block before any ref, worktree, or SQLite effect. `ethos lane
-refresh-base` replays a stale lane onto the configured candidate
+conflicting facts block before any ref, worktree, or SQLite effect.
+
+`ethos lane refresh-base` replays a stale lane onto the configured candidate
 branch. It creates ordinary new local commits when Git requires them; it never
 reconstructs an existing product object merely to change identity or signature.
 History-preserving integration uses `refresh-base --strategy merge`; its
@@ -85,14 +92,17 @@ operation-aware preview, continue and preserved abort are described in the
 [integration reference](../reference/integration-and-release.md#native-merge-continuation).
 Native parent provenance selects lane intent without consuming another Change's
 progress. A pending merge is not a dirty-rebase recovery instruction.
+
 `ethos land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
 Lane HEAD. `ethos lane retire superseded` may retire one clean ownerless source
 whose exact HEAD is already absorbed by the current owned lane; the transaction
-preserves the integration ref and current Lease. Prewrite, TransitionPlan,
-proof, ref advance, handoff, closeout, retirement, and status consume the same
-Lease observation plus fresh Git facts. Cross-host source revocation is likewise
-an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
+preserves the integration ref and current Lease.
+
+Prewrite, TransitionPlan, proof, ref advance, handoff, closeout, retirement, and
+status consume the same Lease observation plus fresh Git facts. Cross-host
+source revocation is likewise an exact live-Lease CAS: a missing Lease blocks
+and never masquerades as replay.
 
 `ethos lane archive-change` closes the lifecycle edge that cannot be split
 between an external archive process and a later Git commit. It requires the
@@ -230,10 +240,11 @@ pre-push and replay do not maintain their own interpretation of these roles.
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.
 
-All public command results use the closed `verdict` union `pass | block | unknown`; the top-level `ok` field is absent. Missing or unverifiable required facts produce `unknown`, conflicts, explicit failures, and warnings produce `block`, and only `verdict = "pass"` authorizes an effect. Domain lifecycle `state = "deferred"` remains distinct from the authorization verdict.
+All public command results use the closed `verdict` union `pass | block | unknown`; the top-level `ok` field is absent. Missing or unverifiable required facts produce `unknown`; conflicts, explicit failures, and warnings produce `block`; and only `verdict = "pass"` authorizes an effect. Domain lifecycle `state = "deferred"` remains distinct from the authorization verdict.
 
 Status: see front matter.
 
-Purpose: explain the repository truth represented by this ETHOS document.
+Purpose: explain how a plan is executed, how tracked writes are admitted through a Work Lane,
+and how candidate, accepted-root and publication effects are authorized.
 
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

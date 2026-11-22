@@ -33,6 +33,7 @@ without making them mandatory.
 
 Status: see front matter.
 
-Purpose: explain the repository truth represented by this ETHOS document.
+Purpose: explain which native formats carry ETHOS's protocols and how external standards enter
+by adapter without replacing the kernel.
 
 See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

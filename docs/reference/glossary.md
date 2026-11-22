@@ -26,10 +26,10 @@ ETHOS, but they do not become public workflow roots.
 ## Isomorphic Governance
 
 The ETHOS governance shape in which the same kernel governs the ETHOS product
-repository and other governed repositories. Different profiles change admission,
-checks, adapters, and proof depth through profiles and adapters; they do not
-create separate ontology roles, command planes, or truth stores. This is not
-product cloning. Each repository keeps its domain shape while ETHOS judges its
+repository and other governed repositories. Facts select ETHOS's obligations;
+profiles declare a repository's gates, values and proof depth, and adapters select
+native carriers; none creates another command plane, ontology, or truth store.
+This is not product cloning. Each repository keeps its domain shape while ETHOS judges its
 change through the shared evidence-bound transition loop.
 
 ## Authority
@@ -89,7 +89,9 @@ The coordination checkout that should remain clean in routine work.
 
 ## Work Lane
 
-An isolated lane for tracked mutation.
+A branch under the configured work prefix, bound to its own linked worktree and held through one
+Lease, in which tracked files are changed. It starts from the candidate branch; the
+[Runner And Mutation Boundary](../architecture/runner-and-mutation.md) describes its lifecycle.
 
 ## Lease
 

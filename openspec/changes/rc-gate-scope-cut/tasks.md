@@ -15,5 +15,8 @@
 
 ## 2. Lane only
 
-- [ ] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 2.1 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Full pre-check and readiness ran as ticket r4c4 at acf0b50ef (queued 11:34:13, admitted
+      11:54:09, released 12:14:26): precheck passed, 0 findings, stamp for tree
+      018f0d614ee7db2af1343c7d9acbbdd6c67ddcd3; readiness exit=0, 28 gates passing, 6 not run, 0
+      failing.

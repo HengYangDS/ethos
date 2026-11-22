@@ -42,6 +42,7 @@ from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import issue_conformant_proof
+from tests.support.proof import proof_carrying_plan
 from tests.support.proof import proof_repository
 from tests.support.proof import store_proof
 from tests.support.semantic import commitment_fixture
@@ -192,6 +193,15 @@ def test_proof_drift_fails_closed_at_its_exact_layer(tmp_path, location, updates
     assert_selected_proof(repo, head, gap=gap)
 
 
+def test_a_carried_plan_stays_bound_to_its_envelope(tmp_path: Path) -> None:
+    """The form that carries its plan compares the envelope's digest with that plan."""
+    repo, head = proof_repository(tmp_path / "repo")
+    plan = current_proof_plan(repo, expected_head=head)
+    carried = proof_carrying_plan(_issue(repo, head, plan=plan), plan)
+    store_proof(repo, reissue_attestation(carried, plan_digest="0" * 64))
+    assert_selected_proof(repo, head, gap="proof_attestation_binding_mismatch:plan_digest")
+
+
 def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
@@ -208,6 +218,16 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
         assert proof_statement_gaps(
             reissue_attestation(valid, body=valid.payload.body | {field: value}), checks, repo
         ) == [expected]
+    # The form that carries its plan stays readable, and its plan stays bound.
+    carried = proof_carrying_plan(valid, plan)
+    forged = plan.model_dump(mode="json") | {"digest": "0" * 64}
+    for carried_plan, expected in (
+        (None, "proof_attestation_plan_missing"),
+        (forged, "proof_attestation_plan_digest_mismatch"),
+    ):
+        body = carried.payload.body | {"plan": carried_plan}
+        gaps = proof_statement_gaps(reissue_attestation(carried, body=body), checks, repo)
+        assert gaps == [expected]
 
     failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
     result_gaps = proof_statement_gaps(

@@ -10,6 +10,7 @@ import time
 from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_bytes
 
 if TYPE_CHECKING:
@@ -31,6 +32,12 @@ def put(store: Path, directory: str, payload: bytes, suffix: str, *, age_days: f
 def proof_check(head: str = "a" * 40) -> bytes:
     """Return a proof-check document of the proof artifact writer's schema."""
     return canonical_json_bytes({"schema_version": 1, "head": head, "checks": []})
+
+
+def proof_plan() -> bytes:
+    """Return a document with exactly the keys that the proof plan's writer dumps."""
+    fields = dict.fromkeys(TransitionPlan.model_fields.keys() - {"digest"})
+    return canonical_json_bytes(fields | {"schema_version": 1})
 
 
 def merge_preimage(mention: str = "") -> bytes:

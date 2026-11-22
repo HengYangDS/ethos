@@ -26,6 +26,7 @@ from tests.support.retention_store import lane_unit
 from tests.support.retention_store import merge_preimage
 from tests.support.retention_store import native_attempt
 from tests.support.retention_store import proof_check
+from tests.support.retention_store import proof_plan
 from tests.support.retention_store import put
 
 _REAL_RUNTIME_SELECTED = retention.runtime_selected
@@ -49,6 +50,7 @@ def test_an_apply_deletes_its_plan_once_and_receipts_the_run(repo: Path) -> None
     operation = put(store, f"operations/lane-retirement/{digest}", b"{}", ".json", age_days=30)
     planned = [
         put(store, "artifacts", proof_check(), ".json", age_days=30),
+        put(store, "artifacts", proof_plan(), ".json", age_days=30),
         put(store, "artifacts", native_attempt(), ".zip", age_days=30),
         put(store, "artifacts", merge_preimage(), ".json", age_days=30),
         put(store, "gate-results", gate_result(), ".json", age_days=30),
@@ -66,7 +68,15 @@ def test_an_apply_deletes_its_plan_once_and_receipts_the_run(repo: Path) -> None
     assert young.exists()
     kinds = result.data["kinds"]
     assert {kind: tally["deleted"] for kind, tally in kinds.items()} == dict.fromkeys(
-        ("proof-check", "native-attempt", "merge-preimage", "lane-retirement", "gate-result"), 1
+        (
+            "proof-check",
+            "proof-plan",
+            "native-attempt",
+            "merge-preimage",
+            "lane-retirement",
+            "gate-result",
+        ),
+        1,
     )
     assert kinds["proof-check"]["deleted_bytes"] == len(proof_check())
     receipt = json.loads(Path(result.data["receipt"]["path"]).read_bytes())

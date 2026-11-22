@@ -18,12 +18,15 @@ from zipfile import ZipFile
 
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.outcome import refuse
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_bytes
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _MERGE_KEYS = frozenset({"observation", "files", "stage_blobs", "metadata"})
+# The plan's one writer dumps every field of the model but its digest, which names the file.
+_PLAN_KEYS = frozenset(TransitionPlan.model_fields) - {"digest"}
 _NATIVE_MEMBERS = frozenset({"execution.json", "stdout.txt", "stderr.txt"})
 _MANIFEST_REFERENCE = re.compile(rb'"manifest":\{"sha256":"([0-9a-f]{64})"')
 _OWNED = (
@@ -150,7 +153,8 @@ def _artifact_kind(path: Path, data: bytes) -> str | None:
         return None
     if document.get("schema_version") == 1 and {"head", "checks"} <= set(document):
         return "proof-check"
-    plan = document.get("schema_version") == 1 and {"inputs", "nodes", "facts"} <= set(document)
+    version = document.get("schema_version")
+    plan = type(version) is int and version == 1 and set(document) == _PLAN_KEYS
     return "proof-plan" if plan else "merge-preimage" if set(document) == _MERGE_KEYS else None
 
 

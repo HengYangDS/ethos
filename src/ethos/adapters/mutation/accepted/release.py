@@ -270,8 +270,7 @@ def _existing_plan(selection: _Selection) -> TransitionPlan | None:
 def _compile_plan(
     selection: _Selection, effect: GitEffect, accepted: dict[str, object], proof: Attestation
 ) -> TransitionPlan:
-    proof_plan = plan_from_statement(proof, selection.root)
-    generation = proof_plan.facts["values"].get("lease_generation")
+    generation = plan_from_statement(proof, selection.root).facts["values"].get("lease_generation")
     if selection.base:
         current = leases_by_branch(selection.root).get(current_branch(selection.root), {})
         require(

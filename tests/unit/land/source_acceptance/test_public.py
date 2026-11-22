@@ -18,6 +18,7 @@ from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
 from tests.support.ethos_cli_runner import full_result
@@ -142,7 +143,7 @@ def _delivery_boundaries(
     proofs = [
         item.id
         for item in read_attestation_set(work)[1]
-        if item.predicate == "proof:execution-digest" and item.subject == f"git:commit:{head}"
+        if item.predicate in PROOF_PREDICATES and item.subject == f"git:commit:{head}"
     ]
     assert proofs == [proof.id]
 
@@ -222,7 +223,7 @@ def test_public_native_source_acceptance(
         assert result["verdict"] == "block"
         assert git(fixture.candidate, "rev-parse", "HEAD") == before
         assert not any(
-            item.predicate == "proof:execution-digest" and item.subject == f"git:commit:{head}"
+            item.predicate in PROOF_PREDICATES and item.subject == f"git:commit:{head}"
             for item in read_attestation_set(work)[1]
         )
         return

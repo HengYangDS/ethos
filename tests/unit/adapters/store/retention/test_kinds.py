@@ -14,6 +14,7 @@ from tests.support.retention_store import manifest
 from tests.support.retention_store import merge_preimage
 from tests.support.retention_store import native_attempt
 from tests.support.retention_store import proof_check
+from tests.support.retention_store import proof_plan
 from tests.support.retention_store import put
 
 if TYPE_CHECKING:
@@ -28,6 +29,9 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
     native = put(store, "artifacts", native_attempt(), ".zip", age_days=30)
     script = put(store, "artifacts", javascript_attempt(), ".zip", age_days=30)
     foreign = put(store, "artifacts", b'{"producer": "other"}', ".json", age_days=30)
+    plan = put(store, "artifacts", proof_plan(), ".json", age_days=30)
+    # One key more than the plan's writer dumps: another producer's record, so it stays.
+    near = put(store, "artifacts", proof_plan()[:-1] + b',"zz":1}', ".json", age_days=30)
     terminal, terminal_digest = lane_unit(store, "work/terminal", age_days=30)
     orphan, orphan_digest = lane_unit(store, "work/orphan", age_days=30, request=False)
     pending, _pending_digest = lane_unit(store, "work/pending", age_days=30, receipt=False)
@@ -41,6 +45,7 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
     found = {(item.kind, item.state, item.paths) for item in items}
     assert found == {
         ("proof-check", "artifact", (proof,)),
+        ("proof-plan", "artifact", (plan,)),
         ("merge-preimage", "artifact", (merge,)),
         ("native-attempt", "artifact", (native,)),
         ("javascript-attempt", "artifact", (script,)),
@@ -52,7 +57,7 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
         ("lane-retirement", "receipt-only", (orphan["receipt"],)),
         ("lane-retirement", "manifest-only", (unbound,)),
     }
-    assert unowned == (foreign,)
+    assert unowned == tuple(sorted((foreign, near)))
     named = {item.state: item.tokens for item in items if item.kind == "lane-retirement"}
     assert terminal_digest in named["terminal"]
     assert orphan_digest in named["receipt-only"]

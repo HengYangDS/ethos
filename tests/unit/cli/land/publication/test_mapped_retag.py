@@ -17,6 +17,7 @@ import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.repo.release as release
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.hook.protocol import execute_hook
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.signature import repair_fixture_history
@@ -212,9 +213,7 @@ def test_a_recreated_tag_publishes_on_its_original_qualification(tmp_path: Path)
     )
     assert applied["verdict"] == "pass", applied
     assert git(repo, "rev-parse", "refs/tags/v1.2.3^{}") == replacement != head
-    proofs = {
-        i.subject for i in read_attestation_set(repo)[1] if i.predicate == "proof:execution-digest"
-    }
+    proofs = {i.subject for i in read_attestation_set(repo)[1] if i.predicate in PROOF_PREDICATES}
     assert f"git:commit:{head}" not in proofs
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
     command = (repo, replacement, "--peer", "github")

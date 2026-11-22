@@ -224,8 +224,8 @@ def test_declared_tools_bind_their_native_policy_carriers(
     assert carrier not in dict(dict(bound)[gate.id])
 
 
-def test_a_second_file_of_an_ini_carriers_name_is_a_policy_gap() -> None:
-    """A gate that declares sqlfluff reads the one carrier; a second file of its name is a gap."""
+def test_a_gate_that_declares_sqlfluff_binds_the_one_carrier() -> None:
+    """Such a gate binds the lone carrier without a gap; a second file of its name is a gap."""
     carrier = ".config/checks/sqlfluff/.sqlfluff"
     gate = Gate(
         id="markdown-links",
@@ -243,6 +243,11 @@ def test_a_second_file_of_an_ini_carriers_name_is_a_policy_gap() -> None:
     assert gaps == (
         "gate_policy_source_invalid:markdown-links:native_tool_configuration_ambiguous:sqlfluff",
     )
+    bound, gaps = bind_gate_source_digests(
+        (gate,), dict.fromkeys(sources, b""), repository_paths=(carrier, "sql/query.sql")
+    )
+    assert gaps == ()
+    assert carrier in dict(dict(bound)[gate.id])
 
 
 @pytest.mark.parametrize(

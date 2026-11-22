@@ -11,8 +11,8 @@ import ethos.adapters.mutation.proof_admission
 from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_artifacts import cited_when_large
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
-from ethos.adapters.mutation.proof_artifacts import write_plan_artifact
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
@@ -39,7 +39,7 @@ from ethos.contracts.outcome import refusal
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
-from ethos.contracts.proof.plan import PROOF_CITED
+from ethos.contracts.proof.plan import PROOF_BY_VALUE
 from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import execution_source_gaps
@@ -269,13 +269,11 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)
     artifact = write_proof_artifact(local_state_root(root), head, normalized)
-    write_plan_artifact(local_state_root(root), plan)
-    digest = str(artifact["sha256"]).removeprefix("sha256:")
     issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
         {
             "schema_version": 2,
-            "predicate": PROOF_CITED,
+            "predicate": PROOF_BY_VALUE,
             "verifier": issuer,
             "subject": f"git:commit:{head}",
             "issued_at": issued,
@@ -283,7 +281,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "valid_until": None,
             "verdict": verdict,
             "payload": {
-                "kind": PROOF_CITED,
+                "kind": PROOF_BY_VALUE,
                 "body": {
                     "claim": {"objective": objective, "verdict": verdict},
                     "scope": [scope],
@@ -292,11 +290,12 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                     "boundary": boundary,
                     "required_gaps": list(required_gaps),
                     "artifact": artifact,
+                    "plan": plan.model_dump(mode="json"),
                 },
             },
             "relations": (),
             "advisories": (),
-            "evidence_refs": (f"sha256:{digest}",),
+            "evidence_refs": (str(artifact["sha256"]),),
             "commitment_digest": plan.inputs.commitment,
             "facts_digest": plan.inputs.facts,
             "plan_digest": plan.digest,
@@ -319,7 +318,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     )
     if structural_gaps:
         raise refusal(*structural_gaps)
-    return attestation
+    return cited_when_large(local_state_root(root), attestation, plan)
 
 
 def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str, object]:

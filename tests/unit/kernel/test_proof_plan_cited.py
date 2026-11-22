@@ -13,6 +13,7 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_artifacts import cite_plan
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
@@ -40,11 +41,25 @@ from tests.support.proof import seed_executed_proof
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.plan import TransitionPlan
+
 
 _issue = partial(issue_conformant_proof, issuer="agent:test:case:proof")
 _MIB = 1024 * 1024
 # Each path is listed twice in a plan; this many long paths put the plan alone over one mebibyte.
 _PATHS = 1400
+
+
+def _cited(
+    repo: Path,
+    head: str,
+    *,
+    plan: TransitionPlan | None = None,
+    issuer: str = "agent:test:case:proof",
+) -> Attestation:
+    """Issue a proof and cite its plan, as the writer does for a plan too large to carry."""
+    plan = plan or current_proof_plan(repo, expected_head=head)
+    return cite_plan(local_state_root(repo), _issue(repo, head, plan=plan, issuer=issuer), plan)
 
 
 def _size(record: Attestation) -> int:
@@ -69,7 +84,7 @@ def test_a_proof_over_the_bound_is_recorded_and_read_back(tmp_path: Path) -> Non
     record = _issue(fixture.worktree, head, plan=plan)
     carried = proof_carrying_plan(record, plan)
     assert attestation_set.MEMBER_BYTES_LIMIT == _MIB
-    assert _size(carried) > _MIB > _size(record)
+    assert _size(carried) > _MIB > 2_000 > _size(record)
     assert record.predicate == record.payload.kind == PROOF_CITED
     assert "plan" not in record.payload.body
     with pytest.raises(ValueError, match=f"^attestation_member_too_large:{carried.id}$"):
@@ -162,7 +177,7 @@ def test_c_a_record_that_carries_its_plan_is_still_admitted(tmp_path: Path) -> N
     """A record in today's form, beside no artifact of its plan, is read and selected."""
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    cited = _issue(repo, head, plan=plan)
+    cited = _cited(repo, head, plan=plan)
     carried = proof_carrying_plan(cited, plan)
     (local_state_root(repo) / "artifacts" / f"{plan.digest}.json").unlink()
     assert set(carried.payload.body) - set(cited.payload.body) == {"plan"}
@@ -177,7 +192,7 @@ def test_c_both_forms_of_one_proof_select_one_record(tmp_path: Path) -> None:
     """A head proven before and after the change of form keeps one deterministic selection."""
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    cited = _issue(repo, head, plan=plan)
+    cited = _cited(repo, head, plan=plan)
     carried = proof_carrying_plan(cited, plan)
     persist_proof_attestation(repo, carried)
     persist_proof_attestation(repo, cited)
@@ -194,7 +209,7 @@ def test_d_plan_bytes_that_are_not_the_cited_plan_are_refused_by_name(
     earlier = current_proof_plan(repo, expected_head=earlier_head)
     head = commit_fixture_file(repo, "FEATURE.md", "# Feature\n", "docs: add a feature note")
     plan = current_proof_plan(repo, expected_head=head)
-    record = _issue(repo, head, plan=plan)
+    record = _cited(repo, head, plan=plan)
     persist_proof_attestation(repo, record)
     carrier = local_state_root(repo) / "artifacts" / f"{record.plan_digest}.json"
     exact = carrier.read_bytes()
@@ -222,9 +237,9 @@ def test_d_plan_bytes_that_are_not_the_cited_plan_are_refused_by_name(
     if case != "absent":
         # The same plan is not written over bytes that are not its own: the writer names it.
         with pytest.raises(ValueError, match=r"^proof_attestation_plan_artifact_collision$"):
-            _issue(repo, head, plan=plan, issuer="agent:test:case:second")
+            _cited(repo, head, plan=plan, issuer="agent:test:case:second")
         carrier.unlink()
-    again = _issue(repo, head, plan=plan, issuer="agent:test:case:second")
+    again = _cited(repo, head, plan=plan, issuer="agent:test:case:second")
     carrier.unlink()
     with pytest.raises(ValueError, match=r"^proof_attestation_plan_artifact_missing$"):
         persist_proof_attestation(repo, again)
@@ -234,7 +249,7 @@ def test_d_plan_bytes_that_are_not_the_cited_plan_are_refused_by_name(
 def test_d_cited_bytes_that_are_no_plan_document_name_their_gap(tmp_path: Path) -> None:
     """Bytes that match the cited digest and are no plan document name their own gap."""
     repo, head = proof_repository(tmp_path / "repo")
-    record = _issue(repo, head, plan=current_proof_plan(repo, expected_head=head))
+    record = _cited(repo, head)
     digest = hashlib.sha256(b"[]").hexdigest()
     (local_state_root(repo) / "artifacts" / f"{digest}.json").write_bytes(b"[]")
     forged = Attestation.issue(
@@ -247,7 +262,7 @@ def test_d_cited_bytes_that_are_no_plan_document_name_their_gap(tmp_path: Path) 
 def test_f_plan_bytes_stay_while_a_live_record_names_them(tmp_path: Path) -> None:
     """Retention owns the plan's file: unnamed it is a candidate, named by a member it is kept."""
     repo, head = proof_repository(tmp_path / "repo")
-    record = _issue(repo, head)
+    record = _cited(repo, head)
     store = local_state_root(repo)
 
     def reached() -> tuple[list[str], list[str]]:

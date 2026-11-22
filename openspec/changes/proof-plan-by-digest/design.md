@@ -14,7 +14,7 @@ The proof's checks already live outside the record: each is a content-addressed 
 
 **Goals:**
 
-- A proof record of any lane stays far below the bound without moving the bound.
+- A proof record of any lane stays within half of the bound, and the bound does not move.
 - A cited plan is exactly the plan the proof ran: its bytes are addressed by the plan's own digest.
 - Every way the cited bytes can be wrong is refused under its own gap code.
 - Records written by a released runtime stay readable and selectable.
@@ -29,7 +29,15 @@ The proof's checks already live outside the record: each is a content-addressed 
 
 - **Two predicates, one reader.** `proof:execution` carries the plan by value;
   `proof:execution-digest` cites it. `plan_from_statement` accepts both and takes the repository
-  root, which it needs to find the artifact store. New records are written in the cited form only.
+  root, which it needs to find the artifact store.
+- **The writer cites only what it cannot carry.** A record is written in the cited form when
+  the record that carries its plan would pass half of the member bound, and in the carried form
+  otherwise. Half, because a landing's and a release's record carry the proof whole and must
+  fit the bound with it. The reason is the landing of this change itself: a repository's hook
+  admits a landing with the runtime built from its accepted branch, which selects
+  `proof:execution` only until this change is accepted there. So no record that could be
+  written before changes its form in this release. A later Change writes the cited form
+  always.
 - **The plan file is a proof artifact.** `write_plan_artifact` writes the plan's canonical JSON,
   without its `digest` field, through `write_content_addressed` into the store the checks use. The
   file's SHA-256 is the plan's digest, which the record's envelope already binds. It is not
@@ -39,7 +47,8 @@ The proof's checks already live outside the record: each is a content-addressed 
   `proof_attestation_plan_artifact_collision`; bytes that match the digest and are not a plan
   are `proof_attestation_plan_invalid`, the code a malformed embedded plan already has.
 - **Written at each issuance.** The record is issued again at prove, at archive and at landing,
-  and each issuance writes the plan it cites. A landing can leave more than one plan file.
+  and each issuance of a cited record writes the plan it cites. A landing can leave more than
+  one plan file.
 - **Retention knows the kind.** A file of the artifact store that reads as a plan is `proof-plan`:
   kept while a record cites it, deleted when its proof leaves.
 - **Selection is by record.** Two proofs of one head are not both admitted to one set, whatever
@@ -54,5 +63,7 @@ The proof's checks already live outside the record: each is a content-addressed 
   released runtime leaves those files in place.
 - The plan reader gains a parameter at thirteen call sites of the product. `proof.py` keeps one
   line under the per-file ceiling.
-- No run covers a file whose bytes match the cited digest and are not a plan: the fixture cannot
-  produce such bytes. The branch is read from the code.
+- The boundary itself is not run: the tests issue one proof far below half of the bound and one
+  far above it.
+- Two forms are written until the later Change. A record between half of the bound and the
+  bound is cited although it could be carried.

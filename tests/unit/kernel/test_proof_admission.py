@@ -43,7 +43,6 @@ from tests.support.proof import current_proof_plan
 from tests.support.proof import issue_conformant_proof
 from tests.support.proof import proof_carrying_plan
 from tests.support.proof import proof_repository
-from tests.support.proof import store_plan_artifact
 from tests.support.proof import store_proof
 from tests.support.semantic import commitment_fixture
 from tests.support.semantic import reissue_attestation
@@ -258,18 +257,7 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
     if case == "policy":
         with pytest.raises(ValueError, match="proof_plan_binding_mismatch"):
             _issue(repo, head, plan=forged)
-    store_proof(
-        repo,
-        reissue_attestation(
-            valid,
-            commitment_digest=forged.inputs.commitment,
-            facts_digest=forged.inputs.facts,
-            plan_digest=forged.digest,
-            policy_digest=forged.inputs.policy,
-            effect_digest=forged.inputs.effect,
-        ),
-    )
-    store_plan_artifact(repo, forged)
+    store_proof(repo, proof_carrying_plan(valid, forged))
     assert_selected_proof(repo, head, gap=gap)
 
 
@@ -539,14 +527,7 @@ def test_a_later_lease_generation_supersedes_a_lanes_earlier_proof(
             policy=dict(plan.policy),
             prior_attestations=dict(plan.prior_attestations),
         )
-        store_plan_artifact(repo, moved)
-        return reissue_attestation(
-            current,
-            verifier=verifier,
-            facts_digest=moved.inputs.facts,
-            plan_digest=moved.digest,
-            effect_digest=moved.inputs.effect,
-        )
+        return proof_carrying_plan(reissue_attestation(current, verifier=verifier), moved)
 
     first, second = (
         proved(number, f"agent:test:case:holder-{i}") for i, number in enumerate(generations)

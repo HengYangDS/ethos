@@ -20,6 +20,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_artifacts import cite_plan
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -42,7 +43,6 @@ from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import issue_conformant_proof
-from tests.support.proof import proof_carrying_plan
 from tests.support.proof import proof_repository
 from tests.support.proof import store_proof
 from tests.support.semantic import commitment_fixture
@@ -65,7 +65,7 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert repeated["root"] == selected["root"]
     assert repeated["added"] == ()
     assert read_attestation_set(repo)[1] == (record,)
-    assert record.predicate == record.payload.kind == "proof:execution-digest"
+    assert record.predicate == record.payload.kind == "proof:execution"
     assert record.subject == f"git:commit:{head}"
     assert record.verdict == "pass"
     assert record.commitment_digest == plan.inputs.commitment
@@ -83,6 +83,7 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "boundary",
         "claim",
         "context",
+        "plan",
         "plane",
         "required_gaps",
         "scope",
@@ -175,8 +176,7 @@ def test_repository_proof_selects_only_current_archive_authority(tmp_path, paths
             )
         ),
         ("envelope", {"predicate": "experiment:novel"}, "proof_not_proven"),
-        # The cited form names its plan BY this field, so a forged one names absent bytes.
-        ("envelope", {"plan_digest": "0" * 64}, "proof_attestation_plan_artifact_missing"),
+        ("envelope", {"plan_digest": "0" * 64}, "proof_attestation_binding_mismatch:plan_digest"),
         ("envelope", {"policy_digest": "0" * 64}, "proof_policy_digest_stale"),
         ("payload", {"kind": "proof:future-execution"}, "proof_attestation_payload_kind_invalid"),
     ],
@@ -193,13 +193,20 @@ def test_proof_drift_fails_closed_at_its_exact_layer(tmp_path, location, updates
     assert_selected_proof(repo, head, gap=gap)
 
 
-def test_a_carried_plan_stays_bound_to_its_envelope(tmp_path: Path) -> None:
-    """The form that carries its plan compares the envelope's digest with that plan."""
+def test_a_cited_plan_is_named_by_its_envelope_alone(tmp_path: Path) -> None:
+    """The form that cites its plan reads it by the envelope's digest and carries none."""
     repo, head = proof_repository(tmp_path / "repo")
     plan = current_proof_plan(repo, expected_head=head)
-    carried = proof_carrying_plan(_issue(repo, head, plan=plan), plan)
-    store_proof(repo, reissue_attestation(carried, plan_digest="0" * 64))
-    assert_selected_proof(repo, head, gap="proof_attestation_binding_mismatch:plan_digest")
+    checks = conformant_proof_checks(plan)
+    cited = cite_plan(local_state_root(repo), _issue(repo, head, plan=plan, checks=checks), plan)
+    assert cited.predicate == cited.payload.kind == "proof:execution-digest"
+    assert "plan" not in cited.payload.body
+    assert plan_from_statement(cited, repo) == plan
+    carrying = cited.payload.body | {"plan": plan.model_dump(mode="json")}
+    gaps = proof_statement_gaps(reissue_attestation(cited, body=carrying), checks, repo)
+    assert gaps == ["model_gap"]
+    store_proof(repo, reissue_attestation(cited, plan_digest="0" * 64))
+    assert_selected_proof(repo, head, gap="proof_attestation_plan_artifact_missing")
 
 
 def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_path: Path) -> None:
@@ -209,7 +216,12 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     valid = _issue(repo, head, plan=plan, checks=checks)
 
     for field, value, expected in (
-        ("plan", plan.model_dump(mode="json"), "model_gap"),
+        ("plan", None, "proof_attestation_plan_missing"),
+        (
+            "plan",
+            plan.model_dump(mode="json") | {"digest": "0" * 64},
+            "proof_attestation_plan_digest_mismatch",
+        ),
         ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
         ("scope", [], "proof_attestation_scope_mismatch"),
         ("plane", "remote", "proof_attestation_plane_mismatch"),
@@ -218,16 +230,6 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
         assert proof_statement_gaps(
             reissue_attestation(valid, body=valid.payload.body | {field: value}), checks, repo
         ) == [expected]
-    # The form that carries its plan stays readable, and its plan stays bound.
-    carried = proof_carrying_plan(valid, plan)
-    forged = plan.model_dump(mode="json") | {"digest": "0" * 64}
-    for carried_plan, expected in (
-        (None, "proof_attestation_plan_missing"),
-        (forged, "proof_attestation_plan_digest_mismatch"),
-    ):
-        body = carried.payload.body | {"plan": carried_plan}
-        gaps = proof_statement_gaps(reissue_attestation(carried, body=body), checks, repo)
-        assert gaps == [expected]
 
     failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
     result_gaps = proof_statement_gaps(

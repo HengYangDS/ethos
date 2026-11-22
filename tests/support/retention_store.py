@@ -34,10 +34,10 @@ def proof_check(head: str = "a" * 40) -> bytes:
     return canonical_json_bytes({"schema_version": 1, "head": head, "checks": []})
 
 
-def proof_plan() -> bytes:
-    """Return a document with exactly the keys that the proof plan's writer dumps."""
-    fields = dict.fromkeys(TransitionPlan.model_fields.keys() - {"digest"})
-    return canonical_json_bytes(fields | {"schema_version": 1})
+def proof_plan(*, version: object = 1, without: str = "") -> bytes:
+    """Return a document with the keys that the proof plan's writer dumps, less one if named."""
+    fields = dict.fromkeys(TransitionPlan.model_fields.keys() - {"digest", without})
+    return canonical_json_bytes(fields | {"schema_version": version})
 
 
 def merge_preimage(mention: str = "") -> bytes:

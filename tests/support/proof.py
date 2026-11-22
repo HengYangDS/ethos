@@ -18,7 +18,6 @@ from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof import proof_plan
-from ethos.adapters.mutation.proof_artifacts import write_plan_artifact
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
@@ -118,11 +117,6 @@ def proof_carrying_plan(record: Attestation, plan: TransitionPlan) -> Attestatio
             "effect_digest": plan.inputs.effect,
         }
     )
-
-
-def store_plan_artifact(repo: Path, plan: TransitionPlan) -> None:
-    """Store a plan's bytes through the product's own writer, as a tampering test needs."""
-    write_plan_artifact(local_state_root(repo), plan)
 
 
 def conformant_proof_checks(plan: TransitionPlan) -> tuple[dict[str, object], ...]:

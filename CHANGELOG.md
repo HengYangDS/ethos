@@ -126,16 +126,18 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - A proof of a lane with many changed paths is recorded. Its record carried the whole plan, and
   the Attestation set refuses a member above 1 MiB: a lane of 6,257 changed paths passed every
   gate and lost its record of 2,102,310 bytes to `attestation_member_too_large`. A proof record
-  now cites its plan by the plan's digest, under the predicate `proof:execution-digest`, and the
-  plan is written beside the proof's other artifacts as `ethos/artifacts/<plan digest>.json`; at
-  1,404 changed paths the record is 1,357 bytes. The bound does not move. A plan file that is
+  whose plan is too large to carry now cites the plan by its digest, under the predicate
+  `proof:execution-digest`, and the plan is written beside the proof's other artifacts as
+  `ethos/artifacts/<plan digest>.json`; at about 1,400 changed paths the record is under 2,000
+  bytes. A record that stays within half of the bound with its plan carries it as before, so
+  an earlier release still admits it. The bound does not move. A plan file that is
   absent, that holds other bytes or that a write would replace is refused by name:
   `proof_attestation_plan_artifact_missing`, `proof_attestation_plan_artifact_digest_mismatch`
   and `proof_attestation_plan_artifact_collision`. A record that carries its plan is read as
   before. An earlier release does not admit a cited proof and proves the head itself; where the
   plan exceeds the bound, its own record is refused, so such a head cannot be proven there after
-  a rollback. Each issued record writes its plan file, about 1.2 MB at 1,404 changed paths; an
-  earlier release keeps those files and never reads or retires them.
+  a rollback. Each issued record that cites its plan writes the plan file, about 1.2 MB at about
+  1,400 changed paths; an earlier release keeps those files and never reads or retires them.
 - A staged admission is judged by its staged tree. The index-target preview of
   `ethos lane prewrite` and the commit's admission read the working files for OpenSpec. A landing
   whose patch was whole was refused at the preview, and at the commit until the working files

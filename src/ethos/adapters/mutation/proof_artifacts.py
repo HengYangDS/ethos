@@ -9,15 +9,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.proof.plan import PROOF_CITED
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_bytes
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 
 if TYPE_CHECKING:
     from ethos.contracts.plan import TransitionPlan
-    from ethos.contracts.semantic import Attestation
 
 _ARTIFACT_SUBDIR = Path("artifacts")
 _HEX = frozenset("0123456789abcdef")
@@ -162,6 +163,27 @@ def write_plan_artifact(store: Path, plan: TransitionPlan) -> None:
     payload = canonical_json_bytes(plan.model_dump(mode="json", exclude={"digest"}))
     path = store / _ARTIFACT_SUBDIR / f"{plan.digest}.json"
     write_content_addressed(path, payload, collision="proof_attestation_plan_artifact_collision")
+
+
+def cited_when_large(store: Path, carried: Attestation, plan: TransitionPlan) -> Attestation:
+    """Return the proof carrying its plan, or citing it when the plan is too large to carry.
+
+    A landing's and a release's record carry the proof whole and must fit the set's member
+    bound with it, so a proof carries its plan only up to half of that bound.
+    """
+    if len(carried.canonical_json().encode()) <= MEMBER_BYTES_LIMIT // 2:
+        return carried
+    return cite_plan(store, carried, plan)
+
+
+def cite_plan(store: Path, carried: Attestation, plan: TransitionPlan) -> Attestation:
+    """Store the plan and return the proof in the form that cites it by its digest."""
+    write_plan_artifact(store, plan)
+    body = {key: value for key, value in carried.payload.body.items() if key != "plan"}
+    return Attestation.issue(
+        carried.model_dump(mode="python", exclude={"id"})
+        | {"predicate": PROOF_CITED, "payload": {"kind": PROOF_CITED, "body": body}}
+    )
 
 
 def read_plan_artifact(store: Path, digest: str | None) -> dict[str, object]:

@@ -264,7 +264,7 @@ def test_release_receipt_requires_original_proof_and_role(tmp_path: Path, change
         selected, previous = read_attestation_set(repo)
         git(repo, "update-ref", "-d", "refs/ethos/attestations-set", selected)
         record_attestations(
-            repo, tuple(item for item in previous if item.predicate != "proof:execution-digest")
+            repo, tuple(item for item in previous if item.predicate != "proof:execution")
         )
         seed_executed_proof(repo, head)
     else:

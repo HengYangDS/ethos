@@ -14,14 +14,19 @@ The owner moved this repair into 0.2.0-beta.12 on 2026-11-21.
 
 ## What Changes
 
-- A proof record cites its plan by the plan's digest. The record takes the predicate
-  `proof:execution-digest` and holds its artifact references and no plan. The plan's canonical
-  bytes are written beside the proof's other artifacts, as `ethos/artifacts/<plan digest>.json`.
+- A proof record whose plan is too large to carry cites the plan by its digest. Such a record
+  takes the predicate `proof:execution-digest` and holds its artifact references and no plan.
+  The plan's canonical bytes are written beside the proof's other artifacts, as
+  `ethos/artifacts/<plan digest>.json`.
+- A record that stays within half of the member bound with its plan carries the plan as
+  before. The hook of a repository admits a landing with the runtime built from its accepted
+  branch, and a released runtime reads the carried form only, so the lane that lands this
+  change is admitted in that form. A later Change writes the cited form always.
 - Reading a cited record resolves the plan from that file and fails closed by name when the file
   is absent, when its bytes are not the cited digest, when a write would replace other bytes, and
   when the bytes are not a plan.
-- A record written before this change (`proof:execution`, the plan by value) is read as before
-  and touches no plan file.
+- A record that carries its plan (`proof:execution`) is read as before and touches no plan
+  file.
 - Retention keeps a plan file while a record cites it and deletes it only when the proof leaves.
 
 The 1 MiB bound does not move.

@@ -30,8 +30,16 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
     script = put(store, "artifacts", javascript_attempt(), ".zip", age_days=30)
     foreign = put(store, "artifacts", b'{"producer": "other"}', ".json", age_days=30)
     plan = put(store, "artifacts", proof_plan(), ".json", age_days=30)
-    # One key more than the plan's writer dumps: another producer's record, so it stays.
-    near = put(store, "artifacts", proof_plan()[:-1] + b',"zz":1}', ".json", age_days=30)
+    # A key more or a key fewer than the plan's writer dumps, or a version that is not the
+    # integer 1: another producer's record, so it stays.
+    near = [
+        put(store, "artifacts", payload, ".json", age_days=30)
+        for payload in (
+            proof_plan()[:-1] + b',"zz":1}',
+            proof_plan(without="nodes"),
+            proof_plan(version=True),
+        )
+    ]
     terminal, terminal_digest = lane_unit(store, "work/terminal", age_days=30)
     orphan, orphan_digest = lane_unit(store, "work/orphan", age_days=30, request=False)
     pending, _pending_digest = lane_unit(store, "work/pending", age_days=30, receipt=False)
@@ -57,7 +65,7 @@ def test_each_writer_record_and_lane_unit_has_its_kind(tmp_path: Path) -> None:
         ("lane-retirement", "receipt-only", (orphan["receipt"],)),
         ("lane-retirement", "manifest-only", (unbound,)),
     }
-    assert unowned == tuple(sorted((foreign, near)))
+    assert unowned == tuple(sorted((foreign, *near)))
     named = {item.state: item.tokens for item in items if item.kind == "lane-retirement"}
     assert terminal_digest in named["terminal"]
     assert orphan_digest in named["receipt-only"]

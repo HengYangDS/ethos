@@ -17,6 +17,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.lease.lifecycle.transitions import apply_lease_operation
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from tests.support.governed_repository import git
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
@@ -87,7 +88,7 @@ def test_maintenance_requires_current_proof_and_live_holder(tmp_path, missing):
                 record
                 for record in records
                 if not (
-                    record.predicate == "proof:execution" and record.subject == f"git:commit:{head}"
+                    record.predicate in PROOF_PREDICATES and record.subject == f"git:commit:{head}"
                 )
             ),
         )

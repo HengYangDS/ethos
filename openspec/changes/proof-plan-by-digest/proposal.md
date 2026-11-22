@@ -18,7 +18,7 @@ The owner moved this repair into 0.2.0-beta.12 on 2026-11-21.
   takes the predicate `proof:execution-digest` and holds its artifact references and no plan.
   The plan's canonical bytes are written beside the proof's other artifacts, as
   `ethos/artifacts/<plan digest>.json`.
-- A record that stays within half of the member bound with its plan carries the plan as
+- A record that stays within a third of the member bound with its plan carries the plan as
   before. The hook of a repository admits a landing with the runtime built from its accepted
   branch, and a released runtime reads the carried form only, so the lane that lands this
   change is admitted in that form. A later Change writes the cited form always.

@@ -215,21 +215,23 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     checks = conformant_proof_checks(plan)
     valid = _issue(repo, head, plan=plan, checks=checks)
 
-    for field, value, expected in (
+    forged = plan.model_dump(mode="json") | {"digest": "0" * 64}
+    carried_plan = (
         ("plan", None, "proof_attestation_plan_missing"),
-        (
-            "plan",
-            plan.model_dump(mode="json") | {"digest": "0" * 64},
-            "proof_attestation_plan_digest_mismatch",
-        ),
+        ("plan", forged, "proof_attestation_plan_digest_mismatch"),
+    )
+    dimensions = (
         ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
         ("scope", [], "proof_attestation_scope_mismatch"),
         ("plane", "remote", "proof_attestation_plane_mismatch"),
         ("context", {"boundary": "focused"}, "proof_attestation_context_mismatch"),
-    ):
-        assert proof_statement_gaps(
-            reissue_attestation(valid, body=valid.payload.body | {field: value}), checks, repo
-        ) == [expected]
+    )
+    # Both forms refuse each dimension of the body; the carried one also its plan.
+    cited = cite_plan(local_state_root(repo), valid, plan)
+    for record, rows in ((valid, (*carried_plan, *dimensions)), (cited, dimensions)):
+        for field, value, expected in rows:
+            changed = reissue_attestation(record, body=record.payload.body | {field: value})
+            assert proof_statement_gaps(changed, checks, repo) == [expected]
 
     failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
     result_gaps = proof_statement_gaps(

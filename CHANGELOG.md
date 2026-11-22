@@ -129,7 +129,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
   whose plan is too large to carry now cites the plan by its digest, under the predicate
   `proof:execution-digest`, and the plan is written beside the proof's other artifacts as
   `ethos/artifacts/<plan digest>.json`; at about 1,400 changed paths the record is under 2,000
-  bytes. A record that stays within half of the bound with its plan carries it as before, so
+  bytes. A record that stays within a third of the bound with its plan carries it as before, so
   an earlier release still admits it. The bound does not move. A plan file that is
   absent, that holds other bytes or that a write would replace is refused by name:
   `proof_attestation_plan_artifact_missing`, `proof_attestation_plan_artifact_digest_mismatch`

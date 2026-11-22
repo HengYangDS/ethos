@@ -16,6 +16,7 @@ from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -264,7 +265,7 @@ def test_release_receipt_requires_original_proof_and_role(tmp_path: Path, change
         selected, previous = read_attestation_set(repo)
         git(repo, "update-ref", "-d", "refs/ethos/attestations-set", selected)
         record_attestations(
-            repo, tuple(item for item in previous if item.predicate != "proof:execution")
+            repo, tuple(item for item in previous if item.predicate not in PROOF_PREDICATES)
         )
         seed_executed_proof(repo, head)
     else:

@@ -270,7 +270,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         raise ValueError(msg)
     artifact = write_proof_artifact(local_state_root(root), head, normalized)
     issued = issued_at or datetime.now(UTC)
-    attestation = Attestation.issue(
+    carried = Attestation.issue(
         {
             "schema_version": 2,
             "predicate": PROOF_BY_VALUE,
@@ -304,6 +304,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "mints_authority": False,
         }
     )
+    attestation = cited_when_large(local_state_root(root), carried, plan)
     gaps = proof_statement_gaps(attestation, normalized, root)
     structural_gaps = tuple(
         gap
@@ -318,7 +319,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     )
     if structural_gaps:
         raise refusal(*structural_gaps)
-    return cited_when_large(local_state_root(root), attestation, plan)
+    return attestation
 
 
 def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str, object]:

@@ -168,10 +168,10 @@ def write_plan_artifact(store: Path, plan: TransitionPlan) -> None:
 def cited_when_large(store: Path, carried: Attestation, plan: TransitionPlan) -> Attestation:
     """Return the proof carrying its plan, or citing it when the plan is too large to carry.
 
-    A landing's and a release's record carry the proof whole and must fit the set's member
-    bound with it, so a proof carries its plan only up to half of that bound.
+    A landing's record carries the proof once and a release's record twice, and each must fit
+    the set's member bound, so a proof carries its plan only up to a third of that bound.
     """
-    if len(carried.canonical_json().encode()) <= MEMBER_BYTES_LIMIT // 2:
+    if len(carried.canonical_json().encode()) <= MEMBER_BYTES_LIMIT // 3:
         return carried
     return cite_plan(store, carried, plan)
 

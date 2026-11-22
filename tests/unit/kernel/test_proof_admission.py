@@ -22,6 +22,7 @@ import ethos.adapters.openspec.lifecycle.archive_transition as archive
 import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_artifacts import cite_plan
 from ethos.adapters.mutation.remediation.guidance import remediation_for_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.store.state.schema import local_state_root
@@ -239,7 +240,11 @@ def test_superseded_policy_proof_does_not_hide_current_conflict(tmp_path: Path) 
         )
     ),
 )
-def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, gap: str) -> None:
+@pytest.mark.parametrize("cited", [False, True])
+def test_proof_admission_rechecks_live_plan_closure(
+    tmp_path: Path, case: str, gap: str, *, cited: bool
+) -> None:
+    """A plan whose head, tree or policy is not the live one is refused in either form."""
     repo, head = proof_repository(tmp_path / "repo")
     valid = _issue(repo, head)
     plan = current_proof_plan(repo, expected_head=head)
@@ -257,7 +262,8 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
     if case == "policy":
         with pytest.raises(ValueError, match="proof_plan_binding_mismatch"):
             _issue(repo, head, plan=forged)
-    store_proof(repo, proof_carrying_plan(valid, forged))
+    record = proof_carrying_plan(valid, forged)
+    store_proof(repo, cite_plan(local_state_root(repo), record, forged) if cited else record)
     assert_selected_proof(repo, head, gap=gap)
 
 

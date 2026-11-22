@@ -14,6 +14,7 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof_artifacts import cite_plan
+from ethos.adapters.mutation.proof_artifacts import cited_when_large
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate_git_effect_attestation
@@ -37,6 +38,7 @@ from tests.support.proof import issue_conformant_proof
 from tests.support.proof import proof_carrying_plan
 from tests.support.proof import proof_repository
 from tests.support.proof import seed_executed_proof
+from tests.support.semantic import reissue_attestation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -96,6 +98,33 @@ def test_a_proof_over_the_bound_is_recorded_and_read_back(tmp_path: Path) -> Non
     assert plan_from_statement(stored, fixture.worktree) == plan
     assert proof_attestation(fixture.worktree, head) == record
     assert proof_gaps(fixture.worktree, head) == []
+    # The writer itself does not replace other bytes under the plan's name.
+    carrier = local_state_root(fixture.worktree) / "artifacts" / f"{plan.digest}.json"
+    carrier.write_bytes(b"[]")
+    with pytest.raises(ValueError, match=r"^proof_attestation_plan_artifact_collision$"):
+        _issue(fixture.worktree, head, plan=plan)
+
+
+def test_a_proof_is_cited_only_above_a_third_of_the_bound(tmp_path: Path) -> None:
+    """A release's record carries the proof twice, so the writer cites above a third."""
+    repo, head = proof_repository(tmp_path / "repo")
+    plan = current_proof_plan(repo, expected_head=head)
+    small = _issue(repo, head, plan=plan)
+    store = local_state_root(repo)
+    carrier = store / "artifacts" / f"{plan.digest}.json"
+    limit = attestation_set.MEMBER_BYTES_LIMIT // 3
+    empty = _size(reissue_attestation(small, body=small.payload.body | {"padding": ""}))
+    at, over = (
+        reissue_attestation(small, body=small.payload.body | {"padding": "x" * (size - empty)})
+        for size in (limit, limit + 1)
+    )
+    assert (_size(small) < limit, _size(at), _size(over)) == (True, limit, limit + 1)
+
+    assert cited_when_large(store, at, plan) is at
+    assert not carrier.exists()
+    cited = cited_when_large(store, over, plan)
+    assert (cited.predicate, "plan" in cited.payload.body) == (PROOF_CITED, False)
+    assert carrier.exists()
 
 
 def _assert_landing_records(repo: Path, proof: Attestation) -> None:

@@ -25,6 +25,7 @@ from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
@@ -45,9 +46,10 @@ def test_accepted_dev_reuse_retains_independent_admission(tmp_path: Path, missin
     publication_peers(repo, tmp_path, f"{old}:refs/heads/dev")
     if missing in {"proof", "acceptance"}:
         selected, records = read_attestation_set(repo)
-        predicate = "proof:execution" if missing == "proof" else "effect:git-ref-update"
+        removed = PROOF_PREDICATES if missing == "proof" else ("effect:git-ref-update",)
         git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
-        record_attestations(repo, tuple(item for item in records if item.predicate != predicate))
+        kept = tuple(item for item in records if item.predicate not in removed)
+        record_attestations(repo, kept)
     elif missing == "trust":
         anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
         anchor.write_text("", encoding="utf-8")

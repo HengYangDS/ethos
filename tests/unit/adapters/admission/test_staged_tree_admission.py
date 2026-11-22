@@ -38,7 +38,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _CHANGE = "landing-change"
-_OTHER = "other-change"
 _PROFILE = ".ethos/profile.toml"
 _PRODUCT = "src/landing.py"
 _SCHEMA = "local-spec-driven"
@@ -173,17 +172,6 @@ def _landing(lane: Path, *, retire_schema: bool = False) -> None:
         )
         profile.write_text(replaced, encoding="utf-8")
         gr.write_release_mirror(lane, "independent")
-
-
-def _drafts(lane: Path) -> None:
-    """Six further Changes that hold a proposal only."""
-    proposal = (lane / f"openspec/changes/{_CHANGE}/proposal.md").read_text(encoding="utf-8")
-    for index in range(6):
-        draft = lane / f"openspec/changes/draft-{index}"
-        draft.mkdir(parents=True)
-        metadata = "schema: spec-driven\ncreated: 2026-11-22\nskip_specs: true\n"
-        (draft / ".openspec.yaml").write_text(metadata, encoding="utf-8")
-        (draft / "proposal.md").write_text(proposal, encoding="utf-8")
 
 
 def _patch(lane: Path, build: Callable[[Path], object]) -> tuple[str, list[str]]:
@@ -520,22 +508,32 @@ def test_armed_a_tree_that_cannot_be_observed_is_refused(
     refused = _preview(lane, patch, paths)
 
     assert reporting["verdict"] == "pass"
-    assert reporting["reported_gaps"] == ["openspec_tree_projection_missing"]
+    assert reporting["reported_gaps"] == ["openspec_tree_projection_missing:OSError"]
     assert refused["verdict"] == "unknown"
-    assert refused["required_gaps"] == ["openspec_tree_projection_missing"]
+    assert refused["required_gaps"] == ["openspec_tree_projection_missing:OSError"]
+    assert "observed_tree" not in refused["openspec"]
 
 
-@pytest.mark.parametrize("fault", [RuntimeError, TypeError, ImportError])
-def test_reporting_a_staged_evaluation_that_fails_leaves_the_working_files_verdict(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fault: type[Exception]
+@pytest.mark.parametrize("fault", [ValueError, KeyError, AttributeError])
+def test_reporting_a_fault_of_the_staged_evaluation_leaves_the_working_files_verdict(
+    tmp_path: Path, *, fault: type[Exception]
 ) -> None:
-    lane, patch, paths = _breaking_patch(tmp_path)
+    """A fault below the projection is reported by its type, and the projection is removed."""
+    lane, patch, _paths = _breaking_patch(tmp_path)
+    _stage(lane, patch, working_files=False)
+    working = ({"verdict": "pass", "required_gaps": []}, {}, False)
+    projected: list[Path] = []
 
-    def failing(*_: object, **__: object) -> None:
+    def evaluate(files: Path | None) -> tuple[dict[str, object], dict[str, object], bool]:
+        if files is None:
+            return working
+        projected.append(files)
         raise fault
 
-    monkeypatch.setattr(staged_tree, "_named_by_tree", failing)
-    report = _preview(lane, patch, paths)
+    tree = gr.git(lane, "write-tree")
+    scope, official, _invalid = staged_tree.staged_tree_scope(lane, tree, None, evaluate)
 
-    assert report["verdict"] == "pass"
-    assert report["reported_gaps"] == ["openspec_tree_projection_missing"]
+    gap = f"openspec_tree_projection_missing:{fault.__name__}"
+    assert scope == {"verdict": "pass", "required_gaps": [], "reported_gaps": [gap]}
+    assert official == {}
+    assert [path.exists() for path in projected] == [False]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -39,9 +38,9 @@ def staged_tree_scope(
     files' alone. The staged tree's answer stands when it passes, and it names that tree. While
     the obligation reports, an answer that does not pass yields to the working files' answer,
     which then carries the staged tree's gaps as reported, and a staged tree that cannot be
-    observed, or whose evaluation fails, is reported as `openspec_tree_projection_missing` and
-    the working files answer. Once the obligation is armed the staged tree alone decides, and a
-    tree that cannot be observed is refused.
+    observed, or whose evaluation fails, is reported as `openspec_tree_projection_missing` with
+    the fault's type, and the working files answer. Once the obligation is armed the staged tree
+    alone decides, and a tree that cannot be observed is refused.
     """
     if working_files or not tree:
         return evaluate(None)
@@ -52,12 +51,14 @@ def staged_tree_scope(
             root, tree, carriers=carriers, environment=environment
         ) as files:
             scope, official, invalid = _named_by_tree(evaluate(files), files, root)
-    except (OSError, RuntimeError, TypeError, ValueError, ImportError, subprocess.SubprocessError):
+        official["observed_tree"] = tree
+        passed = report_verdict(scope) == "pass"
+    except Exception as error:
         # While the obligation reports, no fault of the staged evaluation may change the verdict.
-        unobserved: Scope = ({"verdict": "unknown", "required_gaps": [_UNOBSERVED]}, {}, False)
-        scope, official, invalid = unobserved
-    official["observed_tree"] = tree
-    if report_verdict(scope) == "pass" or load_repository_paradigm().armed(STAGED_TREE):
+        gap = f"{_UNOBSERVED}:{type(error).__name__}"
+        unobserved: Scope = ({"verdict": "unknown", "required_gaps": [gap]}, {}, False)
+        (scope, official, invalid), passed = unobserved, False
+    if passed or load_repository_paradigm().armed(STAGED_TREE):
         return scope, official, invalid
     working, official, invalid = evaluate(None)
     return {**working, "reported_gaps": scope.get("required_gaps", [])}, official, invalid

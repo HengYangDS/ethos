@@ -33,14 +33,14 @@ stand, and the accepted requirement's sentences on the preview and on the commit
 - **Reporting first.** The obligation `staged-openspec-tree` is declared as reporting. While it
   reports, a staged answer that does not pass yields to the working files' answer, which carries
   the staged tree's gaps as reported. Armed, the staged tree alone decides.
-- **A fault of the staged evaluation changes no verdict.** Every exception type that the hook
-  turns into a block, and a failed process, is caught around the staged evaluation and reported
-  as `openspec_tree_projection_missing`. The cause is not kept. The release that arms the
-  obligation narrows the catch and gives evaluation faults their own code.
+- **A fault of the staged evaluation changes no verdict.** Every exception of the staged
+  evaluation is caught and reported as `openspec_tree_projection_missing` with the fault's
+  type. The fault's message is not kept, because it can name the projection. The release that
+  arms the obligation narrows the catch and gives evaluation faults their own code.
 - **The answer names its tree.** A pass decided by the tree carries `openspec.observed_tree`. An
   answer left to the working files carries none.
 - **The hook says when it admits with a report.** One line on standard error names the reported
-  gaps; the commit proceeds.
+  gaps; the commit proceeds. A note that cannot be written refuses nothing.
 
 ## Risks / Trade-offs
 
@@ -50,6 +50,5 @@ stand, and the accepted requirement's sentences on the preview and on the commit
 - Where the staged tree does not pass, the scope is evaluated twice: 0.44 s more at the hook and
   0.50 s at the preview for a landing of 20 paths.
 - `prewrite.py` stands at the per-file ceiling of 500 effective lines.
-- An exception type outside the caught set ends the admission with a traceback.
 - The reports of this obligation appear in a prewrite answer and in the hook's note. The audit
   does not count them, so the release that arms the obligation has no count to print yet.

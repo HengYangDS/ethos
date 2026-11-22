@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -54,7 +55,9 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
     ]
     if reported:
         note = {"hook": name, "verdict": "pass", "reported_gaps": reported}
-        sys.stderr.write(json.dumps(note, sort_keys=True) + "\n")
+        # The verdict is decided: a note that cannot be written refuses nothing.
+        with contextlib.suppress(OSError, ValueError):
+            sys.stderr.write(json.dumps(note, sort_keys=True) + "\n")
     return 0
 
 

@@ -116,6 +116,8 @@ ignore = ["D101", "D102", "D103", "D105", "D106", "D107", "S603", "S607"]
 # Both seams turn any failure of one provider or gate into that provider's or gate's refusal.
 "src/ethos/adapters/gates/verification.py" = ["BLE001"]
 "src/ethos/adapters/gates/runner.py" = ["BLE001"]
+# While its obligation reports, no fault of the staged evaluation may change an admission.
+"src/ethos/adapters/admission/staged_tree.py" = ["BLE001"]
 # Pydantic's `Field` factories and the JSON schema bundle are typed `Any` by their libraries.
 "src/ethos/contracts/operations/declaration.py" = ["ANN401"]
 "src/ethos/repository/policy/schema.py" = ["ANN401"]

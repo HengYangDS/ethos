@@ -37,7 +37,11 @@ Non-Goals:
 1. **The row declares its carrier and nothing else.**
    - **Rests on:** the five readings: with the row, the carrier passes; `config.ini` beside it
      stays refused; `policy.toml` alone, a root `.sqlfluff` and a `[tool.sqlfluff]` table keep
-     today's answers.
+     today's answers. Two further answers change, and neither refuses a tree that passes today.
+     A `.sqlfluff` elsewhere under the configuration root is still refused, now with the
+     repair that names the carrier. And a gate may declare `sqlfluff` as its tool, which the
+     gate contract refused for an unknown id; the carrier is then that gate's policy source and
+     the only tracked file of its name.
    - **Considered:** `root_names = [".sqlfluff"]`, which would name the carrier in the root
      catalog's repair, and `manifest_tables = ["sqlfluff"]`.
    - **Chosen because:** a root name would turn the root catalog's gap into a move obligation and
@@ -72,6 +76,10 @@ Non-Goals:
   its file in the commit that binds the release that carries the row; the gap it sees until then
   is today's. That repository's session ran its own file under the name `.sqlfluff` through
   sqlfluff 4.5.0 on 2026-11-22 and reported identical output.
+- A repository that declares the tool in a gate and keeps sqlfluff's per-directory files beside
+  its SQL meets the gate contract's refusal of a second file of the carrier's name. The binding
+  flags make the tool ignore those files, so they hold no policy; the repository removes them
+  when it declares the tool.
 - The reference's three statements on path resolution describe the tools as they were on
   2026-11-22 (Ruff's documentation, sqlfluff's source on its main branch, coverage.py 7.17.3 by a
   run). A later release of a tool can change them; the reference says which base each tool uses

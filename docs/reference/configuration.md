@@ -101,8 +101,9 @@ configuration plane, not a truth center.
 - `.config/checks/sqlfluff/.sqlfluff` is the carrier of a repository's sqlfluff policy. The file
   keeps the tool's own name because sqlfluff reads a file given by path as INI unless its base name
   is `pyproject.toml`. A repository binds it with `--ignore-local-config --config <carrier>`, so no
-  file found beside the linted SQL adds to it. ETHOS runs no sqlfluff gate: the row only admits the
-  carrier.
+  file found beside the linted SQL adds to it. ETHOS runs no sqlfluff gate. A repository's gate that
+  runs the tool may declare `sqlfluff` among its tools: the carrier is then a source of that gate
+  and the only tracked file named `.sqlfluff`.
 - A tool resolves the relative paths of an explicit configuration file in its own way, and moving a
   policy under `.config/` moves the base for some of them. Ruff resolves them against the working
   directory when the file is passed with `--config`. sqlfluff resolves the values of keys that end

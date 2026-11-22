@@ -49,11 +49,13 @@ WRITING_STANDARD = (
     "and never change the meaning to make a sentence read better.",
     "6d8d691eb73d41ef3bfef2fbf679e0885fea1604a8674be95984b74ca5a16253",
 )
-# The contract's one sentence on the standard, word for word: it names the standard and hands
-# its definition to that document.
+# The contract's one paragraph on the standard, word for word: it names the standard, hands its
+# definition to that document and keeps the contract's own rule on visual appeal.
 WRITING_STANDARD_CITATION = (
-    "answer to one standard of writing, fidelity, clarity and elegance (`信、达、雅`), "
-    "which the [Writing Standard](writing-standard.md) defines."
+    "Public prose, examples, diagrams, architecture projections, and brand assets are views of "
+    "the same source meaning and answer to one standard of writing, fidelity, clarity and "
+    "elegance (`信、达、雅`), which the [Writing Standard](writing-standard.md) defines. Visual "
+    "appeal never permits a second ontology or an unverified completion claim."
 )
 
 
@@ -350,6 +352,6 @@ def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
     assert words.endswith(last)
     assert hashlib.sha256(words.encode()).hexdigest() == digest
     contract = (ROOT / "docs/governance/product-design-contract.md").read_text(encoding="utf-8")
-    cited = " ".join(contract.split())
-    assert cited.count("信、达、雅") == 1
-    assert WRITING_STANDARD_CITATION in cited
+    assert contract.count("信、达、雅") == 1
+    [paragraph] = [block for block in re.split(r"\n\s*\n", contract) if "信、达、雅" in block]
+    assert " ".join(paragraph.split()) == WRITING_STANDARD_CITATION

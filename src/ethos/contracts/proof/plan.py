@@ -29,6 +29,10 @@ _FACT_FIELDS = {
 }
 
 AcceptancePurpose = Literal["repository", "local-source"]
+# A proof record carries its plan by value, or cites the plan's artifact by the plan's digest.
+PROOF_BY_VALUE = "proof:execution"
+PROOF_CITED = "proof:execution-digest"
+PROOF_PREDICATES = (PROOF_BY_VALUE, PROOF_CITED)
 
 
 def proof_acceptance_purpose(policy: Mapping[str, object]) -> AcceptancePurpose:

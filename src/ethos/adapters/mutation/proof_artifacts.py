@@ -10,10 +10,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.contracts.proof.plan import PROOF_CITED
+from ethos.contracts.semantic import canonical_json_bytes
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 
 if TYPE_CHECKING:
+    from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
 
 _ARTIFACT_SUBDIR = Path("artifacts")
@@ -154,6 +157,37 @@ def write_proof_artifact(
     }
 
 
+def write_plan_artifact(store: Path, plan: TransitionPlan) -> None:
+    """Persist the plan that a proof cites; the file's digest is the plan's own digest."""
+    payload = canonical_json_bytes(plan.model_dump(mode="json", exclude={"digest"}))
+    path = store / _ARTIFACT_SUBDIR / f"{plan.digest}.json"
+    write_content_addressed(path, payload, collision="proof_attestation_plan_artifact_collision")
+
+
+def read_plan_artifact(store: Path, digest: str | None) -> dict[str, object]:
+    """Return the plan document that a proof cites, or name why its exact bytes are not there."""
+    try:
+        payload = (store / _ARTIFACT_SUBDIR / f"{digest}.json").read_bytes()
+    except OSError as error:
+        message = "proof_attestation_plan_artifact_missing"
+        raise ValueError(message) from error
+    if hashlib.sha256(payload).hexdigest() != digest:
+        message = "proof_attestation_plan_artifact_digest_mismatch"
+        raise ValueError(message)
+    try:
+        return {**json.loads(payload), "digest": digest}
+    except (TypeError, ValueError) as error:
+        message = "proof_attestation_plan_invalid"
+        raise ValueError(message) from error
+
+
+def plan_document(store: Path, attestation: Attestation) -> object:
+    """Return the plan that a proof statement carries by value or cites by its digest."""
+    if attestation.predicate == PROOF_CITED:
+        return read_plan_artifact(store, attestation.plan_digest)
+    return attestation.payload.body.get("plan")
+
+
 def artifact_checks(
     store: Path, attestation: Attestation
 ) -> tuple[tuple[dict[str, Any], ...] | None, list[str]]:
@@ -193,7 +227,7 @@ def artifact_checks(
     if gap:
         return None, [gap]
     try:
-        plan = attestation.payload.body.get("plan")
+        plan = plan_document(store, attestation)
         facts = plan.get("facts") if isinstance(plan, Mapping) else None
         head = facts.get("head") if isinstance(facts, Mapping) else None
         checks = _decode_artifact(payload, head)

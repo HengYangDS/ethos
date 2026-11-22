@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 # Referrers go before what they name: proof checks, then attempts and preimages, then lane units.
 BATCHES = (
     "proof-check",
+    "proof-plan",
     "native-attempt",
     "javascript-attempt",
     "merge-preimage",

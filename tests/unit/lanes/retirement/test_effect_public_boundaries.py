@@ -85,7 +85,7 @@ def test_superseded_plan_preserves_proof_commitment_and_mode(
     monkeypatch.setattr(
         linked_effect,
         "plan_from_statement",
-        lambda _proof: SimpleNamespace(commitment=commitment.model_dump(mode="json")),
+        lambda _proof, _root: SimpleNamespace(commitment=commitment.model_dump(mode="json")),
     )
 
     def compile_plan(

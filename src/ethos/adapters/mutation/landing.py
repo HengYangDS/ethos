@@ -294,7 +294,7 @@ def _candidate_plan(
         (
             commitment
             for commitment in admissible_openspec_commitments(
-                root, change_id=_carried_change(proof), tree_ref=current_head
+                root, change_id=_carried_change(root, proof), tree_ref=current_head
             )
             if commitment.digest() == proof.commitment_digest
         ),
@@ -347,9 +347,9 @@ def _candidate_plan(
     )
 
 
-def _carried_change(proof: Attestation) -> str | None:
+def _carried_change(root: Path, proof: Attestation) -> str | None:
     """Name the Change whose Commitment the admitted proof carries, when it carries one."""
-    carried = plan_from_statement(proof).commitment
+    carried = plan_from_statement(proof, root).commitment
     if carried is None:
         return None
     return Commitment.model_validate(mutable_json(carried)).id.removeprefix("change:")

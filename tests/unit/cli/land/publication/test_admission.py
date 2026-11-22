@@ -45,7 +45,7 @@ def test_accepted_dev_reuse_retains_independent_admission(tmp_path: Path, missin
     publication_peers(repo, tmp_path, f"{old}:refs/heads/dev")
     if missing in {"proof", "acceptance"}:
         selected, records = read_attestation_set(repo)
-        predicate = "proof:execution" if missing == "proof" else "effect:git-ref-update"
+        predicate = "proof:execution-digest" if missing == "proof" else "effect:git-ref-update"
         git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
         record_attestations(repo, tuple(item for item in records if item.predicate != predicate))
     elif missing == "trust":

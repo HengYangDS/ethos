@@ -36,6 +36,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
@@ -69,7 +70,7 @@ def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[s
         return [str(error) or "predecessor_runtime_unavailable"]
     if selected.build == invoking_build_identity():
         return []
-    candidate = plan_from_statement(proof)
+    candidate = plan_from_statement(proof, root)
     command = [
         selected.python.as_posix(),
         *PYTHON_FLAGS,
@@ -199,6 +200,7 @@ def proof_attestation(
 
 
 def _purpose_candidates(
+    root: Path,
     matching: tuple[Attestation, ...],
     purpose: AcceptancePurpose,
     attestation_id: str,
@@ -208,7 +210,7 @@ def _purpose_candidates(
         selected = tuple(
             item
             for item in matching
-            if proof_acceptance_purpose(plan_from_statement(item).policy) == purpose
+            if proof_acceptance_purpose(plan_from_statement(item, root).policy) == purpose
         )
     except (TypeError, ValueError) as error:
         return (), [str(error)]
@@ -263,7 +265,9 @@ def _admitted_proofs(
         _selected_root, attestations = read_attestation_set(root)
     except ValueError as error:
         return (), [str(error)]
-    matching, gaps = _selected_candidates(head, attestations, acceptance_purpose, attestation_id)
+    matching, gaps = _selected_candidates(
+        root, head, attestations, acceptance_purpose, attestation_id
+    )
     if gaps:
         return (), gaps
     canonical_policies = resolve_proof_policies(
@@ -314,7 +318,7 @@ def _admitted_proofs(
     valid, set_gaps = _floor_candidates(
         evaluated, full_required=canonical_policies[0][1].digest != canonical_policies[1][1].digest
     )
-    valid = _latest_lease_generations(valid)
+    valid = _latest_lease_generations(root, valid)
     if len({_bindings(item, repository_transition=repository_transition) for item in valid}) > 1:
         set_gaps = ["stale_binding"]
     elif len({_assertion_digest(item) for item in valid}) > 1:
@@ -365,6 +369,7 @@ def _intent_candidates(
 
 
 def _selected_candidates(
+    root: Path,
     head: str,
     attestations: tuple[Attestation, ...],
     purpose: AcceptancePurpose,
@@ -373,7 +378,7 @@ def _selected_candidates(
     candidates = tuple(
         item
         for item in attestations
-        if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+        if item.predicate in PROOF_PREDICATES and item.subject == f"git:commit:{head}"
     )
     if not candidates:
         return (), ["proof_not_proven"]
@@ -382,7 +387,7 @@ def _selected_candidates(
         return (), ["unknown_required_fact"]
     matching = tuple(item for item in current if not proof_query_gaps(item))
     if matching:
-        return _purpose_candidates(matching, purpose, attestation_id)
+        return _purpose_candidates(root, matching, purpose, attestation_id)
     return (), list(dict.fromkeys(gap for item in current for gap in proof_query_gaps(item)))
 
 
@@ -407,22 +412,24 @@ def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -
     )
 
 
-def _latest_lease_generations(valid: tuple[Attestation, ...]) -> tuple[Attestation, ...]:
+def _latest_lease_generations(
+    root: Path, valid: tuple[Attestation, ...]
+) -> tuple[Attestation, ...]:
     """Keep, per Work Lane, only its proofs of the latest recorded Lease generation.
 
     A handoff supersedes the earlier holder's proofs of the same HEAD; proofs of one generation
     that differ in verifier or claim still reach the contradiction test.
     """
-    recorded = {item.id: _recorded_generation(item) for item in valid}
+    recorded = {item.id: _recorded_generation(root, item) for item in valid}
     latest: dict[str, int] = {}
     for lane, number in recorded.values():
         latest[lane] = max(latest.get(lane, number), number)
     return tuple(item for item in valid if recorded[item.id][1] == latest[recorded[item.id][0]])
 
 
-def _recorded_generation(attestation: Attestation) -> tuple[str, int]:
+def _recorded_generation(root: Path, attestation: Attestation) -> tuple[str, int]:
     """Return the lane and Lease generation a proof's facts record, or no lane."""
-    values = plan_from_statement(attestation).facts.get("values")
+    values = plan_from_statement(attestation, root).facts.get("values")
     generation = values.get("lease_generation") if isinstance(values, Mapping) else None
     if not isinstance(generation, Mapping) or not generation.get("lane_ref"):
         return "", 0

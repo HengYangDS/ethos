@@ -306,7 +306,7 @@ def _observe_identity_transition(
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Compile exact identity edges without inventing a second effect or authority store."""
     proof = Attestation.model_validate(mutable_json(prior_attestations.get("proof")))
-    proof_plan = plan_from_statement(proof)
+    proof_plan = plan_from_statement(proof, root)
     generation = string_mapping(
         string_mapping(proof_plan.facts.get("values")).get("lease_generation")
     )
@@ -458,7 +458,7 @@ def _require_transition_proof(
 ) -> None:
     """Validate carried immutable evidence without treating it as current authorization."""
     proof = Attestation.model_validate(mutable_json(plan.prior_attestations.get("proof")))
-    proof_plan = plan_from_statement(proof)
+    proof_plan = plan_from_statement(proof, root)
     head = str(proof_plan.facts.get("head") or "")
     generation = string_mapping(plan.facts.get("values")).get("lease_generation")
     checks, gaps = artifact_checks(local_state_root(root), proof)
@@ -475,7 +475,7 @@ def _require_transition_proof(
         )
         or checks is None
         or gaps
-        or proof_statement_gaps(proof, checks)
+        or proof_statement_gaps(proof, checks, root)
     ):
         message = "repository_identity_transition_authority_mismatch"
         raise ValueError(message)

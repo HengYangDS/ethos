@@ -64,7 +64,7 @@ def test_candidate_preview_checks_selected_runtime_policy_before_cas(
     seed_executed_proof(fixture.worktree, head, full=True)
     proof = proof_attestation(fixture.worktree, head)
     assert proof is not None
-    plan = plan_from_statement(proof)
+    plan = plan_from_statement(proof, fixture.worktree)
     assert plan.commitment is not None
     predecessor = (
         compile_plan(

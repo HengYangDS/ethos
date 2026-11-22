@@ -20,6 +20,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
@@ -63,7 +64,7 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     assert repeated["root"] == selected["root"]
     assert repeated["added"] == ()
     assert read_attestation_set(repo)[1] == (record,)
-    assert record.predicate == "proof:execution"
+    assert record.predicate == record.payload.kind == "proof:execution-digest"
     assert record.subject == f"git:commit:{head}"
     assert record.verdict == "pass"
     assert record.commitment_digest == plan.inputs.commitment
@@ -75,13 +76,12 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     assert record.effect_digest == plan.inputs.effect != digest
     assert record.evidence_refs == (f"sha256:{digest}",)
-    assert mutable_json(record.payload.body["plan"]) == plan.model_dump(mode="json")
+    assert plan_from_statement(record, repo) == plan
     assert set(record.payload.body) == {
         "artifact",
         "boundary",
         "claim",
         "context",
-        "plan",
         "plane",
         "required_gaps",
         "scope",
@@ -174,7 +174,8 @@ def test_repository_proof_selects_only_current_archive_authority(tmp_path, paths
             )
         ),
         ("envelope", {"predicate": "experiment:novel"}, "proof_not_proven"),
-        ("envelope", {"plan_digest": "0" * 64}, "proof_attestation_binding_mismatch:plan_digest"),
+        # The cited form names its plan BY this field, so a forged one names absent bytes.
+        ("envelope", {"plan_digest": "0" * 64}, "proof_attestation_plan_artifact_missing"),
         ("envelope", {"policy_digest": "0" * 64}, "proof_policy_digest_stale"),
         ("payload", {"kind": "proof:future-execution"}, "proof_attestation_payload_kind_invalid"),
     ],
@@ -198,19 +199,14 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
     valid = _issue(repo, head, plan=plan, checks=checks)
 
     for field, value, expected in (
-        ("plan", None, "proof_attestation_plan_missing"),
-        (
-            "plan",
-            plan.model_dump(mode="json") | {"digest": "0" * 64},
-            "proof_attestation_plan_digest_mismatch",
-        ),
+        ("plan", plan.model_dump(mode="json"), "model_gap"),
         ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
         ("scope", [], "proof_attestation_scope_mismatch"),
         ("plane", "remote", "proof_attestation_plane_mismatch"),
         ("context", {"boundary": "focused"}, "proof_attestation_context_mismatch"),
     ):
         assert proof_statement_gaps(
-            reissue_attestation(valid, body=valid.payload.body | {field: value}), checks
+            reissue_attestation(valid, body=valid.payload.body | {field: value}), checks, repo
         ) == [expected]
 
     failed_check = checks[0] | {"verdict": "block", "trust_bearing": False}
@@ -224,17 +220,18 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
             },
         ),
         (failed_check, *checks[1:]),
+        repo,
     )
     assert "proof_attestation_verdict_block" in result_gaps
     assert "proof_attestation_check_not_passed" in result_gaps
 
     nonconformant = checks[0] | {"action_id": "other", "command": ["other"]}
-    gate_gaps = proof_statement_gaps(valid, (nonconformant, *checks[1:]))
+    gate_gaps = proof_statement_gaps(valid, (nonconformant, *checks[1:]), repo)
     assert "proof_attestation_check_plan_mismatch" in gate_gaps
     assert f"proof_gate_not_policy_conformant:{plan.nodes[0].id}" in gate_gaps
 
     assert "trust_bearing_proof_missing" in proof_statement_gaps(
-        valid, tuple(check | {"trust_bearing": False} for check in checks)
+        valid, tuple(check | {"trust_bearing": False} for check in checks), repo
     )
 
 

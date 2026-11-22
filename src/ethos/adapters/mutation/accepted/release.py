@@ -17,6 +17,7 @@ from filelock import Timeout
 from ethos.adapters.actor import process_actor
 from ethos.adapters.actor import process_issuer
 from ethos.adapters.mutation.proof import proof_for_repository_transition
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.creation import create_signed_tag
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
@@ -182,7 +183,7 @@ def _observe(
     proof = present(proof, *(gaps or ["release_source_not_proven"]))
     if selection.base:
         require(
-            proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
+            plan_from_statement(proof, root).facts["values"].get("lease_generation")
             == lease_generation(lease),
             "proof_lease_generation_stale",
         )
@@ -269,7 +270,8 @@ def _existing_plan(selection: _Selection) -> TransitionPlan | None:
 def _compile_plan(
     selection: _Selection, effect: GitEffect, accepted: dict[str, object], proof: Attestation
 ) -> TransitionPlan:
-    generation = proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
+    proof_plan = plan_from_statement(proof, selection.root)
+    generation = proof_plan.facts["values"].get("lease_generation")
     if selection.base:
         current = leases_by_branch(selection.root).get(current_branch(selection.root), {})
         require(

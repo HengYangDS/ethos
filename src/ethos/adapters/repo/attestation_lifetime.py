@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from ethos.contracts.proof.plan import PROOF_PREDICATES
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Sequence
@@ -156,7 +158,7 @@ def _retagged_ref(attestation: Attestation) -> str:
 
 
 _RECORD_HOLDERS: Mapping[str, tuple[Lifetime, Callable[[Attestation], str]]] = {
-    "proof:execution": ("head", _commit_subject),
+    **dict.fromkeys(PROOF_PREDICATES, ("head", _commit_subject)),
     "publication:remote-effect": ("head", _commit_subject),
     "release:accepted-identity": ("lineage", _runtime_wheel),
     "release:mapped-retag": ("lineage", _retagged_ref),

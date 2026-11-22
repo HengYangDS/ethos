@@ -14,6 +14,7 @@ import ethos.adapters.mutation.landing as landing
 import ethos.adapters.repo.dependency_acceptance as acceptance
 import ethos.adapters.repo.git_effects as git_effects
 from ethos.adapters.mutation.proof_admission import proof_attestation
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -141,7 +142,7 @@ def _delivery_boundaries(
     proofs = [
         item.id
         for item in read_attestation_set(work)[1]
-        if item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+        if item.predicate == "proof:execution-digest" and item.subject == f"git:commit:{head}"
     ]
     assert proofs == [proof.id]
 
@@ -221,7 +222,7 @@ def test_public_native_source_acceptance(
         assert result["verdict"] == "block"
         assert git(fixture.candidate, "rev-parse", "HEAD") == before
         assert not any(
-            item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+            item.predicate == "proof:execution-digest" and item.subject == f"git:commit:{head}"
             for item in read_attestation_set(work)[1]
         )
         return
@@ -235,7 +236,7 @@ def test_public_native_source_acceptance(
     )
     assert selected is not None
     assert not gaps
-    assert {gate["id"] for gate in proof["payload"]["body"]["plan"]["policy"]["gates"]} == {
+    assert {gate["id"] for gate in plan_from_statement(selected, work).policy["gates"]} == {
         "behavior",
         "static",
         "native-dependencies",

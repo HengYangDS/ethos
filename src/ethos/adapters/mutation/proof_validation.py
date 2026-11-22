@@ -7,9 +7,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.mutation.proof_artifacts import plan_document
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.outcome import Outcome
 from ethos.contracts.outcome import gate_outcome
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import PROOF_BY_VALUE
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
@@ -21,15 +25,17 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos.contracts.semantic import Attestation
     from ethos.contracts.verdict import Verdict
 
+# A statement that carries its plan by value has the field `plan` besides these.
 _STATEMENT_FIELDS = {
     "artifact",
     "boundary",
     "claim",
     "context",
-    "plan",
     "plane",
     "required_gaps",
     "scope",
@@ -89,9 +95,9 @@ def assess_proof_execution(
     )
 
 
-def plan_from_statement(attestation: Attestation) -> TransitionPlan:
-    """Return the exact immutable plan carried by a proof statement."""
-    closure = string_mapping(attestation.payload.body).get("plan")
+def plan_from_statement(attestation: Attestation, root: Path) -> TransitionPlan:
+    """Return the exact immutable plan that a proof statement carries or cites by digest."""
+    closure = plan_document(local_state_root(root), attestation)
     if not isinstance(closure, Mapping):
         message = "proof_attestation_plan_missing"
         raise TypeError(message)
@@ -162,15 +168,9 @@ def _context_gaps(statement: Mapping[str, object]) -> list[str]:
     return gaps
 
 
-def _statement_schema_gaps(
-    statement: Mapping[str, object],
-) -> list[str]:
-    return [] if set(statement) == _STATEMENT_FIELDS else ["model_gap"]
-
-
 def _statement_gaps(attestation: Attestation, statement: Mapping[str, object]) -> list[str]:
     claim = statement.get("claim")
-    gaps = _statement_schema_gaps(statement)
+    gaps = _statement_schema_gaps(attestation, statement)
     if (
         not isinstance(claim, Mapping)
         or not isinstance(claim.get("objective"), str)
@@ -212,19 +212,26 @@ def _gate_gaps(
     return gaps
 
 
+def _statement_schema_gaps(attestation: Attestation, statement: Mapping[str, object]) -> list[str]:
+    carried = {"plan"} if attestation.predicate == PROOF_BY_VALUE else set()
+    return [] if set(statement) == _STATEMENT_FIELDS | carried else ["model_gap"]
+
+
 def proof_statement_gaps(
     attestation: Attestation,
     checks: tuple[dict[str, Any], ...],
+    root: Path,
 ) -> list[str]:
     """Validate a proof envelope without recompiling its semantic closure."""
-    if attestation.payload.kind != "proof:execution":
+    kind = attestation.payload.kind
+    if kind not in PROOF_PREDICATES or kind != attestation.predicate:
         return ["proof_attestation_payload_kind_invalid"]
     statement = string_mapping(attestation.payload.body)
     required_gaps = statement.get("required_gaps")
     if not isinstance(required_gaps, tuple | list):
         return ["proof_attestation_required_gaps_invalid"]
     try:
-        plan = plan_from_statement(attestation)
+        plan = plan_from_statement(attestation, root)
     except (TypeError, ValueError) as error:
         return [str(error)]
     return [

@@ -22,6 +22,9 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.proof.plan import PROOF_BY_VALUE
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import canonical_json_bytes
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import RepositorySpec
 from tests.support.governed_repository import build
@@ -35,7 +38,6 @@ if TYPE_CHECKING:
     from subprocess import CompletedProcess
 
     from ethos.contracts.plan import TransitionPlan
-    from ethos.contracts.semantic import Attestation
 
 
 def issue_conformant_proof(
@@ -99,6 +101,31 @@ def seed_executed_proof(repo: Path, head: str, *, full: bool = False) -> None:
             os.environ.pop("ETHOS_ACTOR", None)
         else:
             os.environ["ETHOS_ACTOR"] = original
+
+
+def proof_carrying_plan(record: Attestation, plan: TransitionPlan) -> Attestation:
+    """Reissue one proof in the form that carries its plan by value, bound to that plan."""
+    body = {**record.payload.body, "plan": plan.model_dump(mode="json")}
+    return Attestation.issue(
+        record.model_dump(mode="python", exclude={"id"})
+        | {
+            "predicate": PROOF_BY_VALUE,
+            "payload": {"kind": PROOF_BY_VALUE, "body": body},
+            "commitment_digest": plan.inputs.commitment,
+            "facts_digest": plan.inputs.facts,
+            "plan_digest": plan.digest,
+            "policy_digest": plan.inputs.policy,
+            "effect_digest": plan.inputs.effect,
+        }
+    )
+
+
+def store_plan_artifact(repo: Path, plan: TransitionPlan) -> None:
+    """Store the plan's bytes under its digest, as the writer does and a tampering test needs."""
+    store = local_state_root(repo) / "artifacts"
+    store.mkdir(parents=True, exist_ok=True)
+    payload = canonical_json_bytes(plan.model_dump(mode="json", exclude={"digest"}))
+    (store / f"{plan.digest}.json").write_bytes(payload)
 
 
 def conformant_proof_checks(plan: TransitionPlan) -> tuple[dict[str, object], ...]:

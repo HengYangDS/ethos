@@ -1069,6 +1069,9 @@ proof_attestation_live_facts_stale = { owner = "adapters.mutation" }
 proof_attestation_live_tree_mismatch = { owner = "adapters.mutation" }
 proof_attestation_payload_invalid = { owner = "adapters.mutation" }
 proof_attestation_payload_kind_invalid = { owner = "adapters.mutation" }
+proof_attestation_plan_artifact_collision = { owner = "adapters.mutation" }
+proof_attestation_plan_artifact_digest_mismatch = { owner = "adapters.mutation" }
+proof_attestation_plan_artifact_missing = { owner = "adapters.mutation" }
 proof_attestation_plan_digest_mismatch = { owner = "adapters.mutation" }
 proof_attestation_plan_head_mismatch = { owner = "adapters.mutation" }
 proof_attestation_plan_invalid = { owner = "adapters.mutation" }

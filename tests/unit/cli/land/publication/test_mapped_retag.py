@@ -212,7 +212,9 @@ def test_a_recreated_tag_publishes_on_its_original_qualification(tmp_path: Path)
     )
     assert applied["verdict"] == "pass", applied
     assert git(repo, "rev-parse", "refs/tags/v1.2.3^{}") == replacement != head
-    proofs = {i.subject for i in read_attestation_set(repo)[1] if i.predicate == "proof:execution"}
+    proofs = {
+        i.subject for i in read_attestation_set(repo)[1] if i.predicate == "proof:execution-digest"
+    }
     assert f"git:commit:{head}" not in proofs
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
     command = (repo, replacement, "--peer", "github")

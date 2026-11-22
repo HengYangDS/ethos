@@ -41,7 +41,9 @@ from tests.support.literal_cases import literal_case
 from tests.support.proof import assert_selected_proof
 from tests.support.proof import current_proof_plan
 from tests.support.proof import issue_conformant_proof
+from tests.support.proof import proof_carrying_plan
 from tests.support.proof import proof_repository
+from tests.support.proof import store_plan_artifact
 from tests.support.proof import store_proof
 from tests.support.semantic import commitment_fixture
 from tests.support.semantic import reissue_attestation
@@ -141,9 +143,8 @@ def _policy_proof_pair(repo: Path, head: str) -> tuple[Attestation, Attestation]
         plan_digest=former.digest,
         policy_digest=former.inputs.policy,
         effect_digest=former.inputs.effect,
-        body=current.payload.body | {"plan": former.model_dump(mode="json")},
     )
-    return current, old
+    return proof_carrying_plan(current, plan), proof_carrying_plan(old, former)
 
 
 def test_current_policy_proof_coexists_with_superseded_policy_proof(tmp_path: Path) -> None:
@@ -266,9 +267,9 @@ def test_proof_admission_rechecks_live_plan_closure(tmp_path: Path, case: str, g
             plan_digest=forged.digest,
             policy_digest=forged.inputs.policy,
             effect_digest=forged.inputs.effect,
-            body=valid.payload.body | {"plan": forged.model_dump(mode="json")},
         ),
     )
+    store_plan_artifact(repo, forged)
     assert_selected_proof(repo, head, gap=gap)
 
 
@@ -538,13 +539,13 @@ def test_a_later_lease_generation_supersedes_a_lanes_earlier_proof(
             policy=dict(plan.policy),
             prior_attestations=dict(plan.prior_attestations),
         )
+        store_plan_artifact(repo, moved)
         return reissue_attestation(
             current,
             verifier=verifier,
             facts_digest=moved.inputs.facts,
             plan_digest=moved.digest,
             effect_digest=moved.inputs.effect,
-            body=current.payload.body | {"plan": moved.model_dump(mode="json")},
         )
 
     first, second = (

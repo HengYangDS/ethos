@@ -18,6 +18,7 @@ import tests
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.repo.dependency_acceptance import product_audit_snapshot
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
@@ -304,7 +305,8 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
     )
     proof = Attestation.model_validate(proved["data"]["attestation"])
     assert proof.subject == f"git:commit:{head}"
-    assert proof.payload.body["plan"]["policy"]["acceptance_purpose"] == "local-source"
+    proof_plan = plan_from_statement(proof, work)
+    assert proof_plan.policy["acceptance_purpose"] == "local-source"
     store = local_state_root(work)
     checks, gaps = artifact_checks(store, proof)
     assert not gaps
@@ -312,9 +314,7 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
     declared = load_gate_registry_declaration(work / "system/gates.toml")
     checked = {check["action_id"] for check in checks}
     assert set(declared.proof_sets.full) <= checked
-    assert checked == {
-        node["id"] for node in proof.payload.body["plan"]["nodes"] if node["kind"] == "check"
-    }
+    assert checked == {node.id for node in proof_plan.nodes if node.kind == "check"}
     audit = next(check for check in checks if check["action_id"] == AUDIT)
     assert stdout_attempts[-1] == audit["stdout"]
     raw = json.loads(audit["stdout"])

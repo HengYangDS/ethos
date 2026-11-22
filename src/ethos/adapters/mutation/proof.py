@@ -12,6 +12,7 @@ from ethos.adapters.actor import process_actor
 from ethos.adapters.admission.current.authority import resolve_current_authority
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import normalize_checks
+from ethos.adapters.mutation.proof_artifacts import write_plan_artifact
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
@@ -38,6 +39,8 @@ from ethos.contracts.outcome import refusal
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.proof.plan import PROOF_CITED
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.proof.plan import proof_acceptance_purpose
@@ -266,12 +269,13 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)
     artifact = write_proof_artifact(local_state_root(root), head, normalized)
+    write_plan_artifact(local_state_root(root), plan)
     digest = str(artifact["sha256"]).removeprefix("sha256:")
     issued = issued_at or datetime.now(UTC)
     attestation = Attestation.issue(
         {
             "schema_version": 2,
-            "predicate": "proof:execution",
+            "predicate": PROOF_CITED,
             "verifier": issuer,
             "subject": f"git:commit:{head}",
             "issued_at": issued,
@@ -279,7 +283,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "valid_until": None,
             "verdict": verdict,
             "payload": {
-                "kind": "proof:execution",
+                "kind": PROOF_CITED,
                 "body": {
                     "claim": {"objective": objective, "verdict": verdict},
                     "scope": [scope],
@@ -287,7 +291,6 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
                     "context": {"boundary": boundary},
                     "boundary": boundary,
                     "required_gaps": list(required_gaps),
-                    "plan": plan.model_dump(mode="json"),
                     "artifact": artifact,
                 },
             },
@@ -302,7 +305,7 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
             "mints_authority": False,
         }
     )
-    gaps = proof_statement_gaps(attestation, normalized)
+    gaps = proof_statement_gaps(attestation, normalized, root)
     structural_gaps = tuple(
         gap
         for gap in gaps
@@ -321,13 +324,11 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
 
 def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str, object]:
     """Validate and select one proof Attestation in the sole Git set."""
-    if attestation.predicate != "proof:execution" or not attestation.subject.startswith(
-        "git:commit:"
-    ):
+    if attestation.predicate not in PROOF_PREDICATES or attestation.subject[:11] != "git:commit:":
         msg = "proof_attestation_binding_missing"
         raise ValueError(msg)
     checks, artifact_gaps = artifact_checks(local_state_root(root), attestation)
-    gaps = artifact_gaps if checks is None else proof_statement_gaps(attestation, checks)
+    gaps = artifact_gaps if checks is None else proof_statement_gaps(attestation, checks, root)
     structural_gaps = [
         gap
         for gap in gaps
@@ -341,7 +342,8 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
     ]
     if structural_gaps:
         raise refusal(*structural_gaps)
-    assert_proof_execution_source(root, plan_from_statement(attestation), checks=checks or ())
+    plan = plan_from_statement(attestation, root)
+    assert_proof_execution_source(root, plan, checks=checks or ())
     return record_attestations(root, (attestation,))
 
 
@@ -509,7 +511,7 @@ def proof_admission_report(
             "required_gaps": gaps or ["proof_not_proven"],
             "next_action": next_action,
         }
-    plan = plan_from_statement(attestation)
+    plan = plan_from_statement(attestation, root)
     return {
         "verdict": "pass",
         "state": "admitted",

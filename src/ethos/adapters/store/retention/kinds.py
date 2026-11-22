@@ -150,7 +150,8 @@ def _artifact_kind(path: Path, data: bytes) -> str | None:
         return None
     if document.get("schema_version") == 1 and {"head", "checks"} <= set(document):
         return "proof-check"
-    return "merge-preimage" if set(document) == _MERGE_KEYS else None
+    plan = document.get("schema_version") == 1 and {"inputs", "nodes", "facts"} <= set(document)
+    return "proof-plan" if plan else "merge-preimage" if set(document) == _MERGE_KEYS else None
 
 
 def _lane_units(store: Path) -> tuple[list[StoreItem], list[Path]]:

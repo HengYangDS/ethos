@@ -74,7 +74,7 @@ def linked_retirement_plan(
         if proof is None:
             msg = "proof_not_proven"
             raise ValueError(msg)
-        commitment_payload = plan_from_statement(proof).commitment
+        commitment_payload = plan_from_statement(proof, transaction_root).commitment
         if commitment_payload is None:
             msg = "proof_commitment_missing"
             raise ValueError(msg)

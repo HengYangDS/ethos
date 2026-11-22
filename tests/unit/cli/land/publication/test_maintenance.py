@@ -87,7 +87,8 @@ def test_maintenance_requires_current_proof_and_live_holder(tmp_path, missing):
                 record
                 for record in records
                 if not (
-                    record.predicate == "proof:execution" and record.subject == f"git:commit:{head}"
+                    record.predicate == "proof:execution-digest"
+                    and record.subject == f"git:commit:{head}"
                 )
             ),
         )

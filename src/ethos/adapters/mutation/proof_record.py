@@ -11,6 +11,7 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.git import current_tree
+from ethos.contracts.proof.plan import PROOF_PREDICATES
 from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
@@ -60,7 +61,7 @@ def proof_integrity(
     if attestation.subject != f"git:commit:{head}":
         return None, None, ["proof_attestation_head_mismatch"]
     try:
-        plan = plan_from_statement(attestation)
+        plan = plan_from_statement(attestation, root)
     except (TypeError, ValueError) as error:
         return None, None, [str(error)]
     gaps = [
@@ -79,7 +80,7 @@ def proof_integrity(
         return plan, None, gaps
     checks, gaps = artifact_checks(store, attestation)
     if checks is not None and not gaps:
-        gaps = proof_statement_gaps(attestation, checks)
+        gaps = proof_statement_gaps(attestation, checks, root)
     return plan, checks, list(gaps)
 
 
@@ -94,7 +95,7 @@ def recorded_proof(
     original commit that its release record names.
     """
     embedded = {key: value for key, value in recorded.items() if key != "proven_commit"}
-    if embedded.get("predicate") != "proof:execution" or embedded.get("verdict") != "pass":
+    if embedded.get("predicate") not in PROOF_PREDICATES or embedded.get("verdict") != "pass":
         return (), ["release_qualification_missing"]
     try:
         bound = Attestation.model_validate(mutable_json(embedded))

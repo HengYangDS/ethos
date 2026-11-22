@@ -21,7 +21,6 @@ from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import compile_plan
-from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.result import expand_result
@@ -35,6 +34,7 @@ from tests.support.proof import current_proof_plan
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import declare_quality_profile
 from tests.support.proof import issue_conformant_proof
+from tests.support.proof import proof_carrying_plan
 
 _PROGRAM = """
 from pathlib import Path
@@ -204,17 +204,7 @@ def test_historical_proof_without_source_binding_is_not_new_proof(proof_reposito
         policy=dict(plan.policy),
         prior_attestations=dict(plan.prior_attestations),
     )
-    payload = proof.model_dump(mode="python", exclude={"id"})
-    payload.update(
-        facts_digest=historical.inputs.facts,
-        plan_digest=historical.digest,
-        effect_digest=historical.inputs.effect,
-        payload={
-            "kind": proof.payload.kind,
-            "body": dict(proof.payload.body) | {"plan": historical.model_dump(mode="json")},
-        },
-    )
-    old = Attestation.issue(payload)
+    old = proof_carrying_plan(proof, historical)
     with pytest.raises(ValueError, match="proof_execution_source_binding_missing"):
         persist_proof_attestation(root, old)
     record_attestations(root, (old,))

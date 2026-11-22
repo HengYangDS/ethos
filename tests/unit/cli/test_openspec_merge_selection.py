@@ -10,6 +10,7 @@ from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof_admission import proof_attestation as query_proof
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.openspec.commitment import load_openspec_commitment
@@ -298,8 +299,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         attestation = proof_attestation(next_lane, head)
         assert attestation is not None
         assert attestation.id != previous.id
-        plan = mutable_json(attestation.payload.body["plan"])
-        assert isinstance(plan, dict)
+        plan = plan_from_statement(attestation, next_lane).model_dump(mode="json")
         assert plan["commitment"]["id"] == "change:static-delivery"
         expected = lease_generation(leases_by_branch(next_lane)[next_branch])
         assert plan["facts"]["values"]["lease_generation"] == mutable_json(expected)

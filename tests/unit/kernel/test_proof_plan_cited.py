@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -228,6 +229,19 @@ def test_d_plan_bytes_that_are_not_the_cited_plan_are_refused_by_name(
     with pytest.raises(ValueError, match=r"^proof_attestation_plan_artifact_missing$"):
         persist_proof_attestation(repo, again)
     assert attestation_set.read_attestation_set(repo) == before
+
+
+def test_d_cited_bytes_that_are_no_plan_document_name_their_gap(tmp_path: Path) -> None:
+    """Bytes that match the cited digest and are no plan document name their own gap."""
+    repo, head = proof_repository(tmp_path / "repo")
+    record = _issue(repo, head, plan=current_proof_plan(repo, expected_head=head))
+    digest = hashlib.sha256(b"[]").hexdigest()
+    (local_state_root(repo) / "artifacts" / f"{digest}.json").write_bytes(b"[]")
+    forged = Attestation.issue(
+        record.model_dump(mode="python", exclude={"id"}) | {"plan_digest": digest}
+    )
+    with pytest.raises(ValueError, match=r"^proof_attestation_plan_invalid$"):
+        plan_from_statement(forged, repo)
 
 
 def test_f_plan_bytes_stay_while_a_live_record_names_them(tmp_path: Path) -> None:

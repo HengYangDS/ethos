@@ -55,12 +55,14 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
         for gap in gaps
     ]
     if reported:
-        note = {"hook": name, "verdict": "pass", "reported_gaps": reported}
+        note = json.dumps(
+            {"hook": name, "verdict": "pass", "reported_gaps": reported}, sort_keys=True
+        )
         # The verdict is decided: a note that cannot be written refuses nothing. It goes to
         # standard error's descriptor unbuffered, so that no failed write is tried again when
         # the process ends and turns its status; a process without that stream writes none.
         with contextlib.suppress(OSError, ValueError, AttributeError):
-            os.write(sys.stderr.fileno(), f"{json.dumps(note, sort_keys=True)}\n".encode())
+            os.write(sys.stderr.fileno(), f"{note}\n".encode())
     return 0
 
 

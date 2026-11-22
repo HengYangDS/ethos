@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.proof as proof_module
 import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -125,6 +126,37 @@ def test_a_proof_is_cited_only_above_a_third_of_the_bound(tmp_path: Path) -> Non
     cited = cited_when_large(store, over, plan)
     assert (cited.predicate, "plan" in cited.payload.body) == (PROOF_CITED, False)
     assert carrier.exists()
+
+
+def test_a_proof_between_a_third_and_half_of_the_bound_is_cited(tmp_path: Path) -> None:
+    """The writer cites the record that a landing could carry and a release could not."""
+    fixture = prepared_work_lane(tmp_path)
+    _many_paths(fixture.worktree, 450)
+    head = commit_fixture(fixture.worktree, "test: change some paths")
+    plan = current_proof_plan(fixture.worktree, expected_head=head)
+
+    record = _issue(fixture.worktree, head, plan=plan)
+
+    carried = _size(proof_carrying_plan(record, plan))
+    assert _MIB // 3 < carried <= _MIB // 2
+    assert (record.predicate, _size(record) < 2_000) == (PROOF_CITED, True)
+    assert plan_from_statement(record, fixture.worktree) == plan
+
+
+def test_the_writer_checks_the_record_that_it_returns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cited record that fails its structural check is refused at issuance."""
+    repo, head = proof_repository(tmp_path / "repo")
+    plan = current_proof_plan(repo, expected_head=head)
+
+    def cited_with_its_plan(store: Path, carried: Attestation, plan: TransitionPlan) -> Attestation:
+        cited = cite_plan(store, carried, plan)
+        return reissue_attestation(cited, body=cited.payload.body | {"plan": {}})
+
+    monkeypatch.setattr(proof_module, "cited_when_large", cited_with_its_plan)
+    with pytest.raises(ValueError, match="model_gap"):
+        _issue(repo, head, plan=plan)
 
 
 def _assert_landing_records(repo: Path, proof: Attestation) -> None:

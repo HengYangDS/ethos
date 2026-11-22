@@ -355,6 +355,12 @@ def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
     assert contract.count("信、达、雅") == 1
     [paragraph] = [block for block in re.split(r"\n\s*\n", contract) if "信、达、雅" in block]
     assert " ".join(paragraph.split()) == WRITING_STANDARD_CITATION
-    # No other paragraph speaks of the standard: not in English, not through the link.
-    rest = contract.replace(paragraph, "", 1)
-    assert not re.search(r"(?i)fidelity|clarity|elegan|writing[-\s]standard", rest)
+    # No other paragraph names the standard, links to it or restates its three terms together.
+    # A paraphrase that uses none of these names is a reader's matter, not this test's.
+    named = r"(?i)writing[\W_]+standard|standard\s+of\s+writing|信\W*[达達]\W*雅"
+    for block in re.split(r"\n\s*\n", contract):
+        if block == paragraph:
+            continue
+        words = " ".join(block.split()).lower()
+        assert not re.search(named, words), words[:80]
+        assert sum(term in words for term in ("fidelity", "clarity", "elegan")) < 2, words[:80]

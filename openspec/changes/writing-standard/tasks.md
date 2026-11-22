@@ -15,9 +15,10 @@
       lines.)
 - [x] 1.3 Make the Docs Registry's passage on documentation quality cite the standard and name its
       three terms. Done when the passage links to the Writing Standard, names fidelity, clarity and
-      elegance, and keeps its own requirements for documentation. (The passage's Elegance bullet
-      now links to the Writing Standard instead of restating the contract's definition; its three
-      bullets still read Fidelity, Intelligibility and Elegance, and carry their own requirements.)
+      elegance, and keeps its own requirements for documentation. (The passage's lead now links to
+      the Writing Standard and names fidelity, clarity and elegance; its second bullet, formerly
+      "Intelligibility", reads "Clarity"; the Elegance bullet links to the definition rather than
+      restating it; each bullet keeps its own requirements.)
 
 ## 2. Documents repaired against it
 

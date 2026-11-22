@@ -208,12 +208,13 @@ live obligation has no surviving owner, the reduction is incomplete.
 
 Documentation preserves meaning, reduces uncertainty, and supports correct
 understanding, decisions and action. It is not a warehouse of text or a formatting
-exercise. Quality follows fidelity, intelligibility and elegance, in that order.
+exercise. Quality follows the [Writing Standard](writing-standard.md)'s three
+terms, fidelity, clarity and elegance, in that order.
 
 - Fidelity: distinguish facts, assumptions, proposals and accepted requirements;
   preserve scope, counterexamples and provenance. Do not imply complete delivery
   from a diagram, a label or a passing parser.
-- Intelligibility: organize around reader questions, explain prerequisites and
+- Clarity: organize around reader questions, explain prerequisites and
   exceptions, and make current meaning discoverable through progressive detail.
   Human reading and agent retrieval must reach consistent supported conclusions.
 - Elegance: `雅`, as the [Writing Standard](writing-standard.md) defines it, judged in the rendered

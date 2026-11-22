@@ -49,6 +49,7 @@ See also: [Documentation Root](../README.md) and the form and rules of a record 
 | [DR-0031: Decision Records Have One Form, and a Record Is Kept and Marked](dr-0031-decision-record-form.md)                                                                                                   | Accepted                                                                | 2026-11-18 |
 | [DR-0032: Branch Roles Are Fixed; Their Names Are a Repository's Declaration](dr-0032-branch-names-declared.md)                                                                                               | Accepted                                                                | 2026-11-18 |
 | [DR-0033: The Test Ceiling Moves to 115,000 for the Built Slices That Wait](dr-0033-test-budget-step-115.md)                                                                                                  | Accepted                                                                | 2026-11-17 |
+| [DR-0034: A Kept Item Has a Consumer and an Exit, and Five Kept Refs Leave](dr-0034-kept-items-have-a-consumer.md)                                                                                            | Accepted                                                                | 2026-11-21 |
 
 Accepted: in force. Superseded: a later record replaced it whole. Deprecated: no longer in force,
 with no successor. Rejected: a ruling not to adopt, in force. A record that updates another

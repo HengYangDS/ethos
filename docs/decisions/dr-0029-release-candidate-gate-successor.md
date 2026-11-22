@@ -8,7 +8,9 @@ date: 2026-11-15
 relations:
   current_owner: ../../openspec/specs/distribution/spec.md
   updates: DR-0026
-  updated_by: DR-0030
+  updated_by:
+    - DR-0030
+    - DR-0035
 ---
 
 # DR-0029: The Release Candidate Gate Gains the Law, and Its Dates Become Earliest Dates
@@ -61,7 +63,8 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
   this release ships its repair and names it in a Breaking entry. A session other than the
   batch's authors' reads the result, and the entry prints the count for each gap code.
 - **The law freeze.** From beta.11's tag to 0.2.0, a narrowing or a ruled defect fix passes. A new
-  rule, or a supply move that adds a gap, does not. The gate's pin rows are the named exceptions,
+  rule, or a supply move that adds a gap, does not. (Added to by
+  [DR-0035](dr-0035-release-candidate-gate-scope.md).) The gate's pin rows are the named exceptions,
   each only in a release whose product ships its repair.
 - **Tags and dates.** Five weekly tags: 2026-11-21, 11-28, 12-05 and 12-12, and a frozen beta on
   12-19 after which no row lands. The candidate is 2026-12-26 at the earliest and the stable release
@@ -70,13 +73,13 @@ For this record's subject: `批准，11-19 截止前给我看全文`. For the la
   seven days since the last bump to the candidate. (Added to by
   [DR-0030](dr-0030-candidate-subject-set.md).) 2026-12-19 is withdrawn as the candidate date. The
   bound that assumes nothing unmeasured, 34 rows at half a row a day, is 2027-01-30, and it is
-  stated beside each date.
+  stated beside each date. (Replaced by [DR-0035](dr-0035-release-candidate-gate-scope.md).)
 - **Lines on `dev`.** At most 33, 24, 15, 6 and 0 rows left on the five tag days.
 - **The slip rule.** A row that misses a cut moves one batch by a line on the weekly page, and no
-  tag moves. On a tag day when `dev` reads over its line, the next step of the slip order is
-  taken that day. When it reads four or more over, the freeze also moves one week and the owner
-  hears it that day. On the second such day the scope is cut by a successor of this record, and
-  no third date is written.
+  tag moves. On a tag day when `dev` reads over its line, the next step of the slip order is taken
+  that day. When it reads four or more over, the freeze also moves one week and the owner hears it
+  that day. (Added to by [DR-0035](dr-0035-release-candidate-gate-scope.md).) On the second such day
+  the scope is cut by a successor of this record, and no third date is written.
 - **The slip order.** First the cost reducer that makes `status` name the way in; then the release
   time budget and R11's diagnoses with its proof, each by a recorded waiver; then the first-hour
   document, once the install line is in both entry documents; then gate reuse, the offline build

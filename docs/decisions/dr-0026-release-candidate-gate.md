@@ -11,6 +11,7 @@ relations:
   updated_by:
     - DR-0029
     - DR-0031
+    - DR-0035
 ---
 
 # DR-0026: The 0.2.0 Release Candidate Gate Is Recorded With Three Waivers
@@ -60,10 +61,10 @@ answered every finding, and the owner decided on it on 2026-11-14.
   qualify is named so in its release entry.
 - **R3, the size measure.** Done: DR-0019.
 - **R4, the release path.** Before a tag, a declared step rehearses the release on hosted runners,
-  from each release that an active adopter pins, and tag admission requires its receipt. The
-  journeys cover DR-0021's hosts. A rollback after a repair is exercised. The full suite runs once
-  per release on the other platforms and Python versions. The stable release has a complete,
-  rehearsed path and a measured time budget.
+  from each release that an active adopter pins, and tag admission requires its receipt. (Added to
+  by [DR-0035](dr-0035-release-candidate-gate-scope.md).) The journeys cover DR-0021's hosts. A
+  rollback after a repair is exercised. The full suite runs once per release on the other platforms
+  and Python versions. The stable release has a complete, rehearsed path and a measured time budget.
 - **R5, proof throughput.** The reference workstation is declared by hardware class, every proof
   reports time per gate, readiness gains a fast behavior tier, and a gate's result is reused only on
   byte-equal inputs with one coverage decision per attempt. The 900-second requirement is met or is
@@ -72,7 +73,8 @@ answered every finding, and the owner decided on it on 2026-11-14.
   defers it with an owner, a next action and a review date.
 - **R7, retention.** A consumer whose path is gone is unknown, and only an explicit, previewed step
   releases it. Lanes stop holding gate evidence, and a landed lane retires with declared, natively
-  checked residue. The stores have byte budgets and a 48-hour observation.
+  checked residue. (Added to by [DR-0035](dr-0035-release-candidate-gate-scope.md).) The stores have
+  byte budgets and a 48-hour observation.
 - **R8, security.** Remote effects over MCP need a confirmation that the server starts, and effect
   tools stay off unless the person who launches the server enables them. Release provenance names
   the tag, installation verifies it by source and signer, the checksum file is attested, releases

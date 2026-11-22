@@ -49,6 +49,12 @@ WRITING_STANDARD = (
     "and never change the meaning to make a sentence read better.",
     "6d8d691eb73d41ef3bfef2fbf679e0885fea1604a8674be95984b74ca5a16253",
 )
+# The contract's one sentence on the standard, word for word: it names the standard and hands
+# its definition to that document.
+WRITING_STANDARD_CITATION = (
+    "answer to one standard of writing, fidelity, clarity and elegance (`信、达、雅`), "
+    "which the [Writing Standard](writing-standard.md) defines."
+)
 
 
 def _active_change_carriers() -> tuple[Path, ...]:
@@ -344,7 +350,6 @@ def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
     assert words.endswith(last)
     assert hashlib.sha256(words.encode()).hexdigest() == digest
     contract = (ROOT / "docs/governance/product-design-contract.md").read_text(encoding="utf-8")
-    assert contract.count("信、达、雅") == 1
-    [paragraph] = [block for block in re.split(r"\n\s*\n", contract) if "信、达、雅" in block]
-    link = r"信、达、雅[^.!?。]*\[Writing Standard\]\(writing-standard\.md(#the-definition)?\)"
-    assert re.search(link, " ".join(paragraph.split()))
+    cited = " ".join(contract.split())
+    assert cited.count("信、达、雅") == 1
+    assert WRITING_STANDARD_CITATION in cited

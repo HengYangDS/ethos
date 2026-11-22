@@ -40,7 +40,8 @@ stand, and the accepted requirement's sentences on the preview and on the commit
 - **The answer names its tree.** A pass decided by the tree carries `openspec.observed_tree`. An
   answer left to the working files carries none.
 - **The hook says when it admits with a report.** One line on standard error names the reported
-  gaps; the commit proceeds. A note that cannot be written refuses nothing.
+  gaps; the commit proceeds. The note is written to standard error's descriptor unbuffered;
+  one that cannot be written refuses nothing, and a process without that stream writes none.
 
 ## Risks / Trade-offs
 

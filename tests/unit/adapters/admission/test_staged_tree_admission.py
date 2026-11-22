@@ -10,7 +10,9 @@ which carries the staged tree's gaps as reported; armed, the staged tree alone d
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sys
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -228,12 +230,12 @@ def _hook(lane: Path, paths: list[str], *, change: str | None = None) -> dict:
         )
 
 
-def _pre_commit(lane: Path, capsys: pytest.CaptureFixture[str], change: str | None = None) -> str:
+def _pre_commit(lane: Path, capfd: pytest.CaptureFixture[str], change: str | None = None) -> str:
     """Run the whole `pre-commit` hook in this process; return what it says when it admits."""
-    capsys.readouterr()
+    capfd.readouterr()
     with selected_change(change):
         code = execute_hook(lane, "pre-commit", (), stdin=StringIO())
-    said = capsys.readouterr().err
+    said = capfd.readouterr().err
     assert code == 0, said
     return said
 
@@ -294,7 +296,7 @@ def _judged_by_its_tree(report: dict, *, change: str = _CHANGE) -> str:
 
 @pytest.mark.parametrize(("retire_schema", "change"), [(False, _CHANGE), (True, None)])
 def test_the_whole_landing_commits_from_the_index_alone(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], *, retire_schema: bool, change: str | None
+    tmp_path: Path, capfd: pytest.CaptureFixture[str], *, retire_schema: bool, change: str | None
 ) -> None:
     lane = _lane(tmp_path, refused=True)
     patch, paths = _patch(lane, lambda root: _landing(root, retire_schema=retire_schema))
@@ -315,7 +317,7 @@ def test_the_whole_landing_commits_from_the_index_alone(
     assert commit["openspec"]["commitment"] == preview["openspec"]["commitment"]
     assert _state(lane, index_bytes=False) == staged
     # The hook itself admits it without a word, and Git commits it; the working files stay.
-    assert _pre_commit(lane, capsys, change) == ""
+    assert _pre_commit(lane, capfd, change) == ""
     base = gr.git(lane, "rev-parse", "HEAD")
     gr.git(lane, "commit", "--no-verify", "--no-gpg-sign", "-q", "-m", "feat: land the whole")
     assert gr.git(lane, "rev-parse", "HEAD^{tree}") == tree
@@ -329,11 +331,11 @@ def test_the_whole_landing_commits_from_the_index_alone(
     followed = _hook(lane, paths, change=change)
     assert _judged_by_its_tree(followed) == tree
     assert followed["material_scope"] == commit["material_scope"]
-    assert _pre_commit(lane, capsys, change) == ""
+    assert _pre_commit(lane, capfd, change) == ""
 
 
 def test_the_landing_in_the_index_and_the_working_files_commits_as_before(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capfd: pytest.CaptureFixture[str]
 ) -> None:
     lane = _lane(tmp_path, refused=True)
     patch, paths = _patch(lane, lambda root: _landing(root, retire_schema=True))
@@ -342,7 +344,7 @@ def test_the_landing_in_the_index_and_the_working_files_commits_as_before(
     commit = _hook(lane, paths)
 
     _judged_by_its_tree(commit)
-    assert _pre_commit(lane, capsys) == ""
+    assert _pre_commit(lane, capfd) == ""
     with pytest.MonkeyPatch.context() as today:
         today.setattr(prewrite, "staged_tree_scope", lambda *inputs, **_: inputs[3](None))
         before = _hook(lane, paths)
@@ -456,7 +458,7 @@ def _passes_and_reports(report: dict) -> None:
 
 
 def test_a_staged_tree_that_is_broken_beside_whole_working_files_passes_and_is_reported(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capfd: pytest.CaptureFixture[str]
 ) -> None:
     lane, patch, paths = _breaking_patch(tmp_path)
 
@@ -464,8 +466,15 @@ def test_a_staged_tree_that_is_broken_beside_whole_working_files_passes_and_is_r
     _stage(lane, patch, working_files=False)
     _passes_and_reports(_hook(lane, paths))
     # The hook itself admits the commit and says what it reports to the committer.
-    said = json.loads(_pre_commit(lane, capsys))
+    said = json.loads(_pre_commit(lane, capfd))
     assert said == {"hook": "pre-commit", "reported_gaps": [_STRAY_GAP], "verdict": "pass"}
+    # A note that cannot be written refuses nothing: no stream, then one that refuses a write.
+    reader, writer = os.pipe()
+    with os.fdopen(reader) as unwritable, os.fdopen(writer, "w"):
+        for stream in (None, unwritable):
+            with pytest.MonkeyPatch.context() as patched:
+                patched.setattr(sys, "stderr", stream)
+                assert execute_hook(lane, "pre-commit", (), stdin=StringIO()) == 0
     # With the entry in the working files too, the commit is refused as it is today.
     _working_files_follow(lane, paths)
     refused = _hook(lane, paths)
@@ -493,13 +502,16 @@ def test_armed_the_staged_tree_alone_decides(
         assert not [text for text in _strings(report) if _PROJECTION in text]
 
 
+@pytest.mark.parametrize("fault", [OSError, KeyError])
 def test_armed_a_tree_that_cannot_be_observed_is_refused(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fault: type[Exception]
 ) -> None:
+    """Any fault of the projection is reported with its type, and refused once armed."""
     lane, patch, paths = _breaking_patch(tmp_path)
+    gap = f"openspec_tree_projection_missing:{fault.__name__}"
 
     def unobservable(*_: object, **__: object) -> None:
-        raise OSError
+        raise fault
 
     monkeypatch.setattr(staged_tree, "openspec_tree_projection", unobservable)
     reporting = _preview(lane, patch, paths)
@@ -508,9 +520,9 @@ def test_armed_a_tree_that_cannot_be_observed_is_refused(
     refused = _preview(lane, patch, paths)
 
     assert reporting["verdict"] == "pass"
-    assert reporting["reported_gaps"] == ["openspec_tree_projection_missing:OSError"]
+    assert reporting["reported_gaps"] == [gap]
     assert refused["verdict"] == "unknown"
-    assert refused["required_gaps"] == ["openspec_tree_projection_missing:OSError"]
+    assert refused["required_gaps"] == [gap]
     assert "observed_tree" not in refused["openspec"]
 
 

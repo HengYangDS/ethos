@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import subprocess
 import sys
 from functools import partial
@@ -55,9 +56,11 @@ def execute_hook(root: Path, name: str, args: tuple[str, ...], *, stdin: IO[str]
     ]
     if reported:
         note = {"hook": name, "verdict": "pass", "reported_gaps": reported}
-        # The verdict is decided: a note that cannot be written refuses nothing.
-        with contextlib.suppress(OSError, ValueError):
-            sys.stderr.write(json.dumps(note, sort_keys=True) + "\n")
+        # The verdict is decided: a note that cannot be written refuses nothing. It goes to
+        # standard error's descriptor unbuffered, so that no failed write is tried again when
+        # the process ends and turns its status; a process without that stream writes none.
+        with contextlib.suppress(OSError, ValueError, AttributeError):
+            os.write(sys.stderr.fileno(), f"{json.dumps(note, sort_keys=True)}\n".encode())
     return 0
 
 

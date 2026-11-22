@@ -20,5 +20,6 @@ The [Docs Registry](docs-registry.md#semantic-authority-and-carrier-boundaries) 
 
 - [Product Design Contract](product-design-contract.md): product meaning, the kernel and invariants.
 - [Docs Registry](docs-registry.md): the documentation contract.
+- [Writing Standard](writing-standard.md): the one definition of fidelity, clarity and elegance.
 - [Provenance And Attestation](provenance-and-attestation.md): what evidence an Attestation carries.
 - [Learning And Change Relations](evolution-campaign.md): how learning survives session loss.

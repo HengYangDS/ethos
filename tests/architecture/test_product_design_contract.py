@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 import subprocess
@@ -38,6 +39,15 @@ AGENT_ENTRY_LINKS = (
     ".agents/skills/activation.toml",
     "openspec/",
     "docs/README.md",
+)
+
+# The writing standard is the owner's one definition, copied word for word from his shared rules
+# (`rules/AGENTS.md` at 56db9f0, read 2026-11-22). The copy may be wrapped anew and never
+# reworded: this is the SHA-256 of its words with every whitespace run as one space.
+WRITING_STANDARD = (
+    "_Fidelity, clarity, elegance (信、达、雅)_:",
+    "and never change the meaning to make a sentence read better.",
+    "6d8d691eb73d41ef3bfef2fbf679e0885fea1604a8674be95984b74ca5a16253",
 )
 
 
@@ -321,3 +331,15 @@ def test_every_tracked_skill_is_internal_to_skills_sh_discovery() -> None:
     for relative in tracked:
         metadata = front_matter(ROOT / relative).get("metadata") or {}
         assert metadata.get("internal") == "true", relative
+
+
+def test_the_writing_standard_is_the_one_definition_word_for_word() -> None:
+    """A change of one word in the copied definition fails; a new line wrap does not."""
+    first, last, digest = WRITING_STANDARD
+    standard = (ROOT / "docs/governance/writing-standard.md").read_text(encoding="utf-8")
+    words = " ".join(standard.split())
+    assert words.count(first) == 1
+    block = words[words.index(first) : words.index(last) + len(last)]
+    assert hashlib.sha256(block.encode()).hexdigest() == digest
+    contract = (ROOT / "docs/governance/product-design-contract.md").read_text(encoding="utf-8")
+    assert "(writing-standard.md)" in contract

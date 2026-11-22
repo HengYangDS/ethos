@@ -508,9 +508,9 @@ independent verifier and preserves that plane explicitly; when not required,
 its absence cannot invalidate a complete claim on another declared plane.
 
 Public prose, examples, diagrams, architecture projections, and brand assets are views of the same
-source meaning and answer to `信、达、雅`: faithful, legible, accessible, navigable, and elegant.
-Elegance (雅) includes aesthetic judgment, taste, and artistic and cultural refinement, assessed in the
-rendered whole; restraint and alignment support it but do not define it, and visual appeal never permits a second ontology or an unverified completion claim.
+source meaning and answer to one standard of writing, fidelity, clarity and elegance (`信、达、雅`),
+which the [Writing Standard](writing-standard.md) defines. Visual appeal never permits a second
+ontology or an unverified completion claim.
 
 ## Feedback Intent Preservation
 

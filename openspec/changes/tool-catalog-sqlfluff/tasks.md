@@ -30,5 +30,8 @@
       `684d73f2b`, each complete with its triage: 6, 4, 2, 2, 1, 3 and 2 comments. Eighteen were
       answered by a repair and two are accepted as stated residue; none concerns product code after
       the first review.)
-- [ ] 2.2 Pass the precheck and readiness at the lane head. Done when each passes on the
-      committed head.
+- [x] 2.2 Pass the precheck and readiness at the lane head. Done when each passes on the committed
+      head. Full pre-check and readiness ran as ticket r4c4 at acf0b50ef (queued 11:34:13, admitted
+      11:54:09, released 12:14:26): precheck passed, 0 findings, stamp for tree
+      018f0d614ee7db2af1343c7d9acbbdd6c67ddcd3; readiness exit=0, 28 gates passing, 6 not run, 0
+      failing.

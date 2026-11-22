@@ -10,7 +10,6 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.repair import REPAIR_PREVIEW
 from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.paradigm.report import repository_paradigm_report
-from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from tests.support.paradigm import CONFORMING
 from tests.support.paradigm import conforming_checkout
 from tests.support.paradigm import paradigm_report
@@ -147,6 +146,11 @@ _CARRIER_GAPS = {
         "repository_paradigm_configuration_carrier:.config/checks/ci-projection/templates.toml",
         "or .config/checks/ci-projection/policy.toml",
     ),
+    "configuration-under-another-name": (
+        {".config/checks/sqlfluff/config.ini": "[sqlfluff]\ndialect = ansi\n"},
+        "repository_paradigm_configuration_carrier:.config/checks/sqlfluff/config.ini",
+        "or .config/checks/sqlfluff/policy.toml",
+    ),
     "configuration-beside-an-ini-carrier": (
         {
             ".config/checks/sqlfluff/.sqlfluff": "[sqlfluff]\ndialect = ansi\n",
@@ -227,14 +231,6 @@ def test_the_sqlfluff_row_names_no_manifest_table_and_no_root_file(tmp_path: Pat
     assert root["required_gaps"] == ["repository_paradigm_root_catalog:.sqlfluff"]
     repair = "remove .sqlfluff from the root or move it under a product directory"
     assert root["next_action"] == repair
-
-
-def test_a_gate_that_declares_sqlfluff_reads_the_one_carrier() -> None:
-    """A gate that declares the tool reads the carrier; a second file of its name is refused."""
-    carrier = ".config/checks/sqlfluff/.sqlfluff"
-    assert native_tool_configuration((carrier, "sql/query.sql"), "sqlfluff") == carrier
-    with pytest.raises(ValueError, match=r"^native_tool_configuration_ambiguous:sqlfluff$"):
-        native_tool_configuration((carrier, "sql/.sqlfluff"), "sqlfluff")
 
 
 _TYPESCRIPT = ".config/checks/typescript/tsconfig.json"

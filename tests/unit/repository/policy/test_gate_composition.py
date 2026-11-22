@@ -199,6 +199,7 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
         ((), ".config/checks/lychee/lychee.toml"),
         (("lychee",), ".config/checks/lychee/lychee.toml"),
         (("vale",), ".config/checks/vale/styles/plain/concise.yml"),
+        (("sqlfluff",), ".config/checks/sqlfluff/.sqlfluff"),
     ],
 )
 def test_declared_tools_bind_their_native_policy_carriers(
@@ -221,6 +222,27 @@ def test_declared_tools_bind_their_native_policy_carriers(
     )
     assert (f"gate_policy_source_missing:markdown-links:{carrier}" in gaps) is bool(tools)
     assert carrier not in dict(dict(bound)[gate.id])
+
+
+def test_a_second_file_of_an_ini_carriers_name_is_a_policy_gap() -> None:
+    """A gate that declares sqlfluff reads the one carrier; a second file of its name is a gap."""
+    carrier = ".config/checks/sqlfluff/.sqlfluff"
+    gate = Gate(
+        id="markdown-links",
+        kind="lint",
+        profile="repository",
+        providers=("ethos.adapters.gates.tool:markdown_links_report",),
+        tools=("sqlfluff",),
+    )
+    paths = (carrier, "sql/.sqlfluff")
+    sources = source_paths_for_gate(gate, repository_paths=paths)
+    assert set(paths) & set(sources) == {carrier}
+    _bound, gaps = bind_gate_source_digests(
+        (gate,), dict.fromkeys(sources, b""), repository_paths=paths
+    )
+    assert gaps == (
+        "gate_policy_source_invalid:markdown-links:native_tool_configuration_ambiguous:sqlfluff",
+    )
 
 
 @pytest.mark.parametrize(

@@ -96,16 +96,16 @@ def test_heavy_runs_are_admitted_in_arrival_order(host_root: Path, tmp_path: Pat
     queue = _queue(host_root)
     first, second, third = (queue.enter(tmp_path, name) for name in ("one", "two", "three"))
 
-    assert [queue.admitted(ticket) for ticket, _lock in (first, second, third)] == [
+    assert [queue.admitted(ticket) for ticket in (first, second, third)] == [
         True,
         False,
         False,
     ]
-    queue.leave(*first)
-    assert [queue.admitted(ticket) for ticket, _lock in (second, third)] == [True, False]
-    queue.leave(*second)
-    assert queue.admitted(third[0])
-    queue.leave(*third)
+    queue.leave(first)
+    assert [queue.admitted(ticket) for ticket in (second, third)] == [True, False]
+    queue.leave(second)
+    assert queue.admitted(third)
+    queue.leave(third)
     assert not any(queue.directory.iterdir())
 
 
@@ -114,7 +114,7 @@ def test_two_declared_slots_admit_two_runs(host_root: Path, tmp_path: Path) -> N
     queue = _queue(host_root, slots=2)
     tickets = [queue.enter(tmp_path, str(index)) for index in range(3)]
 
-    assert [queue.admitted(ticket) for ticket, _lock in tickets] == [True, True, False]
+    assert [queue.admitted(ticket) for ticket in tickets] == [True, True, False]
 
 
 def test_a_dead_holder_frees_its_place_without_cleanup(host_root: Path, tmp_path: Path) -> None:
@@ -136,8 +136,8 @@ def test_a_dead_holder_frees_its_place_without_cleanup(host_root: Path, tmp_path
     assert len(list(queue.directory.glob("*.json"))) == 1
     waiter = queue.enter(tmp_path, "next")
 
-    assert queue.admitted(waiter[0])
-    assert [path.stem for path in queue.directory.glob("*.json")] == [waiter[0].name]
+    assert queue.admitted(waiter)
+    assert [path.stem for path in queue.directory.glob("*.json")] == [waiter.name]
 
 
 def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> None:
@@ -161,14 +161,14 @@ def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> Non
     ):
         pytest.fail("a contended run was admitted")
 
-    recorded = json.loads((queue.directory / f"{holder[0].name}.json").read_text(encoding="utf-8"))
+    recorded = json.loads((queue.directory / f"{holder.name}.json").read_text(encoding="utf-8"))
     assert str(refused.value) == (
-        f"host_admission_contended:host.run:{held_pid(holder[0].name)}:{recorded['since']}"
+        f"host_admission_contended:host.run:{held_pid(holder.name)}:{recorded['since']}"
     )
     assert recorded["executable"] == "renderer"
     assert str(tmp_path / "busy-repository") not in str(refused.value)
     assert sum(clock.sleeps) == 12
-    assert [path.stem for path in queue.directory.glob("*.json")] == [holder[0].name]
+    assert [path.stem for path in queue.directory.glob("*.json")] == [holder.name]
 
 
 # How a contended wait ends: the exit it raises, that exit's message and its cause.
@@ -224,8 +224,8 @@ def test_a_wait_that_ends_unadmitted_gives_up_its_place(
     assert ended.type is raised
     assert isinstance(ended.value.__cause__, cause)
     assert [entry["executable"] for entry in queue.entries(reader=tmp_path)] == ["renderer"]
-    assert {path.stem for path in queue.directory.iterdir()} == {holder[0].name}
-    queue.leave(*holder)
+    assert {path.stem for path in queue.directory.iterdir()} == {holder.name}
+    queue.leave(holder)
     with host_admission.admitted_host_work(
         tmp_path, "later", operation="host.run", seconds=0
     ) as later:
@@ -266,8 +266,8 @@ def test_a_place_that_cannot_be_given_up_never_replaces_the_exit_in_flight(
     kept = [] if ending == "admitted" else ["host_admission_unavailable: PermissionError"]
     assert getattr(ended.value, "__notes__", []) == kept
     # The mock kept the run's own ticket; the real release then empties the queue.
-    for holder in (*busy, *(call.args for call in refused.call_args_list)):
-        queue.leave(*holder)
+    for holder in (*busy, *(call.args[0] for call in refused.call_args_list)):
+        queue.leave(holder)
     assert refused.call_count == 1
     assert not any(queue.directory.iterdir())
 
@@ -295,7 +295,7 @@ def test_a_ticket_whose_record_cannot_be_removed_still_frees_its_place(
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(os, "unlink", kept)
         with pytest.raises(PermissionError):
-            queue.leave(*ticket)
+            queue.leave(ticket)
 
     # The next reader finds a free lock and removes what the holder left.
     assert queue.live() == []
@@ -331,7 +331,7 @@ def test_every_wait_ends_at_the_declared_ceiling(
         pytest.fail("a contended run was admitted")
 
     assert (ceiling, clock.now) == (36_000, 36_000.0)
-    queue.leave(*holder)
+    queue.leave(holder)
 
 
 def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(
@@ -340,9 +340,9 @@ def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(
     """A new record adds the operation and the owner; readers that predate them still read it."""
     queue = _queue(host_root)
 
-    ticket, lock = queue.enter(tmp_path, "ethos", operation="proof.run", owner="agent:test:proof")
-    queue.leave(ticket, lock)
-    older, older_lock = queue.enter(tmp_path, "renderer")
+    ticket = queue.enter(tmp_path, "ethos", operation="proof.run", owner="agent:test:proof")
+    queue.leave(ticket)
+    older = queue.enter(tmp_path, "renderer")
 
     record = queue.directory / f"{older.name}.json"
     recorded = json.loads(record.read_text(encoding="utf-8"))
@@ -355,7 +355,7 @@ def test_a_record_names_its_operation_and_owner_and_keeps_the_three_old_fields(
     assert projected is not None
     assert (projected["operation"], projected["owner"]) == ("", "")
     assert projected["executable"] == "renderer"
-    queue.leave(older, older_lock)
+    queue.leave(older)
 
 
 def test_the_entries_read_lists_holders_and_waiters_without_removing(
@@ -393,17 +393,18 @@ def test_the_entries_read_lists_holders_and_waiters_without_removing(
         "pid",
         "since",
         "same_repository",
+        "holder",
     }
     assert (entries[0]["operation"], entries[0]["owner"]) == ("host.run", "agent:test:h")
-    assert entries[0]["pid"] == held_pid(holder[0].name)
+    assert entries[0]["pid"] == held_pid(holder.name)
     assert entries[0]["same_repository"] is True
     foreign = queue.entries(reader=init_git_repo(tmp_path / "elsewhere"))
     assert (foreign[0]["owner"], foreign[0]["same_repository"]) == ("", False)
     assert foreign[0]["operation"] == "host.run"
     assert str(tmp_path) not in json.dumps(entries) + json.dumps(foreign)
     assert len(list(queue.directory.glob("*.json"))) == 3
-    queue.leave(*holder)
-    queue.leave(*waiter)
+    queue.leave(holder)
+    queue.leave(waiter)
 
 
 def test_an_unwritable_queue_directory_answers_unavailable(
@@ -511,14 +512,15 @@ def test_a_waiting_run_reports_one_event_with_the_holder_projection(
         "operation": "host.run",
         "executable": "renderer",
         "owner": "agent:test:h",
-        "pid": held_pid(holder[0].name),
-        "since": json.loads(
-            (queue.directory / f"{holder[0].name}.json").read_text(encoding="utf-8")
-        )["since"],
+        "pid": held_pid(holder.name),
+        "since": json.loads((queue.directory / f"{holder.name}.json").read_text(encoding="utf-8"))[
+            "since"
+        ],
         "same_repository": True,
+        "holder": "present",
     }
     assert str(busy) not in json.dumps(waiting[0])
-    queue.leave(*holder)
+    queue.leave(holder)
 
 
 def test_the_host_declaration_owns_the_load_limit(host_root: Path) -> None:

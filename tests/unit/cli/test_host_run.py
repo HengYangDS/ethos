@@ -92,7 +92,7 @@ def test_a_run_keeps_its_place_behind_a_live_holder_up_to_its_own_total(
     """Only the caller's own total ends a wait behind a holder whose lock shows that it lives."""
     queue = host_admission.host_queue()[0]
     held = queue.enter(tmp_path, "renderer", operation="host.run")
-    clock = ReleasingClock(6400, lambda: queue.leave(*held))
+    clock = ReleasingClock(6400, lambda: queue.leave(held))
     timed = partial(host_admission.admitted_host_work, clock=lambda: clock.now, sleep=clock.sleep)
     monkeypatch.setattr(host_admission, "admitted_host_work", timed)
     monkeypatch.setattr(host_admission, "_POLL_SECONDS", 400.0)
@@ -104,7 +104,7 @@ def test_a_run_keeps_its_place_behind_a_live_holder_up_to_its_own_total(
     if returncode:
         (gap,) = json.loads(completed.stdout)["required_gaps"]
         assert gap.startswith("host_admission_contended:host.run:")
-        queue.leave(*held)
+        queue.leave(held)
 
 
 def test_a_missing_command_is_refused(tmp_path: Path) -> None:

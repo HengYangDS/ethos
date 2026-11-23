@@ -330,7 +330,7 @@ def test_a_host_proof_keeps_its_place_behind_a_live_holder(
     _passing_graph(monkeypatch, _policy_with_a_test_gate(repo, git(repo, "rev-parse", "HEAD")))
     queue = host_admission.host_queue()[0]
     held = queue.enter(init_git_repo(tmp_path / "busy"), "renderer", operation="host.run")
-    clock = ReleasingClock(6400, lambda: queue.leave(*held))
+    clock = ReleasingClock(6400, lambda: queue.leave(held))
     timed = partial(gate_execution.admitted_host_work, clock=lambda: clock.now, sleep=clock.sleep)
     monkeypatch.setattr(host_admission, "_POLL_SECONDS", 400.0)
     monkeypatch.setattr(gate_execution, "admitted_host_work", timed)
@@ -350,7 +350,7 @@ def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(
     policy = _policy_with_a_test_gate(repo, head)
     busy = init_git_repo(tmp_path / "busy")
     queue = host_admission.host_queue()[0]
-    holder, lock = queue.enter(busy, "renderer", operation="host.run", owner="agent:test:h")
+    holder = queue.enter(busy, "renderer", operation="host.run", owner="agent:test:h")
     seen = _passing_graph(monkeypatch, policy, _identities)
     monkeypatch.setattr(gate_execution, "admitted_host_work", _bounded(gate_execution, 0.0))
 
@@ -369,7 +369,7 @@ def test_a_contended_host_proof_blocks_with_no_path_of_the_holder(
     assert tuple(check["action_id"] for check in payload["data"]["checks"]) == seen[0]
     assert (payload["data"]["executed"], payload["data"]["not_run"]) == (True, ["check"])
     assert payload["summary"]["gate_count"] == len(seen[0])
-    queue.leave(holder, lock)
+    queue.leave(holder)
 
 
 @pytest.mark.parametrize(

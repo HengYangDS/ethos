@@ -322,7 +322,7 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
         def sleep(self, seconds: float) -> None:
             super().sleep(seconds)
             if len(self.sleeps) == 1:
-                queue.leave(*render)
+                queue.leave(render)
 
     host = _RenderEnds([20.0, 4.0])
     with host.admit(repo) as admission:
@@ -351,7 +351,7 @@ def test_a_full_proof_keeps_its_place_behind_a_live_holder(tmp_path: Path) -> No
         def sleep(self, seconds: float) -> None:
             super().sleep(seconds)
             if self.now >= 6400 and renders:
-                queue.leave(*renders.pop())
+                queue.leave(renders.pop())
 
     host = _RenderEnds([20.0, 4.0])
     with host.admit(repo, seconds=3600.0) as admission:
@@ -381,7 +381,7 @@ def test_the_slot_wait_and_the_load_wait_share_one_bound(
     running.acquire()
     queue = host_admission.host_queue()[0]
     render = queue.enter(tmp_path / "work", "renderer", operation="host.run")
-    releases = [(slot_free, running.release), (render_gone, lambda: queue.leave(*render))]
+    releases = [(slot_free, running.release), (render_gone, lambda: queue.leave(render))]
 
     class _HoldersEnd(_Host):
         def sleep(self, seconds: float) -> None:
@@ -426,7 +426,7 @@ def test_a_full_proofs_whole_wait_ends_at_the_declared_ceiling(
         pytest.fail("no gate may run behind a holder that never leaves")
 
     assert (ceiling, host.now) == (36_000, 36_000.0)
-    queue.leave(*render)
+    queue.leave(render)
 
 
 _NOT_LEFT = "host_admission_unavailable: PermissionError"
@@ -478,7 +478,7 @@ def test_a_host_place_that_cannot_be_given_up_still_frees_the_repositorys_slot(
     assert not holder_path.exists()
     # The mock kept the proof's own ticket; the real release then empties the queue.
     for call in refused.call_args_list:
-        queue.leave(*call.args)
+        queue.leave(call.args[0])
     assert refused.call_count == 1
     assert not queue.live()
 
@@ -529,7 +529,7 @@ def test_a_host_queue_that_cannot_be_read_is_the_named_gap_at_every_read(
     lock_path, holder_path = _slot(repo)
     assert FileLock(lock_path).acquire(timeout=0)
     assert not holder_path.exists()
-    queue.leave(*render)
+    queue.leave(render)
 
 
 def _kept(suffix: str) -> Callable[..., None]:

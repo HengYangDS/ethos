@@ -2,18 +2,22 @@
 
 A host that CI virtual machines, renders and several repositories' proofs share serves its heavy
 work best a few runs at a time. Each waiter writes a ticket, named by its arrival time, pid and
-nonce, under ETHOS's host root, and holds an OS lock on it for its lifetime. It is admitted once
-fewer than the declared slots of live tickets precede its own. Testing another ticket's lock tells
-a live holder from a dead one, so a holder that dies frees its place without any cleanup by age;
-the record is written only after its lock is held, so no reader mistakes a new ticket for a dead
-one. A ticket records the repository, the executable's name and the start time, never the
-command's arguments, which can carry secrets, and this engine's records also name the operation
-and the owner mark that the holder declared; the three older fields stay so engines of earlier
-releases share the directory. Results print no path: a holder is projected as its operation, its
-executable, its owner mark, its pid and its start time, with only whether it belongs to the
-reading repository. An admitted child receives the ticket's nonce and pid, so work that it starts
-joins its admission instead of waiting for itself; a copied token whose holder has exited admits
-nothing.
+nonce, under ETHOS's host root, and holds an OS lock on it. It is admitted once fewer than the
+declared slots of live tickets precede its own. A place lasts exactly while its lock is held:
+testing another ticket's lock tells a live place from a dead one, so a place frees without any
+cleanup by age. The admitted command inherits the lock where the platform lets a child inherit a
+descriptor, so a holder that is killed leaves its place to the work it admitted, and a holder
+that leaves releases the lock for every inheritor. The record is written only after its lock is
+held, so no reader mistakes a new ticket for a dead one.
+
+A ticket records the repository, the executable's name and the start time, never the command's
+arguments, which can carry secrets, and this engine's records also name the operation and the
+owner mark that the holder declared; the three older fields stay so engines of earlier releases
+share the directory. Results print no path: a holder is projected as its operation, its
+executable, its owner mark, its pid, its process state and its start time, with only whether it
+belongs to the reading repository. An admitted child receives the ticket's nonce and pid, so work
+that it starts joins its admission instead of waiting for itself; a copied token admits nothing
+once its ticket's lock is free.
 """
 
 from __future__ import annotations
@@ -36,8 +40,8 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from filelock import FileLock
-from filelock import Timeout
+from filelock import lock_descriptor
+from filelock import unlock_descriptor
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
@@ -106,15 +110,73 @@ def read_host_declaration(root: Path, *, cpus: int) -> HostDeclaration:
 
 @dataclass(frozen=True)
 class Ticket:
-    """One place in the queue: its name orders it, and its lock proves that its holder lives."""
+    """One place in the queue: its name orders it, and its held lock proves that it is live.
+
+    `descriptor` is the holder's own descriptor of the ticket's lock file, or -1 for a ticket that
+    this process only reads. The lock belongs to the open file, not to the process: it lasts
+    while any process that inherited the descriptor keeps it open, and an explicit release
+    through one descriptor frees it for all.
+    """
 
     name: str
+    descriptor: int = -1
 
     @property
     def token(self) -> str:
         """The nonce and pid that an admitted child receives to join this admission."""
         _arrival, pid, nonce = self.name.split("-")
         return f"{nonce}:{pid}"
+
+
+def _opened(path: Path, *, create: bool) -> int:
+    """Open one ticket's lock file, non-inheritable until an admitted child is given it."""
+    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    return os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
+
+
+def _record(
+    path: Path,
+    descriptor: int,
+    *,
+    repository: Path,
+    executable: str,
+    operation: str,
+    owner: str,
+) -> None:
+    """Hold the lock, then write the ticket's record beside it, atomically.
+
+    A reader's probe holds a new lock for an instant. An entry that meets it is an OS error, so
+    every caller answers the gap of a queue that cannot be written.
+    """
+    if not lock_descriptor(descriptor, blocking=False):
+        raise BlockingIOError
+    record = {
+        "repository": str(repository),
+        "executable": executable,
+        "since": datetime.now(UTC).isoformat(timespec="seconds"),
+        "operation": operation,
+        "owner": owner,
+    }
+    partial = path.with_name(f".{path.stem}.partial")
+    partial.write_text(json.dumps(record), encoding="utf-8")
+    partial.replace(path)
+
+
+def _free(path: Path) -> bool:
+    """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
+
+    The probe is its own open file, so the lock it takes for an instant goes when it closes and
+    never touches a holder's. A lock file that is gone is free. A probe in the holding process
+    reads its own lock as held, as any other process does.
+    """
+    try:
+        probe = _opened(path, create=False)
+    except FileNotFoundError:
+        return True
+    try:
+        return lock_descriptor(probe, blocking=False)
+    finally:
+        os.close(probe)
 
 
 class HostQueue:
@@ -126,41 +188,38 @@ class HostQueue:
 
     def enter(
         self, repository: Path, executable: str, *, operation: str = "", owner: str = ""
-    ) -> tuple[Ticket, FileLock]:
+    ) -> Ticket:
         """Take a place behind every earlier arrival, holding its lock before recording it."""
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
-        lock = FileLock(self.directory / f"{ticket.name}.lock", mode=0o600)
-        lock.acquire(blocking=False)
-        record = {
-            "repository": str(repository),
-            "executable": executable,
-            "since": datetime.now(UTC).isoformat(timespec="seconds"),
-            "operation": operation,
-            "owner": owner,
-        }
-        partial = self.directory / f".{ticket.name}.partial"
-        partial.write_text(json.dumps(record), encoding="utf-8")
-        partial.replace(self.directory / f"{ticket.name}.json")
-        return ticket, lock
+        descriptor = _opened(self.directory / f"{ticket.name}.lock", create=True)
+        try:
+            _record(
+                self.directory / f"{ticket.name}.json",
+                descriptor,
+                repository=repository,
+                executable=executable,
+                operation=operation,
+                owner=owner,
+            )
+        except BaseException:
+            os.close(descriptor)
+            raise
+        return Ticket(ticket.name, descriptor)
 
     def live(self) -> list[Ticket]:
-        """The tickets whose holders still hold their locks, in arrival order.
+        """The tickets whose locks are held, in arrival order.
 
         A held lock counts even before its record exists, so two arrivals that enter at once are
-        still ordered by their names. A free lock belongs to a holder that exited: its record and
+        still ordered by their names. A free lock belongs to no live process: its record and
         lock file go, the record first, so no reader takes the free lock for a live ticket.
         """
         tickets = []
         for path in sorted(self.directory.glob("*.lock")):
-            probe = FileLock(path, mode=0o600)
-            try:
-                probe.acquire(blocking=False)
-            except Timeout:
+            if not _free(path):
                 tickets.append(Ticket(path.stem))
                 continue
             (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
-            probe.release()
             path.unlink(missing_ok=True)
         return tickets
 
@@ -169,7 +228,7 @@ class HostQueue:
         return sum(other.name < ticket.name for other in self.live()) < self.slots
 
     def holds(self, token: str) -> bool:
-        """Whether a token names a live ticket of the process that it names."""
+        """Whether a token names a ticket whose lock is held, by its holder or by its work."""
         return any(ticket.token == token for ticket in self.live())
 
     def ahead(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:
@@ -186,7 +245,8 @@ class HostQueue:
 
         The owner mark is the identity the holder declared, which only the holder's own
         repository sees: another repository learns that the holder belongs elsewhere, and
-        nothing more.
+        nothing more. The holder's process is read from its pid where the platform can tell one
+        from a reused number, so a place kept by work that outlived its holder shows `gone`.
         """
         with suppress(OSError, ValueError):
             held = json.loads((self.directory / f"{ticket.name}.json").read_text("utf-8"))
@@ -202,6 +262,7 @@ class HostQueue:
                 "pid": int(ticket.name.split("-")[1]),
                 "since": held["since"],
                 "same_repository": same,
+                "holder": holder_state(int(ticket.name.split("-")[1])),
             }
         return None
 
@@ -217,32 +278,70 @@ class HostQueue:
 
         A read must not race an entrant, so unlike `live` this leaves a dead holder's record and
         lock file for the next waiter, and a ticket whose record is not written yet is skipped.
+        A ticket whose lock is held but whose holder is gone is listed as holding: its work,
+        not its holder, keeps the place.
         """
         listed: list[dict[str, object]] = []
         for path in sorted(self.directory.glob("*.lock")):
-            probe = FileLock(path, mode=0o600)
-            try:
-                probe.acquire(blocking=False)
-            except Timeout:
-                pass
-            else:
-                probe.release()
+            if _free(path):
                 continue
             if (projected := self.project(Ticket(path.stem), reader=reader)) is not None:
                 state = "holding" if len(listed) < self.slots else "waiting"
                 listed.append({"state": state, **projected})
         return listed
 
-    def leave(self, ticket: Ticket, lock: FileLock) -> None:
-        """Give up a place: the record goes first, then the lock and its file.
+    def leave(self, ticket: Ticket) -> None:
+        """Give up a place: the record goes first, then the lock for every inheritor, and its file.
 
-        The lock goes also when the record cannot be removed: a held lock is a live ticket.
+        The release is explicit, so the place is free at once although a process that the
+        admitted command started may still have the lock's descriptor open. The lock goes also
+        when the record cannot be removed: a held lock is a live ticket. A ticket that this
+        process only read has no descriptor to release, and its file goes only when it is free.
         """
+        path = self.directory / f"{ticket.name}.lock"
         try:
             (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
         finally:
-            lock.release()
-        (self.directory / f"{ticket.name}.lock").unlink(missing_ok=True)
+            if ticket.descriptor != -1:
+                try:
+                    unlock_descriptor(ticket.descriptor)
+                finally:
+                    os.close(ticket.descriptor)
+        if ticket.descriptor != -1 or _free(path):
+            path.unlink(missing_ok=True)
+
+
+def holder_state(pid: int) -> str:
+    """Whether the process that entered a ticket still exists: `present`, `gone`, or empty.
+
+    A held lock says that the work lives, not that the process which entered it does; a place
+    kept by work that outlived its holder is listed with its holder gone. A process number can
+    be reused, so `present` is the best a liveness probe gives, never a proof of identity. Empty
+    is the answer where the platform cannot ask, or where the process belongs to another user.
+    """
+    # Signal 0 only asks on POSIX. On Windows `os.kill` ends the process for every such number.
+    if os.name != "posix":
+        return ""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return "gone"
+    except OSError:
+        return ""
+    return "present"
+
+
+def inherited_descriptors(descriptor: int) -> tuple[int, ...]:
+    """The ticket's descriptor for the admitted child to inherit, on the platforms that can.
+
+    `subprocess` refuses `pass_fds` on Windows, where a child would need its own handle
+    duplication through `msvcrt.get_osfhandle` and the ticket's `LockFileEx` byte range; that
+    form is not built, so there an admitted child keeps the place only by its holder's lock,
+    as every earlier release did.
+    """
+    if os.name != "posix" or descriptor < 0:
+        return ()
+    return (descriptor,)
 
 
 def same_repository(holder: str, reader: Path) -> bool:
@@ -300,7 +399,7 @@ class HostPlace:
         self.executable = executable
         self.operation = operation
         self.owner = owner
-        self.ticket: tuple[Ticket, FileLock] | None = None
+        self.ticket: Ticket | None = None
 
     @_named
     def admitted(self) -> bool:
@@ -311,19 +410,26 @@ class HostPlace:
             self.ticket = self.queue.enter(
                 self.repository, self.executable, operation=self.operation, owner=self.owner
             )
-        return self.queue.admitted(self.ticket[0])
+        return self.queue.admitted(self.ticket)
 
     @_named
     def holder(self) -> dict[str, object] | None:
         """The projection of the earliest live run ahead of this one."""
-        ticket = self.ticket[0] if self.ticket else None
-        return self.queue.ahead(ticket, reader=self.repository) if ticket else None
+        return self.queue.ahead(self.ticket, reader=self.repository) if self.ticket else None
 
     @_named
     def contention(self) -> str:
         """The gap of a wait that reached its bound."""
-        ticket = self.ticket[0] if self.ticket else None
+        ticket = self.ticket
         return self.queue.contention(ticket, reader=self.repository) if ticket else CONTENDED
+
+    def descriptor(self) -> int:
+        """The ticket's lock descriptor for the admitted work to inherit, or -1 when joined.
+
+        A joined run took no place, so it has no lock to pass: its work lasts under the place
+        of the admission that it joined.
+        """
+        return self.ticket.descriptor if self.ticket is not None else -1
 
     def environment(self) -> dict[str, str]:
         """What an admitted child receives: the admission's token and the host's worker cap.
@@ -334,13 +440,13 @@ class HostPlace:
         cap = str(self.declaration.worker_cap(self.cpus))
         declared = os.environ.get(XDIST_WORKERS, "")
         workers = declared if declared.isdigit() and 0 < int(declared) < int(cap) else cap
-        token = self.joined or (self.ticket[0].token if self.ticket else "")
+        token = self.joined or (self.ticket.token if self.ticket else "")
         return {ADMISSION_ENV: token, CPU_CAP: cap, XDIST_WORKERS: workers}
 
     def leave(self) -> None:
-        """Give up the place, if this run took one."""
+        """Give up the place, if this run took one; inherited work may keep it after this ends."""
         if self.ticket is not None:
-            self.queue.leave(*self.ticket)
+            self.queue.leave(self.ticket)
             self.ticket = None
 
     def leave_on_exit(
@@ -371,10 +477,10 @@ class AdmissionBound:
     def remaining(self, seconds: float, *, held: bool) -> float:
         """The seconds left of a bound that does not run behind a live holder.
 
-        A ticket's lock shows that its holder lives, and a holder that dies frees its place, so a
-        waiter behind a live holder keeps its place however long that holder runs. The time from
-        an answer behind a holder to the next question is left out of the bound, and no other
-        time is: what the wait used before the holder stays used. Behind a holder only the
+        A ticket's held lock shows that its place is live, and a place whose lock is free is
+        gone, so a waiter behind a live place keeps its own however long that work runs. The
+        time from an answer behind a holder to the next question is left out of the bound, and
+        no other time is: what the wait used before the holder stays used. Behind a holder only the
         ceiling runs, which counts the whole wait, so every wait ends.
         """
         now = self.clock()
@@ -388,11 +494,12 @@ class AdmissionBound:
 
 @dataclass(frozen=True)
 class HostWork:
-    """One heavy run's admission: its child's environment, how long it waited, whether it joined."""
+    """One heavy run's admission: its child's environment, wait, join and lock descriptor."""
 
     environment: dict[str, str]
     waited_seconds: float
     joined: bool
+    descriptor: int = -1
 
 
 def report_event(event: dict[str, object]) -> None:
@@ -465,7 +572,7 @@ def admitted_host_work(
             message = UNAVAILABLE
             raise ValueError(message) from error
         waited = round(clock() - started, 1)
-        yield HostWork(place.environment(), waited, bool(place.joined))
+        yield HostWork(place.environment(), waited, bool(place.joined), place.descriptor())
 
 
 def run_admitted(
@@ -476,8 +583,17 @@ def run_admitted(
     owner: str,
     seconds: float | None,
 ) -> int:
-    """Run one command as the admitted child, inheriting this process's streams."""
+    """Run one command as the admitted child, inheriting this process's streams and place.
+
+    The child receives the ticket's lock descriptor, so the place stays held until the last
+    process of the work that inherited it ends, also when this process ends first.
+    """
     with admitted_host_work(
         repository, Path(command[0]).name, operation=operation, owner=owner, seconds=seconds
     ) as work:
-        return subprocess.run(command, env=os.environ | work.environment, check=False).returncode
+        return subprocess.run(
+            command,
+            env=os.environ | work.environment,
+            check=False,
+            pass_fds=inherited_descriptors(work.descriptor),
+        ).returncode

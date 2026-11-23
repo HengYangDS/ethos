@@ -88,6 +88,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- A heavy run keeps its place in the host queue after its holder is killed. The slot was a lock
+  that only the `ethos host run` process held, so a holder ended by `SIGKILL`, or by `SIGHUP`
+  when its terminal closed, freed the slot while the command it had admitted kept running, and
+  the next ticket was admitted beside it. The admitted command now inherits the lock: the place
+  lasts until the last process that inherited it ends, and `ethos host status` lists such a
+  ticket as `holding` with the new field `holder` reading `gone`. A holder that leaves releases
+  the lock for every inheritor, so a command that returns frees its place at once, as before. A
+  token joins its admission while the ticket's lock is held. A process that inherited the lock
+  from a killed holder and never ends keeps the place until it is ended; the read names its
+  ticket. This covers `ethos host run` on macOS and Linux. On Windows, and for the place that
+  a full proof takes for itself, the slot stays bound to the holder.
 - The `source-format`, `markdown-lint` and `config-quality` gates start each native tool a fixed
   number of times, however many files a repository holds. They listed the whole repository once
   or four times for each file, and in a repository with its own Prettier ignore file they

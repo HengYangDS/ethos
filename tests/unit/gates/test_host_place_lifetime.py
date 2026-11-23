@@ -219,38 +219,39 @@ def test_a_token_names_one_ticket_exactly(tmp_path: Path) -> None:
     """A token answers from the lock alone, and only its own ticket's: no pattern is a token.
 
     Each probe is derived from the token, so it differs from it whatever nonce was drawn. The
-    foreign ones are another ticket's: another process number, another nonce, a nonce in another
-    case, a process number of which the real one is a suffix, and one that is a suffix of it.
-    Two held lock files whose names are not a ticket's answer for no value either: the
-    comparison alone would take `:` for the first and `d:b-c` for the second.
+    foreign ones are another ticket's: another process number, another nonce, the nonce in upper
+    case where it has letters, a process number of which the real one is a suffix, and one that
+    is a suffix of it. Two held lock files whose names are not a ticket's answer for no value
+    either: the comparison alone would take `:` for the first and `d:b-c` for the second.
     """
     queue = _queue()
-    ticket = queue.enter(tmp_path, "renderer")
-    nonce, _, pid = ticket.token.partition(":")
-    other_nonce = ("1" if nonce[0] == "0" else "0") + nonce[1:]
-    strangers = [
-        host_admission.opened_descriptor(queue.directory / name, create=True)
-        for name in ("x--.lock", "a-b-c-d.lock")
-    ]
+    held: list[int] = []
     try:
-        assert all(host_admission.lock_descriptor(held, blocking=False) for held in strangers)
-
-        assert queue.holds(ticket.token)
-        for malformed in ("", ":", "d:b-c", "no-nonce:1", "*:*", "?:*", "*", ticket.token + "*"):
-            assert not queue.holds(malformed)
-        for foreign in (
+        ticket = queue.enter(tmp_path, "renderer")
+        held.append(ticket.descriptor)
+        for name in ("x--.lock", "a-b-c-d.lock"):
+            held.append(host_admission.opened_descriptor(queue.directory / name, create=True))
+            assert host_admission.lock_descriptor(held[-1], blocking=False)
+        nonce, _, pid = ticket.token.partition(":")
+        other_nonce = ("1" if nonce[0] == "0" else "0") + nonce[1:]
+        malformed = ("", ":", "d:b-c", "no-nonce:1", "*:*", "?:*", "*", "%-%-%")
+        foreign = {
             f"{nonce}:{int(pid) + 1}",
             f"{other_nonce}:{pid}",
             f"{nonce[:-1]}A:{pid}",
+            f"{nonce.upper()}:{pid}",
             f"{nonce}:1{pid}",
             f"{nonce}:{pid[1:]}",
-        ):
-            assert not queue.holds(foreign)
-        os.close(ticket.descriptor)
+        } - {ticket.token}
+
+        assert queue.holds(ticket.token)
+        for probe in (*malformed, ticket.token + "*", *sorted(foreign)):
+            assert not queue.holds(probe)
+        os.close(held.pop(0))
         assert not queue.holds(ticket.token)
     finally:
-        for held in strangers:
-            os.close(held)
+        for descriptor in held:
+            os.close(descriptor)
     assert queue.live() == []
     assert not any(queue.directory.iterdir())
 

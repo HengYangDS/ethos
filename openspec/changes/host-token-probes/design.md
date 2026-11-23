@@ -47,6 +47,11 @@ Non-Goals:
 
 - [The replaced first character could equal the original] -> The replacement is chosen as the
   digit that the original is not.
+- [A held lock file with a ticket's tail and another head, such as `x-1-<sixteen letters>.lock`]
+  -> `holds` answers for that tail, as in every release: the comparison reads the end of a name
+  and the listing checks no name. Placing such a file needs write access to the queue directory,
+  whose mode is 0700, and that user can enter a real ticket. Not changed here; reading whole
+  names is the listing's change.
 
 ## Proof Strategy
 

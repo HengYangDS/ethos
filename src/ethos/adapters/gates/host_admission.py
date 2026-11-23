@@ -128,13 +128,42 @@ class Ticket:
         return f"{nonce}:{pid}"
 
 
-def _opened(path: Path, *, create: bool) -> int:
+# The file of the lock that makes naming a ticket and removing a free one exclusive. It sits
+# beside the queue's directory, so the queue holds tickets only.
+REAP_SUFFIX = ".reap"
+
+
+@contextmanager
+def reaper(directory: Path) -> Generator[bool]:
+    """Hold the queue's reaper lock where the platform can, and say whether it is held.
+
+    Naming a ticket and removing a free one both happen under it, so no reader can remove the
+    file of a ticket that is being named, and no entrant names a file a reader is removing. A
+    probe of the lock takes nothing. Windows removes no open file, so there a reader cannot
+    remove a live ticket at all and the lock is never taken.
+    """
+    if os.name != "posix":
+        yield False
+        return
+    descriptor = opened_descriptor(directory.with_name(directory.name + REAP_SUFFIX), create=True)
+    try:
+        held = lock_descriptor(descriptor, blocking=False)
+        try:
+            yield held
+        finally:
+            if held:
+                unlock_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def opened_descriptor(path: Path, *, create: bool) -> int:
     """Open one ticket's lock file, non-inheritable until an admitted child is given it."""
     flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     return os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
 
 
-def _record(
+def record_ticket(
     path: Path,
     descriptor: int,
     *,
@@ -145,9 +174,8 @@ def _record(
 ) -> None:
     """Hold the lock, then write the ticket's record beside it, atomically.
 
-    A reader's probe holds a new lock for an instant, and removes the file when it finds the
-    lock free. An entry that meets the probe, or whose file went before its lock was taken, is an
-    OS error, so every caller answers the gap of a queue that cannot be written.
+    The caller holds the reaper, so a reader removes no file of a ticket being named. The link
+    check stays as the second guard: a file that has no name guards nothing.
     """
     if not lock_descriptor(descriptor, blocking=False) or not os.fstat(descriptor).st_nlink:
         raise BlockingIOError
@@ -173,7 +201,7 @@ def _free(path: Path) -> bool:
     probe in the holding process reads its own lock as held, as any other process does.
     """
     try:
-        probe = _opened(path, create=False)
+        probe = opened_descriptor(path, create=False)
     except FileNotFoundError:
         return True
     try:
@@ -195,19 +223,25 @@ class HostQueue:
         """Take a place behind every earlier arrival, holding its lock before recording it."""
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
-        descriptor = _opened(self.directory / f"{ticket.name}.lock", create=True)
         try:
-            _record(
-                self.directory / f"{ticket.name}.json",
-                descriptor,
-                repository=repository,
-                executable=executable,
-                operation=operation,
-                owner=owner,
-            )
-        except BaseException:
-            os.close(descriptor)
-            raise
+            with reaper(self.directory):
+                descriptor = opened_descriptor(self.directory / f"{ticket.name}.lock", create=True)
+                try:
+                    record_ticket(
+                        self.directory / f"{ticket.name}.json",
+                        descriptor,
+                        repository=repository,
+                        executable=executable,
+                        operation=operation,
+                        owner=owner,
+                    )
+                except BaseException:
+                    os.close(descriptor)
+                    raise
+        except (BlockingIOError, FileNotFoundError):
+            # A probe or a reader met the new file before its lock was held, which it cannot
+            # now; the next arrival takes its place instead of failing the queue.
+            return self.enter(repository, executable, operation=operation, owner=owner)
         return Ticket(ticket.name, descriptor)
 
     def live(self) -> list[Ticket]:
@@ -215,16 +249,23 @@ class HostQueue:
 
         A held lock counts even before its record exists, so two arrivals that enter at once are
         still ordered by their names. A free lock belongs to no live process: its record and
-        lock file go, the record first, so no reader takes the free lock for a live ticket.
+        lock file go under the reaper, the record first, so no reader takes the free lock for a
+        live ticket and no entrant finds its new file removed.
         """
         tickets = []
         for path in sorted(self.directory.glob("*.lock")):
             if not _free(path):
                 tickets.append(Ticket(path.stem))
                 continue
-            with suppress(PermissionError):
-                # Windows removes no open file: a file that another process still holds stays
-                # for the next reader instead of failing this one.
+            with reaper(self.directory) as held:
+                if not held:
+                    # Another entrant or reader is naming or removing a ticket now: this one
+                    # counts as live for this poll, which fails closed.
+                    tickets.append(Ticket(path.stem))
+                    continue
+                if not _free(path):
+                    tickets.append(Ticket(path.stem))
+                    continue
                 (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
                 path.unlink(missing_ok=True)
         return tickets

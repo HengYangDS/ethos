@@ -37,15 +37,16 @@ closed, and an explicit unlock through any of them releases it for all.
    holding process reads its own lock as held (measured the same day), so no reader needs to be
    told which ticket is asking. The probe answers and lets go at once, so no reader ever sees
    another reader's probe as a live holder.
-   3a. **Naming and removal are exclusive.** A lock on `<queue directory>.reap` lies beside the
-   queue's directory, so the queue holds tickets only. `enter` names, locks and records a ticket
-   under it; `live` removes a free ticket under it and, when it cannot hold it, counts the ticket
-   as live for that poll, which fails closed. Without that, a reader can remove the file of a
-   ticket that an entrant has created and not yet locked, and the entrant then holds a lock on no
-   file and is admitted beside another run. `record_ticket` checks that its locked file still has
-   a name, as the second guard. On Windows an open file cannot be removed, so the reaper is never
-   taken there. Only the process that entered a ticket leaves it: `leave` touches nothing of a
-   ticket that was only read.
+   3a. **A ticket's name is public only once its lock is held.** On POSIX `enter` creates the lock
+   file under a `.pending` suffix, locks it and writes the record, then renames it to `.lock`: the
+   rename is atomic and the lock belongs to the open file, so a reader that lists `*.lock` never
+   meets a ticket file whose lock is not yet held, and no reader can remove the file of a ticket
+   that is entering. A pending file whose lock is free is the residue of an interrupted entry, and
+   the next reader removes it. Windows cannot rename an open file, so there the file is named at
+   once and a reader may meet it unlocked; it cannot remove it either, because Windows removes no
+   open file. `record_ticket` checks that its locked file still has a name, as the second guard
+   against a reader of an earlier release, whose glob covers the pending name. Only the process that
+   entered a ticket leaves it: `leave` touches nothing of a ticket that was only read.
 4. **The read names a holder that is gone.** A projected ticket carries `holder`: `present`,
    `gone`, or empty where the platform cannot tell. The probe is signal 0 on POSIX. On Windows
    `os.kill(pid, 0)` ends the process it names, so nothing is probed there.

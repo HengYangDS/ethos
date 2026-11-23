@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import signal
 import subprocess
 import sys
@@ -199,55 +200,63 @@ def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
 
 
 @posix
-def test_a_reader_that_finds_the_reaper_held_counts_the_ticket_as_live(tmp_path: Path) -> None:
-    """A reader that cannot hold the reaper removes nothing; the next reader removes the file.
+def test_a_ticket_is_never_listed_before_its_lock_is_held(tmp_path: Path) -> None:
+    """A reader that runs the instant the entrant has created its file lists no ticket.
 
-    The same process's second descriptor of the reaper's file contends like another process's.
+    The file at a listed name exists only once its lock is held: until the rename it carries the
+    pending suffix, which no reader's glob covers.
     """
     queue = _queue()
-    dead = queue.enter(tmp_path, "renderer")
-    os.close(dead.descriptor)
+    opened = os.open
+    listed: list[list[str]] = []
 
-    with host_admission.reaper(queue.directory) as held:
-        assert held
-        listed = queue.live()
-        # A second descriptor of the same file contends only from another open file.
-        second = queue.live()
-
-    assert [ticket.name for ticket in listed] == [dead.name]
-    assert [ticket.name for ticket in second] == [dead.name]
-    assert sorted(path.suffix for path in queue.directory.iterdir()) == [".json", ".lock"]
-    assert queue.live() == []
-    assert not any(queue.directory.iterdir())
-    assert [path.name for path in queue.directory.parent.glob("*.reap")] == ["v1.reap"]
-
-
-@posix
-def test_a_reader_cannot_remove_a_ticket_that_is_being_named(tmp_path: Path) -> None:
-    """An entrant names and locks its file under the reaper, so a reader meets no bare file.
-
-    The reader that runs at the instant the entrant has created its file and not yet locked it
-    cannot hold the reaper, so it counts the ticket as live; without the reaper it would remove
-    the file and the entrant would have to start over.
-    """
-    queue = _queue()
-    opened = host_admission.opened_descriptor
-    reads: list[list[host_admission.Ticket]] = []
-
-    def hooked(path: object, *, create: bool) -> int:
-        descriptor = opened(path, create=create)
-        if create and str(path).endswith(".lock") and not reads:
-            reads.append(queue.live())
+    def hooked(path: object, flags: int, *arguments: object, **options: object) -> int:
+        descriptor = opened(path, flags, *arguments, **options)
+        if flags & os.O_CREAT and str(path).endswith(".lock.pending") and not listed:
+            listed.append(sorted(found.name for found in queue.directory.glob("*.lock")))
         return descriptor
 
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(host_admission, "opened_descriptor", hooked)
+        patch.setattr(os, "open", hooked)
         ticket = queue.enter(tmp_path, "renderer")
 
-    assert len(reads) == 1
-    assert [listed.name for listed in reads[0]] == [ticket.name]
-    assert sorted(path.suffix for path in queue.directory.iterdir()) == [".json", ".lock"]
+    assert listed == [[]]
+    assert queue.holds(ticket.token)
     queue.leave(ticket)
+    assert not any(queue.directory.iterdir())
+
+
+@posix
+def test_an_entrant_whose_pending_file_was_removed_keeps_no_place(tmp_path: Path) -> None:
+    """The second guard: a reader that removes the pending file leaves the entrant no place."""
+    queue = _queue()
+    opened = os.open
+
+    def hooked(path: object, flags: int, *arguments: object, **options: object) -> int:
+        descriptor = opened(path, flags, *arguments, **options)
+        if flags & os.O_CREAT and str(path).endswith(".lock.pending"):
+            pathlib.Path(str(path)).unlink()
+        return descriptor
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(os, "open", hooked)
+        with pytest.raises(OSError, match=r"^$|BlockingIOError|No such file"):
+            queue.enter(tmp_path, "renderer")
+
+    assert not any(queue.directory.iterdir())
+
+
+def test_a_token_names_a_held_lock_and_nothing_else(tmp_path: Path) -> None:
+    """A token answers from the lock alone: a free ticket that no reader reaped admits nothing."""
+    queue = _queue()
+    ticket = queue.enter(tmp_path, "renderer")
+
+    assert queue.holds(ticket.token)
+    os.close(ticket.descriptor)
+
+    assert not queue.holds(ticket.token)
+    assert not queue.holds("no-nonce:1")
+    assert not queue.holds("")
 
 
 def test_a_locked_file_that_lost_its_name_takes_no_place(tmp_path: Path) -> None:
@@ -271,16 +280,6 @@ def test_a_locked_file_that_lost_its_name_takes_no_place(tmp_path: Path) -> None
         os.close(descriptor)
 
     assert not any(queue.directory.iterdir())
-
-
-def test_the_reaper_is_not_taken_where_an_open_file_cannot_be_removed(tmp_path: Path) -> None:
-    """On Windows a reader cannot remove a live file, so the reaper is never created."""
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(os, "name", "nt")
-        with host_admission.reaper(tmp_path) as held:
-            assert held is False
-
-    assert [path.name for path in tmp_path.parent.glob("*.reap")] == []
 
 
 def test_a_place_that_could_not_be_given_up_is_not_given_up_twice(tmp_path: Path) -> None:

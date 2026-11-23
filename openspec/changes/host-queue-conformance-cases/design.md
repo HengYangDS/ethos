@@ -23,10 +23,10 @@ Non-Goals:
 ## Decisions
 
 1. **Whole modules, not picked functions.**
-   - **Rests on:** the four modules ran in 4.0, 2.5, 3.5 and 7.2 seconds on 2026-11-24 (macOS
-     arm64, one worker). The cases that hold on POSIX alone skip themselves by a marker that
-     reads the platform, so a Windows leg runs what applies to it.
-   - **Decision:** the list names the four files.
+   - **Rests on:** the modules ran in 4.0, 2.5 and 3.5 seconds on 2026-11-24 (macOS arm64, one
+     worker), and the proof's module in 7.2. The cases that hold on POSIX alone skip themselves
+     by a marker that reads the platform, so a Windows leg runs what applies to it.
+   - **Decision:** the list names whole files.
    - **Why not functions:** a picked list has to follow every new test of the queue, and a module
      named whole carries them.
 2. **The cases join host conformance.**
@@ -34,8 +34,20 @@ Non-Goals:
      places the Windows legs in the qualification, the schedule and the typed dispatch.
    - **Why not a session or a job of their own:** that is a new row of both pipelines for what
      the existing session already does.
-3. **These four modules.** Three drive the queue with real locks: its entry, a place's lifetime
-   and the admission. The fourth is the proof's own admission, which the same lane changed.
+3. **Three modules, and the fourth left out by name.** Three drive the queue with real locks:
+   its entry, a place's lifetime and the admission. The fourth, `test_proof_slot.py`, is the
+   proof's own admission.
+   - **Rests on:** the Windows legs of run 45247591995 at `da4227508`. On Windows x64 with
+     Python 3.13 and 3.14 and on Windows arm64 the session ended in the ten-minute limit of one
+     case of `test_proof_slot.py`: a `git` child that a fixture started (`init` on two hosts,
+     `commit` on one) never returned its output. The cases differ (the tenth and the
+     thirty-second of the module); each follows a case whose admission ended by an exception. On
+     Windows x64 with Python 3.12 the same session passed whole: 119 passed, 11 skipped in 26.2
+     seconds, the proof's module among them. So the stop is intermittent. No case of the three
+     queue modules failed on any of the four hosts.
+   - **Decision:** the list holds the three queue modules. `test_proof_slot.py` joins when its
+     Windows stop is understood.
+   - **Why not keep it and mark the cases:** the stop moves between cases, so no marker names it.
 4. **A case does not read the runner.**
    - **Rests on:** a model review of the list named three cases, and a probe that shows a test a
      host of three CPUs without a load reading failed them before the repair: four parameter sets
@@ -64,9 +76,13 @@ Non-Goals:
   that writes a path is the same on every platform. A second needle was not added: it is the
   third form of one assertion, and a leak that only Windows makes in that form has no known source.
 - [A case fails on Windows] -> That is the evidence this Change is for. The proposal ref gets the
-  Windows legs by the typed dispatch before the full proof. A failure is read to its cause and
-  repaired in this lane; where the repair is not narrow, the defect is recorded as known and the
-  case is named here as left out until its repair.
+  Windows legs by the typed dispatch before the full proof. It happened: see decision 3. The
+  stop was read to its place and not to its cause, so the module is left out by name and the
+  cause is a follow-up of its own; the second run of the Windows legs shows whether the three
+  modules alone end.
+- [The same stop appears in the three modules later] -> They start `git` children by the same
+  fixture. None stopped on four hosts; a stop in a qualification would hold a release head, and
+  is then read with the follow-up's evidence.
 - [Every leg takes longer] -> 17 seconds on macOS arm64; the hosted platforms' times are read
   from this Change's runs and written into its task.
 - [A case that passes locally fails a hosted push leg for every lane] -> the four modules passed

@@ -25,6 +25,7 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from ethos.repository.release.resources import canonical_resource
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.fixture_signer import GIT_SECONDS
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -219,10 +220,6 @@ def apply_accepted_closeout(repo: Path, accepted_before: str, candidate_head: st
     )
 
 
-# Far above any fixture command, far below the bound of a test.
-_GIT_SECONDS = 120
-
-
 def git(root: Path, *args: str) -> str:
     """Run test Git plumbing without activating repository hook integration.
 
@@ -232,7 +229,7 @@ def git(root: Path, *args: str) -> str:
     command = ["git", *args]
     if args[:1] != ("config",):
         command[1:1] = ["-c", "core.hooksPath=.git/test-hooks"]
-    return run_command(root, tuple(command), check=True, timeout=_GIT_SECONDS).stdout.strip()
+    return run_command(root, tuple(command), check=True, timeout=GIT_SECONDS).stdout.strip()
 
 
 def write_test_profile(root: Path, **updates: object) -> Path:

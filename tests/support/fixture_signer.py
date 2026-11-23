@@ -18,8 +18,8 @@ from pathlib import Path
 from ethos.adapters.process import run_command
 
 PRINCIPAL = "fixture@example.invalid"
-# Far above any fixture command, far below the bound of a test.
-_GIT_SECONDS = 120
+# The bound of a fixture's Git command: far above any of them, far below the bound of a test.
+GIT_SECONDS = 120
 
 
 def _create_signer(
@@ -74,7 +74,7 @@ def configure_fixture_signer(
         ("gpg.ssh.allowedSignersFile", str(anchor)),
         ("commit.gpgsign", "true"),
     ):
-        run_command(repo, ("git", "config", name, value), check=True, timeout=_GIT_SECONDS)
+        run_command(repo, ("git", "config", name, value), check=True, timeout=GIT_SECONDS)
     return anchor
 
 

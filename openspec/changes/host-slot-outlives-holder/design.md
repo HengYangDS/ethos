@@ -16,7 +16,8 @@ closed, and an explicit unlock through any of them releases it for all.
 
 - A place lasts while the admitted work runs, also after its holder was killed.
 - A clean end frees the place exactly as today.
-- No new file, no new key of the host declaration, no new refusal.
+- No new key of the host declaration and no new refusal. One new file: the queue's entry gate,
+  a lock file beside the queue directory (decision 3a).
 - Not a goal: Windows, the place that a proof takes for itself, records of ended tickets.
 
 ## Decisions
@@ -35,17 +36,31 @@ closed, and an explicit unlock through any of them releases it for all.
 3. **A probe opens, never creates.** Readers test a ticket's lock through a fresh descriptor
    opened without creation; a lock file that is gone reads as free. A fresh descriptor in the
    holding process reads its own lock as held (measured the same day), so no reader needs to be
-   told which ticket is asking. The probe answers and lets go at once, so no reader ever sees
-   another reader's probe as a live holder.
-   3a. **A ticket's name is public only once its lock is held.** On POSIX `enter` creates the lock
-   file under a `.pending` suffix, locks it and writes the record, then renames it to `.lock`: the
-   rename is atomic and the lock belongs to the open file, so a reader that lists `*.lock` never
-   meets a ticket file whose lock is not yet held, and no reader can remove the file of a ticket
-   that is entering. A pending file whose lock is free is the residue of an interrupted entry, and
-   the next reader removes it. Windows cannot rename an open file, so there the file is named at
-   once and a reader may meet it unlocked; it cannot remove it either, because Windows removes no
-   open file. `record_ticket` checks that its locked file still has a name, as the second guard
-   against a reader of an earlier release, whose glob covers the pending name. Only the process that
+   told which ticket is asking. The probe lets go before it answers. Two probes of one dead
+   ticket can meet, and the second then counts it live until the next poll: a wait that is one
+   poll longer, never an admission that should not be.
+   3a. **Entries take turns, and each is named after every ticket present.** A place is counted
+   only once its lock is held. An entry that has created its lock file and not yet locked it is
+   therefore invisible, and without more two arrivals could each find the queue empty and both be
+   admitted. So `enter` holds one lock for the whole of an entry, the queue's gate: a lock file
+   beside the queue directory (`host-admission/v1.gate`), which no listing of tickets meets and
+   no earlier release sees. Under it the entry reads the names present, names itself by the clock
+   or by one more than the latest of them, creates its lock file, locks it, writes its record,
+   and on POSIX only then renames the file from its `.pending` name to `.lock`. Two facts follow,
+   and admission rests on them. The name order is the entry order, whatever the clock does. And
+   when an entry ends, every ticket named before it has already taken its lock or is dead. A
+   ticket therefore counts every live ticket ahead of it from its first reading on, and no later
+   arrival is ever counted ahead of a ticket that was admitted.
+   3b. **Only an entry waits for the gate.** A dead ticket's files are removed under the gate,
+   where no entry is half-made, so a free lock there proves a dead ticket, also under a pending
+   name. A read that finds the gate held removes nothing and answers from the locks; the next read
+   removes it. `ethos host status`, a token's check and a waiter's poll never wait for the gate.
+   An arrival waits for it one poll at a time inside its own wait, and holds no place meanwhile;
+   an arrival whose wait ends there is answered `host_admission_unavailable`. A process killed
+   inside the gate frees it, because the lock goes with its descriptor. A process stopped inside
+   it delays arrivals, not the work that runs and not the readings of the queue. Windows cannot
+   rename an open file, so there the file is named at once; the instant in which it is unlocked
+   lies inside the gate, where only tickets named before it are counting. Only the process that
    entered a ticket leaves it: `leave` touches nothing of a ticket that was only read.
 4. **The read names a holder that is gone.** A projected ticket carries `holder`: `present`,
    `gone`, or empty where the platform cannot tell. The probe is signal 0 on POSIX. On Windows
@@ -68,13 +83,17 @@ closed, and an explicit unlock through any of them releases it for all.
   longer time, and only after a holder was killed.
 - [An older release shares the directory] -> It probes the same lock files with the same
   primitive and removes a ticket only when its lock is free, so it respects inherited locks. Its
-  reader releases its probe before it removes a free ticket's file, so the instant in which it
-  can remove the file of a ticket that is entering stays as it is in that release.
+  entries take no gate and are named by the clock alone, so between two releases the instant in
+  which two arrivals both find the queue empty stays as it is in that release, until every
+  repository on the host runs this one.
 
 ## Proof Strategy
 
 Unit tests drive the queue with real child processes: a holder killed with `SIGKILL` while its
 child sleeps keeps the place until the child ends; a holder that leaves frees it while a child
 still has the descriptor; the read lists the first as `holding` with its holder gone and creates
-no file; a joined command joins a place whose holder is gone. A journey with the built command
-repeats the first two with `ethos host run` and records each reading of the queue.
+no file; a joined command joins a place whose holder is gone. An entry stopped between creating
+its lock file and locking it, under each platform's naming, keeps a second process out until it
+is whole; a clock set back names no arrival ahead of an admitted ticket; a held gate leaves an
+arrival without a place and a read without removals. A journey with the built command repeats
+the first two with `ethos host run` and records each reading of the queue.

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import select
 import signal
 import subprocess
 import sys
 import time
 from contextlib import suppress
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -29,6 +31,19 @@ _HOLDER = (
     f"h.run_admitted((sys.executable, '-c', {_WORK!r}), repository=Path(sys.argv[1]),\n"
     "    operation='host.run', owner='', seconds=5)\n"
 )
+# A later arrival in another process: it says that it is about to enter, then where it stands,
+# and keeps its place until its input closes.
+_ARRIVAL = (
+    "import sys; from pathlib import Path\n"
+    "import ethos.adapters.gates.host_admission as h\n"
+    "queue = h.HostQueue(h.host_store_root() / 'host-admission/v1', 1)\n"
+    "sys.stdout.write('arriving\\n'); sys.stdout.flush()\n"
+    "ticket = queue.enter(Path(sys.argv[1]), 'proof')\n"
+    "sys.stdout.write(f'{ticket.name} {queue.admitted(ticket)}\\n'); sys.stdout.flush()\n"
+    "sys.stdin.read()\n"
+)
+# How long a half-made entry is held open for a later arrival to slip past it.
+_HALF_MADE_SECONDS = 0.5
 
 
 def _queue() -> host_admission.HostQueue:
@@ -199,20 +214,73 @@ def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
 
 
 @posix
-def test_a_reader_meeting_a_new_ticket_counts_it_and_leaves_it(tmp_path: Path) -> None:
-    """A reader that runs the instant the entrant has created its pending file touches nothing.
+@pytest.mark.parametrize("platform", ["posix", "nt"])
+def test_a_later_arrival_cannot_enter_while_an_entry_is_half_made(
+    tmp_path: Path, platform: str
+) -> None:
+    """Two arrivals never both find the queue empty: the later one waits for the earlier entry.
 
-    The file is younger than one poll, so it is not reaped; the entry then locks it and renames,
-    and the ticket is listed under its own name.
+    The earlier entry is stopped where its lock file exists and its lock is not yet taken, on
+    POSIX under the pending name and on Windows under the listed one. A second process arrives
+    then. It gets no place until the first entry is whole, so it is named after it and counted
+    behind it: one slot admits one run.
     """
+    queue = _queue()
+    opened = os.open
+    suffix = ".lock.pending" if platform == "posix" else ".lock"
+    arrivals: list[subprocess.Popen[bytes]] = []
+    early: list[bool] = []
+
+    def half_made(path: object, flags: int, *arguments: object, **options: object) -> int:
+        descriptor = opened(path, flags, *arguments, **options)
+        if flags & os.O_CREAT and str(path).endswith(suffix) and not arrivals:
+            later = subprocess.Popen(
+                [sys.executable, "-c", _ARRIVAL, str(tmp_path / "next")],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                bufsize=0,
+                env=os.environ,
+            )
+            arrivals.append(later)
+            assert later.stdout is not None
+            assert later.stdout.readline() == b"arriving\n"
+            early.append(bool(select.select([later.stdout], [], [], _HALF_MADE_SECONDS)[0]))
+        return descriptor
+
+    # Only the queue's own view of the platform changes: the entry names its file as that
+    # platform would, and every other reader of `os` keeps the real one.
+    seen = SimpleNamespace(**{**vars(os), "name": platform, "open": half_made})
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(host_admission, "os", seen)
+        ticket = queue.enter(tmp_path, "renderer")
+    (later,) = arrivals
+    assert later.stdin is not None
+    assert later.stdout is not None
+    try:
+        name, admitted = later.stdout.readline().decode().split()
+        assert early == [False]
+        assert (ticket.name < name, queue.admitted(ticket), admitted) == (True, True, "False")
+    finally:
+        later.stdin.close()
+        later.wait()
+        later.stdout.close()
+    queue.leave(ticket)
+    assert queue.live() == []
+    assert not any(queue.directory.iterdir())
+
+
+def test_a_read_during_an_entry_counts_nothing_half_made_and_removes_nothing(
+    tmp_path: Path,
+) -> None:
+    """A read that runs while an entry holds the gate lists no half-made ticket and reaps none."""
     queue = _queue()
     opened = os.open
     reads: list[list[str]] = []
 
     def hooked(path: object, flags: int, *arguments: object, **options: object) -> int:
-        created = bool(flags & os.O_CREAT) and str(path).endswith(".lock.pending")
+        made = bool(flags & os.O_CREAT) and ".lock" in str(path) and not reads
         descriptor = opened(path, flags, *arguments, **options)
-        if created and not reads:
+        if made:
             reads.append([ticket.name for ticket in queue.live()])
         return descriptor
 
@@ -227,40 +295,74 @@ def test_a_reader_meeting_a_new_ticket_counts_it_and_leaves_it(tmp_path: Path) -
     assert not any(queue.directory.iterdir())
 
 
-@posix
-def test_a_locked_pending_ticket_counts_before_its_rename() -> None:
-    """A ticket that holds its lock under the pending name counts, so it cannot be passed by."""
+def test_an_arrival_is_named_after_every_ticket_present_whatever_the_clock_says(
+    tmp_path: Path,
+) -> None:
+    """A clock that steps back puts no arrival ahead of a ticket that was admitted."""
+    queue = _queue()
+    first = queue.enter(tmp_path, "renderer")
+    assert queue.admitted(first)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(time, "time_ns", lambda: 1)
+        second = queue.enter(tmp_path / "next", "proof")
+
+    assert first.name < second.name
+    assert (queue.admitted(first), queue.admitted(second)) == (True, False)
+    queue.leave(first)
+    assert queue.admitted(second)
+    queue.leave(second)
+    assert not any(queue.directory.iterdir())
+
+
+def test_an_arrival_that_meets_a_held_gate_is_not_in_yet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A run that cannot take the queue's gate has no place, made nothing, and asks again."""
+    monkeypatch.setattr(host_admission, "_POLL_SECONDS", 0.05)
+    place = host_admission.HostPlace(tmp_path, "renderer", operation="host.run", owner="")
+    queue = _queue()
+    queue.directory.mkdir(parents=True, exist_ok=True)
+
+    with host_admission.gated(queue.directory, seconds=0):
+        assert not place.admitted()
+        assert (place.descriptor(), place.contention()) == (-1, host_admission.UNAVAILABLE)
+        assert not any(queue.directory.iterdir())
+
+    assert place.admitted()
+    place.leave()
+    assert not any(queue.directory.iterdir())
+
+
+def test_an_entry_that_fails_leaves_nothing_and_no_place(tmp_path: Path) -> None:
+    """An entry that cannot write its record removes what it made before it lets the gate go."""
+    queue = _queue()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(host_admission.json, "dumps", Mock(side_effect=OSError("disk full")))
+        with pytest.raises(OSError, match=r"disk full"):
+            queue.enter(tmp_path, "renderer")
+
+    assert not any(queue.directory.iterdir())
+    ticket = queue.enter(tmp_path, "renderer")
+    assert queue.admitted(ticket)
+    queue.leave(ticket)
+    assert not any(queue.directory.iterdir())
+
+
+def test_what_a_killed_entry_left_goes_at_the_next_read_that_holds_the_gate() -> None:
+    """A half-made entry's files are removed under the gate only, where no entry is half-made."""
     queue = _queue()
     queue.directory.mkdir(parents=True, exist_ok=True)
     name = "00000000000000000001-1-0123456789abcdef"
-    pending = queue.directory / f"{name}.lock.pending"
-    descriptor = host_admission.opened_descriptor(pending, create=True)
-    try:
-        assert host_admission.lock_descriptor(descriptor, blocking=False)
+    for left in (f"{name}.lock.pending", f"{name}.json", f".{name}.partial"):
+        (queue.directory / left).write_bytes(b"{}")
 
-        assert [ticket.name for ticket in queue.live()] == [name]
-        assert not queue.admitted(host_admission.Ticket(f"{time.time_ns():020d}-2-x"))
-    finally:
-        host_admission.unlock_descriptor(descriptor)
-        os.close(descriptor)
-        pending.unlink()
-
-
-@posix
-def test_a_pending_file_older_than_a_poll_is_removed() -> None:
-    """An entry that stopped before its rename leaves a pending file; a later reader removes it."""
-    queue = _queue()
-    queue.directory.mkdir(parents=True, exist_ok=True)
-    orphan = queue.directory / "00000000000000000001-1-0123456789abcdef.lock.pending"
-    orphan.write_bytes(b"")
-    (queue.directory / "00000000000000000001-1-0123456789abcdef.json").write_text(
-        "{}", encoding="utf-8"
-    )
-    old = time.time() - 3 * host_admission.POLL_SECONDS
-    os.utime(orphan, (old, old))
+    with host_admission.gated(queue.directory, seconds=0):
+        assert queue.live() == []
+        assert len(list(queue.directory.iterdir())) == 3
 
     assert queue.live() == []
-
     assert not any(queue.directory.iterdir())
 
 

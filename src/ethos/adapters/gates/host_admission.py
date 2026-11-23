@@ -7,8 +7,9 @@ declared slots of live tickets precede its own. A place lasts exactly while its 
 testing another ticket's lock tells a live place from a dead one, so a place frees without any
 cleanup by age. The admitted command inherits the lock where the platform lets a child inherit a
 descriptor, so a holder that is killed leaves its place to the work it admitted, and a holder
-that leaves releases the lock for every inheritor. The record is written only after its lock is
-held, so no reader mistakes a new ticket for a dead one.
+that leaves releases the lock for every inheritor. Entries take turns under one lock beside the
+queue, and each names itself after every ticket present: when an entry ends, every ticket named
+before it has taken its lock or is dead, so no arrival is ever counted ahead of an admitted run.
 
 A ticket records the repository, the executable's name and the start time, never the command's
 arguments, which can carry secrets, and this engine's records also name the operation and the
@@ -62,8 +63,8 @@ _FIELDS = frozenset(("slots", "reserved_cpus", "load_limit"))
 # The fields every released engine wrote; a record without all three is unreadable to them.
 _RECORD = ("repository", "executable", "since")
 _POLL_SECONDS = 5.0
-# The name a test reads without reaching into the module's private prefix.
-POLL_SECONDS = _POLL_SECONDS
+# How often an entry asks again for a gate or a lock that another process holds for an instant.
+_GATE_POLL_SECONDS = 0.005
 
 
 @dataclass(frozen=True)
@@ -131,8 +132,10 @@ class Ticket:
 
 
 # A new ticket's lock file is created and locked under this suffix, then renamed to `.lock`, so
-# no reader ever lists a ticket file whose lock is not yet held.
+# a listed ticket name is always one whose lock was taken.
 PENDING_SUFFIX = ".pending"
+# The queue's entry gate: a lock file beside the queue directory, outside every listed name.
+GATE_SUFFIX = ".gate"
 
 
 def opened_descriptor(path: Path, *, create: bool) -> int:
@@ -141,42 +144,35 @@ def opened_descriptor(path: Path, *, create: bool) -> int:
     return os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
 
 
-def record_ticket(
-    path: Path,
-    descriptor: int,
-    *,
-    repository: Path,
-    executable: str,
-    operation: str,
-    owner: str,
-) -> None:
-    """Hold the lock, then write the ticket's record beside it, atomically.
+@contextmanager
+def gated(directory: Path, *, seconds: float) -> Generator[None]:
+    """Hold the queue's entry gate, or raise `TimeoutError` when it stays held for `seconds`.
 
-    On POSIX the caller holds a pending name, so no reader lists the file yet; the link check
-    guards the window in which a reader of another release removed the pending file. On Windows
-    an entry names its file at once, and the check guards that window from the other side.
+    Entries take turns under this one lock, and a dead ticket's files are removed only under it.
+    So no entry is half-made while another is made or while files are removed, and each entry
+    can name itself after every name present. The gate is a lock file beside the queue
+    directory: no listing of tickets meets it and an older release never sees it. It is held
+    for a few filesystem operations, and it goes with its descriptor, so a killed process
+    leaves no gate held; a process that is stopped inside it delays entries only, never a read.
     """
-    if not lock_descriptor(descriptor, blocking=False) or not os.fstat(descriptor).st_nlink:
-        raise BlockingIOError
-    record = {
-        "repository": str(repository),
-        "executable": executable,
-        "since": datetime.now(UTC).isoformat(timespec="seconds"),
-        "operation": operation,
-        "owner": owner,
-    }
-    partial = path.with_name(f".{path.stem}.partial")
-    partial.write_text(json.dumps(record), encoding="utf-8")
-    partial.replace(path)
+    descriptor = opened_descriptor(directory.with_name(directory.name + GATE_SUFFIX), create=True)
+    try:
+        deadline = time.monotonic() + seconds
+        while not lock_descriptor(descriptor, blocking=False):
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            time.sleep(_GATE_POLL_SECONDS)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def _free(path: Path) -> bool:
     """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
 
     The probe is its own open file and creates nothing: it never touches a holder's lock, and a
-    lock file that is gone is free. It lets go of the lock it takes before it answers, so no
-    reader ever sees another reader's probe as a live holder. A probe in the holding process
-    reads its own lock as held, as any other process does.
+    lock file that is gone is free. It lets go of the lock it takes before it answers. A probe
+    in the holding process reads its own lock as held, as any other process does.
     """
     try:
         probe = opened_descriptor(path, create=False)
@@ -186,19 +182,6 @@ def _free(path: Path) -> bool:
         return lock_descriptor(probe, blocking=False)
     finally:
         os.close(probe)
-
-
-def _record_name(path: Path) -> str:
-    """The record that an interrupted entry wrote beside its pending lock file."""
-    return f"{path.name.removesuffix('.lock' + PENDING_SUFFIX)}.json"
-
-
-def _stale(path: Path) -> bool:
-    """Whether a pending file has waited longer than one poll, so no entry is still naming it."""
-    try:
-        return time.time() - path.stat().st_mtime > _POLL_SECONDS
-    except OSError:
-        return False
 
 
 class HostQueue:
@@ -211,76 +194,81 @@ class HostQueue:
     def enter(
         self, repository: Path, executable: str, *, operation: str = "", owner: str = ""
     ) -> Ticket:
-        """Take a place behind every earlier arrival, holding its lock before its name is public.
+        """Take a place behind every arrival before this one; `TimeoutError` when the gate is held.
 
-        A lock file is created under a pending suffix, locked and recorded, and only then renamed
-        to `.lock`: the rename is atomic and the lock belongs to the open file, so a reader that
-        lists ticket names never meets one whose lock is not held. Windows cannot rename an open
-        file, so there the file is named at once and a reader may meet it unlocked; it cannot
-        remove it either, because Windows removes no open file. A reader's probe can hold a new
-        file's lock for an instant, so an entry that meets one starts over with a new name, at
-        most a few times.
+        Entries take turns under the queue's gate, and each names itself after every name
+        present, by the clock or by one more than the latest name. So the name order is the
+        entry order whatever the clock does, and when an entry ends, every ticket named before
+        it has already taken its lock or is dead: no later arrival is ever counted ahead of a
+        ticket that was admitted. The lock file is created under a pending name, locked and
+        recorded, and only then renamed to `.lock`. Windows cannot rename an open file, so there
+        it is named at once; the instant in which it is unlocked lies inside the gate, where
+        only tickets named before it are being counted.
         """
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        for _attempt in range(3):
-            ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
+        with gated(self.directory, seconds=_POLL_SECONDS):
+            present = (path.name[:20] for path in self.directory.glob("*.lock*"))
+            latest = max((int(arrival) for arrival in present if arrival.isdigit()), default=0)
+            arrival = max(time.time_ns(), latest + 1)
+            ticket = Ticket(f"{arrival:020d}-{os.getpid()}-{secrets.token_hex(8)}")
             named = self.directory / f"{ticket.name}.lock"
             held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
             descriptor = opened_descriptor(held, create=True)
             try:
-                record_ticket(
-                    self.directory / f"{ticket.name}.json",
-                    descriptor,
-                    repository=repository,
-                    executable=executable,
-                    operation=operation,
-                    owner=owner,
-                )
+                # Only a reader's probe can hold a new file's lock, and only for an instant.
+                lock_descriptor(descriptor, poll_interval=_GATE_POLL_SECONDS)
+                record = {
+                    "repository": str(repository),
+                    "executable": executable,
+                    "since": datetime.now(UTC).isoformat(timespec="seconds"),
+                    "operation": operation,
+                    "owner": owner,
+                }
+                partial = self.directory / f".{ticket.name}.partial"
+                partial.write_text(json.dumps(record), encoding="utf-8")
+                partial.replace(self.directory / f"{ticket.name}.json")
                 if held != named:
                     held.replace(named)
-            except BlockingIOError:
-                # A reader's probe held the new file's lock; another name takes its place.
-                os.close(descriptor)
-                held.unlink(missing_ok=True)
-                (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
-                continue
             except BaseException:
+                # The gate is still held, so nothing has counted this file or will meet it.
                 os.close(descriptor)
-                held.unlink(missing_ok=True)
+                for left in (held, self.directory / f".{ticket.name}.partial"):
+                    left.unlink(missing_ok=True)
                 (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
                 raise
-            return Ticket(ticket.name, descriptor)
-        message = UNAVAILABLE
-        raise ValueError(message)
+        return Ticket(ticket.name, descriptor)
+
+    def locked(self) -> list[Ticket]:
+        """The tickets whose locks are held now, in arrival order: a read that removes nothing.
+
+        It waits for nothing and never takes the gate. A ticket that an entry is still making is
+        not listed, and need not be: it is named after every ticket that could be counting.
+        """
+        return [
+            Ticket(path.stem) for path in sorted(self.directory.glob("*.lock")) if not _free(path)
+        ]
 
     def live(self) -> list[Ticket]:
-        """The tickets whose locks are held, in arrival order, removing a dead ticket's files.
+        """The tickets whose locks are held, after removing what dead tickets left behind.
 
-        A held lock counts even before its record exists, so two arrivals that enter at once are
-        still ordered by their names, and a ticket that is locked but not yet renamed counts
-        under the name it will have. A free lock belongs to no live process: its record and lock
-        file go, the lock file first, so a record is only removed once its lock file could be
-        (Windows keeps both for a later reader). A pending file is removed only when its lock is
-        free and it is older than one poll, so no reader races an entry that has just created it.
+        A free lock belongs to no live process. Its files go only under the gate, where no entry
+        is half-made: the lock file first, so a record is removed only once its lock file could
+        be (Windows keeps both for a later reader), then what an entry that was killed half-made
+        left under a pending or partial name. When the gate is held, nothing is removed now and
+        the next read removes it; the answer is the same either way.
         """
-        tickets = []
-        for path in sorted(self.directory.glob("*.lock" + PENDING_SUFFIX)):
-            if not _free(path):
-                tickets.append(Ticket(path.name.removesuffix(".lock" + PENDING_SUFFIX)))
-            elif _stale(path):
-                path.unlink(missing_ok=True)
-                (self.directory / _record_name(path)).unlink(missing_ok=True)
-        for path in sorted(self.directory.glob("*.lock")):
-            if not _free(path):
-                tickets.append(Ticket(path.stem))
-                continue
-            try:
-                path.unlink()
-            except OSError:
-                continue
-            (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
-        tickets.sort(key=lambda ticket: ticket.name)
-        return tickets
+        with suppress(TimeoutError, FileNotFoundError), gated(self.directory, seconds=0):
+            for path in sorted(self.directory.glob("*.lock*")):
+                if not _free(path):
+                    continue
+                try:
+                    path.unlink()
+                except OSError:
+                    continue
+                name = path.name.partition(".lock")[0]
+                for left in (f"{name}.json", f".{name}.partial"):
+                    (self.directory / left).unlink(missing_ok=True)
+        return self.locked()
 
     def admitted(self, ticket: Ticket) -> bool:
         """Whether fewer than the declared slots of live tickets arrived before this one."""
@@ -291,12 +279,13 @@ class HostQueue:
 
         The token is the nonce and the process number of one ticket, and nothing else: a token
         that is not exactly one live ticket's admits nothing, so a copied value cannot become a
-        pattern that matches another.
+        pattern that matches another. The answer is read from the locks alone and waits for
+        nothing, so work that joins its own admission is never held up by the queue's gate.
         """
         nonce, _, pid = token.partition(":")
         if len(nonce) != 16 or not pid.isdigit() or not nonce.isalnum():
             return False
-        return any(ticket.name.endswith(f"-{pid}-{nonce}") for ticket in self.live())
+        return any(ticket.name.endswith(f"-{pid}-{nonce}") for ticket in self.locked())
 
     def ahead(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:
         """The projection of the earliest live ticket before this one, when it is readable."""
@@ -343,16 +332,13 @@ class HostQueue:
     def entries(self, *, reader: Path) -> list[dict[str, object]]:
         """Every live recorded ticket in arrival order, with its state, removing nothing.
 
-        A read must not race an entrant, so unlike `live` this leaves a dead holder's record and
-        lock file for the next waiter, and a ticket whose record is not written yet is skipped.
-        A ticket whose lock is held but whose holder is gone is listed as holding: its work,
-        not its holder, keeps the place.
+        The read waits for nothing and leaves a dead holder's files for the next waiter. A ticket
+        whose lock is held but whose holder is gone is listed as holding: its work, not its
+        holder, keeps the place.
         """
         listed: list[dict[str, object]] = []
-        for path in sorted(self.directory.glob("*.lock")):
-            if _free(path):
-                continue
-            if (projected := self.project(Ticket(path.stem), reader=reader)) is not None:
+        for ticket in self.locked():
+            if (projected := self.project(ticket, reader=reader)) is not None:
                 state = "holding" if len(listed) < self.slots else "waiting"
                 listed.append({"state": state, **projected})
         return listed
@@ -473,9 +459,13 @@ class HostPlace:
         if self.joined:
             return True
         if self.ticket is None:
-            self.ticket = self.queue.enter(
-                self.repository, self.executable, operation=self.operation, owner=self.owner
-            )
+            try:
+                self.ticket = self.queue.enter(
+                    self.repository, self.executable, operation=self.operation, owner=self.owner
+                )
+            except TimeoutError:
+                # Another entry holds the queue's gate: this run is not in yet, and asks again.
+                return False
         return self.queue.admitted(self.ticket)
 
     @_named
@@ -487,7 +477,7 @@ class HostPlace:
     def contention(self) -> str:
         """The gap of a wait that reached its bound."""
         ticket = self.ticket
-        return self.queue.contention(ticket, reader=self.repository) if ticket else CONTENDED
+        return self.queue.contention(ticket, reader=self.repository) if ticket else UNAVAILABLE
 
     def descriptor(self) -> int:
         """The ticket's lock descriptor for the admitted work to inherit, or -1 when joined.

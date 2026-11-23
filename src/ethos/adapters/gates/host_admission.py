@@ -49,6 +49,9 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.host_store import host_store_root
 from ethos.repository.paradigm.parameters import ceiling_seconds
 
+if sys.platform != "win32":
+    import fcntl
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Generator
@@ -63,8 +66,10 @@ _FIELDS = frozenset(("slots", "reserved_cpus", "load_limit"))
 # The fields every released engine wrote; a record without all three is unreadable to them.
 _RECORD = ("repository", "executable", "since")
 _POLL_SECONDS = 5.0
-# How often an entry asks again for a gate or a lock that another process holds for an instant.
+# How often an entry asks again for a gate or a lock that another process holds for an instant,
+# and how long it asks before it answers that it is not in the queue yet.
 _GATE_POLL_SECONDS = 0.005
+_GATE_GRACE_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -144,9 +149,24 @@ def opened_descriptor(path: Path, *, create: bool) -> int:
     return os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
 
 
+class QueueBusyError(Exception):
+    """The queue's gate or a new ticket's own lock stayed held: the arrival is not in yet."""
+
+
+def _taken(descriptor: int, deadline: float) -> None:
+    """Take a lock that is held for an instant, or raise `QueueBusyError` at the deadline.
+
+    A deadline that has passed gives one attempt.
+    """
+    while not lock_descriptor(descriptor, blocking=False):
+        if time.monotonic() >= deadline:
+            raise QueueBusyError
+        time.sleep(_GATE_POLL_SECONDS)
+
+
 @contextmanager
-def gated(directory: Path, *, seconds: float) -> Generator[None]:
-    """Hold the queue's entry gate, or raise `TimeoutError` when it stays held for `seconds`.
+def gated(directory: Path, deadline: float) -> Generator[None]:
+    """Hold the queue's entry gate, or raise `QueueBusyError` when it stays held until the deadline.
 
     Entries take turns under this one lock, and a dead ticket's files are removed only under it.
     So no entry is half-made while another is made or while files are removed, and each entry
@@ -157,11 +177,7 @@ def gated(directory: Path, *, seconds: float) -> Generator[None]:
     """
     descriptor = opened_descriptor(directory.with_name(directory.name + GATE_SUFFIX), create=True)
     try:
-        deadline = time.monotonic() + seconds
-        while not lock_descriptor(descriptor, blocking=False):
-            if time.monotonic() >= deadline:
-                raise TimeoutError
-            time.sleep(_GATE_POLL_SECONDS)
+        _taken(descriptor, deadline)
         yield
     finally:
         os.close(descriptor)
@@ -170,18 +186,26 @@ def gated(directory: Path, *, seconds: float) -> Generator[None]:
 def _free(path: Path) -> bool:
     """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
 
-    The probe is its own open file and creates nothing: it never touches a holder's lock, and a
-    lock file that is gone is free. It lets go of the lock it takes before it answers. A probe
-    in the holding process reads its own lock as held, as any other process does.
+    A holder's lock is exclusive and a probe asks for a shared one, so a probe is refused
+    exactly while a holder or the work that inherited its lock has it, and probes never refuse
+    each other. Windows has no such probe here: there a probe takes the lock for an instant, as
+    in every release, and a second probe in that instant reads a free lock as held. The probe
+    is its own open file and creates nothing; a lock file that is gone is free. A probe in the
+    holding process reads its own lock as held, as any other process does.
     """
     try:
         probe = opened_descriptor(path, create=False)
     except FileNotFoundError:
         return True
     try:
-        return lock_descriptor(probe, blocking=False)
+        if sys.platform == "win32":
+            return lock_descriptor(probe, blocking=False)
+        fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
     finally:
         os.close(probe)
+    return True
 
 
 class HostQueue:
@@ -194,7 +218,7 @@ class HostQueue:
     def enter(
         self, repository: Path, executable: str, *, operation: str = "", owner: str = ""
     ) -> Ticket:
-        """Take a place behind every arrival before this one; `TimeoutError` when the gate is held.
+        """Take a place behind every arrival before this one, or raise `QueueBusyError`.
 
         Entries take turns under the queue's gate, and each names itself after every name
         present, by the clock or by one more than the latest name. So the name order is the
@@ -203,20 +227,23 @@ class HostQueue:
         ticket that was admitted. The lock file is created under a pending name, locked and
         recorded, and only then renamed to `.lock`. Windows cannot rename an open file, so there
         it is named at once; the instant in which it is unlocked lies inside the gate, where
-        only tickets named before it are being counted.
+        only tickets named before it are being counted. An entry that fails removes what it
+        made, its lock file last, so whatever a killed entry leaves is found by that file.
         """
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with gated(self.directory, seconds=_POLL_SECONDS):
+        deadline = time.monotonic() + _GATE_GRACE_SECONDS
+        with gated(self.directory, deadline):
             present = (path.name[:20] for path in self.directory.glob("*.lock*"))
             latest = max((int(arrival) for arrival in present if arrival.isdigit()), default=0)
             arrival = max(time.time_ns(), latest + 1)
             ticket = Ticket(f"{arrival:020d}-{os.getpid()}-{secrets.token_hex(8)}")
             named = self.directory / f"{ticket.name}.lock"
             held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
+            partial = self.directory / f".{ticket.name}.partial"
             descriptor = opened_descriptor(held, create=True)
             try:
                 # Only a reader's probe can hold a new file's lock, and only for an instant.
-                lock_descriptor(descriptor, poll_interval=_GATE_POLL_SECONDS)
+                _taken(descriptor, deadline)
                 record = {
                     "repository": str(repository),
                     "executable": executable,
@@ -224,7 +251,6 @@ class HostQueue:
                     "operation": operation,
                     "owner": owner,
                 }
-                partial = self.directory / f".{ticket.name}.partial"
                 partial.write_text(json.dumps(record), encoding="utf-8")
                 partial.replace(self.directory / f"{ticket.name}.json")
                 if held != named:
@@ -232,9 +258,9 @@ class HostQueue:
             except BaseException:
                 # The gate is still held, so nothing has counted this file or will meet it.
                 os.close(descriptor)
-                for left in (held, self.directory / f".{ticket.name}.partial"):
-                    left.unlink(missing_ok=True)
-                (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
+                with suppress(OSError):
+                    for left in (partial, self.directory / f"{ticket.name}.json", held, named):
+                        left.unlink(missing_ok=True)
                 raise
         return Ticket(ticket.name, descriptor)
 
@@ -252,22 +278,19 @@ class HostQueue:
         """The tickets whose locks are held, after removing what dead tickets left behind.
 
         A free lock belongs to no live process. Its files go only under the gate, where no entry
-        is half-made: the lock file first, so a record is removed only once its lock file could
-        be (Windows keeps both for a later reader), then what an entry that was killed half-made
-        left under a pending or partial name. When the gate is held, nothing is removed now and
-        the next read removes it; the answer is the same either way.
+        is half-made, and the lock file goes last: whatever a removal that was cut short leaves
+        is found again by that file, also a pending one of an entry that was killed half-made.
+        When the gate is held, or a file cannot be removed now, the next read removes it; the
+        answer is the same either way.
         """
-        with suppress(TimeoutError, FileNotFoundError), gated(self.directory, seconds=0):
+        with suppress(QueueBusyError, FileNotFoundError), gated(self.directory, 0.0):
             for path in sorted(self.directory.glob("*.lock*")):
                 if not _free(path):
                     continue
-                try:
-                    path.unlink()
-                except OSError:
-                    continue
                 name = path.name.partition(".lock")[0]
-                for left in (f"{name}.json", f".{name}.partial"):
-                    (self.directory / left).unlink(missing_ok=True)
+                with suppress(OSError):
+                    for left in (f"{name}.json", f".{name}.partial", path.name):
+                        (self.directory / left).unlink(missing_ok=True)
         return self.locked()
 
     def admitted(self, ticket: Ticket) -> bool:
@@ -463,10 +486,15 @@ class HostPlace:
                 self.ticket = self.queue.enter(
                     self.repository, self.executable, operation=self.operation, owner=self.owner
                 )
-            except TimeoutError:
+            except QueueBusyError:
                 # Another entry holds the queue's gate: this run is not in yet, and asks again.
                 return False
         return self.queue.admitted(self.ticket)
+
+    @property
+    def entered(self) -> bool:
+        """Whether this run is in the queue: it joined a live admission or took a place."""
+        return bool(self.joined) or self.ticket is not None
 
     @_named
     def holder(self) -> dict[str, object] | None:
@@ -608,7 +636,8 @@ def admitted_host_work(
             held.push(place.leave_on_exit)
             announced = False
             while not place.admitted():
-                if not announced:
+                # A run that is not in the queue yet is behind nobody that it could name.
+                if not announced and place.entered:
                     announced = True
                     report(
                         {

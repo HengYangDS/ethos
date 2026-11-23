@@ -95,9 +95,10 @@ historical bindings are governed by the [distribution specification](openspec/sp
   lasts until the last process that inherited it ends, and `ethos host status` lists such a
   ticket as `holding` with the new field `holder` reading `gone`. A holder that leaves releases
   the lock for every inheritor, so a command that returns frees its place at once, as before. A
-  token joins its admission while the ticket's lock is held. On macOS and Linux a ticket is
-  named only after its lock is held: the file is created under a temporary name and renamed, so a
-  reader never removes a ticket that is entering. A process that inherited the lock
+  token joins its admission while the ticket's lock is held. Arrivals now enter the queue one at
+  a time, each named after every ticket present, so two that arrive in the same instant are
+  never both admitted to one slot; on macOS and Linux a reader that tests a ticket's lock no
+  longer makes a dead ticket look live to another reader. A process that inherited the lock
   from a killed holder and never ends keeps the place until it is ended; the read names its
   ticket. This covers `ethos host run` on macOS and Linux. On Windows, and for the place that
   a full proof or a host proof takes for itself, the slot stays bound to the holder.

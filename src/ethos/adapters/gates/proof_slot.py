@@ -223,8 +223,9 @@ def admitted_full_proof(
                     }
                 )
             # Behind a live holder of the host slot the bound does not run: the proof keeps its
-            # place, and the load wait that follows has what the wait for its slot left.
-            remaining = bound.remaining(seconds, held=acquired and not hosted)
+            # place, and the load wait that follows has what the wait for its slot left. A proof
+            # that is not in the host queue yet is behind nobody, so there the bound runs.
+            remaining = bound.remaining(seconds, held=acquired and not hosted and place.entered)
             if remaining <= 0:
                 raise ValueError(
                     f"{CONTENDED}:load={observed}:limit={admitted_limit}:source={limit_source}"

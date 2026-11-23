@@ -75,7 +75,12 @@ Non-Goals:
    - **What differs for a caller:** output is read as UTF-8, where the pipes were read in the
      locale's encoding; the error's command is a tuple; a missing working directory and a Git
      that cannot be started are the owner's `ProcessExecutionError`; on POSIX Git runs in a
-     process group of its own. No test of the suite reads the first three.
+     process group of its own. No test of the suite reads the first three. Two more, named by
+     the closing review: a call made while a product command scope is open in the same context
+     runs under that scope and its deadline, so its bound is the smaller of the two (three
+     calls of `tests/unit/mutation/test_worktree_effects.py` stand so, under a scope of 120
+     seconds); and on POSIX standard error is a pipe, as for every command of the product, so
+     only Windows gains the file there.
    - **What is not known:** which process held the pipes. The repair does not need the answer:
      a file's reader waits for nobody. The second Windows run is the test of this reading.
    - **Why not leave the module out:** that keeps the proof's admission without any Windows

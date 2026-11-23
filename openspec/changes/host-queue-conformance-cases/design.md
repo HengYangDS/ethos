@@ -48,6 +48,11 @@ Non-Goals:
      `present` on POSIX and empty elsewhere, as `holder_state` answers.
    - **Why not a POSIX marker on them:** each asserts behaviour that Windows has too; a marker
      would drop that evidence.
+5. **An assertion that a result names no path holds on every platform.**
+   - **Rests on:** the closing review of decision 4's repair. For the path `C:\Users\runner\busy`
+     inside a JSON text, the plain path is not a substring and the path as JSON writes it is.
+   - **Decision:** the four assertions of this shape in the tests compare the JSON form. On POSIX
+     both forms are the same text.
 
 ## Risks / Trade-offs
 

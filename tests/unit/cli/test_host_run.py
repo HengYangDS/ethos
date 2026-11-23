@@ -157,7 +157,8 @@ def test_host_status_lists_the_holding_run_with_its_operation(tmp_path: Path) ->
     assert (entry["state"], entry["operation"]) == ("holding", "host.run")
     assert entry["same_repository"] is False
     assert "repository" not in entry
-    assert str(tmp_path) not in json.dumps(payload)
+    # The path as JSON writes it: there a Windows path's backslashes are doubled.
+    assert json.dumps(str(tmp_path))[1:-1] not in json.dumps(payload)
     assert (payload["verdict"], payload["state"]) == ("pass", "observed")
 
 

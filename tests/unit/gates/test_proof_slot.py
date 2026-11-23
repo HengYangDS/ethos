@@ -336,7 +336,8 @@ def test_a_full_proof_takes_the_host_slot_between_its_slot_and_load(tmp_path: Pa
     assert holder["executable"] == "renderer"
     assert "repository" not in holder
     assert holder["operation"] == "host.run"
-    assert str(tmp_path) not in json.dumps(host.waits()[0])
+    # The path as JSON writes it: there a Windows path's backslashes are doubled.
+    assert json.dumps(str(tmp_path))[1:-1] not in json.dumps(host.waits()[0])
     assert admission.load == pytest.approx(4.0)
     assert host_admission.ADMISSION_ENV not in os.environ
     assert not queue.live()

@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
-import subprocess
 import tomllib
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from tempfile import TemporaryFile
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 from typing import NamedTuple
 
 from ethos.adapters.gates.formatting import prepare_source_format
+from ethos.adapters.process import run_command
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.application.adoption import adopt_repository
@@ -227,35 +226,13 @@ _GIT_SECONDS = 120
 def git(root: Path, *args: str) -> str:
     """Run test Git plumbing without activating repository hook integration.
 
-    Both streams go to files, as the process owner captures: the reader of a pipe waits for
-    every holder of its other end, so on Windows a process that outlives Git held this call for
-    a test's whole bound. A file is read as soon as Git itself has ended.
+    Through the process owner: it captures in files where the reader of a pipe would wait for a
+    process that outlives Git, as on every hosted Windows host, and it bounds the call.
     """
     command = ["git", *args]
     if args[:1] != ("config",):
         command[1:1] = ["-c", "core.hooksPath=.git/test-hooks"]
-    # The locale's encoding, as the pipes of a text-mode child were read before.
-    with (
-        TemporaryFile(mode="w+", encoding="locale") as output,
-        TemporaryFile(mode="w+", encoding="locale") as diagnostic,
-    ):
-        completed = subprocess.run(
-            command,
-            cwd=root,
-            check=False,
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=diagnostic,
-            timeout=_GIT_SECONDS,
-        )
-        output.seek(0)
-        diagnostic.seek(0)
-        written, refused = output.read(), diagnostic.read()
-    if completed.returncode:
-        raise subprocess.CalledProcessError(
-            completed.returncode, command, output=written, stderr=refused
-        )
-    return written.strip()
+    return run_command(root, tuple(command), check=True, timeout=_GIT_SECONDS).stdout.strip()
 
 
 def write_test_profile(root: Path, **updates: object) -> Path:

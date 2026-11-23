@@ -55,7 +55,7 @@ Non-Goals:
      inside a JSON text, the plain path is not a substring and the path as JSON writes it is.
    - **Decision:** the four assertions of this shape in the tests compare the JSON form. On POSIX
      both forms are the same text.
-6. **The fixtures' Git helper captures in files and bounds its call.**
+6. **The fixtures' Git helper runs Git through the process owner, with a bound.**
    - **Rests on:** the Windows legs of run 45247591995 at `da4227508`. On Windows x64 with
      Python 3.13 and 3.14 and on Windows arm64 the session ended in the ten-minute limit of one
      case of `test_proof_slot.py`. Each time the main thread stood in the helper's
@@ -66,9 +66,16 @@ Non-Goals:
      the three queue modules stopped. The same wait is recorded for the product: its process
      owner captures in files on Windows because "a descendant that keeps a pipe open makes its
      reader wait for the pipe's end" (Change `windows-native-security`, 2026-11-01).
-   - **Decision:** the helper passes two temporary files as the child's output and reads them
-     when Git has ended, closes the child's standard input and bounds the call at 120 seconds.
-     A failed command raises the same error with the same text.
+   - **Decision:** the helper calls `run_command` of `ethos.adapters.process` with `check` and a
+     bound of 120 seconds, and returns its stripped output. The owner captures standard output
+     in a file on every platform and standard error in a file on Windows, closes the child's
+     standard input, and raises the same `CalledProcessError` for a failed command. A first
+     form of this decision copied that capture into the helper; a review named the second
+     owner, and the copy is gone.
+   - **What differs for a caller:** output is read as UTF-8, where the pipes were read in the
+     locale's encoding; the error's command is a tuple; a missing working directory and a Git
+     that cannot be started are the owner's `ProcessExecutionError`; on POSIX Git runs in a
+     process group of its own. No test of the suite reads the first three.
    - **What is not known:** which process held the pipes. The repair does not need the answer:
      a file's reader waits for nobody. The second Windows run is the test of this reading.
    - **Why not leave the module out:** that keeps the proof's admission without any Windows
@@ -88,8 +95,9 @@ Non-Goals:
   bound: an error at 120 seconds means Git itself did not end, and the cause is elsewhere. The
   proof's module then leaves the list by name and the cause is a Change of its own.
 - [The helper is shared by most tests] -> The whole pre-check and the full proof run them. The
-  result text and the error raised for a failed command are as before; a call that passes 120
-  seconds now ends as a timeout instead of holding its test for the test's whole bound.
+  result text and the error raised for a failed command are as before, with the differences that
+  decision 6 lists; a call that passes 120 seconds now ends as a timeout instead of holding its
+  test for the test's whole bound.
 - [Other fixture helpers still capture through pipes] -> Five calls in `tests/support` do, and
   tests' own calls do. All three stops stood in this one helper, so it changes alone here; the
   others are a Change of their own once this one is shown to end the stop.

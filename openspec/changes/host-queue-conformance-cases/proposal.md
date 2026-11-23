@@ -21,8 +21,9 @@ wherever they run: a batch-head qualification, the drift schedule and the typed 
 - The host conformance cases gain the four test modules of the host queue and of the proof's
   admission: `tests/unit/gates/test_host_queue_entry.py`, `test_host_place_lifetime.py`,
   `test_host_admission.py` and `test_proof_slot.py`. Together they hold 110 cases.
-- The test fixtures' Git helper (`tests/support/governed_repository.py`, `git`) captures both
-  streams in files, closes the child's standard input and bounds the call at 120 seconds. On the
+- The test fixtures' Git helper (`tests/support/governed_repository.py`, `git`) runs Git through
+  the product's process owner, with a bound of 120 seconds. The owner captures in files where a
+  pipe's reader would wait, and closes the child's standard input. On the
   proposal ref's first Windows run the session ended in the ten-minute limit of one case of
   `test_proof_slot.py` on three of four hosts, each time in this helper, while its reader
   threads waited for the end of a pipe; on the fourth host all 130 cases passed. The process

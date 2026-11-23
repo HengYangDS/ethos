@@ -12,11 +12,14 @@ from __future__ import annotations
 import atexit
 import functools
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
+from ethos.adapters.process import run_command
+
 PRINCIPAL = "fixture@example.invalid"
+# Far above any fixture command, far below the bound of a test.
+_GIT_SECONDS = 120
 
 
 def _create_signer(
@@ -26,10 +29,12 @@ def _create_signer(
     executable = shutil.which("ssh-keygen")
     assert executable is not None
     key = directory / "signer"
-    subprocess.run(
+    # Through the process owner, as every child of the fixtures: it captures in files where
+    # the reader of a pipe would wait for a process that outlives the child.
+    run_command(
+        directory,
         (executable, "-q", "-t", key_type, "-N", "", "-f", str(key)),
         check=True,
-        capture_output=True,
         timeout=15,
     )
     public = key.with_suffix(".pub")
@@ -69,7 +74,7 @@ def configure_fixture_signer(
         ("gpg.ssh.allowedSignersFile", str(anchor)),
         ("commit.gpgsign", "true"),
     ):
-        subprocess.run(("git", "config", name, value), cwd=repo, check=True, capture_output=True)
+        run_command(repo, ("git", "config", name, value), check=True, timeout=_GIT_SECONDS)
     return anchor
 
 

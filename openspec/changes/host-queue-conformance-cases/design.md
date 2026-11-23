@@ -83,6 +83,15 @@ Non-Goals:
      only Windows gains the file there.
    - **What is not known:** which process held the pipes. The repair does not need the answer:
      a file's reader waits for nobody. The second Windows run is the test of this reading.
+   - **What the second run showed** (run 45265998569 at `b52474de5`, Windows x64 with Python
+     3.14): the helper no longer stopped, and the session went past both earlier places. It
+     ended in the same ten-minute limit one fixture call further: the signer fixture's
+     `git config`, which still captured through pipes, with the same two reader threads waiting
+     in `read`. So the reading holds for the call that changed and for the next one that had
+     not.
+   - **Decision, extended:** the signer fixture's two children, the key generation and the five
+     `git config` calls of a repository, go through the process owner too. With them every
+     child that `init_git_repo` starts is the owner's.
    - **Why not leave the module out:** that keeps the proof's admission without any Windows
      run, and leaves the same helper under the three queue modules.
 
@@ -103,9 +112,10 @@ Non-Goals:
   result text and the error raised for a failed command are as before, with the differences that
   decision 6 lists; a call that passes 120 seconds now ends as a timeout instead of holding its
   test for the test's whole bound.
-- [Other fixture helpers still capture through pipes] -> Five calls in `tests/support` do, and
-  tests' own calls do. All three stops stood in this one helper, so it changes alone here; the
-  others are a Change of their own once this one is shown to end the stop.
+- [Other children still capture through pipes] -> Four calls in `tests/support` that these
+  modules do not reach, tests' own calls across the suite, and in these modules two short
+  children of `test_host_admission.py`, which ended on every Windows run so far. They are a
+  Change of their own: one capture for every child that tests and tools start.
 - [Every leg takes longer] -> 17 seconds on macOS arm64; the hosted platforms' times are read
   from this Change's runs and written into its task.
 - [A case that passes locally fails a hosted push leg for every lane] -> the four modules passed

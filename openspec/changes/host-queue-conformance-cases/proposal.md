@@ -21,8 +21,9 @@ wherever they run: a batch-head qualification, the drift schedule and the typed 
 - The host conformance cases gain the four test modules of the host queue and of the proof's
   admission: `tests/unit/gates/test_host_queue_entry.py`, `test_host_place_lifetime.py`,
   `test_host_admission.py` and `test_proof_slot.py`. Together they hold 110 cases.
-- The test fixtures' Git helper (`tests/support/governed_repository.py`, `git`) runs Git through
-  the product's process owner, with a bound of 120 seconds. The owner captures in files where a
+- The test fixtures' Git helper (`tests/support/governed_repository.py`, `git`) and the two
+  children of the signer fixture (`tests/support/fixture_signer.py`) run through the product's
+  process owner, with a bound of 120 seconds for Git. The owner captures in files where a
   pipe's reader would wait, and closes the child's standard input. On the
   proposal ref's first Windows run the session ended in the ten-minute limit of one case of
   `test_proof_slot.py` on three of four hosts, each time in this helper, while its reader
@@ -52,8 +53,9 @@ platforms, not the cases, so `skip_specs: true` applies.
 
 ## Impact
 
-`tools/ci/delivery/pipeline.py`, the list of cases; `tests/support/governed_repository.py`, the
-Git helper that most tests of the suite call; `tests/unit/gates/test_host_admission.py`
+`tools/ci/delivery/pipeline.py`, the list of cases; `tests/support/governed_repository.py` and
+`tests/support/fixture_signer.py`, the Git helper and the signer that most tests of the suite
+use; `tests/unit/gates/test_host_admission.py`
 and `tests/unit/gates/test_proof_slot.py`, three cases and three assertions;
 `tests/unit/cli/test_host_run.py`, one assertion. Every host conformance leg runs 110 more
 cases: 17 seconds on this macOS arm64 host, one module a run; the hosted platforms are measured

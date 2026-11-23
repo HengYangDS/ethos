@@ -8,8 +8,9 @@
 - [ ] 1.2 Make the cases that read the runner independent of it. Done when the modules pass
       on this host, and under a probe that shows them three CPUs and no load reading every case
       passes but the one whose expectation is read from the host when the module is imported.
-- [ ] 1.3 Run the fixtures' Git helper through the process owner, with a bound. Done when the
-      modules that call it pass in the whole pre-check, and a failed command raises as before.
+- [ ] 1.3 Run the fixtures' Git helper and the signer fixture's children through the process
+      owner, with a bound. Done when the modules that call them pass in the whole pre-check, and
+      a failed command raises as before.
 - [ ] 1.4 Run the cases on every hosted platform. Done when the proposal ref's push run and one
       typed dispatch with the Windows legs have ended, each leg's result for the listed modules is
       read by name, and each leg's added time is written here.

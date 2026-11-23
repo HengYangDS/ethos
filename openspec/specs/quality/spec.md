@@ -3453,9 +3453,9 @@ A refusal of incomplete locked supply SHALL name the next action that can comple
 ### Requirement: Heavy local work is admitted host-wide
 
 ETHOS SHALL admit heavy local work through one host-wide queue beside each repository's proof
-slot. At most the declared slots SHALL run at once, in arrival order; a holder's exit SHALL free
-its place without cleanup. A waiter SHALL keep its place behind live tickets up to its total or
-the admission ceiling; its event and gap SHALL name the holder's operation, process and start
+slot. At most the declared slots SHALL run at once, in arrival order; a place SHALL last exactly
+while its lock is held. A waiter SHALL keep its place behind live tickets up to its total or the
+admission ceiling; its event and gap SHALL name the holder's operation, process and start
 time. A holder record SHALL NOT contain command arguments, and a result SHALL NOT print a holder's
 repository path.
 
@@ -3468,8 +3468,23 @@ repository path.
 
 #### Scenario: A holder dies
 
-- **WHEN** the process holding a place in the queue exits without releasing it
+- **WHEN** the process holding a place in the queue exits without releasing it and no other
+  process inherited its lock
 - **THEN** the next waiter is admitted without any cleanup by age.
+
+#### Scenario: A holder dies while its work runs
+
+- **GIVEN** a command that `ethos host run` admitted on a platform where a child inherits the
+  place's lock
+- **WHEN** the holder is killed while that command still runs
+- **THEN** the place stays held until the last process that inherited the lock ends
+- **AND** the next waiter is admitted then, without any cleanup by age.
+
+#### Scenario: A holder leaves while a descendant keeps the lock open
+
+- **WHEN** an admitted command returns and its holder leaves while a process that the command
+  started still has the lock open
+- **THEN** the place is free at once.
 
 #### Scenario: A ticket's record cannot be removed
 
@@ -3556,14 +3571,20 @@ A full executing proof SHALL take its repository slot, then the host slot, then 
 consecutive 1-minute load samples fall within the limit; its bound SHALL NOT run behind a live
 holder of the host slot. An executing host proof SHALL run its readiness gates without waiting and
 SHALL hold the host slot, with no repository slot and no load wait, while its other gates run.
-Work under a live admission SHALL join it, and a token whose holder has exited SHALL admit
-nothing.
+Work under a live admission SHALL join it, and a token SHALL admit nothing once its ticket's lock
+is free.
 
 #### Scenario: Work runs under a live admission
 
 - **WHEN** a command that `ethos host run` admitted starts a proof or another admitted command
 - **THEN** that work joins the live admission and does not wait for itself
-- **AND** a copied token whose holder has exited admits nothing.
+- **AND** a copied token admits nothing once its ticket's lock is free.
+
+#### Scenario: Work outlives its holder
+
+- **GIVEN** a holder that was killed while the command it admitted still holds the place's lock
+- **WHEN** that command starts another admitted command
+- **THEN** the new command joins the place that its work still holds.
 
 #### Scenario: Load dips once between busy phases
 
@@ -4098,10 +4119,10 @@ supply-image job.
 ### Requirement: One read lists the host queue and its holder
 
 `ethos host status` SHALL be a catalog read that returns this host's declaration, its 1-minute load
-and every live ticket in arrival order with its state, operation, executable, owner mark, process
-and start time. The owner mark SHALL be the actor that the holder itself declared, or empty. The
-read SHALL print no repository path, SHALL say only whether a ticket belongs to the reading
-repository, and SHALL remove nothing from the queue.
+and every live ticket in arrival order with its state, operation, executable, owner mark, process,
+holder state and start time. The owner mark SHALL be the actor that the holder itself declared, or
+empty. The read SHALL print no repository path, SHALL say only whether a ticket belongs to the
+reading repository, and SHALL remove nothing from the queue.
 
 #### Scenario: A holder and a waiter are listed
 
@@ -4124,9 +4145,14 @@ repository, and SHALL remove nothing from the queue.
 
 #### Scenario: A holder has exited
 
-- **WHEN** a ticket's holder exited without leaving
+- **WHEN** a ticket's holder exited without leaving and no process holds its lock
 - **THEN** the read does not list it
 - **AND** the read removes no file; the next waiter removes the ticket.
+
+#### Scenario: A holder is gone and its work runs
+
+- **WHEN** a ticket's holder exited without leaving and the work that inherited its lock still runs
+- **THEN** the read lists the ticket as `holding` with the holder state `gone`.
 
 #### Scenario: The declaration is invalid
 

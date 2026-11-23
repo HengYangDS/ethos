@@ -58,6 +58,11 @@ Non-Goals:
 
 - [The probe is not Windows] -> It removes one reading and changes one count; path, signal and
   lock differences are shown only by the Windows legs.
+- [A path written with forward slashes on Windows] -> The four assertions of decision 5 look for
+  the path as `str` gives it. A result that carried the `as_posix` form of a Windows path would
+  pass them on a Windows leg. The POSIX legs see it: there both forms are one text, and the code
+  that writes a path is the same on every platform. A second needle was not added: it is the
+  third form of one assertion, and a leak that only Windows makes in that form has no known source.
 - [A case fails on Windows] -> That is the evidence this Change is for. The proposal ref gets the
   Windows legs by the typed dispatch before the full proof. A failure is read to its cause and
   repaired in this lane; where the repair is not narrow, the defect is recorded as known and the

@@ -219,27 +219,40 @@ def test_a_token_names_one_ticket_exactly(tmp_path: Path) -> None:
     """A token answers from the lock alone, and only its own ticket's: no pattern is a token.
 
     Each probe is derived from the token, so it differs from it whatever nonce was drawn. The
-    foreign ones have a token's form: another process number, another nonce, a process number
-    of which the real one is a suffix, and one that is a suffix of the real one.
+    foreign ones are another ticket's: another process number, another nonce, a nonce in another
+    case, a process number of which the real one is a suffix, and one that is a suffix of it.
+    Two held lock files whose names are not a ticket's answer for no value either: the
+    comparison alone would take `:` for the first and `d:b-c` for the second.
     """
     queue = _queue()
     ticket = queue.enter(tmp_path, "renderer")
     nonce, _, pid = ticket.token.partition(":")
     other_nonce = ("1" if nonce[0] == "0" else "0") + nonce[1:]
-    assert len(pid) > 1, "a test process has a process number of more than one digit"
+    strangers = [
+        host_admission.opened_descriptor(queue.directory / name, create=True)
+        for name in ("x--.lock", "a-b-c-d.lock")
+    ]
+    try:
+        assert all(host_admission.lock_descriptor(held, blocking=False) for held in strangers)
 
-    assert queue.holds(ticket.token)
-    for malformed in ("", "no-nonce:1", "*:*", "?:*", "*", ticket.token + "*", "%-%-%"):
-        assert not queue.holds(malformed)
-    for foreign in (
-        f"{nonce}:{int(pid) + 1}",
-        f"{other_nonce}:{pid}",
-        f"{nonce}:1{pid}",
-        f"{nonce}:{pid[1:]}",
-    ):
-        assert not queue.holds(foreign)
-    os.close(ticket.descriptor)
-    assert not queue.holds(ticket.token)
+        assert queue.holds(ticket.token)
+        for malformed in ("", ":", "d:b-c", "no-nonce:1", "*:*", "?:*", "*", ticket.token + "*"):
+            assert not queue.holds(malformed)
+        for foreign in (
+            f"{nonce}:{int(pid) + 1}",
+            f"{other_nonce}:{pid}",
+            f"{nonce[:-1]}A:{pid}",
+            f"{nonce}:1{pid}",
+            f"{nonce}:{pid[1:]}",
+        ):
+            assert not queue.holds(foreign)
+        os.close(ticket.descriptor)
+        assert not queue.holds(ticket.token)
+    finally:
+        for held in strangers:
+            os.close(held)
+    assert queue.live() == []
+    assert not any(queue.directory.iterdir())
 
 
 def test_a_place_that_could_not_be_given_up_is_not_given_up_twice(tmp_path: Path) -> None:

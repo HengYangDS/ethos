@@ -15,7 +15,7 @@ Goals:
 
 Non-Goals:
 
-- Any change of the token's form or of an answer that `holds` gives.
+- Any change of `holds` or of the token's form.
 
 ## Decisions
 
@@ -29,18 +29,19 @@ Non-Goals:
      letter.
 2. **The malformed probes stay and gain two.** The patterns that a glob would have matched stay,
    and the empty token and a token without a nonce return.
-3. **The shape check goes.**
-   - **Rests on:** a mutation that removes the check passes every probe of this test, also the
-     malformed ones, and this reading of the comparison. A ticket's name is twenty digits, a
-     dash, the process number, a dash and the nonce, and neither the process number nor the
-     nonce holds a dash. The comparison asks whether the name ends with a dash, the token's
-     process number, a dash and the token's nonce. Nothing stands before the name's first
-     digit, so that tail can begin only at the dash before the process number: the token's two
-     parts are then exactly the ticket's.
-   - **Decision:** `holds` splits the token at its colon and compares. A value that is no token
-     costs one read of the locks and is answered that it holds nothing, as before.
-   - **Why not keep it as a second guard:** a guard that no input reaches is not checked by any
-     test, and its comment gave a reason, patterns, that the comparison already answers.
+3. **The shape check stays, and the test binds it.**
+   - **Rests on:** a mutation that removes the check passed every probe of this test's first
+     form, and a reading of the comparison that seemed to explain why: a ticket's name is twenty
+     digits, a dash, the process number, a dash and the nonce, so only a ticket's own two parts
+     match its tail. A review of the removal showed the reading's premise. The listing returns
+     every held `*.lock` file of the directory and checks no name. With a held file named
+     `x--.lock` the comparison alone answers that the values `:` and the empty one hold a ticket,
+     and with `a-b-c-d.lock` that `d:b-c` does.
+   - **Decision:** the check is as it was. The test holds those two files and asks with those
+     values, so the mutation that removes the check now fails it.
+   - **Why not enforce the name's form in the listing instead:** that changes which files count
+     as tickets for every reader, also beside an older release, and belongs to a change of its
+     own.
 
 ## Risks / Trade-offs
 
@@ -49,6 +50,6 @@ Non-Goals:
 
 ## Proof Strategy
 
-The test passes on the lane's code. Two mutations of `holds` are run against it and each fails
-it: a comparison of the nonce alone, and a comparison that ignores where the process number
-begins. The four other modules that use the queue pass unchanged.
+The test passes on the lane's code. Three mutations of `holds` are run against it and each
+fails it: a comparison of the nonce alone, a comparison that ignores where the process number
+begins, and the removal of the shape check.

@@ -60,6 +60,7 @@ HOST_CASES = (
     "tests/unit/gates/test_host_admission.py",
     "tests/unit/gates/test_host_place_lifetime.py",
     "tests/unit/gates/test_host_queue_entry.py",
+    "tests/unit/gates/test_proof_slot.py",
 )
 
 

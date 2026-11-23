@@ -9,6 +9,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+from tempfile import TemporaryFile
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -219,13 +220,42 @@ def apply_accepted_closeout(repo: Path, accepted_before: str, candidate_head: st
     )
 
 
+# Far above any fixture command, far below the bound of a test.
+_GIT_SECONDS = 120
+
+
 def git(root: Path, *args: str) -> str:
-    """Run test Git plumbing without activating repository hook integration."""
+    """Run test Git plumbing without activating repository hook integration.
+
+    Both streams go to files, as the process owner captures: the reader of a pipe waits for
+    every holder of its other end, so on Windows a process that outlives Git held this call for
+    a test's whole bound. A file is read as soon as Git itself has ended.
+    """
     command = ["git", *args]
     if args[:1] != ("config",):
         command[1:1] = ["-c", "core.hooksPath=.git/test-hooks"]
-    completed = subprocess.run(command, cwd=root, check=True, text=True, capture_output=True)
-    return completed.stdout.strip()
+    # The locale's encoding, as the pipes of a text-mode child were read before.
+    with (
+        TemporaryFile(mode="w+", encoding="locale") as output,
+        TemporaryFile(mode="w+", encoding="locale") as diagnostic,
+    ):
+        completed = subprocess.run(
+            command,
+            cwd=root,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=diagnostic,
+            timeout=_GIT_SECONDS,
+        )
+        output.seek(0)
+        diagnostic.seek(0)
+        written, refused = output.read(), diagnostic.read()
+    if completed.returncode:
+        raise subprocess.CalledProcessError(
+            completed.returncode, command, output=written, stderr=refused
+        )
+    return written.strip()
 
 
 def write_test_profile(root: Path, **updates: object) -> Path:

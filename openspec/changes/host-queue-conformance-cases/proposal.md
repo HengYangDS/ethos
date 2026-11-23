@@ -18,15 +18,17 @@ wherever they run: a batch-head qualification, the drift schedule and the typed 
 
 ## What Changes
 
-- The host conformance cases gain the three test modules of the host queue:
-  `tests/unit/gates/test_host_queue_entry.py`, `test_host_place_lifetime.py` and
-  `test_host_admission.py`. Together they hold 66 cases.
-- `tests/unit/gates/test_proof_slot.py`, the proof's own admission, was listed first and is left
-  out: on the proposal ref's Windows legs it ended in a ten-minute timeout on three of four hosts,
-  each time while a `git` child of a test fixture never returned, at two different cases; on the
-  fourth host it passed. The cause is not found. The module still runs in the suite; its Windows run
-  is a follow-up.
-- Three cases of those modules read the host they run on, and would fail on a hosted leg. They
+- The host conformance cases gain the four test modules of the host queue and of the proof's
+  admission: `tests/unit/gates/test_host_queue_entry.py`, `test_host_place_lifetime.py`,
+  `test_host_admission.py` and `test_proof_slot.py`. Together they hold 110 cases.
+- The test fixtures' Git helper (`tests/support/governed_repository.py`, `git`) captures both
+  streams in files, closes the child's standard input and bounds the call at 120 seconds. On the
+  proposal ref's first Windows run the session ended in the ten-minute limit of one case of
+  `test_proof_slot.py` on three of four hosts, each time in this helper, while its reader
+  threads waited for the end of a pipe; on the fourth host all 130 cases passed. The process
+  owner has captured in files on Windows since 0.2.0-alpha.26 for the same wait; the helper had
+  kept its pipes.
+- Three cases of the four modules read the host they run on, and would fail on a hosted leg. They
   are made independent of it: the load reading that Windows lacks is patched without requiring
   the name; the two cases of the worker cap pin the CPU count instead of reading the runner's;
   the waiting event's holder state is expected as the platform gives it.
@@ -49,8 +51,9 @@ platforms, not the cases, so `skip_specs: true` applies.
 
 ## Impact
 
-`tools/ci/delivery/pipeline.py`, the list of cases; `tests/unit/gates/test_host_admission.py`
+`tools/ci/delivery/pipeline.py`, the list of cases; `tests/support/governed_repository.py`, the
+Git helper that most tests of the suite call; `tests/unit/gates/test_host_admission.py`
 and `tests/unit/gates/test_proof_slot.py`, three cases and three assertions;
-`tests/unit/cli/test_host_run.py`, one assertion. Every host conformance leg runs 66 more
-cases: 10 seconds on this macOS arm64 host, one module a run; the hosted platforms are measured
+`tests/unit/cli/test_host_run.py`, one assertion. Every host conformance leg runs 110 more
+cases: 17 seconds on this macOS arm64 host, one module a run; the hosted platforms are measured
 by this Change's own runs. Nothing that a governed repository reads.

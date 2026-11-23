@@ -281,10 +281,11 @@ def test_the_host_load_is_the_one_minute_load_where_the_host_reports_it(
     expected: float | None,
 ) -> None:
     """The 5-minute average lags a finished run by minutes; two calm 1-minute samples admit."""
+    # Windows has no such reading: the patch may meet a host without the name.
     if averages is not None:
-        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
+        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages, raising=False)
     else:
-        monkeypatch.delattr(proof_slot.os, "getloadavg")
+        monkeypatch.delattr(proof_slot.os, "getloadavg", raising=False)
 
     assert proof_slot.host_load() == expected
 

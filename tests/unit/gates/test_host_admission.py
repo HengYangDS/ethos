@@ -436,6 +436,8 @@ def test_admitted_work_carries_one_token_and_worker_cap(
     """Work under a live admission joins it; a copied token whose holder left admits nothing."""
     # A suite that runs under a host ticket inherits that ticket's worker count.
     monkeypatch.delenv(host_admission.XDIST_WORKERS, raising=False)
+    # The host's own CPU count is not the subject: one CPU would refuse the declaration.
+    monkeypatch.setattr(host_admission.os, "cpu_count", lambda: 8)
     _declare(host_root, "reserved_cpus = 1\n")
 
     with host_admission.admitted_host_work(
@@ -479,6 +481,8 @@ def test_a_caller_that_declares_fewer_workers_keeps_its_count(
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv(host_admission.XDIST_WORKERS, caller)
+        # A count of three is smaller only on a host with more than four CPUs.
+        patch.setattr(host_admission.os, "cpu_count", lambda: 8)
         with host_admission.admitted_host_work(
             tmp_path, "outer", operation="host.run", seconds=0
         ) as outer:
@@ -522,7 +526,8 @@ def test_a_waiting_run_reports_one_event_with_the_holder_projection(
             "since"
         ],
         "same_repository": True,
-        "holder": "present",
+        # Whether a holder's process still runs is asked on POSIX alone.
+        "holder": "present" if os.name == "posix" else "",
     }
     assert str(busy) not in json.dumps(waiting[0])
     queue.leave(holder)

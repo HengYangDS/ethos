@@ -21,6 +21,10 @@ wherever they run: a batch-head qualification, the drift schedule and the typed 
 - The host conformance cases gain the four test modules of the host queue and of the proof's
   admission: `tests/unit/gates/test_host_queue_entry.py`, `test_host_place_lifetime.py`,
   `test_host_admission.py` and `test_proof_slot.py`. Together they hold 110 cases.
+- Three cases of those modules read the host they run on, and would fail on a hosted leg. They
+  are made independent of it: the load reading that Windows lacks is patched without requiring
+  the name; the two cases of the worker cap pin the CPU count instead of reading the runner's;
+  the waiting event's holder state is expected as the platform gives it.
 - No product code changes and no test is added.
 
 ## Capabilities
@@ -36,6 +40,7 @@ platforms, not the cases, so `skip_specs: true` applies.
 
 ## Impact
 
-`tools/ci/delivery/pipeline.py`, the list of cases. Every host conformance leg runs 110 more
+`tools/ci/delivery/pipeline.py`, the list of cases; `tests/unit/gates/test_host_admission.py`
+and `tests/unit/gates/test_proof_slot.py`, three cases. Every host conformance leg runs 110 more
 cases: 17 seconds on this macOS arm64 host, one module a run; the hosted platforms are measured
 by this Change's own runs. Nothing that a governed repository reads.

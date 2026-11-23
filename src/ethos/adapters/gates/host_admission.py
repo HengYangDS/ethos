@@ -312,14 +312,13 @@ class HostQueue:
     def holds(self, token: str) -> bool:
         """Whether a token names a ticket whose lock is held, by its holder or by its work.
 
-        The token is the nonce and the process number of one ticket, and nothing else: a token
-        that is not exactly one live ticket's admits nothing, so a copied value cannot become a
-        pattern that matches another. The answer is read from the locks alone and waits for
-        nothing, so work that joins its own admission is never held up by the queue's gate.
+        The token is the nonce and the process number of one ticket, and nothing else. A name
+        ends with a dash, a process number, a dash and a nonce, and neither part holds a dash,
+        so only a ticket's own two parts match its tail: no other value admits anything. The
+        answer is read from the locks alone and waits for nothing, so work that joins its own
+        admission is never held up by the queue's gate.
         """
         nonce, _, pid = token.partition(":")
-        if len(nonce) != 16 or not pid.isdigit() or not nonce.isalnum():
-            return False
         return any(ticket.name.endswith(f"-{pid}-{nonce}") for ticket in self.locked())
 
     def ahead(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:

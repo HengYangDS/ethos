@@ -23,9 +23,12 @@ The code that answers a token was read against these cases and holds; the gap is
 
 - The probes of that test are derived from the token, so each differs from it whatever the
   nonce holds: the same nonce with another process number, the same process number with
-  another nonce, and a process number of which the real one is a suffix.
+  another nonce, a process number of which the real one is a suffix, and one that is a suffix
+  of the real one.
 - The empty token and a token without a nonce are asked again.
-- No product code changes.
+- `HostQueue.holds` answers by its exact comparison alone. Its check of the token's shape came
+  with that comparison, when a token was still made into a file pattern; the comparison refuses
+  every value that the check refused, and no input tells the two apart.
 
 ## Capabilities
 
@@ -41,5 +44,6 @@ a token admits nothing once its ticket's lock is free; this Change only makes it
 
 ## Impact
 
-`tests/unit/gates/test_host_place_lifetime.py`, one test. Nothing that a governed repository
-reads.
+`tests/unit/gates/test_host_place_lifetime.py`, one test, and three lines of
+`src/ethos/adapters/gates/host_admission.py`. No answer of `ethos host run` or of
+`ethos host status` changes.

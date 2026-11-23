@@ -163,22 +163,21 @@ def _record(
     partial.replace(path)
 
 
-@contextmanager
-def _probed(path: Path) -> Generator[bool]:
-    """Whether no process holds a ticket's lock, true for as long as the caller stays inside.
+def _free(path: Path) -> bool:
+    """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
 
     The probe is its own open file and creates nothing: it never touches a holder's lock, and a
-    lock file that is gone is free. A free lock is the probe's until the caller leaves, so what
-    the caller removes meanwhile belongs to no entrant. A probe in the holding process reads its
-    own lock as held, as any other process does.
+    lock file that is gone is free. It lets go of the lock it takes before it answers, so no
+    reader ever sees another reader's probe as a live holder; an entrant that creates a file in
+    the meantime takes no place, because `_record` refuses a locked file that has no name. A
+    probe in the holding process reads its own lock as held, as any other process does.
     """
     try:
         probe = _opened(path, create=False)
     except FileNotFoundError:
-        yield True
-        return
+        return True
     try:
-        yield lock_descriptor(probe, blocking=False)
+        return lock_descriptor(probe, blocking=False)
     finally:
         os.close(probe)
 
@@ -216,21 +215,17 @@ class HostQueue:
 
         A held lock counts even before its record exists, so two arrivals that enter at once are
         still ordered by their names. A free lock belongs to no live process: its record and
-        lock file go, the record first, so no reader takes the free lock for a live ticket, and
-        the file goes while no entrant can hold its lock.
+        lock file go, the record first, so no reader takes the free lock for a live ticket.
         """
         tickets = []
         for path in sorted(self.directory.glob("*.lock")):
-            with _probed(path) as free:
-                if not free:
-                    tickets.append(Ticket(path.stem))
-                    continue
+            if not _free(path):
+                tickets.append(Ticket(path.stem))
+                continue
+            with suppress(PermissionError):
+                # Windows removes no open file: a file that another process still holds stays
+                # for the next reader instead of failing this one.
                 (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
-                if os.name == "posix":
-                    # Under the probe's lock: no entrant holds this file's lock once it is gone.
-                    path.unlink(missing_ok=True)
-            if os.name != "posix":
-                # Windows removes no open file, a new ticket's included, so the probe goes first.
                 path.unlink(missing_ok=True)
         return tickets
 
@@ -294,9 +289,8 @@ class HostQueue:
         """
         listed: list[dict[str, object]] = []
         for path in sorted(self.directory.glob("*.lock")):
-            with _probed(path) as free:
-                if free:
-                    continue
+            if _free(path):
+                continue
             if (projected := self.project(Ticket(path.stem), reader=reader)) is not None:
                 state = "holding" if len(listed) < self.slots else "waiting"
                 listed.append({"state": state, **projected})

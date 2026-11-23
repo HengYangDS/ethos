@@ -178,7 +178,10 @@ def test_a_reader_that_races_a_leaving_holder_creates_nothing(tmp_path: Path) ->
 
 
 def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
-    """Only the process that entered a place gives it up: a reader's copy removes nothing."""
+    """Only the process that entered a place gives it up: a reader's copy removes nothing.
+
+    A copy of a ticket that is already gone removes nothing either, and creates no file.
+    """
     queue = _queue()
     ticket = queue.enter(tmp_path, "renderer")
     (read,) = queue.live()
@@ -188,31 +191,9 @@ def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
     assert [entry["state"] for entry in queue.entries(reader=tmp_path)] == ["holding"]
     assert sorted(path.suffix for path in queue.directory.iterdir()) == [".json", ".lock"]
     queue.leave(ticket)
+    assert not queue.holds(ticket.token)
     assert not any(queue.directory.iterdir())
-
-
-@posix
-def test_a_reader_holds_a_free_lock_while_it_removes_the_ticket(tmp_path: Path) -> None:
-    """No entrant can take a lock between the reader's probe and the removal of its file."""
-    queue = _queue()
-    dead = queue.enter(tmp_path, "renderer")
-    os.close(dead.descriptor)
-    unlink = os.unlink
-    taken: list[bool] = []
-
-    def contended(path: object, *arguments: object, **options: object) -> None:
-        entrant = os.open(queue.directory / f"{dead.name}.lock", os.O_RDWR)
-        try:
-            taken.append(host_admission.lock_descriptor(entrant, blocking=False))
-        finally:
-            os.close(entrant)
-        unlink(path, *arguments, **options)
-
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(os, "unlink", contended)
-        live = queue.live()
-
-    assert (live, taken) == ([], [False, False])
+    queue.leave(host_admission.Ticket(ticket.name))
     assert not any(queue.directory.iterdir())
 
 

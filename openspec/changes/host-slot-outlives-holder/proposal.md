@@ -23,7 +23,16 @@ chose to ship this repair ahead of the layer's records and readings.
   returns frees its place at once, as before, also when a process it started keeps running.
 - `ethos host status` lists a held ticket whose holder is gone and says so (`holder`: `gone`).
 - A token joins its admission while the ticket's lock is held, so work that outlived its holder
-  does not wait behind its own place.
+  does not wait behind its own place. A run asks its token again until it is admitted: a full
+  proof can wait for its repository's slot first, and an admission that ended meanwhile is
+  joined by nobody.
+- Arrivals enter the queue one at a time under one lock beside the queue directory, each named
+  after every ticket present. Three independent checks of this change found that a place which
+  is counted only once its lock is held leaves an arrival uncounted for an instant, so two
+  arrivals could both be admitted to one slot; every release has that instant.
+- A reader tests a ticket's lock with a shared lock on macOS and Linux. A reader that took the
+  lock to test it made a dead ticket look live to another reader in the same instant; every
+  release probes so, and Windows still does.
 
 Windows, and the place that a full proof or a host proof takes for itself, keep the slot bound to
 the holder: no child inherits a lock there.
@@ -48,10 +57,14 @@ None.
 
 A place can outlast a killed holder for as long as a process that inherited the lock runs. A
 process that never ends keeps the place until someone ends it; the read names such a ticket.
-Nothing that passes today is refused. A caller whose holder is never killed sees no change.
+No new refusal: an arrival that cannot enter within one second asks again at its next poll, and
+a wait that ends so is answered with the existing `host_admission_unavailable`. A run that
+carried the token of an admission which had ended was admitted beside the next run; it now
+takes a place. The queue gains one file beside its directory, the entry lock.
 
 A release without this change, sharing the queue directory, reads the same files and locks: it
-keeps its own holder-bound slots and respects a lock that inherited work holds.
+keeps its own holder-bound slots and respects a lock that inherited work holds. It takes no
+entry lock and probes by taking the lock, so beside it both instants stay as they are there.
 
 ## Out Of Scope
 

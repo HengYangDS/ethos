@@ -39,8 +39,9 @@ if TYPE_CHECKING:
     from tools.ci.toolchain.environment import ProjectRuntime
 
 
-# The cases that only a real host proves: its toolchain, Windows ACLs, process listing and a
-# timed-out command whose descendant keeps its output open.
+# The cases that only a real host proves: its toolchain, Windows ACLs, process listing, a
+# timed-out command whose descendant keeps its output open, and the host queue, whose places are
+# operating-system locks.
 HOST_CASES = (
     "tests/architecture/test_portable_toolchain.py",
     "tests/unit/adapters/repo/trust_anchor/test_filesystem.py",
@@ -56,6 +57,10 @@ HOST_CASES = (
         "tests/unit/application/hook/test_commit_trust.py"
         "::test_bound_material_is_protected_under_a_shared_temporary_root"
     ),
+    "tests/unit/gates/test_host_admission.py",
+    "tests/unit/gates/test_host_place_lifetime.py",
+    "tests/unit/gates/test_host_queue_entry.py",
+    "tests/unit/gates/test_proof_slot.py",
 )
 
 

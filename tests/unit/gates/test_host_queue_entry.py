@@ -10,10 +10,14 @@ import time
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.gates.host_admission as host_admission
+import ethos.adapters.gates.proof_slot as proof_slot
+from tests.support.clock import FakeClock
+from tests.support.governed_repository import init_git_repo
 
 posix = pytest.mark.skipif(os.name != "posix", reason="the pending name and the shared probe")
 # A later arrival in another process: it says that it is about to enter, asks until it is in, as
@@ -162,31 +166,41 @@ def test_an_arrival_that_meets_a_held_gate_is_not_in_yet(
     assert not any(queue.directory.iterdir())
 
 
-@posix
-@pytest.mark.parametrize("failing", [1, 2])
+@pytest.mark.parametrize("failing", [-1, 0, 1, pytest.param(2, marks=posix)])
 def test_an_entry_that_fails_leaves_nothing_and_no_place(tmp_path: Path, failing: int) -> None:
     """An entry that fails removes what it made before it lets the gate go.
 
-    The first rename fails while the partial record and the pending lock file exist; the second
-    fails while the record and the pending lock file do.
+    The lock file's own open fails once the file is made; the record's text fails while only the
+    lock file exists; the first rename fails while the partial record exists too; the second,
+    which only POSIX has, while the record does.
     """
     queue = host_admission.host_queue()[0]
-    replace = Path.replace
+    replace, opened = Path.replace, os.open
     renames: list[Path] = []
+    message = "disk full"
 
     def refused(source: Path, target: Path) -> Path:
         renames.append(source)
         if len(renames) == failing:
-            message = "disk full"
             raise OSError(message)
         return replace(source, target)
 
+    def made(path: object, flags: int, *arguments: object, **options: object) -> int:
+        descriptor = opened(path, flags, *arguments, **options)
+        if failing < 0 and flags & os.O_CREAT and ".lock" in str(path):
+            os.close(descriptor)
+            raise OSError(message)
+        return descriptor
+
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(Path, "replace", refused)
-        with pytest.raises(OSError, match=r"disk full"):
+        patch.setattr(os, "open", made)
+        if not failing:
+            patch.setattr(host_admission.json, "dumps", Mock(side_effect=OSError(message)))
+        with pytest.raises(OSError, match=message):
             queue.enter(tmp_path, "renderer")
 
-    assert len(renames) == failing
+    assert len(renames) == max(failing, 0)
     assert not any(queue.directory.iterdir())
     ticket = queue.enter(tmp_path, "renderer")
     assert queue.admitted(ticket)
@@ -235,6 +249,8 @@ def test_an_entry_whose_own_lock_stays_held_gives_up_and_leaves_nothing(
         for keeper in keepers:
             os.close(keeper)
 
+    # Where an open file cannot be removed, the next read that holds the gate removes it.
+    assert queue.live() == []
     assert not any(queue.directory.iterdir())
     ticket = queue.enter(tmp_path, "renderer")
     assert queue.admitted(ticket)
@@ -243,7 +259,9 @@ def test_an_entry_whose_own_lock_stays_held_gives_up_and_leaves_nothing(
 
 
 @posix
-def test_probes_of_one_dead_ticket_do_not_refuse_each_other(tmp_path: Path) -> None:
+def test_probes_of_one_dead_ticket_do_not_refuse_each_other(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A reader that is inside its probe makes no dead ticket live for anyone else.
 
     A probe asks for a shared lock, so a second reader, a token's check and the next arrival all
@@ -259,11 +277,75 @@ def test_probes_of_one_dead_ticket_do_not_refuse_each_other(tmp_path: Path) -> N
 
         assert queue.locked() == []
         assert not queue.holds(dead.token)
+        # A run that carries the dead ticket's token takes a place of its own.
+        monkeypatch.setenv(host_admission.ADMISSION_ENV, dead.token)
         place = host_admission.HostPlace(tmp_path / "next", "proof", operation="host.run", owner="")
-        assert (place.admitted(), place.joined) == (True, "")
+        assert (place.admitted(), place.joined, place.descriptor() >= 0) == (True, "", True)
         place.leave()
     finally:
         os.close(probing)
+    assert not any(queue.directory.iterdir())
+
+
+def test_a_run_joins_only_an_admission_that_is_live_when_it_is_admitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A token that was live when the run was built and is free when it asks admits nothing."""
+    queue = host_admission.host_queue()[0]
+    holder = queue.enter(tmp_path / "busy", "renderer", operation="host.run")
+    monkeypatch.setenv(host_admission.ADMISSION_ENV, holder.token)
+    place = host_admission.HostPlace(tmp_path, "proof", operation="proof.run", owner="")
+    assert place.joined == holder.token
+    queue.leave(holder)
+    other = queue.enter(tmp_path / "next", "renderer", operation="host.run")
+    assert queue.admitted(other)
+
+    assert not place.admitted()
+    assert (place.joined, place.descriptor() >= 0) == ("", True)
+    queue.leave(other)
+    assert place.admitted()
+    place.leave()
+    assert not any(queue.directory.iterdir())
+
+
+@posix
+def test_a_gate_and_a_probe_let_go_although_another_descriptor_shares_their_file(
+    tmp_path: Path,
+) -> None:
+    """A lock is released, not only closed, so a process forked meanwhile keeps nothing held.
+
+    A duplicate of a descriptor shares its lock, as the copy in a forked process does.
+    """
+    queue = host_admission.host_queue()[0]
+    dead = queue.enter(tmp_path, "renderer")
+    os.close(dead.descriptor)
+    opened = os.open
+    copies: list[int] = []
+
+    def copied(path: object, flags: int, *arguments: object, **options: object) -> int:
+        descriptor = opened(path, flags, *arguments, **options)
+        copies.append(os.dup(descriptor))
+        return descriptor
+
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(os, "open", copied)
+            assert queue.locked() == []
+            with host_admission.gated(queue.directory, 0.0):
+                pass
+        fresh = host_admission.opened_descriptor(
+            queue.directory / f"{dead.name}.lock", create=False
+        )
+        try:
+            assert host_admission.lock_descriptor(fresh, blocking=False)
+        finally:
+            os.close(fresh)
+        with host_admission.gated(queue.directory, 0.0):
+            pass
+    finally:
+        for copy in copies:
+            os.close(copy)
+    assert queue.live() == []
     assert not any(queue.directory.iterdir())
 
 
@@ -295,4 +377,65 @@ def test_a_run_that_was_not_in_yet_names_the_holder_it_then_waits_behind(
     ahead = events[0]["holder"]
     assert isinstance(ahead, dict)
     assert ahead["executable"] == "renderer"
+    assert not any(queue.directory.iterdir())
+
+
+@pytest.mark.parametrize("gate", ["stays held", "frees"])
+def test_a_full_proof_that_is_not_in_the_host_queue_yet_is_behind_nobody(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gate: str
+) -> None:
+    """Until a proof has a place it names no holder and its bound runs.
+
+    The queue's gate is held at the first poll. Where it stays held, the proof's own bound ends
+    the wait. Where it frees, the proof enters behind a render and its one event names it.
+    """
+    monkeypatch.setattr(host_admission, "_GATE_GRACE_SECONDS", 0.0)
+    gate_frees = gate == "frees"
+    repo = init_git_repo(tmp_path / "repo")
+    queue = host_admission.host_queue()[0]
+    render = queue.enter(tmp_path / "work", "renderer", operation="host.run")
+    with ExitStack() as held:
+        held.enter_context(host_admission.gated(queue.directory, 0.0))
+        steps = [held.close, lambda: queue.leave(render)] if gate_frees else []
+
+        class _GateThenRender(FakeClock):
+            def sleep(self, seconds: float) -> None:
+                super().sleep(seconds)
+                if steps:
+                    steps.pop(0)()
+
+        host = _GateThenRender()
+        events: list[dict[str, object]] = []
+        proof = proof_slot.admitted_full_proof(
+            repo,
+            head="a" * 40,
+            current=lambda: True,
+            limit=lambda: (None, "test"),
+            load=lambda: None,
+            clock=lambda: host.now,
+            sleep=host.sleep,
+            seconds=60.0,
+            report=events.append,
+        )
+        if gate_frees:
+            with proof:
+                pass
+        else:
+            with pytest.raises(ValueError, match=rf"^{host_admission.UNAVAILABLE}$"), proof:
+                pytest.fail("no gate may run before the proof is in the host queue")
+
+    waits = [event for event in events if event["event"] == "proof_admission_waiting"]
+    named = [
+        (event["reason"], holder["executable"])
+        for event in waits
+        if isinstance(holder := event["holder"], dict)
+    ]
+    assert len(named) == len(waits)
+    assert (named, host.now, steps) == (
+        ([("host_slot_held", "renderer")], pytest.approx(30.0), [])
+        if gate_frees
+        else ([], pytest.approx(60.0), [])
+    )
+    if not gate_frees:
+        queue.leave(render)
     assert not any(queue.directory.iterdir())

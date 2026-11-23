@@ -145,6 +145,19 @@ def _earlier_calm(
     return int(earlier[1] <= limit and started - earlier[0] >= _POLL_SECONDS)
 
 
+def _waiting(*, acquired: bool, hosted: bool, entered: bool) -> str:
+    """What a full proof waits for now: its slot, a holder of the host slot, the load, or nothing.
+
+    A proof that has its slot and is not in the host queue yet is behind nobody. It waits for
+    nothing that it could name, so it reports nothing and its bound runs.
+    """
+    if not acquired:
+        return "slot_held"
+    if hosted:
+        return "host_load"
+    return "host_slot_held" if entered else ""
+
+
 @contextmanager
 def admitted_full_proof(
     root: Path,
@@ -207,8 +220,8 @@ def admitted_full_proof(
             )
             if calm >= 2:
                 break
-            waiting = "host_load" if hosted else "host_slot_held" if acquired else "slot_held"
-            if waiting != reason:
+            waiting = _waiting(acquired=acquired, hosted=hosted, entered=place.entered)
+            if waiting and waiting != reason:
                 reason = waiting
                 held = place.holder() if waiting == "host_slot_held" else None
                 report(
@@ -223,9 +236,8 @@ def admitted_full_proof(
                     }
                 )
             # Behind a live holder of the host slot the bound does not run: the proof keeps its
-            # place, and the load wait that follows has what the wait for its slot left. A proof
-            # that is not in the host queue yet is behind nobody, so there the bound runs.
-            remaining = bound.remaining(seconds, held=acquired and not hosted and place.entered)
+            # place, and the load wait that follows has what the wait for its slot left.
+            remaining = bound.remaining(seconds, held=waiting == "host_slot_held")
             if remaining <= 0:
                 raise ValueError(
                     f"{CONTENDED}:load={observed}:limit={admitted_limit}:source={limit_source}"

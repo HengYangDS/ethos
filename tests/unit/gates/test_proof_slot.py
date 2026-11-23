@@ -363,27 +363,6 @@ def test_a_full_proof_keeps_its_place_behind_a_live_holder(tmp_path: Path) -> No
     assert not queue.live()
 
 
-def test_a_full_proof_that_is_not_in_the_host_queue_yet_keeps_its_own_bound(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A proof that has no place yet is behind nobody, so its bound runs and ends its wait."""
-    monkeypatch.setattr(host_admission, "_GATE_GRACE_SECONDS", 0.0)
-    repo = init_git_repo(tmp_path / "repo")
-    queue = host_admission.host_queue()[0]
-    queue.directory.mkdir(parents=True, exist_ok=True)
-    host = _Host([4.0])
-
-    with (
-        host_admission.gated(queue.directory, 0.0),
-        pytest.raises(ValueError, match=rf"^{host_admission.UNAVAILABLE}$"),
-        host.admit(repo, seconds=60.0),
-    ):
-        pytest.fail("no gate may run before the proof is in the host queue")
-
-    assert host.now == pytest.approx(60.0)
-    assert not any(queue.directory.iterdir())
-
-
 @pytest.mark.parametrize(
     ("seconds", "slot_free", "render_gone", "ended", "polls"),
     [

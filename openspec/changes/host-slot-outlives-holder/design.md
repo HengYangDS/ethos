@@ -79,7 +79,10 @@ closed, and an explicit unlock through any of them releases it for all.
    `gone`, or empty where the platform cannot tell. The probe is signal 0 on POSIX. On Windows
    `os.kill(pid, 0)` ends the process it names, so nothing is probed there.
 5. **A token follows the lock.** `holds` already answers by live tickets; a ticket is now live
-   while any process holds its lock, so work that outlived its holder still joins. Refusing a
+   while any process holds its lock, so work that outlived its holder still joins. A run joins
+   only an admission that is live when the run is admitted: the token is asked again at each
+   question until then, because a full proof can wait for its repository's slot between being
+   built and first asking, and the admission it would join may have ended meanwhile. Refusing a
    token whose holder is gone would need the pid probe, which a reused number defeats, and
    would make nested work wait behind its own place.
 6. **Platforms.** `pass_fds` exists on POSIX only. On Windows, and for the place that a proof
@@ -100,9 +103,14 @@ closed, and an explicit unlock through any of them releases it for all.
   two releases the instant in which two arrivals both find the queue empty, and the instant in
   which two probes meet, stay as they are in that release, until every repository on the host
   runs this one.
-- [An interrupt lands after an entry ended and before its caller stored the ticket] -> The
-  ticket's lock stays held until the process ends, and nothing leaves it. Every command of the
-  product ends on an interrupt, so the lock goes with the process. Not closed here.
+- [An interrupt lands after an entry renamed its file and before its caller stored the
+  ticket] -> The ticket's lock stays held until the process ends, and nothing leaves it. Every
+  command of the product ends on an interrupt, so the lock goes with the process. Not closed here.
+- [A lock file that cannot be opened: no read permission, or the immutable flag] -> Every read
+  answers `host_admission_unavailable` until the file is repaired or removed, as in every
+  release. A lock that cannot be read is neither held nor free, so failing closed is right.
+- [A process forks without exec while it holds the gate or a probe] -> The gate and the probe
+  are released explicitly before their descriptors are closed, so the copy keeps nothing held.
 - [Windows: a reader has a ticket's file open when its holder leaves] -> The removal is
   refused and the leave is answered `host_admission_unavailable` after a normal end, as in every
   release; the place itself is free. Not changed here.

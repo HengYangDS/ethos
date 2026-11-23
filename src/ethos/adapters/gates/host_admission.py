@@ -5,9 +5,10 @@ work best a few runs at a time. Each waiter writes a ticket, named by its arriva
 nonce, under ETHOS's host root, and holds an OS lock on it. It is admitted once fewer than the
 declared slots of live tickets precede its own. A place lasts exactly while its lock is held:
 testing another ticket's lock tells a live place from a dead one, so a place frees without any
-cleanup by age. The admitted command inherits the lock where the platform lets a child inherit a
-descriptor, so a holder that is killed leaves its place to the work it admitted, and a holder
-that leaves releases the lock for every inheritor. Entries take turns under one lock beside the
+cleanup by age. The command that `ethos host run` admits inherits the lock where the platform
+lets a child inherit a descriptor, so a holder that is killed leaves its place to that command,
+and a holder that leaves releases the lock for every inheritor; the place that a proof takes for
+itself stays with its holder. Entries take turns under one lock beside the
 queue, and each names itself after every ticket present: when an entry ends, every ticket named
 before it has taken its lock or is dead, so no arrival is ever counted ahead of an admitted run.
 
@@ -178,7 +179,11 @@ def gated(directory: Path, deadline: float) -> Generator[None]:
     descriptor = opened_descriptor(directory.with_name(directory.name + GATE_SUFFIX), create=True)
     try:
         _taken(descriptor, deadline)
-        yield
+        try:
+            yield
+        finally:
+            # Explicit, so a process forked meanwhile does not keep the gate after this ends.
+            unlock_descriptor(descriptor)
     finally:
         os.close(descriptor)
 
@@ -200,12 +205,15 @@ def _free(path: Path) -> bool:
     try:
         if sys.platform == "win32":
             return lock_descriptor(probe, blocking=False)
-        fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return False
+        try:
+            fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        # Let go explicitly: a process forked at this instant would keep the probe's lock.
+        fcntl.flock(probe, fcntl.LOCK_UN)
+        return True
     finally:
         os.close(probe)
-    return True
 
 
 class HostQueue:
@@ -240,8 +248,9 @@ class HostQueue:
             named = self.directory / f"{ticket.name}.lock"
             held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
             partial = self.directory / f".{ticket.name}.partial"
-            descriptor = opened_descriptor(held, create=True)
+            descriptor = -1
             try:
+                descriptor = opened_descriptor(held, create=True)
                 # Only a reader's probe can hold a new file's lock, and only for an instant.
                 _taken(descriptor, deadline)
                 record = {
@@ -257,7 +266,10 @@ class HostQueue:
                     held.replace(named)
             except BaseException:
                 # The gate is still held, so nothing has counted this file or will meet it.
-                os.close(descriptor)
+                # A removal that fails stays silent: the caller hears the entry's own failure,
+                # and what is left keeps its lock file, by which a later read removes it.
+                if descriptor >= 0:
+                    os.close(descriptor)
                 with suppress(OSError):
                     for left in (partial, self.directory / f"{ticket.name}.json", held, named):
                         left.unlink(missing_ok=True)
@@ -478,9 +490,15 @@ class HostPlace:
 
     @_named
     def admitted(self) -> bool:
-        """Whether the run may start; the first call takes its place behind earlier arrivals."""
+        """Whether the run may start; the first call takes its place behind earlier arrivals.
+
+        A run joins only an admission that is live when the run is admitted. The token it was
+        built with may be free by the time it asks; it then joins nothing and takes a place.
+        """
         if self.joined:
-            return True
+            if self.queue.holds(self.joined):
+                return True
+            self.joined = ""
         if self.ticket is None:
             try:
                 self.ticket = self.queue.enter(

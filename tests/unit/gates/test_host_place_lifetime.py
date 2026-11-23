@@ -235,17 +235,18 @@ def test_a_token_names_one_ticket_exactly(tmp_path: Path) -> None:
         nonce, _, pid = ticket.token.partition(":")
         other_nonce = ("1" if nonce[0] == "0" else "0") + nonce[1:]
         malformed = ("", ":", "d:b-c", "no-nonce:1", "*:*", "?:*", "*", "%-%-%")
-        foreign = {
+        foreign = (
             f"{nonce}:{int(pid) + 1}",
             f"{other_nonce}:{pid}",
             f"{nonce[:-1]}A:{pid}",
-            f"{nonce.upper()}:{pid}",
             f"{nonce}:1{pid}",
             f"{nonce}:{pid[1:]}",
-        } - {ticket.token}
+        )
+        # A nonce without a letter has no upper case of its own; only then is this one not asked.
+        upper = {f"{nonce.upper()}:{pid}"} - {ticket.token}
 
         assert queue.holds(ticket.token)
-        for probe in (*malformed, ticket.token + "*", *sorted(foreign)):
+        for probe in (*malformed, ticket.token + "*", *foreign, *upper):
             assert not queue.holds(probe)
         os.close(held.pop(0))
         assert not queue.holds(ticket.token)

@@ -98,7 +98,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
   token joins its admission while the ticket's lock is held. A process that inherited the lock
   from a killed holder and never ends keeps the place until it is ended; the read names its
   ticket. This covers `ethos host run` on macOS and Linux. On Windows, and for the place that
-  a full proof takes for itself, the slot stays bound to the holder.
+  a full proof or a host proof takes for itself, the slot stays bound to the holder.
 - The `source-format`, `markdown-lint` and `config-quality` gates start each native tool a fixed
   number of times, however many files a repository holds. They listed the whole repository once
   or four times for each file, and in a repository with its own Prettier ignore file they

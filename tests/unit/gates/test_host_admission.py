@@ -115,6 +115,9 @@ def test_two_declared_slots_admit_two_runs(host_root: Path, tmp_path: Path) -> N
     tickets = [queue.enter(tmp_path, str(index)) for index in range(3)]
 
     assert [queue.admitted(ticket) for ticket in tickets] == [True, True, False]
+    for ticket in tickets:
+        queue.leave(ticket)
+    assert not any(queue.directory.iterdir())
 
 
 def test_a_dead_holder_frees_its_place_without_cleanup(host_root: Path, tmp_path: Path) -> None:
@@ -138,6 +141,7 @@ def test_a_dead_holder_frees_its_place_without_cleanup(host_root: Path, tmp_path
 
     assert queue.admitted(waiter)
     assert [path.stem for path in queue.directory.glob("*.json")] == [waiter.name]
+    queue.leave(waiter)
 
 
 def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> None:
@@ -169,6 +173,7 @@ def test_a_bounded_wait_names_the_holder(host_root: Path, tmp_path: Path) -> Non
     assert str(tmp_path / "busy-repository") not in str(refused.value)
     assert sum(clock.sleeps) == 12
     assert [path.stem for path in queue.directory.glob("*.json")] == [holder.name]
+    queue.leave(holder)
 
 
 # How a contended wait ends: the exit it raises, that exit's message and its cause.

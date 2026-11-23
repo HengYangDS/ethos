@@ -17,7 +17,7 @@ closed, and an explicit unlock through any of them releases it for all.
 - A place lasts while the admitted work runs, also after its holder was killed.
 - A clean end frees the place exactly as today.
 - No new file, no new key of the host declaration, no new refusal.
-- Not a goal: Windows, the proof's own place, records of ended tickets.
+- Not a goal: Windows, the place that a proof takes for itself, records of ended tickets.
 
 ## Decisions
 
@@ -35,7 +35,14 @@ closed, and an explicit unlock through any of them releases it for all.
 3. **A probe opens, never creates.** Readers test a ticket's lock through a fresh descriptor
    opened without creation; a lock file that is gone reads as free. A fresh descriptor in the
    holding process reads its own lock as held (measured the same day), so no reader needs to be
-   told which ticket is asking.
+   told which ticket is asking. A reader that finds a lock free removes the ticket's record and
+   lock file while its probe still holds that lock, and an entrant checks, once it holds its
+   lock, that the file still has its name; an entry that fails either way is the OS error that
+   answers `host_admission_unavailable`, as a contended entry does today. So no reader removes
+   the file of a ticket that then counts as live. On Windows an open file cannot be removed, so
+   there the file goes after the probe closes and an entrant's own descriptor guards its file.
+   Only the process that entered a ticket leaves it: `leave` touches nothing of a ticket that
+   was only read.
 4. **The read names a holder that is gone.** A projected ticket carries `holder`: `present`,
    `gone`, or empty where the platform cannot tell. The probe is signal 0 on POSIX. On Windows
    `os.kill(pid, 0)` ends the process it names, so nothing is probed there.
@@ -43,9 +50,9 @@ closed, and an explicit unlock through any of them releases it for all.
    while any process holds its lock, so work that outlived its holder still joins. Refusing a
    token whose holder is gone would need the pid probe, which a reused number defeats, and
    would make nested work wait behind its own place.
-6. **Platforms.** `pass_fds` exists on POSIX only. On Windows, and for the place that a full
-   proof takes for itself (it passes no descriptor to its gate children), the slot stays bound
-   to the holder.
+6. **Platforms.** `pass_fds` exists on POSIX only. On Windows, and for the place that a proof
+   takes for itself (`proof.run` of a full proof and `proof.host` of a host proof: neither passes
+   a descriptor to its gate children), the slot stays bound to the holder.
 
 ## Risks / Trade-offs
 
@@ -56,7 +63,9 @@ closed, and an explicit unlock through any of them releases it for all.
 - [A copied token admits for the life of the work, not of the holder] -> The same trust for a
   longer time, and only after a holder was killed.
 - [An older release shares the directory] -> It probes the same lock files with the same
-  primitive and removes a ticket only when its lock is free, so it respects inherited locks.
+  primitive and removes a ticket only when its lock is free, so it respects inherited locks. Its
+  reader releases its probe before it removes a free ticket's file, so the instant in which it
+  can remove the file of a ticket that is entering stays as it is in that release.
 
 ## Proof Strategy
 

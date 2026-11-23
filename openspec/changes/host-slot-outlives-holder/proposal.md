@@ -25,8 +25,8 @@ chose to ship this repair ahead of the layer's records and readings.
 - A token joins its admission while the ticket's lock is held, so work that outlived its holder
   does not wait behind its own place.
 
-Windows, and the place a full proof takes for itself, keep the slot bound to the holder: no child
-inherits a lock there.
+Windows, and the place that a full proof or a host proof takes for itself, keep the slot bound to
+the holder: no child inherits a lock there.
 
 ## Capabilities
 

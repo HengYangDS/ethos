@@ -145,10 +145,11 @@ def _record(
 ) -> None:
     """Hold the lock, then write the ticket's record beside it, atomically.
 
-    A reader's probe holds a new lock for an instant. An entry that meets it is an OS error, so
-    every caller answers the gap of a queue that cannot be written.
+    A reader's probe holds a new lock for an instant, and removes the file when it finds the
+    lock free. An entry that meets the probe, or whose file went before its lock was taken, is an
+    OS error, so every caller answers the gap of a queue that cannot be written.
     """
-    if not lock_descriptor(descriptor, blocking=False):
+    if not lock_descriptor(descriptor, blocking=False) or not os.fstat(descriptor).st_nlink:
         raise BlockingIOError
     record = {
         "repository": str(repository),
@@ -162,19 +163,22 @@ def _record(
     partial.replace(path)
 
 
-def _free(path: Path) -> bool:
-    """Whether no process holds a ticket's lock now, proven by one probe that creates nothing.
+@contextmanager
+def _probed(path: Path) -> Generator[bool]:
+    """Whether no process holds a ticket's lock, true for as long as the caller stays inside.
 
-    The probe is its own open file, so the lock it takes for an instant goes when it closes and
-    never touches a holder's. A lock file that is gone is free. A probe in the holding process
-    reads its own lock as held, as any other process does.
+    The probe is its own open file and creates nothing: it never touches a holder's lock, and a
+    lock file that is gone is free. A free lock is the probe's until the caller leaves, so what
+    the caller removes meanwhile belongs to no entrant. A probe in the holding process reads its
+    own lock as held, as any other process does.
     """
     try:
         probe = _opened(path, create=False)
     except FileNotFoundError:
-        return True
+        yield True
+        return
     try:
-        return lock_descriptor(probe, blocking=False)
+        yield lock_descriptor(probe, blocking=False)
     finally:
         os.close(probe)
 
@@ -212,15 +216,22 @@ class HostQueue:
 
         A held lock counts even before its record exists, so two arrivals that enter at once are
         still ordered by their names. A free lock belongs to no live process: its record and
-        lock file go, the record first, so no reader takes the free lock for a live ticket.
+        lock file go, the record first, so no reader takes the free lock for a live ticket, and
+        the file goes while no entrant can hold its lock.
         """
         tickets = []
         for path in sorted(self.directory.glob("*.lock")):
-            if not _free(path):
-                tickets.append(Ticket(path.stem))
-                continue
-            (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
-            path.unlink(missing_ok=True)
+            with _probed(path) as free:
+                if not free:
+                    tickets.append(Ticket(path.stem))
+                    continue
+                (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
+                if os.name == "posix":
+                    # Under the probe's lock: no entrant holds this file's lock once it is gone.
+                    path.unlink(missing_ok=True)
+            if os.name != "posix":
+                # Windows removes no open file, a new ticket's included, so the probe goes first.
+                path.unlink(missing_ok=True)
         return tickets
 
     def admitted(self, ticket: Ticket) -> bool:
@@ -283,32 +294,32 @@ class HostQueue:
         """
         listed: list[dict[str, object]] = []
         for path in sorted(self.directory.glob("*.lock")):
-            if _free(path):
-                continue
+            with _probed(path) as free:
+                if free:
+                    continue
             if (projected := self.project(Ticket(path.stem), reader=reader)) is not None:
                 state = "holding" if len(listed) < self.slots else "waiting"
                 listed.append({"state": state, **projected})
         return listed
 
     def leave(self, ticket: Ticket) -> None:
-        """Give up a place: the record goes first, then the lock for every inheritor, and its file.
+        """Give up a place that this process entered: the record first, then the lock and its file.
 
         The release is explicit, so the place is free at once although a process that the
         admitted command started may still have the lock's descriptor open. The lock goes also
         when the record cannot be removed: a held lock is a live ticket. A ticket that this
-        process only read has no descriptor to release, and its file goes only when it is free.
+        process only read holds no place, so nothing of it is touched.
         """
-        path = self.directory / f"{ticket.name}.lock"
+        if ticket.descriptor == -1:
+            return
         try:
             (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
         finally:
-            if ticket.descriptor != -1:
-                try:
-                    unlock_descriptor(ticket.descriptor)
-                finally:
-                    os.close(ticket.descriptor)
-        if ticket.descriptor != -1 or _free(path):
-            path.unlink(missing_ok=True)
+            try:
+                unlock_descriptor(ticket.descriptor)
+            finally:
+                os.close(ticket.descriptor)
+        (self.directory / f"{ticket.name}.lock").unlink(missing_ok=True)
 
 
 def holder_state(pid: int) -> str:
@@ -446,8 +457,8 @@ class HostPlace:
     def leave(self) -> None:
         """Give up the place, if this run took one; inherited work may keep it after this ends."""
         if self.ticket is not None:
-            self.queue.leave(self.ticket)
-            self.ticket = None
+            ticket, self.ticket = self.ticket, None
+            self.queue.leave(ticket)
 
     def leave_on_exit(
         self, _kind: type[BaseException] | None, exit_: BaseException | None, *_trace: object

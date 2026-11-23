@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import pathlib
 import signal
 import subprocess
 import sys
@@ -200,86 +199,102 @@ def test_a_ticket_that_was_only_read_is_not_left(tmp_path: Path) -> None:
 
 
 @posix
-def test_a_ticket_is_never_listed_before_its_lock_is_held(tmp_path: Path) -> None:
-    """A reader that runs the instant the entrant has created its file lists no ticket.
+def test_a_reader_meeting_a_new_ticket_counts_it_and_leaves_it(tmp_path: Path) -> None:
+    """A reader that runs the instant the entrant has created its pending file touches nothing.
 
-    The file at a listed name exists only once its lock is held: until the rename it carries the
-    pending suffix, which no reader's glob covers.
+    The file is younger than one poll, so it is not reaped; the entry then locks it and renames,
+    and the ticket is listed under its own name.
     """
     queue = _queue()
     opened = os.open
-    listed: list[list[str]] = []
+    reads: list[list[str]] = []
 
     def hooked(path: object, flags: int, *arguments: object, **options: object) -> int:
+        created = bool(flags & os.O_CREAT) and str(path).endswith(".lock.pending")
         descriptor = opened(path, flags, *arguments, **options)
-        if flags & os.O_CREAT and str(path).endswith(".lock.pending") and not listed:
-            listed.append(sorted(found.name for found in queue.directory.glob("*.lock")))
+        if created and not reads:
+            reads.append([ticket.name for ticket in queue.live()])
         return descriptor
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(os, "open", hooked)
         ticket = queue.enter(tmp_path, "renderer")
 
-    assert listed == [[]]
-    assert queue.holds(ticket.token)
+    assert reads == [[]]
+    assert [listed.name for listed in queue.live()] == [ticket.name]
+    assert sorted(path.suffix for path in queue.directory.iterdir()) == [".json", ".lock"]
     queue.leave(ticket)
     assert not any(queue.directory.iterdir())
 
 
 @posix
-def test_an_entrant_whose_pending_file_was_removed_keeps_no_place(tmp_path: Path) -> None:
-    """The second guard: a reader that removes the pending file leaves the entrant no place."""
+def test_a_locked_pending_ticket_counts_before_its_rename() -> None:
+    """A ticket that holds its lock under the pending name counts, so it cannot be passed by."""
     queue = _queue()
-    opened = os.open
+    queue.directory.mkdir(parents=True, exist_ok=True)
+    name = "00000000000000000001-1-0123456789abcdef"
+    pending = queue.directory / f"{name}.lock.pending"
+    descriptor = host_admission.opened_descriptor(pending, create=True)
+    try:
+        assert host_admission.lock_descriptor(descriptor, blocking=False)
 
-    def hooked(path: object, flags: int, *arguments: object, **options: object) -> int:
-        descriptor = opened(path, flags, *arguments, **options)
-        if flags & os.O_CREAT and str(path).endswith(".lock.pending"):
-            pathlib.Path(str(path)).unlink()
-        return descriptor
+        assert [ticket.name for ticket in queue.live()] == [name]
+        assert not queue.admitted(host_admission.Ticket(f"{time.time_ns():020d}-2-x"))
+    finally:
+        host_admission.unlock_descriptor(descriptor)
+        os.close(descriptor)
+        pending.unlink()
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(os, "open", hooked)
-        with pytest.raises(OSError, match=r"^$|BlockingIOError|No such file"):
-            queue.enter(tmp_path, "renderer")
+
+@posix
+def test_a_pending_file_older_than_a_poll_is_removed() -> None:
+    """An entry that stopped before its rename leaves a pending file; a later reader removes it."""
+    queue = _queue()
+    queue.directory.mkdir(parents=True, exist_ok=True)
+    orphan = queue.directory / "00000000000000000001-1-0123456789abcdef.lock.pending"
+    orphan.write_bytes(b"")
+    (queue.directory / "00000000000000000001-1-0123456789abcdef.json").write_text(
+        "{}", encoding="utf-8"
+    )
+    old = time.time() - 3 * host_admission.POLL_SECONDS
+    os.utime(orphan, (old, old))
+
+    assert queue.live() == []
 
     assert not any(queue.directory.iterdir())
 
 
-def test_a_token_names_a_held_lock_and_nothing_else(tmp_path: Path) -> None:
-    """A token answers from the lock alone: a free ticket that no reader reaped admits nothing."""
+@posix
+def test_a_record_survives_a_reader_until_its_lock_file_goes(tmp_path: Path) -> None:
+    """A record goes only after its lock file did: a file that cannot be removed keeps its record.
+
+    Windows refuses to remove an open file, so the same order keeps a live ticket's record when
+    its lock file stays.
+    """
+    queue = _queue()
+    dead = queue.enter(tmp_path, "renderer")
+    os.close(dead.descriptor)
+
+    with pytest.MonkeyPatch.context() as patch:
+        _kept_except_lock_files(patch)
+        assert queue.live() == []
+
+    assert sorted(path.suffix for path in queue.directory.iterdir()) == [".json", ".lock"]
+    assert queue.entries(reader=tmp_path) == []
+    (queue.directory / f"{dead.name}.lock").unlink()
+    (queue.directory / f"{dead.name}.json").unlink()
+
+
+def test_a_token_names_one_ticket_exactly(tmp_path: Path) -> None:
+    """A token answers from the lock alone, and only its own ticket's: no pattern is a token."""
     queue = _queue()
     ticket = queue.enter(tmp_path, "renderer")
 
     assert queue.holds(ticket.token)
+    for pattern in ("*:*", "?:*", "*", ticket.token + "*", "%-%-%", ticket.token.upper()):
+        assert not queue.holds(pattern)
     os.close(ticket.descriptor)
-
     assert not queue.holds(ticket.token)
-    assert not queue.holds("no-nonce:1")
-    assert not queue.holds("")
-
-
-def test_a_locked_file_that_lost_its_name_takes_no_place(tmp_path: Path) -> None:
-    """The second guard: a lock on a file with no name guards nothing, so the entry fails."""
-    queue = _queue()
-    gone = queue.directory / "00000000000000000001-1-nonce.lock"
-    queue.directory.mkdir(parents=True, exist_ok=True)
-    descriptor = host_admission.opened_descriptor(gone, create=True)
-    try:
-        gone.unlink()
-        with pytest.raises(BlockingIOError):
-            host_admission.record_ticket(
-                queue.directory / "record.json",
-                descriptor,
-                repository=tmp_path,
-                executable="renderer",
-                operation="host.run",
-                owner="",
-            )
-    finally:
-        os.close(descriptor)
-
-    assert not any(queue.directory.iterdir())
 
 
 def test_a_place_that_could_not_be_given_up_is_not_given_up_twice(tmp_path: Path) -> None:

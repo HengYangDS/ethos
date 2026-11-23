@@ -62,6 +62,8 @@ _FIELDS = frozenset(("slots", "reserved_cpus", "load_limit"))
 # The fields every released engine wrote; a record without all three is unreadable to them.
 _RECORD = ("repository", "executable", "since")
 _POLL_SECONDS = 5.0
+# The name a test reads without reaching into the module's private prefix.
+POLL_SECONDS = _POLL_SECONDS
 
 
 @dataclass(frozen=True)
@@ -191,6 +193,14 @@ def _record_name(path: Path) -> str:
     return f"{path.name.removesuffix('.lock' + PENDING_SUFFIX)}.json"
 
 
+def _stale(path: Path) -> bool:
+    """Whether a pending file has waited longer than one poll, so no entry is still naming it."""
+    try:
+        return time.time() - path.stat().st_mtime > _POLL_SECONDS
+    except OSError:
+        return False
+
+
 class HostQueue:
     """The tickets of one host's queue directory."""
 
@@ -203,58 +213,73 @@ class HostQueue:
     ) -> Ticket:
         """Take a place behind every earlier arrival, holding its lock before its name is public.
 
-        On POSIX the lock file is created under the pending suffix, locked and recorded, and only
-        then renamed: the rename is atomic and the lock belongs to the open file, so a reader
-        that lists `*.lock` never meets a ticket file whose lock is not yet held. Windows cannot
-        rename an open file, so there the file is named at once and a reader meets it unlocked;
-        it cannot remove it either, because Windows removes no open file.
+        A lock file is created under a pending suffix, locked and recorded, and only then renamed
+        to `.lock`: the rename is atomic and the lock belongs to the open file, so a reader that
+        lists ticket names never meets one whose lock is not held. Windows cannot rename an open
+        file, so there the file is named at once and a reader may meet it unlocked; it cannot
+        remove it either, because Windows removes no open file. A reader's probe can hold a new
+        file's lock for an instant, so an entry that meets one starts over with a new name, at
+        most a few times.
         """
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
-        named = self.directory / f"{ticket.name}.lock"
-        held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
-        descriptor = opened_descriptor(held, create=True)
-        try:
-            record_ticket(
-                self.directory / f"{ticket.name}.json",
-                descriptor,
-                repository=repository,
-                executable=executable,
-                operation=operation,
-                owner=owner,
-            )
-            held.replace(named)
-        except BaseException:
-            os.close(descriptor)
-            held.unlink(missing_ok=True)
-            (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
-            raise
-        return Ticket(ticket.name, descriptor)
+        for _attempt in range(3):
+            ticket = Ticket(f"{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(8)}")
+            named = self.directory / f"{ticket.name}.lock"
+            held = named.with_name(named.name + PENDING_SUFFIX) if os.name == "posix" else named
+            descriptor = opened_descriptor(held, create=True)
+            try:
+                record_ticket(
+                    self.directory / f"{ticket.name}.json",
+                    descriptor,
+                    repository=repository,
+                    executable=executable,
+                    operation=operation,
+                    owner=owner,
+                )
+                if held != named:
+                    held.replace(named)
+            except BlockingIOError:
+                # A reader's probe held the new file's lock; another name takes its place.
+                os.close(descriptor)
+                held.unlink(missing_ok=True)
+                (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
+                continue
+            except BaseException:
+                os.close(descriptor)
+                held.unlink(missing_ok=True)
+                (self.directory / f"{ticket.name}.json").unlink(missing_ok=True)
+                raise
+            return Ticket(ticket.name, descriptor)
+        message = UNAVAILABLE
+        raise ValueError(message)
 
     def live(self) -> list[Ticket]:
-        """The tickets whose locks are held, in arrival order.
+        """The tickets whose locks are held, in arrival order, removing a dead ticket's files.
 
         A held lock counts even before its record exists, so two arrivals that enter at once are
-        still ordered by their names. A free lock belongs to no live process: its record and
-        lock file go, the record first, so no reader takes the free lock for a live ticket. A
-        pending file whose lock is free is the residue of an entry that stopped before its
-        rename, and it goes the same way.
+        still ordered by their names, and a ticket that is locked but not yet renamed counts
+        under the name it will have. A free lock belongs to no live process: its record and lock
+        file go, the lock file first, so a record is only removed once its lock file could be
+        (Windows keeps both for a later reader). A pending file is removed only when its lock is
+        free and it is older than one poll, so no reader races an entry that has just created it.
         """
         tickets = []
         for path in sorted(self.directory.glob("*.lock" + PENDING_SUFFIX)):
-            if _free(path):
-                (self.directory / _record_name(path)).unlink(missing_ok=True)
+            if not _free(path):
+                tickets.append(Ticket(path.name.removesuffix(".lock" + PENDING_SUFFIX)))
+            elif _stale(path):
                 path.unlink(missing_ok=True)
+                (self.directory / _record_name(path)).unlink(missing_ok=True)
         for path in sorted(self.directory.glob("*.lock")):
             if not _free(path):
                 tickets.append(Ticket(path.stem))
                 continue
-            record = self.directory / f"{path.stem}.json"
-            with suppress(PermissionError):
-                # Windows removes no open file, so an entry that is naming its ticket now keeps
-                # its files; the next reader finds the lock held and leaves them too.
-                record.unlink(missing_ok=True)
-                path.unlink(missing_ok=True)
+            try:
+                path.unlink()
+            except OSError:
+                continue
+            (self.directory / f"{path.stem}.json").unlink(missing_ok=True)
+        tickets.sort(key=lambda ticket: ticket.name)
         return tickets
 
     def admitted(self, ticket: Ticket) -> bool:
@@ -264,11 +289,14 @@ class HostQueue:
     def holds(self, token: str) -> bool:
         """Whether a token names a ticket whose lock is held, by its holder or by its work.
 
-        The answer comes from the lock alone: a free ticket that a reader has not reaped yet
-        still admits nothing, as its lock is free.
+        The token is the nonce and the process number of one ticket, and nothing else: a token
+        that is not exactly one live ticket's admits nothing, so a copied value cannot become a
+        pattern that matches another.
         """
         nonce, _, pid = token.partition(":")
-        return any(not _free(path) for path in self.directory.glob(f"*-{pid}-{nonce}.lock"))
+        if len(nonce) != 16 or not pid.isdigit() or not nonce.isalnum():
+            return False
+        return any(ticket.name.endswith(f"-{pid}-{nonce}") for ticket in self.live())
 
     def ahead(self, ticket: Ticket, *, reader: Path) -> dict[str, object] | None:
         """The projection of the earliest live ticket before this one, when it is readable."""

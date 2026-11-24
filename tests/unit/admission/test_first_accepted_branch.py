@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.adapters.admission.ref_move_policy import first_accepted_branch
+from ethos.adapters.admission.ref_move_policy import first_accepted_branch_step
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
@@ -203,3 +204,34 @@ def test_a_head_without_a_profile_governs_nothing(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
     assert not _holds(repo, _only_main(repo))
+
+
+def test_the_step_names_the_creation_it_would_admit(tmp_path: Path) -> None:
+    repo, head = _release_root(tmp_path)
+
+    step = first_accepted_branch_step(repo, head)
+
+    assert step == (
+        "create the accepted branch at the release head as an adopted baseline: "
+        "git switch -c dev main"
+    )
+
+
+def test_the_step_fetches_first_where_a_remote_is_configured(tmp_path: Path) -> None:
+    repo, head = _release_root(tmp_path)
+    _remote(repo, "origin", _FETCH_ALL)
+
+    assert first_accepted_branch_step(repo, head).startswith("fetch every remote, then ")
+
+
+def test_no_step_where_the_creation_is_refused(tmp_path: Path) -> None:
+    repo, head = _release_root(tmp_path)
+    git(repo, "update-ref", _ACCEPTED, head)
+
+    assert first_accepted_branch_step(repo, head) == ""
+
+
+def test_no_step_where_no_policy_governs_the_head(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    assert first_accepted_branch_step(repo, _only_main(repo)) == ""

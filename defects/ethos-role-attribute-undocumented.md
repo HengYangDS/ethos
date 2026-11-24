@@ -1,5 +1,5 @@
 +++
-title = "No documentation page states the `ethos-role` Git attribute that sets a carrier's role"
+title = "No documentation page states the Git attribute that sets a carrier's role"
 state = "open"
 since = "v0.2.0-beta.11"
 fixed_in = ""

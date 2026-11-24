@@ -1,5 +1,5 @@
 +++
-title = "On Windows a finished `ethos host run` can report `host_admission_unavailable`"
+title = "On Windows a finished host-queue run can report `host_admission_unavailable`"
 state = "open"
 since = "v0.2.0-beta.11"
 fixed_in = ""

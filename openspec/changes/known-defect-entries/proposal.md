@@ -21,9 +21,10 @@ The command that reads them and the check that reports a malformed entry are lat
   release that carries the repair to fill their `fixed_in`.
 - The markdownlint configuration gains `defects/*.md` in its `globs`, so that a direct run of the
   tool reads the files that the product's `markdown-lint` gate already reads.
-- The Vale configuration ignores the front-matter fields `title` and `workaround`, as it already
-  ignores seven front-matter fields of other documents: Vale lints a TOML field as plain text, where
-  a code span is no longer code and the term rule refuses the lowercase product name inside it.
+- The Vale configuration ignores the front-matter field `workaround`, as it already ignores seven
+  front-matter fields of other documents: Vale lints a TOML field as plain text, where a code span
+  is no longer code and the term rule refuses the lowercase product name inside a command. An
+  entry's `title` stays linted, as every document's title is.
 
 No product code, no requirement and no accepted requirement changes.
 

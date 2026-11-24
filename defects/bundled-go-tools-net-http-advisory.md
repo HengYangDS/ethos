@@ -1,5 +1,5 @@
 +++
-title = "Bundled cue, vale and shfmt are built with Go versions that a net/http advisory names"
+title = "Bundled CUE, Vale and shfmt are built with Go versions that a net/http advisory names"
 state = "open"
 since = "v0.2.0-beta.8"
 fixed_in = ""

@@ -16,8 +16,8 @@ Goals:
   carrier's design fixed.
 - Both Markdown tools that the product's gates run read the entries: `markdown-lint` already does,
   and a direct `markdownlint-cli2` run must agree with it.
-- Vale reads the prose and the fields of an entry, and refuses nothing that the form itself puts
-  there.
+- Vale reads an entry's prose and its title, and refuses nothing that the form itself puts into
+  the `workaround` field.
 
 Non-goals:
 
@@ -80,11 +80,16 @@ The product's `markdown-lint` gate takes every authored `*.md` file through Git'
 it reads the entries without a change. A direct run of `markdownlint-cli2` reads only its `globs`,
 and `defects/*.md` joins them so that both read the same files.
 
-Vale lints TOML front-matter fields as text. In a `title` or a `workaround`, a code span such as
+Vale lints TOML front-matter fields as text. In a `workaround`, a code span such as
 `` `ethos host run` `` is plain text, and the rule that writes the product's name in capitals
-refuses it. The file already ignores seven front-matter keys of other documents for the same
-reason. No other tracked Markdown under `docs`, `rules`, `openspec/specs` or `.agents` uses a
-`title` or a `workaround` front-matter key, so the two scopes touch only the entries.
+refuses the command. A workaround names commands by its nature, so the scope
+`text.frontmatter.workaround` joins the seven front-matter keys of other documents that the file
+already ignores; no other tracked Markdown uses that key. The cost: Vale no longer reads a
+workaround's wording.
+
+A `title` stays linted. The product's own test of this configuration holds that a title is human
+prose and keeps its diagnostics, so an entry's title names a command in words, not as a code span
+of the lowercase product name; its body names the command.
 
 ### The entries of this Change
 

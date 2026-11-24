@@ -76,16 +76,26 @@ does.
 
 ### The two configuration lines
 
-The product's `markdown-lint` gate takes every authored `*.md` file through Git's own pathspec, so
-it reads the entries without a change. A direct run of `markdownlint-cli2` reads only its `globs`,
-and `defects/*.md` joins them so that both read the same files.
+Both files are shipped: each is the common policy that a governed repository's gate runs before
+the repository's own.
+
+The product's `markdown-lint` gate takes every authored `*.md` file through Git's own pathspec and
+hands the tool those files with its globs switched off, so it reads the entries without a change,
+here and in every governed repository. A direct run of `markdownlint-cli2` reads its `globs`, and
+`defects/*.md` joins them so that such a run in this repository reads the files the gate reads.
 
 Vale lints TOML front-matter fields as text. In a `workaround`, a code span such as
 `` `ethos host run` `` is plain text, and the rule that writes the product's name in capitals
 refuses the command. A workaround names commands by its nature, so the scope
 `text.frontmatter.workaround` joins the seven front-matter keys of other documents that the file
-already ignores; no other tracked Markdown uses that key. The cost: Vale no longer reads a
-workaround's wording.
+already ignores; no other tracked Markdown of this repository uses that key.
+
+What this lifts, and where. In every governed repository, Vale's term and repetition rules no
+longer read a front-matter value under the key `workaround`, in YAML or TOML front matter. They
+still read every other front-matter field that was read before, and the whole body. The spelling
+check of the same gate still reads the field (probed: a misspelt word in a `workaround` is
+reported). No new input is read and no finding is added, so no tree that passed can fail. What
+binds the scope: this repository's own `prose` gate fails on fourteen entries without it.
 
 A `title` stays linted. The product's own test of this configuration holds that a title is human
 prose and keeps its diagnostics, so an entry's title names a command in words, not as a code span
@@ -104,6 +114,9 @@ it.
 - The entry text becomes public when it lands. Each entry states a defect of this repository and,
   where one exists, how to work around it; the texts were written for that audience, and the
   private-address preview runs before the proof.
+- The Vale scope is common policy, not this repository's alone: a governed repository that keeps
+  prose worth linting under a front-matter key named `workaround` loses Vale's reading of it. None
+  of this repository's documents does; the governed repositories were not read for it.
 - An entry can go stale: nothing yet notices when a repair lands without closing its entry. The
   changelog's release change closes the entries it repairs, and the read command's later Change
   makes the state visible.

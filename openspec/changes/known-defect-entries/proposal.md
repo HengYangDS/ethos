@@ -21,12 +21,15 @@ The command that reads them and the check that reports a malformed entry are lat
   release that carries the repair to fill their `fixed_in`.
 - The markdownlint configuration gains `defects/*.md` in its `globs`, so that a direct run of the
   tool reads the files that the product's `markdown-lint` gate already reads.
-- The Vale configuration ignores the front-matter field `workaround`, as it already ignores seven
+- The shipped Vale policy ignores the front-matter field `workaround`, as it already ignores seven
   front-matter fields of other documents: Vale lints a TOML field as plain text, where a code span
   is no longer code and the term rule refuses the lowercase product name inside a command. An
-  entry's `title` stays linted, as every document's title is.
+  entry's `title` stays linted, as every document's title is. This file is the common policy that
+  every governed repository's `prose` gate runs first, so the change reaches every governed
+  repository; it only removes diagnostics.
 
-No product code, no requirement and no accepted requirement changes.
+No product code, no requirement and no accepted requirement changes. Two shipped configuration
+files change.
 
 ## Capabilities
 
@@ -44,4 +47,7 @@ None. No specification states the entries yet; the read command that will is a l
 - The repository root gains one directory of records. A non-dot root directory needs no
   declaration, and the product's Markdown gates already take every authored `*.md` file at any
   depth.
-- Nothing changes for a governed repository: it reads nothing new and gains no directory.
+- A governed repository gains no directory and no gap. Its `prose` gate stops reporting Vale's
+  findings inside a front-matter field named `workaround`, in YAML or TOML front matter; the
+  spelling check still reads that field. Its `markdown-lint` gate is unchanged: the gate names its
+  files itself and does not read the configuration's `globs`.

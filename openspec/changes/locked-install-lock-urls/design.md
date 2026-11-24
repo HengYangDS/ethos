@@ -56,8 +56,10 @@ stages.
    none under a CI marker. The record is removed with the copy, so no trust outlasts the invocation
    and the host's state is unchanged. This Change reads the requirement's "SHALL write no trust
    record" as a record that outlasts the invocation.
-4. **The caller's own safe mode does not reach an install.** It did not before: resolution
-   replaced it, and `download_tool` never passed it.
+4. **The caller's own safe mode does not reach an install, as before.** Resolution replaced it,
+   and `download_tool` never passed it. Passing it on would make it a runtime input that
+   `system/surfaces.toml` has to declare, for a choice that no caller of the two installs makes:
+   both serve `tools/ci/toolchain/native.py`, and no CI carrier of ETHOS selects safe mode.
 5. **Both installs, one rule.** No failure of `download_tool` is known. Its tools are Node.js and
    release archives that are named by version, where the backend and the lock name the same file
    unless a publisher replaces it. It rests on the same assumption and the same requirement, so it
@@ -76,9 +78,11 @@ stages.
 
 ## Risks / Trade-offs
 
-- [Code that a trusted configuration runs at install time now runs during provisioning] → The
-  user or the CI has trusted that root, and native `mise install` there runs the same code. The
-  copy holds only the configuration and the lock, and its state is discarded.
+- [Code that a trusted configuration runs at install time now runs during provisioning, also for
+  a caller whose own environment selects safe mode] → The user or the CI has trusted that root,
+  and native `mise install` there runs the same code. The copy holds only the configuration and
+  the lock, and its state is discarded. ETHOS's own configuration declares no hook, no `[env]`
+  and no install-time option.
 - [Mise changes safe mode or trust again] → The rule is one function. A wrong archive is still
   refused by the locked checksum, so the failure is a refused install and not an unverified one.
 - [No test downloads through real Mise] → The unit tests bind the environment of both installs in

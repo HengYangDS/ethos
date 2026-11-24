@@ -88,6 +88,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ### Fixed
 
+- A locked install of ETHOS's own tool supply again takes each archive from the URL that its Mise
+  lock records. ETHOS ran the install in Mise's safe mode over a disposable copy that carried the
+  repository's native trust. Mise 2026.11 loads such a copy as untrusted in safe mode: it pins
+  only versions and checksums from the lock and downloads what the backend resolves, which for
+  CPython is the newest build of the version. Whenever the publisher rebuilt a locked CPython
+  version, every hosted install without a cached archive failed the locked checksum, as every job
+  of a push run did on 2026-11-24 after the python-build-standalone build `20261123`. A copy that
+  carries the root's native trust is now installed outside safe mode, with Mise's state kept in
+  the disposable directory. A copy without that trust stays in safe mode. The lock and the Mise
+  floor do not move.
 - A heavy run keeps its place in the host queue after its holder is killed. The slot was a lock
   that only the `ethos host run` process held, so a holder ended by `SIGKILL`, or by `SIGHUP`
   when its terminal closed, freed the slot while the command it had admitted kept running, and

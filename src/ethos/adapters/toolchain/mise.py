@@ -246,6 +246,28 @@ def carried_trust(
     return {}
 
 
+def install_mode(trust: Mapping[str, str]) -> dict[str, str]:
+    """Keep an install in safe mode unless its copy carries the root's native trust.
+
+    In safe mode mise 2026.11 loads a copy as untrusted whatever trust it carries: its lock then
+    pins versions and checksums only, and mise downloads what the backend resolves, so a rebuilt
+    archive of a locked version fails the locked checksum. A trusted install leaves safe mode and
+    takes the archive at its lock's URL. Outside safe mode an install trusts its active
+    configuration by itself, so a copy that carries no trust stays in safe mode.
+    """
+    return dict(trust) if trust else {"MISE_SAFE": "1"}
+
+
+def _copy_mode(
+    environment: Mapping[str, str], arguments: tuple[str, ...], trust: Mapping[str, str]
+) -> dict[str, str]:
+    """Add a copy's trust: resolution keeps its safe mode, and an install takes `install_mode`."""
+    if arguments[:1] != ("install",):
+        return {**environment, **trust}
+    unsafe = {key: value for key, value in environment.items() if key != "MISE_SAFE"}
+    return unsafe | install_mode(trust)
+
+
 def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
     """Name native trust as the next action when the user's own mise distrusts the root too."""
     canonical = root.resolve()
@@ -301,8 +323,11 @@ def run_mise(
     selected = executable or mise_executable()
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
-        environment = _mise_environment(isolated, offline=offline, files=materials)
-        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], selected)
+        environment = _copy_mode(
+            _mise_environment(isolated, offline=offline, files=materials),
+            arguments,
+            carried_trust(root, isolated, materials[MISE_CONFIG], selected),
+        )
         for path, content in materials.items():
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)

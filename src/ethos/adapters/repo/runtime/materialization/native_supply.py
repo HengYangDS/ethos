@@ -29,6 +29,7 @@ from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import carried_trust
+from ethos.adapters.toolchain.mise import install_mode
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.repository.paradigm.parameters import seconds
@@ -296,7 +297,6 @@ def download_tool(
         timeout=seconds("download", timeout),
         remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
         env={
-            "MISE_SAFE": "1",
             "MISE_DISABLE_UPDATE_WARNING": "1",
             "MISE_LOCKED": "1",
             "MISE_YES": "0",
@@ -306,7 +306,7 @@ def download_tool(
             "MISE_STATE_DIR": str(root / "state"),
             "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
             "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
-            **(trust or {}),
+            **install_mode(trust or {}),
         },
     )
     sys.stderr.write(result.stdout + result.stderr)

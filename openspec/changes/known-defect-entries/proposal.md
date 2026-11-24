@@ -17,7 +17,7 @@ The command that reads them and the check that reports a malformed entry are lat
 - A root directory `defects/` holds one Markdown file per known defect, named by the defect's
   subject. Each file has five TOML fields between two `+++` lines (`title`, `state`, `since`,
   `fixed_in`, `workaround`) and prose. The form and its reading rules are in this Change's design.
-- 62 entries enter: 55 open and 7 closed. The closed ones are repaired on `dev` and wait for the
+- 68 entries enter: 60 open and 8 closed. The closed ones are repaired on `dev` and wait for the
   release that carries the repair to fill their `fixed_in`.
 - The markdownlint configuration gains `defects/*.md` in its `globs`, so that a direct run of the
   tool reads the files that the product's `markdown-lint` gate already reads.

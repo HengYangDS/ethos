@@ -2,8 +2,8 @@
 
 ## 1. The entries enter the repository
 
-- [ ] 1.1 Add `defects/` at the repository root with the 62 entry files and no other file. Done when
-      `git ls-files defects` lists 62 entry files and a script that applies the design's reading
+- [ ] 1.1 Add `defects/` at the repository root with the 68 entry files and no other file. Done when
+      `git ls-files defects` lists 68 entry files and a script that applies the design's reading
       rules reports no malformed entry and no `since` or `fixed_in` tag that does not resolve.
 - [ ] 1.2 Add `defects/*.md` to the `globs` of
       `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml`, and the scope

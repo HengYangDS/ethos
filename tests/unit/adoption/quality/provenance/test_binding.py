@@ -156,6 +156,7 @@ def test_generated_source_binding_preserves_compiler_inputs_and_complete_outputs
         "@ethos/adapters/projections/compiler.py",
         "@ethos/adapters/projections/cue.py",
         "@ethos/adapters/toolchain/mise.py",
+        "@ethos/adapters/toolchain/mise_install.py",
         "@ethos/adapters/repo/runtime/materialization/native_supply.py",
         "@ethos/repository/policy/projections.py",
         "@ethos/repository/release/resources.py",

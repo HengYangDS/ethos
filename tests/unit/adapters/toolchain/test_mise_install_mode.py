@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -86,15 +87,49 @@ def test_the_runner_never_leaves_safe_mode(
     root = _repository(tmp_path / "repository")
     native = _NativeMise(root, trusted=trusted)
     monkeypatch.setattr(mise, "run_command", native)
-    for arguments in (("which", "python"), ("install", "--locked", "python")):
-        mise.run_mise(root, arguments, files=_FILES, executable=Path("mise"))
-    assert len(native.calls) == 2
+    install = ("install", "--locked", "python")
+    mise.run_mise(root, ("which", "python"), files=_FILES, executable=Path("mise"))
+    mise.run_mise(root, install, files=_FILES, executable=Path("mise"))
+    # Without `files` the runner reads the root's own declarations, as the install entry does.
+    mise.run_mise(root, install, executable=Path("mise"))
+    assert len(native.calls) == 3
     for copy, _command, environment in native.calls:
         assert environment["MISE_SAFE"] == "1"
         assert environment["MISE_STATE_DIR"] == str(copy / "state")
         assert environment.get("MISE_TRUSTED_CONFIG_PATHS") == (
             str(copy / mise.MISE_CONFIG) if trusted else None
         )
+
+
+def test_the_install_entry_takes_the_roots_own_declarations_or_refuses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The entry has no parameter for declarations or a mode, and starts nothing without a lock."""
+    assert list(inspect.signature(mise_install.install_locked).parameters) == [
+        "root",
+        "tools",
+        "executable",
+        "timeout",
+    ]
+    root = tmp_path / "repository"
+    native = _NativeMise(root, trusted=True)
+    monkeypatch.setattr(mise, "run_command", native)
+    monkeypatch.setattr(mise_install, "run_command", native)
+    refused = pytest.raises(ValueError, match=r"^locked_toolchain_missing$")
+    root.mkdir()
+    with refused:
+        mise_install.install_locked(root, ("python",), executable=Path("mise"), timeout=30)
+    _repository(root)
+    (root / mise.MISE_LOCK).unlink()
+    with refused:
+        mise_install.install_locked(root, ("python",), executable=Path("mise"), timeout=30)
+    # A declaration that would leave the copy is refused there, for the install as for any run.
+    monkeypatch.setattr(
+        mise_install, "repository_mise_files", lambda *_a, **_k: _FILES | {"../outside": "x"}
+    )
+    with pytest.raises(ValueError, match=r"^mise_declaration_path_invalid$"):
+        mise_install.install_locked(root, ("python",), executable=Path("mise"), timeout=30)
+    assert native.calls == []
 
 
 @pytest.mark.parametrize("foreign", [{}, _FOREIGN], ids=["carried-only", "foreign-entries"])

@@ -236,6 +236,7 @@ def _projection_product_sources(
                 "adapters/projections/compiler.py",
                 "adapters/projections/cue.py",
                 "adapters/toolchain/mise.py",
+                "adapters/toolchain/mise_install.py",
                 "adapters/repo/runtime/materialization/native_supply.py",
                 "repository/policy/projections.py",
                 "repository/release/resources.py",

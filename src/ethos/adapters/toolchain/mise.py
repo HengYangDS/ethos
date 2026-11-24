@@ -248,24 +248,61 @@ def carried_trust(
     return {}
 
 
+def _exact_declarations(root: Path, materials: Mapping[str, str] | None) -> Mapping[str, str]:
+    """Refuse declarations that are missing, misplaced or no longer the root's own."""
+    if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):
+        message = "locked_toolchain_missing"
+        raise ValueError(message)
+    for path, content in materials.items():
+        selected = PurePosixPath(path)
+        if (
+            selected.is_absolute()
+            or not selected.parts
+            or ".." in selected.parts
+            or "\\" in path
+            or "\0" in path
+            or selected.as_posix() != path
+            or not isinstance(content, str)
+        ):
+            message = "mise_declaration_path_invalid"
+            raise ValueError(message)
+        if path not in (MISE_CONFIG, MISE_LOCK):
+            try:
+                current = _mise_input(root.resolve(), path)
+            except (OSError, ValueError) as error:
+                message = f"mise_version_carrier_changed:{path}"
+                raise ValueError(message) from error
+            if current != content:
+                message = f"mise_version_carrier_changed:{path}"
+                raise ValueError(message)
+    return materials
+
+
 @contextmanager
 def disposable_copy(
-    root: Path, materials: Mapping[str, str], executable: Path, *, offline: bool = False
-) -> Generator[tuple[Path, dict[str, str]]]:
-    """Yield a disposable copy of exact declarations and the environment to run mise in it.
+    root: Path,
+    materials: Mapping[str, str] | None,
+    executable: Path | None,
+    *,
+    offline: bool = False,
+) -> Generator[tuple[Path, Path, dict[str, str]]]:
+    """Yield a disposable copy of exact declarations, the mise to run and its environment.
 
-    The environment is resolution's: safe mode, mise's state inside the copy, no configuration
-    read above the copy, and the root's own native trust when native mise reports it.
+    Every copy is made here, so each one is checked first. The environment is resolution's: safe
+    mode, mise's state inside the copy, no configuration read above the copy, and the root's own
+    native trust when native mise reports it.
     """
+    materials = _exact_declarations(root, materials)
+    selected = executable or mise_executable()
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
         environment = _mise_environment(isolated, offline=offline, files=materials)
-        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], executable)
+        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], selected)
         for path, content in materials.items():
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8", newline="")
-        yield isolated, environment
+        yield isolated, selected, environment
 
 
 def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
@@ -295,39 +332,13 @@ def run_mise(
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
     materials = repository_mise_files(root, executable=executable) if files is None else files
-    if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):
-        message = "locked_toolchain_missing"
-        raise ValueError(message)
-    for path, content in materials.items():
-        selected = PurePosixPath(path)
-        if (
-            selected.is_absolute()
-            or not selected.parts
-            or ".." in selected.parts
-            or "\\" in path
-            or "\0" in path
-            or selected.as_posix() != path
-            or not isinstance(content, str)
-        ):
-            message = "mise_declaration_path_invalid"
-            raise ValueError(message)
-        if path not in (MISE_CONFIG, MISE_LOCK):
-            try:
-                current = _mise_input(root.resolve(), path)
-            except (OSError, ValueError) as error:
-                message = f"mise_version_carrier_changed:{path}"
-                raise ValueError(message) from error
-            if current != content:
-                message = f"mise_version_carrier_changed:{path}"
-                raise ValueError(message)
-    selected = executable or mise_executable()
-    with disposable_copy(root, materials, selected, offline=offline) as (isolated, environment):
+    with disposable_copy(root, materials, executable, offline=offline) as (copy, selected, env):
         return run_command(
-            isolated,
+            copy,
             (str(selected), *arguments),
             timeout=seconds("probe", timeout),
             remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
-            env=environment,
+            env=env,
         )
 
 

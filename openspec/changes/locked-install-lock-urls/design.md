@@ -55,11 +55,13 @@ stages.
    `install_locked(root, tools)`. The entry reads the configuration and the lock from the root
    with `repository_mise_files`, never from a caller, and runs `install --locked -- <tools>` in
    the copy that `disposable_copy` yields, with that copy's environment passed through
-   `install_mode`. `disposable_copy` is the part that `run_mise` and the entry share: the copy of
-   the declarations and resolution's environment for it. The tool names follow `--`, so none of
-   them is read as an option. Measured with Mise 2026.11.9: `install --locked --cd <directory>`
-   installs from that directory's configuration, and after `--` the same words are refused as
-   unknown tools.
+   `install_mode`. `disposable_copy` is the part that `run_mise` and the entry share. Every copy
+   is made there, so the checks that `run_mise` made of its declarations moved there with it: a
+   missing configuration or lock, a path that leaves the copy, and a version carrier that changed
+   under the root are refused for the install as for any run. The tool names follow `--`, so
+   none of them is read as an option. Measured with Mise 2026.11.9:
+   `install --locked --cd <directory>` installs from that directory's configuration, and after
+   `--` the same words are refused as unknown tools.
 3. **Nothing above a copy is read.** `run_mise`'s environment already ends Mise's search at the
    copy's parent, and `download_tool` now does the same. Measured with Mise 2026.11.9: a
    `mise.toml` in the directory above a copy ran its `[env]` template and its `preinstall` hook
@@ -84,9 +86,14 @@ stages.
    release archives that are named by version, where the backend and the lock name the same file
    unless a publisher replaces it. It rests on the same assumption and the same requirement, so it
    is repaired with the hosted install.
-8. **Sizes.** `run_mise` loses the loop that wrote the copy: its decision count falls from the
-   pinned 17 to 16, and its pin follows. `mise.py` holds 489 effective lines against the ceiling
-   of 500 for one file, and the new module 37.
+8. **Sizes.** `run_mise` keeps one decision, so its entry of 17 leaves the baseline of pinned
+   decision counts; the checks it held are `_exact_declarations`, which measures 14 against the
+   threshold of 15. `mise.py` holds 496 effective lines against the ceiling of 500 for one file,
+   and the new module 34.
+9. **The integrity gate binds the new module.** The list of product sources that take part in a
+   CUE projection names `adapters/toolchain/mise.py` and `native_supply.py`. The rule that
+   decides the provisioner's mode now lives in `mise_install.py`, so the list names it too, and
+   an edit of the rule changes the gate's bound material as before.
 
 ## Rejected alternatives
 

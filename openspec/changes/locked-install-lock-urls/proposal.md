@@ -70,8 +70,8 @@ None. The behaviour returns to what the `quality` capability already requires.
 
 - Code: `src/ethos/adapters/toolchain/mise.py`, the new
   `src/ethos/adapters/toolchain/mise_install.py`,
-  `src/ethos/adapters/repo/runtime/materialization/native_supply.py` and
-  `tools/ci/toolchain/native.py`.
+  `src/ethos/adapters/repo/runtime/materialization/native_supply.py`,
+  `src/ethos/repository/policy/quality/sources.py` and `tools/ci/toolchain/native.py`.
 - Behaviour for a trusted root: a provisioning install is native Mise outside safe mode over the
   copy of the configuration and the lock. The copy's `[settings]` apply, and code that the
   configuration runs at install time can run, as when the user runs `mise install` in that root.

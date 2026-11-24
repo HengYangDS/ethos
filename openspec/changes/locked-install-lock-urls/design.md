@@ -49,14 +49,17 @@ stages.
    configuration path alone. A caller that holds its trust mapping apart, as `download_tool` does,
    passes it as a second argument, and no other entry of that mapping reaches the child: a mapping
    cannot lift safe mode, the search ceiling or the lock.
-2. **An install has its own entry.** `install_locked(root, tools)` builds `install --locked`
-   itself and runs it through `run_mise` with `install_mode` as the mode of the child's
-   environment, and without a `files` argument, so the configuration and the lock are the root's
-   own. `run_mise` changes nothing in the environment that it builds unless a caller passes a
-   mode. `install_locked` is the only caller that does, and a test reads the product's and the
-   tools' source to hold it: one call passes `mode`, it lies in `install_locked`, and it passes no
-   `files`. No command's first argument selects the mode, so a global option before `install`
-   cannot keep safe mode without a sign.
+2. **An install has its own entry, and a token of the module selects its mode.**
+   `install_locked(root, tools)` builds `install --locked` itself and runs it through `run_mise`
+   without a `files` argument, so the configuration and the lock are the root's own. `run_mise`
+   applies `install_mode` only when its `install` argument is `_LOCKED_INSTALL`, an object that the
+   module keeps private and that `install_locked` alone passes. A caller therefore cannot choose
+   the mode, pass a rule of its own, or give an install a lock that is not the root's; any other
+   value leaves the run in safe mode. No command's first argument selects the mode, so a global
+   option before `install` cannot keep safe mode without a sign. A test reads the source of the
+   product and its tools: the token is named in its module alone, where it is defined once,
+   compared once in `run_mise` and passed once by `install_locked`, whose parameters are `root`,
+   `tools`, `executable` and `timeout`.
 3. **Nothing above a copy is read.** `run_mise`'s environment already ends Mise's search at the
    copy's parent, and `download_tool` now does the same. Measured with Mise 2026.11.9: a
    `mise.toml` in the directory above a copy ran its `[env]` template and its `preinstall` hook
@@ -81,12 +84,11 @@ stages.
    release archives that are named by version, where the backend and the lock name the same file
    unless a publisher replaces it. It rests on the same assumption and the same requirement, so it
    is repaired with the hosted install.
-8. **`run_mise` keeps its shape, and its mode is a seam held by a test.** A private runner under
-   a resolution-only `run_mise` would make the mode unreachable from outside the module. It was
+8. **`run_mise` keeps its shape.** A private runner under a resolution-only `run_mise` was
    written and withdrawn: the module would have held 517 effective lines against the ceiling of
-   500 for one file. The mode is one optional argument, the function's pinned decision count stays
-   17, and the module holds 496 effective lines. The module is at its ceiling; moving the install
-   to a module of its own belongs to a split of this file, which is not this Change.
+   500 for one file. The token of decision 2 gives the same reach, a private name of the module,
+   in one argument: the function's pinned decision count stays 17 and the module holds 496
+   effective lines.
 
 ## Rejected alternatives
 
@@ -99,6 +101,9 @@ stages.
 - **Read the mode from the command's first argument.** The first commit of this Change did. A
   global option before `install` would then keep safe mode without a sign; the review of that
   commit named it.
+- **Pass the mode to `run_mise` as a function.** The second and third commits did. Any caller
+  could then pass a mode, and any function as one; a test of the source that looked for such
+  calls had to name every way of reaching a function, and three reviews each found another.
 - **Install outside the disposable copy.** The copy holds the exact declared bytes and keeps
   Mise's state off the host; both requirements stand.
 
@@ -114,8 +119,9 @@ stages.
   with native Mise showed the code of the directory above not running.
 - [Mise changes safe mode or trust again] → The rule is one function. A wrong archive is still
   refused by the locked checksum, so the failure is a refused install and not an unverified one.
-- [`mode` is a public argument of `run_mise`] → Decision 2: a test of the source fails when a
-  second caller passes it, or when the one caller passes `files`.
+- [Python has no private names, so a module can still import the token] → The test of decision 2
+  fails on every reference to the token outside its module, by name or as a string. A name
+  computed at run time is not seen; that is the limit of a test of the source.
 - [No test downloads through real Mise] → The unit tests bind the environment of both installs in
   both trust states. The proposal ref's push run is the test of the download: it fails in every
   job before this Change and installs the locked build after it.

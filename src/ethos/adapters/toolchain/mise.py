@@ -27,7 +27,6 @@ from ethos.repository.paradigm.toolchain import selects_tools
 
 if TYPE_CHECKING:
     import subprocess
-    from collections.abc import Callable
     from collections.abc import Generator
     from collections.abc import Mapping
 
@@ -50,6 +49,8 @@ _CALLER_INPUTS = frozenset(
 MISE_ENVIRONMENT_PREFIXES = ("MISE_", "__MISE_")
 # The one input by which a disposable copy carries its root's native trust.
 _TRUST = "MISE_TRUSTED_CONFIG_PATHS"
+# What selects an install's mode in `run_mise`. Only this module holds it, for `install_locked`.
+_LOCKED_INSTALL = object()
 
 
 def native_tool_cache(root: Path) -> Path:
@@ -295,13 +296,13 @@ def run_mise(
     executable: Path | None = None,
     timeout: float | None = None,
     offline: bool = False,
-    mode: Callable[[Mapping[str, str]], dict[str, str]] = dict,
+    install: object = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs in a disposable copy, with no ambient config.
 
-    `mode` returns the child's environment from the one built here. The default changes nothing,
-    so resolution always runs in safe mode. `install_locked` alone passes a mode, and it passes
-    no `files`; a test of the source holds both.
+    Every run is in safe mode but one: `install` selects `install_mode` when it is this module's
+    own token, which `install_locked` alone passes, with no `files`. Any other value changes
+    nothing, so a caller cannot choose the mode or a rule of its own.
     """
     materials = repository_mise_files(root, executable=executable) if files is None else files
     if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):
@@ -343,7 +344,7 @@ def run_mise(
             (str(selected), *arguments),
             timeout=seconds("probe", timeout),
             remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
-            env=mode(environment),
+            env=install_mode(environment) if install is _LOCKED_INSTALL else environment,
         )
 
 
@@ -358,7 +359,7 @@ def install_locked(
     for install time can run. Nothing above the disposable copy is read.
     """
     command = ("install", "--locked", *tools)
-    return run_mise(root, command, executable=executable, timeout=timeout, mode=install_mode)
+    return run_mise(root, command, executable=executable, timeout=timeout, install=_LOCKED_INSTALL)
 
 
 def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -> Path:

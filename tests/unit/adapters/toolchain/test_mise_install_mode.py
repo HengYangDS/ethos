@@ -22,6 +22,7 @@ _FILES = {
 _TRUST_QUERY = ("trust", "--show")
 ROOT = Path(__file__).resolve().parents[4]
 _FOREIGN = {"MISE_SAFE": "0", "MISE_CEILING_PATHS": "/", "MISE_YES": "1"}
+_TOKEN = "_LOCKED_INSTALL"
 
 
 class _NativeMise:
@@ -66,9 +67,12 @@ def test_a_locked_install_leaves_safe_mode_only_for_a_trusted_root(
     # The caller's own safe mode decides nothing: resolution replaces it and an install drops it.
     monkeypatch.setenv("MISE_SAFE", "1")
     mise.install_locked(root, ("python",), executable=Path("mise"), timeout=30)
-    # Resolution keeps safe mode whatever it is asked to run, an install included.
-    for arguments in (("which", "python"), ("install", "--locked", "python")):
-        mise.run_mise(root, arguments, files=_FILES, executable=Path("mise"))
+    # Any other run keeps safe mode whatever it is asked to run, an install included, and
+    # whatever a caller passes in place of the module's own token.
+    install = ("install", "--locked", "python")
+    mise.run_mise(root, ("which", "python"), files=_FILES, executable=Path("mise"))
+    mise.run_mise(root, install, files=_FILES, executable=Path("mise"))
+    mise.run_mise(root, install, executable=Path("mise"), install=object())
     (copy, command, install), *resolutions = native.calls
     assert command == ("install", "--locked", "python")
     assert install.get("MISE_SAFE") == (None if trusted else "1")
@@ -78,7 +82,7 @@ def test_a_locked_install_leaves_safe_mode_only_for_a_trusted_root(
     assert install["MISE_STATE_DIR"] == str(copy / "state")
     assert install["MISE_CEILING_PATHS"] == str(copy.parent)
     assert install["MISE_LOCKED"] == "1"
-    assert len(resolutions) == 2
+    assert len(resolutions) == 3
     for resolved, _command, resolution in resolutions:
         assert resolution["MISE_SAFE"] == "1"
         assert resolution["MISE_STATE_DIR"] == str(resolved / "state")
@@ -132,62 +136,78 @@ def test_an_install_without_trust_is_always_in_safe_mode() -> None:
     assert mise.install_mode(trusted, {}) == {"MISE_YES": "0", "MISE_SAFE": "1"}
 
 
-def _runner_references(path: Path) -> tuple[list[tuple[int, set[str | None]]], list[int]]:
-    """Return the direct calls of `run_mise` with their keywords, and every other reference."""
-    nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
-    calls = {id(node.func): node for node in nodes if isinstance(node, ast.Call)}
-    direct: list[tuple[int, set[str | None]]] = []
-    other: list[int] = []
-    for node in nodes:
+def _token_references(tree: ast.AST) -> list[tuple[int, str]]:
+    """Return each reference to the install token under one node: its line and its kind."""
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
         if isinstance(node, ast.alias):
-            # A renaming import would hide later calls from the name.
-            other += [node.lineno] if node.name == "run_mise" and node.asname else []
+            found += [(node.lineno, "import")] if node.name.rpartition(".")[2] == _TOKEN else []
         elif isinstance(node, ast.Constant):
-            # The bare name as a string reaches the function through `getattr`.
-            other += [node.lineno] if node.value == "run_mise" else []
-        elif getattr(node, "id", getattr(node, "attr", None)) == "run_mise":
-            call = calls.get(id(node))
-            if call is None:
-                other.append(node.lineno)
-            else:
-                direct.append((call.lineno, {keyword.arg for keyword in call.keywords}))
-    return direct, other
+            # The name as a string, bare or as the last part of a dotted or `module:name` path,
+            # reaches the token through `getattr`, `attrgetter` or a loader that imports by name.
+            text = node.value if isinstance(node.value, str) else ""
+            named = text.replace(":", ".").rpartition(".")[2] == _TOKEN and not any(
+                character.isspace() for character in text
+            )
+            found += [(node.lineno, "string")] if named else []
+        elif getattr(node, "id", getattr(node, "attr", None)) == _TOKEN:
+            found.append((node.lineno, type(node.ctx).__name__.lower()))
+    return found
 
 
-def test_the_install_entry_alone_selects_a_mode_and_passes_no_declarations() -> None:
-    """In the product and its tools, `mode` reaches `run_mise` from `install_locked` alone."""
-    users: list[tuple[str, int, set[str | None]]] = []
+def test_the_install_token_never_leaves_the_mise_adapter() -> None:
+    """Only `install_locked` selects an install's mode: the token that does is the module's own."""
+    module = "src/ethos/adapters/toolchain/mise.py"
     for path in sorted(p for base in ("src", "tools") for p in (ROOT / base).rglob("*.py")):
         where = path.relative_to(ROOT).as_posix()
-        direct, other = _runner_references(path)
-        # Passed on, renamed or named by a string, the function could take a mode unseen here.
-        assert not other, (where, other)
-        # A forwarded `**options` could carry a mode unseen, so it counts as one.
-        users += [(where, line, keys) for line, keys in direct if keys & {"mode", None}]
-    ((where, line, keywords),) = users
-    assert where == "src/ethos/adapters/toolchain/mise.py"
-    assert keywords == {"executable", "timeout", "mode"}
-    entry = next(
+        references = _token_references(ast.parse(path.read_text(encoding="utf-8")))
+        assert where == module or not references, (where, references)
+    tree = ast.parse((ROOT / module).read_text(encoding="utf-8"))
+    holders = {
+        getattr(top, "name", "<module>"): [kind for _line, kind in _token_references(top)]
+        for top in tree.body
+        if _token_references(top)
+    }
+    # Defined once, compared once in the runner, passed once by the entry.
+    assert holders == {"<module>": ["store"], "run_mise": ["load"], "install_locked": ["load"]}
+    entry = next(top for top in tree.body if getattr(top, "name", "") == "install_locked")
+    assert isinstance(entry, ast.FunctionDef)
+    # The entry takes no mode, no declarations and nothing it could forward as either.
+    assert [argument.arg for argument in entry.args.posonlyargs + entry.args.args] == [
+        "root",
+        "tools",
+    ]
+    assert [argument.arg for argument in entry.args.kwonlyargs] == ["executable", "timeout"]
+    assert entry.args.vararg is None
+    assert entry.args.kwarg is None
+    (call,) = (
         node
-        for node in ast.walk(ast.parse((ROOT / where).read_text(encoding="utf-8")))
-        if isinstance(node, ast.FunctionDef) and node.name == "install_locked"
+        for node in ast.walk(entry)
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "run_mise"
     )
-    assert entry.lineno < line <= (entry.end_lineno or 0)
+    assert {keyword.arg for keyword in call.keywords} == {"executable", "timeout", "install"}
 
 
-def test_the_guard_sees_a_runner_that_is_renamed_passed_on_or_named(tmp_path: Path) -> None:
-    """Each indirect reference is reported, and a direct call is read with its keywords."""
-    source = tmp_path / "caller.py"
-    source.write_text(
-        "from ethos.adapters.toolchain.mise import run_mise as runner\n"
-        "from functools import partial\n"
+def test_the_guard_reads_every_way_to_reach_the_token() -> None:
+    """Imports, attribute reads, a rebinding and the name as a string are each reported."""
+    sample = (
+        "from ethos.adapters.toolchain.mise import _LOCKED_INSTALL\n"
+        "from ethos.adapters.toolchain.mise import _LOCKED_INSTALL as token\n"
         "import ethos.adapters.toolchain.mise as mise\n"
-        "keep = mise.run_mise\n"
-        "bound = partial(run_mise, mode=dict)\n"
-        "found = getattr(mise, 'run_mise')\n"
-        "mise.run_mise(root, ('which', 'node'), mode=dict, **options)\n",
-        encoding="utf-8",
+        "held = mise._LOCKED_INSTALL\n"
+        "found = getattr(mise, '_LOCKED_INSTALL')\n"
+        "named = attrgetter('mise._LOCKED_INSTALL')\n"
+        "loaded = load('ethos.adapters.toolchain.mise:_LOCKED_INSTALL')\n"
+        "mise._LOCKED_INSTALL = held\n"
+        "mise.run_mise(root, ('which', 'node'), files=files)\n"
+        "note = 'the token _LOCKED_INSTALL stays in its module'\n"
     )
-    direct, other = _runner_references(source)
-    assert sorted(other) == [1, 4, 5, 6]
-    assert direct == [(7, {"mode", None})]
+    assert sorted(_token_references(ast.parse(sample))) == [
+        (1, "import"),
+        (2, "import"),
+        (4, "load"),
+        (5, "string"),
+        (6, "string"),
+        (7, "string"),
+        (8, "store"),
+    ]

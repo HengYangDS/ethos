@@ -76,18 +76,20 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
         native, "materialize_tool", lambda _root, tool, **_kwargs: {"node": node, "cue": cue}[tool]
     )
     monkeypatch.setattr(native, "run_mise", locked_mise)
+    # The install has an entry of its own: through `run_mise` it would keep mise's safe mode.
+    installed: list[tuple[str, ...]] = []
+    done = Mock(returncode=0, stdout="", stderr="")
+    monkeypatch.setattr(
+        native, "install_locked", lambda _root, tools, **_kwargs: installed.append(tools) or done
+    )
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])
 
     accepted = fault in {"none", "windows-suffix", "offline-ready"}
     assert native.main() == (0 if accepted else 1)
     captured = capsys.readouterr()
-    if fault.startswith("offline-"):
-        assert not any(command[0] == "install" for command in calls)
-    else:
-        assert any(
-            command[:2] == ("install", "--locked") and {"go", "node"} <= set(command)
-            for command in calls
-        )
+    assert not any(command[0] == "install" for command in calls)
+    wanted = [] if fault.startswith("offline-") else [True]
+    assert [{"go", "node"} <= set(tools) for tools in installed] == wanted
     if accepted:
         assert captured.out.strip().split(os.pathsep) == [
             str(node),

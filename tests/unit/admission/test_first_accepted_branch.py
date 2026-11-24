@@ -212,8 +212,10 @@ def test_the_step_names_the_creation_it_would_admit(tmp_path: Path) -> None:
 
     step = first_accepted_branch_step(repo, head)
 
-    assert step.startswith("create the accepted branch at the release head")
-    assert step.endswith(f"git switch -c {policy.accepted_branch} {policy.release_branch}")
+    assert step == (
+        "create the accepted branch at the release head as an adopted baseline: "
+        f"git switch -c {policy.accepted_branch} {policy.release_branch}"
+    )
 
 
 def test_the_step_fetches_first_where_a_remote_is_configured(tmp_path: Path) -> None:

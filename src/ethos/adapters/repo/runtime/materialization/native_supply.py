@@ -296,18 +296,24 @@ def download_tool(
         command,
         timeout=seconds("download", timeout),
         remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
-        env={
-            "MISE_DISABLE_UPDATE_WARNING": "1",
-            "MISE_LOCKED": "1",
-            "MISE_YES": "0",
-            "MISE_ALWAYS_KEEP_DOWNLOAD": "1",
-            "MISE_DATA_DIR": str(root / "data"),
-            "MISE_CACHE_DIR": str(root / "cache"),
-            "MISE_STATE_DIR": str(root / "state"),
-            "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
-            "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
-            **install_mode(trust or {}),
-        },
+        env=install_mode(
+            {
+                "MISE_SAFE": "1",
+                "MISE_DISABLE_UPDATE_WARNING": "1",
+                "MISE_LOCKED": "1",
+                "MISE_YES": "0",
+                "MISE_ALWAYS_KEEP_DOWNLOAD": "1",
+                "MISE_DATA_DIR": str(root / "data"),
+                "MISE_CACHE_DIR": str(root / "cache"),
+                "MISE_STATE_DIR": str(root / "state"),
+                "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
+                "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
+                # Outside safe mode mise runs the code of every configuration it finds above its
+                # directory, trusted or not; nothing above the disposable root is read.
+                "MISE_CEILING_PATHS": str(root.parent),
+                **(trust or {}),
+            }
+        ),
     )
     sys.stderr.write(result.stdout + result.stderr)
     result.check_returncode()

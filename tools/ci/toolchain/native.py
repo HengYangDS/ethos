@@ -29,6 +29,7 @@ from ethos.adapters.repo.runtime.materialization.native_supply import ensure_nat
 from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
 from ethos.adapters.repo.runtime.materialization.native_supply import native_supply_is_offline
 from ethos.adapters.toolchain.mise import MISE_CONFIG
+from ethos.adapters.toolchain.mise import install_locked
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
 
@@ -247,9 +248,9 @@ def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
     if native_supply_is_offline():
         require_cached_mise_tools(root, mise, declared)
     else:
-        result = run_mise(
+        result = install_locked(
             root,
-            ("install", "--locked", "cue", "github:rhysd/actionlint", *declared)
+            ("cue", "github:rhysd/actionlint", *declared)
             + (("go",) if go_version is not None else ()),
             executable=mise,
             timeout=300,

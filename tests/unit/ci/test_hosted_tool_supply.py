@@ -88,6 +88,8 @@ def _native_supply(
     transfer_log = tmp_path / "transfer.log"
     scripts["mise"] = (
         f"#!{sys.executable}\nimport os, pathlib, shutil, sys\n"
+        # This fake fails the trust query on its first assertion, so the root counts as untrusted
+        # and the install stays in safe mode; `test_mise_install_mode.py` binds the trusted side.
         f'assert sys.argv[1:] == ["install", "--locked", {backend!r}]\n'
         'assert os.environ["MISE_SAFE"] == os.environ["MISE_LOCKED"] == "1"\n'
         'assert os.environ["MISE_DISABLE_UPDATE_WARNING"] == "1"\n'
@@ -379,6 +381,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         f"    print({observed!r})\n"
         + ("    print('unapproved-warning', file=sys.stderr)\n" if fault == "warning" else "")
         + "else:\n"
+        # As above: the trust query fails here, so this binds the untrusted install alone.
         "    assert sys.argv[1:] == ['install', '--locked', 'cue', 'github:rhysd/actionlint']\n"
         "    assert os.environ['MISE_SAFE'] == os.environ['MISE_LOCKED'] == '1'\n"
         "    config = tomllib.loads(Path('.config/mise/config.toml').read_text())\n"
@@ -459,7 +462,11 @@ def test_mise_supply_prepares_every_declared_interpreter_tool(tmp_path, monkeypa
         found = f"{executable}\n" if arguments[0] == "which" else ""
         return native.subprocess.CompletedProcess(arguments, 0, found, "")
 
+    def install(root: Path, tools: tuple[str, ...], **options: object) -> object:
+        return mise(root, ("install", "--locked", *tools), **options)
+
     monkeypatch.setattr(native, "run_mise", mise)
+    monkeypatch.setattr(native, "install_locked", install)
     monkeypatch.setattr(native, "native_supply_is_offline", lambda: offline)
     monkeypatch.setattr(native, "materialize_tool", lambda *_args, **_options: tmp_path)
     native.mise_tool_paths(tmp_path, tmp_path / "mise")

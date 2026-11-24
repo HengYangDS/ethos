@@ -43,27 +43,45 @@ stages.
 
 ## Decisions
 
-1. **Trust selects the mode.** `install_mode` returns the carried trust for a trusted copy and
-   `MISE_SAFE=1` for any other. `run_mise` applies it when its command is `install`, in place of
-   the safe mode that resolution sets, and `download_tool` applies it in place of its fixed safe
-   mode. The command decides, so no caller passes a second statement of what it runs.
-2. **An untrusted copy stays in safe mode.** Outside safe mode its install would trust it, and
+1. **Trust selects the mode.** `install_mode` returns the carried configuration path for a
+   trusted copy and `MISE_SAFE=1` for any other. Only that one entry lifts safe mode: another key
+   in the mapping is not trust and does not reach the install.
+2. **An install has its own entry.** `install_locked(root, tools)` builds `install --locked`
+   itself and runs it through `run_mise` with `install_mode` as the mode of the child's
+   environment, and without a `files` argument, so the configuration and the lock are the root's
+   own. `run_mise` changes nothing in the environment that it builds unless a caller passes a
+   mode, and `install_locked` is the only caller that does. No command's first argument selects
+   the mode, so a global option before `install` cannot keep safe mode without a sign.
+   `download_tool` passes its environment through `install_mode` too; its caller reads both files
+   from the root.
+3. **Nothing above a copy is read.** `run_mise`'s environment already ends Mise's search at the
+   copy's parent, and `download_tool` now does the same. Measured with Mise 2026.11.9: a
+   `mise.toml` in the directory above a copy ran its `[env]` template and its `preinstall` hook
+   during an install outside safe mode, although only the copy carried trust, with and without a
+   CI marker. With the search ended at the copy's parent, neither ran and the install took the
+   locked archive. The provisioner's copy lies in the tool cache, below the repository or its Git
+   directory.
+4. **An untrusted copy stays in safe mode.** Outside safe mode its install would trust it, and
    "Disposable mise copies carry only native trust" forbids trusting a configuration that native
    Mise does not report as trusted. Its result is what it is today: versions and checksums are
    pinned, and a rebuilt archive is refused by its checksum.
-3. **State stays disposable.** Both installs keep `MISE_STATE_DIR` inside the copy. Outside safe
+5. **State stays disposable.** Both installs keep `MISE_STATE_DIR` inside the copy. Outside safe
    mode, Mise 2026.11.9 writes a trust record there for a copy that carries a trusted path, and
    none under a CI marker. The record is removed with the copy, so no trust outlasts the invocation
    and the host's state is unchanged. This Change reads the requirement's "SHALL write no trust
    record" as a record that outlasts the invocation.
-4. **The caller's own safe mode does not reach an install, as before.** Resolution replaced it,
+6. **The caller's own safe mode does not reach an install, as before.** Resolution replaced it,
    and `download_tool` never passed it. Passing it on would make it a runtime input that
    `system/surfaces.toml` has to declare, for a choice that no caller of the two installs makes:
    both serve `tools/ci/toolchain/native.py`, and no CI carrier of ETHOS selects safe mode.
-5. **Both installs, one rule.** No failure of `download_tool` is known. Its tools are Node.js and
+7. **Both installs, one rule.** No failure of `download_tool` is known. Its tools are Node.js and
    release archives that are named by version, where the backend and the lock name the same file
    unless a publisher replaces it. It rests on the same assumption and the same requirement, so it
    is repaired with the hosted install.
+8. **`run_mise` keeps its shape.** Splitting it into a check of the declarations and a run in a
+   copy was written first and withdrawn: the module would have held 517 effective lines against
+   the ceiling of 500 for one file. The mode is one optional argument, the function's pinned
+   decision count stays 17, and the module holds fewer than 500 effective lines.
 
 ## Rejected alternatives
 
@@ -73,6 +91,9 @@ stages.
 - **Raise the Mise floor.** 2026.11.12 behaves as 2026.11.9 does.
 - **Leave safe mode for every install.** An install would then trust a configuration that nobody
   trusted.
+- **Read the mode from the command's first argument.** The first commit of this Change did. A
+  global option before `install` would then keep safe mode without a sign; the review of that
+  commit named it.
 - **Install outside the disposable copy.** The copy holds the exact declared bytes and keeps
   Mise's state off the host; both requirements stand.
 
@@ -83,6 +104,9 @@ stages.
   and native `mise install` there runs the same code. The copy holds only the configuration and
   the lock, and its state is discarded. ETHOS's own configuration declares no hook, no `[env]`
   and no install-time option.
+- [A configuration above a copy runs its code in an install outside safe mode] → Decision 3: the
+  search ends at the copy's parent in both installs. The unit tests bind that entry, and a run
+  with native Mise showed the code of the directory above not running.
 - [Mise changes safe mode or trust again] → The rule is one function. A wrong archive is still
   refused by the locked checksum, so the failure is a refused install and not an unverified one.
 - [No test downloads through real Mise] → The unit tests bind the environment of both installs in

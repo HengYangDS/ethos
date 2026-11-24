@@ -8,6 +8,7 @@ date: 2026-11-12
 relations:
   current_owner: ../../openspec/specs/quality/spec.md
   updates: DR-0020
+  updated_by: DR-0036
 ---
 
 # DR-0025: The Product Ceiling Moves to 85,000 for the Common Rules
@@ -40,6 +41,7 @@ docstring for every package marker, and a foundation starter that passes its own
 - **Why not more removal now.** The larger reductions stay structural, as DR-0020 found: typed facts
   into pure decisions, a Git port, and retiring text continuations. They remain 0.3.0 work.
 - **The step.** The product ceiling moves one step, from 80,000 to 85,000 line-equivalents.
+  (Replaced by [DR-0036](dr-0036-product-budget-step-90.md).)
 
 ## Alternatives Rejected
 
@@ -55,4 +57,4 @@ docstring for every package marker, and a foundation starter that passes its own
 
 Measurements: the lane's source-budget report before (80,175) and after the merge (80,130), and the
 two product searches named above. Revisit when the product reaches 83,000 before the 0.3.0
-reductions, or when they land.
+reductions, or when they land. (Replaced by [DR-0036](dr-0036-product-budget-step-90.md).)

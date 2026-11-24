@@ -30,6 +30,8 @@ class _NativeMise:
     def __init__(self, root: Path, *, trusted: bool) -> None:
         self.answer = f"{root.resolve()}: trusted\n" if trusted else ""
         self.calls: list[tuple[Path, tuple[str, ...], dict[str, str]]] = []
+        # Every start of native mise, the trust query among them.
+        self.started = 0
 
     def __call__(
         self,
@@ -40,6 +42,7 @@ class _NativeMise:
         remove_env_prefixes: tuple[str, ...] = (),
         **_options: object,
     ) -> subprocess.CompletedProcess[str]:
+        self.started += 1
         if command[-2:] == _TRUST_QUERY:
             return subprocess.CompletedProcess(command, 0, self.answer, "")
         # Without this the child inherits the caller's own `MISE_*`, a safe mode among them.
@@ -129,7 +132,8 @@ def test_the_install_entry_takes_the_roots_own_declarations_or_refuses(
     )
     with pytest.raises(ValueError, match=r"^mise_declaration_path_invalid$"):
         mise_install.install_locked(root, ("python",), executable=Path("mise"), timeout=30)
-    assert native.calls == []
+    # Not even the trust query ran: the declarations are checked before mise is started at all.
+    assert native.started == 0
 
 
 @pytest.mark.parametrize("foreign", [{}, _FOREIGN], ids=["carried-only", "foreign-entries"])

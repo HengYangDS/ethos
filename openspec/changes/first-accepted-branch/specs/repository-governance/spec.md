@@ -44,7 +44,7 @@ parses, or none and a valid repository profile. A condition that the hook cannot
 The admission of the requirement "An absent accepted branch is created at the release head" SHALL
 also require that each remote that the repository's own configuration declares has exactly Git's
 default fetch refspec, `+refs/heads/*:refs/remotes/<remote>/*`, and no tracking ref of the accepted
-branch. A condition that the hook cannot read does not hold.
+branch. A condition of that admission that the hook cannot read does not hold.
 
 #### Scenario: A remote that has shown the branch, or does not fetch every branch, does not admit
 
@@ -57,8 +57,9 @@ branch. A condition that the hook cannot read does not hold.
 ### Requirement: An admitted creation of the accepted branch is an adopted baseline
 
 A creation that the requirement "An absent accepted branch is created at the release head" admits
-SHALL be an adopted baseline, not an accepted advance: it requires no proof and writes no record,
-and a landing onto it requires its proof as every landing does. A move of an accepted branch that
+is not an accepted advance, and the created head SHALL be an adopted baseline: the creation
+requires no proof and writes no record, and a landing onto that head requires its proof as every
+landing does. A move of an accepted branch that
 exists is not a creation, whatever old value the transaction reports. That requirement admits no
 other move of the accepted branch and refuses none.
 
@@ -71,9 +72,9 @@ other move of the accepted branch and refuses none.
 
 ### Requirement: Status names the creation of an absent accepted branch
 
-On a clean checkout of the release branch where the creation that the requirement "An absent
-accepted branch is created at the release head" describes would be admitted, `ethos status` SHALL
-name it as its next step, preceded by a fetch where a remote is configured; a pending role rebinding
+On a clean checkout of the release branch where the conditions of the requirement "An absent
+accepted branch is created at the release head" hold, `ethos status` SHALL name the creation as
+its next step, preceded by a fetch where a remote is configured; a pending role rebinding
 is named before it.
 
 #### Scenario: Status names the creation
@@ -89,8 +90,8 @@ is named before it.
 
 Protected-ref transitions SHALL run admission from the Git-common selected
 immutable runtime in isolated mode and SHALL read candidate policy from the
-candidate HEAD's committed tree, or, for an admitted creation of an absent
-accepted branch, from the created head's committed tree. They SHALL reject
+candidate HEAD's committed tree, or, for a creation admitted as an adopted
+baseline, from the created head's committed tree. They SHALL reject
 ignored candidate runtimes, accepted-checkout interpreters, inherited
 `PYTHONPATH`, and missing or mismatched committed policy inputs. The proof floor
 SHALL match the committed repository role.

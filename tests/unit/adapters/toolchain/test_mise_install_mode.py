@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -19,6 +20,7 @@ _FILES = {
     mise.MISE_LOCK: 'lockfile_version = 3\n[[tools.python]]\nversion = "3.14.10"\n',
 }
 _TRUST_QUERY = ("trust", "--show")
+ROOT = Path(__file__).resolve().parents[4]
 
 
 class _NativeMise:
@@ -95,8 +97,13 @@ def test_the_provisioner_leaves_safe_mode_only_for_a_trusted_root(
     monkeypatch.setattr(mise, "run_command", native)
     monkeypatch.setattr(native_supply, "run_command", native)
     trust = mise.carried_trust(root, copy, _FILES[mise.MISE_CONFIG], Path("mise"))
-    native_supply.download_tool(("mise", "install", "--locked", "node"), root=copy, trust=trust)
+    # No other entry of a caller's mapping replaces what the provisioner fixes.
+    foreign = {"MISE_SAFE": "0", "MISE_CEILING_PATHS": "/", "MISE_YES": "1"}
+    native_supply.download_tool(
+        ("mise", "install", "--locked", "node"), root=copy, trust=trust | foreign
+    )
     ((_cwd, _command, seen),) = native.calls
+    assert seen["MISE_YES"] == "0"
     assert seen.get("MISE_SAFE") == (None if trusted else "1")
     assert seen.get("MISE_TRUSTED_CONFIG_PATHS") == (
         str(copy / mise.MISE_CONFIG) if trusted else None
@@ -106,15 +113,44 @@ def test_the_provisioner_leaves_safe_mode_only_for_a_trusted_root(
     assert seen["MISE_LOCKED"] == "1"
 
 
-def test_only_a_carried_configuration_path_lifts_safe_mode() -> None:
-    """Another entry is not trust; a trusted environment loses its safe mode and nothing else."""
-    safe = {"MISE_SAFE": "1", "MISE_YES": "0"}
-    assert mise.install_mode(safe) == safe
-    assert mise.install_mode(safe | {"MISE_TRUSTED_CONFIG_PATHS": ""}) == safe | {
-        "MISE_TRUSTED_CONFIG_PATHS": ""
-    }
-    carried = safe | {"MISE_TRUSTED_CONFIG_PATHS": "copy/config.toml"}
-    assert mise.install_mode(carried) == {
+def test_an_install_without_trust_is_always_in_safe_mode() -> None:
+    """The rule sets safe mode itself; only a carried configuration path lifts it."""
+    assert mise.install_mode({"MISE_YES": "0"}) == {"MISE_YES": "0", "MISE_SAFE": "1"}
+    unsafe = {"MISE_SAFE": "0", "MISE_YES": "0"}
+    assert mise.install_mode(unsafe) == {"MISE_YES": "0", "MISE_SAFE": "1"}
+    assert mise.install_mode(unsafe | {"MISE_TRUSTED_CONFIG_PATHS": ""}) == {
         "MISE_YES": "0",
-        "MISE_TRUSTED_CONFIG_PATHS": "copy/config.toml",
+        "MISE_SAFE": "1",
     }
+    trusted = {"MISE_YES": "0", "MISE_TRUSTED_CONFIG_PATHS": "copy/config.toml"}
+    assert mise.install_mode(trusted | {"MISE_SAFE": "1"}) == trusted
+    # Held apart, a trust mapping gives its one key and nothing else.
+    apart = {"MISE_TRUSTED_CONFIG_PATHS": "copy/config.toml", "MISE_YES": "1", "MISE_SAFE": "0"}
+    assert mise.install_mode({"MISE_YES": "0", "MISE_SAFE": "1"}, apart) == trusted
+    assert mise.install_mode(trusted, {}) == {"MISE_YES": "0", "MISE_SAFE": "1"}
+
+
+def test_the_install_entry_alone_selects_a_mode_and_passes_no_declarations() -> None:
+    """In the product and its tools, `mode` reaches `run_mise` from `install_locked` alone."""
+    users: list[tuple[str, int, set[str | None]]] = []
+    for path in sorted(p for base in ("src", "tools") for p in (ROOT / base).rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            name = (
+                getattr(node.func, "id", getattr(node.func, "attr", ""))
+                if isinstance(node, ast.Call)
+                else ""
+            )
+            keywords = {keyword.arg for keyword in node.keywords} if name == "run_mise" else set()
+            # A forwarded `**options` could carry a mode unseen, so it counts as one.
+            if keywords & {"mode", None}:
+                users.append((path.relative_to(ROOT).as_posix(), node.lineno, keywords))
+    ((path, line, keywords),) = users
+    assert path == "src/ethos/adapters/toolchain/mise.py"
+    assert keywords == {"executable", "timeout", "mode"}
+    entry = next(
+        node
+        for node in ast.walk(ast.parse((ROOT / path).read_text(encoding="utf-8")))
+        if isinstance(node, ast.FunctionDef) and node.name == "install_locked"
+    )
+    assert entry.lineno < line <= (entry.end_lineno or 0)

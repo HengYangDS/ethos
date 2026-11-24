@@ -462,8 +462,10 @@ def test_mise_supply_prepares_every_declared_interpreter_tool(tmp_path, monkeypa
         found = f"{executable}\n" if arguments[0] == "which" else ""
         return native.subprocess.CompletedProcess(arguments, 0, found, "")
 
-    def install(root: Path, tools: tuple[str, ...], **options: object) -> object:
-        return mise(root, ("install", "--locked", *tools), **options)
+    def install(_root: Path, tools: tuple[str, ...], **_options: object) -> object:
+        # Recorded under the entry's own name: an install through `run_mise` keeps safe mode.
+        calls.append(("install_locked", *tools))
+        return native.subprocess.CompletedProcess(tools, 0, "", "")
 
     monkeypatch.setattr(native, "run_mise", mise)
     monkeypatch.setattr(native, "install_locked", install)
@@ -474,5 +476,5 @@ def test_mise_supply_prepares_every_declared_interpreter_tool(tmp_path, monkeypa
     assert calls == (
         [("which", name) for name in ("cue", "actionlint", *declared)]
         if offline
-        else [("install", "--locked", "cue", "github:rhysd/actionlint", *declared)]
+        else [("install_locked", "cue", "github:rhysd/actionlint", *declared)]
     )

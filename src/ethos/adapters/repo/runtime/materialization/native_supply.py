@@ -298,7 +298,6 @@ def download_tool(
         remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
         env=install_mode(
             {
-                "MISE_SAFE": "1",
                 "MISE_DISABLE_UPDATE_WARNING": "1",
                 "MISE_LOCKED": "1",
                 "MISE_YES": "0",
@@ -311,8 +310,8 @@ def download_tool(
                 # Outside safe mode mise runs the code of every configuration it finds above its
                 # directory, trusted or not; nothing above the disposable root is read.
                 "MISE_CEILING_PATHS": str(root.parent),
-                **(trust or {}),
-            }
+            },
+            trust or {},
         ),
     )
     sys.stderr.write(result.stdout + result.stderr)

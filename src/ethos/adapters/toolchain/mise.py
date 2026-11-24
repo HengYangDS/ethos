@@ -253,18 +253,22 @@ def carried_trust(
     return {}
 
 
-def install_mode(environment: Mapping[str, str]) -> dict[str, str]:
-    """Return an install's environment: outside safe mode only when it carries the root's trust.
+def install_mode(
+    environment: Mapping[str, str], trust: Mapping[str, str] | None = None
+) -> dict[str, str]:
+    """Return an install's environment: in safe mode unless it carries the root's native trust.
 
     In safe mode mise 2026.11 loads a copy as untrusted whatever trust it carries: its lock then
     pins versions and checksums only, and mise downloads what the backend resolves, so a rebuilt
     archive of a locked version fails the locked checksum. A trusted install leaves safe mode and
     takes the archive at its lock's URL. Outside safe mode an install trusts its active
-    configuration by itself, so an environment that carries no trust keeps its safe mode. Only
-    the carried configuration path counts as trust.
+    configuration by itself, so this function sets safe mode itself whenever no trust is carried,
+    whatever the environment said. Trust is the carried configuration path alone, read from
+    `trust` when a caller holds it apart; no other entry of that mapping reaches the child.
     """
-    unsafe = {key: value for key, value in environment.items() if key != "MISE_SAFE"}
-    return unsafe if environment.get(_TRUST) else dict(environment)
+    carried = (environment if trust is None else trust).get(_TRUST)
+    fixed = {key: value for key, value in environment.items() if key not in {"MISE_SAFE", _TRUST}}
+    return fixed | ({_TRUST: carried} if carried else {"MISE_SAFE": "1"})
 
 
 def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
@@ -296,7 +300,8 @@ def run_mise(
     """Run native mise over exact inputs in a disposable copy, with no ambient config.
 
     `mode` returns the child's environment from the one built here. The default changes nothing,
-    so resolution always runs in safe mode; `install_locked` alone passes `install_mode`.
+    so resolution always runs in safe mode. `install_locked` alone passes a mode, and it passes
+    no `files`; a test of the source holds both.
     """
     materials = repository_mise_files(root, executable=executable) if files is None else files
     if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):

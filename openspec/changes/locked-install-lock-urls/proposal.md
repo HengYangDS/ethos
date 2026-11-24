@@ -41,10 +41,11 @@ committed, each run being `install --locked python`:
   the root's native trust is installed outside safe mode, so Mise takes each archive from the URL
   that the lock records and checks it against the recorded checksum. A copy that carries no trust
   stays in safe mode, as now.
-- One function states this rule, and both installs use it: `install_locked`, a new entry of the
-  Mise adapter that the hosted install calls, and `download_tool`.
+- One function states this rule, and both installs use it: `install_locked`, the entry of a new
+  module `adapters/toolchain/mise_install.py` that the hosted install calls, and `download_tool`.
 - `install_locked` reads the configuration and the lock from the root and builds its command
-  itself. Every other call of `run_mise` stays in safe mode whatever it is asked to run.
+  itself, with the tool names after `--`. `run_mise` is unchanged in what it does: every run is
+  in safe mode.
 - `download_tool` reads no Mise configuration above its disposable directory, as `run_mise`'s
   copies already do. Outside safe mode Mise runs the code of every configuration that it finds
   above its directory.
@@ -67,7 +68,8 @@ None. The behaviour returns to what the `quality` capability already requires.
 
 ## Impact
 
-- Code: `src/ethos/adapters/toolchain/mise.py`,
+- Code: `src/ethos/adapters/toolchain/mise.py`, the new
+  `src/ethos/adapters/toolchain/mise_install.py`,
   `src/ethos/adapters/repo/runtime/materialization/native_supply.py` and
   `tools/ci/toolchain/native.py`.
 - Behaviour for a trusted root: a provisioning install is native Mise outside safe mode over the

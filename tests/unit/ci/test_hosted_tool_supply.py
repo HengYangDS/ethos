@@ -382,7 +382,8 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         + ("    print('unapproved-warning', file=sys.stderr)\n" if fault == "warning" else "")
         + "else:\n"
         # As above: the trust query fails here, so this binds the untrusted install alone.
-        "    assert sys.argv[1:] == ['install', '--locked', 'cue', 'github:rhysd/actionlint']\n"
+        "    tools = ['cue', 'github:rhysd/actionlint']\n"
+        "    assert sys.argv[1:] == ['install', '--locked', '--', *tools]\n"
         "    assert os.environ['MISE_SAFE'] == os.environ['MISE_LOCKED'] == '1'\n"
         "    config = tomllib.loads(Path('.config/mise/config.toml').read_text())\n"
         f"    assert config['tools'] == {tools!r}\n"

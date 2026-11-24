@@ -29,9 +29,9 @@ from ethos.adapters.repo.runtime.materialization.native_supply import ensure_nat
 from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
 from ethos.adapters.repo.runtime.materialization.native_supply import native_supply_is_offline
 from ethos.adapters.toolchain.mise import MISE_CONFIG
-from ethos.adapters.toolchain.mise import install_locked
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
+from ethos.adapters.toolchain.mise_install import install_locked
 
 MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
 CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"

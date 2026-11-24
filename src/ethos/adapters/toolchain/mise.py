@@ -1,8 +1,4 @@
-"""Resolve native tool supply from exact mise inputs and install a root's locked tools.
-
-Resolution always runs in mise's safe mode. `install_locked` alone may leave it, for a root that
-native mise reports as trusted.
-"""
+"""Resolve native tool supply from exact mise inputs without executing project hooks."""
 
 from __future__ import annotations
 
@@ -48,9 +44,7 @@ _CALLER_INPUTS = frozenset(
 # nested `mise exec` order its paths by the launching shell.
 MISE_ENVIRONMENT_PREFIXES = ("MISE_", "__MISE_")
 # The one input by which a disposable copy carries its root's native trust.
-_TRUST = "MISE_TRUSTED_CONFIG_PATHS"
-# What selects an install's mode in `run_mise`. Only this module holds it, for `install_locked`.
-_LOCKED_INSTALL = object()
+MISE_TRUSTED_CONFIG = "MISE_TRUSTED_CONFIG_PATHS"
 
 
 def native_tool_cache(root: Path) -> Path:
@@ -250,26 +244,28 @@ def carried_trust(
     """Carry the root's own native trust to one disposable copy of its exact configuration."""
     canonical = root.resolve()
     if _declares(canonical, config) and _root_trusted(canonical, executable):
-        return {_TRUST: str(copy / MISE_CONFIG)}
+        return {MISE_TRUSTED_CONFIG: str(copy / MISE_CONFIG)}
     return {}
 
 
-def install_mode(
-    environment: Mapping[str, str], trust: Mapping[str, str] | None = None
-) -> dict[str, str]:
-    """Return an install's environment: in safe mode unless it carries the root's native trust.
+@contextmanager
+def disposable_copy(
+    root: Path, materials: Mapping[str, str], executable: Path, *, offline: bool = False
+) -> Generator[tuple[Path, dict[str, str]]]:
+    """Yield a disposable copy of exact declarations and the environment to run mise in it.
 
-    In safe mode mise 2026.11 loads a copy as untrusted whatever trust it carries: its lock then
-    pins versions and checksums only, and mise downloads what the backend resolves, so a rebuilt
-    archive of a locked version fails the locked checksum. A trusted install leaves safe mode and
-    takes the archive at its lock's URL. Outside safe mode an install trusts its active
-    configuration by itself, so this function sets safe mode itself whenever no trust is carried,
-    whatever the environment said. Trust is the carried configuration path alone, read from
-    `trust` when a caller holds it apart; no other entry of that mapping reaches the child.
+    The environment is resolution's: safe mode, mise's state inside the copy, no configuration
+    read above the copy, and the root's own native trust when native mise reports it.
     """
-    carried = (environment if trust is None else trust).get(_TRUST)
-    fixed = {key: value for key, value in environment.items() if key not in {"MISE_SAFE", _TRUST}}
-    return fixed | ({_TRUST: carried} if carried else {"MISE_SAFE": "1"})
+    with TemporaryDirectory(prefix="ethos-mise-") as directory:
+        isolated = Path(directory)
+        environment = _mise_environment(isolated, offline=offline, files=materials)
+        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], executable)
+        for path, content in materials.items():
+            target = isolated / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8", newline="")
+        yield isolated, environment
 
 
 def _refusal(message: str, root: Path, executable: Path | None = None) -> ValueError:
@@ -296,14 +292,8 @@ def run_mise(
     executable: Path | None = None,
     timeout: float | None = None,
     offline: bool = False,
-    install: object = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run native mise over exact inputs in a disposable copy, with no ambient config.
-
-    Every run is in safe mode but one: `install` selects `install_mode` when it is this module's
-    own token, which `install_locked` alone passes, with no `files`. Any other value changes
-    nothing, so a caller cannot choose the mode or a rule of its own.
-    """
+    """Run native mise over exact inputs with no project hooks or ambient config."""
     materials = repository_mise_files(root, executable=executable) if files is None else files
     if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):
         message = "locked_toolchain_missing"
@@ -331,35 +321,14 @@ def run_mise(
                 message = f"mise_version_carrier_changed:{path}"
                 raise ValueError(message)
     selected = executable or mise_executable()
-    with TemporaryDirectory(prefix="ethos-mise-") as directory:
-        isolated = Path(directory)
-        environment = _mise_environment(isolated, offline=offline, files=materials)
-        environment |= carried_trust(root, isolated, materials[MISE_CONFIG], selected)
-        for path, content in materials.items():
-            target = isolated / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8", newline="")
+    with disposable_copy(root, materials, selected, offline=offline) as (isolated, environment):
         return run_command(
             isolated,
             (str(selected), *arguments),
             timeout=seconds("probe", timeout),
             remove_env_prefixes=MISE_ENVIRONMENT_PREFIXES,
-            env=install_mode(environment) if install is _LOCKED_INSTALL else environment,
+            env=environment,
         )
-
-
-def install_locked(
-    root: Path, tools: tuple[str, ...], *, executable: Path, timeout: float
-) -> subprocess.CompletedProcess[str]:
-    """Install the root's own locked tools: the one command that may leave safe mode.
-
-    It reads the configuration and the lock from the root, never from a caller, and builds the
-    command itself, so no other command and no other lock takes an install's mode. A trusted
-    root's install runs as native `mise install` does there: code that its configuration declares
-    for install time can run. Nothing above the disposable copy is read.
-    """
-    command = ("install", "--locked", *tools)
-    return run_mise(root, command, executable=executable, timeout=timeout, install=_LOCKED_INSTALL)
 
 
 def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -> Path:

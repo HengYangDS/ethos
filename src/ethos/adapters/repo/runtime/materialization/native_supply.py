@@ -29,9 +29,9 @@ from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_ENVIRONMENT_PREFIXES
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import carried_trust
-from ethos.adapters.toolchain.mise import install_mode
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
+from ethos.adapters.toolchain.mise_install import install_mode
 from ethos.repository.paradigm.parameters import seconds
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource

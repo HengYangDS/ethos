@@ -18,7 +18,8 @@ again.
 
 See also: [DR-0010: Source-budget non-compensation](dr-0010-source-budget-non-compensation.md),
 [DR-0019: The source budget counts code, not layout](dr-0019-layout-invariant-source-budget.md),
-[DR-0025: The product ceiling moves to 85,000 for the common rules](dr-0025-product-budget-step-85.md),
+[DR-0025: The product ceiling moves to 85,000 for the common
+rules](dr-0025-product-budget-step-85.md),
 whose step and whose revisit point this record replaces, and the `product-budget-step-90` OpenSpec
 Change.
 

@@ -105,9 +105,9 @@ stages.
   trusted.
 - **Select the mode inside `run_mise`.** Three forms were written and reviewed: the command's
   first argument, a function passed as an argument, and a private object passed as an argument.
-  Each left a way to reach an install's mode through `run_mise`, held only by a test that read
-  the source, and five reviews each found a way around such a test. With the install in a module
-  of its own there is nothing in `run_mise` to reach.
+  Each left a way to reach an install's mode through `run_mise`, and the last two were held by a
+  test that read the source. Five reviews in a row found a way in, three of them around such a
+  test. With the install in a module of its own there is nothing in `run_mise` to reach.
 - **Install outside the disposable copy.** The copy holds the exact declared bytes and keeps
   Mise's state off the host; both requirements stand.
 

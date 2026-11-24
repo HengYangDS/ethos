@@ -177,6 +177,67 @@ def accepted_advance_gaps(
     return gaps
 
 
+def first_accepted_branch(
+    repo: Path, policy: BranchRolePolicy, ref_name: str, old_value: str, head: str
+) -> bool:
+    """Whether a move creates the accepted branch at the release head, as the adopted baseline.
+
+    Only a move from a zero old value is asked, and Git sends one for a forced move of a branch
+    that exists as well, so the branch's absence is read from the ref store. The asking checkout
+    is clean at the release head, no candidate branch exists, the head's own tree carries a
+    release binding that parses or none and a valid profile, and every remote fetches all
+    branches by Git's default refspec and has shown none of this name. What cannot be read
+    refuses.
+    """
+
+    def absent(name: str) -> bool:
+        return run_git(repo, "show-ref", "--verify", "--quiet", name, check=False).returncode == 1
+
+    def commit(name: str) -> str:
+        return git_stdout(repo, "rev-parse", "--verify", "--quiet", f"{name}^{{commit}}")
+
+    accepted = policy.accepted_branch
+    creation = ref_name == f"refs/heads/{accepted}" and old_value in _ZERO_OIDS
+    if not creation or not absent(ref_name):
+        return False
+    status = run_git(repo, "status", "--porcelain", "--untracked-files=all", check=False)
+    remotes = run_git(repo, "remote", check=False)
+    return (
+        head == commit(f"refs/heads/{policy.release_branch}") == commit("HEAD")
+        and not status.returncode
+        and not status.stdout.strip()
+        and absent(f"refs/heads/{policy.candidate_branch}")
+        and (_strict_ref_policy(repo, head) or _unbound_policy(repo, head)) is not None
+        and not remotes.returncode
+        and all(
+            run_git(repo, "config", "-z", "--get-all", f"remote.{remote}.fetch", check=False).stdout
+            == f"+refs/heads/*:refs/remotes/{remote}/*\0"
+            and absent(f"refs/remotes/{remote}/{accepted}")
+            for remote in remotes.stdout.split()
+        )
+    )
+
+
+def first_accepted_branch_step(repo: Path, head: str) -> str:
+    """The instruction that creates the accepted branch at `head`; empty where it is refused.
+
+    The policy is resolved as the hook resolves it for that creation, so the step is named only
+    where the hook admits it.
+    """
+    accepted = f"refs/heads/{BranchRolePolicy().accepted_branch}"
+    try:
+        policy = resolve_ref_move_policy(repo, accepted, "0" * len(head), head, claim=False)
+    except (TypeError, ValueError):
+        return ""
+    if not first_accepted_branch(repo, policy, accepted, "0" * len(head), head):
+        return ""
+    fetched = "fetch every remote, then " if git_stdout(repo, "remote") else ""
+    return (
+        f"{fetched}create the accepted branch at the release head as an adopted baseline: "
+        f"git switch -c {policy.accepted_branch} {policy.release_branch}"
+    )
+
+
 def prepared_ref_intent_gaps(
     *,
     repo: Path,

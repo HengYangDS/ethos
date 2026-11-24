@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.paths import has_invalid_path_character
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.protocol import blocked_report
 from ethos.adapters.repo.hook.protocol import passed_report
@@ -391,7 +392,14 @@ def _prepared_reference_report(
     protected = branch == policy.accepted_branch or (
         branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
-    if protected:
+    if (
+        branch == policy.accepted_branch
+        and not old_value.strip("0")
+        and _own_repository(root)
+        and ref_policy.first_accepted_branch(root, policy, ref_name, old_value, new_value)
+    ):
+        report = passed_report("reference-transaction", "accepted_bootstrap")
+    elif protected:
         report = _candidate_report(
             root,
             ref_name,
@@ -426,6 +434,19 @@ def _prepared_reference_report(
         if isinstance(decision, dict) and decision.get("action") == "block"
         else passed_report("reference-transaction", "unprotected_ref")
     )
+
+
+def _own_repository(root: Path) -> bool:
+    """Whether Git prepared this transaction in the repository that `root` is a checkout of.
+
+    Git names another repository to its hook through `GIT_DIR`, and every read here is of `root`.
+    """
+    named = os.environ.get("GIT_DIR")
+    if not named:
+        return True
+    common = ("rev-parse", "--path-format=absolute", "--git-common-dir")
+    own = git_stdout(root, *common)
+    return bool(own) and own == git_stdout(Path.cwd(), "--git-dir", named, *common)
 
 
 def _candidate_report(

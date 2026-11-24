@@ -8,6 +8,7 @@ from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.admission.ref_move_policy import first_accepted_branch_step
 from ethos.adapters.mutation.branch_roles import pending_role_rebindings
 from ethos.adapters.mutation.branch_roles import rebinding_command
 from ethos.adapters.mutation.branch_roles import rebinding_gaps
@@ -24,6 +25,7 @@ from ethos.application.land.closeout import closeout_command_from_status
 from ethos.application.peer_identity import peer_identity_status
 from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.operations.status import StatusRequest
 from ethos.contracts.outcome import Outcome
@@ -67,6 +69,28 @@ def renewal_action(summary: Mapping[str, object], *, root: Path) -> str:
         return ""
     verb = "renew" if left > 0 else "resume"
     return f"ethos lane lease {verb} --root {root.as_posix()}"
+
+
+def _candidate_step(
+    repo: Path, observed: Mapping[str, object], gaps: tuple[str, ...]
+) -> tuple[str, bool]:
+    """The step toward a candidate branch, and whether a person decides it.
+
+    A clean accepted root bootstraps the candidate. A release root whose repository has no
+    accepted branch creates that branch first, where the hook would admit the creation.
+    """
+    head = str(observed.get("head") or "")
+    if observed.get("dirty") or not {
+        "candidate_branch_missing",
+        "candidate_worktree_missing",
+    }.intersection(gaps):
+        return "", False
+    if observed.get("role") == ROLE_RELEASE_ROOT:
+        return first_accepted_branch_step(repo, head), False
+    if observed.get("role") != ROLE_ACCEPTED_ROOT:
+        return "", False
+    report = bootstrap_candidate(root=repo, expect_head=head, observed_status=observed)
+    return str(report.get("next_action") or ""), bool(report.get("user_decision_required"))
 
 
 def inspect_repository(root: Path, *, change: str | None = None) -> EthosResult:
@@ -177,18 +201,7 @@ def inspect_status(root: Path, request: StatusRequest) -> EthosResult:
         scope_exceeded = any(item.state == "uncovered" for item in generation_scope.attributions)
         runtime_action = runtime["next_action"] if runtime_gaps else ""
         commit_policy_action = str(commit_policy.get("next_action") or "")
-        candidate_action = ""
-        candidate_decision = False
-        if (
-            observed.get("role") == ROLE_ACCEPTED_ROOT
-            and not observed.get("dirty")
-            and {"candidate_branch_missing", "candidate_worktree_missing"}.intersection(gaps)
-        ):
-            candidate_report = bootstrap_candidate(
-                root=repo, expect_head=str(observed.get("head") or ""), observed_status=observed
-            )
-            candidate_action = str(candidate_report.get("next_action") or "")
-            candidate_decision = bool(candidate_report.get("user_decision_required"))
+        candidate_action, candidate_decision = _candidate_step(repo, observed, gaps)
         next_action = rebinding_action or (
             resolution.next_action
             if resolution is not None

@@ -200,7 +200,7 @@
   "src/ethos/application/console.py::run_console": 17,
   "src/ethos/application/hook/installation.py::install_hook_runtime": 28,
   "src/ethos/application/hook/installation.py::retire_host_supply": 21,
-  "src/ethos/application/inspection.py::inspect_status": 36,
+  "src/ethos/application/inspection.py::inspect_status": 33,
   "src/ethos/application/invocation.py::application_result": 16,
   "src/ethos/application/plan.py::compile_transition_plan": 24,
   "src/ethos/application/plan.py::matching_rule_gates": 18,

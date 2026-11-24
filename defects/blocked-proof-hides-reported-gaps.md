@@ -7,8 +7,8 @@ workaround = "Read the paradigm report itself; `ethos lane repair-paradigm --jso
 +++
 
 Found 2026-11-22 from a governed repository's preview of `ethos prove --full` under
-0.2.0-beta.11: verdict `block`, 67 required gaps of two kinds (66 `repository_paradigm_authored_name`,
-1 `repository_paradigm_configuration_carrier`).
+0.2.0-beta.11: verdict `block`, 67 required gaps of two kinds (66
+`repository_paradigm_authored_name`, 1 `repository_paradigm_configuration_carrier`).
 
 - The result's `data` is empty. The paradigm report's `reported_gaps` and `name_admissions` are
   not in it, so a reader cannot tell from the result whether an obligation that stopped blocking

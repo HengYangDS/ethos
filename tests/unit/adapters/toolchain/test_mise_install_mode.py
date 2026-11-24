@@ -21,6 +21,7 @@ _FILES = {
 }
 _TRUST_QUERY = ("trust", "--show")
 ROOT = Path(__file__).resolve().parents[4]
+_FOREIGN = {"MISE_SAFE": "0", "MISE_CEILING_PATHS": "/", "MISE_YES": "1"}
 
 
 class _NativeMise:
@@ -86,9 +87,10 @@ def test_a_locked_install_leaves_safe_mode_only_for_a_trusted_root(
         )
 
 
+@pytest.mark.parametrize("foreign", [{}, _FOREIGN], ids=["carried-only", "foreign-entries"])
 @pytest.mark.parametrize("trusted", [False, True])
 def test_the_provisioner_leaves_safe_mode_only_for_a_trusted_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, trusted: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, trusted: bool, foreign: dict[str, str]
 ) -> None:
     """The provisioner follows the same rule, keeps its state and reads nothing above its root."""
     root = _repository(tmp_path / "repository")
@@ -97,8 +99,8 @@ def test_the_provisioner_leaves_safe_mode_only_for_a_trusted_root(
     monkeypatch.setattr(mise, "run_command", native)
     monkeypatch.setattr(native_supply, "run_command", native)
     trust = mise.carried_trust(root, copy, _FILES[mise.MISE_CONFIG], Path("mise"))
-    # No other entry of a caller's mapping replaces what the provisioner fixes.
-    foreign = {"MISE_SAFE": "0", "MISE_CEILING_PATHS": "/", "MISE_YES": "1"}
+    # The mapping is `carried_trust`'s own, as production passes it, or holds foreign entries
+    # too: none of those replaces what the provisioner fixes.
     native_supply.download_tool(
         ("mise", "install", "--locked", "node"), root=copy, trust=trust | foreign
     )
@@ -130,27 +132,62 @@ def test_an_install_without_trust_is_always_in_safe_mode() -> None:
     assert mise.install_mode(trusted, {}) == {"MISE_YES": "0", "MISE_SAFE": "1"}
 
 
+def _runner_references(path: Path) -> tuple[list[tuple[int, set[str | None]]], list[int]]:
+    """Return the direct calls of `run_mise` with their keywords, and every other reference."""
+    nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
+    calls = {id(node.func): node for node in nodes if isinstance(node, ast.Call)}
+    direct: list[tuple[int, set[str | None]]] = []
+    other: list[int] = []
+    for node in nodes:
+        if isinstance(node, ast.alias):
+            # A renaming import would hide later calls from the name.
+            other += [node.lineno] if node.name == "run_mise" and node.asname else []
+        elif isinstance(node, ast.Constant):
+            # The bare name as a string reaches the function through `getattr`.
+            other += [node.lineno] if node.value == "run_mise" else []
+        elif getattr(node, "id", getattr(node, "attr", None)) == "run_mise":
+            call = calls.get(id(node))
+            if call is None:
+                other.append(node.lineno)
+            else:
+                direct.append((call.lineno, {keyword.arg for keyword in call.keywords}))
+    return direct, other
+
+
 def test_the_install_entry_alone_selects_a_mode_and_passes_no_declarations() -> None:
     """In the product and its tools, `mode` reaches `run_mise` from `install_locked` alone."""
     users: list[tuple[str, int, set[str | None]]] = []
     for path in sorted(p for base in ("src", "tools") for p in (ROOT / base).rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            name = (
-                getattr(node.func, "id", getattr(node.func, "attr", ""))
-                if isinstance(node, ast.Call)
-                else ""
-            )
-            keywords = {keyword.arg for keyword in node.keywords} if name == "run_mise" else set()
-            # A forwarded `**options` could carry a mode unseen, so it counts as one.
-            if keywords & {"mode", None}:
-                users.append((path.relative_to(ROOT).as_posix(), node.lineno, keywords))
-    ((path, line, keywords),) = users
-    assert path == "src/ethos/adapters/toolchain/mise.py"
+        where = path.relative_to(ROOT).as_posix()
+        direct, other = _runner_references(path)
+        # Passed on, renamed or named by a string, the function could take a mode unseen here.
+        assert not other, (where, other)
+        # A forwarded `**options` could carry a mode unseen, so it counts as one.
+        users += [(where, line, keys) for line, keys in direct if keys & {"mode", None}]
+    ((where, line, keywords),) = users
+    assert where == "src/ethos/adapters/toolchain/mise.py"
     assert keywords == {"executable", "timeout", "mode"}
     entry = next(
         node
-        for node in ast.walk(ast.parse((ROOT / path).read_text(encoding="utf-8")))
+        for node in ast.walk(ast.parse((ROOT / where).read_text(encoding="utf-8")))
         if isinstance(node, ast.FunctionDef) and node.name == "install_locked"
     )
     assert entry.lineno < line <= (entry.end_lineno or 0)
+
+
+def test_the_guard_sees_a_runner_that_is_renamed_passed_on_or_named(tmp_path: Path) -> None:
+    """Each indirect reference is reported, and a direct call is read with its keywords."""
+    source = tmp_path / "caller.py"
+    source.write_text(
+        "from ethos.adapters.toolchain.mise import run_mise as runner\n"
+        "from functools import partial\n"
+        "import ethos.adapters.toolchain.mise as mise\n"
+        "keep = mise.run_mise\n"
+        "bound = partial(run_mise, mode=dict)\n"
+        "found = getattr(mise, 'run_mise')\n"
+        "mise.run_mise(root, ('which', 'node'), mode=dict, **options)\n",
+        encoding="utf-8",
+    )
+    direct, other = _runner_references(source)
+    assert sorted(other) == [1, 4, 5, 6]
+    assert direct == [(7, {"mode", None})]

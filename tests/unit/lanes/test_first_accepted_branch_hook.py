@@ -203,5 +203,5 @@ def test_a_creation_judged_by_another_repository_s_hooks_is_not_admitted(tmp_pat
     )
 
     assert done.returncode != 0
+    assert _gaps(done) == _REFUSAL
     assert git(repo, "rev-parse", "refs/heads/dev") == own
-    assert not git(twin, "for-each-ref", "refs/heads/dev")

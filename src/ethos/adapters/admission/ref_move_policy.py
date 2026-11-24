@@ -189,32 +189,40 @@ def first_accepted_branch(
     branches by Git's default refspec and has shown none of this name. What cannot be read
     refuses.
     """
+    name = f"refs/heads/{policy.accepted_branch}"
+    return (
+        ref_name == name
+        and old_value in _ZERO_OIDS
+        and _absent(repo, name)
+        and _absent(repo, f"refs/heads/{policy.candidate_branch}")
+        and _checkout_clean_at_release_head(repo, policy, head)
+        and (_strict_ref_policy(repo, head) or _unbound_policy(repo, head)) is not None
+        and _remotes_have_not_shown(repo, policy.accepted_branch)
+    )
 
-    def absent(name: str) -> bool:
-        return run_git(repo, "show-ref", "--verify", "--quiet", name, check=False).returncode == 1
 
+def _absent(repo: Path, name: str) -> bool:
+    return run_git(repo, "show-ref", "--verify", "--quiet", name, check=False).returncode == 1
+
+
+def _checkout_clean_at_release_head(repo: Path, policy: BranchRolePolicy, head: str) -> bool:
     def commit(name: str) -> str:
         return git_stdout(repo, "rev-parse", "--verify", "--quiet", f"{name}^{{commit}}")
 
-    accepted = policy.accepted_branch
-    creation = ref_name == f"refs/heads/{accepted}" and old_value in _ZERO_OIDS
-    if not creation or not absent(ref_name):
+    if not head == commit(f"refs/heads/{policy.release_branch}") == commit("HEAD"):
         return False
     status = run_git(repo, "status", "--porcelain", "--untracked-files=all", check=False)
+    return not status.returncode and not status.stdout.strip()
+
+
+def _remotes_have_not_shown(repo: Path, branch: str) -> bool:
+    """Every remote fetches all branches by Git's default refspec and tracks none named `branch`."""
     remotes = run_git(repo, "remote", check=False)
-    return (
-        head == commit(f"refs/heads/{policy.release_branch}") == commit("HEAD")
-        and not status.returncode
-        and not status.stdout.strip()
-        and absent(f"refs/heads/{policy.candidate_branch}")
-        and (_strict_ref_policy(repo, head) or _unbound_policy(repo, head)) is not None
-        and not remotes.returncode
-        and all(
-            run_git(repo, "config", "-z", "--get-all", f"remote.{remote}.fetch", check=False).stdout
-            == f"+refs/heads/*:refs/remotes/{remote}/*\0"
-            and absent(f"refs/remotes/{remote}/{accepted}")
-            for remote in remotes.stdout.split()
-        )
+    return not remotes.returncode and all(
+        run_git(repo, "config", "-z", "--get-all", f"remote.{remote}.fetch", check=False).stdout
+        == f"+refs/heads/*:refs/remotes/{remote}/*\0"
+        and _absent(repo, f"refs/remotes/{remote}/{branch}")
+        for remote in remotes.stdout.split()
     )
 
 

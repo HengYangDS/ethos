@@ -22,16 +22,18 @@ _ACCEPTED = "refs/heads/dev"
 _FETCH_ALL = "+refs/heads/*:refs/remotes/{remote}/*"
 
 
-def _release_root(tmp_path: Path) -> tuple[Path, str]:
+def _only_main(repo: Path) -> str:
+    git(repo, "branch", "-M", "main")
+    assert git(repo, "for-each-ref", "--format=%(refname)", "refs/heads") == "refs/heads/main"
+    return git(repo, "rev-parse", "HEAD")
+
+
+def _release_root(tmp_path: Path, object_format: str = "sha1") -> tuple[Path, str]:
     """A repository whose only branch is its release branch, checked out and clean."""
-    repo = init_git_repo(tmp_path / "repo")
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
     write_test_profile(repo)
     commit_fixture(repo, "chore: declare the repository profile")
-    git(repo, "branch", "-M", "main")
-    for other in git(repo, "for-each-ref", "--format=%(refname)", "refs/heads").splitlines():
-        if other != "refs/heads/main":
-            git(repo, "update-ref", "-d", other)
-    return repo, git(repo, "rev-parse", "HEAD")
+    return repo, _only_main(repo)
 
 
 def _holds(repo: Path, head: str, ref_name: str = _ACCEPTED) -> bool:
@@ -44,10 +46,17 @@ def _remote(repo: Path, name: str, *refspecs: str) -> None:
         git(repo, "config", "--add", f"remote.{name}.fetch", refspec.format(remote=name))
 
 
-def test_the_creation_at_the_release_head_holds(tmp_path: Path) -> None:
-    repo, head = _release_root(tmp_path)
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_the_creation_at_the_release_head_holds(tmp_path: Path, object_format: str) -> None:
+    repo, head = _release_root(tmp_path, object_format)
 
     assert _holds(repo, head)
+
+
+def test_an_old_value_that_is_not_a_zero_object_name_is_not_asked(tmp_path: Path) -> None:
+    repo, head = _release_root(tmp_path)
+
+    assert not first_accepted_branch(repo, BranchRolePolicy(), _ACCEPTED, "0" * 39, head)
 
 
 def test_a_branch_that_exists_is_not_created(tmp_path: Path) -> None:
@@ -66,6 +75,13 @@ def _another_commit(repo: Path, head: str) -> str:
 def _detach_elsewhere(repo: Path, head: str) -> str:
     git(repo, "checkout", "-q", "--detach", _another_commit(repo, head))
     return head
+
+
+def _ask_for_the_checked_out_commit(repo: Path, head: str) -> str:
+    """The checkout is at the asked commit, and the release branch is not."""
+    other = _another_commit(repo, head)
+    git(repo, "checkout", "-q", "--detach", other)
+    return other
 
 
 def _stage_a_change(repo: Path, head: str) -> str:
@@ -114,6 +130,7 @@ def _configuration_that_git_cannot_list(repo: Path, head: str) -> str:
 _REFUSED = {
     "another commit": _another_commit,
     "the checkout is elsewhere": _detach_elsewhere,
+    "the checked-out commit is not the release head": _ask_for_the_checked_out_commit,
     "a staged change": _stage_a_change,
     "an untracked file": _leave_an_untracked_file,
     "a candidate branch": _create_the_candidate,
@@ -184,9 +201,5 @@ def test_a_release_binding_that_cannot_be_read_governs_nothing(tmp_path: Path) -
 
 def test_a_head_without_a_profile_governs_nothing(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    git(repo, "branch", "-M", "main")
-    for other in git(repo, "for-each-ref", "--format=%(refname)", "refs/heads").splitlines():
-        if other != "refs/heads/main":
-            git(repo, "update-ref", "-d", other)
 
-    assert not _holds(repo, git(repo, "rev-parse", "HEAD"))
+    assert not _holds(repo, _only_main(repo))

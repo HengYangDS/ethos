@@ -83,7 +83,12 @@ same zero old value (Git 2.56.1, run on 2026-11-24).
    Git names another repository to its hook in `GIT_DIR` (`git --git-dir=<other> update-ref …`
    run inside this checkout), and every read of the product is of the working directory's
    repository. `_own_repository` in the hook compares the two common directories, for this
-   admission only.
+   admission only. A caller's `GIT_COMMON_DIR` makes Git write the ref and run the hooks of that
+   common directory while `GIT_DIR` stays the checkout's own, and the product's Git reads run
+   without it, so the comparison would answer for the wrong repository: the admission refuses
+   whenever `GIT_COMMON_DIR` is set. Git sets none for a checkout of its own, linked or not.
+   The model review of the first patch found this; both cases are driven through the armed
+   hook.
    - **Chosen because:** without it a checkout that lacks the branch would admit a forced move of
      another repository's existing branch. The general confusion, for every other decision of
      the hook, is older than this Change and is not touched: closing it there refuses moves that

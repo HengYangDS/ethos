@@ -154,6 +154,18 @@ def test_status_names_no_creation_where_no_policy_governs_the_head(tmp_path: Pat
     assert _gaps(done) == ["ref_move_policy_unavailable"]
 
 
+def test_a_linked_checkout_at_the_release_head_creates_the_branch(tmp_path: Path) -> None:
+    """Git names a linked checkout's own directory in `GIT_DIR` and sets no `GIT_COMMON_DIR`."""
+    repo, head = _armed_release_root(tmp_path)
+    linked = tmp_path / "linked"
+    git(repo, "worktree", "add", "-q", "--detach", linked.as_posix(), "main")
+
+    done = _through_the_hook(linked, "switch", "-c", "dev", "main")
+
+    assert done.returncode == 0, done.stderr
+    assert git(repo, "rev-parse", "refs/heads/dev") == head
+
+
 def test_a_move_in_another_repository_is_not_judged_by_this_one(tmp_path: Path) -> None:
     """A checkout that lacks the branch admits no move that Git prepares in another repository."""
     repo, head = _armed_release_root(tmp_path)
@@ -171,3 +183,25 @@ def test_a_move_in_another_repository_is_not_judged_by_this_one(tmp_path: Path) 
 
     assert done.returncode != 0
     assert git(repo, "rev-parse", "refs/heads/dev") == own
+
+
+def test_a_creation_judged_by_another_repository_s_hooks_is_not_admitted(tmp_path: Path) -> None:
+    """Git runs the hooks of `GIT_COMMON_DIR`; neither repository is admitted from the other's."""
+    repo, head = _armed_release_root(tmp_path)
+    own = git(repo, "commit-tree", f"{head}^{{tree}}", "-m", "the accepted branch's own")
+    git(repo, "update-ref", "refs/heads/dev", own)
+    twin = tmp_path / "twin"
+    git(repo, "clone", "-q", "--branch", "main", repo.as_posix(), twin.as_posix())
+    git(twin, "remote", "remove", "origin")
+    assert install_fixture_hook_runtime(twin)["current"]
+
+    done = run_command(
+        twin,
+        ("git", "update-ref", "refs/heads/dev", head),
+        timeout=60,
+        env={"GIT_DIR": (twin / ".git").as_posix(), "GIT_COMMON_DIR": (repo / ".git").as_posix()},
+    )
+
+    assert done.returncode != 0
+    assert git(repo, "rev-parse", "refs/heads/dev") == own
+    assert not git(twin, "for-each-ref", "refs/heads/dev")

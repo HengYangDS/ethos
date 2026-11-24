@@ -439,8 +439,13 @@ def _prepared_reference_report(
 def _own_repository(root: Path) -> bool:
     """Whether Git prepared this transaction in the repository that `root` is a checkout of.
 
-    Git names another repository to its hook through `GIT_DIR`, and every read here is of `root`.
+    Git names a linked checkout's own directory to its hook in `GIT_DIR`, and another repository
+    when its caller passes one; every read here is of `root`. Git sets no `GIT_COMMON_DIR` for a
+    checkout of its own, and a caller that sets one names the repository of the shared refs and
+    hooks apart from `GIT_DIR`, so its presence refuses whatever path it holds.
     """
+    if "GIT_COMMON_DIR" in os.environ:
+        return False
     named = os.environ.get("GIT_DIR")
     if not named:
         return True

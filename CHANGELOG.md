@@ -60,7 +60,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   bytes. Only `--expect-plan <digest> --apply --authorize` releases them. The release unlinks
   records and removes no installation; its result names `ethos hook install`, whose cleanup
   retires an installation that no record needs. Only the host's answer that no entry exists counts
-  as absence: a place it cannot look at is never planned. A repository at a scanned root that
+  as absence: a place it cannot look at is never planned. With the switch, `--grace-days` is
+  accepted and has no effect, a known defect of this release. A repository at a scanned root that
   names an installation is recorded as its consumer first, so a moved repository keeps what it
   selects. This closes the known open defect of 0.2.0-beta.11 that no command releases an absent
   consumer. Without the switch the command plans and applies what it did.
@@ -82,9 +83,11 @@ historical bindings are governed by the [distribution specification](openspec/sp
   tools; the carrier is then a source of that gate and the only tracked file named `.sqlfluff`.
   Without the row, a repository's own sqlfluff policy file under `.config/checks/sqlfluff/` was a
   configuration-carrier gap that none of its declarations closed; a policy file of another name
-  there is still that gap. The row admits one carrier and adds no refusal, and ETHOS runs no
-  sqlfluff gate. The configuration reference states the carrier, its binding flags, and how
-  sqlfluff, Ruff and coverage.py resolve the relative paths of an explicit configuration file.
+  there is still that gap, and a `.sqlfluff` in another directory under `.config/checks/` is a
+  configuration-owner gap whose repair names the carrier. The row admits one carrier and adds
+  no refusal, and ETHOS runs no sqlfluff gate. The configuration reference states the carrier,
+  its binding flags, and how sqlfluff, Ruff and coverage.py resolve the relative paths of an
+  explicit configuration file.
 - ETHOS's known defects are recorded in its repository, one Markdown file each under `defects/`,
   with the fields `title`, `state`, `since`, `fixed_in` and `workaround`. 73 entries enter with
   this release: 65 are open, and the 8 that are closed are repaired in it.
@@ -106,6 +109,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   longer reports inside a field of that name, and no diagnostic is added. The shipped
   markdownlint configuration names `defects/**/*.md` among its `globs`, which only a direct run
   of the tool reads: the `markdown-lint` gate names its files itself and is unchanged.
+- The Docs Registry, which the product ships, gains the section "Decision records": every
+  governed repository keeps its decision records in one form, which the section states beside
+  the architecture decision record that it follows. No command, schema or check changes with
+  it; each repository's keeper migrates its records through a lane of its own. The governance
+  documents also gain the Writing Standard, one definition of fidelity, clarity and elegance
+  that the Docs Registry and the product design contract cite.
+- Two more shipped policy files change, and a governed repository observes neither. The Ruff
+  policy gains a per-file ignore of `BLE001` for `src/ethos/adapters/admission/staged_tree.py`,
+  a path of ETHOS's own source. The format-selection policy moves the ceiling of Python tests
+  from 110,000 to 115,000 line-equivalents; the source budget judges a repository by the policy
+  file of its own tree, so the number is ETHOS's own.
 - 0.2.0-beta.12 upgrades directly from 0.2.0-beta.11. `ethos lane upgrade-from` reads 13
   subjects on the releasing host, and every one has selected that release: 8 pin it on their
   accepted branch and 5 select it alone. 3 consumer records could not be read. The release
@@ -113,7 +127,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
   tagged without the record. The hosted journey upgrades from 0.2.0-beta.11 on macOS arm64, Linux
   x64 and Linux arm64. The release keeps result schema 3.
 - Before the tag, the candidate of this release was proved on disposable copies of the governed
-  trees that the releasing host reads, by a session other than its authors'. 14 trees were read.
+  trees that the releasing host reads, by a reader other than its authors. 14 trees were read;
+  that count is the reader's own and was not reconciled with the 13 subjects tree by tree.
   At the head of the last product change, a full proof passed on 12. One was refused before
   execution on two required gaps of its own tree, `docs_length_exceeded` and
   `repository_paradigm_configuration_carrier`, which 0.2.0-beta.11 reports the same. One has no
@@ -124,12 +139,16 @@ historical bindings are governed by the [distribution specification](openspec/sp
 - The paradigm's reporting list holds three obligations: `identifier-source`,
   `package-docstring` and `staged-openspec-tree`, which enters with this release. No obligation
   was armed, and no call that raises a paradigm gap was added or removed since 0.2.0-beta.11. One
-  refusal is added, as the repair of a defect stated under Fixed: the reference-transaction hook
-  refuses the deletion of a legacy release ref that stands before the commit of its legacy
-  table, which the hook of 0.2.0-beta.11 let through. It reaches only a repository that declares
-  a legacy table. This entry prints no total of obligations: the previous entry's 47 was counted
-  by hand, the product holds no enumeration of them, and a scan of the source finds 51 distinct
-  ids that the paradigm report can raise, at 0.2.0-beta.11 and at this release alike.
+  act that 0.2.0-beta.11 let through is now refused, as the repair of a defect stated under
+  Fixed: the reference-transaction hook refuses the deletion of a legacy release ref that
+  stands before the commit of its legacy table. It reaches only a repository that declares a
+  legacy table. The four gap codes that this release adds are named under Fixed:
+  `legacy_role_rename_history_unshared` names a rename whose apply 0.2.0-beta.11 refused as
+  `git_effect_cas_rejected`, and the three `proof_attestation_plan_artifact_*` codes concern
+  only a proof record that cites its plan, a form that this release introduces. This entry
+  prints no total of obligations: the previous entry's 47 has no recorded derivation, the
+  product holds no enumeration of them, and a scan of the source finds 51 distinct ids that the
+  paradigm report can raise, at 0.2.0-beta.11 and at this release alike.
 - Not qualified by this beta:
   - a rollback after the declaration repair, which the journey reports as `not_qualified`;
   - the adopter journey on Windows, which no hosted job runs; Windows runtimes are qualified by
@@ -138,20 +157,19 @@ historical bindings are governed by the [distribution specification](openspec/sp
     `not_qualified`;
   - GitLab-hosted CI and GitLab publication, which are not 0.2.0 preconditions, and the Homebrew
     channel, which 0.2.0 does not qualify.
-- Known open defects are kept under `defects/` in the repository, one file each with the release
-  since which the defect is there and its workaround, and are no longer listed here. 65 are open
-  at this release's head. One is stated here as well: the product design contract says that a
-  repository maps its branch names to the roles, and the product reads no such mapping. The
-  names are fixed (`main`, `dev`, `candidate/dev`, `work/`, `proposal/`), and a repository with
-  other names renames them first. Declared names are decided (DR-0032); the fixed names are no
-  compatibility promise.
+- Known open defects are no longer listed here. Each file under `defects/` names the release
+  that first shipped the defect and a workaround. One is stated here as well: the product
+  design contract says that a repository maps its branch names to the roles, and the product
+  reads no such mapping. The names are fixed (`main`, `dev`, `candidate/dev`, `work/`,
+  `proposal/`), and a repository with other names renames them first. DR-0032 decides that a
+  repository will declare its names, in steps after 0.2.0; until a step ships the names stay
+  fixed, and the fixed names of a release before those steps are no compatibility promise.
 
 ### Deprecated
 
-- Windows. The owner decided on 2026-11-25 that ETHOS ends its support for Windows, in the
-  product, its archives and its CI. This release still builds and publishes the Windows archives
-  and runs its Windows legs; a later 0.2.0 beta removes them. A new adoption should not start on
-  Windows.
+- Windows. ETHOS ends its support for Windows, in the product, its archives and its CI (decided
+  2026-11-25). This release still builds and publishes the Windows archives and runs its
+  Windows legs; a later release removes them. A new adoption should not start on Windows.
 
 ### Fixed
 

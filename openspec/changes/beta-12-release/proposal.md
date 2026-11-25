@@ -21,13 +21,24 @@ Change keeps the release's own steps, so that none waits in an archived follow-u
   previous release reads the same, and one, which has no accepted branch, is evidence only. After
   the known-defect entries landed, the same reader's previews of all fourteen were equal to those
   before it. The release head moves the version, so the reader reads it again before the tag.
+- An accepted requirement has the release binding record each release that the release
+  upgrades from, and the release guide records it in the release Change. The binding holds no
+  such table: 0.2.0-beta.11 was tagged without it, and `ethos lane upgrade-from` blocks with
+  `release_upgrade_from_empty`.
+- The previous entry printed a total of the paradigm's obligations, 47. No file enumerates
+  them, and the count cannot be derived again.
+- The owner decided on 2026-11-25 that ETHOS ends its support for Windows. The removal lands
+  after this tag, so this is the last entry that can give notice of it before it happens.
 
 ## What Changes
 
 - `VERSION` moves to `0.2.0-beta.12`.
 - The `[Unreleased]` entry becomes the `0.2.0-beta.12` entry, completed from the landed Changes. It
   names the release that its journey upgrades from, the journeys this beta does not qualify, the
-  law by state, the result of the copies run, and where the known open defects are kept.
+  law by state, the result of the copies run, and where the known open defects are kept. It
+  prints no total of obligations, and it gives notice that support for Windows ends.
+- `.ethos/release.toml` gains `[release.upgrade_from]` with the releases that
+  `ethos lane upgrade-from` derives for 0.2.0-beta.12.
 - The known open defects are no longer copied into the entry as a list. The entry names
   `defects/`, the count of open entries at its head and the one divergence that the owner asked to
   see stated in this release's entry.
@@ -49,5 +60,5 @@ None. A release entry changes no requirement, so `skip_specs: true` applies.
 
 ## Impact
 
-`VERSION`, `CHANGELOG.md` and nine files under `defects/`. No row lands in this Change, and no
-product code changes.
+`VERSION`, `CHANGELOG.md`, the release binding and nine files under `defects/`. No row lands in
+this Change, and no product code changes.

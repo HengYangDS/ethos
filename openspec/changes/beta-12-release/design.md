@@ -11,8 +11,9 @@ is created at that accepted head after both Forges qualify it.
 
 Goals:
 
-- One release Change that moves the version, writes the release entry, fills the release's fields
-  in the known-defect entries and records the steps that a tag needs.
+- One release Change that moves the version, writes the release entry, records what the release
+  upgrades from, fills the release's fields in the known-defect entries and records the steps
+  that a tag needs.
 - The reader's pass on the release head before the tag, or each tree it could not read named with
   its reason.
 
@@ -90,14 +91,52 @@ Non-Goals:
      release head that reads otherwise stops the tag and returns the release to a lane, where the
      entry is corrected. So an entry under a tag is always the reading of its own head.
    - **Applies to:** the entry's sentence on the copies run.
-6. **The journey upgrades from 0.2.0-beta.11 alone.**
-   - **Rests on:** the reader's count of 2026-11-26 over the fourteen trees: every one selects
-     0.2.0-beta.11 as its runtime. Eleven pin it in their toolchain declaration and three select
-     it through the runtime their repository holds.
-   - **Considered:** the releases that trees keep for a rollback, which no tree selects.
-   - **Chosen because:** the requirement names the releases that subjects select, and an upgrade
-     leg from a release nobody selects proves a path nobody takes.
-   - **Applies to:** the journey's predecessor list for this release.
+6. **The release upgrades from 0.2.0-beta.11 alone, and the binding records it.**
+   - **Rests on:** the product's own read, `ethos lane upgrade-from`, run in this lane on
+     2026-11-26: 13 subjects, every one with 0.2.0-beta.11 selected, 8 of them by a pin on their
+     accepted branch and 5 by selection alone, and 3 consumer records that it could not read.
+     The reader of the copies run counted 14 trees by its own method, all on 0.2.0-beta.11; the
+     two counts were not reconciled tree by tree, and they name the same one release. The
+     accepted requirement "A release records what it upgrades from" has the binding record the
+     set, and the release guide records it in the release Change.
+   - **Considered:** leaving the record to the draft that makes the tag step refuse an empty
+     one. The requirement is accepted today, and 0.2.0-beta.11 was tagged without the record.
+     Also considered: the releases that trees keep for a rollback, which no subject selects.
+   - **Chosen because:** the command derives the set and blocks until the committed binding
+     records it, so the record is written from its answer and the command is run again until
+     it passes. The selected runtime, 0.2.0-beta.11, reads the key. An upgrade leg from a
+     release that nobody selects proves a path that nobody takes, so the journey keeps its one
+     predecessor, the previous release.
+   - **Applies to:** `[release.upgrade_from]` in `.ethos/release.toml` and the entry's sentence
+     on what the release upgrades from. The journey takes its predecessor from the changelog,
+     as before; no command but the read uses the record in this release.
+7. **The entry prints no total of obligations.**
+   - **Rests on:** a scan of the product source on 2026-11-26 for the first argument of every
+     call that raises a paradigm gap: 48 literal ids and one id for each of the three parameter
+     groups, 51 in all, the same at the tag of 0.2.0-beta.11 and at this lane. The previous
+     entry printed 47, and its Change states the number without a derivation. No call that
+     raises a gap was added or removed since that tag, and the reporting list grew from two
+     ids to three.
+   - **Considered:** printing 48 as the previous total plus one, which repeats a number that
+     cannot be derived; and printing 51 as the total, which is one scan's reading and has no
+     enumerator in the product to hold it.
+   - **Chosen because:** what a reader acts on is which obligations report and whether any
+     was armed, and both are read from the declaration. The entry names the three that
+     report, says that none was armed, and says why it prints no total, with the scan's
+     count. An enumerator of the obligations is a later Change.
+   - **Applies to:** the entry's sentence on the law by state. The same sentence names the
+     one refusal that this release adds as a defect's repair, the hook's protection of a
+     legacy release ref, so that a reader does not take it for a repair without effect.
+8. **The entry gives notice that support for Windows ends.**
+   - **Rests on:** the owner's decision of 2026-11-25 that ETHOS drops Windows in the product,
+     its archives and its CI. The removal is prepared and lands after this tag; this release
+     still builds and publishes the Windows archives.
+   - **Considered:** saying nothing until the release that removes it, which gives a reader on
+     Windows no release of notice.
+   - **Chosen because:** an entry states what a reader needs before acting, and a new
+     adoption on Windows started on this release would lose its platform within weeks. The
+     notice names no release for the removal, because none is fixed.
+   - **Applies to:** one line under `Deprecated`. The owner can take it out before the tag.
 
 ## Risks / Trade-offs
 
@@ -106,4 +145,7 @@ Non-Goals:
   lane's review, the hosted runs of its head and the reader's pass read it again.
 - A defect that the reader's pass finds on the release head returns the release to a lane.
 - A reader of the changelog alone no longer sees the known defects' text; the entry sends that
-  reader to `defects/` in the source tree.
+  reader to `defects/` in the repository.
+- The record of what the release upgrades from is derived on the releasing host from the
+  consumers that its store records. Three records could not be read, so a subject on an
+  older release could stand behind one of them unseen.

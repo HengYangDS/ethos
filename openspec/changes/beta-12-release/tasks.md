@@ -7,10 +7,12 @@
 - [ ] 1.2 Turn `[Unreleased]` into the `0.2.0-beta.12` entry, completed from the landed Changes.
       Done when `changelog_errors` reports nothing with 0.2.0-beta.12 as its release target, each
       line that the reader's census of 2026-11-26 names as absent or partial is stated, the entry
-      states the law by state and the result of the copies run, and it names where the known open
-      defects are kept with their count at the lane head.
-- [ ] 1.3 Name the release that the journey upgrades from. Done when the entry names the release
-      that the readable trees select, by the reader's count, and the design records the count.
+      states the law by state without a total and the result of the copies run, it names where
+      the known open defects are kept with their count at the lane head, and it gives notice
+      that support for Windows ends.
+- [ ] 1.3 Record what the release upgrades from. Done when `ethos lane upgrade-from --json`
+      passes at the lane head against the committed `[release.upgrade_from]`, and the entry names
+      the release with that command's counts of subjects and of unread records.
 - [ ] 1.4 Fill the release's fields in the known-defect entries. Done when every entry whose state
       is `closed` holds `fixed_in = "v0.2.0-beta.12"`, no entry holds an empty `since`, no other
       field of any entry differs from `dev`, and a reading of every entry by the design's reading

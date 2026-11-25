@@ -2,7 +2,7 @@
 title = "Reclamation of a generation differs by Python version under an unsearchable directory"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "none"
 +++
 

@@ -2,7 +2,7 @@
 title = "A lane abandonment removes the worktree before a deletion that the hook then refuses"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "Under 0.2.0-beta.11, do not abandon a lane whose proposal ref stands at a commit made before the adoption; retire it after the upgrade."
 +++
 

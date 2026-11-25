@@ -2,7 +2,7 @@
 title = "An installation that only a vanished repository recorded stays in the shared store"
 state = "closed"
 since = "v0.2.0-beta.7"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "none"
 +++
 

@@ -2,7 +2,7 @@
 title = "A host ticket's slot is freed while its work still runs when the holder is killed"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "End a ticket's holder with an interrupt or a terminate signal, never with a hang-up or a kill; after a hang-up or a kill, end its child processes before another ticket is queued."
 +++
 

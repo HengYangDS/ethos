@@ -2,7 +2,7 @@
 title = "No code reads the declared `retention.status_bytes`; no command reports a store's size"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "none"
 +++
 

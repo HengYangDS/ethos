@@ -1,7 +1,7 @@
 +++
 title = "The release of absent consumers accepts `--grace-days` and ignores it"
 state = "open"
-since = ""
+since = "v0.2.0-beta.12"
 fixed_in = ""
 workaround = "none"
 +++

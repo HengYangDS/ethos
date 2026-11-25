@@ -2,7 +2,7 @@
 title = "The format gates start a tool once per file where one start for all files suffices"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "none"
 +++
 

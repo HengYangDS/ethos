@@ -2,7 +2,7 @@
 title = "A closeout previews the rename of an old legacy role ref and its apply is refused"
 state = "closed"
 since = "v0.2.0-beta.11"
-fixed_in = ""
+fixed_in = "v0.2.0-beta.12"
 workaround = "Run no closeout apply on a repository whose legacy role ref stands at a commit made before the commit that added the legacy table."
 +++
 

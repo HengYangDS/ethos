@@ -89,7 +89,7 @@ Non-Goals:
      after this Change lands, so the entry cannot wait for it.
    - **Chosen because:** the entry prints the reading made before this lane. A pass on the
      release head that reads otherwise stops the tag and returns the release to a lane, where the
-     entry is corrected. So an entry under a tag is always the reading of its own head.
+     entry is corrected. So no entry stands under a tag whose own head read otherwise.
    - **Applies to:** the entry's sentence on the copies run.
 6. **The release upgrades from 0.2.0-beta.11 alone, and the binding records it.**
    - **Rests on:** the product's own read, `ethos lane upgrade-from`, run in this lane on
@@ -109,7 +109,8 @@ Non-Goals:
      predecessor, the previous release.
    - **Applies to:** `[release.upgrade_from]` in `.ethos/release.toml` and the entry's sentence
      on what the release upgrades from. The journey takes its predecessor from the changelog,
-     as before; no command but the read uses the record in this release.
+     as before. The paradigm report checks the record's form; no command but the read uses
+     its content in this release.
 7. **The entry prints no total of obligations.**
    - **Rests on:** a scan of the product source on 2026-11-26 for the first argument of every
      call that raises a paradigm gap: 48 literal ids and one id for each of the three parameter
@@ -125,8 +126,11 @@ Non-Goals:
      report, says that none was armed, and says why it prints no total, with the scan's
      count. An enumerator of the obligations is a later Change.
    - **Applies to:** the entry's sentence on the law by state. The same sentence names the
-     one refusal that this release adds as a defect's repair, the hook's protection of a
-     legacy release ref, so that a reader does not take it for a repair without effect.
+     one act that this release newly refuses as a defect's repair, the deletion of a legacy
+     release ref that the hook now protects, so that a reader does not take it for a repair
+     without effect. It also places the four gap codes that the code table gained since the
+     tag: one names a rename whose apply the previous release already refused, by that
+     defect's entry, and three concern only the proof record that cites its plan.
 8. **The entry gives notice that support for Windows ends.**
    - **Rests on:** the owner's decision of 2026-11-25 that ETHOS drops Windows in the product,
      its archives and its CI. The removal is prepared and lands after this tag; this release
@@ -137,6 +141,38 @@ Non-Goals:
      adoption on Windows started on this release would lose its platform within weeks. The
      notice names no release for the removal, because none is fixed.
    - **Applies to:** one line under `Deprecated`. The owner can take it out before the tag.
+9. **The Change that landed whole is closed here; the six with work left stay open.**
+   - **Rests on:** seven Changes stand open on `dev` while the entry states what their landed
+     parts do. Six have work left: `format-gates-cost` (the measurement on a governed
+     checkout), `unsearchable-path-absence` (the selector that links to itself, and its lane),
+     `commit-type-style` (the reading of a governed repository), `gate-reuse` (the owner's
+     threshold), `store-retention` (seven tasks) and `proof-output-scratch` (eight tasks). The
+     seventh, `known-defect-entries`, landed whole on 2026-11-25 under a passed full proof
+     with none of its five tasks recorded.
+   - **Considered:** closing `known-defect-entries` in a documentation lane after the tag, as
+     first planned. The tree under the tag would then say that none of its work is done.
+   - **Chosen because:** decision 1 lets nothing but this lane land before the tag, so this
+     lane records that Change's task states from its evidence and archives it. Each entry
+     line of the six others states only the part that landed, and their open tasks stay
+     where they are.
+   - **Applies to:** `openspec/changes/known-defect-entries/` and its archive. No other
+     Change is edited.
+10. **The entry is completed from a census and from the lane's review.**
+    - **Rests on:** a census of 2026-11-26 that held each Change landed since the tag
+      against the entry, and the independent review of this lane. The census found two
+      Changes that no line stated (the sqlfluff catalog row with the authored-name repair
+      text; the shipped Vale and markdownlint files with the known-defect record) and one
+      sentence that a later commit had made untrue (a formatter's refusal reported alone).
+      The review found two more (the Docs Registry's section on decision records with the
+      Writing Standard; the shipped Ruff and format-selection files) and one defect of this
+      release that its own bullet did not name (`--grace-days` beside `--release-absent`).
+    - **Considered:** stating only what a command or a verdict shows. A shipped policy file
+      or governance document that a governed repository's gate or keeper reads is also
+      something that repository observes.
+    - **Chosen because:** an entry written lane by lane has no reader at its end; the
+      release Change is that reader. Each line added says what a governed repository
+      observes, and says so when it observes nothing.
+    - **Applies to:** the entry's lines that task 1.2 names.
 
 ## Risks / Trade-offs
 

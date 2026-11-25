@@ -27,6 +27,9 @@ Change keeps the release's own steps, so that none waits in an archived follow-u
   `release_upgrade_from_empty`.
 - The previous entry printed a total of the paradigm's obligations, 47. No file enumerates
   them, and the count cannot be derived again.
+- Seven Changes stand open on `dev` while the entry states what their landed parts do. Six have
+  work left. The seventh, `known-defect-entries`, landed whole on 2026-11-25 with none of its
+  five tasks recorded, so the tree under the tag would say that none of its work is done.
 - The owner decided on 2026-11-25 that ETHOS ends its support for Windows. The removal lands
   after this tag, so this is the last entry that can give notice of it before it happens.
 
@@ -39,6 +42,8 @@ Change keeps the release's own steps, so that none waits in an archived follow-u
   prints no total of obligations, and it gives notice that support for Windows ends.
 - `.ethos/release.toml` gains `[release.upgrade_from]` with the releases that
   `ethos lane upgrade-from` derives for 0.2.0-beta.12.
+- The Change `known-defect-entries` has its task states recorded from its evidence and is
+  archived.
 - The known open defects are no longer copied into the entry as a list. The entry names
   `defects/`, the count of open entries at its head and the one divergence that the owner asked to
   see stated in this release's entry.
@@ -60,5 +65,6 @@ None. A release entry changes no requirement, so `skip_specs: true` applies.
 
 ## Impact
 
-`VERSION`, `CHANGELOG.md`, the release binding and nine files under `defects/`. No row lands in
-this Change, and no product code changes.
+`VERSION`, `CHANGELOG.md`, the release binding, nine files under `defects/` and the Change
+`known-defect-entries`, which moves to the archive. No row lands in this Change, and no product
+code changes.

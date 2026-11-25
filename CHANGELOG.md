@@ -12,6 +12,8 @@ historical bindings are governed by the [distribution specification](openspec/sp
 
 ## [Unreleased]
 
+## [0.2.0-beta.12] - 2026-11-28
+
 ### Added
 
 - The result of `ethos prove --readiness --execute` gains `data.unexamined`, which names what the
@@ -75,6 +77,17 @@ historical bindings are governed by the [distribution specification](openspec/sp
   that already held the literal text `{scratch}` in an argument now receives the directory in its
   place. A runtime that does not read the placeholder passes the word through, so a registry
   names it only once every runtime that proves the repository reads it.
+- The paradigm's tool catalog admits sqlfluff, with the carrier
+  `.config/checks/sqlfluff/.sqlfluff`. A gate that runs the tool may declare `sqlfluff` among its
+  tools; the carrier is then a source of that gate and the only tracked file named `.sqlfluff`.
+  Without the row, a repository's own sqlfluff policy file under `.config/checks/sqlfluff/` was a
+  configuration-carrier gap that none of its declarations closed; a policy file of another name
+  there is still that gap. The row admits one carrier and adds no refusal, and ETHOS runs no
+  sqlfluff gate. The configuration reference states the carrier, its binding flags, and how
+  sqlfluff, Ruff and coverage.py resolve the relative paths of an explicit configuration file.
+- ETHOS's known defects are recorded in its repository, one Markdown file each under `defects/`,
+  with the fields `title`, `state`, `since`, `fixed_in` and `workaround`. 73 entries enter with
+  this release: 65 are open, and the 8 that are closed are repaired in it.
 
 ### Changed
 
@@ -85,6 +98,60 @@ historical bindings are governed by the [distribution specification](openspec/sp
   joins. A repository's own `subject_pattern` stays in force and is still reported as a restated
   grammar; one that restates the former ten types is no longer removed by the paradigm repair,
   so that repository refuses `style` until the field is removed by hand.
+- The repair of the authored-name gap names a third way out beside a rename and a `linguist-*`
+  mark: where an upstream contract fixes the name, the tracked manifest and the key whose value
+  repeats it are declared under the profile's `identifier_sources`. No verdict changes.
+- The shipped Vale policy ignores the front-matter field `workaround`, beside the seven fields it
+  already ignored. The `prose` gate of every governed repository runs that policy, so Vale no
+  longer reports inside a field of that name, and no diagnostic is added. The shipped
+  markdownlint configuration names `defects/**/*.md` among its `globs`, which only a direct run
+  of the tool reads: the `markdown-lint` gate names its files itself and is unchanged.
+- 0.2.0-beta.12 upgrades directly from 0.2.0-beta.11. `ethos lane upgrade-from` reads 13
+  subjects on the releasing host, and every one has selected that release: 8 pin it on their
+  accepted branch and 5 select it alone. 3 consumer records could not be read. The release
+  binding records the set under `[release.upgrade_from]` for the first time; 0.2.0-beta.11 was
+  tagged without the record. The hosted journey upgrades from 0.2.0-beta.11 on macOS arm64, Linux
+  x64 and Linux arm64. The release keeps result schema 3.
+- Before the tag, the candidate of this release was proved on disposable copies of the governed
+  trees that the releasing host reads, by a session other than its authors'. 14 trees were read.
+  At the head of the last product change, a full proof passed on 12. One was refused before
+  execution on two required gaps of its own tree, `docs_length_exceeded` and
+  `repository_paradigm_configuration_carrier`, which 0.2.0-beta.11 reports the same. One has no
+  accepted branch and was read as evidence only; its five gaps are those that 0.2.0-beta.11
+  reports. After the known-defect entries landed, the proof previews of all 14 equalled the
+  earlier ones. New required gaps against 0.2.0-beta.11: 0, for every code. New refusals: 0. The
+  release head, which moves the version, is read again before the tag.
+- The paradigm's reporting list holds three obligations: `identifier-source`,
+  `package-docstring` and `staged-openspec-tree`, which enters with this release. No obligation
+  was armed, and no call that raises a paradigm gap was added or removed since 0.2.0-beta.11. One
+  refusal is added, as the repair of a defect stated under Fixed: the reference-transaction hook
+  refuses the deletion of a legacy release ref that stands before the commit of its legacy
+  table, which the hook of 0.2.0-beta.11 let through. It reaches only a repository that declares
+  a legacy table. This entry prints no total of obligations: the previous entry's 47 was counted
+  by hand, the product holds no enumeration of them, and a scan of the source finds 51 distinct
+  ids that the paradigm report can raise, at 0.2.0-beta.11 and at this release alike.
+- Not qualified by this beta:
+  - a rollback after the declaration repair, which the journey reports as `not_qualified`;
+  - the adopter journey on Windows, which no hosted job runs; Windows runtimes are qualified by
+    their release legs' install smoke and inventories;
+  - interruption recovery and uninstall while a consumer runs, which the journey reports as
+    `not_qualified`;
+  - GitLab-hosted CI and GitLab publication, which are not 0.2.0 preconditions, and the Homebrew
+    channel, which 0.2.0 does not qualify.
+- Known open defects are kept under `defects/` in the repository, one file each with the release
+  since which the defect is there and its workaround, and are no longer listed here. 65 are open
+  at this release's head. One is stated here as well: the product design contract says that a
+  repository maps its branch names to the roles, and the product reads no such mapping. The
+  names are fixed (`main`, `dev`, `candidate/dev`, `work/`, `proposal/`), and a repository with
+  other names renames them first. Declared names are decided (DR-0032); the fixed names are no
+  compatibility promise.
+
+### Deprecated
+
+- Windows. The owner decided on 2026-11-25 that ETHOS ends its support for Windows, in the
+  product, its archives and its CI. This release still builds and publishes the Windows archives
+  and runs its Windows legs; a later 0.2.0 beta removes them. A new adoption should not start on
+  Windows.
 
 ### Fixed
 
@@ -118,8 +185,7 @@ historical bindings are governed by the [distribution specification](openspec/sp
   or four times for each file, and in a repository with its own Prettier ignore file they
   rendered every Prettier file in processes of its own. On one governed repository of 195 files
   the three gates took 140 seconds and started 3,162 commands; they take 9 seconds and start 75.
-  Every verdict and postimage is unchanged. When a formatter refuses a file, `markdown-lint`
-  reports that refusal alone.
+  Every verdict and postimage is unchanged.
 - A full proof on a host that declares a load limit no longer waits one sampling interval, 15
   seconds, between its readiness gates and its first test or package gate when the host is quiet
   and both slots are free. The proof reads the host's load before its readiness gates, and that

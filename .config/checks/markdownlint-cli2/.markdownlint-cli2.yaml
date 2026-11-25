@@ -7,7 +7,7 @@ globs:
   - .agents/**/*.md
   - .github/**/*.md
   - .gitlab/**/*.md
-  - defects/*.md
+  - defects/**/*.md
   - docs/**/*.md
   - openspec/**/*.md
   - rules/**/*.md

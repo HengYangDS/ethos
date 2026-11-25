@@ -185,6 +185,32 @@ def test_common_vale_policy_separates_machine_front_matter_from_human_prose(tmp_
         assert source.read_bytes() == original
 
 
+def test_common_vale_policy_reads_a_toml_title_and_never_an_entry_workaround(
+    tmp_path: Path,
+) -> None:
+    """A known-defect entry's workaround holds commands; its title keeps every diagnostic."""
+    config = canonical_resource(".config/checks/vale/vale.ini")
+    executable = resolve_native_tool("vale")
+    source = tmp_path / "entry.md"
+    command = (str(executable), "--no-global", f"--config={config}", "--output=JSON", str(source))
+    entry = '+++\ntitle = "{title}"\nworkaround = "Run teh Github command."\n+++\n\nThe body.\n'
+
+    source.write_text(entry.format(title="A title"), encoding="utf-8")
+    accepted = run_command(tmp_path, command, timeout=20)
+    source.write_text(entry.format(title="A teh Github title"), encoding="utf-8")
+    rejected = run_command(tmp_path, command, timeout=20)
+
+    assert accepted.returncode == 0, accepted.stdout + accepted.stderr
+    assert not any(json.loads(accepted.stdout).values())
+    assert rejected.returncode == 1, rejected.stdout + rejected.stderr
+    found = {
+        (item["Check"], item["Match"], item["Line"])
+        for item in json.loads(rejected.stdout)[str(source)]
+    }
+    assert ("Vale.Terms", "Github", 2) in found
+    assert all(item["Line"] == 2 for item in json.loads(rejected.stdout)[str(source)])
+
+
 def test_common_vale_policy_skips_only_archify_directive_lines(tmp_path: Path) -> None:
     """An Archify draft's directive lines are renderer arguments; its prose keeps the policy."""
     config = canonical_resource(".config/checks/vale/vale.ini")

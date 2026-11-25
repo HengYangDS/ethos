@@ -185,6 +185,22 @@ def test_a_move_in_another_repository_is_not_judged_by_this_one(tmp_path: Path) 
     assert git(repo, "rev-parse", "refs/heads/dev") == own
 
 
+def test_a_creation_with_git_common_dir_set_is_not_admitted(tmp_path: Path) -> None:
+    """The variable's presence refuses, even when it names the checkout's own common directory."""
+    repo, _head = _armed_release_root(tmp_path)
+
+    done = run_command(
+        repo,
+        ("git", "branch", "dev", "main"),
+        timeout=60,
+        env={"GIT_COMMON_DIR": (repo / ".git").as_posix()},
+    )
+
+    assert done.returncode != 0
+    assert _gaps(done) == _REFUSAL
+    assert git(repo, "branch", "--list", "dev") == ""
+
+
 def test_a_creation_judged_by_another_repository_s_hooks_is_not_admitted(tmp_path: Path) -> None:
     """Git runs the hooks of `GIT_COMMON_DIR`; neither repository is admitted from the other's."""
     repo, head = _armed_release_root(tmp_path)

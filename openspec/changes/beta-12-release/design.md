@@ -107,10 +107,14 @@ Non-Goals:
      it passes. The selected runtime, 0.2.0-beta.11, reads the key. An upgrade leg from a
      release that nobody selects proves a path that nobody takes, so the journey keeps its one
      predecessor, the previous release.
-   - **Applies to:** `[release.upgrade_from]` in `.ethos/release.toml` and the entry's sentence
-     on what the release upgrades from. The journey takes its predecessor from the changelog,
-     as before. The paradigm report checks the record's form; no command but the read uses
-     its content in this release.
+   - **Applies to:** `[release.upgrade_from]` in `.ethos/release.toml`, the entry's sentence
+     on what the release upgrades from, and one test. That test read ETHOS's own binding and
+     pinned its release table to the mirror alone, so the record failed it. It now holds
+     that the table records the release before the committed one, which every release
+     upgrades from: a release Change that moves the version without the record fails the
+     test, where 0.2.0-beta.11 was tagged without anyone seeing the gap. The journey takes its
+     predecessor from the changelog, as before. The paradigm report checks the record's form;
+     no command but the read uses its content in this release.
 7. **The entry prints no total of obligations.**
    - **Rests on:** a scan of the product source on 2026-11-26 for the first argument of every
      call that raises a paradigm gap: 48 literal ids and one id for each of the three parameter

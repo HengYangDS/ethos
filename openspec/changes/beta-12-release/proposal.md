@@ -41,7 +41,9 @@ Change keeps the release's own steps, so that none waits in an archived follow-u
   law by state, the result of the copies run, and where the known open defects are kept. It
   prints no total of obligations, and it gives notice that support for Windows ends.
 - `.ethos/release.toml` gains `[release.upgrade_from]` with the releases that
-  `ethos lane upgrade-from` derives for 0.2.0-beta.12.
+  `ethos lane upgrade-from` derives for 0.2.0-beta.12. The test that pinned the binding's
+  release table to the mirror alone now holds that the table records the release before the
+  committed one.
 - The Change `known-defect-entries` has its task states recorded from its evidence and is
   archived.
 - The known open defects are no longer copied into the entry as a list. The entry names
@@ -66,5 +68,5 @@ None. A release entry changes no requirement, so `skip_specs: true` applies.
 ## Impact
 
 `VERSION`, `CHANGELOG.md`, the release binding, nine files under `defects/` and the Change
-`known-defect-entries`, which moves to the archive. No row lands in this Change, and no product
-code changes.
+`known-defect-entries`, which moves to the archive, and one test of the release binding. No row
+lands in this Change, and no product code changes.

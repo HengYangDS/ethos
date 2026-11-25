@@ -8,6 +8,8 @@ import pytest
 
 import ethos.repository.release.configuration as release_core
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.repository.release import predecessors
+from ethos.repository.release.changelog import released_versions
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest
 from ethos.repository.release.identity import product_version
@@ -176,7 +178,11 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         version=manifest,
         protected_refs={"branches": ["main", "dev"], "tags": ["v*"]},
     )
-    assert config["release"] == {"mirror": "accepted_ff"}
+    assert config["release"]["mirror"] == "accepted_ff"
+    # The binding records at least the release before the committed one, which every
+    # release upgrades from; a release that moves the version without it fails here.
+    history = released_versions((root / "CHANGELOG.md").read_text(encoding="utf-8"))
+    assert history[history.index(_PRODUCT) + 1] in (predecessors.recorded(config) or {})
     assert "gitlab" not in report
     assert report["required_files"] == [*_REQUIRED_FILES, ".ethos/release.toml"]
     _fields(

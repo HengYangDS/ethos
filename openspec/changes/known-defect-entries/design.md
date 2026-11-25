@@ -82,7 +82,8 @@ the repository's own.
 The product's `markdown-lint` gate takes every authored `*.md` file through Git's own pathspec and
 hands the tool those files with its globs switched off, so it reads the entries without a change,
 here and in every governed repository. A direct run of `markdownlint-cli2` reads its `globs`, and
-`defects/*.md` joins them so that such a run in this repository reads the files the gate reads.
+`defects/**/*.md` joins them so that such a run in this repository reads the files the gate reads,
+at any depth as the gate does.
 
 Vale lints TOML front-matter fields as text. In a `workaround`, a code span such as
 `` `ethos host run` `` is plain text, and the rule that writes the product's name in capitals
@@ -90,13 +91,20 @@ refuses the command. A workaround names commands by its nature, so the scope
 `text.frontmatter.workaround` joins the seven front-matter keys of other documents that the file
 already ignores; no other tracked Markdown of this repository uses that key.
 
-What this lifts, and where. In every governed repository, Vale's term and repetition rules no
-longer read a front-matter value under the key `workaround`, in YAML or TOML front matter. They
-still read every other front-matter field that was read before, and the whole body. The spelling
-check of the same gate still reads the field (probed: a misspelt word in a `workaround` is
-reported). No new input is read and no finding is added, so no tree that passed can fail. What
-binds the scope: this repository's own `prose` gate fails without it, on every entry whose
-workaround names a product command.
+What this lifts, and where. In every governed repository, no Vale rule reads a front-matter value
+under the key `workaround` any more, in YAML or TOML front matter: not the term and repetition
+rules, and not the plain-language rules (`plain.concise`, `plain.stock-phrases`), which report at
+error level. It is the first human-prose key in the list; the other seven are machine identifiers.
+Vale still reads every other front-matter field that was read before, and the whole body. The
+spelling check of the same gate still reads the field (probed: a misspelt word in a `workaround` is
+reported). No new input is read and no finding is added, so no tree that passed can fail. What binds
+the scope: this repository's own `prose` gate fails without it, on every entry whose workaround
+names a product command, and a unit test of the configuration holds both halves on a TOML entry (its
+workaround is not read; its title keeps the term rule).
+
+Considered: keeping the field linted and writing workarounds without commands. A workaround is a
+command more often than not, and the entry's body already holds the prose; the plain-language floor
+on one short field is given up for that.
 
 A `title` stays linted. The product's own test of this configuration holds that a title is human
 prose and keeps its diagnostics, so an entry's title names a command in words, not as a code span

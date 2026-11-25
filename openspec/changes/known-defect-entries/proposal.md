@@ -19,14 +19,15 @@ The command that reads them and the check that reports a malformed entry are lat
   `fixed_in`, `workaround`) and prose. The form and its reading rules are in this Change's design.
 - 73 entries enter: 65 open and 8 closed. The closed ones are repaired on `dev` and wait for the
   release that carries the repair to fill their `fixed_in`.
-- The markdownlint configuration gains `defects/*.md` in its `globs`, so that a direct run of the
+- The markdownlint configuration gains `defects/**/*.md` in its `globs`, so that a direct run of the
   tool reads the files that the product's `markdown-lint` gate already reads.
 - The shipped Vale policy ignores the front-matter field `workaround`, as it already ignores seven
   front-matter fields of other documents: Vale lints a TOML field as plain text, where a code span
   is no longer code and the term rule refuses the lowercase product name inside a command. An
   entry's `title` stays linted, as every document's title is. This file is the common policy that
   every governed repository's `prose` gate runs first, so the change reaches every governed
-  repository; it only removes diagnostics.
+  repository; it only removes diagnostics, of every Vale rule (terms, repetition and the
+  plain-language rules) and in that one field only.
 
 No product code, no requirement and no accepted requirement changes. Two shipped configuration
 files change.

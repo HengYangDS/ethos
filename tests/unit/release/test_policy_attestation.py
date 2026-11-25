@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 import ethos.repository.release.configuration as release_core
+import ethos.repository.release.predecessors as predecessors
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.repository.release import predecessors
 from ethos.repository.release.changelog import released_versions
 from ethos.repository.release.configuration import release_policy_report
 from ethos.repository.release.configuration import version_manifest

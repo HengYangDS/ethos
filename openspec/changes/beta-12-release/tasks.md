@@ -13,7 +13,7 @@
 - [ ] 1.3 Record what the release upgrades from. Done when `ethos lane upgrade-from --json`
       passes at the lane head against the committed `[release.upgrade_from]`, the entry names
       the release with that command's counts of subjects and of unread records, and the test
-      of ETHOS's own binding fails when the record lacks the previous release.
+      of ETHOS's own binding fails in a run with the record taken out.
 - [ ] 1.4 Fill the release's fields in the known-defect entries. Done when every entry whose state
       is `closed` holds `fixed_in = "v0.2.0-beta.12"`, no entry holds an empty `since`, no other
       field of any entry differs from `dev`, and a reading of every entry by the reading rules of

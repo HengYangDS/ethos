@@ -133,8 +133,9 @@ Non-Goals:
      one act that this release newly refuses as a defect's repair, the deletion of a legacy
      release ref that the hook now protects, so that a reader does not take it for a repair
      without effect. It also places the four gap codes that the code table gained since the
-     tag: one names a rename whose apply the previous release already refused, by that
-     defect's entry, and three concern only the proof record that cites its plan.
+     tag: one names a rename that the previous release refused at its apply, by the check
+     that the defect's entry describes (no run of that release on such a ref was made for
+     this entry), and three concern only the proof record that cites its plan.
 8. **The entry gives notice that support for Windows ends.**
    - **Rests on:** the owner's decision of 2026-11-25 that ETHOS drops Windows in the product,
      its archives and its CI. The removal is prepared and lands after this tag; this release
@@ -146,8 +147,8 @@ Non-Goals:
      notice names no release for the removal, because none is fixed.
    - **Applies to:** one line under `Deprecated`. The owner can take it out before the tag.
 9. **The Change that landed whole is closed here; the six with work left stay open.**
-   - **Rests on:** seven Changes stand open on `dev` while the entry states what their landed
-     parts do. Six have work left: `format-gates-cost` (the measurement on a governed
+   - **Rests on:** seven of the Changes open on `dev` have landed parts that the entry
+     states. Six have work left: `format-gates-cost` (the measurement on a governed
      checkout), `unsearchable-path-absence` (the selector that links to itself, and its lane),
      `commit-type-style` (the reading of a governed repository), `gate-reuse` (the owner's
      threshold), `store-retention` (seven tasks) and `proof-output-scratch` (eight tasks). The
@@ -176,7 +177,7 @@ Non-Goals:
     - **Chosen because:** an entry written lane by lane has no reader at its end; the
       release Change is that reader. Each line added says what a governed repository
       observes, and says so when it observes nothing.
-    - **Applies to:** the entry's lines that task 1.2 names.
+    - **Applies to:** the entry's lines on those six items.
 
 ## Risks / Trade-offs
 

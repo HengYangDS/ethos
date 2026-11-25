@@ -27,8 +27,8 @@ Change keeps the release's own steps, so that none waits in an archived follow-u
   `release_upgrade_from_empty`.
 - The previous entry printed a total of the paradigm's obligations, 47. No file enumerates
   them, and the count cannot be derived again.
-- Seven Changes stand open on `dev` while the entry states what their landed parts do. Six have
-  work left. The seventh, `known-defect-entries`, landed whole on 2026-11-25 with none of its
+- Seven of the Changes open on `dev` have landed parts that the entry states. Six have work
+  left. The seventh, `known-defect-entries`, landed whole on 2026-11-25 with none of its
   five tasks recorded, so the tree under the tag would say that none of its work is done.
 - The owner decided on 2026-11-25 that ETHOS ends its support for Windows. The removal lands
   after this tag, so this is the last entry that can give notice of it before it happens.

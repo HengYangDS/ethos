@@ -136,19 +136,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
   reports. After the known-defect entries landed, the proof previews of all 14 equalled the
   earlier ones. New required gaps against 0.2.0-beta.11: 0, for every code. New refusals: 0. The
   release head, which moves the version, is read again before the tag.
-- The paradigm's reporting list holds three obligations: `identifier-source`,
-  `package-docstring` and `staged-openspec-tree`, which enters with this release. No obligation
-  was armed, and no call that raises a paradigm gap was added or removed since 0.2.0-beta.11. One
-  act that 0.2.0-beta.11 let through is now refused, as the repair of a defect stated under
-  Fixed: the reference-transaction hook refuses the deletion of a legacy release ref that
-  stands before the commit of its legacy table. It reaches only a repository that declares a
-  legacy table. The four gap codes that this release adds are named under Fixed:
-  `legacy_role_rename_history_unshared` names a rename whose apply 0.2.0-beta.11 refused as
-  `git_effect_cas_rejected`, and the three `proof_attestation_plan_artifact_*` codes concern
-  only a proof record that cites its plan, a form that this release introduces. This entry
-  prints no total of obligations: the previous entry's 47 has no recorded derivation, the
-  product holds no enumeration of them, and a scan of the source finds 51 distinct ids that the
-  paradigm report can raise, at 0.2.0-beta.11 and at this release alike.
+- The paradigm's reporting list holds three obligations: `identifier-source`, `package-docstring`
+  and `staged-openspec-tree`, which enters with this release. No obligation was armed, and no call
+  that raises a paradigm gap was added or removed since 0.2.0-beta.11. One act that 0.2.0-beta.11
+  let through is now refused, as the repair of a defect stated under Fixed: the
+  reference-transaction hook refuses the deletion of a legacy release ref that stands before the
+  commit of its legacy table. It reaches only a repository that declares a legacy table. The four
+  gap codes that this release adds are named under Fixed: `legacy_role_rename_history_unshared`
+  names a legacy role ref with no profile in its history, whose rename the hook of 0.2.0-beta.11
+  refused at its apply, because it read the legacy table at the ref's own commit
+  (`git_effect_cas_rejected`); and the three `proof_attestation_plan_artifact_*` codes concern only
+  a proof record that cites its plan, a form that this release introduces. This entry prints no
+  total of obligations: the previous entry's 47 has no recorded derivation, the product holds no
+  enumeration of them, and a scan of the source finds 51 distinct ids that the paradigm report can
+  raise, at 0.2.0-beta.11 and at this release alike.
 - Not qualified by this beta:
   - a rollback after the declaration repair, which the journey reports as `not_qualified`;
   - the adopter journey on Windows, which no hosted job runs; Windows runtimes are qualified by
@@ -157,13 +158,13 @@ historical bindings are governed by the [distribution specification](openspec/sp
     `not_qualified`;
   - GitLab-hosted CI and GitLab publication, which are not 0.2.0 preconditions, and the Homebrew
     channel, which 0.2.0 does not qualify.
-- Known open defects are no longer listed here. Each file under `defects/` names the release
-  that first shipped the defect and a workaround. One is stated here as well: the product
-  design contract says that a repository maps its branch names to the roles, and the product
-  reads no such mapping. The names are fixed (`main`, `dev`, `candidate/dev`, `work/`,
+- Known open defects are no longer listed here. Each file under `defects/` names the earliest
+  release known to have the defect, and its workaround where there is one. One is stated here as
+  well: the product design contract says that a repository maps its branch names to the roles, and
+  the product reads no such mapping. The names are fixed (`main`, `dev`, `candidate/dev`, `work/`,
   `proposal/`), and a repository with other names renames them first. DR-0032 decides that a
-  repository will declare its names, in steps after 0.2.0; until a step ships the names stay
-  fixed, and the fixed names of a release before those steps are no compatibility promise.
+  repository can declare its names, in steps after 0.2.0; until a step ships the names stay fixed,
+  and the fixed names of a release before those steps are no compatibility promise.
 
 ### Deprecated
 

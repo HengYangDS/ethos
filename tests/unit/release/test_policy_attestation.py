@@ -179,10 +179,14 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         protected_refs={"branches": ["main", "dev"], "tags": ["v*"]},
     )
     assert config["release"]["mirror"] == "accepted_ff"
-    # The binding records at least the release before the committed one, which every
-    # release upgrades from; a release that moves the version without it fails here.
+    # The binding records the release before the committed one, which every release upgrades
+    # from, and no name but an earlier listed release; a release that moves the version
+    # without the record fails here.
     history = released_versions((root / "CHANGELOG.md").read_text(encoding="utf-8"))
-    assert history[history.index(_PRODUCT) + 1] in (predecessors.recorded(config) or {})
+    earlier = history[history.index(_PRODUCT) + 1 :]
+    record = predecessors.recorded(config) or {}
+    assert earlier[0] in record
+    assert set(record) <= set(earlier)
     assert "gitlab" not in report
     assert report["required_files"] == [*_REQUIRED_FILES, ".ethos/release.toml"]
     _fields(

@@ -12,7 +12,7 @@ remote, and that the two Forges' tickets are at most projections of it.
 
 Goals:
 
-- The 68 known defects of this repository enter as tracked text, one file each, in the form the
+- The 73 known defects of this repository enter as tracked text, one file each, in the form the
   carrier's design fixed.
 - Both Markdown tools that the product's gates run read the entries: `markdown-lint` already does,
   and a direct `markdownlint-cli2` run must agree with it.
@@ -104,7 +104,7 @@ of the lowercase product name; its body names the command.
 
 ### The entries of this Change
 
-68 entries, read against the rules above on 2026-11-25 by a script: none malformed, 60 open, 8
+73 entries, read against the rules above on 2026-11-25 by a script: none malformed, 65 open, 8
 closed, one with an empty `since` (`retire-supply-release-absent-ignores-grace-days`: its switch
 ships first with the next release). Every tag named by a `since` resolves in this repository. An
 entry is closed when `dev` carries its repair; its `fixed_in` stays empty until a release carries

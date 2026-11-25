@@ -1,0 +1,53 @@
+# Proposal
+
+## Why
+
+The nine gate rows of 0.2.0-beta.12 are archived on `dev` under passed full proofs of the landed
+trees, and DR-0029 sets the tag for 2026-11-28. A release's execution plan is the plan's rows; this
+Change keeps the release's own steps, so that none waits in an archived follow-up.
+
+- `dev` still holds the version of the previous release. An accepted requirement binds a release
+  tag to the `VERSION` of its tree, so the tag needs a tree whose version is 0.2.0-beta.12.
+- Eighteen Changes were archived on `dev` since the previous tag, and the known-defect entries
+  landed after them. The `[Unreleased]` entry was written lane by lane; a reader held every landed
+  Change against it on 2026-11-26 and named what a user can observe that it does not yet state.
+- This is the first release entry written beside `defects/`. That directory's design gives the
+  release's Change two duties: it fills `fixed_in` for the entries closed since the previous tag
+  and fills an empty `since` where the defect ships first with this release. Eight entries are
+  closed and one has an empty `since`.
+- The copies run is read by a session other than the batch's authors'. On the candidate built at
+  the last product change it proved the governed repositories that the releasing host reads:
+  twelve passed in full, one is refused before execution on two gaps of its own tree that the
+  previous release reads the same, and one, which has no accepted branch, is evidence only. After
+  the known-defect entries landed, the same reader's previews of all fourteen were equal to those
+  before it. The release head moves the version, so the reader reads it again before the tag.
+
+## What Changes
+
+- `VERSION` moves to `0.2.0-beta.12`.
+- The `[Unreleased]` entry becomes the `0.2.0-beta.12` entry, completed from the landed Changes. It
+  names the release that its journey upgrades from, the journeys this beta does not qualify, the
+  law by state, the result of the copies run, and where the known open defects are kept.
+- The known open defects are no longer copied into the entry as a list. The entry names
+  `defects/`, the count of open entries at its head and the one divergence that the owner asked to
+  see stated in this release's entry.
+- Under `defects/`, the eight closed entries gain `fixed_in = "v0.2.0-beta.12"`, and the one entry
+  with an empty `since` gains `since = "v0.2.0-beta.12"`. No open entry is edited otherwise.
+- After the landing, by the release guide: the reader's pass on the release head, the
+  qualification of the release head on both Forges, the tag, the build and the journey. The tasks'
+  follow-up section lists them.
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+None. A release entry changes no requirement, so `skip_specs: true` applies.
+
+## Impact
+
+`VERSION`, `CHANGELOG.md` and nine files under `defects/`. No row lands in this Change, and no
+product code changes.

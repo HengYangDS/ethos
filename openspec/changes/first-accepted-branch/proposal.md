@@ -58,8 +58,8 @@ None.
 - Code: `src/ethos/adapters/admission/ref_move_policy.py` (the shape and the status step),
   `src/ethos/adapters/repo/hook/admission.py` (one question before the candidate runner, and the
   check that the transaction is the checkout's own), `src/ethos/application/inspection.py` (the
-  step toward a candidate branch as one function) and `system/surfaces.toml` (`GIT_DIR`, which
-  the hook reads).
+  step toward a candidate branch as one function) and `system/surfaces.toml` (`GIT_DIR` and
+  `GIT_COMMON_DIR`, which the hook reads).
 - Not repaired, and listed as known defects: a clone whose remote already shows the accepted
   branch still cannot create it locally under armed hooks; a local accepted branch that is behind
   its peer cannot follow it and no result says so; a creation that the hook refuses gets no

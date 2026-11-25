@@ -26,16 +26,24 @@ checkout" and "The creation of an absent accepted branch reads the remotes" hold
 ### Requirement: The creation of an absent accepted branch reads its checkout
 
 The admission of the requirement "An absent accepted branch is created at the release head" SHALL
-also require that a Git command in a checkout of the repository prepares the transaction in that
-same repository, that this checkout is at the new head and Git's status reports no staged, unstaged
-or untracked change there, and that the created head's committed tree carries a release binding that
-parses, or none and a valid repository profile. A condition that the hook cannot read does not hold.
+also require that a Git command in a checkout of the repository, with no `GIT_COMMON_DIR` set,
+prepares the transaction in that same repository, that this checkout is at the new head and Git's
+status reports no staged, unstaged or untracked change there, and that the created head's committed
+tree carries a release binding that parses, or none and a valid repository profile.
 
 #### Scenario: A creation from a checkout elsewhere or with a change is not admitted
 
 - **GIVEN** a governed repository with armed hooks, no `dev` and no candidate checkout
 - **WHEN** `git branch dev main` runs in a checkout that is at another commit or has a staged,
   unstaged or untracked change
+- **THEN** the creation is not admitted
+- **AND** the hook rejects it, and no accepted branch is created
+
+#### Scenario: A creation with `GIT_COMMON_DIR` set is not admitted
+
+- **GIVEN** a governed repository with armed hooks, no `dev`, no candidate checkout and no remote,
+  with `main` checked out and clean
+- **WHEN** `git branch dev main` runs with `GIT_COMMON_DIR` set in its environment
 - **THEN** the creation is not admitted
 - **AND** the hook rejects it, and no accepted branch is created
 

@@ -33,8 +33,8 @@ branch, the second half of the host queue layer, and the command of the known-de
 
 DR-0010 allows one 5,000 step only after the growing owner retires proved duplication and
 superseded mechanics, and the owner's rule of 2026-11-01 asks for that removal first. On 2026-11-24
-the session that builds the product told the owner that this review had not been made and
-proposed to decide the step two days later with it. The owner decided the step that day.
+the owner was told that this review had not been made, with the proposal to decide the step two
+days later with the review in hand. The owner decided the step that day.
 
 ## Decision
 
@@ -52,8 +52,8 @@ proposed to decide the step two days later with it. The owner decided the step t
 
 ## Alternatives Rejected
 
-- **Decide at the weekly cut with the review in hand:** the proposal of the session that builds
-  the product. The owner decided earlier; the first accepted branch then starts two days sooner.
+- **Decide at the weekly cut with the review in hand:** the proposal made to the owner. The owner
+  decided earlier; the first accepted branch then starts two days sooner.
 - **Fit the first accepted branch into the 112 free and take the step later:** measured on its
   patch it needs 84, which fits, and leaves 28 for the two pieces that follow.
 - **Compress or relabel:** invalid repairs under the product design contract and DR-0019.

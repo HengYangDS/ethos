@@ -349,7 +349,9 @@ ETHOS SHALL retain the accepted checkout as the fail-closed shell-hook boundary.
 For candidate promotion, semantic ref admission SHALL run in a clean linked
 checkout of the configured candidate at the exact promoted HEAD. Hooks SHALL
 consume public closeout's prepared accepted-head decision, not reconstruct proof
-or topology or require protected refs to equal the promoted object already.
+or topology or require protected refs to equal the promoted object already,
+except as the requirement "Hooks read an absent accepted branch's creation
+first" states.
 
 #### Scenario: candidate control implementation differs from accepted checkout
 
@@ -369,6 +371,9 @@ or topology or require protected refs to equal the promoted object already.
 
 #### Scenario: candidate semantic runner cannot be bound
 
+- **GIVEN** a move of the accepted ref, or of the release branch that mirrors
+  it, that no recorded effect has prepared and that the requirement "An absent
+  accepted branch is created at the release head" does not admit
 - **WHEN** the configured candidate checkout is missing, dirty, detached,
   stale, or its semantic runtime cannot be bound to that checkout
 - **THEN** the accepted-ref hook SHALL reject the transition
@@ -773,3 +778,20 @@ writes. The host locale SHALL NOT select a process text encoding.
   code page 1252
 - **THEN** the adapter returns the same text as on a UTF-8 host
 - **AND** text the adapter writes to the command's standard input is UTF-8.
+
+### Requirement: Hooks read an absent accepted branch's creation first
+
+For a move of the accepted branch from a zero old value that no recorded effect
+has prepared, the accepted-ref hook SHALL read whether the requirement "An
+absent accepted branch is created at the release head" admits it before it asks
+for public closeout's prepared accepted-head decision.
+
+#### Scenario: A zero old value is read before the closeout decision
+
+- **GIVEN** a move of the accepted branch whose transaction reports a zero old value
+- **AND** no recorded effect has prepared it
+- **WHEN** the accepted-ref hook evaluates the move
+- **THEN** it SHALL read whether the requirement "An absent accepted branch is created at the
+  release head" admits the move
+- **AND** it SHALL ask for public closeout's prepared accepted-head decision only when that
+  requirement does not admit it.

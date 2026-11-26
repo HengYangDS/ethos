@@ -63,8 +63,28 @@ def test_an_old_value_that_is_not_a_zero_object_name_is_not_asked(tmp_path: Path
 def test_a_branch_that_exists_is_not_created(tmp_path: Path) -> None:
     """Git gives a forced move a zero old value, as it gives a creation; the ref store tells."""
     repo, head = _release_root(tmp_path)
-    earlier = git(repo, "commit-tree", f"{head}^{{tree}}", "-m", "the accepted branch's own")
-    git(repo, "update-ref", _ACCEPTED, earlier)
+    git(repo, "update-ref", _ACCEPTED, head)
+
+    assert not _holds(repo, head)
+
+
+def _dangling(repo: Path) -> None:
+    git(repo, "symbolic-ref", _ACCEPTED, "refs/heads/nowhere")
+
+
+def _corrupt(repo: Path) -> None:
+    (repo / ".git" / _ACCEPTED).write_text("not an object name\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "unreadable", [_dangling, _corrupt], ids=["dangling-symbolic-ref", "corrupt"]
+)
+def test_a_branch_entry_that_cannot_be_read_is_not_absent(
+    tmp_path: Path, unreadable: Callable[[Path], None]
+) -> None:
+    """An unresolvable entry of the accepted name refuses, as unread facts do."""
+    repo, head = _release_root(tmp_path)
+    unreadable(repo)
 
     assert not _holds(repo, head)
 
@@ -123,8 +143,9 @@ def _refspecs(*refspecs: str) -> Callable[[Path, str], str]:
 
 
 def _configuration_that_git_cannot_list(repo: Path, head: str) -> str:
-    _remote(repo, "origin", _FETCH_ALL, "refs/heads/*:refs/peers/origin/dev")
-    git(repo, "update-ref", "refs/remotes/origin/dev", head)
+    """A remote key without a value: `git remote` fails while the checkout's other reads pass."""
+    with (repo / ".git" / "config").open("a", encoding="utf-8") as config:
+        config.write('[remote "origin"]\n\turl\n')
     return head
 
 

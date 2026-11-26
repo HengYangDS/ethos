@@ -394,7 +394,6 @@ def _prepared_reference_report(
     )
     if (
         branch == policy.accepted_branch
-        and not old_value.strip("0")
         and _own_repository(root)
         and ref_policy.first_accepted_branch(root, policy, ref_name, old_value, new_value)
     ):

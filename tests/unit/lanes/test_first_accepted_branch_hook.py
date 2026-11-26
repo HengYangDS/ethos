@@ -146,10 +146,11 @@ def test_status_names_no_creation_where_no_policy_governs_the_head(tmp_path: Pat
     git(repo, "update-ref", "refs/heads/main", bare)
     git(repo, "reset", "-q", "--hard", bare)
 
-    named = str(_status(repo)["next_action"])
+    status = _status(repo)
     done = _through_the_hook(repo, "branch", "dev", "main")
 
-    assert "git switch -c" not in named
+    assert status["required_gaps"] == ["candidate_branch_missing"]
+    assert status["next_action"] == ""
     assert done.returncode != 0
     assert _gaps(done) == ["ref_move_policy_unavailable"]
 
@@ -174,6 +175,7 @@ def test_a_move_in_another_repository_is_not_judged_by_this_one(tmp_path: Path) 
     twin = tmp_path / "twin"
     git(repo, "clone", "-q", "--branch", "main", repo.as_posix(), twin.as_posix())
     git(twin, "remote", "remove", "origin")
+    assert install_fixture_hook_runtime(twin)["current"]
 
     done = run_command(
         twin,
@@ -182,6 +184,7 @@ def test_a_move_in_another_repository_is_not_judged_by_this_one(tmp_path: Path) 
     )
 
     assert done.returncode != 0
+    assert _gaps(done) == _REFUSAL
     assert git(repo, "rev-parse", "refs/heads/dev") == own
 
 

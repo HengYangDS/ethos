@@ -202,7 +202,8 @@ def first_accepted_branch(
 
 
 def _absent(repo: Path, name: str) -> bool:
-    return run_git(repo, "show-ref", "--verify", "--quiet", name, check=False).returncode == 1
+    """Whether the ref store holds no entry `name`; an entry it cannot resolve is not absent."""
+    return run_git(repo, "show-ref", "--exists", name, check=False).returncode == 2
 
 
 def _checkout_clean_at_release_head(repo: Path, policy: BranchRolePolicy, head: str) -> bool:

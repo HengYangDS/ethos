@@ -17,11 +17,10 @@ from ethos.contracts.semantic import canonical_json_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.git_effect import fixture
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.lane_scenarios import add_candidate_worktree
 from tests.support.proof import seed_executed_proof
@@ -93,8 +92,7 @@ def test_closeout_advances_an_accepted_checkout_from_a_retired_profile_schema(
     tmp_path: Path, defect: str, gap: str
 ) -> None:
     """The closed-out accepted checkout keeps its committed identity; the candidate stays strict."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     profile = (repo / ".ethos/profile.toml").read_text(encoding="utf-8")
     identity = git(repo, "show", "HEAD:.ethos/profile.toml").split('"')[1]
     accepted = commit_fixture_file(

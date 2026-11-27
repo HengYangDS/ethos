@@ -20,10 +20,9 @@ from ethos.application.inspection import inspect_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.fixture_signer import configure_fixture_signer
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -66,8 +65,7 @@ def _materialize_command(repo: Path, previous: str) -> tuple[str, ...]:
 
 
 def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     return repo, git(repo, "rev-parse", "HEAD")
 
 

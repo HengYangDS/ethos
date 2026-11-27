@@ -10,8 +10,7 @@ import ethos.application.retention as retention
 from ethos.adapters.store.state.schema import local_state_root
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.governed_repository import adopt_and_commit
-from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import adopted_repository
 from tests.support.retention_store import proof_check
 from tests.support.retention_store import put
 
@@ -23,8 +22,7 @@ def test_the_preview_reports_candidates_and_its_plan(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The preview counts candidates and names its plan; its apply needs `--authorize`."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     monkeypatch.setattr(retention, "runtime_selected", lambda _root: True)
     record = put(local_state_root(repo), "artifacts", proof_check(), ".json", age_days=30)
 

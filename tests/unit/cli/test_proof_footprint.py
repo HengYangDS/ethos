@@ -7,10 +7,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_native_proof_checks
 
 if TYPE_CHECKING:
@@ -33,8 +32,7 @@ def test_two_proofs_that_differ_only_in_what_a_gate_left_decide_the_same(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, left: int
 ) -> None:
     """A real gate writes a report under the evidence home; the proof passes either way."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     (repo / ".gitignore").write_text("build/\n", encoding="utf-8")
     declare_native_proof_checks(repo, test=_GATE, typecheck="print('static green')")
     commit_fixture(repo, "ci: declare a gate that may leave a report")

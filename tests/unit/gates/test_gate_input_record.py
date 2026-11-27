@@ -15,10 +15,9 @@ from ethos.repository.release.identity import BuildIdentity
 from ethos.result import expand_result
 from tests.support.ethos_cli_runner import ROOT
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
 from tests.support.proof import declare_native_proof_checks
 
@@ -37,8 +36,7 @@ if os.environ.get('ETHOS_SOURCE_PROBE'):
 @pytest.fixture
 def repository(tmp_path: Path) -> Path:
     """A governed repository whose full proof runs two real command gates."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     declare_native_proof_checks(repo, test=_PROGRAM, typecheck="print('static green')")
     commit_fixture(repo, "ci: declare real proof gates")
     return repo

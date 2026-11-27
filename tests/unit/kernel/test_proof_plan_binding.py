@@ -29,11 +29,10 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import mutable_json
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
@@ -297,8 +296,7 @@ def test_proof_issuance_rechecks_live_facts(
 def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     write_active_commitment(repo, change_id="frozen-proof-binding")
     head = commit_fixture(repo, "freeze proof intent")
     plan = current_proof_plan(repo, expected_head=head)

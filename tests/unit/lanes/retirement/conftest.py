@@ -6,17 +6,15 @@ import pytest
 
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 
 
 @pytest.fixture
 def divergent_lane(tmp_path, monkeypatch):
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     lane = tmp_path / "repo-work-abandon"
     git(repo, "worktree", "add", "-b", "work/abandon", str(lane), "dev")
     for root, name in ((repo, "accepted"), (lane, "abandoned")):

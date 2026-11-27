@@ -22,11 +22,20 @@ historical bindings are governed by the [distribution specification](openspec/sp
   release. The job `release rehearsal` gives the verdict and fails for a dispatch at another
   commit. A rehearsal publishes, tags and lands nothing. `nox -s release_journey` takes
   `--rehearse <directory>` in place of `--tag`: the subject is the build leg's archive, admitted
-  only by the digest that the run's checksum file lists for its published name, and its class in
-  the journey's receipt is `rehearsed`.
+  only by the digest that the run's checksum file lists for its published name and that the run's
+  Mise declaration carries, and its class in the journey's receipt is `rehearsed`.
 
 ### Changed
 
+- The adopter journey decides the rollback after a declaration repair. After the retained upgrade
+  and its repair, the successor's console, from the repaired lane, selects the predecessor that
+  the repository holds as its rollback, and the receipt's `rollback_after_declaration_repair`
+  records what the product decided: `admitted`, with the selection returned to the successor, or
+  `refused`, with `runtime_rollback_declaration_repaired` and nothing changed. It held
+  `not_qualified` before. Two limits stay not qualified, each by its own key in the same receipt:
+  `receipted_rollback`, a receipted rollback from a declared pin, and
+  `pin_across_landings`, a pin followed across landings. The install smoke keeps
+  `not_qualified` for this rollback, which it does not run.
 - Each governed repository declares its own Python version. The paradigm no longer fixes 3.12: a
   `pyproject.toml` declares its lower bound as any one `>=` clause of `requires-python` that names
   a version, and the Ruff carrier declares a `target-version` of its own, still repaired with

@@ -59,6 +59,11 @@ See also: [ETHOS source distribution specification](../../openspec/specs/distrib
    under `data.release_policy`, so run it while the checkout's head is the tagged commit. A
    governed repository's tag publishes under its role policy and topology, as before.
 5. **Build the release.** Dispatch the hosted `ETHOS CI` workflow on `main` with its `release_tag` and `release_head` inputs. Verify the published assets. After publication, the run's `release-journey` job installs the published prerelease through Mise on macOS and Linux and runs the adopter journey that a beta needs; dispatch the workflow with `journey_tag` to run that journey alone for an already published prerelease. A beta's journey must also upgrade from every release that `[release.upgrade_from]` records: name them, comma-separated, in `journey_previous`, and the journey upgrades from and rolls back to each one in its own host store. Name in the release entry each journey that the target does not declare, or whose environment was unavailable.
+   After the upgrade and its declaration repair, the journey also asks the successor, from the
+   repaired lane, to select the held predecessor, and its receipt's
+   `rollback_after_declaration_repair` records the product's decision. Two limits are not
+   qualified, and the release entry names them: `receipted_rollback`, a receipted rollback from a
+   declared pin, and `pin_across_landings`, a pin followed across landings.
    Then accept the release on the releasing host. Install the published release as the host's
    global `ethos` through the host's one global owner, download the release's `SHA256SUMS` and
    verify that file's attestation. From the accepted root, preview

@@ -13,5 +13,5 @@ releases; but no npm release bundles a fixed version yet.
 
 Without an acceptance the audit reports the bundled copies while npm 12.2.3 is the registry's
 latest, and blocks on them once a newer npm exists, although that npm may bundle the same versions.
-This repository's policy therefore accepts them, and the picomatch 4.0.5 that npm bundles, until
-2026-12-02 for its own lock; the acceptance covers no other repository's lock.
+This repository's policy therefore accepts them until 2026-12-16 for its own lock; the acceptance
+covers no other repository's lock.

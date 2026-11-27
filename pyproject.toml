@@ -34,6 +34,8 @@ ethos = "ethos.cli:console_main"
 
 [tool.uv]
 prerelease = "disallow"
+# The repository's release age for Python packages; a relock takes no artifact uploaded more recently.
+exclude-newer = "24 hours"
 # complexipy 9 scores cognitive complexity differently, and the decision-density baseline is pinned
 # to 8.x scores. The resolution stays below 9 until that baseline is measured again; the direct
 # requirement keeps its one lower bound, which the dependency gate requires.

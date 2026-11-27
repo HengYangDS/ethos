@@ -19,19 +19,6 @@ timeout_seconds = 120
 
 [[dispositions]]
 ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-fc5q-39xc-vjpf"
-package = "picomatch"
-version = "2.3.2"
-integrity = "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="
-lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-18:advisory-block-page:picomatch-2.3.2-GHSA-fc5q-39xc-vjpf-production-release-through-2026-12-02"
-rationale = "Accepted by the owner on 2026-11-18 for this repository's own lock, which lock_sha256 binds: the record matches no other repository's lock, and it stops matching when this lock changes, so a supply move reads it again. The advisory names every picomatch release through 4.0.7 and no release fixes it. markdownlint-cli2 0.24.1 reaches picomatch 2.3.2 through globby, fast-glob and micromatch 4.0.8, each the registry's latest, and micromatch accepts the 2.x line alone, so no upgrade removes the artifact. The lock holds two more copies that the advisory names and this record does not cover: picomatch 4.0.7, the registry's latest, which is reported and does not block while it is the latest, and the 4.0.5 that npm 12.2.3 bundles, which a record of its own accepts until the same day. The artifact ships in the product: the Markdown lint gate runs it as a local command over the file names and the lint configuration of the governed repository that it judges, and it serves no request. Remove this record when a release fixes the advisory or the chain no longer holds the artifact."
-expires_at = 2026-12-03T00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
 advisory_url = "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4"
 package = "glob"
 version = "13.0.6"
@@ -40,9 +27,9 @@ nodes = ["node_modules/npm/node_modules/glob"]
 lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-18:retrospective-plan-page:npm-12.2.3-bundled-glob-13.0.6-GHSA-3g3m-2fjr-6pw4-production-release-through-2026-12-02"
-rationale = "Accepted by the owner on 2026-11-18 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tag of 0.2.0-beta.11 does not stop the release chain. The advisory's range ends at glob 14.0.1 and later releases fix it, but no npm release bundles a fixed glob: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
-expires_at = 2026-12-03T00:00:00+08:00
+approval_ref = "user:2026-11-27:release-lead-report-2111:npm-12.2.3-bundled-glob-13.0.6-GHSA-3g3m-2fjr-6pw4-production-release-through-2026-12-16"
+rationale = "Accepted by the owner on 2026-11-18 and renewed on 2026-11-27 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tags of 2026-12-05 and 2026-12-12 does not stop the release chain. The advisory's range ends at glob 14.0.1 and later releases fix it, but no npm release bundles a fixed glob: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
+expires_at = 2026-12-17T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -54,20 +41,6 @@ nodes = ["node_modules/npm/node_modules/minimatch"]
 lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-18:retrospective-plan-page:npm-12.2.3-bundled-minimatch-10.2.5-GHSA-g3hv-75wg-m249-production-release-through-2026-12-02"
-rationale = "Accepted by the owner on 2026-11-18 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tag of 0.2.0-beta.11 does not stop the release chain. The advisory's range ends below minimatch 11.0.1 and later releases fix it, but no npm release bundles a fixed minimatch: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
-expires_at = 2026-12-03T00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-fc5q-39xc-vjpf"
-package = "picomatch"
-version = "4.0.5"
-integrity = "sha512-ovmNRRe76Jvcp1E6iOePQ6H9Zr4XMOrqgfaeGNhtRvP3XSl2Lo/a9C1N5/jRlLLrsqCem/omgGdZHpZ5a6yn1Q=="
-nodes = ["node_modules/npm/node_modules/tinyglobby/node_modules/picomatch"]
-lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-18:retrospective-plan-page:npm-12.2.3-bundled-picomatch-4.0.5-GHSA-fc5q-39xc-vjpf-production-release-through-2026-12-02"
-rationale = "Accepted by the owner on 2026-11-18 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tag of 0.2.0-beta.11 does not stop the release chain. The advisory names every picomatch release through 4.0.7 and no release fixes it; npm 12.2.3, its registry's latest, bundles this copy, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
-expires_at = 2026-12-03T00:00:00+08:00
+approval_ref = "user:2026-11-27:release-lead-report-2111:npm-12.2.3-bundled-minimatch-10.2.5-GHSA-g3hv-75wg-m249-production-release-through-2026-12-16"
+rationale = "Accepted by the owner on 2026-11-18 and renewed on 2026-11-27 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tags of 2026-12-05 and 2026-12-12 does not stop the release chain. The advisory's range ends below minimatch 11.0.1 and later releases fix it, but no npm release bundles a fixed minimatch: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
+expires_at = 2026-12-17T00:00:00+08:00

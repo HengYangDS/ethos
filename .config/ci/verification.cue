@@ -59,7 +59,7 @@ import "strings"
 				ref:           sourceHead
 			}
 		}, {
-			uses: "jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b"
+			uses: "jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78"
 			with: {version: policy.supply.mise_version, install: false, cache: false}
 		}, {name: "Acquire locked product supply", run: "mise install --locked --jobs=1"},
 			for command in policy.supply.checks.github {{name: "Check locked supply", run: command}}, {

@@ -1,6 +1,11 @@
-min_version = "2026.11.9"
+min_version = "2026.11.14"
 [settings]
 locked = true
+# The repository's release age: a version that Mise resolves itself (not exact, not locked) is a
+# release at least this old. Every tool below is exact and locked, so the line binds the next
+# move that Mise resolves, such as `mise upgrade --bump`; an exact pin typed by hand is not
+# checked.
+minimum_release_age = "24h"
 not_found_system_fallback = false
 idiomatic_version_file_enable_tools = []
 [tools]
@@ -31,3 +36,8 @@ run = "uv run --frozen python -m nox -s format_check"
 [tasks.fix]
 description = "Apply the common formatters and safe lint fixes"
 run = "uv run --frozen python -m nox -s fix"
+
+# npm's release age, in days: the environment outranks every npm configuration file, so a
+# developer's own ~/.npmrc (registry, token, proxy) is still read and cannot loosen the age.
+[env]
+npm_config_min_release_age = "1"

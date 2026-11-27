@@ -206,8 +206,14 @@ def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_h
 
     written = json.loads(evidence.read_text(encoding="utf-8"))
     assert calls == [(*named, tmp_path / "assembly") for named in qualified]
-    state = "failed" if error else "passed"
-    assert (written["state"], written["tag"], written.get("error")) == (state, f"v{version}", error)
+    state, source = ("failed", None) if error else ("passed", qualified[0][2])
+    receipt = (
+        written["state"],
+        written["tag"],
+        written.get("previous_source"),
+        written.get("error"),
+    )
+    assert receipt == (state, f"v{version}", source, error)
 
 
 def test_the_session_takes_a_tag_or_an_assembly_and_never_both() -> None:

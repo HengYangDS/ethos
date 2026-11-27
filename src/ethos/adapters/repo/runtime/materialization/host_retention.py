@@ -45,8 +45,7 @@ def retire_unused_installations(
     """Retire each recorded installation that no consumer, process or binding still needs."""
     retired: list[str] = []
     retained: list[str] = []
-    absent: set[str] = set()
-    unread: dict[str, str] = {}
+    kept: list[tuple[Path | None, str, str]] = []
     unrecorded = 0
     references: frozenset[Path] | None = None
     if not store.is_dir() or store.is_symlink():
@@ -70,11 +69,7 @@ def retire_unused_installations(
                 if state == "released":
                     record.unlink(missing_ok=True)
                 else:
-                    # A kept consumer is filed under what its path said: absent, or unread.
-                    if consumer is not None and state == "absent":
-                        absent.add(consumer.as_posix())
-                    elif consumer is not None and reason:
-                        unread[consumer.as_posix()] = reason
+                    kept.append((consumer, state, reason))
                     needed = True
             if not needed:
                 references = in_use() if references is None else references
@@ -84,10 +79,14 @@ def retire_unused_installations(
                 continue
             remove_generated_tree(installation)
             retired.append(installation.as_posix())
+    return {"retired": retired, "retained": retained, "unrecorded": unrecorded, **_filed(kept)}
+
+
+def _filed(kept: list[tuple[Path | None, str, str]]) -> dict[str, object]:
+    """File each kept consumer under what its path said: absent, or unread with the reason."""
+    absent = {path.as_posix() for path, state, _ in kept if path and state == "absent"}
+    unread = {path.as_posix(): reason for path, _, reason in kept if path and reason}
     return {
-        "retired": retired,
-        "retained": retained,
-        "unrecorded": unrecorded,
         "absent": sorted(absent),
         "unread": [{"consumer": path, "reason": unread[path]} for path in sorted(unread)],
     }

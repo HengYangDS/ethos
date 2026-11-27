@@ -168,7 +168,7 @@
   "src/ethos/adapters/repo/runtime/materialization/effect.py::_reusable_runtime": 24,
   "src/ethos/adapters/repo/runtime/materialization/host_retention.py::_legacy_rows": 21,
   "src/ethos/adapters/repo/runtime/materialization/host_retention.py::legacy_supply": 18,
-  "src/ethos/adapters/repo/runtime/materialization/host_retention.py::retire_unused_installations": 25,
+  "src/ethos/adapters/repo/runtime/materialization/host_retention.py::retire_unused_installations": 24,
   "src/ethos/adapters/repo/runtime/materialization/native_supply.py::NativeSupply::read": 20,
   "src/ethos/adapters/repo/runtime/materialization/native_supply.py::_materialize_native": 19,
   "src/ethos/adapters/repo/runtime/materialization/native_supply.py::materialize_tool": 18,

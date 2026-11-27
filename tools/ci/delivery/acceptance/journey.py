@@ -318,22 +318,21 @@ def qualify(
     return receipt
 
 
-def rehearsal_subject(root: Path) -> tuple[str, tuple[str, ...], str]:
-    """Read what a rehearsal qualifies from its head: its tag, its predecessors and their source.
+def rehearsal_subject(root: Path, tag: str) -> tuple[tuple[str, ...], str]:
+    """Read the predecessors that a rehearsal of `tag` qualifies from, and their source.
 
-    All come from the committed head, so an edit in the working tree changes none. The
-    predecessors are the releases of `[release.upgrade_from]` in the head's release binding, or
+    They come from the committed head, as the tag does, so an edit in the working tree changes
+    neither. They are the releases of `[release.upgrade_from]` in the head's release binding, or
     none, which leaves them to the changelog, where it records none. A record that its reader
-    refuses, or a version that is no prerelease, stops the rehearsal.
+    refuses, or a tag that is no prerelease, stops the rehearsal.
     """
-    tag = f"v{committed_release_version(root, 'HEAD')['version']}"
     names, gaps = recorded_upgrade_from(root, "HEAD")
     if gaps:
         refuse(*gaps)
     if PRERELEASE.fullmatch(tag) is None:
         message = f"release journey needs a prerelease version, not {tag!r}"
         raise ValueError(message)
-    return tag, tuple(f"v{name}" for name in names or ()), "record" if names else "changelog"
+    return tuple(f"v{name}" for name in names or ()), "record" if names else "changelog"
 
 
 def run(
@@ -363,10 +362,10 @@ def run(
     failure: Exception | None = None
     try:
         # A rehearsal reads its subject inside the receipt's reach, so a head that cannot name one
-        # still leaves a failed receipt.
+        # still leaves a failed receipt, which names the tag once the head's version is read.
         if assembly is not None:
-            tag, previous, source = rehearsal_subject(ROOT)
-            payload |= {"tag": tag, "previous_source": source}
+            tag = payload["tag"] = f"v{committed_release_version(ROOT, 'HEAD')['version']}"
+            previous, payload["previous_source"] = rehearsal_subject(ROOT, tag)
         with acceptance_observation(events, head=tag, wheel_sha256=""):
             try:
                 if work.exists():

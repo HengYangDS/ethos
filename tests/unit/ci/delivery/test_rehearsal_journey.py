@@ -6,7 +6,6 @@ import argparse
 import hashlib
 import json
 from contextlib import nullcontext
-from contextlib import suppress
 from functools import partial
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -157,41 +156,43 @@ RECORD = (
 
 
 @pytest.mark.parametrize(
-    ("record", "qualified", "receipt"),
+    ("version", "record", "qualified", "error"),
     [
-        (RECORD, [(SUBJECT, NAMED)], ("passed", "record", None)),
-        ("", [(SUBJECT, ())], ("passed", "changelog", None)),
+        (VERSION, RECORD, [(SUBJECT, NAMED, "record")], None),
+        (VERSION, "", [(SUBJECT, (), "changelog")], None),
         (
+            VERSION,
             RECORD.replace('11" = "attested', '11" = "rc'),
             [],
-            ("failed", None, "release_upgrade_from_invalid"),
+            "release_upgrade_from_invalid",
         ),
+        ("0.2.0", "", [], "release journey needs a prerelease version, not 'v0.2.0'"),
     ],
 )
 def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_head(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    version: str,
     record: str,
     qualified: list[object],
-    receipt: tuple[object, ...],
+    error: str | None,
 ) -> None:
     """The subject and its predecessors are the head's commit; the receipt names their source.
 
-    A head whose record its reader refuses qualifies nothing and still leaves its failed receipt.
+    A head whose record its reader refuses, or whose version is no prerelease, qualifies nothing,
+    fails the session and still leaves its failed receipt, which names the head's tag.
     """
     repo = init_git_repo(tmp_path / "product")
     binding = render_release_mirror("independent")
-    tree = {"VERSION": f"{VERSION}\n", "CHANGELOG.md": CHANGELOG}
+    tree = {"VERSION": f"{version}\n", "CHANGELOG.md": CHANGELOG}
     write_tree(repo, {**tree, ".ethos/release.toml": binding + record})
     commit_fixture(repo, "chore: declare the release")
     edited = binding + RECORD.replace("0.2.0-beta.12", "0.2.0-beta.9")
     write_tree(repo, {"VERSION": "0.2.0-beta.14\n", ".ethos/release.toml": edited})
     calls: list[tuple[object, ...]] = []
 
-    def qualify(
-        tag: str, *, previous: tuple[str, ...], assembly: Path, **_: object
-    ) -> dict[str, object]:
-        calls.append((tag, previous, assembly.name))
+    def qualify(tag: str, *, previous: object, assembly: Path, receipt: dict, **_: object) -> dict:
+        calls.append((tag, previous, receipt["previous_source"], assembly))
         return {}
 
     monkeypatch.setattr(journey, "qualify", qualify)
@@ -200,12 +201,13 @@ def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_h
     session, evidence = Mock(), tmp_path / "journey.json"
     session.error.side_effect = AssertionError
 
-    with suppress(AssertionError):
+    with pytest.raises(AssertionError) if error else nullcontext():
         journey.run(session, assembly=tmp_path / "assembly", evidence=evidence, work=tmp_path / "w")
 
     written = json.loads(evidence.read_text(encoding="utf-8"))
-    assert calls == [(*named, "assembly") for named in qualified]
-    assert (written["state"], written.get("previous_source"), written.get("error")) == receipt
+    assert calls == [(*named, tmp_path / "assembly") for named in qualified]
+    state = "failed" if error else "passed"
+    assert (written["state"], written["tag"], written.get("error")) == (state, f"v{version}", error)
 
 
 def test_the_session_takes_a_tag_or_an_assembly_and_never_both() -> None:

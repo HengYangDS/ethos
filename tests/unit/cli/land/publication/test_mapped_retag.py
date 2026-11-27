@@ -119,12 +119,13 @@ def _two_repaired_tags(tmp_path: Path) -> tuple[Path, list[str], str]:
 
 
 def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) -> None:
-    """One run re-creates the tag at the checkout's head and one behind it under one plan digest.
+    """One run re-creates two tags on different commits below the checkout, under one plan digest.
 
     Each effect moves one tag ref by exact compare-and-swap; the checkout it is asked from stays
     where it is and is the plan's pre-state.
     """
     repo, originals, head = _two_repaired_tags(tmp_path)
+    later = commit_fixture_file(repo, "later.txt", "later\n", "docs: add a later file")
     preview = retag.mapped_retag(repo, tags=TWO_TAGS)
     assert preview["verdict"] == "pass", preview
     applied = retag.mapped_retag(
@@ -139,7 +140,7 @@ def test_two_tags_on_different_commits_are_recreated_in_one_run(tmp_path: Path) 
     assert git(repo, "rev-parse", "refs/tags/v1.1.0^{}") == head
     assert [git(repo, "rev-parse", f"refs/tags/{name}") for name in TWO_TAGS] != originals
     assert all(git(repo, "verify-tag", f"refs/tags/{name}") == "" for name in TWO_TAGS)
-    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "rev-parse", "HEAD") == later
 
 
 def test_a_checkout_that_moves_during_a_batch_stops_the_next_tag(tmp_path: Path) -> None:
@@ -152,17 +153,16 @@ def test_a_checkout_that_moves_during_a_batch_stops_the_next_tag(tmp_path: Path)
         record(root, receipts)
         git(repo, "switch", "--detach", "HEAD~1")
 
-    with (
-        patch.object(retag, "record_attestations", record_then_move),
-        pytest.raises(ValueError, match="git_effect_plan_prestate_stale"),
-    ):
-        retag.mapped_retag(
+    with patch.object(retag, "record_attestations", record_then_move):
+        stopped = retag.mapped_retag(
             repo,
             tags=TWO_TAGS,
             apply=True,
             authorized=True,
             expect_plan_digest=preview["data"]["plan_digest"],
         )
+    assert stopped["required_gaps"] == ["release_retag_refused:v1.1.0"], stopped
+    assert stopped["data"]["refused"] == {"v1.1.0": ["git_effect_plan_prestate_stale"]}
     assert git(repo, "rev-parse", "refs/tags/v1.0.0") != originals[0]
     assert git(repo, "rev-parse", "refs/tags/v1.1.0") == originals[1]
 

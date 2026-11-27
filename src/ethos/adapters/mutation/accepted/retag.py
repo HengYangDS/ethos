@@ -32,6 +32,7 @@ from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.release import release_branch_policy
+from ethos.contracts.outcome import refused_gaps
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
@@ -99,14 +100,29 @@ def mapped_retag(
             gaps.append("release_retag_plan_digest_mismatch")
         if gaps or not apply:
             return _report(root, gaps, planned, refused, digest, originals=original_tags)
-        # Each moved tag records its receipt at once, so an interrupted batch leaves no
-        # re-created tag without the receipt that publication reads.
-        for tag, item in planned.items():
+        left = _apply_batch(root, planned, requests, asking=asking)
+        gaps = [f"release_retag_refused:{tag}" for tag in left]
+        return _report(root, gaps, planned, left, digest, applied=True, originals=original_tags)
+
+
+def _apply_batch(
+    root: Path, planned: dict[str, dict[str, str]], requests: Path, *, asking: str
+) -> dict[str, list[str]]:
+    """Move each planned tag in turn and return those left unmoved, each with its refusal's gaps.
+
+    Each moved tag records its receipt at once, so an interrupted batch leaves no re-created tag
+    without the receipt that publication reads. An effect that refuses, as a checkout moved since
+    the batch began does, stops the batch: every tag not yet moved is refused by its gaps.
+    """
+    for index, (tag, item) in enumerate(planned.items()):
+        try:
             receipt = _apply_one(root, tag, item, asking=asking)
-            record_attestations(root, (receipt,))
-            shutil.rmtree(requests / tag, ignore_errors=True)
-            item["receipt"] = receipt.id
-        return _report(root, [], planned, {}, digest, applied=True)
+        except ValueError as error:
+            return {name: list(refused_gaps(error)) for name in list(planned)[index:]}
+        record_attestations(root, (receipt,))
+        shutil.rmtree(requests / tag, ignore_errors=True)
+        item["receipt"] = receipt.id
+    return {}
 
 
 def mapped_retag_move(root: Path, *, ref: str, old: str, new: str) -> bool:
@@ -274,13 +290,12 @@ def _apply_one(root: Path, tag: str, item: Mapping[str, str], *, asking: str) ->
     actor = process_issuer()
     # The plan's pre-state is the asking checkout's head as the batch read it, which the effect
     # leaves where it stands: the tag's own expected value is in the effect, and its target is the
-    # re-created object's. A checkout with no commit states the mapped commit, which the pre-state
-    # check then refuses.
+    # re-created object's. A checkout with no commit was refused when the tag was planned.
     plan = compile_observed_git_effect(
         root,
         None,
         effect,
-        head=asking or item["mapped_target"],
+        head=asking,
         policy={"operation": "release.retag", "actor": actor},
         values={"release_retag": dict(item), "root": root.as_posix()},
     )

@@ -14,7 +14,7 @@ from ethos.application.publication.inspection import publication_readiness
 from ethos.contracts.branch.roles import load_branch_role_policy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -24,9 +24,7 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 def _publish_fixture(tmp_path: Path) -> tuple[Path, str]:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    repo, head = adopted_repository(tmp_path)
     seed_executed_proof(repo, head)
     return repo, head
 

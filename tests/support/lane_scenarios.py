@@ -12,11 +12,10 @@ from ethos.adapters.mutation.lane_retirement.manifest import expanded_content
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.retirement import RetirementOperation
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -51,8 +50,7 @@ def superseded_work_lane(
     tmp_path: Path, *, absorbed: bool = True, holder_ref: str = "agent:test:case:agent-a"
 ) -> tuple[Path, Path, str, str, Path]:
     """Create an owned obsolete lane and optionally absorb its change on dev."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     commit_active_change(repo)
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     lane = tmp_path / "repo-work-superseded"

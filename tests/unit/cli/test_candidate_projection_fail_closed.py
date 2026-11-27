@@ -64,11 +64,6 @@ def _materialize_command(repo: Path, previous: str) -> tuple[str, ...]:
     )
 
 
-def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
-    repo, _head = adopted_repository(tmp_path)
-    return repo, git(repo, "rev-parse", "HEAD")
-
-
 def _retained_candidate(tmp_path: Path) -> tuple[Path, Path, str, str]:
     """Retain a signed ancestor while its candidate ref advances without materialization."""
     repo, candidate = init_repo_with_candidate(tmp_path)
@@ -219,7 +214,7 @@ def test_candidate_materialization_requires_owned_trusted_preimage(
 def test_candidate_bootstrap_rejects_path_collision_before_effect(
     tmp_path: Path, *, should_apply: bool
 ) -> None:
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "candidate"
     target.mkdir()
 
@@ -239,7 +234,7 @@ def test_candidate_bootstrap_rejects_dangling_leaf_link(
     tmp_path: Path, *, should_apply: bool
 ) -> None:
     """An unbound symlink cannot redirect the selected candidate worktree path."""
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "candidate"
     foreign = tmp_path / "foreign"
     try:
@@ -261,7 +256,7 @@ def test_candidate_bootstrap_preview_of_present_worktree_has_no_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Read-only candidate discovery cannot repair refs or install a runtime."""
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     candidate = tmp_path / "candidate"
     git(repo, "branch", "candidate/dev", head)
     git(repo, "worktree", "add", str(candidate), "candidate/dev")
@@ -280,7 +275,7 @@ def test_candidate_bootstrap_preview_of_present_worktree_has_no_effect(
 
 def test_candidate_bootstrap_preview_requires_an_explicit_apply_decision(tmp_path: Path) -> None:
     """A planned ref and worktree effect cannot be presented as automatic recovery."""
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
 
     report = projection.bootstrap_candidate(root=repo, expect_head=head)
 
@@ -295,7 +290,7 @@ def test_candidate_preview_reuses_snapshot_but_effect_cannot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A caller's observation saves duplicate reads but never authorizes an effect."""
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     snapshot = projection.workspace_status(repo)
 
     def reject_second_read(_root: Path) -> None:
@@ -317,7 +312,7 @@ def test_candidate_preview_reuses_snapshot_but_effect_cannot(
 
 def test_accepted_status_routes_missing_candidate_to_its_owner(tmp_path: Path) -> None:
     """A clean accepted root should not prescribe hook-only work before bootstrap."""
-    repo, _head = _repo_without_candidate(tmp_path)
+    repo, _head = adopted_repository(tmp_path)
 
     result = inspect_repository(repo)
 
@@ -355,7 +350,7 @@ def test_unborn_accepted_head_refuses_candidate_without_traceback(
 def test_candidate_bootstrap_reports_unproven_recovery_before_any_ref_effect(
     tmp_path: Path,
 ) -> None:
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     candidate = tmp_path / "candidate"
     git(repo, "branch", "candidate/dev", head)
 
@@ -381,7 +376,7 @@ def test_candidate_bootstrap_reports_unproven_recovery_before_any_ref_effect(
 def test_candidate_preconditions_preserve_real_repository(
     tmp_path, condition, apply, authorized, expected, gap
 ):
-    repo, head = _repo_without_candidate(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     candidate = tmp_path / "candidate"
     if condition != "no-ref":
         git(repo, "branch", "candidate/dev", head)
@@ -411,7 +406,7 @@ def test_candidate_preconditions_preserve_real_repository(
 
 @pytest.mark.parametrize("interruption", ["", "projection denied", "empty diagnostic"])
 def test_candidate_exact_cas_projection_and_recovery(tmp_path, monkeypatch, interruption):
-    repo, previous = _repo_without_candidate(tmp_path)
+    repo, previous = adopted_repository(tmp_path)
     candidate = tmp_path / "candidate"
     monkeypatch.setattr(projection, "install_hook_launchers", install_fixture_hook_runtime)
     created = projection.bootstrap_candidate(
@@ -479,7 +474,7 @@ def test_candidate_exact_cas_projection_and_recovery(tmp_path, monkeypatch, inte
 
 def test_a_refresh_that_drops_candidate_commits_needs_confirmation(tmp_path, monkeypatch):
     """Commits that accepted lacks are lost by a refresh, so a person must confirm the drop."""
-    repo, previous = _repo_without_candidate(tmp_path)
+    repo, previous = adopted_repository(tmp_path)
     candidate = tmp_path / "candidate"
     monkeypatch.setattr(projection, "install_hook_launchers", install_fixture_hook_runtime)
     projection.bootstrap_candidate(root=repo, path=candidate, expect_head=previous, apply=True)

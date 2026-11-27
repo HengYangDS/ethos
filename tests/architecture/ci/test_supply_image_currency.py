@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
 
+from tests.support.governed_repository import git
 from tools.ci import supply_image
 
 ROOT = Path(__file__).resolve().parents[3]
-
-
-def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(
-        ("git", *args), cwd=repo, check=True, capture_output=True, text=True
-    ).stdout.strip()
 
 
 @pytest.fixture
@@ -30,10 +24,10 @@ def repository(tmp_path: Path) -> tuple[Path, str]:
     )
     (repo / "uv.lock").write_text("locked\n", encoding="utf-8")
     (repo / "package-lock.json").write_text("{}\n", encoding="utf-8")
-    _git(repo.parent, "init", "--quiet", "--initial-branch=main", str(repo))
-    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "add", "-A")
-    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "s")
-    return repo, _git(repo, "rev-parse", "HEAD")
+    git(repo.parent, "init", "--quiet", "--initial-branch=main", str(repo))
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "s")
+    return repo, git(repo, "rev-parse", "HEAD")
 
 
 def test_the_manifest_inputs_are_read_from_the_dockerfile(repository) -> None:

@@ -6,7 +6,6 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
 import tomllib
 from pathlib import Path
 
@@ -14,6 +13,7 @@ import pytest
 import yaml
 
 from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.governed_repository import git
 from tests.support.release_legs import HEAD
 from tests.support.release_legs import LEGS
 from tests.support.release_legs import qualified_leg
@@ -28,24 +28,19 @@ _CHANGELOG = f"# Changelog\n\n## [Unreleased]\n\n{_ENTRY}\n## [0.2.0-alpha.2] - 
 _CHANGELOG += "### Changed\n\n- Earlier.\n"
 
 
-def _git(repo: Path, *args: str) -> str:
-    completed = subprocess.run(("git", *args), cwd=repo, check=True, capture_output=True, text=True)
-    return completed.stdout.strip()
-
-
 def _release_repository(tmp_path: Path, *, entry: bool = True) -> tuple[Path, str]:
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init", "--quiet", "--initial-branch=main")
+    git(repo, "init", "--quiet", "--initial-branch=main")
     configure_fixture_signer(repo)
-    _git(repo, "config", "user.name", "ETHOS Test")
-    _git(repo, "config", "user.email", "fixture@example.invalid")
+    git(repo, "config", "user.name", "ETHOS Test")
+    git(repo, "config", "user.email", "fixture@example.invalid")
     (repo / "VERSION").write_text("0.2.0-alpha.5\n", encoding="ascii")
     changelog = _CHANGELOG if entry else "# Changelog\n\n## [Unreleased]\n"
     (repo / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "--quiet", "-m", "release source")
-    return repo, _git(repo, "rev-parse", "HEAD")
+    git(repo, "add", "-A")
+    git(repo, "commit", "--quiet", "-m", "release source")
+    return repo, git(repo, "rev-parse", "HEAD")
 
 
 def _unproven(*_args) -> None:
@@ -57,7 +52,7 @@ def test_hosted_release_source_is_admitted_by_its_trusted_signed_tag(tmp_path, m
     repo, head = _release_repository(tmp_path)
     monkeypatch.setattr(pipeline, "accepted_release_source", _unproven)
     monkeypatch.setattr(pipeline, "proof_for_repository_transition", _unproven)
-    _git(repo, "tag", "-s", "-m", f"Release {_TAG}", _TAG)
+    git(repo, "tag", "-s", "-m", f"Release {_TAG}", _TAG)
     with pipeline.release_build_source(repo, tmp_path / "work", head=head, tag=_TAG) as prepared:
         carried = pipeline.build_input_identity(prepared)
     assert (carried.distribution_version, carried.source_commit) == ("0.2.0a5", head)
@@ -86,10 +81,10 @@ def test_hosted_release_source_refuses_every_other_tag(tmp_path, monkeypatch, ca
     repo, head = _release_repository(tmp_path, entry=case != "entry")
     monkeypatch.setattr(pipeline, "proof_for_repository_transition", _unproven)
     tag = "v0.2.0-alpha.6" if case == "version" else _TAG
-    _git(repo, "tag", "-a" if case == "unsigned" else "-s", "-m", f"Release {tag}", tag)
+    git(repo, "tag", "-a" if case == "unsigned" else "-s", "-m", f"Release {tag}", tag)
     if case == "elsewhere":
-        _git(repo, "commit", "--quiet", "--allow-empty", "-m", "later source")
-        head = _git(repo, "rev-parse", "HEAD")
+        git(repo, "commit", "--quiet", "--allow-empty", "-m", "later source")
+        head = git(repo, "rev-parse", "HEAD")
     with pytest.raises(ValueError, match=gap):
         pipeline.prepare_release_candidate(repo, head, tag=tag)
 
@@ -128,12 +123,12 @@ def test_a_rehearsal_refuses_every_other_head(tmp_path, monkeypatch, case, gap):
     repo, head = _release_repository(tmp_path, entry=case != "entry")
     monkeypatch.setattr(pipeline, "proof_for_repository_transition", _unproven)
     if case == "unsigned":
-        _git(repo, "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "bare")
-        head = _git(repo, "rev-parse", "HEAD")
+        git(repo, "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "bare")
+        head = git(repo, "rev-parse", "HEAD")
     elif case == "tagged":
-        _git(repo, "tag", "-s", "-m", f"Release {_TAG}", _TAG)
+        git(repo, "tag", "-s", "-m", f"Release {_TAG}", _TAG)
     elif case == "stale":
-        _git(repo, "commit", "--quiet", "--allow-empty", "-m", "later source")
+        git(repo, "commit", "--quiet", "--allow-empty", "-m", "later source")
     elif case == "dirty":
         (repo / "VERSION").write_text("0.2.0-alpha.6\n", encoding="ascii")
     with pytest.raises(ValueError, match=gap):

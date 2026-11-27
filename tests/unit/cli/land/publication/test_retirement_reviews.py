@@ -81,40 +81,33 @@ def test_review_endpoint_is_explicit_when_git_transport_cannot_identify_the_api(
     assert result["next_action"] == "git config --local remote.gitlab.forgeRepository <web-url>"
 
 
-def test_an_http_remote_reaches_the_native_client_with_its_port(tmp_path: Path, monkeypatch):
-    """The remote's scheme and port become the client's host; `.git` is not part of it."""
-    repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
-    target = "http://forge.test:8080/team/repo"
-    git(repo, "remote", "set-url", "gitlab", f"{target}.git")
-    native = retirement.process.run_command
-
-    def provider_process(root, command, **kwargs):
-        if command[0] != "glab":
-            return native(root, command, **kwargs)
-        assert command[command.index("--repo") + 1] == target
-        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.test:8080"
-        return subprocess.CompletedProcess(command, 0, "[]", "")
-
-    monkeypatch.setattr(retirement.process, "run_command", provider_process)
-    result = retirement.observe_proposal_review(repo, "gitlab", "gitlab", "proposal/finished")
-    assert result["verdict"] == "pass"
-    assert result["state"] == "closed"
-
-
-def test_local_remote_api_locator_does_not_need_a_tracked_private_address(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize(
+    ("setting", "target"),
+    [
+        (("remote", "set-url", "gitlab"), "http://forge.test:8080/team/repo"),
+        (
+            ("config", "--local", "remote.gitlab.forgeRepository"),
+            "http://forge.example:8443/team/repo",
+        ),
+    ],
+    ids=["remote-url", "local-locator"],
+)
+def test_an_http_remote_reaches_the_native_client_with_its_port(
+    tmp_path: Path, monkeypatch, setting: tuple[str, ...], target: str
 ):
-    """Local connection metadata feeds the native client without becoming repository policy."""
+    """The remote's scheme and port become the client's host; `.git` is not part of it.
+
+    Local connection metadata feeds the native client without becoming repository policy.
+    """
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
-    target = "http://forge.example:8443/team/repo"
-    git(repo, "config", "--local", "remote.gitlab.forgeRepository", target)
+    git(repo, *setting, f"{target}.git" if setting[0] == "remote" else target)
     native = retirement.process.run_command
 
     def provider_process(root, command, **kwargs):
         if command[0] != "glab":
             return native(root, command, **kwargs)
         assert command[command.index("--repo") + 1] == target
-        assert kwargs["env"]["GITLAB_HOST"] == "http://forge.example:8443"
+        assert kwargs["env"]["GITLAB_HOST"] == target.removesuffix("/team/repo")
         return subprocess.CompletedProcess(command, 0, "[]", "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)

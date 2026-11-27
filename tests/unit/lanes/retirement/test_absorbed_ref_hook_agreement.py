@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -41,8 +41,7 @@ def _retire(repo: Path, branch: str, head: str, *, apply: bool, blocked: bool) -
 
 def _legacy_repository(tmp_path: Path) -> tuple[Path, str]:
     """Accept a committed table that names `integration/dev` as the legacy candidate."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    repo, _head = adopted_repository(tmp_path)
     (repo / ".ethos/workspace.toml").write_text(_LEGACY_TABLE, encoding="utf-8")
     head = commit_fixture(repo, "chore: declare a legacy candidate name")
     git(repo, "branch", "integration/dev", head)

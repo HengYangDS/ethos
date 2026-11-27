@@ -33,6 +33,7 @@ from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import node_manifests_without_version
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import wheel_build_identity
+from tests.support.governed_repository import git
 from tools.ci import sessions
 from tools.ci.delivery import pipeline
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -102,8 +103,8 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
 
     readme = repo / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    _git(repo, "add", "README.md")
-    _git(repo, "commit", "--quiet", "-m", "second source")
+    git(repo, "add", "README.md")
+    git(repo, "commit", "--quiet", "-m", "second source")
     second = _build_wheel(repo, tmp_path / "second")
 
     assert first.source_commit != second.source_commit
@@ -432,10 +433,6 @@ def _build_wheel(
     return identity
 
 
-def _git(repo: Path, *args: str) -> None:
-    subprocess.run(("git", *args), cwd=repo, check=True)
-
-
 def _build_repository(root: Path, repo: Path) -> Path:
     """Create an independent candidate snapshot without sharing Git or mutable files."""
     repo.mkdir()
@@ -452,11 +449,11 @@ def _build_repository(root: Path, repo: Path) -> Path:
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target, follow_symlinks=False)
-    _git(repo, "init", "--quiet", "--initial-branch=work/build-identity")
-    _git(repo, "config", "user.name", "ETHOS Test")
-    _git(repo, "config", "user.email", "ethos@example.invalid")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "--quiet", "-m", "first source")
+    git(repo, "init", "--quiet", "--initial-branch=work/build-identity")
+    git(repo, "config", "user.name", "ETHOS Test")
+    git(repo, "config", "user.email", "ethos@example.invalid")
+    git(repo, "add", "-A")
+    git(repo, "commit", "--quiet", "-m", "first source")
     return repo
 
 

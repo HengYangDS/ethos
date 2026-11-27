@@ -301,21 +301,27 @@ def _sha256(path: Path) -> str:
 def main(arguments: list[str] | None = None) -> int:
     """Assemble the assets of one hosted pre-release from downloaded job artifacts."""
     parser = argparse.ArgumentParser(description="Assemble one hosted ETHOS pre-release.")
-    parser.add_argument("--tag", required=True)
+    named = parser.add_mutually_exclusive_group(required=True)
+    named.add_argument("--tag")
+    # A rehearsal's tag does not exist yet: it is the version file's version, read here so that
+    # the step stays one command.
+    named.add_argument("--version-file", type=Path)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    # The release's download prefix; the tag is appended here, so a step names the tag once.
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--changelog", type=Path, required=True)
     parser.add_argument("--required", required=True)
     parser.add_argument("--optional", default="")
     parser.add_argument("--expect-head", required=True)
     options = parser.parse_args(arguments)
+    tag = options.tag or f"v{options.version_file.read_text(encoding='utf-8').strip()}"
     required, optional = declared_hosts(options.required, options.optional)
     sums = assemble(
         options.source,
         options.output,
-        tag=options.tag,
-        base_url=options.base_url.rstrip("/"),
+        tag=tag,
+        base_url=f"{options.base_url.rstrip('/')}/{tag}",
         changelog=options.changelog,
         required=required,
         optional=optional,

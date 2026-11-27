@@ -27,7 +27,7 @@ nodes = ["node_modules/npm/node_modules/glob"]
 lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-27:release-lead-report-2111:npm-12.2.3-bundled-glob-13.0.6-GHSA-3g3m-2fjr-6pw4-production-release-through-2026-12-16"
+approval_ref = "user:2026-11-27:acceptance-renewal:npm-12.2.3-bundled-glob-13.0.6-GHSA-3g3m-2fjr-6pw4-production-release-through-2026-12-16"
 rationale = "Accepted by the owner on 2026-11-18 and renewed on 2026-11-27 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tags of 2026-12-05 and 2026-12-12 does not stop the release chain. The advisory's range ends at glob 14.0.1 and later releases fix it, but no npm release bundles a fixed glob: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
 expires_at = 2026-12-17T00:00:00+08:00
 
@@ -41,6 +41,6 @@ nodes = ["node_modules/npm/node_modules/minimatch"]
 lock_sha256 = "882a73122f2d11f6861e8453ded4f598e8c5b735ae3e18b89b36d29d53d160b5"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-11-27:release-lead-report-2111:npm-12.2.3-bundled-minimatch-10.2.5-GHSA-g3hv-75wg-m249-production-release-through-2026-12-16"
+approval_ref = "user:2026-11-27:acceptance-renewal:npm-12.2.3-bundled-minimatch-10.2.5-GHSA-g3hv-75wg-m249-production-release-through-2026-12-16"
 rationale = "Accepted by the owner on 2026-11-18 and renewed on 2026-11-27 for this repository's own lock, which lock_sha256 binds, so that a newer npm release before the tags of 2026-12-05 and 2026-12-12 does not stop the release chain. The advisory's range ends below minimatch 11.0.1 and later releases fix it, but no npm release bundles a fixed minimatch: npm 12.2.3, its registry's latest, bundles this copy, an override cannot reach inside the bundle, and the integrity is the bundling npm's. While npm 12.2.3 is observed as its registry's latest the audit would report this finding without the record and would not block; the record changes the verdict once a newer npm exists or when the registry's latest npm cannot be observed, and until then it moves the finding from the reported to the accepted ones. Remove it when the locked npm bundles a fixed release, or at the next supply move, whichever is first."
 expires_at = 2026-12-17T00:00:00+08:00

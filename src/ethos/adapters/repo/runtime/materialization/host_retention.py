@@ -70,7 +70,11 @@ def retire_unused_installations(
                 if state == "released":
                     record.unlink(missing_ok=True)
                 else:
-                    _note_kept(consumer, state, reason, absent, unread)
+                    # A kept consumer is filed under what its path said: absent, or unread.
+                    if consumer is not None and state == "absent":
+                        absent.add(consumer.as_posix())
+                    elif consumer is not None and reason:
+                        unread[consumer.as_posix()] = reason
                     needed = True
             if not needed:
                 references = in_use() if references is None else references
@@ -90,18 +94,6 @@ def retire_unused_installations(
 
 
 type _ConsumerState = Literal["needs", "released", "unknown", "absent"]
-
-
-def _note_kept(
-    consumer: Path | None, state: str, reason: str, absent: set[str], unread: dict[str, str]
-) -> None:
-    """File a kept consumer under what its path said: absent, or unread with the reason."""
-    if consumer is None:
-        return
-    if state == "absent":
-        absent.add(consumer.as_posix())
-    elif reason:
-        unread[consumer.as_posix()] = reason
 
 
 def _consumer_state(consumer: Path | None, installation: Path) -> _ConsumerState:

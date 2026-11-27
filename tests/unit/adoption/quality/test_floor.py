@@ -18,6 +18,7 @@ from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_tree
 from tests.support.proof import run_quality_proof
 
 if TYPE_CHECKING:
@@ -66,9 +67,7 @@ def test_success_only_commands_do_not_qualify_broken_code(
             'evidence_class = "proof"\ntrust_bearing = true\n'
         )
     profile.write_text(declaration, encoding="utf-8")
-    for source_path, source_text in files.items():
-        (repo / source_path).parent.mkdir(parents=True, exist_ok=True)
-        (repo / source_path).write_text(source_text, encoding="utf-8")
+    write_tree(repo, files)
     head = commit_fixture(repo, "declare native checks")
 
     result = run_quality_proof(repo, head)

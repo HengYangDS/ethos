@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -29,6 +30,17 @@ from tests.support.governed_repository import write_active_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+# A skill activation that does not parse blocks every live skill instance with its decode error.
+PLANTED = "[meta\n"
+LIVE_SKILL_INSTANCES = ("activation-contract", "registry-contract", "package-manifests")
+
+
+def _decode_error(text: str) -> str:
+    """Return the error that this Python's TOML reader raises for the text."""
+    with pytest.raises(tomllib.TOMLDecodeError) as decoded:
+        tomllib.loads(text)
+    return str(decoded.value)
 
 
 def _rule(**updates: object) -> dict[str, object]:
@@ -444,7 +456,7 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     assert {check["action_id"] for check in report["data"]["checks"]} == set(policy.gate_ids)
     activation = root / ".agents/skills/activation.toml"
     activation.parent.mkdir(parents=True)
-    activation.write_text("[meta\n")
+    activation.write_text(PLANTED)
     successor = commit_fixture(root, "record target schema violation")
     stale = run_command(root, command, timeout=60)
     assert stale.returncode != 0
@@ -457,9 +469,7 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     assert refused["verdict"] == "block"
     schema = next(check for check in refused["data"]["checks"] if check["action_id"] == "schemas")
     observation = json.loads(schema["stdout"])["providers"][0]["report"]
-    assert [gap.split(":", 2)[1] for gap in observation["required_gaps"]] == [
-        "live-skill-activation-contract",
-        "live-skill-registry-contract",
-        "live-skill-package-manifests",
+    assert observation["required_gaps"] == [
+        f"instance:live-skill-{name}:{_decode_error(PLANTED)}" for name in LIVE_SKILL_INSTANCES
     ]
     assert schema["verdict"] == "block"

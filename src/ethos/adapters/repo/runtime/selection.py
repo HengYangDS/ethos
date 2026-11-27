@@ -24,6 +24,7 @@ from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import process_machine
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.contracts.digest import is_hex
 from ethos.contracts.digest import is_object_id
 from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.paradigm.parameters import seconds
@@ -343,8 +344,7 @@ def require_selected_runtime(
     """
     name = (expected_root or runtime).name
     if (
-        len(name) not in ({16, 64} if carrier else {64})
-        or set(name) - set("0123456789abcdef")
+        not is_hex(name, *((16, 64) if carrier else (64,)))
         or runtime.is_symlink()
         or not runtime.is_dir()
     ):

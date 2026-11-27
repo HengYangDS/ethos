@@ -22,6 +22,7 @@ from pydantic import ValidationError
 import ethos.adapters.repo.git as git
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.outcome import refusal
 from ethos.contracts.semantic import canonical_json_digest
@@ -38,7 +39,6 @@ _SYSTEM_PROVIDER_CONFIGS = (
     Path("/Library/Application Support/ETHOS/independent-verification.toml"),
     Path("/etc/ethos/independent-verification.toml"),
 )
-_SHA256_LENGTH = 64
 
 
 def _read_mapping(path: Path, gap: str) -> tuple[dict[str, Any], str]:
@@ -117,13 +117,7 @@ def _absolute_path(value: object) -> Path | None:
 
 
 def _sha256(value: object) -> str:
-    return (
-        value
-        if isinstance(value, str)
-        and len(value) == _SHA256_LENGTH
-        and all(char in "0123456789abcdef" for char in value)
-        else ""
-    )
+    return value if isinstance(value, str) and is_sha256_hex(value) else ""
 
 
 def load_independent_verification_provider(
@@ -183,14 +177,6 @@ def default_provider_config_path() -> Path:
         (path for path in _SYSTEM_PROVIDER_CONFIGS if path.exists()),
         _SYSTEM_PROVIDER_CONFIGS[0],
     )
-
-
-def path_is_within(path: Path, root: Path) -> bool:
-    try:
-        path.resolve().relative_to(root.resolve())
-    except ValueError:
-        return False
-    return True
 
 
 def verify_independent_receipt_signature(
@@ -439,7 +425,9 @@ def configured_verification_report(
         "key_id": provider.key_id,
         "implementation_digest": provider.implementation_digest,
     }
-    if receipt_path is not None and not path_is_within(receipt_path, provider.receipt_store):
+    if receipt_path is not None and not receipt_path.resolve().is_relative_to(
+        provider.receipt_store.resolve()
+    ):
         report = {
             **_local_verification_report(root=root, policy=policy),
             "verdict": "block",

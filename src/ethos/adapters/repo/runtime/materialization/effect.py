@@ -53,6 +53,7 @@ from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from ethos.contracts.digest import file_sha256
+from ethos.contracts.digest import is_hex
 from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 
@@ -257,19 +258,11 @@ def _recover_pin_staging(store: Path) -> None:
 
 
 def _valid_pin_name(value: str) -> bool:
-    return (
-        value.startswith(".pin-")
-        and len(value) == 37
-        and all(character in "0123456789abcdef" for character in value[5:])
-    )
+    return value.startswith(".pin-") and is_hex(value[5:], 32)
 
 
 def _valid_pin_marker(value: str) -> bool:
-    return (
-        len(value) == 65
-        and value.endswith("\n")
-        and all(character in "0123456789abcdef" for character in value[:-1])
-    )
+    return value.endswith("\n") and is_hex(value[:-1], 64)
 
 
 def _reusable_runtime(

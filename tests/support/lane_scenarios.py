@@ -73,17 +73,6 @@ def superseded_work_lane(
     return repo, lane, head, accepted, database
 
 
-def assert_no_ui_projection(value: object) -> None:
-    if isinstance(value, dict):
-        forbidden = {"open_action", "open_label", "action", "label"}
-        assert not (forbidden & set(value))
-        for child in value.values():
-            assert_no_ui_projection(child)
-    elif isinstance(value, list):
-        for child in value:
-            assert_no_ui_projection(child)
-
-
 def derive_abandonment(
     repo: Path,
     *,

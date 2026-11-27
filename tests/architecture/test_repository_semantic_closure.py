@@ -109,47 +109,47 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
     assert observed is False
 
 
+_CATEGORIES = ("missing", "duplicate", "orphan", "superseded", "conflict", "unknown")
+
+
+def _closure(
+    verdict: str,
+    coverage: str,
+    required_gaps: list[str],
+    *,
+    unknown: tuple[dict[str, object], ...] = (),
+    **counts: int,
+) -> dict[str, object]:
+    """Return a closure report whose categories are empty except `unknown` and the given counts."""
+    return {
+        "verdict": verdict,
+        "coverage": coverage,
+        "summary": dict.fromkeys(_CATEGORIES, 0) | counts | {"unknown": len(unknown)},
+        **{category: [] for category in _CATEGORIES},
+        "unknown": list(unknown),
+        "required_gaps": required_gaps,
+    }
+
+
 def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(monkeypatch) -> None:
     """All legacy component passes cannot conceal an unproved closure."""
+    gap = "semantic_carrier_unknown:reference:current/unreadable.toml:current/unreadable.toml"
+    unreadable = {
+        "relation": "carrier",
+        "kind": "reference",
+        "identity": "current/unreadable.toml",
+        "sources": ["current/unreadable.toml"],
+    }
     monkeypatch.setattr(
         repository_audit_module,
         "repository_semantic_closure",
-        lambda _root, **_observations: {
-            "verdict": "unknown",
-            "coverage": "unknown",
-            "summary": {
-                "missing": 0,
-                "duplicate": 0,
-                "orphan": 0,
-                "superseded": 0,
-                "conflict": 0,
-                "unknown": 1,
-            },
-            "missing": [],
-            "duplicate": [],
-            "orphan": [],
-            "superseded": [],
-            "conflict": [],
-            "unknown": [
-                {
-                    "relation": "carrier",
-                    "kind": "reference",
-                    "identity": "current/unreadable.toml",
-                    "sources": ["current/unreadable.toml"],
-                }
-            ],
-            "required_gaps": [
-                "semantic_carrier_unknown:reference:current/unreadable.toml:current/unreadable.toml"
-            ],
-        },
+        lambda _root, **_observations: _closure("unknown", "unknown", [gap], unknown=(unreadable,)),
     )
 
     report = _audit(_passing_commit_observation)
 
     assert report["verdict"] == "unknown"
-    assert report["required_gaps"] == [
-        "semantic_carrier_unknown:reference:current/unreadable.toml:current/unreadable.toml"
-    ]
+    assert report["required_gaps"] == [gap]
 
 
 def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch) -> None:
@@ -161,25 +161,7 @@ def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch
         "declaration_issues": [],
         "required_gaps": [gap],
     }
-    closure = {
-        "verdict": "block",
-        "coverage": "evaluated",
-        "summary": {
-            "missing": 0,
-            "duplicate": 1,
-            "orphan": 0,
-            "superseded": 0,
-            "conflict": 0,
-            "unknown": 0,
-        },
-        "missing": [],
-        "duplicate": [],
-        "orphan": [],
-        "superseded": [],
-        "conflict": [],
-        "unknown": [],
-        "required_gaps": [gap],
-    }
+    closure = _closure("block", "evaluated", [gap], duplicate=1)
     monkeypatch.setattr(repository_audit_module, "system_contracts_report", lambda _root: contracts)
     monkeypatch.setattr(
         repository_audit_module,

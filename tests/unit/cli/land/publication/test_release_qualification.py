@@ -11,51 +11,16 @@ import ethos.adapters.mutation.proof_admission as proof_admission
 import ethos.adapters.mutation.proof_record as proof_record
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.release import release_provenance
-from tests.support.ethos_cli_runner import run_ethos
-from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.proof import seed_executed_proof
 from tests.unit.cli.land.publication.support import TAG_REF
-from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import later_policy
 from tests.unit.cli.land.publication.support import pre_push
-from tests.unit.cli.land.publication.support import publication_peers
-from tests.unit.cli.land.publication.support import release_cli
+from tests.unit.cli.land.publication.support import released_while_gitlab_was_away
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _historical_release(tmp_path: Path) -> tuple[Path, dict[str, Path], str, str, str]:
-    """Release once to github only, then advance accepted, so the tag is history."""
-    repo, _main, old, head = accepted_release_fixture(tmp_path, release_mirror="accepted_ff")
-    assert release_cli(repo, head, head, "--apply", "--authorize")["verdict"] == "pass"
-    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
-    gitlab = git(repo, "remote", "get-url", "gitlab")
-    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
-    preview = branch_publication(repo, head, "--peer", "github", target_ref=TAG_REF)
-    assert apply_receipt(repo, preview["data"]["request_receipt"], head)["state"] == "published"
-    git(repo, "remote", "set-url", "gitlab", gitlab)
-    candidate = tmp_path / "repo"
-    (candidate / "notes").mkdir(exist_ok=True)
-    (candidate / "notes/after-release.txt").write_text("accepted later\n", encoding="utf-8")
-    accepted = commit_fixture(candidate, "fix: advance accepted after the release")
-    seed_executed_proof(candidate, accepted)
-    run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--candidate-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
-    return repo, peers, head, accepted, git(repo, "rev-parse", TAG_REF)
 
 
 def _bound_proof(repo: Path, tag: str) -> str:
@@ -67,7 +32,8 @@ def _bound_proof(repo: Path, tag: str) -> str:
 
 def test_a_historical_release_publishes_under_its_recorded_policy(tmp_path: Path) -> None:
     """A later policy neither blocks catch-up nor the receipt for a peer that holds the tag."""
-    repo, peers, head, accepted, tag = _historical_release(tmp_path)
+    repo, peers, head, accepted = released_while_gitlab_was_away(tmp_path)
+    tag = git(repo, "rev-parse", TAG_REF)
     bound = _bound_proof(repo, tag)
     with patch.object(proof_admission, "resolve_proof_policies", later_policy):
         assert pre_push(repo, tag, "0" * len(head)) == (0, [])
@@ -95,7 +61,7 @@ def test_a_historical_release_publishes_under_its_recorded_policy(tmp_path: Path
 
 def test_a_branch_keeps_the_current_policy(tmp_path: Path) -> None:
     """Only a release tag with a release record reads its recorded qualification."""
-    repo, peers, _head, accepted, _tag = _historical_release(tmp_path)
+    repo, peers, _head, accepted = released_while_gitlab_was_away(tmp_path)
     before = git(peers["gitlab"], "rev-parse", "refs/heads/main")
     with patch.object(proof_admission, "resolve_proof_policies", later_policy):
         blocked = branch_publication(
@@ -115,7 +81,8 @@ def test_a_branch_keeps_the_current_policy(tmp_path: Path) -> None:
 )
 def test_an_unverifiable_qualification_refuses_by_name(tmp_path: Path, case: str, gap: str) -> None:
     """The release record must embed a passing proof that verifies and hashes to its policy."""
-    repo, peers, head, accepted, tag = _historical_release(tmp_path)
+    repo, peers, head, accepted = released_while_gitlab_was_away(tmp_path)
+    tag = git(repo, "rev-parse", TAG_REF)
     original = proof_admission.recorded_proof
 
     def embedded(root: Path, proven: str, store: Path, recorded: dict[str, object]) -> object:

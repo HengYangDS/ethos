@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.configuration import official_config_report
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import active_change_names_from_paths
@@ -12,20 +13,13 @@ from ethos.repository.openspec.audit import compile_governed_branch_intent_repor
 from ethos.repository.openspec.audit import compile_openspec_shape_report
 
 if TYPE_CHECKING:
-    import subprocess
     from pathlib import Path
 
 
 def active_change_names_in_ref(root: Path, ref: str) -> dict[str, object]:
     """Observe and interpret active OpenSpec Change names in one Git tree."""
-    completed = _git(
-        root,
-        "ls-tree",
-        "-r",
-        "--name-only",
-        ref,
-        "--",
-        "openspec/changes",
+    completed = run_git(
+        root, "ls-tree", "-r", "--name-only", ref, "--", "openspec/changes", check=False
     )
     paths = tuple(completed.stdout.splitlines()) if completed.returncode == 0 else None
     return active_change_names_from_paths(ref, paths)
@@ -54,9 +48,9 @@ def governed_branch_intent_report(
 
 def openspec_shape_report(root: Path) -> dict[str, object]:
     """Observe Git branch and diff facts before compiling OpenSpec shape."""
-    current_branch = _current_branch(root)
+    current_branch = git_stdout(root, "branch", "--show-current")
     intent = governed_branch_intent_report(root, current_branch=current_branch)
-    diff = _git(root, "diff", "--unified=0", "--", "openspec/specs/**/*.md")
+    diff = run_git(root, "diff", "--unified=0", "--", "openspec/specs/**/*.md", check=False)
     return compile_openspec_shape_report(
         root,
         branch_intent=intent,
@@ -68,7 +62,9 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
 def _branch_observation(
     root: Path, branch: str
 ) -> tuple[dict[str, object], dict[str, object] | None]:
-    completed = _git(root, "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}")
+    completed = run_git(
+        root, "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}", check=False
+    )
     if completed.returncode == 0:
         branch_report = {
             "verdict": "pass",
@@ -90,12 +86,3 @@ def _branch_observation(
         "branch": branch,
         "required_gaps": [f"openspec_branch_unavailable:{branch}"],
     }, None
-
-
-def _current_branch(root: Path) -> str:
-    completed = _git(root, "branch", "--show-current")
-    return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return run_git(root, *args, check=False)

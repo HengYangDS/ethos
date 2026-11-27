@@ -17,12 +17,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from tests.support.governed_repository import committed_source_repo
-
-_ANSWER = {
-    "answer.js": "export function answer() { return 42; }\n",
-    "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
-    'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
-}
+from tests.support.native_quality import JS_ANSWER
 
 
 @pytest.mark.parametrize(
@@ -59,7 +54,7 @@ def test_unsupported_npm_recipes_are_refused_before_execution(
 ) -> None:
     """Lifecycle hooks, shell composition and foreign tools are never silently skipped."""
     (tmp_path / "package.json").write_text(json.dumps({"type": "module", "scripts": scripts}))
-    subjects = observed_code_subjects(tuple(_ANSWER))
+    subjects = observed_code_subjects(tuple(JS_ANSWER))
     with pytest.raises(ValueError, match=f"^javascript_native_{code}_unsupported$"):
         javascript_behavior.behavior_observation(tmp_path, subjects, None, "/fixture/node", {})
 
@@ -67,7 +62,7 @@ def test_unsupported_npm_recipes_are_refused_before_execution(
 def _answer_package(tmp_path: Path) -> Path:
     scripts = {"test": "node --test answer.test.js"}
     return committed_source_repo(
-        tmp_path, {"package.json": json.dumps({"type": "module", "scripts": scripts}), **_ANSWER}
+        tmp_path, {"package.json": json.dumps({"type": "module", "scripts": scripts}), **JS_ANSWER}
     )
 
 
@@ -110,7 +105,7 @@ def test_failed_native_attempts_are_retained_as_gaps(
         return subprocess.CompletedProcess(command, 0, selected, "")
 
     monkeypatch.setattr(javascript_behavior, "run_command", native)
-    subjects = observed_code_subjects(tuple(_ANSWER))
+    subjects = observed_code_subjects(tuple(JS_ANSWER))
     report = javascript_behavior.behavior_observation(repo, subjects, None, "/fixture/node", {})
     assert (report["verdict"], report["required_gaps"]) == ("block", gaps)
     artifact = report["artifact"]
@@ -134,7 +129,7 @@ def test_interrupted_native_attempt_still_conserves_its_evidence(
         raise OSError(message)
 
     monkeypatch.setattr(javascript_behavior, "run_command", interrupted)
-    subjects = observed_code_subjects(tuple(_ANSWER))
+    subjects = observed_code_subjects(tuple(JS_ANSWER))
     with pytest.raises(OSError, match="native attempt interrupted"):
         javascript_behavior.behavior_observation(repo, subjects, None, "/fixture/node", {})
     [artifact] = (local_state_root(repo) / "artifacts").glob("*.zip")
@@ -203,7 +198,7 @@ def test_behavior_gate_gives_node_the_one_owned_test_options(
         return subprocess.CompletedProcess(command, 1, "", "")
 
     monkeypatch.setattr(javascript_behavior, "run_command", native)
-    subjects = observed_code_subjects(tuple(_ANSWER))
+    subjects = observed_code_subjects(tuple(JS_ANSWER))
     javascript_behavior.behavior_observation(repo, subjects, None, "/fixture/node", {})
     assert observed
     for environment in observed:

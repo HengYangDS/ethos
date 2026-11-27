@@ -7,6 +7,7 @@ import pytest
 
 import ethos.domain.status as status
 from tests.support.documentation import decision_fixture
+from tests.support.documentation import documentation_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -183,7 +184,9 @@ def test_common_audit_enforces_the_selected_documentation_owner(
     git(repo, "add", "--all", "--", "handbook")
     assert status.audit_for_root(repo)["verdict"] == "pass"
 
-    (handbook / "explanation.md").write_text(_document("sample:supply", "explanation", "Supply"))
+    (handbook / "explanation.md").write_text(
+        documentation_fixture("sample:supply", "explanation", "canonical", "Supply")
+    )
     git(repo, "add", "--", "handbook")
     report = status.audit_for_root(repo)
     gaps = report["required_gaps"]
@@ -191,7 +194,7 @@ def test_common_audit_enforces_the_selected_documentation_owner(
     assert report["verdict"] == "block", report
     assert "docs_readme_missing:handbook/rulings/README.md" in gaps
     (handbook / "README.md").write_text(
-        _document("sample:rulings", "index", "Rulings")
+        documentation_fixture("sample:rulings", "index", "canonical", "Rulings")
         + "\nRead [the choice](dr-0006-supply-choice.md) and [explanation](explanation.md).\n"
     )
     git(repo, "add", "--", "handbook")
@@ -206,7 +209,7 @@ def test_common_audit_cannot_omit_documentation_identity(tmp_path: Path) -> None
     repo = _adopter(tmp_path / "public-docs", registry=False)
     decision = repo / "docs/rulings/choice.md"
     decision.parent.mkdir(parents=True)
-    decision.write_text(_document("sample:choice", "decision", "Choice"))
+    decision.write_text(documentation_fixture("sample:choice", "decision", "canonical", "Choice"))
     commit_fixture(repo, "docs: preserve a decision choice")
 
     observed = run_ethos_raw("prove", "--json", cwd=repo)
@@ -215,11 +218,3 @@ def test_common_audit_cannot_omit_documentation_identity(tmp_path: Path) -> None
     assert observed.returncode != 0
     assert report["verdict"] == "block", report
     assert "docs_decision_name_invalid:docs/rulings/choice.md" in report["required_gaps"]
-
-
-def _document(subject: str, role: str, title: str) -> str:
-    """Supply a complete native metadata and visible reading fixture."""
-    return (
-        f"---\nsubject: {subject}\nrole: {role}\nstate: canonical\nrelations: {{}}\n"
-        f"---\n\n# {title}\n\nStatus: canonical.\n\nPurpose: explain one choice.\n"
-    )

@@ -10,12 +10,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.contracts.outcome import require
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
-from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
@@ -75,7 +76,7 @@ def remove_import_carriers(
     branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
     present = os.path.lexists(worktree_path)
     record = import_worktree_record(destination, worktree_path, run_git=run_git)
-    require("handoff_import_compensation_failed", holds=present == bool(record))
+    require(present == bool(record), "handoff_import_compensation_failed")
     if record:
         unsafe = (
             worktree_path.is_symlink()
@@ -84,7 +85,7 @@ def remove_import_carriers(
             or record.get("HEAD") != head
             or any(flag in record for flag in ("locked", "prunable"))
         )
-        require("handoff_import_compensation_failed", holds=not unsafe)
+        require(not unsafe, "handoff_import_compensation_failed")
         verify_destination_identity(
             destination,
             worktree_path,
@@ -101,8 +102,8 @@ def remove_import_carriers(
             env=object_environment,
         )
         require(
+            not status.returncode and not status.stdout.strip(),
             "handoff_import_compensation_failed",
-            holds=not status.returncode and not status.stdout.strip(),
         )
         remove_worktree(
             destination,
@@ -113,9 +114,9 @@ def remove_import_carriers(
             runner=run_git,
         )
     require(
-        "handoff_import_compensation_failed",
-        holds=not os.path.lexists(worktree_path)
+        not os.path.lexists(worktree_path)
         and not import_worktree_record(destination, worktree_path, run_git=run_git),
+        "handoff_import_compensation_failed",
     )
     ref = f"refs/heads/{branch}"
     observed = run_git(
@@ -127,10 +128,10 @@ def remove_import_carriers(
         check=False,
         env=object_environment,
     )
-    require("handoff_import_compensation_failed", holds=observed.returncode in {0, 1})
+    require(observed.returncode in {0, 1}, "handoff_import_compensation_failed")
     if observed.returncode == 0:
         actual = run_git(destination, "rev-parse", ref, env=object_environment).stdout.strip()
-        require("handoff_import_compensation_failed", holds=actual == head)
+        require(actual == head, "handoff_import_compensation_failed")
         effect = GitEffect(updates={ref: GitRefUpdate(expected=head, desired="0" * len(head))})
         execution_head = run_git(destination, "rev-parse", "HEAD").stdout.strip()
         plan = compile_observed_git_effect(
@@ -161,7 +162,7 @@ def remove_import_carriers(
         check=False,
         env=object_environment,
     )
-    require("handoff_import_compensation_failed", holds=absent.returncode == 1)
+    require(absent.returncode == 1, "handoff_import_compensation_failed")
 
 
 def import_worktree_record(
@@ -172,13 +173,13 @@ def import_worktree_record(
         destination, runner=run_git, gap="handoff_import_compensation_failed"
     )
     require(
+        all({"worktree", "HEAD"} <= record.keys() for record in records),
         "handoff_import_compensation_failed",
-        holds=all({"worktree", "HEAD"} <= record.keys() for record in records),
     )
     matches = [
         record for record in records if Path(record["worktree"]).resolve() == target.resolve()
     ]
-    require("handoff_import_compensation_failed", holds=len(matches) <= 1)
+    require(len(matches) <= 1, "handoff_import_compensation_failed")
     record = matches[0] if matches else {}
     if record:
         record["branch"] = record.get("branch", "").removeprefix("refs/heads/")

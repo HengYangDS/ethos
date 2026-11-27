@@ -10,21 +10,10 @@ import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_
 import ethos.adapters.repo.starter.formation as formation_effect
 from ethos.application.adoption import adopt_repository
 from ethos.application.inspection import inspect_repository
-from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import apply_reviewed_adoption
 from tests.support.governed_repository import git
+from tests.support.governed_repository import starter_request
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-
-
-def _request(purpose: str = "Verifiable changes.", **fields: str) -> dict[str, object]:
-    """Request the foundation starter with the fixture signer."""
-    return {
-        "create": True,
-        "purpose": purpose,
-        "starter": "foundation",
-        **fields,
-        **fixture_signer_inputs(),
-    }
 
 
 def test_greenfield_copy_failure_preserves_unknown_target(
@@ -32,7 +21,7 @@ def test_greenfield_copy_failure_preserves_unknown_target(
 ) -> None:
     """A partial output is observed, not deleted or blindly regenerated."""
     target = tmp_path / "new-project"
-    request = _request("Steward a new project with verifiable changes.")
+    request = starter_request(purpose="Steward a new project with verifiable changes.")
     preview = adopt_repository(target, **request)
 
     def partial_copy(_candidate: Path, destination: Path, **_options: object) -> None:
@@ -54,7 +43,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
 ) -> None:
     """Post-copy runtime failure keeps the exact Git repository for safe recovery."""
     target = tmp_path / "new-project"
-    request = _request()
+    request = starter_request()
     preview = adopt_repository(target, **request)
 
     def fail_activation(_root: Path) -> None:
@@ -94,7 +83,7 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
 ) -> None:
     """A completed ref effect must lead to worktree recovery, not a fresh formation."""
     target = tmp_path / "new-project"
-    request = _request()
+    request = starter_request()
     preview = adopt_repository(target, **request)
 
     def fail_worktree(*_args: object, **_kwargs: object) -> None:
@@ -140,7 +129,7 @@ def test_greenfield_postpublication_failures_preserve_recovery_boundary(
 ) -> None:
     """A published target is observed, not silently rolled back or replayed."""
     target = tmp_path / "new-project"
-    request = _request(author_name="Test Contributor", author_email="test@example.invalid")
+    request = starter_request(author_name="Test Contributor", author_email="test@example.invalid")
     preview = adopt_repository(target, **request)
     assert preview.verdict == "pass"
     monkeypatch.setattr(

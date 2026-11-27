@@ -233,6 +233,39 @@ def accepted_release_fixture(
     return accepted, main, old, head
 
 
+def released_while_gitlab_was_away(tmp_path: Path) -> tuple[Path, dict[str, Path], str, str]:
+    """Publish one release to github only, then advance accepted past it."""
+    repo, _main, old, head = accepted_release_fixture(tmp_path, release_mirror="accepted_ff")
+    assert release_cli(repo, head, head, "--apply", "--authorize")["verdict"] == "pass"
+    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
+    gitlab = git(repo, "remote", "get-url", "gitlab")
+    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
+    preview = branch_publication(repo, head, "--peer", "github", target_ref=TAG_REF)
+    assert apply_receipt(repo, preview["data"]["request_receipt"], head)["state"] == "published"
+    git(repo, "remote", "set-url", "gitlab", gitlab)
+    candidate = tmp_path / "repo"
+    (candidate / "notes").mkdir(exist_ok=True)
+    (candidate / "notes/after-release.txt").write_text(
+        "accepted after the release\n", encoding="utf-8"
+    )
+    accepted = commit_fixture(candidate, "fix: advance accepted after the release")
+    seed_executed_proof(candidate, accepted)
+    run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--candidate-head",
+        accepted,
+        "--json",
+        cwd=repo,
+    )
+    assert git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "dev") == accepted
+    return repo, peers, head, accepted
+
+
 def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "independent"):
     """Start a native maintenance lane from a proved, now historical accepted base."""
     accepted, main, _old, base = accepted_release_fixture(

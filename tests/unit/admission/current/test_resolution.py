@@ -58,6 +58,7 @@ def test_prewrite_resolves_requested_paths_instead_of_workspace_diff(monkeypatch
 
 
 def test_current_resolution_preserves_the_first_authority_gap() -> None:
+    """Each consumer receives the same closed failure and executable recovery facts."""
     resolution = resolve_current_resolution(
         ROOT,
         status={"role": "work_lane", "head": HEAD},
@@ -66,15 +67,6 @@ def test_current_resolution_preserves_the_first_authority_gap() -> None:
     assert resolution.required_gaps == ("invocation_actor_missing:work/example",)
     assert resolution.next_action == "rerun the command with --actor <your own identity>"
     assert resolution.user_decision_required is False
-
-
-def test_scope_projection_retains_resolution_failure_and_recovery() -> None:
-    """Each consumer receives the same closed failure and executable recovery facts."""
-    resolution = resolve_current_resolution(
-        ROOT,
-        status={"role": "work_lane", "head": HEAD},
-        authority=authority(verdict="block", reason="invocation_actor_missing:work/example"),
-    )
 
     scope = resolution.scope_report()
 

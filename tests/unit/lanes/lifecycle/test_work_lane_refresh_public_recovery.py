@@ -58,7 +58,12 @@ def _git(switched: list[str] | None = None):
 
 
 def _common(
-    monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH, switched: list[str] | None = None
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    branch: str = BRANCH,
+    switched: list[str] | None = None,
+    ancestry: tuple[bool, ...] = (),
+    heads: tuple[str, ...] = (),
 ) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
@@ -77,6 +82,22 @@ def _common(
     # Every replay signs, so each case binds the signing environment it would project.
     monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
     monkeypatch.setattr(refresh, "run_git", _git(switched))
+    if ancestry:
+        answers = iter(ancestry)
+        monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(answers))
+    if heads:
+        observed = iter(heads)
+        monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(observed))
+
+
+def _record_attachments(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
+    attached: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        refresh,
+        "attach_worktree",
+        lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
+    )
+    return attached
 
 
 def _recovery_plan(
@@ -250,17 +271,8 @@ def test_refresh_conflict_reports_failed_restore(
 def test_refresh_rejects_rebase_postcondition_and_restores_branch(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, False))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    attached: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
-    )
+    _common(monkeypatch, ancestry=(False, False), heads=(HEAD, REBASED, HEAD))
+    attached = _record_attachments(monkeypatch)
 
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
@@ -273,11 +285,7 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
 def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, REBASED))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, ancestry=(False, True), heads=(HEAD, REBASED, REBASED))
     policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     observed_policy: list[tuple[str, str]] = []
     monkeypatch.setattr(
@@ -359,11 +367,7 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
 def test_refresh_admission_failure_restores_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gap: str
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, ancestry=(False, True), heads=(HEAD, REBASED, HEAD))
     policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(
         refresh,
@@ -410,12 +414,7 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         "execute_git_effect",
         lambda *_args, **_kwargs: pytest.fail("invalid replay must not update refs or Lease"),
     )
-    restored: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
-    )
+    restored = _record_attachments(monkeypatch)
 
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
@@ -448,12 +447,7 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
     }[case]
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: REBASED)
     monkeypatch.setattr(refresh, "recover_plan", lambda *_args, **_kwargs: plan)
-    attached: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
-    )
+    attached = _record_attachments(monkeypatch)
 
     monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
 
@@ -476,11 +470,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     switched: list[str] = []
-    _common(monkeypatch, switched=switched)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, switched=switched, ancestry=(False, True), heads=(HEAD, REBASED, HEAD))
     captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     refused = GitExecutionError(
@@ -491,12 +481,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch.setattr(
         refresh, "execute_git_effect", lambda *_args, **_kwargs: (_ for _ in ()).throw(refused)
     )
-    restored: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
-    )
+    restored = _record_attachments(monkeypatch)
 
     report = refresh.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head=HEAD
@@ -516,11 +501,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
 def test_refresh_public_attachment_failure_is_reported(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, REBASED))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, ancestry=(False, True), heads=(HEAD, REBASED, REBASED))
     _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())

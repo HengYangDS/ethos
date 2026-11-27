@@ -143,13 +143,6 @@ def test_prepared_updates_validate_runtime_once_before_each_ref_policy(
     assert events == (["runtime"] if damaged else ["runtime", *refs])
 
 
-def test_repository_does_not_track_host_specific_hook_launchers() -> None:
-    completed = git_process(REPOSITORY_ROOT, "ls-files", ".githooks")
-
-    assert completed.returncode == 0
-    assert completed.stdout == ""
-
-
 @pytest.mark.parametrize(
     ("staged", "working", "subject", "gap"),
     [

@@ -4,46 +4,22 @@ from __future__ import annotations
 
 import json
 import shlex
-import shutil
 from pathlib import Path
 
 import pytest
 import yaml
 
-from tests.support.release_legs import HEAD
+from tests.support.release_legs import REQUIRED
 from tests.support.release_legs import VERSION
-from tests.support.release_legs import qualified_leg
+from tests.support.release_legs import assemble_release
 from tools.ci.delivery import release_assets
 
 _ROOT = Path(__file__).resolve().parents[4]
-_REQUIRED = frozenset({"linux-x64", "linux-arm64", "macos-arm64"})
-_LEGS = {
-    "linux-x64": ("linux", "x86_64", "linux_x86_64"),
-    "linux-arm64": ("linux", "arm64", "linux_aarch64"),
-    "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
-    "windows-x64": ("windows", "x86_64", "win_amd64"),
-}
-_ENTRY = f"# Changelog\n\n## [{VERSION}] - 2026-10-21\n\n### Added\n\n- Hosted release.\n"
-
-
-def _assemble(tmp_path: Path, *, required=_REQUIRED, optional=frozenset({"windows-x64"})):
-    inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
-    if not inputs.exists():
-        changelog.write_text(_ENTRY, encoding="utf-8")
-        for host, leg in _LEGS.items():
-            qualified_leg(inputs, host, *leg)
-    output = tmp_path / "out"
-    shutil.rmtree(output, ignore_errors=True)
-    options = {"tag": f"v{VERSION}", "base_url": "https://example.invalid/v", "expect_head": HEAD}
-    release_assets.assemble(
-        inputs, output, changelog=changelog, required=required, optional=optional, **options
-    )
-    return output
 
 
 def test_an_optional_leg_that_uploaded_nothing_is_left_out_and_named(tmp_path):
     """A failed optional leg leaves no artifact; the release still names it and its rule."""
-    out = _assemble(tmp_path, optional=frozenset({"windows-x64", "windows-arm64"}))
+    out = assemble_release(tmp_path, optional=frozenset({"windows-x64", "windows-arm64"}))[0]
     assert json.loads((out / "left-out.json").read_text(encoding="utf-8")) == [
         {"host": "windows-arm64", "reason": "leg_incomplete"}
     ]
@@ -55,7 +31,7 @@ def test_an_optional_leg_that_uploaded_nothing_is_left_out_and_named(tmp_path):
 
 def test_a_release_with_every_declared_leg_names_nothing(tmp_path):
     """When every declared leg publishes, no host is left out and the notes add nothing."""
-    out = _assemble(tmp_path)
+    out = assemble_release(tmp_path)[0]
     assert json.loads((out / "left-out.json").read_text(encoding="utf-8")) == []
     assert "Not published" not in (out / "notes.md").read_text(encoding="utf-8")
 
@@ -63,7 +39,7 @@ def test_a_release_with_every_declared_leg_names_nothing(tmp_path):
 def test_an_artifact_of_an_undeclared_platform_refuses(tmp_path):
     """A stray or renamed leg cannot publish a platform that no release leg declares."""
     with pytest.raises(ValueError, match="release_assets_host_undeclared:windows-x64"):
-        _assemble(tmp_path, optional=frozenset({"windows-arm64"}))
+        assemble_release(tmp_path, optional=frozenset({"windows-arm64"}))
     assert not (tmp_path / "out").exists()
 
 
@@ -71,15 +47,15 @@ def test_an_artifact_of_an_undeclared_platform_refuses(tmp_path):
     ("required", "optional"),
     [
         (frozenset(), frozenset({"windows-x64"})),
-        (_REQUIRED | {"windows-x64"}, frozenset({"windows-x64"})),
-        (_REQUIRED | {"solaris-x64"}, frozenset({"windows-x64"})),
+        (REQUIRED | {"windows-x64"}, frozenset({"windows-x64"})),
+        (REQUIRED | {"solaris-x64"}, frozenset({"windows-x64"})),
     ],
     ids=["no-required", "both", "unknown"],
 )
 def test_invalid_declarations_refuse(tmp_path, required, optional):
     """The declared hosts are known host names, at least one required, none declared twice."""
     with pytest.raises(ValueError, match="release_assets_hosts_invalid"):
-        _assemble(tmp_path, required=required, optional=optional)
+        assemble_release(tmp_path, required=required, optional=optional)
 
 
 def test_the_command_line_takes_the_declared_hosts():
@@ -106,6 +82,7 @@ def test_the_workflow_reads_one_declaration_of_the_release_legs():
         for step in jobs["release-publish"]["steps"]
         if "release_assets.py" in step.get("run", "")
     )
+    assert "--expect-head ${{ inputs.release_head }}" in step
     words = shlex.split(step)
     hosts = (words[words.index("--required") + 1], words[words.index("--optional") + 1])
     required = frozenset(host for host, needed in declared.items() if needed)

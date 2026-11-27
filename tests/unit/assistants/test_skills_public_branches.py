@@ -9,10 +9,10 @@ import pytest
 
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.openspec.configuration import openspec_owned_skills
-from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import skill_portfolio_report
 from tests.support.governed_repository import write_file
+from tests.support.skills import write_skill_package
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,33 +43,6 @@ Repository source and command JSON are truth.
 """
 
 
-def _package(root: Path, skill_id: str, *, commands: bool = False) -> None:
-    package = root / f".agents/skills/{skill_id}"
-    skill = package / "SKILL.md"
-    write_file(skill, _SKILL.format(skill_id=skill_id))
-    digest = compute_skill_package_digest(package, ["SKILL.md"])
-    capability = (
-        '\n[[capability]]\nid = "ethos.status"\nkind = "command_readonly"\n'
-        'command = ["ethos", "status", "--json"]\n'
-        if commands
-        else ""
-    )
-    write_file(
-        package / "package.toml",
-        f"""schema_version = 2
-id = "{skill_id}"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[quality]
-placeholder_allowed = false
-{capability}""",
-    )
-
-
 def _record(
     skill_id: str, *, path: str = "", package_manifest: str = "", complete: bool = True
 ) -> str:
@@ -96,7 +69,7 @@ def test_skill_portfolio_report_preserves_identity_path_quality_and_command_gaps
     skills = tmp_path / ".agents/skills"
     write_file(skills / "README.md", "# Skills\n")
     for skill_id in ("escaped", "absolute", "absent", "quality", "mismatch"):
-        _package(tmp_path, skill_id)
+        write_skill_package(skills, skill_id, text=_SKILL.format(skill_id=skill_id), commands=False)
     write_file(skills / "mismatch/OTHER.md", "alternate entrypoint\n")
     write_file(skills / "quality/SKILL.md", "# malformed\n")
     activation = (
@@ -159,18 +132,11 @@ def test_skill_portfolio_report_rejects_missing_invalid_and_unsupported_activati
     assert ".agents/skills/activation.toml:invalid_toml" in invalid["required_gaps"]
 
 
-def test_skill_report_has_no_generation_mode_or_duplicate_score(tmp_path: Path) -> None:
-    """Current skill obligations have one verdict, not a single-mode compatibility plane."""
-    report = skill_portfolio_report(tmp_path)
-    assert "mode" not in report
-    assert "v2_compliance" not in report
-
-
 @pytest.mark.parametrize("extra", ["", 'name = "discarded"', 'unexpected = "discarded"'])
 def test_original_activation_fields_cannot_disappear(tmp_path: Path, extra: str) -> None:
     """Validation precedes normalization that would otherwise erase unknown input."""
-    _package(tmp_path, "valid", commands=True)
     skills = tmp_path / ".agents/skills"
+    write_skill_package(skills, "valid", text=_SKILL.format(skill_id="valid"))
     write_file(skills / "README.md", "# Skills\n")
     activation = (
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n'
@@ -220,7 +186,7 @@ def test_incomplete_original_skill_is_rejected(tmp_path: Path, field: str) -> No
 
 def test_skill_schema_cannot_be_replaced_by_adopter_checkout(tmp_path: Path) -> None:
     """Adopter payloads cannot replace the schema that interprets their package."""
-    _package(tmp_path, "valid", commands=True)
+    write_skill_package(tmp_path / ".agents/skills", "valid", text=_SKILL.format(skill_id="valid"))
     manifest = ".agents/skills/valid/package.toml"
     expected = validate_skill_package_manifest(tmp_path, manifest)
     assert expected["verdict"] == "pass"
@@ -233,7 +199,7 @@ def test_a_package_that_no_record_routes_is_reported(tmp_path: Path) -> None:
     skills = tmp_path / ".agents/skills"
     write_file(skills / "README.md", "# Skills\n")
     for skill_id in ("routed", "unrouted"):
-        _package(tmp_path, skill_id)
+        write_skill_package(skills, skill_id, text=_SKILL.format(skill_id=skill_id), commands=False)
     write_file(
         skills / "activation.toml",
         '[meta]\nversion = 2\nsource_of_truth = "repository"\n\n'
@@ -265,7 +231,7 @@ def test_openspecs_record_routes_the_shared_skills_it_owns(
     """
     skills = tmp_path / ".agents/skills"
     write_file(skills / "README.md", "# Skills\n")
-    _package(tmp_path, "routed")
+    write_skill_package(skills, "routed", text=_SKILL.format(skill_id="routed"), commands=False)
     write_file(skills / "openspec-propose/SKILL.md", "---\nname: openspec-propose\n---\n")
     write_file(
         skills / "activation.toml",

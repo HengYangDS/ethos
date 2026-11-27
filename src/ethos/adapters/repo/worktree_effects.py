@@ -29,6 +29,7 @@ from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.adapters.repo.worktree_list import raw_worktree_records
+from ethos.contracts.digest import HEX_DIGITS
 from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.parameters import seconds
 
@@ -49,7 +50,7 @@ def _ref_assertions(root: Path, assertions: Mapping[str, str], timeout_seconds: 
     for ref, head in assertions.items():
         if (
             not head
-            or set(head) - set("0123456789abcdef")
+            or set(head) - HEX_DIGITS
             or run_git(root, "check-ref-format", ref, check=False).returncode
         ):
             refuse("worktree_effect_ref_binding_invalid")

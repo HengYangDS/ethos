@@ -15,6 +15,7 @@ import pytest
 import ruff
 
 import ethos.adapters.gates.python_quality as python_quality
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.gates.python_target import PythonTarget
 from ethos.adapters.gates.python_target import compatibility_target
 from ethos.adapters.repo.git import current_tree
@@ -31,6 +32,37 @@ _GENERIC = 'from typing import Generic, TypeVar\n\nT = TypeVar("T")\n\n\nclass B
 _CARRIER = ".config/checks/ruff/ruff.toml"
 # Fixture repositories carry the paradigm's Ruff carrier; without a target it decides nothing.
 _UNTARGETED = {_CARRIER: "line-length = 100\n"}
+
+
+_EXCEPT = 'quote = "a"\ntry:\n    pass\nexcept {}:\n    pass\n'
+_PY314 = 'line-length = 100\ntarget-version = "py314"\n'
+_CONFLICT = "native_formatter_policy_conflict"
+
+
+@pytest.mark.parametrize(
+    ("carrier", "expected"),
+    [
+        pytest.param(_PY314, "ValueError, TypeError", id="carrier-target"),
+        pytest.param('extend = "{base}"\n', _CONFLICT, id="unfollowed-extend"),
+        pytest.param(_PY314 + '[format]\nquote-style = "single"\n', _CONFLICT, id="other-setting"),
+    ],
+)
+def test_the_carrier_target_settles_a_render_only_the_shipped_target_disagrees_on(
+    tmp_path: Path, carrier: str, expected: str
+) -> None:
+    """Ruff writes an except tuple bare from 3.14 on, so a py314 carrier decides that file."""
+    repo = init_git_repo(tmp_path / "repo")
+    base = tmp_path / "base.toml"
+    base.write_text(_PY314)
+    (repo / _CARRIER).parent.mkdir(parents=True, exist_ok=True)
+    (repo / _CARRIER).write_text(carrier.format(base=base))
+    source = _EXCEPT.format("(ValueError, TypeError)").encode()
+    if expected == _CONFLICT:
+        with pytest.raises(ValueError, match=_CONFLICT):
+            render_source_content(repo, "src/app.py", "ruff", source)
+        return
+    rendered = (_EXCEPT.format(expected).encode(), False)
+    assert render_source_content(repo, "src/app.py", "ruff", source) == rendered
 
 
 def _manifest(requires: str, ruff: str = "") -> str:
@@ -260,31 +292,23 @@ def test_the_target_follows_the_accepted_declaration_order(
             {"pyproject.toml": _manifest(">=3.12"), "src/ruff.toml": "line-length = 88\n"},
             "python_target_divergent",
         ),
+        ({"ruff.toml": 'extend = "/etc/ruff.toml"\n'}, "python_target_invalid"),
+        ({"ruff.toml": 'extend = "~/ruff.toml"\n'}, "python_target_invalid"),
+        ({"ruff.toml": "extend = 1\n"}, "python_target_invalid"),
+        ({"pyproject.toml": 'tool = "ruff"\n'}, "python_target_invalid"),
+        ({"pyproject.toml": '[tool]\nruff = "strict"\n'}, "python_target_invalid"),
+        ({"pyproject.toml": 'project = "sample"\n'}, "python_target_invalid"),
+        ({"pyproject.toml": "[project]\nrequires-python = 3.12\n"}, "python_target_invalid"),
     ],
 )
 def test_missing_invalid_or_contradictory_context_is_a_gap(
     tmp_path: Path, files: dict[str, str], gap: str
 ) -> None:
-    """Absent, malformed, conflicting and locally divergent declarations never become a default."""
+    """Absent, malformed, conflicting and locally divergent declarations never become a default.
+
+    Escaping or wrongly typed declarations are refused instead of being skipped.
+    """
     with pytest.raises(ValueError, match=f"^{gap}$"):
-        _target(tmp_path, files)
-
-
-@pytest.mark.parametrize(
-    "files",
-    [
-        {"ruff.toml": 'extend = "/etc/ruff.toml"\n'},
-        {"ruff.toml": 'extend = "~/ruff.toml"\n'},
-        {"ruff.toml": "extend = 1\n"},
-        {"pyproject.toml": 'tool = "ruff"\n'},
-        {"pyproject.toml": '[tool]\nruff = "strict"\n'},
-        {"pyproject.toml": 'project = "sample"\n'},
-        {"pyproject.toml": "[project]\nrequires-python = 3.12\n"},
-    ],
-)
-def test_malformed_declaration_carriers_are_invalid(tmp_path: Path, files: dict[str, str]) -> None:
-    """Escaping or wrongly typed declarations are refused instead of being skipped."""
-    with pytest.raises(ValueError, match=r"^python_target_invalid$"):
         _target(tmp_path, files)
 
 

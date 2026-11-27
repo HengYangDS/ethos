@@ -32,7 +32,22 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 @pytest.mark.parametrize(
-    ("command", "options"), [(("superseded",), ("--path",)), ((), ("abandon", "recover"))]
+    ("command", "options"),
+    [
+        (("superseded",), ("--path",)),
+        ((), ("abandon", "recover", "landed", "superseded", "absorbed-ref")),
+        (
+            ("absorbed-ref",),
+            (
+                "--branch",
+                "--expect-head",
+                "--accepted-head",
+                "--authorize",
+                "--confirm-irreversible",
+                "--apply",
+            ),
+        ),
+    ],
 )
 def test_retirement_help_exposes_recovery_inputs(command, options):
     completed = run_ethos_raw("lane", "retire", *command, "--help")

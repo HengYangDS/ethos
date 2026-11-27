@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,20 +19,15 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
-from tests.support.governed_repository import commit_active_change
+from tests.support.governed_repository import active_change_repo
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
 from tests.support.openspec_lifecycle import active_change_relocation_patch
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository(tmp_path: Path) -> tuple[Path, str]:
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / "safe.txt").write_text("old\n", encoding="utf-8")
-    commit_active_change(repo)
-    return repo, git(repo, "rev-parse", "HEAD")
+_repository = partial(active_change_repo, files={"safe.txt": "old\n"})
 
 
 def _patch(old: str, new: str, body: str = "+value\n") -> str:
@@ -49,26 +45,22 @@ def _change_patch() -> str:
     )
 
 
-@pytest.mark.parametrize("old", ["/absolute", "../escape"])
-def test_patch_admission_rejects_absolute_and_escaping_preimages(tmp_path: Path, old: str) -> None:
+@pytest.mark.parametrize(
+    ("requested", "old", "new"),
+    [
+        pytest.param("safe.txt", "/absolute", "safe.txt", id="absolute-preimage"),
+        pytest.param("safe.txt", "../escape", "safe.txt", id="escaping-preimage"),
+        pytest.param("safe.txt", "missing.txt", "safe.txt", id="missing-preimage"),
+        pytest.param("../escape", "safe.txt", "../escape", id="escaping-postimage"),
+    ],
+)
+def test_patch_admission_rejects_absent_and_escaping_paths(
+    tmp_path: Path, requested: str, old: str, new: str
+) -> None:
     repo, head = _repository(tmp_path)
 
     report = patch_admission(
-        root=repo, requested_paths=("safe.txt",), baseline_head=head, patch=_patch(old, "safe.txt")
-    )
-
-    assert report["verdict"] == "block"
-    assert report["reason"] == "prewrite_patch_preimage_mismatch"
-
-
-def test_patch_admission_rejects_missing_preimage(tmp_path: Path) -> None:
-    repo, head = _repository(tmp_path)
-
-    report = patch_admission(
-        root=repo,
-        requested_paths=("safe.txt",),
-        baseline_head=head,
-        patch=_patch("missing.txt", "safe.txt"),
+        root=repo, requested_paths=(requested,), baseline_head=head, patch=_patch(old, new)
     )
 
     assert report["verdict"] == "block"
@@ -105,20 +97,6 @@ def test_unified_deletion_without_file_mode_retains_preimage_path(tmp_path: Path
     assert report["paths"] == ["safe.txt"]
     assert (repo / "safe.txt").read_text() == "old\n"
     assert git(repo, "status", "--porcelain=v1") == before
-
-
-def test_patch_admission_rejects_escaping_postimage(tmp_path: Path) -> None:
-    repo, head = _repository(tmp_path)
-
-    report = patch_admission(
-        root=repo,
-        requested_paths=("../escape",),
-        baseline_head=head,
-        patch=_patch("safe.txt", "../escape"),
-    )
-
-    assert report["verdict"] == "block"
-    assert report["reason"] == "prewrite_patch_preimage_mismatch"
 
 
 def test_patch_admission_reports_failed_postimage_apply(

@@ -23,6 +23,7 @@ from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
 from ethos.repository.policy.quality.dependency_acceptance import evaluate_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
+from tests.unit.ci.dependency_audit.support import PORTABLE_RELEASE
 from tests.unit.ci.dependency_audit.support import authorize_fixture
 from tests.unit.ci.dependency_audit.support import clean_report
 from tests.unit.ci.dependency_audit.support import invoke_audit
@@ -74,14 +75,7 @@ def test_artifact_risk_acceptance_is_portable_without_hiding_native_findings(
 ):
     """A release-authorized artifact is accepted across hosts and exact lock placements."""
     raw = npm_advisories(repository)
-    authorize_fixture(
-        repository,
-        scope="production-release",
-        host=None,
-        expires_at=None,
-        nodes=None,
-        lock_sha256=None,
-    )
+    authorize_fixture(repository, **PORTABLE_RELEASE)
     monkeypatch.setattr(audit.platform, "node", lambda: "another-host")
     if ci:
         monkeypatch.setenv("CI", "true")
@@ -98,14 +92,7 @@ def test_product_policy_accepts_only_its_exact_portable_artifact(repository, mon
     raw = npm_advisories(repository)
     subject = repository / AUDIT_POLICY_PATH
     subject_before = subject.read_bytes()
-    authorize_fixture(
-        repository,
-        scope="production-release",
-        host=None,
-        expires_at=None,
-        nodes=None,
-        lock_sha256=None,
-    )
+    authorize_fixture(repository, **PORTABLE_RELEASE)
     resource_owner.canonical_resource(AUDIT_POLICY_PATH).write_bytes(
         product_audit_projection(subject.read_bytes())
     )
@@ -129,14 +116,7 @@ def test_product_policy_composition_preserves_exact_records_and_subject_executio
     """Composition deduplicates identities, not distinct authorization constraints."""
     npm_advisories(repository)
     authorize_fixture(repository)
-    authorize_fixture(
-        repository,
-        scope="production-release",
-        host=None,
-        expires_at=None,
-        nodes=None,
-        lock_sha256=None,
-    )
+    authorize_fixture(repository, **PORTABLE_RELEASE)
     raw = (repository / AUDIT_POLICY_PATH).read_bytes()
     subject = AuditPolicy.model_validate(tomllib.loads(raw.decode()))
     projected = product_audit_projection(raw)

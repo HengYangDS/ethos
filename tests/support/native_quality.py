@@ -13,6 +13,31 @@ from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import committed_source_repo
 
+# The locked Python sample the native quality fixtures adopt.
+QUALITY_SAMPLE = Path(__file__).resolve().parents[1] / "fixtures/quality-sample"
+# The one test that proves the sample's `answer`.
+PYTHON_SAMPLE_TEST = (
+    "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
+)
+# One JavaScript module and the native test that proves it.
+JS_ANSWER = {
+    "answer.js": "export function answer() { return 42; }\n",
+    "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
+    'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
+}
+
+
+def python_sample(tmp_path: Path, files: dict[str, str]) -> Path:
+    """Commit the locked sample project and its `answer` module with the given files."""
+    locked = {
+        name: (QUALITY_SAMPLE / name).read_text(encoding="utf-8")
+        for name in ("pyproject.toml", "uv.lock")
+    }
+    return committed_source_repo(
+        tmp_path,
+        {**locked, "src/sample/__init__.py": "def answer() -> int:\n    return 42\n", **files},
+    )
+
 
 def native_quality_execution(root: Path, gate: Gate) -> NativeExecution:
     """Run and retain one independent native quality fixture attempt."""
@@ -134,9 +159,8 @@ def static(session):
         value["prefix"] = str(output / "missing-environment")
         target.write_text(json.dumps(value))
 '''
-    fixture = Path(__file__).resolve().parents[1] / "fixtures/quality-sample"
-    metadata = (fixture / "pyproject.toml").read_text()
-    lock = (fixture / "uv.lock").read_text()
+    metadata = (QUALITY_SAMPLE / "pyproject.toml").read_text()
+    lock = (QUALITY_SAMPLE / "uv.lock").read_text()
     if outcome == "toolchain":
         locked = next(item for item in tomllib.loads(lock)["package"] if item["name"] == "ruff")
         lock = lock.replace(

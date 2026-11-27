@@ -110,33 +110,12 @@ def test_public_merge_accepts_exact_peer_ref_without_moving_candidate(tmp_path, 
         tree = git(work, "rev-parse", f"{theirs}^{{tree}}")
         successor = git(work, "commit-tree", tree, "-p", theirs, "-m", "feat: later peer")
         git(work, "update-ref", peer, successor)
-    selection = ("--source-ref", peer)
     if mode == "start":
-        preview = run_ethos(
-            "lane",
-            "refresh-base",
-            "--strategy",
-            "merge",
-            "--mode",
-            "start",
-            *selection,
-            "--json",
-            cwd=work,
-        )
+        preview = preview_merge(work, "start", peer)
         assert apply_merge(work, preview)["data"]["state"] == "merge_pending"
     (work / "README.md").write_text("# Qualified peer contribution\n")
     git(work, "add", "README.md")
-    preview = run_ethos(
-        "lane",
-        "refresh-base",
-        "--strategy",
-        "merge",
-        "--mode",
-        "continue",
-        *selection,
-        "--json",
-        cwd=work,
-    )
+    preview = preview_merge(work, "continue", peer)
     arguments = shlex.split(preview["next_action"])
     assert arguments[arguments.index("--source-ref") + 1] == peer
     result = apply_merge(work, preview)
@@ -483,30 +462,10 @@ def test_native_unsupported_state_rejects_continue_without_side_effect(tmp_path,
 
 def test_merge_apply_requires_explicit_exact_request_and_preserves_preview(tmp_path):
     work = native_merge_fixture(tmp_path)
-    report = run_ethos_blocked(
-        "lane",
-        "refresh-base",
-        "--strategy",
-        "merge",
-        "--mode",
-        "abort",
-        "--apply",
-        "--json",
-        cwd=work,
-    )
+    request = ("lane", "refresh-base", "--strategy", "merge", "--mode", "abort", "--apply")
+    report = run_ethos_blocked(*request, "--json", cwd=work)
     assert report["required_gaps"] == ["authorization_required"]
-    report = run_ethos_blocked(
-        "lane",
-        "refresh-base",
-        "--strategy",
-        "merge",
-        "--mode",
-        "abort",
-        "--apply",
-        "--authorize",
-        "--json",
-        cwd=work,
-    )
+    report = run_ethos_blocked(*request, "--authorize", "--json", cwd=work)
     assert report["required_gaps"] == ["merge_exact_request_required"]
     assert "--mode abort" in report["next_action"]
     assert "--apply" not in report["next_action"]

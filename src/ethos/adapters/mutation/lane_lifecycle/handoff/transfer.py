@@ -16,8 +16,8 @@ from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_import import apply_handoff_import
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
+from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.git import repository_root
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
@@ -42,8 +42,8 @@ def export_cross_host_handoff(request: CrossHostHandoffExportRequest) -> dict[st
     """Create a portable Git/context package without copying local lease state."""
     repo = repository_root(Path(request.root))
     status = workspace_status(repo)
-    head = _git_value(repo, "rev-parse", "HEAD")
-    tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
+    head = git_stdout_checked(repo, "rev-parse", "HEAD")
+    tree = git_stdout_checked(repo, "rev-parse", "HEAD^{tree}")
     lease = leases_by_branch(repo).get(request.branch, {})
     context_file = Path(request.context_file) if request.context_file else None
     context, context_gap = _handoff_context(
@@ -183,7 +183,7 @@ def revoke_cross_host_source(
     )
     gaps.extend(acknowledgement_gaps)
     branch = str(manifest.get("source_lane_ref") or "")
-    head = _git_value(repo, "rev-parse", "HEAD")
+    head = git_stdout_checked(repo, "rev-parse", "HEAD")
     source_binding = manifest.get("source_lease_binding")
     binding = source_binding if isinstance(source_binding, dict) else {}
     lease = leases_by_branch(repo).get(branch, {})
@@ -419,7 +419,3 @@ def _finish_report(
         decision=decision,
     )
     return report
-
-
-def _git_value(root: Path, *args: str) -> str:
-    return run_git(root, *args).stdout.strip()

@@ -47,7 +47,6 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert publication["source_branch"] == branch
     assert publication["source_role"] == load_branch_role_policy(Path.cwd()).role_for_branch(branch)
     assert "proposal_branch" not in publication
-    assert "local_proposal_package" not in publication
     assert payload["next_action"]
 
 

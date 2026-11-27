@@ -78,16 +78,6 @@ class Binding:
     gaps: tuple[str, ...]
 
 
-def bind_record(
-    root: Path, *, path: str, old: str, key: bytes, refs: Collection[str] | None = None
-) -> RebuildRecord:
-    """Return the record at `path` in `old` once it binds; else refuse by every gap it finds."""
-    bound = bind(root, path=path, old=old, key=key, refs=refs)
-    if bound.gaps:
-        refuse(*bound.gaps)
-    return bound.record
-
-
 def bind(
     root: Path, *, path: str, old: str, key: bytes, refs: Collection[str] | None = None
 ) -> Binding:

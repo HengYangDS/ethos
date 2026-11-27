@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import close_verdict
@@ -82,8 +83,7 @@ def commit_ranges_report(root: Path, *, current_head: str) -> dict[str, object]:
 
 def _tip(root: Path, ref: str) -> str:
     """Return the commit a tracking ref names, or nothing when the checkout never observed it."""
-    completed = run_git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+    return git_stdout(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
 
 
 def _note(code: str, action: str) -> dict[str, str]:

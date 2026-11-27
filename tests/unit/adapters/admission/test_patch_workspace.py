@@ -295,10 +295,18 @@ def test_a_place_that_cannot_be_looked_at_is_no_absence(tmp_path: Path) -> None:
         (repo / "dev").chmod(0o755)
 
 
-def test_a_path_in_the_workspace_s_own_git_directory_is_refused(tmp_path: Path) -> None:
-    """No change may name the directory that makes the workspace a repository."""
+@pytest.mark.parametrize(
+    "change",
+    [
+        pytest.param({"old_path": "/dev/null", "path": ".git/x"}, id="git-directory"),
+        pytest.param({"old_path": ".", "path": "a.txt"}, id="root-itself"),
+    ],
+)
+def test_a_path_in_the_git_directory_or_naming_the_root_is_refused(
+    tmp_path: Path, change: dict[str, object]
+) -> None:
+    """No change may name the workspace's own Git directory, and an empty path names no file."""
     repo = _repository(tmp_path)
-    change: dict[str, object] = {"old_path": "/dev/null", "path": ".git/x"}
     with (
         pytest.raises(ValueError, match="escapes root"),
         owner.patched_workspace(repo, "", [change]),
@@ -326,17 +334,6 @@ def test_a_preimage_that_is_no_regular_file_is_refused(tmp_path: Path) -> None:
     change: dict[str, object] = {"old_path": "link", "path": "link"}
     with (
         pytest.raises(ValueError, match="no regular file"),
-        owner.patched_workspace(repo, "", [change]),
-    ):
-        pytest.fail("the workspace was yielded")
-
-
-def test_a_path_that_names_the_root_itself_is_refused(tmp_path: Path) -> None:
-    """An empty path names no file under the root."""
-    repo = _repository(tmp_path)
-    change: dict[str, object] = {"old_path": ".", "path": "a.txt"}
-    with (
-        pytest.raises(ValueError, match="escapes root"),
         owner.patched_workspace(repo, "", [change]),
     ):
         pytest.fail("the workspace was yielded")

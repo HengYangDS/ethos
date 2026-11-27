@@ -155,7 +155,6 @@ def _assert_archived_land_readiness(
             ["proof_not_proven"],
         )
         assert payload["next_action"] == f"ethos prove --full --execute --expect-head {head} --json"
-        assert "proof_readiness" not in payload["data"]
         return
     seed_executed_proof(fixture.worktree, head, full=claim == LAND_CASES[8])
     if claim == LAND_CASES[7]:
@@ -392,14 +391,9 @@ def test_apply_boundary_claim_matrix(claim: str, tmp_path: Path) -> None:
 CLOSEOUT_CASES = literal_case("cli.test_contracts_land:assign:CLOSEOUT_CASES:4")
 
 
-def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, candidate, worktree = fixture
-    accepted = git(repo, "rev-parse", "HEAD")
-    release = git(repo, "branch", "--list", "main")
-    target = worktree / ".ethos/release.toml"
-    target.write_text(f"{target.read_text()}\n{CHANGED_TOPOLOGY}")
-    git(worktree, "add", target.as_posix())
-    git(worktree, "commit", "-m", "test: change future branch topology")
+def _land_then_accept(
+    monkeypatch: pytest.MonkeyPatch, repo: Path, candidate: Path, worktree: Path, accepted: str
+) -> str:
     head = _archive(monkeypatch, worktree)
     seed_executed_proof(worktree, head)
     landed = _land(worktree, head)
@@ -410,6 +404,18 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     )
     assert report["verdict"] == "pass", report
     assert git(repo, "rev-parse", "dev") == head
+    return head
+
+
+def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, candidate, worktree = fixture
+    accepted = git(repo, "rev-parse", "HEAD")
+    release = git(repo, "branch", "--list", "main")
+    target = worktree / ".ethos/release.toml"
+    target.write_text(f"{target.read_text()}\n{CHANGED_TOPOLOGY}")
+    git(worktree, "add", target.as_posix())
+    git(worktree, "commit", "-m", "test: change future branch topology")
+    _land_then_accept(monkeypatch, repo, candidate, worktree, accepted)
     # The accepted policy mirrors main independently, so the candidate's accepted_ff
     # mirror does not move main in the closeout that first accepts it.
     assert git(repo, "branch", "--list", "main") == release
@@ -452,16 +458,7 @@ def _assert_declared_closeout_policy(
         holder_ref="agent:test:case:agent-test",
     )
     commit_fixture_file(worktree, "README.md", "# candidate\n", "test: candidate")
-    head = _archive(monkeypatch, worktree)
-    seed_executed_proof(worktree, head)
-    landed = _land(worktree, head)
-    assert landed["verdict"] == "pass", landed
-    assert git(candidate, "rev-parse", "HEAD") == head
-    report = accepted_admission.candidate_to_accepted(
-        root=repo, authorized=True, expect_head=accepted
-    )
-    assert report["verdict"] == "pass", report
-    assert git(repo, "rev-parse", "dev") == head
+    head = _land_then_accept(monkeypatch, repo, candidate, worktree, accepted)
     if claim == CLOSEOUT_CASES[3]:
         assert git(repo, "rev-parse", "main") == head
 

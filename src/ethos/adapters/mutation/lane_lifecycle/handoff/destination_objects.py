@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import verified_package_snapshot
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
+from ethos.contracts.digest import is_hex
+from ethos.contracts.outcome import require
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -22,13 +23,13 @@ if TYPE_CHECKING:
 
 def _unbundle(repository: Path, bundle: Path, branch: str, head: str, tree: str) -> None:
     heads = run_git(repository, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
-    require("handoff_bundle_identity_mismatch", holds=heads == [f"{head} refs/heads/{branch}"])
+    require(heads == [f"{head} refs/heads/{branch}"], "handoff_bundle_identity_mismatch")
     run_git(repository, "bundle", "unbundle", bundle.as_posix())
     actual = tuple(
         run_git(repository, "rev-parse", f"{head}^{{{kind}}}").stdout.strip()
         for kind in ("commit", "tree")
     )
-    require("handoff_bundle_identity_mismatch", holds=actual == (head, tree))
+    require(actual == (head, tree), "handoff_bundle_identity_mismatch")
 
 
 @contextmanager
@@ -41,8 +42,8 @@ def import_objects(
     branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
     object_format = run_git(destination, "rev-parse", "--show-object-format").stdout.strip()
     expected_width = {"sha1": 40, "sha256": 64}.get(object_format)
-    require("handoff_object_format_unsupported", holds=expected_width is not None)
-    require("handoff_object_format_mismatch", holds=len(head) == expected_width)
+    require(expected_width is not None, "handoff_object_format_unsupported")
+    require(len(head) == expected_width, "handoff_object_format_mismatch")
     with (
         verified_package_snapshot(package=package, manifest=manifest, root=destination) as snapshot,
         tempfile.TemporaryDirectory(prefix="handoff-bare-") as temporary,
@@ -75,12 +76,12 @@ def object_directory(destination: Path) -> Path:
         ).stdout.strip()
     )
     require(
-        "handoff_destination_object_store_unsafe",
-        holds=objects == common / "objects"
+        objects == common / "objects"
         and objects.is_dir()
         and not objects.is_symlink()
         and (objects / "pack").is_dir()
         and not (objects / "pack").is_symlink(),
+        "handoff_destination_object_store_unsafe",
     )
     return objects
 
@@ -90,8 +91,8 @@ def object_environment(destination: Path, isolated: Path) -> dict[str, str]:
     alternates = objects / "info" / "alternates"
     configured = alternates.read_text(encoding="utf-8").strip() if alternates.exists() else ""
     require(
+        not alternates.is_symlink() and not configured,
         "handoff_destination_alternate_object_store_forbidden",
-        holds=not alternates.is_symlink() and not configured,
     )
     return {
         "GIT_OBJECT_DIRECTORY": str(objects),
@@ -111,7 +112,7 @@ def _prepared_pack(destination: Path, isolated: Path, head: str) -> Generator[li
         check=False,
         env={"GIT_OBJECT_DIRECTORY": str(objects)},
     )
-    require("handoff_destination_object_store_invalid", holds=closure.returncode in {0, 128})
+    require(closure.returncode in {0, 128}, "handoff_destination_object_store_invalid")
     if closure.returncode == 0 and not any(
         line.startswith("?") for line in closure.stdout.splitlines()
     ):
@@ -126,7 +127,7 @@ def _prepared_pack(destination: Path, isolated: Path, head: str) -> Generator[li
         stdin=f"{head}\n".encode(),
         text=False,
     ).stdout
-    require("handoff_import_object_pack_empty", holds=bool(packed))
+    require(bool(packed), "handoff_import_object_pack_empty")
     with tempfile.TemporaryDirectory(prefix="handoff-import-", dir=objects) as temporary:
         quarantine = Path(temporary)
         (quarantine / "pack").mkdir()
@@ -143,10 +144,9 @@ def _prepared_pack(destination: Path, isolated: Path, head: str) -> Generator[li
         candidates = sorted((quarantine / "pack").glob(f"pack-{pack_id}.*"))
         suffixes = {path.suffix for path in candidates}
         require(
-            "handoff_import_object_install_failed",
-            holds=len(pack_id) == len(head)
-            and all(character in "0123456789abcdef" for character in pack_id)
+            is_hex(pack_id, len(head))
             and {".idx", ".pack"} <= suffixes <= {".idx", ".pack", ".rev"},
+            "handoff_import_object_install_failed",
         )
         yield candidates
 
@@ -221,4 +221,4 @@ def _verify_import_contract(
     except ValueError:
         msg = "handoff_repository_identity_invalid"
         raise ValueError(msg) from None
-    require("handoff_repository_identity_mismatch", holds=source == target)
+    require(source == target, "handoff_repository_identity_mismatch")

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import tomllib
 from pathlib import Path
 
@@ -12,8 +11,7 @@ import pytest
 from ethos.repository.policy.quality.dependency_acceptance import interpret_native_audit
 from tests.unit.ci.dependency_audit.support import clean_report
 from tests.unit.ci.dependency_audit.support import invoke_audit
-from tests.unit.ci.dependency_audit.support import native_result
-from tests.unit.ci.dependency_audit.support import native_transport
+from tests.unit.ci.dependency_audit.support import scripted_ecosystem
 from tools.ci import dependency_audit as audit
 
 _ROOT = Path(__file__).resolve().parents[4]
@@ -42,24 +40,10 @@ def test_only_a_python_audit_without_a_report_and_a_failed_request_is_a_transpor
     assert interpret_native_audit("python", stdout, exit_code, stderr)[1] == reason
 
 
-def _python_sequence(monkeypatch: pytest.MonkeyPatch, outputs: list[tuple[int, str, str]]):
-    pending = list(outputs)
-    pauses: list[float] = []
-
-    def respond(_root, command, ecosystem):
-        if ecosystem == "npm":
-            return native_result(command, ecosystem)
-        code, stdout, stderr = pending.pop(0)
-        return subprocess.CompletedProcess(command, code, stdout, stderr)
-
-    monkeypatch.setattr(audit.time, "sleep", pauses.append)
-    return native_transport(monkeypatch, respond), pauses
-
-
 def test_a_burst_of_resets_is_ridden_out_with_the_backoff(repository, monkeypatch) -> None:
     clean = json.dumps(clean_report("python"))
     outputs = [(2, "", _RESET)] * 3 + [(0, clean, "")]
-    _observed, pauses = _python_sequence(monkeypatch, outputs)
+    _observed, pauses = scripted_ecosystem(monkeypatch, "python", outputs)
 
     payload = invoke_audit(repository)
 
@@ -75,7 +59,7 @@ def test_a_burst_of_resets_is_ridden_out_with_the_backoff(repository, monkeypatc
 
 
 def test_a_lasting_outage_is_reported_by_its_native_reason(repository, monkeypatch) -> None:
-    _observed, pauses = _python_sequence(monkeypatch, [(2, "", _RESET)] * 4)
+    _observed, pauses = scripted_ecosystem(monkeypatch, "python", [(2, "", _RESET)] * 4)
 
     payload = invoke_audit(repository)
 

@@ -30,6 +30,7 @@ from tests.support.governed_repository import write_test_profile
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.runtime_scenarios import runtime_build
+from tests.support.runtime_scenarios import unreadable_declaration
 
 _POLICY = '[commit_policy]\nsubject_pattern = "fix: .+"\n'
 
@@ -307,18 +308,8 @@ def test_selected_hook_declaration_read_failure_is_nonarming(
     """Unavailable current bytes remain unknown rather than using another package."""
     repo, _generation = _fixture(tmp_path)
     before = hook_runtime_binding(repo)
-    reader = Path.read_text
-    paths = []
-
-    def unreadable(path: Path, *args, **kwargs):
-        if path.name == "binding.toml" and path.is_relative_to(repo):
-            paths.append(path)
-            message = "selected_declaration_unreadable"
-            raise PermissionError(message)
-        return reader(path, *args, **kwargs)
-
-    with monkeypatch.context() as patch:
-        patch.setattr(Path, "read_text", unreadable)
+    with monkeypatch.context() as scoped:
+        paths = unreadable_declaration(scoped, repo)
         observed = hook_runtime_binding(repo)
     assert len(paths) == 1
     assert observed["current"] is False

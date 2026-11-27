@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 
 from ethos.adapters.mutation.publication.observation import observe_remote_namespaces
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_fact
 from ethos.adapters.repo.peer_feed import local_feed
@@ -54,10 +55,7 @@ def peer_identity_push_gaps(
 def tracking_base(repo: Path, remote: str) -> str:
     """Return the remote-tracking accepted branch, the base a new branch falls back to."""
     branch = load_branch_role_policy(repo).accepted_branch
-    found = run_git(
-        repo, "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{branch}", check=False
-    )
-    return found.stdout.strip() if found.returncode == 0 else ""
+    return git_stdout(repo, "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{branch}")
 
 
 def mode_at(repo: Path, trusted: str) -> str | None:

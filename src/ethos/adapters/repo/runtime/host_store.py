@@ -5,10 +5,11 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import os
-import tempfile
 from pathlib import Path
 
 from platformdirs import user_data_path
+
+from ethos.adapters.store.durable import replace_durably
 
 _CONSUMERS = "consumers"
 
@@ -31,11 +32,7 @@ def record_consumer(installation: Path, consumer: Path) -> None:
         if record.read_text(encoding="utf-8") == content:
             return
     records.mkdir(mode=0o700, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        "w", dir=records, prefix=".", suffix=".tmp", delete=False, encoding="utf-8"
-    ) as stream:
-        stream.write(content)
-    Path(stream.name).replace(record)
+    replace_durably(record, content.encode("utf-8"))
 
 
 def installation_consumers(installation: Path) -> dict[Path, Path | None] | None:

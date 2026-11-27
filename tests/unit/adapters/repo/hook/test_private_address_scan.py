@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import ethos.adapters.repo.hook.admission as hook_runtime
 import tools.ci.toolchain.native as native_owner
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.hook.protocol import execute_hook
@@ -111,15 +110,9 @@ def test_native_scan_gives_the_same_verdict_per_line() -> None:
 
 
 def test_history_alone_fails_neither_content_scan(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The staged and tracked scans pass a repository whose history alone names an address."""
-    repo = tmp_path
-    assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
-    monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(
-        "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
-    )
     _stage(repo, CONFIG.relative_to(REPOSITORY_ROOT).as_posix(), CONFIG.read_text(encoding="utf-8"))
     for remote in (PRIVATE_FORGE, DOCUMENTATION_FORGE):
         _stage(repo, "peer.txt", f"remote http://{remote}/team/repo\n")

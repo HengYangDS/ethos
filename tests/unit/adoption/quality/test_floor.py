@@ -24,61 +24,32 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> None:
-    """Two successful commands cannot prove behavior or static correctness."""
-    repo = init_git_repo(tmp_path / "adopter")
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'profile_id = "false-gate-adopter"\n\n'
-        '[openspec]\nmaterial_paths = ["**"]\n\n'
-        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
-        "[proof.code_correctness_map]\n"
-        'behavior = "behavior"\nstatic-analysis = "static"\n\n'
-        '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
-        f"command = {json.dumps([sys.executable, '-c', 'pass'])}\n"
-        'dimensions = ["behavior"]\nasset_classes = ["python-code"]\n'
-        'evidence_class = "proof"\ntrust_bearing = true\n\n'
-        '[[proof.gates]]\nid = "static"\nkind = "typing"\n'
-        f"command = {json.dumps([sys.executable, '-c', 'print("ok")'])}\n"
-        'dimensions = ["static-analysis"]\nasset_classes = ["python-code"]\n'
-        'evidence_class = "proof"\ntrust_bearing = true\n',
-        encoding="utf-8",
-    )
-    (repo / "src").mkdir()
-    (repo / "src/app.py").write_text('raise RuntimeError("broken")\n', encoding="utf-8")
-    (repo / "tests").mkdir()
-    (repo / "tests/test_app.py").write_text('raise AssertionError("not run")\n', encoding="utf-8")
-    head = commit_fixture(repo, "declare native checks")
-
-    result = run_quality_proof(repo, head)
-    payload = json.loads(result.stdout)
-
-    assert result.returncode != 0
-    assert payload["verdict"] == "block"
-    assert payload["data"]["checks"] == []
-    assert "quality_gate_verifier_missing:behavior:behavior" in payload["required_gaps"]
-    assert "quality_gate_verifier_missing:static-analysis:static" in payload["required_gaps"]
-
-
 @pytest.mark.parametrize(
-    ("source_path", "broken_source"),
+    ("files", "asset_class"),
     [
-        ("main.go", "package main\nfunc main( {\n"),
-        ("main.js", "function broken( {\n"),
-        ("main.ts", "export const answer: = ;\n"),
-        ("main.sh", "#!/bin/sh\nif then\n"),
+        (
+            {
+                "src/app.py": 'raise RuntimeError("broken")\n',
+                "tests/test_app.py": 'raise AssertionError("not run")\n',
+            },
+            "python-code",
+        ),
+        ({"main.go": "package main\nfunc main( {\n"}, "source-code"),
+        ({"main.js": "function broken( {\n"}, "source-code"),
+        ({"main.ts": "export const answer: = ;\n"}, "source-code"),
+        ({"main.sh": "#!/bin/sh\nif then\n"}, "source-code"),
     ],
+    ids=["python", "main.go", "main.js", "main.ts", "main.sh"],
 )
-def test_non_python_source_cannot_pass_on_success_only_commands(
-    tmp_path: Path, source_path: str, broken_source: str
+def test_success_only_commands_do_not_qualify_broken_code(
+    tmp_path: Path, files: dict[str, str], asset_class: str
 ) -> None:
-    """A native source language still needs real behavior and static evidence."""
+    """Two successful commands prove neither behavior nor static correctness in any language."""
     repo = init_git_repo(tmp_path / "adopter")
     profile = repo / ".ethos/profile.toml"
     profile.parent.mkdir()
     declaration = (
-        'profile_id = "non-python-quality-probe"\n\n'
+        'profile_id = "success-only-probe"\n\n'
         '[openspec]\nmaterial_paths = ["**"]\n\n'
         '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
         '[proof.code_correctness_map]\nbehavior = "behavior"\n'
@@ -91,11 +62,13 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
         declaration += (
             f'\n[[proof.gates]]\nid = "{gate_id}"\nkind = "{kind}"\n'
             f"command = {json.dumps([sys.executable, '-c', f'print({gate_id!r})'])}\n"
-            f'dimensions = ["{axis}"]\nasset_classes = ["source-code"]\n'
+            f'dimensions = ["{axis}"]\nasset_classes = ["{asset_class}"]\n'
             'evidence_class = "proof"\ntrust_bearing = true\n'
         )
     profile.write_text(declaration, encoding="utf-8")
-    (repo / source_path).write_text(broken_source, encoding="utf-8")
+    for source_path, source_text in files.items():
+        (repo / source_path).parent.mkdir(parents=True, exist_ok=True)
+        (repo / source_path).write_text(source_text, encoding="utf-8")
     head = commit_fixture(repo, "declare native checks")
 
     result = run_quality_proof(repo, head)

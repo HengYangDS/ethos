@@ -65,13 +65,11 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
         "shadow",
         "copied-invalid",
         "copied-malformed",
-        "retired",
-        "copied-retired",
         "native-doc",
     ],
 )
 def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, condition) -> None:
-    """Adopter shadows never replace product schemas, while retired owners block."""
+    """Adopter shadows never replace product schemas."""
     schema_dir = tmp_path / "system/schemas/kernel"
     if condition.startswith("copied"):
         shutil.copytree(ROOT / "system/schemas/kernel", schema_dir)
@@ -82,9 +80,6 @@ def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, co
         (schema_dir / "result.schema.json").write_text(
             '{"type":"not-a-json-schema-type"}' if condition == "copied-invalid" else "{"
         )
-    retired = condition.endswith("retired")
-    if retired:
-        (schema_dir / "capability-profile.schema.json").write_text("{}")
     docs = tmp_path / "docs/current"
     docs.mkdir(parents=True)
     if condition == "native-doc":
@@ -97,23 +92,14 @@ def test_schema_reports_keep_native_ownership_across_adopter_shapes(tmp_path, co
     report = schema_validation_report(tmp_path)
     assert report["mode"] == "product"
     assert "ok" not in report
-    assert report["verdict"] == ("block" if retired else "pass")
-    assert report["required_gaps"] == (
-        ["schema_retired:capability-profile.schema.json"] if retired else []
-    )
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
     expected = {path.name for path in (ROOT / "system/schemas").rglob("*.schema.json")}
-    if retired:
-        expected.add("capability-profile.schema.json")
     assert set(report["schemas"]) == expected
     assert report["schema_count"] == len(expected)
     assert "custom.schema.json" not in report["schemas"]
     assert report["schemas"]["result.schema.json"]["verdict"] == "pass"
     assert report["instances"]["docs-registry"]["verdict"] == "pass"
-    if retired:
-        assert report["schemas"]["capability-profile.schema.json"] == {
-            "verdict": "block",
-            "error": "retired semantic schema",
-        }
 
 
 @pytest.mark.parametrize("with_context", [False, True])

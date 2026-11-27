@@ -6,9 +6,6 @@ import hashlib
 import os
 import shutil
 import sys
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from functools import partial
 from pathlib import Path
 
@@ -26,7 +23,7 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
-from ethos.contracts.coordination import LaneLease
+from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import fixture_runtime_generation
@@ -81,15 +78,7 @@ def test_retained_authoring_binds_its_own_change_at_signed_git_commit(
     branch, holder = "work/retained-upgrade-fixture", "agent:test:package-only:retained"
     run_git(repository, "branch", "-m", branch)
     run_git(repository, "config", "extensions.worktreeConfig", "true")
-    acquire_lease(
-        state_database(repository),
-        lease=LaneLease(
-            lane_ref=branch,
-            holder_ref=holder,
-            generation=1,
-            expires_at=datetime.now(UTC) + timedelta(days=1),
-        ),
-    )
+    acquire_lease(state_database(repository), lease=exact_lease(branch=branch, holder_ref=holder))
     _stage_working_bytes(repository)
     commits = []
 
@@ -155,13 +144,7 @@ def lane_start_transport(monkeypatch):
         linked = repository.parent / f"{repository.name}-work-retained-upgrade-fixture"
         run_git(repository, "worktree", "add", "-b", branch, str(linked), "HEAD")
         acquire_lease(
-            state_database(repository),
-            lease=LaneLease(
-                lane_ref=branch,
-                holder_ref=holder,
-                generation=1,
-                expires_at=datetime.now(UTC) + timedelta(days=1),
-            ),
+            state_database(repository), lease=exact_lease(branch=branch, holder_ref=holder)
         )
         calls.append(command)
         return 0, {"verdict": "pass", "data": {"path": str(linked), "branch": branch}}, ""

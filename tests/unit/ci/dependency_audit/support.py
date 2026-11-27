@@ -130,6 +130,16 @@ def npm_advisories(root: Path) -> dict:
     return raw
 
 
+# A release-scoped approval that binds no host, expiry, node list or lock digest.
+PORTABLE_RELEASE = {
+    "scope": "production-release",
+    "host": None,
+    "expires_at": None,
+    "nodes": None,
+    "lock_sha256": None,
+}
+
+
 def authorize_fixture(root: Path, **changes) -> None:
     """Create an explicitly test-only approval, never a live policy exception."""
     locked = json.loads((root / "package-lock.json").read_text())["packages"]["node_modules/braces"]
@@ -157,3 +167,20 @@ def authorize_fixture(root: Path, **changes) -> None:
         rendered.append(f"{key} = {text}")
     policy = root / AUDIT_POLICY_PATH
     policy.write_text(policy.read_text().replace("dispositions = []\n", "") + "\n".join(rendered))
+
+
+def scripted_ecosystem(
+    monkeypatch, ecosystem: str, outputs: list[tuple[int, str, str]]
+) -> tuple[list[tuple[str, ...]], list[float]]:
+    """Answer one ecosystem's audits from `outputs`, the other natively, and record each pause."""
+    pending = list(outputs)
+    pauses: list[float] = []
+
+    def respond(_root, command, observed):
+        if observed != ecosystem:
+            return native_result(command, observed)
+        code, stdout, stderr = pending.pop(0)
+        return subprocess.CompletedProcess(command, code, stdout, stderr)
+
+    monkeypatch.setattr(audit.time, "sleep", pauses.append)
+    return native_transport(monkeypatch, respond), pauses

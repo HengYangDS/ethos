@@ -17,23 +17,13 @@ import ethos.adapters.repo.starter.formation as formation_effect
 import ethos.adapters.repo.starter.generation as generator_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.application.adoption import adopt_repository
-from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import apply_reviewed_adoption
 from tests.support.governed_repository import git
+from tests.support.governed_repository import starter_request
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _request(purpose: str = "Verifiable changes.") -> dict[str, object]:
-    """Select the Python library starter with the fixture signer."""
-    return {
-        "create": True,
-        "purpose": purpose,
-        "starter": "python-library",
-        **fixture_signer_inputs(),
-    }
 
 
 def test_python_library_starter_uses_pinned_native_generator(
@@ -41,7 +31,7 @@ def test_python_library_starter_uses_pinned_native_generator(
 ) -> None:
     """One selected domain starter composes with, but does not replace, the foundation."""
     target = tmp_path / "new-project"
-    request = _request("A verifiable Python library.")
+    request = starter_request("python-library", "A verifiable Python library.")
     preview = adopt_repository(target, **request)
 
     assert preview.verdict == "pass"
@@ -80,9 +70,11 @@ def test_python_library_starter_uses_pinned_native_generator(
 def test_python_library_changed_input_invalidates_preview(tmp_path: Path) -> None:
     """A reviewed generator output cannot be applied to a changed purpose."""
     target = tmp_path / "new-project"
-    preview = adopt_repository(target, **_request("First purpose."))
+    preview = adopt_repository(target, **starter_request("python-library", "First purpose."))
 
-    result = apply_reviewed_adoption(target, _request("Revised purpose."), preview)
+    result = apply_reviewed_adoption(
+        target, starter_request("python-library", "Revised purpose."), preview
+    )
 
     assert result.required_gaps == ("formation_plan_digest_mismatch",)
     assert not target.exists()
@@ -93,7 +85,7 @@ def test_python_library_generator_version_invalidates_preview(
 ) -> None:
     """The reviewed native-generator identity participates in the plan digest."""
     target = tmp_path / "new-project"
-    request = _request()
+    request = starter_request("python-library")
     preview = adopt_repository(target, **request)
     observed_version = metadata.version
 
@@ -112,7 +104,7 @@ def test_python_library_ignores_ambient_uv_generator_settings(
 ) -> None:
     """Unreviewed host configuration cannot change the selected starter output."""
     target = tmp_path / "new-project"
-    request = _request()
+    request = starter_request("python-library")
     preview = adopt_repository(target, **request)
     monkeypatch.setenv("UV_INIT_BUILD_BACKEND", "scikit")
 
@@ -152,7 +144,7 @@ def test_python_library_generator_failure_is_not_a_retry_loop(
 
     monkeypatch.setattr(generator_effect, "run_command", rejected)
     target = tmp_path / "new-project"
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request("python-library"))
 
     assert result.required_gaps == ("formation_starter_generation_failed",)
     assert "Repair" in result.next_action
@@ -169,7 +161,7 @@ def test_python_library_rejects_empty_success_from_generator(
 
     monkeypatch.setattr(generator_effect, "run_command", empty_success)
     target = tmp_path / "new-project"
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request("python-library"))
 
     assert result.required_gaps == ("formation_starter_output_incomplete",)
     assert not target.exists()
@@ -186,7 +178,7 @@ def test_python_library_cannot_replace_foundation_content(
 
     monkeypatch.setattr(generator_effect, "run_command", overwrite)
     target = tmp_path / "new-project"
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request("python-library"))
 
     assert result.required_gaps == ("formation_starter_overwrote_foundation",)
     assert result.next_action.startswith("Reject")
@@ -209,7 +201,7 @@ def test_python_library_rejects_generator_link_escape(
 
     monkeypatch.setattr(generator_effect, "run_command", hostile)
     target = tmp_path / "new-project"
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request("python-library"))
 
     assert result.required_gaps == ("formation_starter_output_unsafe",)
     assert foreign.read_text(encoding="utf-8") == "preserve"

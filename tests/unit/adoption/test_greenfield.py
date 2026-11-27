@@ -22,15 +22,13 @@ from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import starter_request
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.windows_host import translate_like_windows
 
+_PURPOSE = "Steward a new project with verifiable changes."
+
 ROOT = Path(__file__).resolve().parents[3]
-
-
-def _request(purpose: str = "Steward a new project with verifiable changes.") -> dict[str, object]:
-    """Request the foundation starter with the fixture signer."""
-    return {"create": True, "purpose": purpose, "starter": "foundation", **fixture_signer_inputs()}
 
 
 def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> None:
@@ -78,7 +76,7 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     """A reviewed foundation exists before any repository or Git ref does."""
     target = tmp_path / "new-project"
 
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request(purpose=_PURPOSE))
 
     assert result.verdict == "pass"
     assert result.state == "planned"
@@ -103,7 +101,7 @@ def test_greenfield_plan_is_identical_under_windows_text_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Formation writes LF content on every host, so its reviewed plan cannot vary."""
-    request = _request()
+    request = starter_request(purpose=_PURPOSE)
     native = adopt_repository(tmp_path / "new-project", **request)
     translate_like_windows(monkeypatch)
     translated = adopt_repository(tmp_path / "new-project", **request)
@@ -219,7 +217,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
-    request = _request()
+    request = starter_request(purpose=_PURPOSE)
     preview = adopt_repository(target, **request)
 
     applied = adopt_repository(
@@ -271,7 +269,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
 def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str) -> None:
     """A stale request or foreign target cannot be overwritten."""
     target = tmp_path / "new-project"
-    request = _request()
+    request = starter_request(purpose=_PURPOSE)
     preview = adopt_repository(target, **request)
     if defect == "collision":
         target.mkdir()
@@ -299,7 +297,7 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     (sibling / "foreign.txt").write_text("preserve", encoding="utf-8")
     target = tmp_path / "new-project"
 
-    result = adopt_repository(target, **_request("Verifiable changes."))
+    result = adopt_repository(target, **starter_request())
 
     assert result.verdict == "block"
     assert result.required_gaps == ("formation_candidate_path_exists",)
@@ -406,7 +404,7 @@ def test_greenfield_refuses_a_composition_with_a_paradigm_gap(
     monkeypatch.setattr(conformance, "paradigm_repair_plan", lambda _root, gaps: _no_repair(gaps))
     target = tmp_path / "new-project"
 
-    result = adopt_repository(target, **_request())
+    result = adopt_repository(target, **starter_request(purpose=_PURPOSE))
 
     assert result.verdict == "block"
     assert result.required_gaps == ("formation_starter_paradigm_gap",)
@@ -428,7 +426,7 @@ def test_greenfield_plan_names_the_destination_not_its_spelling(tmp_path: Path) 
         linked.symlink_to(actual, target_is_directory=True)
     except OSError:
         pytest.skip("directory symlinks unavailable")
-    request = _request()
+    request = starter_request(purpose=_PURPOSE)
 
     aliased = adopt_repository(linked / "new-project", **request)
     canonical = adopt_repository(Path(str(aliased.data["root"])), **request)

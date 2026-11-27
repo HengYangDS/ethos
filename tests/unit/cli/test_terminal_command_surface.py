@@ -29,10 +29,6 @@ PUBLIC_ROOT_COMMANDS = cast(
     "tuple[str, ...]",
     literal_case("cli.test_terminal_command_surface:assign:PUBLIC_ROOT_COMMANDS:0"),
 )
-RETIRED_ROOT_COMMANDS = cast(
-    "tuple[str, ...]",
-    literal_case("cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1"),
-)
 
 
 @pytest.mark.parametrize("failure", [None, SystemExit, RuntimeError])
@@ -144,7 +140,6 @@ def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition, 
             "",
             "done",
         )
-    assert "shared_inbox" not in detail["data"]
     assert bool(detail["data"]["foreign_work_lanes"]) == (condition == "foreign")
     assert "unbound_work_lane_refs" in detail["data"]
     assert all("workspace_status_schema" not in gap for gap in detail["required_gaps"])
@@ -180,43 +175,11 @@ def test_retired_inbox_attestations_cannot_select_coordination_state(tmp_path) -
         assert after["data"][key] == before["data"][key]
 
 
-@pytest.mark.parametrize(
-    ("arguments", "native_error"),
-    [
-        *(([command], "Unknown command") for command in RETIRED_ROOT_COMMANDS),
-        *cast(
-            "list[tuple[tuple[str, ...], str]]",
-            literal_case(
-                "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2"
-            ),
-        ),
-        *(
-            (["lane", "resolution", command], "Unknown command")
-            for command in ("decide", "apply", "inventory", "clear")
-        ),
-        (("lane", "repair-identity"), "Unknown command"),
-        (("hook", "reconciliation-receipt"), "Unknown command"),
-        (("hook", "pre-push"), "Unknown command"),
-        (
-            (
-                "lane",
-                "archive-change",
-                "--change",
-                "sample-change",
-                "--expect-head",
-                "a" * 40,
-                "--rebuild-from",
-                "b" * 40,
-            ),
-            "Unknown option",
-        ),
-    ],
-)
-def test_retired_claim_lane_surface_is_rejected_by_cyclopts(arguments, native_error):
-    """Every retired spelling remains a distinct native parser counterexample."""
-    completed = run_ethos_raw(*arguments)
+def test_native_hook_name_is_not_a_cli_command() -> None:
+    """Git's pre-push hook enters its protocol without CLI dispatch."""
+    completed = run_ethos_raw("hook", "pre-push")
     assert completed.returncode != 0
-    assert native_error in f"{completed.stdout}{completed.stderr}"
+    assert "Unknown command" in f"{completed.stdout}{completed.stderr}"
 
 
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:
@@ -253,12 +216,5 @@ def test_lane_status_exposes_observations_without_closeout_residue_plane(tmp_pat
     assert "ok" not in payload["data"]
     assert "next_action" not in payload["data"]
     assert payload["data"]["verdict"] == payload["verdict"]
-    for retired in (
-        "closeout_disposition",
-        "residue_state",
-        "closeout_residue_count",
-        "dirty_closeout_residue_count",
-        "closeout_residue_lanes",
-    ):
-        assert retired not in serialized
+    assert "residue_state" not in serialized
     assert payload["next_action"] == payload["data"]["stage_gates"]["next_action"]

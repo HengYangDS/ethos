@@ -9,55 +9,18 @@ import ethos.adapters.repo.release as release_owner
 import ethos.adapters.repo.release_publication as publication_reads
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
-from tests.support.proof import seed_executed_proof
 from tests.unit.cli.land.publication.support import TAG_REF
-from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import pre_push
-from tests.unit.cli.land.publication.support import publication_peers
-from tests.unit.cli.land.publication.support import release_cli
-
-
-def _released_while_gitlab_was_away(tmp_path: Path) -> tuple[Path, dict[str, Path], str, str]:
-    """Publish one release to github only, then advance accepted past it."""
-    repo, _main, old, head = accepted_release_fixture(tmp_path, release_mirror="accepted_ff")
-    assert release_cli(repo, head, head, "--apply", "--authorize")["verdict"] == "pass"
-    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
-    gitlab = git(repo, "remote", "get-url", "gitlab")
-    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
-    preview = branch_publication(repo, head, "--peer", "github", target_ref=TAG_REF)
-    assert apply_receipt(repo, preview["data"]["request_receipt"], head)["state"] == "published"
-    git(repo, "remote", "set-url", "gitlab", gitlab)
-    candidate = tmp_path / "repo"
-    (candidate / "notes").mkdir(exist_ok=True)
-    (candidate / "notes/after-release.txt").write_text(
-        "accepted after the release\n", encoding="utf-8"
-    )
-    accepted = commit_fixture(candidate, "fix: advance accepted after the release")
-    seed_executed_proof(candidate, accepted)
-    run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--candidate-head",
-        accepted,
-        "--json",
-        cwd=repo,
-    )
-    assert git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "dev") == accepted
-    return repo, peers, head, accepted
+from tests.unit.cli.land.publication.support import released_while_gitlab_was_away
 
 
 def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) -> None:
     """Catch-up publishes the released object once, attests it and stays idempotent."""
-    repo, peers, head, accepted = _released_while_gitlab_was_away(tmp_path)
+    repo, peers, head, accepted = released_while_gitlab_was_away(tmp_path)
     tag = git(repo, "rev-parse", TAG_REF)
     assert git(peers["github"], "rev-parse", TAG_REF) == tag
     assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", TAG_REF) == ""
@@ -129,7 +92,7 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
 
 def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_path: Path) -> None:
     """Only the attested object, still trusted and in accepted history, catches up."""
-    repo, peers, head, accepted = _released_while_gitlab_was_away(tmp_path)
+    repo, peers, head, accepted = released_while_gitlab_was_away(tmp_path)
     tag = git(repo, "rev-parse", TAG_REF)
     zero = "0" * len(head)
     replacements = []

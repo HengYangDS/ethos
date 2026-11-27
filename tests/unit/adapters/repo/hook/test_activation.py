@@ -26,6 +26,7 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import linked_runtime_case
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import materialized_activation_case
+from tests.support.runtime_scenarios import unreadable_declaration
 
 
 def _legacy_state(common: Path) -> Path:
@@ -166,17 +167,7 @@ def test_hook_install_unreadable_declaration_preserves_rollback_and_reports_its_
     before = database.read_bytes() if database.exists() else None
     keys = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
     configured = hook_activation.config_effects.config_values(repo, keys, scope="local")
-    reader = Path.read_text
-    paths = []
-
-    def unreadable(path, *args, **kwargs):
-        if path.name == "binding.toml" and path.is_relative_to(common):
-            paths.append(path)
-            message = "selected_declaration_unreadable"
-            raise PermissionError(message)
-        return reader(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", unreadable)
+    paths = unreadable_declaration(monkeypatch, common)
     result = invoke("hook install", repo, {}).to_dict()
     assert result["verdict"] == "block"
     assert not result["summary"]["wired"]

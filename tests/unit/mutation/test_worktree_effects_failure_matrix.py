@@ -13,18 +13,12 @@ from ethos.adapters.repo.worktree_effects import attach_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.adapters.repo.worktree_effects import worktree_record
-from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
-
-
-def _repository(tmp_path):
-    repo = init_git_repo(tmp_path / "repo")
-    return repo, adopt_and_commit(repo)
 
 
 def test_add_worktree_rejects_path_collision_before_git_effect(tmp_path) -> None:
-    repo, head = _repository(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     target.mkdir()
     git(repo, "branch", "linked", head)
@@ -36,7 +30,7 @@ def test_add_worktree_rejects_path_collision_before_git_effect(tmp_path) -> None
 
 
 def test_add_worktree_rejects_stale_ref_before_git_effect(tmp_path) -> None:
-    repo, head = _repository(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
 
@@ -47,7 +41,7 @@ def test_add_worktree_rejects_stale_ref_before_git_effect(tmp_path) -> None:
 
 
 def test_remove_worktree_rejects_unowned_existing_path(tmp_path) -> None:
-    repo, head = _repository(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     target.mkdir()
 
@@ -62,7 +56,7 @@ def test_worktree_effect_surfaces_git_failure_without_terminal_claim(
     tmp_path, operation: str
 ) -> None:
     stderr = f"{operation} denied"
-    repo, head = _repository(tmp_path)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     previous = head

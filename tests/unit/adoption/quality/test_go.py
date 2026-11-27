@@ -93,24 +93,26 @@ def test_go_coverage_accepts_exact_positive_blocks() -> None:
     assert covered == ["answer.go", "sub/answer.go"]
 
 
-def test_go_coverage_rejects_suffix_alias_from_another_package() -> None:
-    """A matching basename is not proof of a Go package-file identity."""
-    with pytest.raises(ValueError, match="go_coverage_source_unmapped"):
-        go_covered_paths(
-            ["mode: set", "other.module/answer.go:1.1,1.2 1 1"],
-            ("answer.go",),
-            {"module/answer.go": "answer.go"},
-        )
-
-
-def test_go_coverage_rejects_missing_selected_source() -> None:
-    """A covered sibling cannot hide an omitted native-selected source."""
-    with pytest.raises(ValueError, match="go_coverage_source_missing"):
-        go_covered_paths(
-            ["mode: set", "module/live.go:1.1,1.2 1 1"],
-            ("live.go", "missing.go"),
-            {"module/live.go": "live.go", "module/missing.go": "missing.go"},
-        )
+@pytest.mark.parametrize(
+    ("profile", "selected", "code"),
+    [
+        (["mode: set", "other.module/answer.go:1.1,1.2 1 1"], ("answer.go",), "source_unmapped"),
+        (["mode: set", "module/live.go:1.1,1.2 1 1"], ("live.go", "missing.go"), "source_missing"),
+        (
+            ["mode: atomic", "module/empty.go:1.1,2.1 0 0"],
+            ("empty.go",),
+            "no_applicable_statements",
+        ),
+    ],
+    ids=["suffix-alias", "missing-selected-source", "all-zero-statement-profile"],
+)
+def test_go_coverage_rejects_an_unproved_selected_source(
+    profile: list[str], selected: tuple[str, ...], code: str
+) -> None:
+    """A foreign basename, an omitted selected source or no applicable statement proves nothing."""
+    sources = {f"module/{name}": name for name in selected}
+    with pytest.raises(ValueError, match=f"go_coverage_{code}"):
+        go_covered_paths(profile, selected, sources)
 
 
 @pytest.mark.parametrize("sources", [{}, {"module/alien.go": "alien.go"}])
@@ -142,24 +144,13 @@ def test_go_zero_statement_source_is_observed_but_not_credited(zero_count: int) 
     assert go_covered_paths(profile, ("live.go", "empty.go"), LIVE_AND_EMPTY) == ["live.go"]
 
 
-def test_go_all_zero_statement_profile_cannot_prove_behavior() -> None:
-    """An entirely non-applicable native profile is not a coverage success."""
-    with pytest.raises(ValueError, match="go_coverage_no_applicable_statements"):
-        go_covered_paths(
-            ["mode: atomic", "module/empty.go:1.1,2.1 0 0"],
-            ("empty.go",),
-            {"module/empty.go": "empty.go"},
-        )
-
-
 def test_go_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     """A package pass with no executed test case is not behavioral proof."""
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
-            "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\n\nimport "testing"\n\n'
+            **GO_QUALITY_FILES,
+            "answer_test.go": 'package quality\nimport "testing"\n'
             'func TestAnswer(t *testing.T) { t.Skip("not executed") }\n',
         },
     )
@@ -348,15 +339,7 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
     reason: str,
 ) -> None:
     """A successful process alone cannot substitute for tests and coverage evidence."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
-            "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\n\nimport "testing"\n\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-        },
-    )
+    repo = committed_source_repo(tmp_path, GO_QUALITY_FILES)
 
     def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):
         assert root == repo

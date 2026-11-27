@@ -29,18 +29,14 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import CrossHostHandoffImportRequest
 from ethos.contracts.coordination import CrossHostHandoffSourceRevocationRequest
 from tests.support.governed_repository import git
+from tests.support.runtime_scenarios import git_process
 from tests.unit.lanes.handoff.support import export_handoff_fixture
 
 
 def _write_object(destination: Path, content: str) -> str:
-    return subprocess.run(
-        ["git", "hash-object", "-w", "--stdin"],
-        cwd=destination,
-        input=content,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
+    written = git_process(destination, "hash-object", "-w", "--stdin", stdin=content)
+    assert written.returncode == 0, written.stderr
+    return written.stdout.strip()
 
 
 def _assert_objects_exist(destination: Path, object_ids: list[str]) -> None:
@@ -48,15 +44,7 @@ def _assert_objects_exist(destination: Path, object_ids: list[str]) -> None:
 
 
 def _object_inventory(destination: Path) -> dict[str, str]:
-    objects = Path(
-        subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-path", "objects"],
-            cwd=destination,
-            check=True,
-            text=True,
-            capture_output=True,
-        ).stdout.strip()
-    )
+    objects = Path(git(destination, "rev-parse", "--path-format=absolute", "--git-path", "objects"))
     return {
         path.relative_to(objects).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in objects.rglob("*")
@@ -214,35 +202,7 @@ def _import_with_uncertain_effect(
         )
 
 
-def _assert_failed_import_is_compensated(
-    rolled_back: dict[str, object],
-    *,
-    expected_worktree: Path,
-    destination: Path,
-    branch: str,
-    object_probe: list[str],
-    preserved_objects: list[str],
-    stage: str,
-) -> None:
-    assert rolled_back["verdict"] == "block"
-    assert "ok" not in rolled_back
-    assert rolled_back["mutation"]["decision"]["verdict"] == rolled_back["verdict"]
-    assert f"handoff_import_failed:forced-{stage}-failure" in rolled_back["required_gaps"]
-    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
-    assert not expected_worktree.exists()
-    assert (
-        subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-            cwd=destination,
-            check=False,
-        ).returncode
-        == 1
-    )
-    assert observe_lease(state_database(destination), branch).state == "missing"
-    _assert_objects_exist(destination, preserved_objects)
-
-
-def _assert_uncertain_import_is_compensated(
+def _assert_import_is_compensated(
     rolled_back: dict[str, object],
     *,
     expected_worktree: Path,
@@ -250,14 +210,20 @@ def _assert_uncertain_import_is_compensated(
     branch: str,
     object_probe: list[str],
     stage: str,
+    outcome: str,
+    preserved_objects: list[str] | None = None,
 ) -> None:
     assert rolled_back["verdict"] == "block"
     assert "ok" not in rolled_back
     assert rolled_back["mutation"]["decision"]["verdict"] == rolled_back["verdict"]
-    assert f"handoff_import_failed:forced-{stage}-uncertain" in rolled_back["required_gaps"]
+    assert f"handoff_import_failed:forced-{stage}-{outcome}" in rolled_back["required_gaps"]
+    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
     assert not expected_worktree.exists()
     assert observe_lease(state_database(destination), branch).state == "missing"
-    assert subprocess.run(object_probe, cwd=destination, check=False).returncode != 0
+    if preserved_objects is not None:
+        show = git_process(destination, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}")
+        assert show.returncode == 1
+        _assert_objects_exist(destination, preserved_objects)
 
 
 def _assert_source_revoked(
@@ -465,7 +431,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
         rolled_back = import_cross_host_handoff(
             _import_request(destination, package, target_holder)
         )
-    _assert_failed_import_is_compensated(
+    _assert_import_is_compensated(
         rolled_back,
         expected_worktree=expected_worktree,
         destination=destination,
@@ -473,6 +439,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
         object_probe=object_probe,
         preserved_objects=preserved_objects,
         stage="lease",
+        outcome="failure",
     )
 
     for stage in ("ref", "worktree", "commit", "index-pack", "install"):
@@ -486,7 +453,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             preserved_objects=preserved_objects,
             monkeypatch=monkeypatch,
         )
-        _assert_failed_import_is_compensated(
+        _assert_import_is_compensated(
             rolled_back,
             expected_worktree=expected_worktree,
             destination=destination,
@@ -494,6 +461,7 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             object_probe=object_probe,
             preserved_objects=preserved_objects,
             stage=stage,
+            outcome="failure",
         )
 
     for stage in ("lease", "ref", "worktree"):
@@ -506,13 +474,14 @@ def test_cross_host_handoff_enforces_authority_compensates_and_revokes_exact_sou
             ),
             monkeypatch=monkeypatch,
         )
-        _assert_uncertain_import_is_compensated(
+        _assert_import_is_compensated(
             rolled_back,
             expected_worktree=expected_worktree,
             destination=destination,
             branch=branch,
             object_probe=object_probe,
             stage=stage,
+            outcome="uncertain",
         )
 
     _assert_source_revoked(monkeypatch, source, package, lease, destination)

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from ethos.adapters.store.durable import replace_durably
+from ethos.contracts.digest import is_sha256_hex
 
 PREIMAGE_NAME = "hooks-preimage.json"
 EXIT_RECEIPT_NAME = "exit-receipt.json"
@@ -32,7 +33,6 @@ _ACTIVATION_VALUES = {
     **{key: (value,) for key, value in REF_STORAGE_CONFIG.items()},
 }
 _SCHEMA_VERSION = 1
-_DIGITS = frozenset("0123456789abcdef")
 Entries = dict[str, list[str]]
 
 
@@ -71,7 +71,7 @@ def _legacy_hooks_path(common: Path, path: Path) -> bool:
     """A launcher directory of the layouts that 1e3883d67 retired on 2026-08-24."""
     digest = path.name.removeprefix("ethos-hooks-")
     named = path.name == "ethos-hooks" or (
-        path.name.startswith("ethos-hooks-") and len(digest) == 64 and not set(digest) - _DIGITS
+        path.name.startswith("ethos-hooks-") and is_sha256_hex(digest)
     )
     return named and (path.parent == common or path.parent.parent == common / "worktrees")
 

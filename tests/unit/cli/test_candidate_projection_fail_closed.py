@@ -38,6 +38,33 @@ class _MaterializationInput(TypedDict):
     reason: str
 
 
+def _materialization(repo: Path, previous: str) -> _MaterializationInput:
+    return {
+        "root": repo,
+        "preserved_preimage": previous,
+        "retention_ref": "refs/heads/work/retained",
+        "reason": "Restore retained projection",
+    }
+
+
+def _materialize_command(repo: Path, previous: str) -> tuple[str, ...]:
+    request = _materialization(repo, previous)
+    return (
+        "lane",
+        "candidate",
+        "--materialize",
+        "--preserved-preimage",
+        request["preserved_preimage"],
+        "--retention-ref",
+        request["retention_ref"],
+        "--reason",
+        request["reason"],
+        "--root",
+        str(repo),
+        "--json",
+    )
+
+
 def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
@@ -59,20 +86,7 @@ def test_candidate_materialization_preserves_refs_and_recognizes_replay(tmp_path
     """Fresh public admission repairs only the proven index and worktree projection."""
     repo, candidate, previous, head = _retained_candidate(tmp_path)
     install_fixture_hook_runtime(repo)
-    arguments = (
-        "lane",
-        "candidate",
-        "--materialize",
-        "--preserved-preimage",
-        previous,
-        "--retention-ref",
-        "refs/heads/work/retained",
-        "--reason",
-        "Restore retained projection",
-        "--root",
-        str(repo),
-        "--json",
-    )
+    arguments = _materialize_command(repo, previous)
     refs = git(repo, "show-ref")
     index = candidate / git(candidate, "rev-parse", "--git-path", "index")
     before = index.read_bytes()
@@ -119,21 +133,7 @@ def test_candidate_materialization_refuses_changed_admission_without_overwrite(
 ) -> None:
     """A fresh state binding cannot authorize changed refs or unpreserved working bytes."""
     repo, candidate, previous, head = _retained_candidate(tmp_path)
-    preview = run_ethos(
-        "lane",
-        "candidate",
-        "--materialize",
-        "--preserved-preimage",
-        previous,
-        "--retention-ref",
-        "refs/heads/work/retained",
-        "--reason",
-        "Restore retained projection",
-        "--root",
-        str(repo),
-        "--json",
-        cwd=repo,
-    )
+    preview = run_ethos(*_materialize_command(repo, previous), cwd=repo)
     if drift == "content":
         (candidate / "payload.md").write_text("Unpreserved edit\n")
     elif drift == "candidate":
@@ -156,12 +156,7 @@ def test_candidate_materialization_recognizes_lost_ack_without_repeating_write(
 ) -> None:
     """A lost response after the native effect does not authorize rewriting its projection."""
     repo, candidate, previous, head = _retained_candidate(tmp_path)
-    kwargs: _MaterializationInput = {
-        "root": repo,
-        "preserved_preimage": previous,
-        "retention_ref": "refs/heads/work/retained",
-        "reason": "Restore retained projection",
-    }
+    kwargs = _materialization(repo, previous)
     preview = materialization.materialize_candidate(**kwargs)
     original = materialization.sync_worktree
 
@@ -215,12 +210,7 @@ def test_candidate_materialization_requires_owned_trusted_preimage(
     index = candidate / git(candidate, "rev-parse", "--git-path", "index")
     before = index.read_bytes()
     refs = git(repo, "show-ref")
-    preview = materialization.materialize_candidate(
-        root=repo,
-        preserved_preimage=previous,
-        retention_ref="refs/heads/work/retained",
-        reason="Restore retained projection",
-    )
+    preview = materialization.materialize_candidate(**_materialization(repo, previous))
     assert preview["verdict"] == "block", preview
     assert preview["required_gaps"]
     assert index.read_bytes() == before

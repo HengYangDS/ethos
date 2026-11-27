@@ -26,18 +26,13 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.store.state.lease.lifecycle.transitions import expected_current_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.outcome import require
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     from ethos.contracts.coordination import CrossHostHandoff
-
-
-def require(gap: str, *, holds: bool) -> None:
-    """Raise one stable handoff gap when an invariant does not hold."""
-    if not holds:
-        raise ValueError(gap)
 
 
 def write_handoff_package(
@@ -62,9 +57,9 @@ def write_handoff_package(
             f"refs/heads/{handoff.source_lane_ref}",
         )
         require(
-            "handoff_bundle_identity_mismatch",
-            holds=run_git(repo, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
+            run_git(repo, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
             == [f"{handoff.source_head} refs/heads/{handoff.source_lane_ref}"],
+            "handoff_bundle_identity_mismatch",
         )
         context_path = staging / "context.md"
         context_path.write_text(context, encoding="utf-8")
@@ -201,10 +196,9 @@ def _verify_export_snapshot(
     handoff: CrossHostHandoff,
 ) -> None:
     current = run_git(repo, "rev-parse", handoff.source_lane_ref).stdout.strip()
-    require("handoff_export_head_drift", holds=current == handoff.source_head)
+    require(current == handoff.source_head, "handoff_export_head_drift")
     require(
-        "handoff_export_dirty_drift",
-        holds=dirty_content_sha256(repo) == handoff.dirty_content_sha256,
+        dirty_content_sha256(repo) == handoff.dirty_content_sha256, "handoff_export_dirty_drift"
     )
     source = cast("dict[str, Any]", handoff.to_payload()["source_lease_binding"])
     try:
@@ -231,10 +225,7 @@ def verified_package_snapshot(
             package.resolve(), snapshot, symlinks=True, copy_function=_copy_regular_file
         )
         copied, gaps = verified_handoff_manifest(package=snapshot, root=root)
-        require(
-            "handoff_package_changed_after_verification",
-            holds=not gaps and copied == manifest,
-        )
+        require(not gaps and copied == manifest, "handoff_package_changed_after_verification")
         yield snapshot
 
 
@@ -245,7 +236,7 @@ def _publish_package(
         _rename_no_replace(staging, package_dir)
     except FileExistsError:
         existing, gaps = verified_handoff_manifest(package=package_dir, root=root)
-        require("handoff_package_collision_or_invalid", holds=not gaps and existing == manifest)
+        require(not gaps and existing == manifest, "handoff_package_collision_or_invalid")
 
 
 def validated_handoff_acknowledgement(
@@ -286,7 +277,7 @@ def _require_schema(root: Path, payload: dict[str, object], kind: str) -> None:
     validation = validate_schema_instance(f"handoff-{kind}.schema.json", payload, root=root)
     label = "manifest" if kind == "package" else kind
     gaps = [f"handoff_{label}_invalid:{gap}" for gap in validation["required_gaps"]]
-    require(",".join(gaps), holds=not gaps)
+    require(not gaps, ",".join(gaps))
 
 
 def _content_id(prefix: str, payload: dict[str, object]) -> str:

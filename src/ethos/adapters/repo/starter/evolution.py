@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import subprocess
 import tomllib
 from collections.abc import Mapping
@@ -21,6 +20,8 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
+from ethos.contracts.digest import is_object_id
+from ethos.contracts.digest import is_sha256_hex
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
@@ -63,10 +64,6 @@ def _safe_path(value: str) -> bool:
     )
 
 
-def _oid(value: str) -> bool:
-    return len(value) in {40, 64} and re.fullmatch(r"[0-9a-f]+", value) is not None
-
-
 def _source_inputs(
     root: Path,
     baseline: str,
@@ -76,17 +73,14 @@ def _source_inputs(
 ) -> dict[str, object]:
     old_paths = tuple(old_files)
     if (
-        not _oid(baseline)
-        or not _oid(current)
+        not is_object_id(baseline)
+        or not is_object_id(current)
         or not old_paths
         or not new_files
         or not all(_safe_path(path) for path in (*old_paths, *new_files))
     ):
         _fail("starter_evolution_path_unsafe", verdict="block")
-    if not all(
-        isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
-        for digest in old_files.values()
-    ):
+    if not all(is_sha256_hex(digest) for digest in old_files.values()):
         _fail("starter_evolution_baseline_digest_invalid", verdict="block")
     observed = run_git(
         root, "rev-parse", "HEAD", observation=True, check=False, timeout=seconds("git")
@@ -290,7 +284,7 @@ def _formation_source(root: Path) -> tuple[str, dict[str, str], str, str]:
         or not isinstance(old_version, str)
         or not old_version
         or not isinstance(baseline, str)
-        or not _oid(baseline)
+        or not is_object_id(baseline)
         or not isinstance(old_files, Mapping)
         or "pyproject.toml" not in old_files
         or not all(

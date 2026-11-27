@@ -7,15 +7,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(root: Path, relative: str, text: str) -> None:
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -35,7 +30,7 @@ def _write(root: Path, relative: str, text: str) -> None:
 def test_entrypoint_audit_handles_every_public_pixi_task_shape(
     tmp_path: Path, document: str, verdict: str
 ) -> None:
-    _write(tmp_path, "pyproject.toml", document)
+    write_file(tmp_path / "pyproject.toml", document)
 
     assert generated_artifact_entrypoint_audit(tmp_path)["verdict"] == verdict
 
@@ -96,7 +91,7 @@ def test_entrypoint_audit_handles_every_public_pixi_task_shape(
 def test_entrypoint_audit_fails_closed_for_unrouted_public_tools(
     tmp_path: Path, relative: str, text: str, gap: str
 ) -> None:
-    _write(tmp_path, relative, text)
+    write_file(tmp_path / relative, text)
 
     report = generated_artifact_entrypoint_audit(tmp_path)
 

@@ -29,6 +29,7 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -139,9 +140,7 @@ def test_only_release_owned_changelog_is_exempt_from_document_length(
 ) -> None:
     """A filename elsewhere does not turn authored prose into release history."""
     root = init_git_repo(tmp_path / "repo")
-    path = root / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# Changelog\n" + "- Undifferentiated.\n" * _CEILING)
+    write_file(root / relative, "# Changelog\n" + "- Undifferentiated.\n" * _CEILING)
     git(root, "add", "--", relative)
 
     report = docs_registry_report(root)
@@ -176,12 +175,8 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
         "openspec/specs/quality/spec.md",
         "openspec/changes/archive/2026-08-01-old/design.md",
     ):
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("content\n" * (_CEILING + 1))
-    active = root / "openspec/changes/change/design.md"
-    active.parent.mkdir(parents=True, exist_ok=True)
-    active.write_text("# Design\n\nCurrent authored intent.\n")
+        write_file(root / relative, "content\n" * (_CEILING + 1))
+    write_file(root / "openspec/changes/change/design.md", "# Design\n\nCurrent authored intent.\n")
     git(
         root,
         "add",
@@ -215,9 +210,7 @@ def test_active_change_artifacts_are_bounded_like_current_markdown(tmp_path: Pat
         "openspec/changes/archive/2026-08-01-old/specs/quality/spec.md",
     )
     for relative in (*active, *exempt):
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("content\n" * (_CEILING + 1))
+        write_file(root / relative, "content\n" * (_CEILING + 1))
     git(root, "add", "--", "openspec")
 
     report = docs_registry_report(root)
@@ -459,9 +452,7 @@ def test_authored_selection_does_not_exempt_metadata_state(tmp_path):
         "openspec/changes/README.md": "# Entrance\n",
     }
     for relative, text in sources.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        write_file(root / relative, text)
     git(root, "add", ".")
     selected = quality_tools.prose_report(root)["native"][0]["command"]
     assert {"docs/closed.md", "openspec/changes/README.md"} <= set(selected)

@@ -19,6 +19,7 @@ from ethos.repository.release.identity import build_identity
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.installed_guidance import installed_guidance
+from tests.support.runtime_scenarios import answer_which
 from tests.support.windows_host import translate_like_windows
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
@@ -35,11 +36,7 @@ ROOT = Path(__file__).resolve().parents[4]
 def test_independent_host_requires_its_signed_fixture_tools(monkeypatch, missing):
     """Supply both native prerequisites without inheriting unrelated host tooling."""
     which = host_environment.shutil.which
-    monkeypatch.setattr(
-        host_environment.shutil,
-        "which",
-        lambda name, **kwargs: None if name == missing else which(name, **kwargs),
-    )
+    answer_which(monkeypatch, **{missing: None})
     if missing:
         with pytest.raises(RuntimeError, match=f"required executable is unavailable: {missing}"):
             host_environment.independent_host_environment()

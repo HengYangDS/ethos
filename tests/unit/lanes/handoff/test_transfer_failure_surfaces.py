@@ -62,24 +62,7 @@ def test_import_reports_invalid_holder_before_effects(
 ) -> None:
     package = tmp_path / "package"
     package.mkdir()
-    monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        transfer, "workspace_status", lambda _root: {"role": "accepted_root", "dirty": False}
-    )
-    monkeypatch.setattr(
-        transfer.handoff_package,
-        "verified_handoff_manifest",
-        lambda **_kwargs: (
-            {
-                "package_id": "handoff:1",
-                "source_lane_ref": "work/example",
-                "source_head": "a" * 40,
-                "source_tree": "b" * 40,
-                "target_holder_ref": "agent:test:case:target",
-            },
-            [],
-        ),
-    )
+    _verified_package(monkeypatch, tmp_path)
     monkeypatch.setattr(
         transfer, "apply_handoff_import", lambda **_kwargs: pytest.fail("effect must not run")
     )
@@ -108,24 +91,7 @@ def test_import_wraps_effect_failure_in_public_gap(
     package = tmp_path / "package"
     package.mkdir()
     monkeypatch.setenv("ETHOS_ACTOR", holder)
-    monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        transfer, "workspace_status", lambda _root: {"role": "accepted_root", "dirty": False}
-    )
-    monkeypatch.setattr(
-        transfer.handoff_package,
-        "verified_handoff_manifest",
-        lambda **_kwargs: (
-            {
-                "package_id": "handoff:1",
-                "source_lane_ref": "work/example",
-                "source_head": "a" * 40,
-                "source_tree": "b" * 40,
-                "target_holder_ref": holder,
-            },
-            [],
-        ),
-    )
+    _verified_package(monkeypatch, tmp_path, holder)
 
     def fail_import(**_kwargs):
         message = "destination_cas_stale"
@@ -195,13 +161,31 @@ def _mock_export_observations(
     )
     monkeypatch.setattr(
         transfer,
-        "run_git",
-        lambda _root, *args: type(
-            "Result", (), {"stdout": "b" * 40 if args[-1] == "HEAD" else "c" * 40}
-        )(),
+        "git_stdout_checked",
+        lambda _root, *args: "b" * 40 if args[-1] == "HEAD" else "c" * 40,
     )
     monkeypatch.setattr(
         transfer, "leases_by_branch", lambda _root: {"work/example": observed_lease}
     )
     monkeypatch.setattr(transfer, "changed_paths", lambda _root: ())
     monkeypatch.setattr(transfer.handoff_package, "dirty_content_sha256", lambda _root: "f" * 64)
+
+
+def _verified_package(
+    monkeypatch: pytest.MonkeyPatch, root: Path, holder: str = "agent:test:case:target"
+) -> None:
+    """Resolve `root` as a clean accepted root whose package verifies for `holder`."""
+    manifest = {
+        "package_id": "handoff:1",
+        "source_lane_ref": "work/example",
+        "source_head": "a" * 40,
+        "source_tree": "b" * 40,
+        "target_holder_ref": holder,
+    }
+    monkeypatch.setattr(transfer, "repository_root", lambda _root: root)
+    monkeypatch.setattr(
+        transfer, "workspace_status", lambda _root: {"role": "accepted_root", "dirty": False}
+    )
+    monkeypatch.setattr(
+        transfer.handoff_package, "verified_handoff_manifest", lambda **_kwargs: (manifest, [])
+    )

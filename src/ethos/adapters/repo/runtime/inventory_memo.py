@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.runtime.host_store import host_store_root
+from ethos.contracts.digest import is_hex
 from ethos.contracts.digest import is_sha256_hex
 
 if TYPE_CHECKING:
@@ -38,7 +39,6 @@ _MIN_FILES = 256
 _RACY_NS = 2 * 10**9
 _RETAINED = 32
 _SUPPORTED = os.name != "nt"
-_HEX = frozenset("0123456789abcdef")
 
 
 class InventoryMemo:
@@ -105,7 +105,7 @@ def open_inventory_memo(root: Path) -> InventoryMemo | None:
     """
     directory = _memo_directory()
     name = root.name
-    if not _SUPPORTED or len(name) not in {16, 64} or set(name) - _HEX or directory is None:
+    if not _SUPPORTED or not is_hex(name, 16, 64) or directory is None:
         return None
     readable = _directory_access(directory)
     if readable is None:
@@ -167,4 +167,4 @@ def _prune(directory: Path) -> None:
 
 
 def _valid_name(value: str) -> bool:
-    return len(value) == 32 and not set(value) - _HEX
+    return is_hex(value, 32)

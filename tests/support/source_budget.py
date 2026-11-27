@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import ethos.domain.source_budget.measurement as source_budget
 from tests.support.governed_repository import git
+from tests.support.runtime_scenarios import answer_which
 from tests.support.subprocesses import completed
 
 if TYPE_CHECKING:
@@ -130,7 +131,6 @@ def fake_scc[Location: str | None](
     """Expose an external cross-check fixture through the report boundary."""
     expected: dict[str | None, object] = dict((counts or {}).items())
     run = source_budget.subprocess.run
-    which = source_budget.shutil.which
 
     def payload() -> str:
         listed = run(
@@ -166,13 +166,7 @@ def fake_scc[Location: str | None](
             return completed(stdout=payload(), command="scc")
         return run(command, **kwargs)
 
-    monkeypatch.setattr(
-        source_budget.shutil,
-        "which",
-        lambda command, **kwargs: (
-            "/fake-scc" if command == "fake-scc" else which(command, **kwargs)
-        ),
-    )
+    answer_which(monkeypatch, **{"fake-scc": "/fake-scc"})
     monkeypatch.setattr(source_budget.subprocess, "run", dispatch)
 
 

@@ -97,15 +97,26 @@ def test_native_delivered_routes_remain_valid(tmp_path: Path, route: str) -> Non
     assert report["verdict"] == "pass", report
 
 
-@pytest.mark.parametrize(
-    "name",
+_SEPARATED = (
     ["guide\u2028member.md"]
     if os.name == "nt"
-    else ["guide\nmember.md", "guide\rmember.md", "guide\u2028member.md"],
+    else ["guide\nmember.md", "guide\rmember.md", "guide\u2028member.md"]
 )
-def test_native_input_identity_preserves_literal_line_separators(tmp_path: Path, name: str) -> None:
-    """Native input selection preserves each committed path as one complete identity."""
-    repo = _repository(tmp_path, "# Guide\n\n[Member](member.txt)\n")
+_GLOBBED = ["[literal].md"] if os.name == "nt" else ["[literal]*.md", "guide?.md"]
+
+
+@pytest.mark.parametrize(
+    ("name", "target"),
+    [
+        *((name, "member.txt") for name in _SEPARATED),
+        *((name, target) for target in ("member.txt", "missing.txt") for name in _GLOBBED),
+    ],
+)
+def test_native_input_identity_keeps_each_committed_name_literal(
+    tmp_path: Path, name: str, target: str
+) -> None:
+    """A committed name with line separators or glob syntax is selected and checked as itself."""
+    repo = _repository(tmp_path, f"# Guide\n\n[Member]({target})\n")
     (repo / "README.md").rename(repo / name)
     (repo / "member.txt").write_text("Delivered member.\n")
     commit_fixture(repo, "declare one literal-path input")
@@ -113,7 +124,8 @@ def test_native_input_identity_preserves_literal_line_separators(tmp_path: Path,
 
     report = markdown_links_report(repo)
 
-    assert (report["verdict"], report["file_count"]) == ("pass", expected), report
+    verdict = "pass" if target == "member.txt" else "block"
+    assert (report["verdict"], report["file_count"]) == (verdict, expected), report
 
 
 def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: Path) -> None:
@@ -134,24 +146,6 @@ def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: P
     assert report["required_gaps"] == ["markdown_link_input_selection_unproven"]
 
 
-@pytest.mark.parametrize(
-    "name", ["[literal].md"] if os.name == "nt" else ["[literal]*.md", "guide?.md"]
-)
-@pytest.mark.parametrize("target", ["member.txt", "missing.txt"])
-def test_native_inputs_keep_glob_syntax_literal(tmp_path: Path, name: str, target: str) -> None:
-    """A committed name containing glob syntax is selected, extracted and checked as itself."""
-    repo = _repository(tmp_path, f"# Guide\n\n[Member]({target})\n")
-    (repo / "README.md").rename(repo / name)
-    (repo / "member.txt").write_text("Delivered member.\n")
-    commit_fixture(repo, "declare one glob-literal input")
-    expected = sum(path.endswith((".md", ".markdown")) for path in SourceTree.observe(repo).entries)
-
-    report = markdown_links_report(repo)
-
-    assert report["verdict"] == ("pass" if target == "member.txt" else "block"), report
-    assert report["file_count"] == expected
-
-
 @pytest.fixture
 def alias_cycle(tmp_path: Path) -> SourceTree:
     """Observe a repository whose alias names itself with a longer suffix."""
@@ -167,23 +161,6 @@ def test_source_alias_expansion_is_bounded(alias_cycle: SourceTree) -> None:
     """A repeated alias cannot evade cycle detection by lengthening its suffix."""
     with pytest.raises(ValueError, match="source_target_alias_cycle"):
         alias_cycle.resolve_target("loop")
-
-
-def test_native_exclusions_cannot_hide_undelivered_local_targets(tmp_path: Path) -> None:
-    """Native filtering may not remove local delivery obligations."""
-    repo = _repository(tmp_path, "# Guide\n\n[Member](build/not-delivered.txt)\n")
-    (repo / ".gitignore").write_text("build/\n")
-    (repo / ".config/checks/lychee/lychee.toml").write_text(
-        'offline = true\nno_progress = true\nexclude = ["^file:"]\n'
-    )
-    commit_fixture(repo, "declare excluded local delivery")
-    target = repo / "build/not-delivered.txt"
-    target.parent.mkdir()
-    target.write_text("Host-only bytes.\n")
-
-    report = markdown_links_report(repo)
-
-    assert report["verdict"] == "block", report
 
 
 def test_changed_delivered_target_is_not_verified(
@@ -225,15 +202,21 @@ def test_source_alias_cannot_escape_delivered_root(tmp_path: Path, kind: str) ->
     assert "source_target_outside_root" in str(report["required_gaps"])
 
 
-@pytest.mark.parametrize("transform", ["base", "remap", "input"])
-def test_native_transform_cannot_hide_local_obligations(tmp_path: Path, transform: str) -> None:
-    """Native transport settings cannot erase selected-source membership checks."""
+@pytest.mark.parametrize(
+    ("transform", "verdict"),
+    [("base", None), ("remap", None), ("input", None), ("exclude", "block")],
+)
+def test_native_transform_cannot_hide_local_obligations(
+    tmp_path: Path, transform: str, verdict: str | None
+) -> None:
+    """Native transport and exclusion settings cannot erase selected-source membership checks."""
     repo = _repository(tmp_path, "# Guide\n\n[Member](build/not-delivered.txt)\n")
     (repo / ".gitignore").write_text("build/\n")
     configuration = {
         "base": 'base_url = "https://example.invalid/"',
         "remap": 'remap = ["file:.* https://example.invalid/"]',
         "input": 'exclude_path = ["README"]',
+        "exclude": 'exclude = ["^file:"]',
     }
     (repo / ".config/checks/lychee/lychee.toml").write_text(
         "offline = true\nno_progress = true\n" + configuration[transform] + "\n"
@@ -245,7 +228,10 @@ def test_native_transform_cannot_hide_local_obligations(tmp_path: Path, transfor
 
     report = markdown_links_report(repo)
 
-    assert report["verdict"] != "pass", report
+    if verdict is None:
+        assert report["verdict"] != "pass", report
+    else:
+        assert report["verdict"] == verdict, report
 
 
 @pytest.mark.parametrize(

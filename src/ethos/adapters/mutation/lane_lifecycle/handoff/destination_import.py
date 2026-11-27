@@ -21,7 +21,6 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.destination_cleanup import (
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects import import_objects
 from ethos.adapters.mutation.lane_lifecycle.handoff.destination_objects import install_pack
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import lease_binding
-from ethos.adapters.mutation.lane_lifecycle.handoff.package import require
 from ethos.adapters.mutation.lane_lifecycle.handoff.package import validated_handoff_acknowledgement
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
@@ -38,6 +37,7 @@ from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.outcome import require
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 
@@ -129,13 +129,10 @@ def _recover_import_lease(
         return {}
     record = observed.record()
     require(
-        (
-            "handoff_import_lease_unknown"
-            if observed.state == "unknown"
-            else "handoff_import_lease_conflict"
-        ),
-        holds=observed.state in {"valid", "expired"}
-        and record.get("holder_ref") == target_holder_ref,
+        observed.state in {"valid", "expired"} and record.get("holder_ref") == target_holder_ref,
+        "handoff_import_lease_unknown"
+        if observed.state == "unknown"
+        else "handoff_import_lease_conflict",
     )
     return record
 
@@ -161,15 +158,15 @@ def _acquire_or_recover_lease(
         f"refs/heads/{branch}",
         check=False,
     )
-    require("handoff_destination_carrier_state_unknown", holds=ref.returncode in {0, 1})
+    require(ref.returncode in {0, 1}, "handoff_destination_carrier_state_unknown")
     try:
         worktree = import_worktree_record(destination, worktree_path, run_git=run_git)
     except ValueError:
         message = "handoff_destination_carrier_state_unknown"
         raise ValueError(message) from None
     require(
+        ref.returncode == 1 and not os.path.lexists(worktree_path) and not worktree,
         "handoff_destination_orphan_carrier",
-        holds=ref.returncode == 1 and not os.path.lexists(worktree_path) and not worktree,
     )
     now = datetime.now(UTC)
     return (
@@ -219,9 +216,9 @@ def _ensure_import_ref(
     observed = run_git(
         destination, "rev-parse", "--verify", ref, check=False, env=object_environment
     )
-    require("handoff_destination_ref_conflict", holds=observed.returncode in {0, 128})
+    require(observed.returncode in {0, 128}, "handoff_destination_ref_conflict")
     if observed.returncode == 0:
-        require("handoff_destination_ref_conflict", holds=observed.stdout.strip() == head)
+        require(observed.stdout.strip() == head, "handoff_destination_ref_conflict")
         return
     effect = GitEffect(updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)})
     plan = compile_observed_git_effect(
@@ -257,15 +254,15 @@ def _ensure_import_worktree(
     record = import_worktree_record(destination, path, run_git=run_git)
     if record:
         require(
-            "handoff_destination_worktree_conflict",
-            holds=not path.is_symlink()
+            not path.is_symlink()
             and path.is_dir()
             and record.get("branch") == branch
             and record.get("HEAD") == head
             and not any(flag in record for flag in ("locked", "prunable")),
+            "handoff_destination_worktree_conflict",
         )
         return
-    require("handoff_destination_path_exists", holds=not os.path.lexists(path))
+    require(not os.path.lexists(path), "handoff_destination_path_exists")
     add_worktree(
         destination,
         path,
@@ -294,10 +291,7 @@ def _verify_destination_identity(
         run_git(worktree, "rev-parse", "HEAD", env=object_environment).stdout.strip(),
         run_git(worktree, "rev-parse", "HEAD^{tree}", env=object_environment).stdout.strip(),
     )
-    require(
-        "handoff_destination_identity_drift",
-        holds=actual == (head, head, tree),
-    )
+    require(actual == (head, head, tree), "handoff_destination_identity_drift")
 
 
 def _validate_import(

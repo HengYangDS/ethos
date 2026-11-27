@@ -442,9 +442,9 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     assert report["data"]["policy_digest"] == policy.digest
     assert report["summary"]["proof_attestation_issued"] is False
     assert {check["action_id"] for check in report["data"]["checks"]} == set(policy.gate_ids)
-    retired = root / "system/schemas/kernel/capability-profile.schema.json"
-    retired.parent.mkdir(parents=True)
-    retired.write_text("{}\n")
+    activation = root / ".agents/skills/activation.toml"
+    activation.parent.mkdir(parents=True)
+    activation.write_text("[meta\n")
     successor = commit_fixture(root, "record target schema violation")
     stale = run_command(root, command, timeout=60)
     assert stale.returncode != 0
@@ -457,5 +457,9 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     assert refused["verdict"] == "block"
     schema = next(check for check in refused["data"]["checks"] if check["action_id"] == "schemas")
     observation = json.loads(schema["stdout"])["providers"][0]["report"]
-    assert observation["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
+    assert [gap.split(":", 2)[1] for gap in observation["required_gaps"]] == [
+        "live-skill-activation-contract",
+        "live-skill-registry-contract",
+        "live-skill-package-manifests",
+    ]
     assert schema["verdict"] == "block"

@@ -183,14 +183,12 @@
       },
       "value": {
         "items": [
-          "required_gates = [\"tests\", \"types\"]\n",
-          "code_axes = { behavior = \"tests\", static-analysis = \"types\" }\n",
           "code_correctness_gates = [\"tests\", \"types\"]\n\n[proof.code_correctness_map]\nbehavior = \"tests\"\n",
           "code_correctness_gates = [\"tests\", \"types\"]\n\n[proof.code_correctness_map]\nbehavior = \"tests\"\nstatic-analysis = \"tests\"\n"
         ],
         "type": "list"
       },
-      "value_sha256": "374d20d2bbe0e701c6882c4ebe385247d0be18373e1cb94eeee1ca953de7a3f7"
+      "value_sha256": "c70f03e4dbc5d8091f5fada2c9fd03b24510e35c20ceeaf82996a866e057eff1"
     },
     {
       "id": "adoption.test_profile_contract:parametrize:test_profile_contract_rejects_incomplete_or_undeclared_shape:1",
@@ -208,16 +206,13 @@
           "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\ndurable_evidence = '../evidence'\n",
           "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\ndocs = '/docs'\n",
           "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nrules = 'rules\\\\windows'\n",
-          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nlocal_state = 'runtime'\n",
           "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[evidence]\ndurable_roots = ['../outside']\n",
-          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[external_backend]\nstate = 'default'\nminimum_version = 'successor>=incumbent'\ncontrol = 'control.toml'\nretirement_policy = 'retirement.toml'\n",
-          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[embedded_backend]\nstate = 'frozen'\nminimum_version = 'incumbent'\ncontrol = 'control.toml'\nretirement_policy = 'retirement.toml'\n",
-          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[rollback_window]\nstate = 'complete'\nevidence_manifest = 'rollback.toml'\ncompleted_scenarios = ['proof_report']\nrequired_scenarios = ['proof_report']\n",
-          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n"
+          "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n",
+          "profile_id = \"sample\"\n\n[roots]\nrules = \".\"\n\n[openspec]\nmaterial_paths = [\"openspec/**\"]\n"
         ],
         "type": "list"
       },
-      "value_sha256": "9fb9cb721b885610c7297e3cdec3e68ab38ca9e9cfacc27a7a3b4bd04ca8d973"
+      "value_sha256": "baeede506c21ee7ffd9945549e10ed675686e6f7e28b4518c5df99afb48fce08"
     },
     {
       "id": "cli.test_contracts_land:assign:LAND_CASES:0",
@@ -436,79 +431,6 @@
         "type": "tuple"
       },
       "value_sha256": "abcceec7dbca79a8a83d1a843e7fc9d371014699cbd6274e489bb16996249d6c"
-    },
-    {
-      "id": "cli.test_terminal_command_surface:assign:RETIRED_ROOT_COMMANDS:1",
-      "source": {
-        "kind": "assign",
-        "line": 31,
-        "owner": "RETIRED_ROOT_COMMANDS",
-        "path": "tests/unit/cli/test_terminal_command_surface.py"
-      },
-      "value": {
-        "items": [
-          "orient",
-          "report",
-          "doctor",
-          "explain",
-          "docs",
-          "audit",
-          "openspec",
-          "fleet",
-          "intake",
-          "rules",
-          "assistants",
-          "campaign",
-          "parity",
-          "quality",
-          "playbooks",
-          "migrate-local-state"
-        ],
-        "type": "tuple"
-      },
-      "value_sha256": "f6d91e39783a2b5b0e587c427708327562ad4ad4f84972a6600d81e8290c132d"
-    },
-    {
-      "id": "cli.test_terminal_command_surface:parametrize:test_retired_claim_lane_surface_is_rejected_by_cyclopts:2",
-      "source": {
-        "kind": "parametrize",
-        "line": 109,
-        "owner": "test_retired_claim_lane_surface_is_rejected_by_cyclopts",
-        "path": "tests/unit/cli/test_terminal_command_surface.py"
-      },
-      "value": {
-        "items": [
-          {
-            "items": [
-              {
-                "items": ["lane", "bind-claim", "--claim-id=retired"],
-                "type": "tuple"
-              },
-              "Unknown command"
-            ],
-            "type": "tuple"
-          },
-          {
-            "items": [
-              {
-                "items": [
-                  "lane",
-                  "start",
-                  "feature",
-                  "--holder-ref",
-                  "agent:test:case:holder",
-                  "--claim-id=retired"
-                ],
-                "type": "tuple"
-              },
-              "Unknown option"
-            ],
-            "type": "tuple"
-          }
-        ],
-        "type": "list"
-      },
-      "value_sha256": "8843a37a17974171b669dc3a59f2f70698be57c9952794512522d82cf1fd3079"
     },
     {
       "id": "domain.source_budget.test_measurement:parametrize:test_ecosystem_lockfile_patterns_share_one_evidence_class:0",

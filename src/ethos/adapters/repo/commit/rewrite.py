@@ -20,6 +20,7 @@ from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.outcome import instance
 from ethos.contracts.outcome import present
+from ethos.contracts.outcome import require
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
@@ -27,6 +28,7 @@ from ethos.contracts.value import mutable_json
 if TYPE_CHECKING:
     from pathlib import Path
 
+_INVALID = "git_refresh_evidence_invalid"
 _NATIVE_EFFECT = TypeAdapter(NativeEffect)
 
 
@@ -114,8 +116,8 @@ def validated_refresh_edge(
 ) -> RewriteEdge | None:
     """Decode one refresh edge only when both Git and native evidence validate."""
     try:
-        _require(
-            valid=attestation.predicate == "effect:git-ref-update"
+        require(
+            attestation.predicate == "effect:git-ref-update"
             and declares_transition(attestation, "lane.refresh")
             and attestation.payload.body["plan"]["policy"].get("execution_branch") == branch
             and (
@@ -124,15 +126,16 @@ def validated_refresh_edge(
                     "expected"
                 ]
                 == previous
-            )
+            ),
+            _INVALID,
         )
         plan = plan_from_attestation(attestation)
-        _require(valid=plan.policy.get("transition") == "lane.refresh")
+        require(plan.policy.get("transition") == "lane.refresh", _INVALID)
         effect = git_effect_from_plan(plan)
         ref = f"refs/heads/{branch}"
-        update = present(effect.updates.get(ref), "git_refresh_evidence_invalid")
-        _require(valid=len(effect.updates) == 1)
-        _require(valid=previous is None or update.expected == previous)
+        update = present(effect.updates.get(ref), _INVALID)
+        require(len(effect.updates) == 1, _INVALID)
+        require(previous is None or update.expected == previous, _INVALID)
         validate_git_effect_attestation(
             root,
             effect,
@@ -142,12 +145,12 @@ def validated_refresh_edge(
             current_postconditions=False,
         )
         carried = plan.prior_attestations.get("rebase")
-        _require(valid=isinstance(carried, Mapping))
+        require(isinstance(carried, Mapping), _INVALID)
         rebase = Attestation.model_validate(mutable_json(carried))
         body = rebase.payload.body
-        freshness = instance(body.get("freshness"), Mapping, "git_refresh_evidence_invalid")
+        freshness = instance(body.get("freshness"), Mapping, _INVALID)
         repository = str(body.get("repository") or "")
-        _require(valid=bool(repository))
+        require(bool(repository), _INVALID)
         native = _NATIVE_EFFECT.validate_python(
             {
                 "predicate": "effect:git-rebase",
@@ -168,15 +171,15 @@ def validated_refresh_edge(
         )
         candidate_heads = tuple(str(value) for value in effect.assertions.values())
         candidate_head = str(native.before.get("candidate_head") or "")
-        _require(valid=rebase.canonical_json() == expected_rebase.canonical_json())
-        _require(valid=repository == repository_identity(root, tree_ref=update.desired))
-        _require(valid=native.subject == {"branch": branch, "candidate_head": candidate_head})
-        _require(valid=native.before.get("branch") == branch)
-        _require(valid=native.before.get("head") == update.expected)
-        _require(valid=native.after.get("branch") == "detached")
-        _require(valid=native.after.get("head") == update.desired)
-        _require(valid=candidate_head == native.after.get("candidate_head"))
-        _require(valid=candidate_heads == (candidate_head,))
+        require(rebase.canonical_json() == expected_rebase.canonical_json(), _INVALID)
+        require(repository == repository_identity(root, tree_ref=update.desired), _INVALID)
+        require(native.subject == {"branch": branch, "candidate_head": candidate_head}, _INVALID)
+        require(native.before.get("branch") == branch, _INVALID)
+        require(native.before.get("head") == update.expected, _INVALID)
+        require(native.after.get("branch") == "detached", _INVALID)
+        require(native.after.get("head") == update.desired, _INVALID)
+        require(candidate_head == native.after.get("candidate_head"), _INVALID)
+        require(candidate_heads == (candidate_head,), _INVALID)
     except (AttributeError, KeyError, TypeError, ValueError):
         return None
     return RewriteEdge(
@@ -186,9 +189,3 @@ def validated_refresh_edge(
         kind="refresh",
         candidate=candidate_head,
     )
-
-
-def _require(*, valid: bool) -> None:
-    if not valid:
-        message = "git_refresh_evidence_invalid"
-        raise ValueError(message)

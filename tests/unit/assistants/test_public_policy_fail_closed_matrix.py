@@ -7,7 +7,6 @@ from typing import Any
 
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
-from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
@@ -15,6 +14,7 @@ from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.assistants.skills.portfolio import skill_portfolio_report
 from tests.support.governed_repository import write_file
+from tests.support.skills import write_skill_package
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,34 +44,6 @@ Keep exact evidence.
 
 Repository source and evidence are truth.
 """
-
-
-def _package(root: Path, skill_id: str = "sample") -> tuple[Path, Path]:
-    package_dir = root / ".agents/skills" / skill_id
-    skill = package_dir / "SKILL.md"
-    write_file(skill, _skill_text(name=skill_id))
-    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
-    manifest = package_dir / "package.toml"
-    write_file(
-        manifest,
-        f"""schema_version = 2
-id = "{skill_id}"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[quality]
-placeholder_allowed = false
-
-[[capability]]
-id = "ethos.status"
-kind = "command_readonly"
-command = ["ethos", "status", "--json"]
-""",
-    )
-    return package_dir, manifest
 
 
 def test_capability_policy_rejects_mutation_untrusted_scripts_and_fake_proof(
@@ -121,7 +93,9 @@ def test_manifest_public_report_blocks_escape_missing_invalid_and_stale_digest(
     assert missing["required_gaps"] == ["skill_package_manifest_missing:missing"]
     assert invalid["required_gaps"] == ["skill_package_manifest_invalid_toml:invalid"]
 
-    _, manifest = _package(tmp_path, "stale")
+    manifest = write_skill_package(
+        tmp_path / ".agents/skills", "stale", text=_skill_text(name="stale")
+    )
     manifest.write_text(
         manifest.read_text(encoding="utf-8").replace(
             'expected_digest = "sha256:', 'expected_digest = "sha256:0'
@@ -133,7 +107,10 @@ def test_manifest_public_report_blocks_escape_missing_invalid_and_stale_digest(
 
 
 def test_manifest_and_markdown_reports_preserve_content_quality_failures(tmp_path: Path) -> None:
-    package_dir, manifest = _package(tmp_path, "quality")
+    manifest = write_skill_package(
+        tmp_path / ".agents/skills", "quality", text=_skill_text(name="quality")
+    )
+    package_dir = manifest.parent
     skill = package_dir / "SKILL.md"
     description = "Not a trigger " + "word " * 65
     workflow = "\n".join(f"{index}. step" for index in range(10))

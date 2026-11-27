@@ -18,6 +18,7 @@ from ethos.adapters.repo.worktree_effects import hold_worktree_refs
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import adopted_repository
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -29,9 +30,7 @@ def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
     tmp_path: Path, *, interrupted: bool
 ) -> None:
     """Original governed hooks admit held assertions, not ref movements or deletions."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    previous = git(repo, "rev-parse", "HEAD")
+    repo, previous = adopted_repository(tmp_path)
     head = commit_fixture_file(repo, "next.md", "Next input\n", "fix: next input")
     refs = {
         "refs/heads/dev": head,
@@ -94,9 +93,7 @@ def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
 
 def test_worktree_ref_holder_timeout_releases_owned_git_process(tmp_path: Path) -> None:
     """A caller deadline ends the held transaction without an operator killing it."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    head = git(repo, "rev-parse", "HEAD")
+    repo, head = adopted_repository(tmp_path)
     refs = {"refs/heads/dev": head}
     install_fixture_hook_runtime(repo)
     common = repo / git(repo, "rev-parse", "--git-common-dir")
@@ -152,8 +149,7 @@ def test_worktree_preimage_uses_content_not_index_stat_cache(tmp_path: Path) -> 
 @pytest.mark.parametrize("attach", [False, True], ids=["created", "attached"])
 def test_worktree_creation_and_attachment_recognize_exact_terminal_state(tmp_path, attach) -> None:
     """Both native creation paths preserve one exact, replayable worktree binding."""
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     if attach:
@@ -174,8 +170,7 @@ def test_worktree_creation_and_attachment_recognize_exact_terminal_state(tmp_pat
 
 
 def test_add_worktree_rejects_path_bound_to_other_head(tmp_path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -186,8 +181,7 @@ def test_add_worktree_rejects_path_bound_to_other_head(tmp_path) -> None:
 
 @pytest.mark.parametrize("content_absent", [False, True])
 def test_remove_worktree_recognizes_absent_terminal_state(tmp_path, content_absent) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -214,8 +208,7 @@ def test_remove_worktree_recognizes_absent_terminal_state(tmp_path, content_abse
     [("content", True), ("locked", False), ("head", False), ("head", True), ("branch", True)],
 )
 def test_absent_worktree_deregistration_rejects_drift(tmp_path, drift, after_admission):
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "worktree", "add", "-b", "linked", str(target), head)
     admin = Path(git(target, "rev-parse", "--absolute-git-dir"))
@@ -267,8 +260,7 @@ def test_remove_historical_worktree_uses_control_repository_identity(tmp_path) -
 
 
 def test_remove_worktree_rejects_inexact_binding(tmp_path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "branch", "linked", head)
     add_worktree(repo, target, head=head, branch="linked")
@@ -279,8 +271,7 @@ def test_remove_worktree_rejects_inexact_binding(tmp_path) -> None:
 
 @pytest.mark.parametrize("dangling", [False, True])
 def test_remove_worktree_rejects_link_root_before_resolving(tmp_path, dangling) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    head = adopt_and_commit(repo)
+    repo, head = adopted_repository(tmp_path)
     target = tmp_path / "linked"
     git(repo, "worktree", "add", "-b", "linked", target.as_posix(), head)
     alias = tmp_path / "alias"
@@ -297,8 +288,7 @@ def test_remove_worktree_rejects_link_root_before_resolving(tmp_path, dangling) 
 
 
 def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    previous = adopt_and_commit(repo)
+    repo, previous = adopted_repository(tmp_path)
     (repo / "README.md").write_text("# changed\n", encoding="utf-8")
     git(repo, "add", "README.md")
     git(repo, "commit", "-m", "change")
@@ -321,8 +311,7 @@ def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) ->
 @pytest.mark.parametrize("dirty", [False, True], ids=["restored", "changed"])
 def test_sync_worktree_refreshes_only_native_index_stat_cache(tmp_path, dirty) -> None:
     """A clean byte preimage must sync despite stale stats; real edits must survive."""
-    repo = init_git_repo(tmp_path / "repo")
-    previous = adopt_and_commit(repo)
+    repo, previous = adopted_repository(tmp_path)
     material = repo / "README.md"
     original = material.read_bytes()
     material.write_text("# accepted replacement\n", encoding="utf-8")

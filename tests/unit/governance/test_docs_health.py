@@ -16,6 +16,7 @@ from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
 from ethos.repository.registry.docs.registry import front_matter
 from tests.support.documentation import documentation_fixture
+from tests.support.governed_repository import write_file
 from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
@@ -336,9 +337,7 @@ def test_docs_health_uses_only_the_declared_portable_documentation_root(tmp_path
 def test_docs_health_fails_closed_for_invalid_native_configuration(tmp_path, path, content, gap):
     """Malformed native inputs never silently select default roots or taxonomy."""
     write_active_doc(tmp_path, "ethos status --json")
-    target = tmp_path / path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content)
+    write_file(tmp_path / path, content)
     report = docs_registry_report(tmp_path)
     assert report["verdict"] == "block"
     assert report["document_count"] == 0
@@ -547,9 +546,7 @@ def test_a_readme_outside_docs_that_is_its_directory_s_only_file_is_a_dead_carri
         ("system/schemas/README.md", "# Schemas\n\n[Contract](contract.json)\n"),
         ("system/schemas/contract.json", "{}\n"),
     ):
-        path = tmp_path / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        write_file(tmp_path / relative, text)
     tracked = ("system/projections/README.md", "system/schemas/README.md")
 
     report = docs_health_report(tmp_path, tracked_documents=tracked)

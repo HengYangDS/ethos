@@ -349,15 +349,8 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
     repo, candidate, _accepted_head, candidate_head = _archived_candidate(
         tmp_path, monkeypatch, prepare=prepare
     )
-    payload = run_ethos_blocked(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        git(repo, "rev-parse", "HEAD"),
-        "--json",
-        cwd=repo,
+    payload = _closeout(
+        repo, "--apply", "--authorize", expect_head=git(repo, "rev-parse", "HEAD"), blocked=True
     )
     control = payload["data"]["control_replacement"]
     assert (control["required"], control["verdict"], payload["state"]) == (True, "block", "blocked")

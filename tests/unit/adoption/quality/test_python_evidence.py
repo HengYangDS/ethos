@@ -22,6 +22,9 @@ from ethos.adapters.gates.verification import provider_reports
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
+from tests.support.native_quality import PYTHON_SAMPLE_TEST
+from tests.support.native_quality import QUALITY_SAMPLE
+from tests.support.native_quality import python_sample
 
 
 @pytest.mark.parametrize(
@@ -32,11 +35,8 @@ def test_generic_provider_uses_real_locked_python_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str, outcome: str
 ) -> None:
     """Preserve one locked native attempt, its diagnostics and clean owned output."""
-    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     files = {
-        **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
         "pytest.toml": '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n',
-        "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
         "tests/test_sample.py": "from pathlib import Path\n"
         + ("from warnings import warn\n" if outcome == "warning" else "")
         + "\nfrom sample import answer\n\n\ndef test_answer() -> None:\n"
@@ -71,7 +71,7 @@ def test_generic_provider_uses_real_locked_python_evidence(
             lambda *_a, **_k: nullcontext({"UV_PROJECT_ENVIRONMENT": str(repo / ".venv")}),
         )
         monkeypatch.setattr(python_quality, "locked_tool", selected_tool)
-    repo = committed_source_repo(tmp_path, files)
+    repo = python_sample(tmp_path, files)
     monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", str(repo / ".venv"))
     with patch.object(python_quality, "run_command", wraps=python_quality.run_command) as run:
         report = native_quality.behavior_report(repo)
@@ -101,21 +101,13 @@ def test_uv_project_runs_its_tests_on_an_interpreter_it_declares(
     tmp_path: Path, *, admitted: bool
 ) -> None:
     """Without mise, the runtime interpreter is pinned only when the project admits it."""
-    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    pyproject = (fixture / "pyproject.toml").read_text()
+    pyproject = (QUALITY_SAMPLE / "pyproject.toml").read_text()
     if not admitted:
         pyproject = pyproject.replace(
             'requires-python = ">=3.12,<3.15"', 'requires-python = "==3.11.*"'
         )
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            "pyproject.toml": pyproject,
-            "uv.lock": (fixture / "uv.lock").read_text(),
-            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
-            "tests/test_sample.py": "from sample import answer\n\n\ndef test_answer() -> None:\n"
-            "    assert answer() == 42\n",
-        },
+    repo = python_sample(
+        tmp_path, {"pyproject.toml": pyproject, "tests/test_sample.py": PYTHON_SAMPLE_TEST}
     )
     report = native_quality.behavior_report(repo)
     command = report["native"][0]["native"]["command"]
@@ -127,12 +119,9 @@ def test_uv_project_runs_its_tests_on_an_interpreter_it_declares(
 
 def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: Path) -> None:
     """Passing subtests count from pytest events that the JUnit parent omits."""
-    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    repo = committed_source_repo(
+    repo = python_sample(
         tmp_path,
         {
-            **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
-            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
             "tests/test_sample.py": "import unittest\n\nfrom sample import answer\n\n\n"
             "class SampleTests(unittest.TestCase):\n"
             "    def test_answers(self) -> None:\n"
@@ -150,13 +139,10 @@ def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: P
 
 def test_generic_provider_binds_exercised_tooling_coverage(tmp_path: Path) -> None:
     """Tooling that tests execute binds to coverage without owing product coverage."""
-    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    repo = committed_source_repo(
+    repo = python_sample(
         tmp_path,
         {
-            **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
             ".gitattributes": "tools/** ethos-role=tooling\n",
-            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
             "tools/helper.py": "def double(value: int) -> int:\n    return value * 2\n",
             "tests/test_sample.py": "import runpy\nfrom pathlib import Path\n\n"
             "from sample import answer\n\n\ndef test_tool_doubles_answer() -> None:\n"

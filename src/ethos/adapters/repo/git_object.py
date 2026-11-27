@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from contextlib import suppress
 from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
+from ethos.contracts.digest import is_object_id
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -31,8 +32,7 @@ _SIGNATURE_ARMOR_FORMATS = {
 
 def zero_oid(root: Path) -> str:
     """Return the null object ID at the repository's native hash width."""
-    completed = run_git(root, "rev-parse", "--show-object-format", check=False)
-    object_format = completed.stdout.strip() if completed.returncode == 0 else ""
+    object_format = git_stdout(root, "rev-parse", "--show-object-format")
     width = {"sha1": 40, "sha256": 64}.get(object_format)
     if width is None:
         message = "git_object_format_unavailable"
@@ -393,7 +393,7 @@ def _resolve_objects(
         fields = row.split(" ")
         if (
             len(fields) != 3
-            or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", fields[0])
+            or not is_object_id(fields[0])
             or fields[1] not in {"commit", "tree", "tag", "blob"}
             or fields[2] != str(index)
         ):

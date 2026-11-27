@@ -41,10 +41,6 @@ class SchemaValidationReport(TypedDict):
     instances: dict[str, SchemaInstanceValidation]
 
 
-def _schema_dir(root: Path) -> Path:
-    return root / "system" / "schemas" / "kernel"
-
-
 def schema_source_root() -> Path:
     """Return the actual selected schema tree, never an adopter lookalike."""
     return canonical_resource("system/schemas")
@@ -61,18 +57,8 @@ def schema_validation_report(
     repo = root or Path.cwd()
     gaps: list[str] = []
     schemas: dict[str, dict[str, str]] = {}
-    local_schema_dir = _schema_dir(repo)
     schema_dir = schema_source_root()
-    retired_schema = local_schema_dir / "capability-profile.schema.json"
-    if retired_schema.exists():
-        gaps.append("schema_retired:capability-profile.schema.json")
-        schemas[retired_schema.name] = {
-            "verdict": "block",
-            "error": "retired semantic schema",
-        }
     for path in sorted(schema_dir.rglob("*.schema.json")):
-        if path.resolve() == retired_schema.resolve():
-            continue
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))
             Draft202012Validator.check_schema(schema)

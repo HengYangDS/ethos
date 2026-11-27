@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
+from tests.support.runtime_scenarios import answer_which
 from tests.support.source_budget import budget_repository
 from tests.support.source_budget import write_budget_selection
 from tests.support.subprocesses import completed
@@ -110,16 +111,8 @@ def test_native_cross_check_failures_block_the_report(tmp_path, monkeypatch, fau
         if fault == "malformed"
         else json.dumps({"languageSummary": [{"Files": records}]})
     )
-    real_which, real_run = source_budget.shutil.which, source_budget.subprocess.run
-    monkeypatch.setattr(
-        source_budget.shutil,
-        "which",
-        lambda command, **kwargs: (
-            (None if fault == "missing" else "/fake-scc")
-            if command == "fake-scc"
-            else real_which(command, **kwargs)
-        ),
-    )
+    real_run = source_budget.subprocess.run
+    answer_which(monkeypatch, **{"fake-scc": None if fault == "missing" else "/fake-scc"})
     monkeypatch.setattr(
         source_budget.subprocess,
         "run",

@@ -12,14 +12,10 @@ import tomli_w
 import ethos.adapters.openspec.configuration as configuration
 import ethos.repository.openspec.audit as audit
 from ethos.contracts.branch.roles import BranchRolePolicy
+from tests.support.governed_repository import write_file
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, content: str = "") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -43,13 +39,13 @@ def test_capability_metadata_requires_declared_native_ownership(
     """Supplemental data cannot replace a spec, escape ownership or become implicit authority."""
     specs = tmp_path / "openspec/specs"
     metadata = specs / ("sample/capability.toml" if placement == "capability" else "families.toml")
-    _write(metadata, 'family = "sample"\n' if invalid != "malformed" else "family = [\n")
+    write_file(metadata, 'family = "sample"\n' if invalid != "malformed" else "family = [\n")
     if invalid != "missing-spec":
-        _write(specs / "sample/spec.md", "## Requirements\n")
+        write_file(specs / "sample/spec.md", "## Requirements\n")
     else:
         (specs / "sample").mkdir(exist_ok=True)
     if invalid != "missing-owner":
-        _write(tmp_path / "rules/capability-metadata.md", "# Native metadata contract\n")
+        write_file(tmp_path / "rules/capability-metadata.md", "# Native metadata contract\n")
     if invalid == "symlink":
         metadata.unlink()
         metadata.symlink_to(tmp_path / "rules/capability-metadata.md")
@@ -64,7 +60,7 @@ def test_capability_metadata_requires_declared_native_ownership(
         metadata.chmod(0o755)
     if invalid != "undeclared":
         field = "capability_metadata" if placement == "capability" else "specs_root_metadata"
-        _write(
+        write_file(
             tmp_path / ".ethos/profile.toml",
             'profile_id = "sample"\n[openspec]\nmaterial_paths = ["**"]\n'
             f'[[openspec.{field}]]\nfile_name = "{metadata.name}"\n'
@@ -85,7 +81,7 @@ def test_official_config_reports_malformed_unavailable_and_invalid_shapes(monkey
     assert missing["verdict"] == "block"
     assert missing["path"] == config.as_posix()
     assert missing["required_gaps"] == ["openspec_config_missing"]
-    _write(config, "schema: [unterminated\n")
+    write_file(config, "schema: [unterminated\n")
     malformed = configuration.official_config_report(tmp_path)
     assert malformed["verdict"] == "block"
     assert malformed["required_gaps"] == ["openspec_config_invalid:YAMLParseError"]
@@ -111,7 +107,7 @@ def test_official_config_reports_malformed_unavailable_and_invalid_shapes(monkey
 
 @pytest.mark.parametrize("schema", ["schema: spec-driven\n", ""])
 def test_official_config_reports_legacy_and_forbidden_global_store(tmp_path, schema):
-    _write(
+    write_file(
         tmp_path / "openspec/config.yaml",
         schema + "defaultStore: global\nproject: old\nversion: 1\n",
     )
@@ -146,7 +142,7 @@ def test_governed_branch_report_preserves_partial_knowledge_and_unique_intent(
     tmp_path, declared, ref_unknown, tree_unknown, current
 ):
     """Paradigm role names and independent observations preserve known intent amid gaps."""
-    _write(
+    write_file(
         tmp_path / ".ethos/workspace.toml",
         tomli_w.dumps({"branch_roles": asdict(BranchRolePolicy(release_branch=declared))}),
     )
@@ -226,15 +222,15 @@ def test_removed_spec_obligations_report_only_semantic_lines():
 def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypatch, tmp_path):
     specs = tmp_path / "openspec/specs"
     specs.mkdir(parents=True)
-    _write(specs / "README.md")
-    _write(specs / "unexpected.txt")
+    write_file(specs / "README.md", "")
+    write_file(specs / "unexpected.txt", "")
     (specs / "missing").mkdir()
     (specs / "mixed").mkdir()
-    _write(specs / "mixed/spec.md")
-    _write(specs / "mixed/extra.md")
+    write_file(specs / "mixed/spec.md", "")
+    write_file(specs / "mixed/extra.md", "")
     (specs / "linked").symlink_to(specs / "mixed", target_is_directory=True)
 
-    _write(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
+    write_file(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
     monkeypatch.setattr(
         audit,
         "load_branch_role_policy",
@@ -258,7 +254,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         "openspec_spec_capability_entry_unexpected:mixed:extra.md",
     }
     absent = tmp_path / "absent"
-    _write(absent / "openspec/config.yaml", "schema: spec-driven\n")
+    write_file(absent / "openspec/config.yaml", "schema: spec-driven\n")
     (absent / "openspec/specs").write_text("not a directory", encoding="utf-8")
     absent_gaps = cast(
         "list[str]",
@@ -274,7 +270,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
 
 def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
     """An empty accepted capability set is not an invalid physical layout."""
-    _write(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
+    write_file(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
     branch_intent = {"verdict": "pass", "advisory_gaps": [], "required_gaps": []}
 
     report = audit.compile_openspec_shape_report(
@@ -287,7 +283,7 @@ def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
     assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
     linked = tmp_path / "linked"
-    _write(linked / "openspec/config.yaml", "schema: spec-driven\n")
+    write_file(linked / "openspec/config.yaml", "schema: spec-driven\n")
     existing = tmp_path / "existing-specs"
     existing.mkdir()
     try:

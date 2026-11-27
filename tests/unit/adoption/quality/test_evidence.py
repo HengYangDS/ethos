@@ -23,8 +23,10 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
 from tests.support.mise_host import outside_ci
+from tests.support.native_quality import JS_ANSWER
 from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
+from tests.support.runtime_scenarios import answer_which
 
 
 @pytest.mark.parametrize("role", ["code", "tooling", "snapshot", "config", "generated"])
@@ -47,10 +49,8 @@ def test_native_c8_selection_is_not_overridden_and_unselected_authored_source_st
                 }
             ),
             ".config/coverage.json": json.dumps({"all": True, "include": ["answer.js"]}),
-            "answer.js": "export function answer() { return 42; }\n",
+            **JS_ANSWER,
             "omitted.js": "export function unproved() { return 0; }\n",
-            "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
-            'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
         },
     )
     subjects = observed_code_subjects(
@@ -86,10 +86,9 @@ def test_generated_role_cannot_replace_authored_coverage(tmp_path: Path) -> None
                 }
             ),
             "generated.js": "export const generated = 42;\n",
+            **JS_ANSWER,
             "answer.js": 'import {generated} from "./generated.js";\n'
             "export function answer() { return generated; }\n",
-            "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
-            'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
         },
     )
     subjects = observed_code_subjects(
@@ -400,14 +399,7 @@ def test_native_tool_absence_does_not_become_quality_success(tmp_path: Path, mon
         tmp_path,
         {"package.json": '{"type":"module"}\n', "answer.js": "export const answer = 42;\n"},
     )
-    original_which = native_quality.shutil.which
-    monkeypatch.setattr(
-        native_quality.shutil,
-        "which",
-        lambda name, *args, **kwargs: (
-            None if name == "node" else original_which(name, *args, **kwargs)
-        ),
-    )
+    answer_which(monkeypatch, node=None)
 
     def unavailable() -> Path:
         message = "native_tool_unavailable:node"
@@ -436,14 +428,7 @@ def test_unavailable_locked_node_does_not_fall_back_to_host_path(
         },
     )
     outside_ci(monkeypatch, repo)
-    original_which = native_quality.shutil.which
-    monkeypatch.setattr(
-        native_quality.shutil,
-        "which",
-        lambda name, *args, **kwargs: (
-            "/ambient/node" if name == "node" else original_which(name, *args, **kwargs)
-        ),
-    )
+    answer_which(monkeypatch, node="/ambient/node")
     missing = {"node": [{"version": "26.9.0", "installed": False, "install_path": "/absent"}]}
     answers = {
         ("env", "--json"): '{"PATH":"/ambient/node"}',

@@ -36,17 +36,28 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 """
 
 
-def write_skill_package(skills_root: Path, skill_id: str) -> str:
+def write_skill_package(
+    skills_root: Path, skill_id: str, *, text: str = SAMPLE_SKILL, commands: bool = True
+) -> Path:
+    """Write one digest-bound skill package, optionally with its read-only command capability.
+
+    Return the path of its ``package.toml``.
+    """
     package_dir = skills_root / skill_id
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(
-        SAMPLE_SKILL.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
+        text.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
     )
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    capability = (
+        '\n[[capability]]\nid = "ethos.status"\nkind = "command_readonly"\n'
+        'command = ["ethos", "status", "--json"]\n'
+        if commands
+        else ""
+    )
     package_manifest = package_dir / "package.toml"
     package_manifest.write_text(
-        f"""
-schema_version = 2
+        f"""schema_version = 2
 id = "{skill_id}"
 entrypoint = "SKILL.md"
 digest_algorithm = "sha256"
@@ -56,12 +67,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
 [quality]
 placeholder_allowed = false
-
-[[capability]]
-id = "ethos.status"
-kind = "command_readonly"
-command = ["ethos", "status", "--json"]
-""".lstrip(),
+{capability}""",
         encoding="utf-8",
     )
-    return package_manifest.as_posix()
+    return package_manifest

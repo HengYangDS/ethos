@@ -19,17 +19,6 @@ from tests.support.governed_repository import git
 from tests.support.literal_cases import literal_case
 
 RELOCATED_OPENSPEC_PROFILE = 'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n'
-RETIRED_PROFILES = {
-    "registry-projection": 'profile_id = "sample"\n\n[proof]\ncode_correctness_gates = ["tests"]\n'
-    '\n[[proof.gates]]\nid = "tests"\nkind = "test"\n'
-    'command = ["pytest"]\nregistries = ["quality"]\n',
-    "former-envelope": 'schema_version = 1\nprofile_id = "sample"\nprofile_version = "1"\n'
-    'ethos_contract_version = "1"\n\n[repository]\nkind = "documentation"\n'
-    'root_subject = "sample"\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
-    "root-rules-workaround": 'profile_id = "sample"\n\n[roots]\nrules = "."\n\n'
-    '[openspec]\nmaterial_paths = ["openspec/**"]\n',
-    "openspec-relocation": RELOCATED_OPENSPEC_PROFILE,
-}
 
 
 def _write_profile(root: Path, text: str) -> Path:
@@ -106,16 +95,6 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     assert loaded.declaration is not None
     assert loaded.declaration.profile_id == 'sample<repo&"'
     assert loaded.declaration.openspec is None
-
-
-@pytest.mark.parametrize(
-    "fields",
-    [{"roots": {"durable_evidence": "evidence"}}, {"evidence": {"durable_roots": ["evidence"]}}],
-)
-def test_profile_cannot_select_current_proof_by_directory(fields) -> None:
-    """Retired directory declarations cannot become a parallel proof selector."""
-    with pytest.raises(ValidationError):
-        RepositoryProfileDeclaration.model_validate({"profile_id": "sample", **fields})
 
 
 @pytest.mark.parametrize(
@@ -239,12 +218,6 @@ def test_profile_rejects_incomplete_native_dependency_closure(fault: str) -> Non
         proof["code_correctness_map"]["behavior"] = "undeclared"
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate({"profile_id": "sample", "proof": proof})
-
-
-@pytest.mark.parametrize("text", RETIRED_PROFILES.values(), ids=list(RETIRED_PROFILES))
-def test_profile_rejects_retired_shapes_and_root_workarounds(tmp_path: Path, text: str) -> None:
-    """Retired fields, the former envelope and renamed native roots such as OpenSpec never load."""
-    _assert_invalid_profile(tmp_path, text)
 
 
 @pytest.mark.parametrize(

@@ -6,12 +6,24 @@ import hashlib
 import json
 from typing import TYPE_CHECKING
 
+from tools.ci.delivery import release_assets
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 VERSION = "0.2.0-alpha.5"
 # The commit every fixture leg records as its source, which assembly expects as the release head.
 HEAD = "0123456789abcdef0123456789abcdef01234567"
+# The declared release legs: host -> (platform, machine, wheel tag).
+LEGS = {
+    "linux-x64": ("linux", "x86_64", "linux_x86_64"),
+    "linux-arm64": ("linux", "arm64", "linux_aarch64"),
+    "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
+    "windows-x64": ("windows", "x86_64", "win_amd64"),
+}
+REQUIRED = frozenset({"linux-x64", "linux-arm64", "macos-arm64"})
+ENTRY = f"# Changelog\n\n## [{VERSION}] - 2026-10-21\n\n### Added\n\n- Hosted release.\n"
 
 
 def inventory_documents(
@@ -100,3 +112,32 @@ def qualified_leg(
     evidence.write_text(json.dumps({"distribution": distribution}), encoding="utf-8")
     write_inventories(job, f"ethos-{VERSION}-{host}.tar.gz", digest)
     return wheel, archive
+
+
+def assemble_release(
+    tmp_path: Path,
+    *,
+    required: frozenset[str] = REQUIRED,
+    optional: frozenset[str] = frozenset({"windows-x64"}),
+    expect_head: str = HEAD,
+    alter: Callable[[Path, str], object] | None = None,
+    host: str = "linux-x64",
+) -> tuple[Path, dict[str, str]]:
+    """Lay out every declared leg, let `alter` edit `host`'s upload, and assemble the release."""
+    inputs, changelog, out = tmp_path / "inputs", tmp_path / "CHANGELOG.md", tmp_path / "out"
+    changelog.write_text(ENTRY, encoding="utf-8")
+    for name, leg in LEGS.items():
+        qualified_leg(inputs, name, *leg)
+    if alter is not None:
+        alter(inputs / f"release-runtime-{host}", host)
+    sums = release_assets.assemble(
+        inputs,
+        out,
+        tag=f"v{VERSION}",
+        base_url="https://example.invalid/v",
+        changelog=changelog,
+        required=required,
+        optional=optional,
+        expect_head=expect_head,
+    )
+    return out, sums

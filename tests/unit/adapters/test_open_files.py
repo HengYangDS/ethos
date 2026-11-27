@@ -323,16 +323,24 @@ def test_a_record_left_unreadable_mid_scan_is_observed_again(
     assert len(scans) == 2
 
 
-def test_a_record_that_stays_unreadable_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("payload", "scans_taken", "cause"),
+    [
+        (_VALID + _DENIED_DESCRIPTOR, 3, "readlink: Permission denied"),
+        (_VALID.replace(b"i31\0", b"i31\0i32\0", 1), 1, "file_observation_duplicate_field"),
+    ],
+    ids=["stays-unreadable", "malformed"],
+)
+def test_only_an_unreadable_record_earns_another_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, payload: bytes, scans_taken: int, cause: str
 ) -> None:
-    """Three unreadable scans leave the observation incomplete."""
-    scans, observe = _scanner(tmp_path, monkeypatch, [_VALID + _DENIED_DESCRIPTOR] * 3)
+    """Three unreadable scans leave the observation incomplete; a malformed one is not retaken."""
+    scans, observe = _scanner(tmp_path, monkeypatch, [payload] * 3)
     with pytest.raises(ProcessExecutionError) as error:
         observe()
-    assert len(scans) == 3
+    assert len(scans) == scans_taken
     assert error.value.code == "native_process_observer_unavailable"
-    assert "readlink: Permission denied" in str(error.value.cause)
+    assert cause in str(error.value.cause)
 
 
 @pytest.mark.parametrize("record", _CAPTURED_VANISHED.values(), ids=_CAPTURED_VANISHED)
@@ -357,15 +365,3 @@ def test_scans_share_one_observer_timeout(tmp_path: Path, monkeypatch: pytest.Mo
         observe()
     assert len(scans) == 1
     assert "file_observation_deadline_exhausted" in str(error.value.cause)
-
-
-def test_a_malformed_scan_is_not_taken_again(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Only an unreadable record earns another scan."""
-    duplicate = _VALID.replace(b"i31\0", b"i31\0i32\0", 1)
-    scans, observe = _scanner(tmp_path, monkeypatch, [duplicate] * 3)
-    with pytest.raises(ProcessExecutionError) as error:
-        observe()
-    assert len(scans) == 1
-    assert "file_observation_duplicate_field" in str(error.value.cause)

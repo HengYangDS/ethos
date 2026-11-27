@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.repo.commit.rebuild.binding import bind_record
+from ethos.adapters.repo.commit.rebuild.binding import bind
 from ethos.adapters.repo.commit.rebuild.entries import Resolved
 from ethos.adapters.repo.commit.rebuild.entries import admitted_hosts
 from ethos.contracts.outcome import OutcomeError
+from ethos.contracts.outcome import refuse
 from ethos.repository.paradigm.peer_identity import Sighting
 from ethos.repository.paradigm.peer_identity import Span
 from ethos.repository.paradigm.peer_identity import generation
@@ -36,7 +37,10 @@ if TYPE_CHECKING:
 
 
 def _bind(repo: Path, text: str, *, refs: tuple[str, ...] | None = None) -> object:
-    return bind_record(repo, path=RECORD, old=land_record(repo, text), key=KEY, refs=refs)
+    bound = bind(repo, path=RECORD, old=land_record(repo, text), key=KEY, refs=refs)
+    if bound.gaps:
+        refuse(*bound.gaps)
+    return bound.record
 
 
 def test_a_record_binds_to_its_change_key_and_originals(tmp_path: Path) -> None:

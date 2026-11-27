@@ -17,6 +17,7 @@ from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 from tests.support.governed_repository import git
 from tests.support.governed_repository import write_file
+from tests.support.runtime_scenarios import answer_which
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -172,12 +173,7 @@ def test_source_budget_public_report_blocks_missing_inventory_and_cross_check(
     write_file(source, '"""Fixture."""\nVALUE = 1\n')
     git(tmp_path, "init", "-q", "-b", "dev")
     git(tmp_path, "add", ".")
-    host_which = source_budget.shutil.which
-    monkeypatch.setattr(
-        source_budget.shutil,
-        "which",
-        lambda command, **kwargs: None if command == "scc" else host_which(command, **kwargs),
-    )
+    answer_which(monkeypatch, scc=None)
     missing_cross_check = source_budget.source_budget_report(tmp_path)
     assert missing_cross_check["verdict"] == "block"
     assert "source_budget_scc_unavailable:scc" in missing_cross_check["required_gaps"]

@@ -434,3 +434,29 @@ def empty_node_package_supply(root: Path) -> Path:
         '{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8"
     )
     return supply
+
+
+def unreadable_declaration(monkeypatch: pytest.MonkeyPatch, root: Path) -> list[Path]:
+    """Fail each read of a ``binding.toml`` under ``root``; return the paths it was asked for."""
+    reader = Path.read_text
+    paths: list[Path] = []
+
+    def unreadable(path, *args, **kwargs):
+        if path.name == "binding.toml" and path.is_relative_to(root):
+            paths.append(path)
+            message = "selected_declaration_unreadable"
+            raise PermissionError(message)
+        return reader(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", unreadable)
+    return paths
+
+
+def answer_which(monkeypatch: pytest.MonkeyPatch, **found: str | None) -> None:
+    """Answer `shutil.which` for each named tool and leave every other name to the host."""
+    host = shutil.which
+    monkeypatch.setattr(
+        shutil,
+        "which",
+        lambda name, *args, **kwargs: found[name] if name in found else host(name, *args, **kwargs),
+    )

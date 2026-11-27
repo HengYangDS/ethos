@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,6 +12,7 @@ import pytest
 import ethos.adapters.admission.patch_admission as admission
 import ethos.adapters.process as process
 from ethos.repository.policy.references.observation import deleted_input_gaps
+from tests.support.governed_repository import active_change_repo
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -21,11 +23,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _repository(tmp_path: Path) -> tuple[Path, str]:
-    repo = init_git_repo(tmp_path / "repo")
-    (repo / "module.py").write_text("VALUE = 1\n", encoding="utf-8")
-    commit_active_change(repo)
-    return repo, git(repo, "rev-parse", "HEAD")
+_repository = partial(active_change_repo, files={"module.py": "VALUE = 1\n"})
 
 
 def _patch(repo: Path, path: str = "module.py", content: str = "VALUE = 2\n") -> str:

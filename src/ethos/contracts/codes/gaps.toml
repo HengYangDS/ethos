@@ -1483,7 +1483,6 @@ runtime_rollback_root_behind_accepted = { owner = "adapters.repo" }
 runtime_selection_receipt_required = { owner = "adapters.repo" }
 sarif_invalid = { owner = "repository.policy" }
 sarif_results_missing = { owner = "repository.policy" }
-schema_retired = { owner = "repository.policy" }
 scope_unrecognized = { owner = "adapters.gates" }
 script_static_report_invalid = { owner = "adapters.gates" }
 semantic_collection_duplicate = { owner = "contracts" }

@@ -11,6 +11,7 @@ from typing import Any
 
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.store.content_addressed import write_content_addressed
+from ethos.contracts.digest import is_sha256_hex
 from ethos.contracts.proof.plan import PROOF_CITED
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_bytes
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
     from ethos.contracts.plan import TransitionPlan
 
 _ARTIFACT_SUBDIR = Path("artifacts")
-_HEX = frozenset("0123456789abcdef")
-_SHA256_HEX_LENGTH = hashlib.sha256().digest_size * 2
 _ARTIFACT_CONTENT_MISMATCH = "proof_attestation_artifact_content_mismatch"
 _ARTIFACT_INVALID = "proof_attestation_artifact_invalid"
 _CHECK_INVALID = "proof_attestation_check_invalid"
@@ -225,8 +224,7 @@ def artifact_checks(
         relative = (_ARTIFACT_SUBDIR / f"{digest}.json").as_posix()
         if (
             set(artifact) != {"path", "sha256", "size_bytes", "media_type"}
-            or len(digest) != _SHA256_HEX_LENGTH
-            or set(digest) - _HEX
+            or not is_sha256_hex(digest)
             or artifact.get("path") != relative
             or artifact.get("sha256") != f"sha256:{digest}"
             or artifact.get("media_type") != "application/json"

@@ -209,16 +209,12 @@ def _formatter(paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None)
     if not path.endswith(".toml"):
         return None
     carriers = {tool.id: tool.carrier for tool in paradigm.tool}
-    settings = next(
-        (
-            dict(formatter.settings)
-            for formatter in paradigm.formatter
-            if carriers[formatter.tool] == path
-        ),
-        None,
-    )
-    if settings is None or text is None:
+    formatter = next((item for item in paradigm.formatter if carriers[item.tool] == path), None)
+    if formatter is None or text is None:
         return None
+    # A declared key is reported only while it is absent, so its repair value is written only then.
+    declared = {key: formatter.declared[key]} if key in formatter.declared else {}
+    settings = {**formatter.settings, **declared}
     repaired: str | None = text
     for name, value in settings.items():
         if repaired is not None and (not key or name == key):

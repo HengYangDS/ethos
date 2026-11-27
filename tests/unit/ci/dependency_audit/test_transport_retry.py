@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import json
-import subprocess
 
 import pytest
 
 from ethos.repository.policy.quality.dependency_acceptance import interpret_native_audit
 from tests.unit.ci.dependency_audit.support import clean_report
 from tests.unit.ci.dependency_audit.support import invoke_audit
-from tests.unit.ci.dependency_audit.support import native_result
-from tests.unit.ci.dependency_audit.support import native_transport
-from tools.ci import dependency_audit as audit
+from tests.unit.ci.dependency_audit.support import scripted_ecosystem
 
 _BULK = "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk"
 
@@ -55,24 +52,15 @@ def test_only_a_failed_bulk_advisory_request_is_a_transport_failure(
     assert interpret_native_audit("npm", output, exit_code)[1] == reason
 
 
-def _npm_sequence(monkeypatch: pytest.MonkeyPatch, outputs: list[tuple[int, str]]) -> list:
-    pending = list(outputs)
-
-    def respond(_root, command, ecosystem):
-        if ecosystem == "python":
-            return native_result(command, ecosystem)
-        code, output = pending.pop(0)
-        return subprocess.CompletedProcess(command, code, output, f"npm diagnostic {code}")
-
-    monkeypatch.setattr(audit.time, "sleep", lambda _seconds: None)
-    return native_transport(monkeypatch, respond)
-
-
 def test_a_failed_request_followed_by_a_clean_report_passes_with_both_attempts(
     repository, monkeypatch
 ) -> None:
     clean = json.dumps(clean_report("npm"))
-    observed = _npm_sequence(monkeypatch, [(1, _request_failed()), (0, clean)])
+    observed, _pauses = scripted_ecosystem(
+        monkeypatch,
+        "npm",
+        [(1, _request_failed(), "npm diagnostic 1"), (0, clean, "npm diagnostic 0")],
+    )
 
     payload = invoke_audit(repository)
 
@@ -87,7 +75,9 @@ def test_a_failed_request_followed_by_a_clean_report_passes_with_both_attempts(
 
 
 def test_repeated_request_failure_stops_after_four_attempts(repository, monkeypatch) -> None:
-    observed = _npm_sequence(monkeypatch, [(1, _request_failed())] * 4)
+    observed, _pauses = scripted_ecosystem(
+        monkeypatch, "npm", [(1, _request_failed(), "npm diagnostic 1")] * 4
+    )
 
     payload = invoke_audit(repository)
 
@@ -103,7 +93,7 @@ def test_findings_and_malformed_reports_are_observed_once(
     repository, monkeypatch, output: str
 ) -> None:
     raw = _finding() if output == "finding" else "not-json"
-    observed = _npm_sequence(monkeypatch, [(1, raw)])
+    observed, _pauses = scripted_ecosystem(monkeypatch, "npm", [(1, raw, "npm diagnostic 1")])
 
     payload = invoke_audit(repository)
 

@@ -13,6 +13,7 @@ from ethos.application.docs_registry import docs_registry_report
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from tests.support.documentation import decision_fixture
+from tests.support.documentation import documentation_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -25,10 +26,7 @@ def _document(subject: str, role: str, title: str) -> str:
     if role == "decision":
         number = match[1] if (match := re.match(r"dr-([0-9]{4})-", title)) else "0001"
         return decision_fixture(f"DR-{number}", subject=subject)
-    return (
-        f"---\nsubject: {subject}\nrole: {role}\nstate: canonical\nrelations: {{}}\n"
-        f"---\n\n# {title}\n\nStatus: canonical.\n\nPurpose: exercise decision identity.\n"
-    )
+    return documentation_fixture(subject, role, "canonical", title)
 
 
 @pytest.mark.parametrize(

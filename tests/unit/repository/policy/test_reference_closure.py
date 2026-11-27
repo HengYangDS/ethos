@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -17,6 +16,7 @@ from ethos.repository.policy.references.declarations import native_owned_referen
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
+from tests.support.governed_repository import git
 
 
 def test_current_dev_dependency_owns_its_import_module() -> None:
@@ -30,24 +30,19 @@ def test_current_dev_dependency_owns_its_import_module() -> None:
     assert "allure" in native_owned_references_from_files(files)["import"]
 
 
-def _git(root: Path, *args: str) -> str:
-    completed = subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)
-    return completed.stdout.strip()
-
-
 def _commit_candidate_baseline(root: Path) -> None:
-    _git(root, "init", "-b", "dev")
-    _git(root, "config", "user.name", "ETHOS Tests")
-    _git(root, "config", "user.email", "tests@example.invalid")
-    _git(root, "add", ".")
-    _git(root, "commit", "-m", "test: establish candidate baseline")
-    _git(root, "branch", "candidate/dev")
-    _git(root, "switch", "-c", "work/reference-closure")
+    git(root, "init", "-b", "dev")
+    git(root, "config", "user.name", "ETHOS Tests")
+    git(root, "config", "user.email", "tests@example.invalid")
+    git(root, "add", ".")
+    git(root, "commit", "-m", "test: establish candidate baseline")
+    git(root, "branch", "candidate/dev")
+    git(root, "switch", "-c", "work/reference-closure")
 
 
 def _commit_current_tree(root: Path) -> None:
-    _git(root, "add", "--all")
-    _git(root, "commit", "-m", "test: retire reference owner")
+    git(root, "add", "--all")
+    git(root, "commit", "-m", "test: retire reference owner")
 
 
 def test_repository_reference_closure_preserves_duplicate_command_owners(tmp_path: Path) -> None:

@@ -10,47 +10,21 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.support.release_legs import HEAD
+from tests.support.release_legs import LEGS
 from tests.support.release_legs import VERSION
+from tests.support.release_legs import assemble_release
 from tests.support.release_legs import inventory_documents
-from tests.support.release_legs import qualified_leg
 from tests.support.release_legs import write_inventories
 from tools.ci import release_supply_chain
 from tools.ci.delivery import release_assets
 
 _ROOT = Path(__file__).resolve().parents[4]
-_LEGS = {
-    "linux-x64": ("linux", "x86_64", "linux_x86_64"),
-    "linux-arm64": ("linux", "arm64", "linux_aarch64"),
-    "macos-arm64": ("darwin", "arm64", "macosx_14_0_arm64"),
-    "windows-x64": ("windows", "x86_64", "win_amd64"),
-}
-_ENTRY = f"# Changelog\n\n## [{VERSION}] - 2026-10-21\n\n### Added\n\n- Hosted release.\n"
-
-
-def _assembled(tmp_path: Path, change=None, host: str = "linux-x64"):
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    inputs, changelog = tmp_path / "inputs", tmp_path / "CHANGELOG.md"
-    changelog.write_text(_ENTRY, encoding="utf-8")
-    for leg, platform in _LEGS.items():
-        qualified_leg(inputs, leg, *platform)
-    if change is not None:
-        change(inputs / f"release-runtime-{host}", host)
-    options = {
-        "tag": f"v{VERSION}",
-        "base_url": "https://example.invalid/v",
-        "changelog": changelog,
-        "required": frozenset({"linux-x64", "linux-arm64", "macos-arm64"}),
-        "optional": frozenset({"windows-x64"}),
-        "expect_head": HEAD,
-    }
-    return tmp_path / "out", release_assets.assemble(inputs, tmp_path / "out", **options)
 
 
 def test_assembly_publishes_and_sums_each_archives_inventories(tmp_path):
     """The inventories travel beside their archive, under the name the leg cataloged."""
-    out, sums = _assembled(tmp_path)
-    for host in _LEGS:
+    out, sums = assemble_release(tmp_path)
+    for host in LEGS:
         name = f"ethos-{VERSION}-{host}"
         for suffix in (".spdx.json", ".syft.json"):
             published = out / "assets" / f"{name}{suffix}"
@@ -94,7 +68,7 @@ def _rewrite(document: str = "both", **change):
 def test_a_required_host_needs_inventories_that_declare_its_archive(tmp_path, change, gap):
     """A missing, oversized, foreign or one-package inventory stops the release."""
     with pytest.raises(ValueError, match=gap):
-        _assembled(tmp_path, change)
+        assemble_release(tmp_path, alter=change)
     assert not (tmp_path / "out").exists()
 
 
@@ -107,7 +81,7 @@ def test_an_incomplete_windows_declaration_is_left_out_and_named(tmp_path, docum
         if document == "both-missing":
             (job / "evidence/release/runtime.spdx.json").unlink()
 
-    out, sums = _assembled(tmp_path, change, host="windows-x64")
+    out, sums = assemble_release(tmp_path, alter=change, host="windows-x64")
     assert not [name for name in sums if "windows" in name or "win_amd64" in name]
     assert f"ethos-{VERSION}-linux-x64.syft.json" in sums
     assert "windows-x64" in (out / "notes.md").read_text(encoding="utf-8")
@@ -124,7 +98,7 @@ def test_an_incomplete_windows_declaration_is_left_out_and_named(tmp_path, docum
 def test_a_mismatched_binding_blocks_even_an_optional_host(tmp_path, change):
     """A wrong digest, name or duplicate is a pipeline defect or tampering, never optional."""
     with pytest.raises(ValueError, match="release_assets_inventory_mismatch:windows-x64"):
-        _assembled(tmp_path, change, host="windows-x64")
+        assemble_release(tmp_path, alter=change, host="windows-x64")
 
 
 def test_one_syft_run_writes_both_inventories_of_the_archive_bytes(tmp_path):

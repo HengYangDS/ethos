@@ -43,6 +43,11 @@ def _hook(root: Path, target: str = "wheel") -> subject.OpenSpecRuntimeHook:
     )
 
 
+def _identity(_root: Path) -> tuple[bytes, str]:
+    """Return one fixed build identity payload and its version."""
+    return b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"
+
+
 def _prepared_supply(root: Path) -> Path:
     packages = {
         "": {"dependencies": {"direct": "1.0.0"}, "devDependencies": {"dev-only": "1.0.0"}},
@@ -143,11 +148,7 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
 
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.setattr(subject, "import_module", import_owner)
-    monkeypatch.setattr(
-        subject,
-        "_build_identity_payload",
-        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
-    )
+    monkeypatch.setattr(subject, "_build_identity_payload", _identity)
     data: dict[str, dict[str, str]] = {"force_include": {}}
 
     hook = _hook(tmp_path)
@@ -170,11 +171,7 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
     monkeypatch.setattr(
         subject, "_node_projection", lambda _root, _directory: (native, "py3-none-linux_x86_64")
     )
-    monkeypatch.setattr(
-        subject,
-        "_build_identity_payload",
-        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
-    )
+    monkeypatch.setattr(subject, "_build_identity_payload", _identity)
     monkeypatch.setattr(
         subprocess,
         "run",
@@ -306,11 +303,7 @@ def test_build_hook_rejects_absent_or_drifted_prepared_supply(
         extra.parent.mkdir()
         extra.write_text('{"name":"extra","version":"1.0.0"}\n', encoding="utf-8")
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
-    monkeypatch.setattr(
-        subject,
-        "_build_identity_payload",
-        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
-    )
+    monkeypatch.setattr(subject, "_build_identity_payload", _identity)
 
     with pytest.raises(RuntimeError, match=expected):
         _hook(tmp_path).initialize("standard", {"force_include": {}})
@@ -321,11 +314,7 @@ def test_sdist_carries_the_same_prepared_production_supply(
 ) -> None:
     supply = _prepared_supply(tmp_path)
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
-    monkeypatch.setattr(
-        subject,
-        "_build_identity_payload",
-        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
-    )
+    monkeypatch.setattr(subject, "_build_identity_payload", _identity)
     data: dict[str, dict[str, str]] = {"force_include": {}}
 
     hook = _hook(tmp_path, "sdist")
@@ -344,11 +333,7 @@ def test_wheel_projects_the_complete_native_runtime_with_a_platform_tag(
     native = tmp_path / "native-node"
     native.mkdir()
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
-    monkeypatch.setattr(
-        subject,
-        "_build_identity_payload",
-        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
-    )
+    monkeypatch.setattr(subject, "_build_identity_payload", _identity)
     monkeypatch.setattr(
         subject,
         "_node_projection",

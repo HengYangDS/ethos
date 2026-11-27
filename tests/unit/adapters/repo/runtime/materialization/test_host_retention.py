@@ -121,6 +121,9 @@ def test_a_consumer_whose_path_is_gone_keeps_its_record_and_installation(
     assert report["retired"] == []
     gone = left in {"nothing", "parent-file"}
     assert report["absent"] == ([repository.as_posix()] if gone else [])
+    reason = {"link": "dangling_link", "file": "not_a_directory"}.get(left)
+    unread = [{"consumer": repository.as_posix(), "reason": reason}] if reason else []
+    assert report["unread"] == unread
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 
@@ -145,6 +148,8 @@ def test_a_consumer_whose_selectors_cannot_be_looked_at_keeps_its_installation(
 
     assert runtime.exists()
     assert (report["retired"], report["absent"]) == ([], [])
+    reason = "unanswered" if closed == ".." else "selection_unread"
+    assert report["unread"] == [{"consumer": repository.as_posix(), "reason": reason}]
     assert list(installation_consumers(runtime.parents[1]).values()) == [repository]
 
 
@@ -178,6 +183,7 @@ def test_a_record_of_a_path_that_no_host_can_be_asked_about_ends_no_cleanup(
 
     assert kept.exists()
     assert (report["retired"], report["absent"]) == ([old.parents[1].as_posix()], [])
+    assert [row["reason"] for row in report["unread"]] == ["unanswered"]
 
 
 def test_unrecorded_installations_are_never_retired(tmp_path: Path) -> None:

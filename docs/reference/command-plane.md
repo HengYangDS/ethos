@@ -189,8 +189,12 @@ records; only `--expect-plan <digest> --apply --authorize` retires that plan. Wi
 three words release exactly that plan's records; it removes no installation. With
 `--release-absent` the grace period is not read. A release that fails in the middle is blocked,
 and its result still names the records it released; a planned record whose path was not read
-absent again stays, named in `data.not_released` with the reason `present` or `unknown`. A store
-that the host cannot look at is a required gap, not an empty plan.
+absent again stays, named in `data.not_released` with the reason `present` or `unknown`. A record
+whose consumer path is neither a directory nor absent is never planned; the preview names it in
+`data.unread` with the reason `unanswered` (the host does not let it look), `dangling_link` or
+`not_a_directory`, and the cleanup that ends `ethos hook install` names its consumer in `unread`,
+where `selection_unread` marks a repository whose selection could not be read. A store that the
+host cannot look at is a required gap, not an empty plan.
 
 `ethos hook retire-records --json` previews which Git-common store records may retire and writes the
 plan of every owned, unnamed record older than its floor; the selected runtime alone runs it, and

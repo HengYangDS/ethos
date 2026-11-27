@@ -32,12 +32,11 @@ from ethos.adapters.repo.runtime.host_store import record_consumer
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import named_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_lock
+from ethos.contracts.digest import is_hex
 from ethos.repository.paradigm.parameters import seconds
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-_HEX = frozenset("0123456789abcdef")
 
 
 def retire_unused_installations(
@@ -47,10 +46,11 @@ def retire_unused_installations(
     retired: list[str] = []
     retained: list[str] = []
     absent: set[str] = set()
+    unread: dict[str, str] = {}
     unrecorded = 0
     references: frozenset[Path] | None = None
     if not store.is_dir() or store.is_symlink():
-        return {"retired": retired, "retained": retained, "unrecorded": unrecorded, "absent": []}
+        return {"retired": [], "retained": [], "unrecorded": 0, "absent": [], "unread": []}
     with FileLock(
         store / "install.lock",
         timeout=seconds("lock"),
@@ -66,12 +66,11 @@ def retire_unused_installations(
                 continue
             needed = False
             for record, consumer in consumers.items():
-                state = _consumer_state(consumer, installation)
+                state, reason = _consumer_reading(consumer, installation)
                 if state == "released":
                     record.unlink(missing_ok=True)
                 else:
-                    if state == "absent" and consumer is not None:
-                        absent.add(consumer.as_posix())
+                    _note_kept(consumer, state, reason, absent, unread)
                     needed = True
             if not needed:
                 references = in_use() if references is None else references
@@ -86,27 +85,54 @@ def retire_unused_installations(
         "retained": retained,
         "unrecorded": unrecorded,
         "absent": sorted(absent),
+        "unread": [{"consumer": path, "reason": unread[path]} for path in sorted(unread)],
     }
 
 
-def _consumer_state(
-    consumer: Path | None, installation: Path
-) -> Literal["needs", "released", "unknown", "absent"]:
-    """Say whether a consumer needs the installation; a missing path is never released."""
+type _ConsumerState = Literal["needs", "released", "unknown", "absent"]
+
+
+def _note_kept(
+    consumer: Path | None, state: str, reason: str, absent: set[str], unread: dict[str, str]
+) -> None:
+    """File a kept consumer under what its path said: absent, or unread with the reason."""
     if consumer is None:
-        return "unknown"
+        return
+    if state == "absent":
+        absent.add(consumer.as_posix())
+    elif reason:
+        unread[consumer.as_posix()] = reason
+
+
+def _consumer_state(consumer: Path | None, installation: Path) -> _ConsumerState:
+    """Say whether a consumer needs the installation; a missing path is never released."""
+    return _consumer_reading(consumer, installation)[0]
+
+
+def _place(consumer: Path) -> str:
+    """Say what stands at a consumer's path: `directory`, `absent`, or why it was not read."""
     try:
-        # The host's own status is asked, so a path that cannot be looked at is unknown on every
+        # The host's own status is asked, so a path that cannot be looked at is unread on every
         # interpreter. A file left at the path does not say what stood there.
         if not stat.S_ISDIR(consumer.stat().st_mode):
-            return "unknown"
+            return "not_a_directory"
     except (FileNotFoundError, NotADirectoryError):
         # Gone, unless a link that names nothing stands there: it does not say it either.
-        return "unknown" if consumer.is_symlink() else "absent"
+        return "dangling_link" if consumer.is_symlink() else "absent"
     except (OSError, ValueError):
-        # A record whose path no host can be asked about, such as one with a null character,
-        # is unknown as well.
-        return "unknown"
+        # A directory that may not be searched, or a record whose path no host can be asked
+        # about, such as one with a null character.
+        return "unanswered"
+    return "directory"
+
+
+def _consumer_reading(consumer: Path | None, installation: Path) -> tuple[_ConsumerState, str]:
+    """Return a consumer's state and, for an unknown one, the reason it was not read."""
+    if consumer is None:
+        return "unknown", ""
+    place = _place(consumer)
+    if place != "directory":
+        return ("absent", "") if place == "absent" else ("unknown", place)
     try:
         # A held selection lock is a selection in progress, which may be about to name this
         # installation; its Timeout is an OSError, so the consumer's liveness stays unknown.
@@ -116,14 +142,13 @@ def _consumer_state(
         with lock.acquire(blocking=False) if lock is not None else contextlib.nullcontext():
             named = [named_runtime(consumer, name) for name in ("CURRENT", "ROLLBACK")]
     except (OSError, UnicodeError, ValueError):
-        return "unknown"
-    return (
-        "needs" if any(path and path.is_relative_to(installation) for path in named) else "released"
-    )
+        return "unknown", "selection_unread"
+    needs = any(path and path.is_relative_to(installation) for path in named)
+    return ("needs" if needs else "released"), ""
 
 
 def _index(value: str) -> bool:
-    return len(value) == 16 and not set(value) - _HEX
+    return is_hex(value, 16)
 
 
 def legacy_supply(
@@ -265,7 +290,7 @@ def absent_consumers(
         preserve_lock_file=True,
     ):
         rows, kept = _absent_rows(store, consumers)
-        report = _absent_report(rows, kept)
+        report = _absent_report(rows, kept) | {"unread": _unread_records(store)}
         if apply:
             if expected_plan != report["plan_digest"]:
                 message = "host_store_plan_changed"
@@ -336,6 +361,18 @@ def _absent_records(installation: Path) -> list[tuple[Path, Path]]:
     ]
 
 
+def _unread_records(store: Path) -> list[dict[str, str]]:
+    """Name each record whose consumer path reads neither a directory nor absent, with why."""
+    return [
+        {"installation": installation.as_posix(), "record": record.name}
+        | {"consumer": consumer.as_posix(), "reason": place}
+        for installation in sorted(store.iterdir())
+        if _index(installation.name) and _directory(installation)
+        for record, consumer in (installation_consumers(installation) or {}).items()
+        if consumer is not None and (place := _place(consumer)) not in {"directory", "absent"}
+    ]
+
+
 def _absent_report(rows: list[_AbsentRow], kept: list[Path]) -> dict[str, object]:
     sizes = {installation: _size(installation) for installation, *_row in rows}
     planned = [
@@ -355,6 +392,7 @@ def _absent_report(rows: list[_AbsentRow], kept: list[Path]) -> dict[str, object
         ],
         "held_bytes": sum(sizes.values()),
         "kept": [{"installation": path.as_posix(), "reason": "uncertain"} for path in kept],
+        "unread": [],
         "released": [],
         "not_released": [],
     }

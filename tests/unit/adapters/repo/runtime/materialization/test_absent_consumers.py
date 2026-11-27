@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 from typing import TYPE_CHECKING
 
 import pytest
@@ -90,13 +92,48 @@ def test_a_place_the_host_cannot_look_at_is_unknown_and_is_never_planned(
 
     assert path_absent(closed / "inside/.git") is None
     assert path_absent(closed / "none/.git") is None
-    assert host.plan()["absent"] == []
+    plan = host.plan()
+    assert plan["absent"] == []
+    unread = [(row["record"], row["reason"]) for row in plan["unread"]]
+    assert unread == [("known", "unanswered"), ("lost", "unanswered")]
     assert absent_consumers(tmp_path / "no-store", consumers=(), apply=False)["absent"] == []
     with pytest.raises(ValueError, match="Permission denied"):
         absent_consumers(closed / "inside", consumers=(), apply=False)
     with pytest.raises(ValueError, match="host_store_plan_changed"):
         host.plan(apply=True, expect="0" * 64)
     assert len(installation_consumers(installation) or {}) == 2
+
+
+@pytest.mark.parametrize(
+    ("left", "reason"),
+    [
+        ("file", "not_a_directory"),
+        pytest.param(
+            "link",
+            "dangling_link",
+            marks=pytest.mark.skipif(os.name == "nt", reason="a link needs a privilege"),
+        ),
+    ],
+)
+def test_the_preview_names_a_record_whose_consumer_it_could_not_read(
+    tmp_path: Path, left: str, reason: str
+) -> None:
+    """A file or a dangling link at a consumer's path is kept, unplanned and named with why."""
+    host = _Host(tmp_path)
+    common = host.repository("moved")
+    installation = host.installation("1", common)
+    shutil.rmtree(common)
+    if left == "file":
+        common.write_text("gitdir: ../elsewhere\n", encoding="utf-8")
+    else:
+        common.symlink_to(host.base / "unmounted/.git", target_is_directory=True)
+
+    report = host.plan()
+
+    (record,) = installation_consumers(installation) or {}
+    row = {"installation": installation.as_posix(), "record": record.name}
+    assert report["absent"] == []
+    assert report["unread"] == [row | {"consumer": common.as_posix(), "reason": reason}]
 
 
 def test_the_preview_names_exactly_the_absent_records_and_changes_nothing(tmp_path: Path) -> None:
@@ -118,6 +155,7 @@ def test_the_preview_names_exactly_the_absent_records_and_changes_nothing(tmp_pa
     assert all(row["bytes"] >= 1024 and row["named_by"] == [] for row in plan["absent"])
     assert plan["held_bytes"] == sum(row["bytes"] for row in plan["absent"])
     assert (plan["released"], plan["kept"], host.listing()) == ([], [], before)
+    assert plan["unread"] == []
     assert host.plan(live)["plan_digest"] == plan["plan_digest"]
 
 

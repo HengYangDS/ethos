@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests.architecture.ci.test_github_commit_scope import REGULAR
+
 # A rehearsal runs alone: a dispatch that also names another mode rehearses nothing.
-ALONE = "!inputs.supply_image && !inputs.release_tag && !inputs.journey_tag && !inputs.scan_tag"
 HEAD = (
-    f"{ALONE} && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != ''"
+    f"{REGULAR} && github.event_name == 'workflow_dispatch' && inputs.rehearse_head != ''"
     " && inputs.rehearse_head == github.sha"
 )
 LEGS = ("rehearsal-platforms", "rehearsal-assets", "rehearsal-journey")

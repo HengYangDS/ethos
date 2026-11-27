@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 from contextlib import nullcontext
+from contextlib import suppress
 from functools import partial
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -16,6 +18,7 @@ import tools.ci.delivery.acceptance.acquisition as acquisition
 import tools.ci.delivery.acceptance.journey as journey
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import render_release_mirror
 from tests.support.governed_repository import write_tree
 from tools.ci import sessions
 
@@ -37,6 +40,7 @@ DIGEST, ELSE = (hashlib.sha256(body).hexdigest() for body in (b"archive", b"othe
 
 BUILT = "build/artifacts/native/0123/ethos-0.2.0b13.tar.gz"
 DECLARATION = f"ethos-{VERSION}.mise.toml"
+SUBJECT, NAMED = f"v{VERSION}", ("v0.2.0-beta.12", "v0.2.0-beta.11")
 
 
 def _assembly(home: Path, listed: str = DIGEST, declared: str = DIGEST) -> Path:
@@ -146,27 +150,48 @@ def test_an_archive_the_assembly_does_not_name_is_refused_before_any_install(
         assert str(refused.value) == f"release_journey_checksum_mismatch:{ARCHIVE}"
 
 
-RECORD = '\n[release.upgrade_from]\n"0.2.0-beta.12" = "attested-main"\n'
+RECORD = (
+    '\n[release.upgrade_from]\n"0.2.0-beta.12" = "attested-main"\n'
+    '"0.2.0-beta.11" = "attested-main"\n'
+)
 
 
 @pytest.mark.parametrize(
-    ("record", "previous", "source"), [(RECORD, 1, "record"), ("", 0, "changelog")]
+    ("record", "qualified", "receipt"),
+    [
+        (RECORD, [(SUBJECT, NAMED)], ("passed", "record", None)),
+        ("", [(SUBJECT, ())], ("passed", "changelog", None)),
+        (
+            RECORD.replace('11" = "attested', '11" = "rc'),
+            [],
+            ("failed", None, "release_upgrade_from_invalid"),
+        ),
+    ],
 )
 def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_head(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str, previous: int, source: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    record: str,
+    qualified: list[object],
+    receipt: tuple[object, ...],
 ) -> None:
-    """The subject and its predecessors are the head's commit; the receipt names their source."""
+    """The subject and its predecessors are the head's commit; the receipt names their source.
+
+    A head whose record its reader refuses qualifies nothing and still leaves its failed receipt.
+    """
     repo = init_git_repo(tmp_path / "product")
-    binding = '[release]\nmirror = "independent"\n'
+    binding = render_release_mirror("independent")
     tree = {"VERSION": f"{VERSION}\n", "CHANGELOG.md": CHANGELOG}
     write_tree(repo, {**tree, ".ethos/release.toml": binding + record})
     commit_fixture(repo, "chore: declare the release")
     edited = binding + RECORD.replace("0.2.0-beta.12", "0.2.0-beta.9")
     write_tree(repo, {"VERSION": "0.2.0-beta.14\n", ".ethos/release.toml": edited})
-    calls: list[dict[str, object]] = []
+    calls: list[tuple[object, ...]] = []
 
-    def qualify(tag: str, **options: object) -> dict[str, object]:
-        calls.append({"tag": tag, **options})
+    def qualify(
+        tag: str, *, previous: tuple[str, ...], assembly: Path, **_: object
+    ) -> dict[str, object]:
+        calls.append((tag, previous, assembly.name))
         return {}
 
     monkeypatch.setattr(journey, "qualify", qualify)
@@ -175,12 +200,12 @@ def test_a_rehearsal_names_its_subject_and_its_predecessors_from_the_committed_h
     session, evidence = Mock(), tmp_path / "journey.json"
     session.error.side_effect = AssertionError
 
-    journey.run(session, assembly=tmp_path / "assembly", evidence=evidence, work=tmp_path / "w")
+    with suppress(AssertionError):
+        journey.run(session, assembly=tmp_path / "assembly", evidence=evidence, work=tmp_path / "w")
 
-    (call,) = calls
-    assert (call["tag"], call["assembly"]) == (f"v{VERSION}", tmp_path / "assembly")
-    assert call["previous"] == ("v0.2.0-beta.12",)[:previous]
-    assert call["receipt"]["previous_source"] == source
+    written = json.loads(evidence.read_text(encoding="utf-8"))
+    assert calls == [(*named, "assembly") for named in qualified]
+    assert (written["state"], written.get("previous_source"), written.get("error")) == receipt
 
 
 def test_the_session_takes_a_tag_or_an_assembly_and_never_both() -> None:

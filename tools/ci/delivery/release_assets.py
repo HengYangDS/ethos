@@ -308,20 +308,26 @@ def main(arguments: list[str] | None = None) -> int:
     named.add_argument("--version-file", type=Path)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    # The release's download prefix; the tag is appended here, so a step names the tag once.
-    parser.add_argument("--base-url", required=True)
+    # The release's download prefix; the tag is appended here, so a step names the tag once. It
+    # is not `--base-url`, which held the tag: the publication runs a tag's copy of this file from
+    # the default branch's workflow, and a renamed flag refuses that skew in either direction.
+    parser.add_argument("--download-prefix", required=True)
     parser.add_argument("--changelog", type=Path, required=True)
     parser.add_argument("--required", required=True)
     parser.add_argument("--optional", default="")
     parser.add_argument("--expect-head", required=True)
     options = parser.parse_args(arguments)
-    tag = options.tag or f"v{options.version_file.read_text(encoding='utf-8').strip()}"
+    # Only the line ending is dropped, as the shell's read did; any other padding fails the
+    # prerelease form in `assemble`.
+    tag = options.tag
+    if tag is None:
+        tag = "v" + options.version_file.read_text(encoding="utf-8").rstrip("\n")
     required, optional = declared_hosts(options.required, options.optional)
     sums = assemble(
         options.source,
         options.output,
         tag=tag,
-        base_url=f"{options.base_url.rstrip('/')}/{tag}",
+        base_url=f"{options.download_prefix.rstrip('/')}/{tag}",
         changelog=options.changelog,
         required=required,
         optional=optional,

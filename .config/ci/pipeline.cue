@@ -772,7 +772,7 @@ github: {
 			}, {
 				// The assembler admits only archives whose qualification evidence matches their bytes.
 				name: "Assemble the qualified release assets"
-				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} \(releaseHosts)"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ inputs.release_head }} \(releaseHosts)"
 			}, {
 				// Mise's github backend verifies these attestations when it installs a pinned release;
 				// they also bind each runtime archive's two inventories to the release workflow, and
@@ -880,7 +880,7 @@ github: {
 			}, {
 				// The version file is the product version's one carrier; the tag does not exist yet.
 				name: "Assemble the rehearsed release assets"
-				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --version-file VERSION --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ github.sha }} \(releaseHosts)"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --version-file VERSION --source build/release/inputs --output build/release/out --download-prefix https://github.com/${{ github.repository }}/releases/download --changelog CHANGELOG.md --expect-head ${{ github.sha }} \(releaseHosts)"
 			}, {
 				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				// Only the small files travel: each journey leg takes its archive from its own

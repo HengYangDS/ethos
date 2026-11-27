@@ -34,6 +34,7 @@ from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.upgrade_from import recorded_upgrade_from
 from ethos.adapters.toolchain.mise import mise_version
 from ethos.contracts.digest import file_sha256
+from ethos.contracts.outcome import refuse
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from tools.ci.delivery.acceptance.acquisition import PRERELEASE
 from tools.ci.delivery.acceptance.acquisition import acquire
@@ -317,18 +318,22 @@ def qualify(
     return receipt
 
 
-def rehearsal_identity(root: Path) -> tuple[str, dict[str, str] | None]:
-    """Read what a rehearsal qualifies from its head's commit: the version and the predecessors.
+def rehearsal_subject(root: Path) -> tuple[str, tuple[str, ...], str]:
+    """Read what a rehearsal qualifies from its head: its tag, its predecessors and their source.
 
-    Both come from the committed head, so an edit in the working tree changes neither. The
+    All come from the committed head, so an edit in the working tree changes none. The
     predecessors are the releases of `[release.upgrade_from]` in the head's release binding, or
-    None where it records none; a record that its reader refuses stops the rehearsal by its gaps.
+    none, which leaves them to the changelog, where it records none. A record that its reader
+    refuses, or a version that is no prerelease, stops the rehearsal.
     """
-    version = committed_release_version(root, "HEAD")["version"]
+    tag = f"v{committed_release_version(root, 'HEAD')['version']}"
     names, gaps = recorded_upgrade_from(root, "HEAD")
     if gaps:
-        raise ValueError(",".join(gaps))
-    return version, names
+        refuse(*gaps)
+    if PRERELEASE.fullmatch(tag) is None:
+        message = f"release journey needs a prerelease version, not {tag!r}"
+        raise ValueError(message)
+    return tag, tuple(f"v{name}" for name in names or ()), "record" if names else "changelog"
 
 
 def run(
@@ -360,12 +365,8 @@ def run(
         # A rehearsal reads its subject inside the receipt's reach, so a head that cannot name one
         # still leaves a failed receipt.
         if assembly is not None:
-            version, names = rehearsal_identity(ROOT)
-            tag, previous = f"v{version}", tuple(f"v{name}" for name in names or ())
-            payload |= {"tag": tag, "previous_source": "record" if names else "changelog"}
-            if PRERELEASE.fullmatch(tag) is None:
-                message = f"release journey needs a prerelease version, not {tag!r}"
-                raise ValueError(message)
+            tag, previous, source = rehearsal_subject(ROOT)
+            payload |= {"tag": tag, "previous_source": source}
         with acceptance_observation(events, head=tag, wheel_sha256=""):
             try:
                 if work.exists():
